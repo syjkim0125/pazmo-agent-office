@@ -1,0 +1,22 @@
+[
+  {
+    "command": "node /private/tmp/pazmo-workflow-official-3.1.1/package/bin/ai-workflow-kit.mjs doctor --root .",
+    "exit_code": 0,
+    "output": "PASS  Codex skill: .agents/skills/workflow\nPASS  AGENTS.md routing block: AGENTS.md\nPASS  Story template: templates/ai-workflow/STORY.md\nPASS  Task template: templates/ai-workflow/TASK.md\nPASS  Checker: .ai-workflow/bin/check.mjs\nPASS  Checker reaches git: .ai-workflow/bin/check.mjs"
+  },
+  {
+    "command": "node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md",
+    "exit_code": 0,
+    "output": "PASS\nNOTE  Status is not Delivered, so the G4 understanding gate was not checked."
+  },
+  {
+    "command": "node .ai-workflow/bin/check.mjs gate G1 docs/understanding/pazmo-agent-office-contract.md",
+    "exit_code": 0,
+    "output": "PASS"
+  },
+  {
+    "command": "node .ai-workflow/bin/check.mjs task docs/tasks/U1-source-baseline.md",
+    "exit_code": 0,
+    "output": "PASS"
+  }
+]

@@ -1,0 +1,174 @@
+<!doctype html>
+<html>
+  <head>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        width: 720pt;
+        height: 405pt;
+        font-family:
+          "Pretendard",
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #ffffff;
+        padding: 40pt 48pt;
+        display: flex;
+        flex-direction: column;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Header -->
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24pt">
+      <div style="display: flex; align-items: center; gap: 12pt">
+        <p
+          style="
+            display: inline-block;
+            padding: 4pt 10pt;
+            background: #c0392b;
+            color: #ffffff;
+            border-radius: 4pt;
+            font-size: 8pt;
+            font-weight: 600;
+          "
+        >
+          06
+        </p>
+        <h2 style="font-size: 24pt; font-weight: 600; color: #1a1a1a">Getting Started</h2>
+      </div>
+      <p style="font-size: 10pt; color: #999999">11</p>
+    </div>
+
+    <!-- Steps -->
+    <div style="flex: 1; display: flex; flex-direction: column; gap: 14pt">
+      <!-- Step 1 -->
+      <div
+        style="
+          display: flex;
+          gap: 16pt;
+          align-items: flex-start;
+          background: #f5f5f0;
+          border-radius: 8pt;
+          padding: 16pt;
+        "
+      >
+        <div
+          style="
+            width: 28pt;
+            height: 28pt;
+            background: #0f0f0f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          "
+        >
+          <p style="font-size: 12pt; font-weight: 600; color: #ffffff">1</p>
+        </div>
+        <div>
+          <p style="font-size: 14pt; font-weight: 600; color: #1a1a1a">Clone and Install</p>
+          <p style="font-size: 11pt; color: #666666; margin-top: 4pt">
+            git clone https://github.com/GreenSheep01201/claw-empire.git
+          </p>
+          <p style="font-size: 11pt; color: #666666">cd claw-empire &amp;&amp; pnpm install</p>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div
+        style="
+          display: flex;
+          gap: 16pt;
+          align-items: flex-start;
+          background: #f5f5f0;
+          border-radius: 8pt;
+          padding: 16pt;
+        "
+      >
+        <div
+          style="
+            width: 28pt;
+            height: 28pt;
+            background: #0f0f0f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          "
+        >
+          <p style="font-size: 12pt; font-weight: 600; color: #ffffff">2</p>
+        </div>
+        <div>
+          <p style="font-size: 14pt; font-weight: 600; color: #1a1a1a">Configure AI Providers</p>
+          <p style="font-size: 11pt; color: #666666; margin-top: 4pt">
+            Set up API keys for Claude Code, Codex CLI, Gemini CLI, or other supported providers via the Settings panel.
+          </p>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div
+        style="
+          display: flex;
+          gap: 16pt;
+          align-items: flex-start;
+          background: #f5f5f0;
+          border-radius: 8pt;
+          padding: 16pt;
+        "
+      >
+        <div
+          style="
+            width: 28pt;
+            height: 28pt;
+            background: #0f0f0f;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+          "
+        >
+          <p style="font-size: 12pt; font-weight: 600; color: #ffffff">3</p>
+        </div>
+        <div>
+          <p style="font-size: 14pt; font-weight: 600; color: #1a1a1a">Launch the Office</p>
+          <p style="font-size: 11pt; color: #666666; margin-top: 4pt">
+            pnpm dev - Opens your pixel-art CEO office at localhost:5173. Start issuing tasks from the Kanban board!
+          </p>
+        </div>
+      </div>
+
+      <!-- Prerequisites note -->
+      <div
+        style="
+          background: #0f0f0f;
+          border-radius: 8pt;
+          padding: 14pt 18pt;
+          display: flex;
+          align-items: center;
+          gap: 12pt;
+        "
+      >
+        <p style="font-size: 10pt; color: #c0392b; font-weight: 600">PREREQUISITES</p>
+        <p style="font-size: 11pt; color: #cccccc">Node.js 22+ / pnpm / git / At least one AI CLI installed</p>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="display: flex; justify-content: flex-end; padding-top: 12pt">
+      <p style="font-size: 9pt; color: #999999">github.com/GreenSheep01201/claw-empire</p>
+    </div>
+  </body>
+</html>

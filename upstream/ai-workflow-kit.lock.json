@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "repository": "syjkim0125/ai-workflow-kit",
+  "commit": "ea0f2a2e10872ef85b379afc1ee25835f446a763",
+  "license": "MIT",
+  "runtime_dependency": false,
+  "copied_templates": [
+    {
+      "source": "skills/workflow/assets/STORY.md",
+      "destination": "templates/ai-workflow/STORY.md",
+      "blob": "ab0da68bc17e1657e08bfe56bc384ddc615ec1c3"
+    },
+    {
+      "source": "skills/workflow/assets/TASK.md",
+      "destination": "templates/ai-workflow/TASK.md",
+      "blob": "6d9a127ea8fb9dd49dac027ab8423ee4b2378a35"
+    }
+  ],
+  "license_copy": {
+    "destination": "licenses/ai-workflow-kit-MIT.txt",
+    "blob": "9c432e70874900ce1dca6a0a926300744de89c3f"
+  },
+  "scope": "Templates and license copied exactly; destination Git blob hashes verified. Codex workflow tooling separately installed from verified official npm 3.1.1.",
+  "jira": "Already optional in inspected upstream; new product must retain tracker-independent execution.",
+  "workflow_tooling": {
+    "npm_version": "3.1.1",
+    "config": ".ai-workflow/config.json",
+    "license": "licenses/ai-workflow-kit-MIT.txt",
+    "runtime_dependency": false
+  }
+}

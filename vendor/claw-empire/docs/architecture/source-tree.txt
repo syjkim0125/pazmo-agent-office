@@ -1,0 +1,55 @@
+climpire
+├── docs/
+│   ├── architecture/
+│   │   ├── architecture.json
+│   │   ├── backend-dependencies.mmd
+│   │   ├── CEO-STRUCTURE-MAP.md
+│   │   ├── frontend-imports.mmd
+│   │   ├── org-chart.mmd
+│   │   ├── README.md
+│   │   └── source-tree.txt
+│   └── DESIGN.md
+├── public/
+│   ├── public/sprites/ (61 sprite files)
+│   └── climpire.svg
+├── scripts/
+│   └── generate-architecture-report.mjs
+├── server/
+│   └── index.ts
+├── src/
+│   ├── assets/
+│   ├── components/
+│   │   ├── AgentAvatar.tsx
+│   │   ├── AgentDetail.tsx
+│   │   ├── AgentSelect.tsx
+│   │   ├── ChatPanel.tsx
+│   │   ├── Dashboard.tsx
+│   │   ├── MessageContent.tsx
+│   │   ├── OfficeView.tsx
+│   │   ├── SettingsPanel.tsx
+│   │   ├── Sidebar.tsx
+│   │   ├── TaskBoard.tsx
+│   │   └── TerminalPanel.tsx
+│   ├── game/
+│   ├── hooks/
+│   │   ├── usePolling.ts
+│   │   └── useWebSocket.ts
+│   ├── pages/
+│   ├── types/
+│   │   └── index.ts
+│   ├── api.ts
+│   ├── App.tsx
+│   ├── index.css
+│   └── main.tsx
+├── .env
+├── .env.example
+├── .gitignore
+├── index.html
+├── package.json
+├── pnpm-lock.yaml
+├── tsconfig.app.json
+├── tsconfig.app.tsbuildinfo
+├── tsconfig.json
+├── tsconfig.node.json
+├── tsconfig.node.tsbuildinfo
+└── vite.config.ts
