@@ -1,0 +1,6 @@
+[submodule "claw-empire/tools/ppt_team_agent"]
+	path = vendor/claw-empire/tools/ppt_team_agent
+	url = https://github.com/GreenSheep01201/ppt_team_agent
+[submodule "claw-empire/tools/playwright-mcp"]
+	path = vendor/claw-empire/tools/playwright-mcp
+	url = https://github.com/microsoft/playwright-mcp.git

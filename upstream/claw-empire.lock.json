@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "repository": "GreenSheep01201/claw-empire",
+  "release_tag": "v2.0.4",
+  "release_id": 296293567,
+  "release_published_at": "2026-03-12T17:02:57Z",
+  "checked_at": "2026-09-17",
+  "draft": false,
+  "prerelease": false,
+  "commit": "5c928b24ffa55b403fe7c5521d4ac3ac49516137",
+  "tree": "3ca77ccbebc879fa80997a374288285531aa6b26",
+  "destination": "vendor/claw-empire",
+  "license": "Apache-2.0",
+  "gitlinks": [
+    {
+      "path": "tools/playwright-mcp",
+      "repository": "microsoft/playwright-mcp",
+      "commit": "066e54b6eac6af877924fcba38d7a34d3ee39329"
+    },
+    {
+      "path": "tools/ppt_team_agent",
+      "repository": "GreenSheep01201/ppt_team_agent",
+      "commit": "cfe7781859de9796ede69b9130a5ec69a0fc139b"
+    }
+  ],
+  "import_status": "verified_local_original_with_sanitized_publication",
+  "source_tree_verified_in_destination": false,
+  "blocker": null,
+  "verification": {
+    "build": "not_run",
+    "tests": "not_run",
+    "codex_live": "not_run",
+    "npm_install": "not_run"
+  },
+  "note": "The exact original import is preserved locally, not in published ancestry. Published source differs only in server/oauth/helpers.ts; see modifications. Runtime and full license audit remain unverified.",
+  "import_commit": "8e25d7c5ea42d03e202d1599338f3a76d61d05fe",
+  "import_verified_at": "2026-09-18",
+  "import_evidence": "docs/verification/2026-09-18-source-import.md",
+  "original_source_tree_verified_locally": true,
+  "original_import_local_ref": "codex/local-original-claw-v2.0.4",
+  "published_tree": "d1263143c625cf5270a9cf5eaa1c70d3d7025bcd",
+  "published_tree_matches_original": false,
+  "modifications": "upstream/CHANGES.md",
+  "publication_evidence": "docs/verification/2026-09-18-publication.md"
+}

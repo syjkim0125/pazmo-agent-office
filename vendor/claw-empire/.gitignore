@@ -1,0 +1,69 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Runtime artifacts
+logs/
+data/
+custom-skills/
+/tasks/
+*.log
+*.pid
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.sqlite-journal
+
+# Environment and local secrets
+.env
+.env.*
+!.env.example
+.direnv/
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.crt
+id_rsa
+id_ed25519
+credentials.json
+secrets*.json
+
+# Local reports/worktrees
+docs/reports/*
+!docs/reports/Sample_Slides/
+!docs/reports/Sample_Slides/**
+!docs/reports/PPT_Sample.pptx
+docs/.bkit-*
+docs/.pdca-*
+.climpire-worktrees/
+.climpire/
+
+# IDE / Editor / AI
+.vscode/
+.idea/
+CLAUDE.md
+tasks.md
+*.swp
+*.swo
+*~
+
+# Coverage / test artifacts
+coverage/
+.nyc_output/
+
+# NPM auth
+.npmrc
+
+# Local AI assistant artifacts
+.agents/
+.claude/
+skills-lock.json
+
+# OS metadata
+.DS_Store
+Thumbs.db
+
+# Playwright artifacts
+test-results/

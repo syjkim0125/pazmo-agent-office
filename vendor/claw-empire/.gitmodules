@@ -1,0 +1,6 @@
+[submodule "tools/ppt_team_agent"]
+	path = tools/ppt_team_agent
+	url = https://github.com/GreenSheep01201/ppt_team_agent
+[submodule "tools/playwright-mcp"]
+	path = tools/playwright-mcp
+	url = https://github.com/microsoft/playwright-mcp.git

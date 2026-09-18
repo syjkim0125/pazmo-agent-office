@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      width: 960pt;
+      height: 540pt;
+      font-family: 'Pretendard', sans-serif;
+      background: #0f0f0f;
+      padding: 48pt 56pt;
+      display: flex;
+      flex-direction: column;
+    }
+  </style>
+</head>
+<body>
+  <!-- Header -->
+  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 28pt;">
+    <div style="display: flex; align-items: center; gap: 12pt;">
+      <div style="background: #FF6347; border-radius: 4pt; padding: 4pt 10pt;">
+        <p style="font-size: 9pt; font-weight: 600; color: #ffffff;">05</p>
+      </div>
+      <h2 style="font-size: 28pt; font-weight: 600; color: #ffffff;">Tech Stack</h2>
+    </div>
+    <p style="font-size: 10pt; color: #666666;">07</p>
+  </div>
+
+  <!-- Tech Stack Grid -->
+  <div style="flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 24pt;">
+    <!-- Left Column -->
+    <div style="display: flex; flex-direction: column; gap: 16pt;">
+      <div style="background: #1a1a1a; border-radius: 10pt; padding: 22pt;">
+        <p style="font-size: 11pt; color: #FF6347; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12pt;">FRONTEND</p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">React 19</span> <span style="color: #888888;">+ Vite 7 + TypeScript 5.9</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">Tailwind CSS 4</span> <span style="color: #888888;">for styling</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">PixiJS 8</span> <span style="color: #888888;">for pixel art rendering</span></p>
+      </div>
+      <div style="background: #1a1a1a; border-radius: 10pt; padding: 22pt;">
+        <p style="font-size: 11pt; color: #4ECDC4; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12pt;">BACKEND</p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">Express 5</span> <span style="color: #888888;">+ Node.js >= 22</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">SQLite</span> <span style="color: #888888;">local database</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">WebSocket</span> <span style="color: #888888;">real-time sync</span></p>
+      </div>
+    </div>
+    <!-- Right Column -->
+    <div style="display: flex; flex-direction: column; gap: 16pt;">
+      <div style="background: #1a1a1a; border-radius: 10pt; padding: 22pt;">
+        <p style="font-size: 11pt; color: #BB8FCE; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12pt;">SECURITY</p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">AES-256-GCM</span> <span style="color: #888888;">encryption</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">Zod 4</span> <span style="color: #888888;">schema validation</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">Git Worktree</span> <span style="color: #888888;">isolated execution</span></p>
+      </div>
+      <div style="background: #1a1a1a; border-radius: 10pt; padding: 22pt;">
+        <p style="font-size: 11pt; color: #F7DC6F; font-weight: 600; letter-spacing: 0.05em; margin-bottom: 12pt;">TOOLING</p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">pnpm</span> <span style="color: #888888;">package manager</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">ESLint + Prettier</span> <span style="color: #888888;">code quality</span></p>
+        <p style="font-size: 14pt; color: #ffffff; line-height: 1.8;"><span style="font-weight: 600;">OpenClaw Gateway</span> <span style="color: #888888;">messenger bridge</span></p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
