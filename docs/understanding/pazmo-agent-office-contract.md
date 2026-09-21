@@ -35,6 +35,8 @@ Claw-Empire 기반의 독립 배포판에서 사용자가 프로젝트와 작업
 - D4. 2026-09-18 사용자 승인: Google OAuth 내장 자격증명 때문에 차단된 푸시를 해결하기 위해 원본 기준 commit은 로컬에 보존하고, 게시본의 내장 기본값 두 개를 제거한다. 게시 이력에 해당 값이 남지 않도록 이번 미게시 commit만 재구성한다. 근거: `docs/understanding/source-publication-decision.md`. 제품 runtime G3/G4 승인은 별개다.
 - D5. 2026-09-21 사용자가 지정한 지속 목표를 반영한다: 실제 프로젝트 요청→PM→Lead→Engineer→Reviewer→사용자 G4→인도, 피드백에 따른 수정·재검증과 후속 학습 재사용. 각 역할의 전체 workflow 중복 실행을 피하며 Office가 그래프를 소유한다. 기존 세 업무 모드·설치 검증 범위는 유지한다. 이 요청은 인증 위치 G3의 승인이나 실제 모델/사람 수용 검증을 대체하지 않는다.
 
+- D6. 사용자 명확화: ADK의 노드·분기·상태·역할별 흐름·제한된 피드백 루프 개념만 참고한다. ADK SDK/runtime·새 그래프 엔진을 도입하지 않는다. kit는 공통 업무 규칙, Office는 역할 실행·인계·공유 상태·권한·예산·격리를 맡는다. ai-workflow-kit 원본은 다른 세션이 수정하며 전달된 버전/규약을 Office에 연결한다.
+
 ## Verify
 - V1 [M1]. 잘못된 SHA·기존 vendor·dirty 파일에서 보존/중단을 확인하고 정상 import의 tree·mode·gitlink·라이선스를 비교한다. (T01–T02)
 - V2 [M2]. Jira 없는 전 과정, 선택 export 비활성/장애의 로컬 독립성, 서식·ID·승인 게이트를 시험한다. (T03–T05)

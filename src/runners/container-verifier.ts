@@ -131,6 +131,75 @@ export class ContainerVerifier {
     };
   }
 }
+/** Readonly remote roles share supervisor capture and container cleanup semantics. */
+async function runReadonlyRemote(
+  docker: DockerCommand,
+  candidate: Candidate,
+  job: RemoteJob,
+  beforeStart: (handle: string) => number | void,
+  signal?: AbortSignal,
+) {
+  let stdout = "";
+  const report = await runContainer(
+    docker,
+    candidate,
+    {
+      argv: ["node", "-e", "setInterval(()=>{},1000)"],
+      timeoutMs: job.timeoutMs,
+    },
+    beforeStart,
+    signal,
+    undefined,
+    {
+      ...job,
+      supervise: async (...args) => {
+        const result = await job.supervise(...args);
+        stdout = result.result.stdout;
+        return result;
+      },
+    },
+  );
+  return { report, stdout };
+}
+/** Readonly planning context; process/cleanup failures override apparent model success. */
+export class ContainerPlanner {
+  #docker: DockerCommand;
+  constructor(docker: DockerCommand) {
+    this.#docker = docker;
+  }
+  async run(
+    candidate: Candidate,
+    job: RemoteJob,
+    beforeStart: (handle: string) => number | void,
+    signal?: AbortSignal,
+  ) {
+    const { report, stdout } = await runReadonlyRemote(
+      this.#docker,
+      candidate,
+      job,
+      beforeStart,
+      signal,
+    );
+    const {
+      exitCode,
+      signal: terminalSignal,
+      timedOut,
+      error,
+      output,
+    } = report.observation;
+    return {
+      ...report,
+      result: {
+        exitCode,
+        signal: terminalSignal,
+        timedOut,
+        error,
+        stdout,
+        stderr: output,
+      },
+    };
+  }
+}
 /** Remote reviewer with an unconditionally readonly candidate mount. */
 export class ContainerReviewer {
   #docker: DockerCommand;
@@ -144,25 +213,12 @@ export class ContainerReviewer {
     beforeStart: (handle: string) => number | void,
     signal?: AbortSignal,
   ) {
-    let stdout = "";
-    const report = await runContainer(
+    const { report, stdout } = await runReadonlyRemote(
       this.#docker,
       candidate,
-      {
-        argv: ["node", "-e", "setInterval(()=>{},1000)"],
-        timeoutMs: job.timeoutMs,
-      },
+      job,
       beforeStart,
       signal,
-      undefined,
-      {
-        ...job,
-        supervise: async (...args) => {
-          const result = await job.supervise(...args);
-          stdout = result.result.stdout;
-          return result;
-        },
-      },
     );
     const o = report.observation;
     return {

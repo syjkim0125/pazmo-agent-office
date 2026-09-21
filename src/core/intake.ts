@@ -194,6 +194,30 @@ export class IntakeLedger {
       fail("INTAKE_STATE", "No planning role is pending.");
     return packet;
   }
+  /** A supervisor may interrupt only the still-pending conversation it owns. */
+  interrupt(id: string, revision: number, inputDigest: string, reason: string) {
+    return transaction(this.#db, () => {
+      const row = this.#row(id),
+        packet = JSON.parse(row.packet_json) as PlanningPacket;
+      if (
+        row.revision !== revision ||
+        packet.inputDigest !== inputDigest ||
+        row.task_status !== "inbox" ||
+        this.#publication(id) ||
+        !["waiting_pm", "waiting_lead"].includes(row.state)
+      )
+        return this.get(id);
+      return this.#advance(
+        row,
+        packet,
+        "human_required",
+        null,
+        "controller",
+        { error: reason },
+        reason,
+      );
+    });
+  }
   accept(
     id: string,
     revision: number,

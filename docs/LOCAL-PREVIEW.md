@@ -36,6 +36,8 @@ node bin/pazmo-office.mjs remove --project /absolute/path/to/project --data-dir 
 
 ## Preview limits
 
+The internal `PlanningCoordinator` runs PM then Lead against a controller-selected readonly snapshot, stopping for questions, a proposal or a failure. It shares the three execution slots with Engineer/Reviewer/tests and retains unknown slots after restart. There is no public model-launch route; the production authentication choice and remaining canaries are still pending. [Planning supervision evidence](verification/2026-09-21-planning-execution.md).
+
 An internal `OfficeCoordinator` now connects approved role context, Engineer, parallel registered checks/readonly review and up to two fixes. Its actual CLI/VM integration uses scripted model responses and stops at G4 waiting. This is not a public preview launch command, live model service or automatic capacity-wakeup scheduler. [Coordinator evidence](verification/2026-09-21-role-coordinator.md).
 
 Office, Dashboard and the empty Tasks board were exercised in the browser. The banner and Dashboard describe the lock. Creation controls on Dashboard/Tasks are disabled. Other imported controls are not supported workflows and may show an error; the server rejects all public mutations and unsupported APIs with 423. WebSocket orchestration is not connected, so the original UI displays Offline/Disconnected. No operator approval session is granted by `/api/auth/session`.
@@ -114,7 +116,7 @@ At startup, interrupted `checking` rounds become `human_required` with `CONTROLL
 
 Interrupted execution reservations also become `unknown` on restart and keep their slots occupied. The internal accounting caps all executions at three, with two Engineer slots and two automatic fixes. Offline test supervision/dispatch and an internal VM workspace job adapter are connected. The latter performs actual Codex file edits and result recovery in disposable integration tests. A readonly Codex Reviewer adapter joins a structured report on that candidate, with malformed output and cancellation refusing success. These use scripted model responses and have no public CLI launch command. See [evidence](verification/2026-09-21-codex-workspace-review.md). Authenticated model supervision is still unconnected. There is no operator command to discard unknown leases or force free slots.
 
-New instances use schema version 9. An owned version-1 through version-8 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
+New instances use schema version 10. An owned version-1 through version-9 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
 
 ### Planning requests and replies
 

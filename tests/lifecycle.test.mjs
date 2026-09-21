@@ -549,7 +549,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   const migrated = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
     readOnly: true,
   });
-  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 9);
+  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 10);
   assert.equal(
     migrated.prepare("SELECT COUNT(*) AS n FROM pazmo_task_contracts").get().n,
     0,
@@ -565,7 +565,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   );
 });
 
-for (const oldVersion of [2, 3, 4, 5, 6, 7, 8])
+for (const oldVersion of [2, 3, 4, 5, 6, 7, 8, 9])
   test(`owned v${oldVersion} migration backs up data before adding execution tables`, async (t) => {
     const { DatabaseSync } = await import("node:sqlite");
     const { applyBaseSchema } =
@@ -627,8 +627,9 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7, 8])
         "Preserve pending planning request.",
         "normal",
       );
-      db.exec("DROP TABLE pazmo_intake_publications");
+      if (oldVersion < 9) db.exec("DROP TABLE pazmo_intake_publications");
     }
+    db.exec("DROP TABLE IF EXISTS pazmo_planning_leases");
     db.prepare(
       "INSERT INTO tasks (id,title) VALUES ('preserved','Preserve v2 task')",
     ).run();
@@ -702,19 +703,21 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7, 8])
         1,
       );
       assert.equal(
-        original
-          .prepare(
-            "SELECT name FROM sqlite_master WHERE name='pazmo_intake_publications'",
-          )
-          .get(),
-        undefined,
+        Boolean(
+          original
+            .prepare(
+              "SELECT name FROM sqlite_master WHERE name='pazmo_intake_publications'",
+            )
+            .get(),
+        ),
+        oldVersion >= 9,
       );
     }
     original.close();
     const current = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
       readOnly: true,
     });
-    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 9);
+    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 10);
     assert.equal(
       current.prepare("SELECT count(*) n FROM pazmo_intake_publications").get()
         .n,
@@ -1174,4 +1177,53 @@ test("CLI registers, reviews and approves a contract without exposing operator c
     existsSync(join(state.dataDir, `operator-${running.instance}.json`)),
     false,
   );
+});
+
+test("service startup quarantines a running planning role and preserves its occupied slot", async (t) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { OfficeStore } = await import("../src/core/store.ts");
+  const { IntakeLedger } = await import("../src/core/intake.ts");
+  const { VerificationLedger } = await import("../src/core/verification.ts");
+  const { ExecutionLedger } = await import("../src/core/budgets.ts");
+  const f = setup(t);
+  assert.equal(call(f, "start", "--port", "0").status, 0);
+  assert.equal(call(f, "stop").status, 0);
+  const manifest = JSON.parse(
+    readFileSync(join(f.project, ".pazmo-office/manifest.json")),
+  );
+  const path = join(manifest.dataDir, "office.sqlite");
+  const db = new DatabaseSync(path),
+    token = "a".repeat(64),
+    store = new OfficeStore(db, manifest.project, token),
+    intake = new IntakeLedger(db, store, manifest.project),
+    verification = new VerificationLedger(db, store),
+    execution = new ExecutionLedger(db, store, verification, Date.now, intake);
+  const s = intake.create(token, "Review parser requirements.", "normal");
+  const lease = execution.reservePlanning(
+    s.taskId,
+    s.revision,
+    s.inputDigest,
+    "b".repeat(64),
+  );
+  execution.startPlanning(lease.id, "interrupted-pm");
+  db.close();
+  assert.equal(call(f, "start", "--port", "0").status, 0);
+  const current = call(f, "intake", "--task-id", s.taskId).value;
+  assert.equal(current.state, "human_required");
+  assert.equal(current.reason, "CONTROLLER_RESTARTED");
+  assert.equal(call(f, "stop").status, 0);
+  const saved = new DatabaseSync(path, { readOnly: true });
+  assert.equal(
+    saved
+      .prepare("SELECT state FROM pazmo_planning_leases WHERE id=?")
+      .get(lease.id).state,
+    "unknown",
+  );
+  assert.equal(
+    saved
+      .prepare("SELECT count(*) n FROM pazmo_intake_events WHERE task_id=?")
+      .get(s.taskId).n,
+    2,
+  );
+  saved.close();
 });

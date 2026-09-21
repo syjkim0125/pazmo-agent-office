@@ -23,7 +23,7 @@ import { applyBaseSchema } from "../../vendor/claw-empire/server/modules/bootstr
 import { applyDefaultSeeds } from "../../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { noSymlinks, packageRoot } from "../cli/project.ts";
 
-const schemaVersion = 9;
+const schemaVersion = 10;
 const supportedVersion = (version: number) =>
   Number.isInteger(version) && version >= 1 && version <= schemaVersion;
 
@@ -203,7 +203,13 @@ process.once("message", async (raw: unknown) => {
       const store = new OfficeStore(db, c.project, c.operatorToken);
       const intake = new IntakeLedger(db, store, c.project);
       const verification = new VerificationLedger(db, store);
-      const execution = new ExecutionLedger(db, store, verification);
+      const execution = new ExecutionLedger(
+        db,
+        store,
+        verification,
+        Date.now,
+        intake,
+      );
       const handoffs = new HandoffLedger(
         db,
         store,

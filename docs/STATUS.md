@@ -1,5 +1,6 @@
 # 진행 상태 — 2026-09-21
 
+- PM→팀장 내부 실행을 읽기 전용 VM 및 전체 실행 슬롯 3개에 연결했다. 질문·제안·실패에서 멈추고 취소/재시작 뒤 늦은 응답을 거부한다. root 258개, 타입 검사, 실제 VM 읽기/쓰기 차단/정리 시험 통과. 모델 응답은 fixture이며 실제 모델·UI·G4·pilot은 남아 있다. [증거와 범위](verification/2026-09-21-planning-execution.md).
 현재 브랜치 `codex/office-runtime-baseline`에 **로컬 CLI·읽기 전용 Office preview·operator 계약/승인 API**를 구현했다. main에 머지된 U1 checkpoint `8e14344e97ae5effd90bd5b00fff8334bab63425`에서 시작했다. 이 브랜치는 전체 Story가 진행 중인 구현 체크포인트이며, G4·live 검증·main 병합은 완료하지 않았다. 기본 checkout의 기존 사용자 파일은 보존했다. [체크포인트 범위와 검증](verification/2026-09-21-runtime-checkpoint.md).
 
 [실행/계약 승인 안내](LOCAL-PREVIEW.md) · [계약 구현 증거](verification/2026-09-19-contract-approvals.md) · [preview 검증·리뷰](verification/2026-09-18-runtime-baseline.md) · [VM 검증](verification/2026-09-18-vm-isolation.md) · [실행 환경 결정](understanding/native-runner-isolation-decision.md)
@@ -48,6 +49,8 @@
 - candidate 복사·내용/mode/link 검사, 실제 offline verifier와 G4 증거/답변 프로토콜을 연결했다. G4의 실제 diff와 Engineer 기준본 출처는 연결했으며 인증된 모델 실행, 의미 평가, 인도와 브라우저 승인 UI는 아직 없다. `ready`는 계약 승인 상태이며 `execution`은 여전히 `locked`다.
 
 ## 실행이 잠겨 있는 이유와 다음 결정
+
+2026-09-21 사용자 최종 정정: **ADK SDK/런타임은 도입하지 않고 graph engineering 설계 개념만 기존 kit에 적용한다.** kit는 역할별 단계·분기·검증·피드백 규칙을 제공하고 Office는 역할 배정·협업 메시지·각 agent 실행·공유 자원·사용자 접점을 맡는다. 앞선 ADK 기반 실행 엔진 해석은 잘못됐으며 [전달용 프롬프트](ai-workflow-kit-adk-handoff.md)를 정정했다. kit 원본은 다른 세션이 담당하며 이 세션은 수정하지 않았다. kit를 새 서버/범용 엔진으로 만들거나 Office 기능을 전면 이관하는 요구가 아니다. 기존 ledger/격리/승인 코드를 유지하고 kit에서 반환하는 역할별 규약과 연결한다. 인증 위치/G4 승인 대기는 별개로 유지한다.
 
 2026-09-21 지속 목표와의 차이: 요청·역할 대화의 저장, 답변, 제안 등록과 Engineer 이후 내부 흐름은 연결됐다. PM·Lead의 실제 실행과 저장소 문맥 수집·의존관계 배정, Office 작업 등록·대화·승인 UI, 후속 작업의 학습 조회, 인증된 모델의 실제 프로젝트 pilot 및 사용자의 실제 G4는 남아 있다. 다음은 PM·Lead 실행을 기존 공유 슬롯·예산과 종료/재시작 관리에 연결하는 작업이다. 세 업무 모드와 npm tarball 설치 검증도 전체 완료 기준에 유지한다.
 
