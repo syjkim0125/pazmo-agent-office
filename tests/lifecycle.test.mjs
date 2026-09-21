@@ -36,6 +36,153 @@ function setup(t) {
   assert.equal(call(f, "init", "--apply").status, 0);
   return f;
 }
+test("operator CLI persists intake questions across restart and rejects stale or untrusted answers", async (t) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { OfficeStore } = await import("../src/core/store.ts");
+  const { IntakeLedger } = await import("../src/core/intake.ts");
+  const f = setup(t),
+    file = join(f.root, "request.json");
+  assert.equal(call(f, "start", "--port", "0").status, 0);
+  writeFileSync(
+    file,
+    JSON.stringify({ request: "Validate parser input.", risk: "normal" }),
+  );
+  const made = call(f, "intake-create", "--file", file);
+  assert.equal(made.status, 0, JSON.stringify(made.value));
+  const s = made.value;
+  assert.equal(s.state, "waiting_pm");
+  assert.equal(call(f, "stop").status, 0);
+  const manifest = JSON.parse(
+    readFileSync(join(f.project, ".pazmo-office/manifest.json")),
+  );
+  const db = new DatabaseSync(join(manifest.dataDir, "office.sqlite"));
+  try {
+    const intake = new IntakeLedger(
+      db,
+      new OfficeStore(db, manifest.project, "a".repeat(64)),
+      manifest.project,
+    );
+    const stdout = [
+      { type: "turn.started" },
+      {
+        type: "item.completed",
+        item: {
+          type: "agent_message",
+          text: JSON.stringify({
+            version: 1,
+            inputDigest: s.inputDigest,
+            status: "questions",
+            questions: [{ id: "Q1", text: "Which parser?", reason: "Scope" }],
+          }),
+        },
+      },
+      { type: "turn.completed" },
+    ]
+      .map(JSON.stringify)
+      .join("\n");
+    intake.accept(s.taskId, s.revision, s.inputDigest, {
+      closed: true,
+      result: {
+        exitCode: 0,
+        signal: null,
+        error: null,
+        timedOut: false,
+        stdout,
+        stderr: "",
+      },
+    });
+  } finally {
+    db.close();
+  }
+  const running = call(f, "start", "--port", "0").value;
+  const got = call(f, "intake", "--task-id", s.taskId);
+  assert.equal(got.value.state, "awaiting_answer");
+  const identity = JSON.parse(
+    readFileSync(join(manifest.dataDir, "running.json")),
+  );
+  const operator = JSON.parse(
+    readFileSync(join(manifest.dataDir, `operator-${identity.instance}.json`)),
+  );
+  const trustedHeaders = {
+    "Content-Type": "application/json",
+    Authorization: `Bearer ${operator.token}`,
+  };
+  assert.equal(
+    (
+      await fetch(running.url + "/api/pazmo/intakes/" + s.taskId + "/accept", {
+        method: "POST",
+        headers: trustedHeaders,
+        body: "{}",
+      })
+    ).status,
+    404,
+  );
+  assert.equal(
+    (
+      await fetch(running.url + "/api/pazmo/intakes", {
+        method: "POST",
+        headers: trustedHeaders,
+        body: JSON.stringify({
+          request: "Forged approval",
+          risk: "normal",
+          approved: true,
+        }),
+      })
+    ).status,
+    400,
+  );
+  assert.ok(!JSON.stringify(got.value).includes(operator.token));
+  const route = running.url + "/api/pazmo/intakes/" + s.taskId + "/answer";
+  const input = {
+    revision: got.value.revision,
+    inputDigest: got.value.inputDigest,
+    answers: [{ id: "Q1", answer: "Public parser." }],
+  };
+  assert.equal(
+    (
+      await fetch(route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      })
+    ).status,
+    401,
+  );
+  writeFileSync(file, JSON.stringify(input));
+  const answered = call(
+    f,
+    "intake-answer",
+    "--task-id",
+    s.taskId,
+    "--file",
+    file,
+  );
+  assert.equal(answered.status, 0, JSON.stringify(answered.value));
+  assert.equal(answered.value.state, "waiting_pm");
+  assert.equal(
+    call(f, "intake-answer", "--task-id", s.taskId, "--file", file).value.code,
+    "STALE_INTAKE",
+  );
+  writeFileSync(
+    file,
+    JSON.stringify({
+      revision: answered.value.revision,
+      inputDigest: answered.value.inputDigest,
+    }),
+  );
+  assert.equal(
+    call(f, "intake-cancel", "--task-id", s.taskId, "--file", file).value.state,
+    "cancelled",
+  );
+  assert.equal(call(f, "stop").status, 0);
+  assert.equal(call(f, "start", "--port", "0").status, 0);
+  const restored = call(f, "intake", "--task-id", s.taskId).value;
+  assert.equal(restored.state, "cancelled");
+  assert.deepEqual(
+    restored.events.map((e) => e.actor),
+    ["human", "pm", "human", "human"],
+  );
+});
 test("start/status/stop use an isolated locked Office and preserve its database", async (t) => {
   const f = setup(t);
   assert.equal(call(f, "status").value.status, "stopped");
@@ -305,7 +452,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   const migrated = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
     readOnly: true,
   });
-  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 7);
+  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 8);
   assert.equal(
     migrated.prepare("SELECT COUNT(*) AS n FROM pazmo_task_contracts").get().n,
     0,
@@ -321,7 +468,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   );
 });
 
-for (const oldVersion of [2, 3, 4, 5, 6])
+for (const oldVersion of [2, 3, 4, 5, 6, 7])
   test(`owned v${oldVersion} migration backs up data before adding execution tables`, async (t) => {
     const { DatabaseSync } = await import("node:sqlite");
     const { applyBaseSchema } =
@@ -374,7 +521,7 @@ for (const oldVersion of [2, 3, 4, 5, 6])
         }
       }
     }
-    db.exec("DROP TABLE IF EXISTS pazmo_deliveries");
+    if (oldVersion < 7) db.exec("DROP TABLE IF EXISTS pazmo_deliveries");
     db.prepare(
       "INSERT INTO tasks (id,title) VALUES ('preserved','Preserve v2 task')",
     ).run();
@@ -427,16 +574,24 @@ for (const oldVersion of [2, 3, 4, 5, 6])
       oldVersion >= 6,
     );
     assert.equal(
-      original
-        .prepare("SELECT name FROM sqlite_master WHERE name='pazmo_deliveries'")
-        .get(),
-      undefined,
+      Boolean(
+        original
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE name='pazmo_deliveries'",
+          )
+          .get(),
+      ),
+      oldVersion >= 7,
     );
     original.close();
     const current = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
       readOnly: true,
     });
-    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 7);
+    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 8);
+    assert.equal(
+      current.prepare("SELECT count(*) n FROM pazmo_intakes").get().n,
+      0,
+    );
     assert.equal(
       current.prepare("SELECT COUNT(*) AS n FROM pazmo_handoffs").get().n,
       0,

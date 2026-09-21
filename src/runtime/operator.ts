@@ -7,6 +7,7 @@ import type { VerificationLedger } from "../core/verification.ts";
 import type { ExecutionLedger } from "../core/budgets.ts";
 import type { CompletionLedger } from "../core/completion.ts";
 import type { HandoffLedger } from "../core/handoffs.ts";
+import type { IntakeLedger } from "../core/intake.ts";
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json")
@@ -43,12 +44,14 @@ export async function handleOperator(
     execution,
     completion,
     handoffs,
+    intake,
   }: {
     store: OfficeStore;
     verification: VerificationLedger;
     execution: ExecutionLedger;
     completion: CompletionLedger;
     handoffs: HandoffLedger;
+    intake: IntakeLedger;
   },
 ): Promise<void> {
   const json = (status: number, value: unknown) => {
@@ -63,6 +66,68 @@ export async function handleOperator(
     const token =
       req.headers.authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1] ?? "";
     store.authorize(token);
+    if (
+      path === "/api/pazmo/intakes" ||
+      path.startsWith("/api/pazmo/intakes/")
+    ) {
+      const parts = path
+        .slice("/api/pazmo/intakes".length)
+        .split("/")
+        .filter(Boolean);
+      if (
+        parts.length > 2 ||
+        (parts.length === 2 && !["answer", "cancel"].includes(parts[1]))
+      )
+        fail("NOT_FOUND", "Unknown intake operation.");
+      if (req.method === "GET" && parts.length === 1) {
+        json(200, intake.get(id(parts[0])));
+        return;
+      }
+      if (req.method !== "POST" || parts.length === 1) {
+        json(405, { error: "METHOD_NOT_ALLOWED" });
+        return;
+      }
+      const input = await body(req);
+      const keys =
+        parts.length === 0
+          ? ["request", "risk"]
+          : parts[1] === "answer"
+            ? ["revision", "inputDigest", "answers"]
+            : ["revision", "inputDigest"];
+      if (Object.keys(input).sort().join(",") !== keys.sort().join(","))
+        fail("INVALID_REQUEST", "Unexpected or missing intake fields.");
+      if (!parts.length)
+        json(
+          201,
+          intake.create(
+            token,
+            input.request as string,
+            input.risk as "normal" | "high",
+          ),
+        );
+      else if (parts[1] === "answer")
+        json(
+          200,
+          intake.answer(
+            token,
+            id(parts[0]),
+            input.revision as number,
+            input.inputDigest as string,
+            input.answers,
+          ),
+        );
+      else
+        json(
+          200,
+          intake.cancel(
+            token,
+            id(parts[0]),
+            input.revision as number,
+            input.inputDigest as string,
+          ),
+        );
+      return;
+    }
     if (path.startsWith("/api/pazmo/deliveries/")) {
       if (req.method !== "GET") {
         json(405, { error: "METHOD_NOT_ALLOWED" });
@@ -156,6 +221,8 @@ export async function handleOperator(
                   "G4_REQUIRED",
                   "DELIVERY_INVALID",
                   "STALE_EVIDENCE",
+                  "STALE_INTAKE",
+                  "INTAKE_STATE",
                 ].includes(code)
               ? 409
               : error instanceof OfficeError

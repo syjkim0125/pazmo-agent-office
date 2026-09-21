@@ -16,7 +16,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]",
+        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]",
       );
       return;
     }
@@ -39,6 +39,10 @@ export async function main(args: string[]): Promise<void> {
         "deliver",
         "approval-request",
         "approval-decide",
+        "intake-create",
+        "intake",
+        "intake-answer",
+        "intake-cancel",
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
@@ -81,13 +85,22 @@ export async function main(args: string[]): Promise<void> {
     if (options["--port"] !== undefined && command !== "start")
       fail("ARGUMENT", "Port is only supported by start.");
     const allowed: Record<string, string[]> = {
-      "--file": ["contract", "approval-decide"],
+      "--file": [
+        "contract",
+        "approval-decide",
+        "intake-create",
+        "intake-answer",
+        "intake-cancel",
+      ],
       "--task-id": [
         "contract",
         "approval-request",
         "verification",
         "delivery",
         "deliver",
+        "intake",
+        "intake-answer",
+        "intake-cancel",
       ],
       "--gate": ["approval-request"],
       "--challenge": ["approval-decide"],
@@ -119,7 +132,20 @@ export async function main(args: string[]): Promise<void> {
     );
     const apply = options["--apply"] === true;
     let result: unknown;
-    if (command === "contracts")
+    if (command === "intake-create")
+      result = await operatorRequest(p, "/api/pazmo/intakes", inputJSON());
+    else if (command === "intake")
+      result = await operatorRequest(
+        p,
+        `/api/pazmo/intakes/${encodeURIComponent(required("--task-id"))}`,
+      );
+    else if (command === "intake-answer" || command === "intake-cancel")
+      result = await operatorRequest(
+        p,
+        `/api/pazmo/intakes/${encodeURIComponent(required("--task-id"))}/${command === "intake-answer" ? "answer" : "cancel"}`,
+        inputJSON(),
+      );
+    else if (command === "contracts")
       result = await operatorRequest(p, "/api/pazmo/contracts");
     else if (command === "delivery")
       result = await operatorRequest(

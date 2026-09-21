@@ -16,13 +16,14 @@ import { VerificationLedger } from "../core/verification.ts";
 import { ExecutionLedger } from "../core/budgets.ts";
 import { CompletionLedger } from "../core/completion.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
+import { IntakeLedger } from "../core/intake.ts";
 import { transaction } from "../core/approvals.ts";
 import { handleOperator } from "./operator.ts";
 import { applyBaseSchema } from "../../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { applyDefaultSeeds } from "../../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { noSymlinks, packageRoot } from "../cli/project.ts";
 
-const schemaVersion = 7;
+const schemaVersion = 8;
 const supportedVersion = (version: number) =>
   Number.isInteger(version) && version >= 1 && version <= schemaVersion;
 
@@ -200,6 +201,7 @@ process.once("message", async (raw: unknown) => {
     }
     const ledgers = transaction(db, () => {
       const store = new OfficeStore(db, c.project, c.operatorToken);
+      const intake = new IntakeLedger(db, store, c.project);
       const verification = new VerificationLedger(db, store);
       const execution = new ExecutionLedger(db, store, verification);
       const handoffs = new HandoffLedger(
@@ -227,7 +229,7 @@ process.once("message", async (raw: unknown) => {
       verification.recoverInterrupted();
       execution.recoverInterrupted();
       completion.reconcileDeliveries();
-      return { store, verification, execution, completion, handoffs };
+      return { store, verification, execution, completion, handoffs, intake };
     });
     const dist = realpathSync(join(packageRoot, "vendor/claw-empire/dist"));
     let boundPort = 0;
@@ -286,6 +288,8 @@ process.once("message", async (raw: unknown) => {
         }
         if (
           path === "/api/pazmo/contracts" ||
+          path === "/api/pazmo/intakes" ||
+          path.startsWith("/api/pazmo/intakes/") ||
           path.startsWith("/api/pazmo/approvals/") ||
           path === "/api/pazmo/deliveries" ||
           path.startsWith("/api/pazmo/deliveries/") ||

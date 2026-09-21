@@ -6,6 +6,8 @@
 
 ## 현재 되는 것
 
+- **요청과 PM/Lead 대화 저장·조회·답변·취소**를 기존 SQLite/작업 큐와 operator CLI/API에 연결했다. 버전과 입력 해시로 중복·지연 답변을 거부하고, 취소와 이력은 재시작 후에도 보존한다. v1–v7 백업 후 v8로 업그레이드한다. 전체 root **227/227**, 타입 검사 exit 0, vendor lint 오류 0/기존 경고 40. 실제 PM/Lead 실행과 Office 대화 화면은 아직 미연결이며 새 요청은 `waiting_pm`에 보존된다. [증거와 한계](verification/2026-09-21-intake-ledger.md) · [사용 방법](LOCAL-PREVIEW.md#planning-requests-and-replies).
+
 - **PM 질문·답변 → Lead 제안 → 계약 초안 생성의 내부 규약**을 구현했다. 현재 요청에 연결된 종료된 응답만 받고, 모든 요구사항/검증의 Task 연결과 질문 횟수를 제한한다. 모델 초안은 승인이 아니며, 기존 저장소 등록 후 G1/G3를 요구한다. Lead 계획을 승인 해시와 역할 문서에 포함하도록 누락을 수정했다. 전체 root **221/221**, 타입 검사 exit 0, Story/Task PASS. 실제 PM/Lead 실행·대화 영속화·API/UI 연결은 아직 없으며 모델 응답은 fixture다. [증거와 경계](verification/2026-09-21-planning-protocol.md).
 
 - **Engineer/Reviewer 역할 지침을 고정 파일과 출처·버전·해시·라이선스 기록으로 연결했다.** 누락·변조·위조된 프로필을 실행 전에 거부한다. 실제 CLI/VM의 네 역할 요청에 지침이 전달되고 수정·재검증·모의 G4·로컬 인도가 이어짐을 확인했다. root **215/215**, 타입 검사 exit 0, vendor lint 오류 0/기존 경고 40. Pazmo 자체 프로필이며 CE/Superpowers 전체 실행·실제 모델 판단을 입증하지 않는다. [검증·리뷰·한계](verification/2026-09-21-role-profiles.md). 아래는 이전 단계 당시의 증거다.

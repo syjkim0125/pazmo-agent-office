@@ -114,7 +114,28 @@ At startup, interrupted `checking` rounds become `human_required` with `CONTROLL
 
 Interrupted execution reservations also become `unknown` on restart and keep their slots occupied. The internal accounting caps all executions at three, with two Engineer slots and two automatic fixes. Offline test supervision/dispatch and an internal VM workspace job adapter are connected. The latter performs actual Codex file edits and result recovery in disposable integration tests. A readonly Codex Reviewer adapter joins a structured report on that candidate, with malformed output and cancellation refusing success. These use scripted model responses and have no public CLI launch command. See [evidence](verification/2026-09-21-codex-workspace-review.md). Authenticated model supervision is still unconnected. There is no operator command to discard unknown leases or force free slots.
 
-New instances use schema version 7. An owned version-1 through version-6 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
+New instances use schema version 8. An owned version-1 through version-7 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
+
+### Planning requests and replies
+
+With the Office running, save `request.json` containing `{"request":"Validate parser input.","risk":"normal"}`. Use `high` for a task that requires a separate G3 decision. Register and inspect it with:
+
+```sh
+node bin/pazmo-office.mjs intake-create --project /absolute/project --file request.json
+node bin/pazmo-office.mjs intake --project /absolute/project --task-id TASK_ID
+```
+
+Include the same `--data-dir` used at init if it was overridden. Registration currently persists `waiting_pm`; live PM/Lead supervision remains disabled. It does not silently start a model. Questions and model proposals can only be recorded by the internal controller, not through an operator model-result endpoint.
+
+When an intake is `awaiting_answer`, copy its current numeric `revision`, `inputDigest`, and exact question IDs into an answer file such as `{"revision":2,"inputDigest":"DIGEST_FROM_INTAKE","answers":[{"id":"Q1","answer":"The public parser."}]}`. Then submit:
+
+```sh
+node bin/pazmo-office.mjs intake-answer --project /absolute/project --task-id TASK_ID --file answers.json
+```
+
+A stale revision, wrong question ID, or missing answer is rejected. Re-read the intake rather than resubmitting an obsolete answer. To cancel, save only the current `revision` and `inputDigest` in `cancel.json`, then run `intake-cancel` with the same project/task flags and `--file cancel.json`. Dialogue and cancellation survive restart. Invalid model evidence becomes `human_required`; automatic recovery is not enabled.
+
+These commands use the private operator capability internally. The corresponding private paths are POST `/api/pazmo/intakes`, GET `/api/pazmo/intakes/:id`, and POST `/api/pazmo/intakes/:id/answer` or `/cancel`. No approval is created by any of them. Planning proposals remain separate from registered execution contracts; automatic document publication and the interactive Office controls are still pending.
 
 
 ## Local delivery after evaluated G4
