@@ -362,7 +362,9 @@ export interface OfficePackProfile {
 
 export type OfficePackProfiles = Partial<Record<WorkflowPackKey, OfficePackProfile>>;
 
+// Modified by Pazmo Agent Office, 2026-09-18: expose locked preview mode.
 export interface CompanySettings {
+  pazmoReadOnly?: boolean;
   companyName: string;
   ceoName: string;
   autoAssign: boolean;

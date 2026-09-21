@@ -1,0 +1,179 @@
+{
+  "date": "2026-09-21",
+  "scope": "Actual Codex Engineer/reviewer tools with scripted model/review, VM workspace and required real check joined on same candidate; no live model/semantic review/G4 approval",
+  "rootTests": 172,
+  "actualCliVmScenarios": 4,
+  "controllerVersion": "0.155.1",
+  "executorVersion": "0.154.0",
+  "liveModel": false,
+  "g4Approved": false,
+  "rawReport": {
+    "path": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-codex-workspace-ecJfKm/report.json",
+    "sha256": "75f9666488a4261d4b31046802d1bbb9db2ecd880e7a35be81690d4f0cbdc12e"
+  },
+  "results": [
+    {
+      "scenario": "pass",
+      "engineerClosed": true,
+      "engineerError": null,
+      "handoffState": "candidate_frozen",
+      "cleanupErrors": [],
+      "roundState": "awaiting_g4",
+      "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+      "contractDigest": "d95b8902d576c26a336c9b4af76ccd32617904e4b568b9e34e3cb15589518c8d",
+      "reviewClosed": true,
+      "reviewError": null,
+      "reviewLease": "released",
+      "reviewCleanupErrors": [],
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "pass"
+        },
+        {
+          "kind": "review",
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "scenario": "cancel",
+      "engineerClosed": true,
+      "engineerError": "CANCELLED",
+      "handoffState": "human_required",
+      "cleanupErrors": []
+    },
+    {
+      "scenario": "review-invalid",
+      "engineerClosed": true,
+      "engineerError": null,
+      "handoffState": "candidate_frozen",
+      "cleanupErrors": [],
+      "roundState": "human_required",
+      "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+      "contractDigest": "d95b8902d576c26a336c9b4af76ccd32617904e4b568b9e34e3cb15589518c8d",
+      "reviewClosed": true,
+      "reviewError": null,
+      "reviewLease": "released",
+      "reviewCleanupErrors": [],
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "pass"
+        },
+        {
+          "kind": "review",
+          "verdict": "unknown"
+        }
+      ]
+    },
+    {
+      "scenario": "review-cancel",
+      "engineerClosed": true,
+      "engineerError": null,
+      "handoffState": "candidate_frozen",
+      "cleanupErrors": [],
+      "roundState": "cancelled",
+      "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+      "contractDigest": "d95b8902d576c26a336c9b4af76ccd32617904e4b568b9e34e3cb15589518c8d",
+      "reviewClosed": true,
+      "reviewError": "CANCELLED",
+      "reviewLease": "released",
+      "reviewCleanupErrors": [],
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "pass"
+        },
+        {
+          "kind": "review",
+          "verdict": null
+        }
+      ]
+    }
+  ],
+  "cleanup": {
+    "containers": "",
+    "volumes": ""
+  },
+  "sources": [
+    {
+      "path": "src/runners/container-verifier.ts",
+      "sha256": "ab32357a67a944724ae0743ac6ad91cda7cbed45391c9059a2a083b168b75e79"
+    },
+    {
+      "path": "src/runners/remote-job.ts",
+      "sha256": "7e9d0b823896a46cac369bd977f0dec78f27b6aebdf4d11624fa69bfd3df1b40"
+    },
+    {
+      "path": "src/runners/exec-relay.ts",
+      "sha256": "c82c37ceed75db4d45ccaf087a0def4bf773f521cadd1b9286f75900d747813d"
+    },
+    {
+      "path": "src/runners/engineer.ts",
+      "sha256": "6ae38670eee07e531c78edec635b587dc7ef636b7a91d1a124a0c8a1ef8a1c8b"
+    },
+    {
+      "path": "src/runners/reviewer.ts",
+      "sha256": "c879e370c0923a310aeb20e0b89c9dd71f0c21328e55a657bc412ff874c3a726"
+    },
+    {
+      "path": "src/runners/review-report.ts",
+      "sha256": "360a4652b2bd848e635106b970ff0539c4332d9a987113b29993df145076f48a"
+    },
+    {
+      "path": "scripts/codex-fixture-controller.mjs",
+      "sha256": "b357f328021672baad653d7b9e0b3e8d06f1c18ef791385febe6c0002248053b"
+    },
+    {
+      "path": "scripts/test-codex-workspace.mjs",
+      "sha256": "5ac01b11f6c42081c2f95c23ee485c0b1b2655f99f0e5280dfe9a4b7f04e49a6"
+    },
+    {
+      "path": "tests/reviewer.test.mjs",
+      "sha256": "f4074de9c3b1a70d85b258fd51439c49e48e10b1ab9eea95ed7894280e6c9cc8"
+    },
+    {
+      "path": "tests/exec-relay.test.mjs",
+      "sha256": "7274b276eed8806618e08acad85f08f33bf9a19686e6a97018925203e36c9fcf"
+    },
+    {
+      "path": "tests/remote-job.test.mjs",
+      "sha256": "3f22b05c4d407a45fb9a1be97eb9471beec82eece1576ee5937c7bab1ee4e860"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/private/tmp/pazmo-review-red.log",
+      "sha256": "a74d8b663924e4bdf7f0e6cc8aaec4df6801106487328e917d2670c1411e3e49"
+    },
+    {
+      "path": "/private/tmp/pazmo-review-green.log",
+      "sha256": "a1032310c4f71020ffde7fcc488614f8f01f0684ece73ff7a78c37571541949b"
+    },
+    {
+      "path": "/private/tmp/pazmo-codex-review-tests.log",
+      "sha256": "0b6b726dbc39fa089ab0a630b159055295f49411eaab0a9b03fb1a4cb7db972b"
+    },
+    {
+      "path": "/private/tmp/pazmo-codex-review-final-vm.log",
+      "sha256": "e86c115d7185c15208b97f687f187b54882a5099088e444e283ce08ed603251d"
+    },
+    {
+      "path": "/private/tmp/pazmo-codex-review-lint.log",
+      "sha256": "6692e686f605c2d3a33218079514d02786fdebd85bc1a9b0347600d362effc34"
+    },
+    {
+      "path": "/private/tmp/pazmo-codex-review-lint-correct.log",
+      "sha256": "5cbba86c6592dba3f7aded1042fc72355f7772bf6afa582a22089e705f07ec63"
+    },
+    {
+      "path": "/private/tmp/pazmo-remote-readonly-regression.log",
+      "sha256": "1a2990934a309f7726457e6db7891abee12ef68031da192c4c778ec46967453e"
+    },
+    {
+      "path": "/private/tmp/pazmo-remote-workspace-regression.log",
+      "sha256": "6f26a554076bd698dd96af14f306d619bae7f3767a0285c77139f6d14be7c5d0"
+    }
+  ]
+}

@@ -1,3 +1,4 @@
+// Modified by Pazmo: disable empty-board mutation controls in the locked preview.
 import { useCallback, useMemo, useState } from "react";
 import { bulkHideTasks } from "../api";
 import { useI18n } from "../i18n";
@@ -10,6 +11,7 @@ import TaskCard from "./taskboard/TaskCard";
 import { COLUMNS, isHideableStatus, taskStatusLabel, type HideableStatus } from "./taskboard/constants";
 
 interface TaskBoardProps {
+  readOnly?: boolean;
   tasks: Task[];
   agents: Agent[];
   departments: Department[];
@@ -39,6 +41,7 @@ interface TaskBoardProps {
 }
 
 export function TaskBoard({
+  readOnly = false,
   tasks,
   agents,
   departments,
@@ -196,6 +199,7 @@ export function TaskBoard({
             </span>
           </button>
           <button
+            disabled={readOnly}
             onClick={() => setShowBulkHideModal(true)}
             className="rounded-lg border border-slate-700 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-slate-800 hover:text-white"
             title={t({
@@ -208,12 +212,14 @@ export function TaskBoard({
             🙈 {t({ ko: "숨김", en: "Hide", ja: "非表示", zh: "隐藏" })}
           </button>
           <button
+            disabled={readOnly}
             onClick={() => setShowProjectManager(true)}
             className="taskboard-project-manage-btn rounded-lg border px-3 py-1.5 text-xs font-semibold transition"
           >
             🗂 {t({ ko: "프로젝트 관리", en: "Project Manager", ja: "プロジェクト管理", zh: "项目管理" })}
           </button>
           <button
+            disabled={readOnly}
             onClick={() => setShowCreate(true)}
             className="rounded-lg bg-blue-600 px-4 py-1.5 text-sm font-semibold text-white shadow transition hover:bg-blue-500 active:scale-95"
           >

@@ -1,3 +1,4 @@
+// Modified by Pazmo Agent Office, 2026-09-18: pass locked preview state to dashboard.
 import { useCallback, useMemo, type ReactNode } from "react";
 import Sidebar from "../components/Sidebar";
 import OfficeView from "../components/OfficeView";
@@ -492,6 +493,7 @@ export default function AppMainLayout({
 
             {view === "dashboard" && (
               <Dashboard
+                readOnly={settings.pazmoReadOnly}
                 stats={stats}
                 agents={agents}
                 tasks={tasks}
@@ -502,6 +504,7 @@ export default function AppMainLayout({
 
             {view === "tasks" && (
               <TaskBoard
+                readOnly={settings.pazmoReadOnly}
                 tasks={tasksForActivePack}
                 agents={displayAgents}
                 departments={displayDepartments}

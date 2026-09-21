@@ -1,0 +1,122 @@
+{
+  "version": 1,
+  "platform": "darwin",
+  "root": "/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu",
+  "exitCode": 0,
+  "checks": [
+    {
+      "name": "workspace-write",
+      "actual": "allowed",
+      "expect": "allowed"
+    },
+    {
+      "name": "read:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller/approval.sqlite",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller/approval.sqlite",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller/operator-token",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller/operator-token",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller/policy.json",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller/policy.json",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/fake-home/auth.json",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/fake-home/auth.json",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/other-project/source.txt",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/other-project/source.txt",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "symlink-escape",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "controller-signal",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "child-read",
+      "actual": "denied",
+      "expect": "denied"
+    },
+    {
+      "name": "new-codex-child",
+      "actual": "allowed",
+      "expect": "denied",
+      "status": 0,
+      "signal": null,
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Operation not permitted (os error 1)\n"
+    },
+    {
+      "name": "controller-tcp",
+      "actual": "denied",
+      "expect": "denied"
+    },
+    {
+      "name": "controller-unix",
+      "actual": "denied",
+      "expect": "denied"
+    }
+  ],
+  "controllerSignalsReceived": 0,
+  "stderr": "",
+  "execution": "locked",
+  "completeProof": false,
+  "unverified": [
+    "browser/Apple Events",
+    "Codex built-in tools and authenticated model traffic",
+    "full runner/tool allowlist"
+  ],
+  "probeExitCode": 1,
+  "codexVersion": "0.154.0",
+  "nodeVersion": "24.19.0",
+  "probeSha256": "da11e477d259ae5f4474b028a502069c91c006ba5d6aa5d48b6e89bbfad1d1db",
+  "permissionProfile": "[permissions.pazmo.filesystem]\n\":minimal\" = \"read\"\n\"/System/Library/OpenSSL\" = \"read\"\n\"/Users/jongkkim/.nvm/versions/node/v24.19.0\" = \"read\"\n\"/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/work\" = \"write\"\n\"/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/controller\" = \"deny\"\n\"/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/fake-home\" = \"deny\"\n\"/Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4/.worktrees/pazmo-isolation-fdjo8zqu/other-project\" = \"deny\"\n[permissions.pazmo.network]\nenabled = false\n"
+}

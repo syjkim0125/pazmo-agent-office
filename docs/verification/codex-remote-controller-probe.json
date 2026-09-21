@@ -1,0 +1,39 @@
+{
+  "exit": {
+    "code": 0,
+    "signal": null
+  },
+  "methods": [
+    "initialize",
+    "initialized",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "environmentConfig/read",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "fs/getMetadata",
+    "process/start",
+    "process/terminate",
+    "fs/getMetadata",
+    "fs/readFile",
+    "fs/writeFile"
+  ],
+  "stdout": "{\"type\":\"thread.started\",\"thread_id\":\"01a0c17f-3d1f-7832-89c0-e792c19dfb48\"}\n{\"type\":\"turn.started\"}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/bash -lc \\\"node -e 'const fs=require('\\\\\\\\''fs'\\\\\\\\'');fs.writeFileSync('\\\\\\\\''/work/model-tool.txt'\\\\\\\\'','\\\\\\\\''REMOTE_CODEX_TOOL'\\\\\\\\'');try{fs.writeFileSync(\\\\\\\"/private/tmp/pazmo-exec-server-nu3ojwu9/unexpected-host-write\\\\\\\",'\\\\\\\\''BAD'\\\\\\\\'')}catch{};console.log('\\\\\\\\''REMOTE_CODEX_TOOL'\\\\\\\\'');'\\\"\",\"aggregated_output\":\"\",\"exit_code\":null,\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_0\",\"type\":\"command_execution\",\"command\":\"/bin/bash -lc \\\"node -e 'const fs=require('\\\\\\\\''fs'\\\\\\\\'');fs.writeFileSync('\\\\\\\\''/work/model-tool.txt'\\\\\\\\'','\\\\\\\\''REMOTE_CODEX_TOOL'\\\\\\\\'');try{fs.writeFileSync(\\\\\\\"/private/tmp/pazmo-exec-server-nu3ojwu9/unexpected-host-write\\\\\\\",'\\\\\\\\''BAD'\\\\\\\\'')}catch{};console.log('\\\\\\\\''REMOTE_CODEX_TOOL'\\\\\\\\'');'\\\"\",\"aggregated_output\":\"REMOTE_CODEX_TOOL\\n\",\"exit_code\":0,\"status\":\"completed\"}}\n{\"type\":\"item.started\",\"item\":{\"id\":\"item_1\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/work/patched.txt\",\"kind\":\"add\"}],\"status\":\"in_progress\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_1\",\"type\":\"file_change\",\"changes\":[{\"path\":\"/work/patched.txt\",\"kind\":\"add\"}],\"status\":\"completed\"}}\n{\"type\":\"item.completed\",\"item\":{\"id\":\"item_2\",\"type\":\"agent_message\",\"text\":\"Fixture finished.\"}}\n{\"type\":\"turn.completed\",\"usage\":{\"input_tokens\":0,\"cached_input_tokens\":0,\"cache_write_input_tokens\":0,\"output_tokens\":0,\"reasoning_output_tokens\":0}}\n",
+  "stderr": "Reading additional input from stdin...\n2026-09-21T01:05:36.793514Z ERROR codex_core::tools::router: error=unknown turn environment id `local`\n",
+  "unexpectedHostWrite": false,
+  "localFallback": false
+}

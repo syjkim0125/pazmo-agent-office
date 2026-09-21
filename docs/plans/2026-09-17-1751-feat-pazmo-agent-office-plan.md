@@ -140,10 +140,12 @@ sequenceDiagram
 - Verification: T03–T08의 모의 흐름과 실제 operator 인증 경계를 구분한다.
 
 ### U4. Restricted runner and isolation proof
+- Remote tool/review connection (2026-09-21, M3/M4/M5; V3/V4/V5): reuse the existing VM runner and relay for mutable Engineer and readonly Reviewer. The reviewer has no writable-mode option. Capture the controller's stdout separately from diagnostics; require one terminal JSON report matching the candidate and contract, with bounded verdict/findings/summary. Bind it through the existing review-node lease; rejected supervisors and uncertain closure remain unknown. Actual CLI fixtures must read the candidate, fail writes, and join actual deterministic tests. This does not authorize the pending authentication G3 or claim a live semantic review. Scope: `docs/tasks/U4-codex-review.md`.
 - Goal / Covers: 제한된 Codex 실행·종료·인증 오류 처리; M3/M4, V3/V4. 핸드오프 M3.
 - Dependencies: U3; live에는 canary 통과가 추가 필요.
 - Files: `src/runners/codex/`, `test/codex-runner.test.ts`, `test/sandbox-canary.test.ts`, Claw `core/cli-tools.ts`, `agents/cli-runtime.ts`, `core/one-shot-runner.ts`.
 - Approach: KTD5/KTD6. JSONL chunk 경계를 보존하고 worker result와 검증 evidence를 분리한다. 환경·도구·network allowlist와 공식 구독 로그인만 허용한다. 기존 hook/MCP/skill/subagent 우회 경로를 차단한다.
+- Current workspace seam: `ContainerWorkspace` uses a writable VM copy with the existing readonly-rootfs/network/UID restrictions. A fresh readonly exporter reads only after the writer is removed. The host validates a bounded JSON/base64 representation and swaps private staging; it never unpacks a worker-created archive into the project. `ContainerVerifier` retains a separate readonly interface. Actual VM outcomes are in `docs/verification/2026-09-21-mutable-workspace.md`; actual Codex remote tools and readonly review now connect through the companion `docs/verification/2026-09-21-codex-workspace-review.md` evidence; authenticated models remain pending.
 - Scenarios: malformed/split JSONL; nonzero/timeout/cancel; 자식 프로세스 종료; auth/limit/model 오류; 다른 provider 자동 대체 없음; 홈·다른 repo·승인 DB·정책·token·프로세스·브라우저·소켓 canary; 금지된 신규 child 실행.
 - Verification: T13/T14는 실제 OS 차단 로그로 입증한다. fixture 성공은 live 성공이 아니다. canary에서 금지 자원 하나라도 접근되면 실행을 비활성화한다.
 
@@ -157,10 +159,12 @@ sequenceDiagram
 - Verification: T06–T11을 실제 Claw API/DB까지 확인한다. 단순 코드 검색은 경로 목록 작성 도구이며 통과 증거가 아니다.
 
 ### U6. Role handoff and persistent budgets
+- Coordinator connection (2026-09-21, M3/M4/M5): internal controller orchestrates existing ledgers/runners without another queue. Build bounded role packets from digest-checked approved documents, candidate identity and previous round findings; Reviewer also receives the replay-checked original-to-candidate diff. Start independent review and tests within shared capacity, await all owned supervisors, and route through the persisted round. Re-enter Engineer only for `fix_required`, at most two fixes. Reserve actual configured role timeouts instead of unconditional ten-minute budgets. Stop on G4/unknown/cancel/exhaustion; return deferred when external capacity remains unavailable. No public/live unlock or automatic unknown recovery. Scope: `docs/tasks/U6-role-coordinator.md`.
 - Goal / Covers: 역할별 담당자에게 동일 후보의 일과 재작업을 전달한다; M3/M5, V3/V5. 핸드오프 M4.
 - Dependencies: U4/U5.
 - Files: `assets/roles/`, `upstream/skills.lock.json`, `src/core/handoffs.ts`, `src/core/budgets.ts`, `test/handoffs.test.ts`, `test/budgets.test.ts`, Claw queue integration.
 - Approach: KTD1/KTD6. task/attempt/role/dependency/candidate를 packet/result에 명시한다. review 중복 key는 task+candidate+purpose+policy다. 슬롯·총 시간·자동 fix 횟수를 재시작에도 보존한다.
+- Current implementation seam: `src/runners/dispatch.ts` drains registered tests through the existing execution/verification ledgers. It returns deferred nodes when other work owns capacity, aborts and awaits local supervisors when the round closes, and keeps the reviewer mandatory. The internal OfficeCoordinator now connects approved role packets, Engineer, parallel tests/review and bounded fixes; authenticated role dispatch and a capacity-wakeup service remain pending. `HandoffLedger` now captures the approved workspace selection before reserving a supervisor handle, persists baseline/attempt/candidate ancestry, and admits verification only after successful closure. Fixes use the previous candidate while retaining the original baseline. Schema v6 backs up owned v1–v5 before adding handoffs; `runEngineerJob` now connects the handoff to bounded mutable VM commands, stopped-writer export and validated replacement of controller staging. Actual Codex CLI supervision and readonly Reviewer receipts are connected with scripted responses. Authenticated roles and public Office execution remain pending; scripted judgments do not establish semantic review. See `docs/verification/2026-09-21-role-coordinator.md` for the internal automatic flow.
 - Scenarios: 최대 실행 3/구현 2 경계의 경쟁; retry 2회 소진; 잘못된 담당자/후보 결과 거부; restart 예산 보존; 공유 파일/DB/port 직렬화; 선택 스킬 누락·변경·숨은 도구 실패; CE 반환 모드의 외부 shipping 금지.
 - Verification: T12/T15/T16; 실제 3역할 증거가 없으면 live 협업 미검증으로 남긴다.
 
@@ -169,6 +173,7 @@ sequenceDiagram
 - Dependencies: U5/U6.
 - Files: Claw `src/components/` 관련 task/decision 화면, `src/api/`, `test/e2e/office-workflow.spec.ts`, `docs/pilots/`.
 - Approach: 기존 UI를 확장하여 Story 링크·후보·승인 대기·blocker·evidence를 연결한다. G4는 raw diff/evidence를 먼저 제시하고 인간 응답 후 평가한다. API에서도 동일 human-only 경계를 적용한다.
+- Current implementation seam: `src/core/completion.ts` persists immutable evidence, addressed human answers and separately assessed understanding. Operator HTTP/CLI cannot supply its own assessment. `CompletionLedger.prepare` now captures an actual Git diff from the controller baseline and the round's frozen candidate, replays it in a private copy, and binds both digests and POSIX mode metadata to G4. Bounded commands use a private cwd/environment and never execute candidate code. Empty snapshots cover greenfield and deletion-only changes. The preparer now selects the original baseline through the successful persisted Engineer handoff; a caller cannot select a different baseline. Actual Engineer supervision and the semantic evaluator remain pending; fixture assessments are not evidence of actual understanding. Schema v6 includes the attempt ancestry.
 - Scenarios: 최초 빈 화면; loading/실패/재시작; 키보드 승인 흐름; G4 답변 전 해설 숨김; 변경 후보 승인 무효화; brownfield/greenfield/analysis pilot; 분석 결과의 출처·합계·표본 검증. task 상세의 우선순위는 상태/차단 이유→Story/후보→검증 근거→사람의 결정이며, 승인 요청 실패 시 입력과 후보 식별자를 보존한다.
 - Verification: loopback 브라우저+DB+로그 대조 및 실제 화면 캡처. 모의 pilot과 live pilot을 분리한다.
 

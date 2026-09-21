@@ -1,3 +1,4 @@
+// Modified by Pazmo Agent Office, 2026-09-18: label locked preview and disable its primary action.
 import AgentAvatar from "../AgentAvatar";
 import type { Agent } from "../../types";
 import { getRankTier, RankBadge, XpBar, type TFunction } from "./model";
@@ -20,6 +21,7 @@ export interface RankedAgent {
 }
 
 interface DashboardHeroHeaderProps {
+  readOnly?: boolean;
   companyName: string;
   time: string;
   date: string;
@@ -34,6 +36,7 @@ interface DashboardHeroHeaderProps {
 }
 
 export function DashboardHeroHeader({
+  readOnly = false,
   companyName,
   time,
   date,
@@ -56,16 +59,25 @@ export function DashboardHeroHeader({
             <h1 className="dashboard-title-gradient text-2xl font-black tracking-tight sm:text-3xl">{companyName}</h1>
             <span className="flex items-center gap-1.5 rounded-full border border-emerald-400/40 bg-emerald-500/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-emerald-300">
               <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
-              {t({ ko: "실시간", en: "LIVE", ja: "ライブ", zh: "实时" })}
+              {readOnly
+                ? t({ ko: "미리보기", en: "PREVIEW", ja: "プレビュー", zh: "预览" })
+                : t({ ko: "실시간", en: "LIVE", ja: "ライブ", zh: "实时" })}
             </span>
           </div>
           <p className="text-xs" style={{ color: "var(--th-text-muted)" }}>
-            {t({
-              ko: "에이전트들이 실시간으로 미션을 수행 중입니다",
-              en: "Agents are executing missions in real time",
-              ja: "エージェントがリアルタイムでミッションを実行中です",
-              zh: "代理正在实时执行任务",
-            })}
+            {readOnly
+              ? t({
+                  ko: "AI 실행이 잠겨 있는 읽기 전용 화면입니다",
+                  en: "Read-only preview. AI execution is locked.",
+                  ja: "読み取り専用です。AI 実行はロックされています。",
+                  zh: "只读预览，AI 执行已锁定。",
+                })
+              : t({
+                  ko: "에이전트들이 실시간으로 미션을 수행 중입니다",
+                  en: "Agents are executing missions in real time",
+                  ja: "エージェントがリアルタイムでミッションを実行中です",
+                  zh: "代理正在实时执行任务",
+                })}
           </p>
         </div>
 
@@ -96,10 +108,18 @@ export function DashboardHeroHeader({
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-200/85">{primaryCtaEyebrow}</p>
             <p className="mt-1 text-xs sm:text-sm" style={{ color: "var(--th-text-primary)" }}>
-              {primaryCtaDescription}
+              {readOnly
+                ? t({
+                    ko: "실행 보호 검증 후 작업을 시작할 수 있습니다",
+                    en: "Task execution is unavailable until isolation is verified.",
+                    ja: "隔離の検証後にタスクを実行できます。",
+                    zh: "验证隔离后才可执行任务。",
+                  })
+                : primaryCtaDescription}
             </p>
           </div>
           <button
+            disabled={readOnly}
             type="button"
             onClick={onPrimaryCtaClick}
             className="animate-cta-glow group inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-gradient-to-r from-cyan-500 to-blue-500 px-6 py-3 text-sm font-black tracking-tight text-white shadow-[0_4px_20px_rgba(34,211,238,0.35)] transition-all duration-200 hover:-translate-y-0.5 hover:from-cyan-400 hover:to-blue-400 hover:shadow-[0_8px_30px_rgba(34,211,238,0.5)] active:translate-y-0 sm:w-auto sm:min-w-[200px]"
