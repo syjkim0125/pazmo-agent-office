@@ -30,7 +30,10 @@ function setup(t, mode = "ready") {
   );
   const item = intake.create(token, "Validate input.", "normal"),
     packets = [];
-  const jobFor = (packet) => {
+  const jobFor = (packet, assignedContext, prompt) => {
+    assert.ok(prompt.includes(assignedContext.digest));
+    assert.ok(prompt.includes("/candidate/tree"));
+    assert.ok(!prompt.includes(assignedContext.directory));
     packets.push(packet);
     return { binary: "unused-fixture", timeoutMs: 10000, packet };
   };
@@ -263,4 +266,28 @@ test("lost supervisor and altered context stop durably without relaunch", async 
           "unknown",
         );
     });
+});
+
+test("an old saved role profile stops for inspection instead of silently rewriting the conversation", async (t) => {
+  const { digest } = await import("../src/core/candidates.ts");
+  const f = setup(t),
+    p = f.intake.packet(f.item.taskId, f.item.revision, f.item.inputDigest);
+  p.profile.ref = "pazmo-pm@1.0.0";
+  const { inputDigest, ...data } = p;
+  p.inputDigest = digest(JSON.stringify(data));
+  const before = JSON.stringify(p);
+  f.db
+    .prepare("UPDATE pazmo_intakes SET packet_json=? WHERE task_id=?")
+    .run(before, f.item.taskId);
+  const result = await f.coordinator.run(f.item.taskId, f.context);
+  assert.equal(result.state, "human_required");
+  assert.equal(result.intake.reason, "ROLE_PROFILE_INVALID");
+  assert.equal(f.packets.length, 0);
+  assert.equal(f.execution.listPlanning(f.item.taskId).length, 0);
+  assert.equal(
+    f.db
+      .prepare("SELECT packet_json FROM pazmo_intakes WHERE task_id=?")
+      .get(f.item.taskId).packet_json,
+    before,
+  );
 });

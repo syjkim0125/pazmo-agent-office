@@ -40,14 +40,14 @@
     "pm": {
       "role": "pm",
       "origin": "pazmo-authored",
-      "ref": "pazmo-pm@1.0.0",
+      "ref": "pazmo-pm@1.1.0",
       "license": "MIT",
       "licensePath": "LICENSE",
       "source": "assets/roles/pm.md",
       "files": [
         {
           "path": "assets/roles/planning-common.md",
-          "digest": "8bd4dfe4d7167467a3056ec19fc117ff8e97c4a793a8b004eebf9c31d7be654a"
+          "digest": "f1ad8e3b0971b3e0c544b21d3fa63048f6e903f705ff8b994020234cc34ddbbd"
         },
         {
           "path": "assets/roles/pm.md",
@@ -58,18 +58,18 @@
     "lead": {
       "role": "lead",
       "origin": "pazmo-authored",
-      "ref": "pazmo-lead@1.0.0",
+      "ref": "pazmo-lead@1.1.0",
       "license": "MIT",
       "licensePath": "LICENSE",
       "source": "assets/roles/lead.md",
       "files": [
         {
           "path": "assets/roles/planning-common.md",
-          "digest": "8bd4dfe4d7167467a3056ec19fc117ff8e97c4a793a8b004eebf9c31d7be654a"
+          "digest": "f1ad8e3b0971b3e0c544b21d3fa63048f6e903f705ff8b994020234cc34ddbbd"
         },
         {
           "path": "assets/roles/lead.md",
-          "digest": "b1b43feb72ca8a8edc7cfaeb51f0442caebe639a77fa1c350fc57bf387e0cdb8"
+          "digest": "2af01a40b32d0feb5a9acf977c02b42d4eadda39a3e9c006ec8570730f95cf53"
         }
       ]
     }

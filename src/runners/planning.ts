@@ -1,5 +1,6 @@
 import { fail } from "../cli/project.ts";
-import { digest } from "../core/candidates.ts";
+import { digest, verifyCandidate } from "../core/candidates.ts";
+import type { Candidate } from "../core/candidates.ts";
 import { workspaceScope } from "../core/workspace.ts";
 import type { ContractInput } from "../core/contracts.ts";
 import type { CommandResult } from "./command.ts";
@@ -135,10 +136,29 @@ export function beginPlanning(
     story: null,
   });
 }
-export function planningPrompt(packet: PlanningPacket): string {
+export function planningPrompt(
+  packet: PlanningPacket,
+  context?: Candidate,
+): string {
   current(packet);
+  if (context && !verifyCandidate(context))
+    fail("CANDIDATE_CHANGED", "Planning context changed.");
   const data = {
     ...packet,
+    context: context
+      ? {
+          digest: context.digest,
+          workspace: "/candidate/tree",
+          access: "read",
+          purpose: "proposal",
+        }
+      : null,
+    procedure: {
+      mode: "direct",
+      skillStatus: "not-qualified",
+      reason:
+        "Office has not installed and qualified CE/Superpowers in this worker. Use the supplied bounded proposal procedure; do not claim those skills ran.",
+    },
     profile: {
       ...packet.profile,
       files: packet.profile.files.map(({ path, digest }) => ({ path, digest })),

@@ -1,5 +1,7 @@
 # 진행 상태 — 2026-09-21
 
+- kit 4.0.0 인계를 코드/패키지와 비교했다. Office DB에 kit 전이를 원자적으로 반영할 API는 추가 협의가 필요하며, Office 설치는 3.1.1을 유지한다. PM/Lead에 읽기 전용 snapshot 문맥과 스킬 미검증/direct 상태를 전달하도록 수정했다. root **260/260**, 타입 검사, 실제 VM 읽기/쓰기 차단 시험 통과. 모델 응답은 fixture다. [검토·kit API 요청](kit-office-integration-request.md) · [변경·검증 경계](verification/2026-09-21-kit-handoff-context.md).
+
 - PM→팀장 내부 실행을 읽기 전용 VM 및 전체 실행 슬롯 3개에 연결했다. 질문·제안·실패에서 멈추고 취소/재시작 뒤 늦은 응답을 거부한다. root 258개, 타입 검사, 실제 VM 읽기/쓰기 차단/정리 시험 통과. 모델 응답은 fixture이며 실제 모델·UI·G4·pilot은 남아 있다. [증거와 범위](verification/2026-09-21-planning-execution.md).
 현재 브랜치 `codex/office-runtime-baseline`에 **로컬 CLI·읽기 전용 Office preview·operator 계약/승인 API**를 구현했다. main에 머지된 U1 checkpoint `8e14344e97ae5effd90bd5b00fff8334bab63425`에서 시작했다. 이 브랜치는 전체 Story가 진행 중인 구현 체크포인트이며, G4·live 검증·main 병합은 완료하지 않았다. 기본 checkout의 기존 사용자 파일은 보존했다. [체크포인트 범위와 검증](verification/2026-09-21-runtime-checkpoint.md).
 

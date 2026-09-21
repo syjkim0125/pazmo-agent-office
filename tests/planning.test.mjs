@@ -290,3 +290,45 @@ test("a normal-risk multi-task proposal preserves mappings without manufacturing
   assert.equal(result.contracts[1].plan, "plan.md");
   assert.match(result.files["task-2.md"], /M2 \/ V2/);
 });
+
+test("planning receives an explicit readonly snapshot without leaking controller paths or implying skill execution", async (t) => {
+  const { mkdirSync } = await import("node:fs");
+  const { freezeCandidate } = await import("../src/core/candidates.ts");
+  const f = fixture(t);
+  mkdirSync(join(f.root, "context"));
+  const context = freezeCandidate(
+    f.project,
+    ["story.md"],
+    join(f.root, "context"),
+  );
+  const packet = start(),
+    prompt = planningPrompt(packet, context);
+  const data = JSON.parse(
+    prompt
+      .split("BEGIN PLANNING TASK DATA\n")[1]
+      .split("\nEND PLANNING TASK DATA")[0],
+  );
+  assert.deepEqual(data.context, {
+    digest: context.digest,
+    workspace: "/candidate/tree",
+    access: "read",
+    purpose: "proposal",
+  });
+  assert.equal(data.procedure.mode, "direct");
+  assert.equal(data.procedure.skillStatus, "not-qualified");
+  assert.equal(prompt.includes(context.directory), false);
+  assert.equal(prompt.includes(f.project), false);
+  assert.match(prompt, /read.*assigned.*snapshot/i);
+  assert.equal(
+    JSON.parse(
+      planningPrompt(packet)
+        .split("BEGIN PLANNING TASK DATA\n")[1]
+        .split("\nEND PLANNING TASK DATA")[0],
+    ).context,
+    null,
+  );
+  assert.throws(
+    () => planningPrompt(packet, { ...context, digest: "b".repeat(64) }),
+    { code: "CANDIDATE_CHANGED" },
+  );
+});

@@ -48,7 +48,9 @@ try {
     intake,
     execution,
     planner: new ContainerPlanner(client.run),
-    jobFor(packet) {
+    jobFor(packet, assignedContext, prompt) {
+      assert.ok(prompt.includes(assignedContext.digest));
+      assert.ok(!prompt.includes(assignedContext.directory));
       roles.push(packet.role);
       const body =
         packet.role === "pm"
@@ -114,6 +116,7 @@ try {
           );
           observations.push({
             role: packet.role,
+            prompt,
             exitCode: result.exitCode,
             error: result.error,
           });

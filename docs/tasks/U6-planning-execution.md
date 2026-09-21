@@ -23,3 +23,4 @@ PM and Lead run sequentially against readonly project context and persist their 
 - Race independent SQLite controllers across planning/implementation slots.
 - Real service migration/restart and readonly VM tools; distinguish scripted model reports from live evidence.
 - Evidence: docs/verification/2026-09-21-planning-execution.md
+- Follow-up: docs/verification/2026-09-21-kit-handoff-context.md (snapshot prompt, skill fallback, old-profile preservation).

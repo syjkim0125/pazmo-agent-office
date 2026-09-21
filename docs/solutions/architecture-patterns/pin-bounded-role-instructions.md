@@ -43,9 +43,14 @@ Pazmo Engineer v1 performs approved implementation, relevant tests and simplific
 
 The PM/Lead proposal protocol exposed a related handoff gap: a Task could name `plan.md` while the contract loader only captured Story, Task, checks and the high-risk decision. A focused assertion proved that the plan did not reach approved role context. The generated contract now supplies an optional `plan` reference, the loader matches it against `Plan source`, and its bytes join the contract digest and role documents. Changing the plan invalidates approval readiness. A filename mentioned in a prompt is not equivalent to delivering its approved content. The PM/Lead tests remain scripted protocol evidence, not live planning quality.
 
+The next inspection found that planning had an available readonly VM snapshot while its instructions forbade reading any files. Supply the snapshot's identity, worker-visible path and permitted use explicitly, and pass the rendered prompt to the actual job factory. Do not infer context delivery from a mount alone. Tests first failed on absent context metadata and the missing factory prompt; the corrected code passed 260 root tests and the readonly VM exercise. Those observations use scripted planning responses, not live planning quality.
+
+Separate a pre-G1 proposal from planning against an approved Story. Also separate skills installed in the controller's session from skills qualified in its worker. Explicit `direct`/`not-qualified` metadata prevents reporting CE/Superpowers execution without evidence. When pinned instructions change, reject old persisted packets without rewriting their history or carrying approvals to a new packet; record the manual continuation boundary. Prompt metadata defines intended use but never substitutes for sandbox enforcement.
+
 ## Related
 
 - [Implementation and evidence](../../verification/2026-09-21-role-profiles.md)
+- [Readonly planning context and kit handoff boundaries](../../verification/2026-09-21-kit-handoff-context.md)
 - [PM/Lead protocol and plan-context regression](../../verification/2026-09-21-planning-protocol.md)
 - [Nonblocking contract file validation](../runtime-errors/nonblocking-contract-file-validation.md)
 - [Tool evidence versus model completion](../integration-issues/remote-codex-cwd-and-tool-evidence.md)

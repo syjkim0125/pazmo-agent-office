@@ -35,7 +35,8 @@ export function loadRoleProfile(
     if (
       entry.role !== role ||
       entry.origin !== "pazmo-authored" ||
-      entry.ref !== `pazmo-${role}@1.0.0` ||
+      entry.ref !==
+        `pazmo-${role}@${role === "pm" || role === "lead" ? "1.1.0" : "1.0.0"}` ||
       entry.license !== "MIT" ||
       entry.licensePath !== "LICENSE" ||
       entry.source !== expectedPaths[1] ||

@@ -1,7 +1,6 @@
-import { OfficeError, fail } from "../cli/project.ts";
+import { OfficeError } from "../cli/project.ts";
 import type { IntakeLedger } from "../core/intake.ts";
 import type { ExecutionLedger } from "../core/budgets.ts";
-import { verifyCandidate } from "../core/candidates.ts";
 import type { Candidate } from "../core/candidates.ts";
 import type { ContainerPlanner } from "./container-verifier.ts";
 import type { RemoteJob } from "./remote-job.ts";
@@ -12,7 +11,11 @@ type Dependencies = {
   intake: IntakeLedger;
   execution: ExecutionLedger;
   planner: ContainerPlanner;
-  jobFor: (packet: PlanningPacket, context: Candidate) => RemoteJob;
+  jobFor: (
+    packet: PlanningPacket,
+    context: Candidate,
+    prompt: string,
+  ) => RemoteJob;
 };
 const pending = (state: string) =>
   ["waiting_pm", "waiting_lead"].includes(state);
@@ -52,11 +55,9 @@ export class PlanningCoordinator {
         if (leases.some((l) => l.state !== "released")) return view(true);
         let lease;
         try {
-          if (!verifyCandidate(context))
-            fail("CANDIDATE_CHANGED", "Planning context changed.");
           const packet = intake.packet(taskId, item.revision, item.inputDigest);
-          planningPrompt(packet); // Validate pinned role instructions before any launch.
-          const job = jobFor(packet, context);
+          const prompt = planningPrompt(packet, context);
+          const job = jobFor(packet, context, prompt);
           lease = execution.reservePlanning(
             taskId,
             item.revision,
