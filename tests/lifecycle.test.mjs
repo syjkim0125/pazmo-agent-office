@@ -36,6 +36,103 @@ function setup(t) {
   assert.equal(call(f, "init", "--apply").status, 0);
   return f;
 }
+test("operator CLI publishes a saved proposal once, retains approval gates and restores links after restart", async (t) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { OfficeStore } = await import("../src/core/store.ts");
+  const { IntakeLedger } = await import("../src/core/intake.ts");
+  const { proposal } = await import("./planning-fixture.mjs");
+  const f = setup(t),
+    started = call(f, "start", "--port", "0");
+  assert.equal(started.status, 0);
+  assert.equal(call(f, "stop").status, 0);
+  const db = new DatabaseSync(join(started.value.dataDir, "office.sqlite"));
+  let saved;
+  try {
+    const project = realpathSync(f.project),
+      token = "a".repeat(64);
+    saved = proposal(
+      new IntakeLedger(db, new OfficeStore(db, project, token), project),
+      token,
+      "high",
+    );
+  } finally {
+    db.close();
+  }
+  assert.equal(call(f, "start", "--port", "0").status, 0);
+  const running = JSON.parse(
+    readFileSync(join(started.value.dataDir, "running.json")),
+  );
+  const operator = JSON.parse(
+    readFileSync(
+      join(started.value.dataDir, `operator-${running.instance}.json`),
+    ),
+  );
+  const route =
+    call(f, "status").value.url +
+    "/api/pazmo/intakes/" +
+    saved.taskId +
+    "/publish";
+  const input = { revision: saved.revision, inputDigest: saved.inputDigest };
+  assert.equal(
+    (
+      await fetch(route, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(input),
+      })
+    ).status,
+    401,
+  );
+  assert.equal(
+    (
+      await fetch(route, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${operator.token}`,
+        },
+        body: JSON.stringify({ ...input, destination: "story.md" }),
+      })
+    ).status,
+    400,
+  );
+  const file = join(f.root, "publication.json");
+  writeFileSync(file, JSON.stringify(input));
+  const published = call(
+    f,
+    "intake-publish",
+    "--task-id",
+    saved.taskId,
+    "--file",
+    file,
+  );
+  assert.equal(published.status, 0, JSON.stringify(published.value));
+  assert.equal(published.value.state, "registered");
+  assert.equal(published.value.publication.taskIds.length, 2);
+  assert.ok(!JSON.stringify(published.value).includes(operator.token));
+  const tasks = call(f, "contracts").value.contracts;
+  assert.equal(tasks.length, 2);
+  assert.ok(
+    tasks.every(
+      (task) =>
+        task.blocker === "G1_REQUIRED" &&
+        !task.approved.G3 &&
+        task.execution === "locked",
+    ),
+  );
+  assert.equal(call(f, "stop").status, 0);
+  assert.equal(call(f, "start", "--port", "0").status, 0);
+  assert.deepEqual(
+    call(f, "intake", "--task-id", saved.taskId).value,
+    published.value,
+  );
+  assert.deepEqual(
+    call(f, "intake-publish", "--task-id", saved.taskId, "--file", file).value,
+    published.value,
+  );
+  assert.equal(call(f, "contracts").value.contracts.length, 2);
+});
+
 test("operator CLI persists intake questions across restart and rejects stale or untrusted answers", async (t) => {
   const { DatabaseSync } = await import("node:sqlite");
   const { OfficeStore } = await import("../src/core/store.ts");
@@ -452,7 +549,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   const migrated = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
     readOnly: true,
   });
-  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 8);
+  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 9);
   assert.equal(
     migrated.prepare("SELECT COUNT(*) AS n FROM pazmo_task_contracts").get().n,
     0,
@@ -468,7 +565,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   );
 });
 
-for (const oldVersion of [2, 3, 4, 5, 6, 7])
+for (const oldVersion of [2, 3, 4, 5, 6, 7, 8])
   test(`owned v${oldVersion} migration backs up data before adding execution tables`, async (t) => {
     const { DatabaseSync } = await import("node:sqlite");
     const { applyBaseSchema } =
@@ -522,6 +619,16 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7])
       }
     }
     if (oldVersion < 7) db.exec("DROP TABLE IF EXISTS pazmo_deliveries");
+    let priorIntake;
+    if (oldVersion >= 8) {
+      const { IntakeLedger } = await import("../src/core/intake.ts");
+      priorIntake = new IntakeLedger(db, store, manifest.project).create(
+        "a".repeat(64),
+        "Preserve pending planning request.",
+        "normal",
+      );
+      db.exec("DROP TABLE pazmo_intake_publications");
+    }
     db.prepare(
       "INSERT INTO tasks (id,title) VALUES ('preserved','Preserve v2 task')",
     ).run();
@@ -583,15 +690,58 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7])
       ),
       oldVersion >= 7,
     );
+    if (priorIntake) {
+      assert.equal(
+        original
+          .prepare("SELECT revision FROM pazmo_intakes WHERE task_id=?")
+          .get(priorIntake.taskId).revision,
+        priorIntake.revision,
+      );
+      assert.equal(
+        original.prepare("SELECT count(*) n FROM pazmo_intake_events").get().n,
+        1,
+      );
+      assert.equal(
+        original
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE name='pazmo_intake_publications'",
+          )
+          .get(),
+        undefined,
+      );
+    }
     original.close();
     const current = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
       readOnly: true,
     });
-    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 8);
+    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 9);
     assert.equal(
-      current.prepare("SELECT count(*) n FROM pazmo_intakes").get().n,
+      current.prepare("SELECT count(*) n FROM pazmo_intake_publications").get()
+        .n,
       0,
     );
+    assert.equal(
+      current.prepare("SELECT count(*) n FROM pazmo_intakes").get().n,
+      priorIntake ? 1 : 0,
+    );
+    if (priorIntake) {
+      assert.equal(
+        current
+          .prepare("SELECT packet_json FROM pazmo_intakes WHERE task_id=?")
+          .get(priorIntake.taskId).packet_json,
+        JSON.stringify(
+          (await import("../src/runners/planning.ts")).beginPlanning(
+            priorIntake.taskId,
+            priorIntake.request,
+            priorIntake.risk,
+          ),
+        ),
+      );
+      assert.equal(
+        current.prepare("SELECT count(*) n FROM pazmo_intake_events").get().n,
+        1,
+      );
+    }
     assert.equal(
       current.prepare("SELECT COUNT(*) AS n FROM pazmo_handoffs").get().n,
       0,

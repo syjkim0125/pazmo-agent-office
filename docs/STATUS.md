@@ -6,6 +6,8 @@
 
 ## 현재 되는 것
 
+- **저장된 팀장 제안을 문서와 승인 대기 Task로 일괄 등록**하는 `intake-publish` CLI/API를 연결했다. 기존 파일을 덮어쓰지 않고, 취소·문서 변경·DB 실패 시 일부 Task만 등록되지 않게 한다. 성공한 요청의 재시도와 재시작은 같은 등록 기록을 반환하며 G1/G3를 생략하지 않는다. 스키마 v9, root **238/238**, 타입 검사 exit 0, vendor lint 오류 0/기존 경고 40. 실제 모델·UI 실행은 아직 미연결이다. [검증·리뷰·복구 경계](verification/2026-09-21-intake-publication.md) · [사용 방법](LOCAL-PREVIEW.md#register-a-saved-proposal). 아래 항목의 수치와 미구현 표기는 각 당시의 기록이다.
+
 - **요청과 PM/Lead 대화 저장·조회·답변·취소**를 기존 SQLite/작업 큐와 operator CLI/API에 연결했다. 버전과 입력 해시로 중복·지연 답변을 거부하고, 취소와 이력은 재시작 후에도 보존한다. v1–v7 백업 후 v8로 업그레이드한다. 전체 root **227/227**, 타입 검사 exit 0, vendor lint 오류 0/기존 경고 40. 실제 PM/Lead 실행과 Office 대화 화면은 아직 미연결이며 새 요청은 `waiting_pm`에 보존된다. [증거와 한계](verification/2026-09-21-intake-ledger.md) · [사용 방법](LOCAL-PREVIEW.md#planning-requests-and-replies).
 
 - **PM 질문·답변 → Lead 제안 → 계약 초안 생성의 내부 규약**을 구현했다. 현재 요청에 연결된 종료된 응답만 받고, 모든 요구사항/검증의 Task 연결과 질문 횟수를 제한한다. 모델 초안은 승인이 아니며, 기존 저장소 등록 후 G1/G3를 요구한다. Lead 계획을 승인 해시와 역할 문서에 포함하도록 누락을 수정했다. 전체 root **221/221**, 타입 검사 exit 0, Story/Task PASS. 실제 PM/Lead 실행·대화 영속화·API/UI 연결은 아직 없으며 모델 응답은 fixture다. [증거와 경계](verification/2026-09-21-planning-protocol.md).
@@ -47,7 +49,7 @@
 
 ## 실행이 잠겨 있는 이유와 다음 결정
 
-2026-09-21 지속 목표와의 차이: CLI 등록과 Engineer 이후 내부 흐름은 연결돼 있으나, PM·Lead의 실제 요구사항 정리/배정과 구조화된 질문·답변 인계, Office 작업 등록·대화·승인 UI, 후속 작업의 학습 조회, 인증된 모델의 실제 프로젝트 pilot 및 사용자의 실제 G4는 남아 있다. 이번 역할 프로필 연결은 그중 Engineer/Reviewer 지침의 누락·변경 확인을 해결했다. 다음은 PM·Lead 제안과 질문을 기존 계약/승인 흐름에 연결하는 작업이다. 세 업무 모드와 npm tarball 설치 검증도 전체 완료 기준에 유지한다.
+2026-09-21 지속 목표와의 차이: 요청·역할 대화의 저장, 답변, 제안 등록과 Engineer 이후 내부 흐름은 연결됐다. PM·Lead의 실제 실행과 저장소 문맥 수집·의존관계 배정, Office 작업 등록·대화·승인 UI, 후속 작업의 학습 조회, 인증된 모델의 실제 프로젝트 pilot 및 사용자의 실제 G4는 남아 있다. 다음은 PM·Lead 실행을 기존 공유 슬롯·예산과 종료/재시작 관리에 연결하는 작업이다. 세 업무 모드와 npm tarball 설치 검증도 전체 완료 기준에 유지한다.
 
 native 격리 canary가 필수 조건을 충족하지 못했다. 명시적 deny에도 `/private/tmp`의 가짜 보호 파일에 읽기/쓰기가 가능했고, 일반 경로에서도 Codex native binary의 새 프로세스 실행이 가능했다. 실제 인증 파일·사용자 DB는 시험에 쓰지 않았다. 인증된 모델 호출이나 sandbox 탈출이 성공했다는 의미는 아니다.
 

@@ -122,48 +122,70 @@ export class OfficeStore {
   async register(token: string, input: ContractInput, taskId?: string) {
     this.authorize(token);
     const contract = await readContract(this.#project, input);
+    return transaction(this.#db, () => this.#register(contract, taskId));
+  }
+  /** Controller-internal batch. The synchronous receipt shares the registration transaction. */
+  async registerBatch(
+    token: string,
+    inputs: ContractInput[],
+    record: (items: ReturnType<OfficeStore["get"]>[]) => undefined,
+  ) {
+    this.authorize(token);
+    if (!inputs.length || inputs.length > 8)
+      fail("INVALID_CONTRACT", "Register between one and eight tasks.");
+    const contracts: Contract[] = [];
+    // Validation awaits the packaged checker; never keep a SQLite transaction open across it.
+    for (const input of inputs)
+      contracts.push(await readContract(this.#project, input));
+    if (this.#db.isTransaction)
+      fail(
+        "TRANSACTION_ACTIVE",
+        "Batch registration must own its commit boundary.",
+      );
     return transaction(this.#db, () => {
-      if (!contractMatches(this.#project, contract))
-        fail("CONTRACT_CHANGED", "Contract changed before registration.");
-      const existing = taskId ? this.#row(taskId) : undefined;
-      if (
-        existing &&
-        !["inbox", "planned", "pending"].includes(existing.status)
-      )
-        fail(
-          "TASK_ACTIVE",
-          "An active or completed task contract cannot be replaced.",
-        );
-      if (
-        existing &&
-        (JSON.parse(existing.contract_json) as Contract).digest ===
-          contract.digest
-      )
-        return this.get(existing.id);
-      const id = existing?.id ?? randomUUID(),
-        revision = (existing?.revision ?? 0) + 1;
-      if (!existing)
-        this.#db
-          .prepare(
-            "INSERT INTO tasks (id,title,project_path,status) VALUES (?,?,?,'inbox')",
-          )
-          .run(id, contract.title, this.#project);
-      else
-        this.#db
-          .prepare(
-            "UPDATE tasks SET title=?,status='inbox',updated_at=? WHERE id=?",
-          )
-          .run(contract.title, Date.now(), id);
-      this.#db
-        .prepare("INSERT INTO pazmo_contract_revisions VALUES (?,?,?,?)")
-        .run(id, revision, JSON.stringify(contract), Date.now());
+      const items = contracts.map((contract) => this.#register(contract));
+      record(items);
+      return items;
+    });
+  }
+  #register(contract: Contract, taskId?: string) {
+    if (!contractMatches(this.#project, contract))
+      fail("CONTRACT_CHANGED", "Contract changed before registration.");
+    const existing = taskId ? this.#row(taskId) : undefined;
+    if (existing && !["inbox", "planned", "pending"].includes(existing.status))
+      fail(
+        "TASK_ACTIVE",
+        "An active or completed task contract cannot be replaced.",
+      );
+    if (
+      existing &&
+      (JSON.parse(existing.contract_json) as Contract).digest ===
+        contract.digest
+    )
+      return this.get(existing.id);
+    const id = existing?.id ?? randomUUID(),
+      revision = (existing?.revision ?? 0) + 1;
+    if (!existing)
       this.#db
         .prepare(
-          `INSERT INTO pazmo_task_contracts VALUES (?,?) ON CONFLICT(task_id) DO UPDATE SET revision=excluded.revision`,
+          "INSERT INTO tasks (id,title,project_path,status) VALUES (?,?,?,'inbox')",
         )
-        .run(id, revision);
-      return this.get(id);
-    });
+        .run(id, contract.title, this.#project);
+    else
+      this.#db
+        .prepare(
+          "UPDATE tasks SET title=?,status='inbox',updated_at=? WHERE id=?",
+        )
+        .run(contract.title, Date.now(), id);
+    this.#db
+      .prepare("INSERT INTO pazmo_contract_revisions VALUES (?,?,?,?)")
+      .run(id, revision, JSON.stringify(contract), Date.now());
+    this.#db
+      .prepare(
+        `INSERT INTO pazmo_task_contracts VALUES (?,?) ON CONFLICT(task_id) DO UPDATE SET revision=excluded.revision`,
+      )
+      .run(id, revision);
+    return this.get(id);
   }
   requestApproval(token: string, id: string, gate: Gate) {
     this.authorize(token);

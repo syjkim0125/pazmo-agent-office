@@ -76,7 +76,8 @@ export async function handleOperator(
         .filter(Boolean);
       if (
         parts.length > 2 ||
-        (parts.length === 2 && !["answer", "cancel"].includes(parts[1]))
+        (parts.length === 2 &&
+          !["answer", "cancel", "publish"].includes(parts[1]))
       )
         fail("NOT_FOUND", "Unknown intake operation.");
       if (req.method === "GET" && parts.length === 1) {
@@ -114,6 +115,16 @@ export async function handleOperator(
             input.revision as number,
             input.inputDigest as string,
             input.answers,
+          ),
+        );
+      else if (parts[1] === "publish")
+        json(
+          200,
+          await intake.publish(
+            token,
+            id(parts[0]),
+            input.revision as number,
+            input.inputDigest as string,
           ),
         );
       else

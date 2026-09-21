@@ -16,7 +16,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]",
+        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]",
       );
       return;
     }
@@ -43,6 +43,7 @@ export async function main(args: string[]): Promise<void> {
         "intake",
         "intake-answer",
         "intake-cancel",
+        "intake-publish",
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
@@ -91,6 +92,7 @@ export async function main(args: string[]): Promise<void> {
         "intake-create",
         "intake-answer",
         "intake-cancel",
+        "intake-publish",
       ],
       "--task-id": [
         "contract",
@@ -101,6 +103,7 @@ export async function main(args: string[]): Promise<void> {
         "intake",
         "intake-answer",
         "intake-cancel",
+        "intake-publish",
       ],
       "--gate": ["approval-request"],
       "--challenge": ["approval-decide"],
@@ -139,10 +142,12 @@ export async function main(args: string[]): Promise<void> {
         p,
         `/api/pazmo/intakes/${encodeURIComponent(required("--task-id"))}`,
       );
-    else if (command === "intake-answer" || command === "intake-cancel")
+    else if (
+      ["intake-answer", "intake-cancel", "intake-publish"].includes(command)
+    )
       result = await operatorRequest(
         p,
-        `/api/pazmo/intakes/${encodeURIComponent(required("--task-id"))}/${command === "intake-answer" ? "answer" : "cancel"}`,
+        `/api/pazmo/intakes/${encodeURIComponent(required("--task-id"))}/${command.slice("intake-".length)}`,
         inputJSON(),
       );
     else if (command === "contracts")

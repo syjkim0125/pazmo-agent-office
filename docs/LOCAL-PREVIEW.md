@@ -114,7 +114,7 @@ At startup, interrupted `checking` rounds become `human_required` with `CONTROLL
 
 Interrupted execution reservations also become `unknown` on restart and keep their slots occupied. The internal accounting caps all executions at three, with two Engineer slots and two automatic fixes. Offline test supervision/dispatch and an internal VM workspace job adapter are connected. The latter performs actual Codex file edits and result recovery in disposable integration tests. A readonly Codex Reviewer adapter joins a structured report on that candidate, with malformed output and cancellation refusing success. These use scripted model responses and have no public CLI launch command. See [evidence](verification/2026-09-21-codex-workspace-review.md). Authenticated model supervision is still unconnected. There is no operator command to discard unknown leases or force free slots.
 
-New instances use schema version 8. An owned version-1 through version-7 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
+New instances use schema version 9. An owned version-1 through version-8 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
 
 ### Planning requests and replies
 
@@ -135,7 +135,22 @@ node bin/pazmo-office.mjs intake-answer --project /absolute/project --task-id TA
 
 A stale revision, wrong question ID, or missing answer is rejected. Re-read the intake rather than resubmitting an obsolete answer. To cancel, save only the current `revision` and `inputDigest` in `cancel.json`, then run `intake-cancel` with the same project/task flags and `--file cancel.json`. Dialogue and cancellation survive restart. Invalid model evidence becomes `human_required`; automatic recovery is not enabled.
 
-These commands use the private operator capability internally. The corresponding private paths are POST `/api/pazmo/intakes`, GET `/api/pazmo/intakes/:id`, and POST `/api/pazmo/intakes/:id/answer` or `/cancel`. No approval is created by any of them. Planning proposals remain separate from registered execution contracts; automatic document publication and the interactive Office controls are still pending.
+These commands use the private operator capability internally. The corresponding private paths are POST `/api/pazmo/intakes`, GET `/api/pazmo/intakes/:id`, and POST `/api/pazmo/intakes/:id/answer` or `/cancel`. No approval is created by any of them. The interactive Office controls and live planning supervision remain pending.
+
+### Register a saved proposal
+
+When the controller has produced an intake with `state: "proposal"`, inspect its proposed documents, commands and workspace scope. Save its numeric `revision` and `inputDigest` in `publication.json`, then run:
+
+```sh
+node bin/pazmo-office.mjs intake-publish --project /absolute/project --task-id INTAKE_ID --file publication.json
+node bin/pazmo-office.mjs contracts --project /absolute/project
+```
+
+This command writes a new `office-plan-RANDOM/` directory in the project. It preserves existing documents and creates every proposed task in one database transaction with the publication receipt and dialogue event. It returns `state: "registered"` and `publication.taskIds`. These IDs identify the execution contracts; the original intake remains their conversation record. Each task still requires G1 and, for high-risk work, G3 through the existing approval commands. Registration starts no worker and does not approve the proposal.
+
+The private API is POST `/api/pazmo/intakes/:id/publish` with exactly `revision` and `inputDigest`. The controller chooses the directory; caller-selected paths, documents or approval fields are rejected. Repeating the original successful request returns the same receipt, including after restart. Changing registered files makes the affected contracts report `CONTRACT_CHANGED`; refresh those contracts and obtain new approvals. `publication.documents` records original file digests, not a claim that the files are still unchanged.
+
+On failure or a concurrent losing request, the new directory may remain without a committed publication. Preserve it for inspection; the error identifies the directory when available. A retry creates a different directory and never adopts or deletes abandoned files or user edits. A crash before commit has the same possible orphan-file outcome. Read the intake and `contracts` to establish whether registration committed before retrying. SQLite cannot roll back project files, and power-loss durability is not established by these tests. Published intakes no longer accept planning answers or intake cancellation; downstream execution has its own cancellation lifecycle.
 
 
 ## Local delivery after evaluated G4
