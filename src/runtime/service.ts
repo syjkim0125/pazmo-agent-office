@@ -19,6 +19,7 @@ import { HandoffLedger } from "../core/handoffs.ts";
 import { IntakeLedger } from "../core/intake.ts";
 import { transaction } from "../core/approvals.ts";
 import { handleOperator } from "./operator.ts";
+import { serveOperatorPage } from "./operator-page.ts";
 import { applyBaseSchema } from "../../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { applyDefaultSeeds } from "../../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { noSymlinks, packageRoot } from "../cli/project.ts";
@@ -315,6 +316,7 @@ process.once("message", async (raw: unknown) => {
           json(200, { execution: "locked", mode: "read-only-preview" });
           return;
         }
+        if (serveOperatorPage(req, res, path)) return;
         if (path === "/api/auth/session") {
           json(200, { ok: true, authenticated: false, execution: "locked" });
           return;
@@ -418,7 +420,7 @@ process.once("message", async (raw: unknown) => {
                 /<body\b[^>]*>/,
                 (match) =>
                   match +
-                  '<aside role="status" style="position:fixed;bottom:8px;left:8px;z-index:99999;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#382a00;font:14px system-ui;box-shadow:0 2px 8px #0002">읽기 전용 미리보기 · AI 실행 잠김 / AI execution locked</aside>',
+                  '<aside role="status" style="position:fixed;bottom:8px;left:8px;z-index:99999;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#382a00;font:14px system-ui;box-shadow:0 2px 8px #0002">읽기 전용 미리보기 · AI 실행 잠김 / AI execution locked · <a href="/operator">작업 관리</a></aside>',
               ),
           );
         res.writeHead(200, {

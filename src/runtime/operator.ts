@@ -84,6 +84,21 @@ export async function handleOperator(
         json(200, intake.get(id(parts[0])));
         return;
       }
+      if (req.method === "GET" && parts.length === 0) {
+        const params = new URL(req.url!, "http://127.0.0.1").searchParams;
+        if (
+          [...params.keys()].some((key) => key !== "before") ||
+          params.getAll("before").length > 1
+        )
+          fail("INVALID_REQUEST", "Only one before cursor is accepted.");
+        json(
+          200,
+          intake.list(
+            params.has("before") ? id(params.get("before")) : undefined,
+          ),
+        );
+        return;
+      }
       if (req.method !== "POST" || parts.length === 1) {
         json(405, { error: "METHOD_NOT_ALLOWED" });
         return;

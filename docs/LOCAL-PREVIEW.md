@@ -1,6 +1,6 @@
 # Local development preview
 
-Requires Node **24.19.0** (tested) and the checked-out repository. This is a read-only preview, not the packaged product or a live AI runner. Do not use the imported vendor start/dev commands: those start the unguarded upstream runtime.
+Requires Node **24.19.0** (tested) and the checked-out repository. The Claw preview is read-only; the separate operator screen can save planning requests and answers. This is not the packaged product or a live AI runner. Do not use the imported vendor start/dev commands: those start the unguarded upstream runtime.
 
 ## Build
 
@@ -45,6 +45,20 @@ Office, Dashboard and the empty Tasks board were exercised in the browser. The b
 The preview process imports the pinned Claw schema/seeds and uses its UI; it does not import its scheduler, process launcher, updater or recovery routes. These will need the approved guard integration before live operation. Source-free tarball execution, Linux support and browser approval flows are unverified.
 
 ## Operator contract and approval CLI
+
+### Planning conversation screen
+
+Open the `start` URL and follow **작업 관리**, or append `/operator`. The screen uses the same operator capability as the CLI. It does not grant access from the loopback address alone, and it does not start Codex models.
+
+Use the actual project-specific `dataDir` returned by `start`/`status`. In your private terminal, read its `running.json` to obtain `instance`, then open `operator-<instance>.json` in that same directory and copy only its `token` value into **Operator 인증키**. Do not paste that file into an agent conversation, place it in the project, or share it. The screen does not receive the runtime control token from `running.json`. This manual pairing is an interim user flow; automatic browser pairing is not implemented.
+
+This key permits operating this Office instance. It is separate from the Codex account login needed for actual model execution. The browser keeps the key only in page memory, sends it in the existing Authorization header, and clears it on disconnect/reload. Office restart rotates the key; reconnect with the new instance's operator key.
+
+The screen supports the current project's request creation, 50-item pages, saved conversations, PM question answers and cancellation. It displays proposals as unapproved text. Registration waits for the still-locked model runner. Questions seen in automated/browser verification were explicitly seeded fixtures, not responses from live PM agents.
+
+Failed writes preserve drafts and are never automatically retried: refresh the list/conversation to determine whether an uncertain request was saved. Refreshing a changed conversation keeps its previous answers as a separate draft instead of applying them to new questions. Explicit disconnect or page reload clears local drafts; saved Office conversations remain. G1/G3/G4, proposal publication and delivery still use the existing CLI/API and are not offered as automatic buttons here.
+
+[Screen verification and evidence limits](verification/2026-09-22-intake-console.md).
 
 The local operator can now register contracts and record G1/G3 decisions. The browser remains a preview, and approval does **not** unlock model execution. `ready: true` means only that the current contract has its required approvals; `execution: locked` remains authoritative.
 

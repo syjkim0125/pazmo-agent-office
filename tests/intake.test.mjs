@@ -59,6 +59,39 @@ function ask(f, s) {
     }),
   );
 }
+test("operator listing is bounded, stable across ties and scoped to this project", (t) => {
+  const f = setup(t);
+  const ids = Array.from(
+    { length: 53 },
+    (_, n) => f.intake.create(token, `Request ${n}`, "normal").taskId,
+  );
+  f.db.prepare("UPDATE tasks SET created_at=1234").run();
+  const other = new IntakeLedger(f.db, f.store, join(f.root, "other-project"));
+  const foreign = other.create(token, "Other project", "normal");
+  const first = f.intake.list();
+  assert.equal(first.items.length, 50);
+  assert.ok(first.nextCursor);
+  const second = f.intake.list(first.nextCursor);
+  assert.equal(second.items.length, 3);
+  assert.equal(second.nextCursor, null);
+  assert.deepEqual(
+    [...first.items, ...second.items].map((x) => x.taskId),
+    ids.sort().reverse(),
+  );
+  assert.ok(first.items.every((x) => !("events" in x) && !("packet" in x)));
+  assert.throws(() => f.intake.list(foreign.taskId), { code: "NOT_FOUND" });
+  const cancelled = f.intake.get(ids[0]);
+  f.intake.cancel(
+    token,
+    cancelled.taskId,
+    cancelled.revision,
+    cancelled.inputDigest,
+  );
+  assert.equal(
+    f.intake.list().items.find((x) => x.taskId === ids[0]).state,
+    "cancelled",
+  );
+});
 test("intake persists questions and addressed answers in the existing task queue across ledger reconstruction", (t) => {
   const f = setup(t),
     created = f.intake.create(token, "Validate parser input.", "normal");

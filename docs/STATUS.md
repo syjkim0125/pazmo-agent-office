@@ -1,4 +1,6 @@
-# 진행 상태 — 2026-09-21
+# 진행 상태 — 2026-09-22
+
+- 2026-09-22: Office의 **작업 관리** 화면에서 현재 프로젝트 요청 등록·목록·대화·PM 답변·취소를 기존 operator API에 연결했다. 브라우저 등록/답변/재시작/취소와 root **267/267**을 확인했다. 질문은 fixture이며 모델 실행·실제 G4·프로젝트 전환·승인 UI는 남아 있다. [사용 안내](LOCAL-PREVIEW.md#planning-conversation-screen) · [검증](verification/2026-09-22-intake-console.md).
 
 - kit 4.0.0 인계를 코드/패키지와 비교했다. Office DB에 kit 전이를 원자적으로 반영할 API는 추가 협의가 필요하며, Office 설치는 3.1.1을 유지한다. PM/Lead에 읽기 전용 snapshot 문맥과 스킬 미검증/direct 상태를 전달하도록 수정했다. root **260/260**, 타입 검사, 실제 VM 읽기/쓰기 차단 시험 통과. 모델 응답은 fixture다. [검토·kit API 요청](kit-office-integration-request.md) · [변경·검증 경계](verification/2026-09-21-kit-handoff-context.md).
 

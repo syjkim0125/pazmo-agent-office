@@ -169,6 +169,7 @@ sequenceDiagram
 - Verification: T12/T15/T16; 실제 3역할 증거가 없으면 live 협업 미검증으로 남긴다.
 
 ### U7. Office UI and three workflow pilots
+- Intake screen connection (2026-09-22): keep the imported preview locked and link it to an Office-owned `/operator` shell using the existing operator bearer boundary. Fixed trusted assets, no token-bearing HTML/URL/browser storage, existing Origin checks, text-only conversation rendering and server revision/digest checks. Add a project-scoped 50-item cursor list; no new queue, approval logic or model launcher. Existing-project create/read/answer/cancel comes first; project switching, publication/approval/delivery UI and live pilots remain. Scope: `docs/tasks/U7-intake-console.md`; evidence: `docs/verification/2026-09-22-intake-console.md`.
 - Goal / Covers: 사용자가 계약·실행·검토·대기 이유를 보고 결정한다; M2/M5 및 S1, V2/V5. 핸드오프 M5.
 - Dependencies: U5/U6.
 - Files: Claw `src/components/` 관련 task/decision 화면, `src/api/`, `test/e2e/office-workflow.spec.ts`, `docs/pilots/`.

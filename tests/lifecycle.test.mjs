@@ -36,6 +36,63 @@ function setup(t) {
   assert.equal(call(f, "init", "--apply").status, 0);
   return f;
 }
+test("operator page exposes no capability and intake listing requires the existing operator boundary", async (t) => {
+  const f = setup(t),
+    running = call(f, "start", "--port", "0").value;
+  const state = JSON.parse(readFileSync(join(running.dataDir, "running.json")));
+  const operator = JSON.parse(
+    readFileSync(join(running.dataDir, `operator-${state.instance}.json`)),
+  );
+  const base = `http://127.0.0.1:${state.port}`;
+  for (const path of [
+    "/operator",
+    "/operator/console.js",
+    "/operator/conversation.js",
+    "/operator/start.js",
+    "/operator/style.css",
+  ]) {
+    const response = await fetch(base + path);
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get("cache-control"), "no-store");
+    assert.match(
+      response.headers.get("content-security-policy"),
+      /frame-ancestors 'none'/,
+    );
+    assert.ok(!(await response.text()).includes(operator.token));
+  }
+  assert.equal((await fetch(base + "/api/pazmo/intakes")).status, 401);
+  const headers = { Authorization: `Bearer ${operator.token}` };
+  assert.equal(
+    (
+      await fetch(base + "/api/pazmo/intakes", {
+        headers: { ...headers, Origin: "https://untrusted.example" },
+      })
+    ).status,
+    403,
+  );
+  assert.equal(
+    (await fetch(base + "/api/pazmo/intakes?before=bad!", { headers })).status,
+    400,
+  );
+  assert.equal(
+    (await fetch(base + "/api/pazmo/intakes?unknown=1", { headers })).status,
+    400,
+  );
+  const created = await fetch(base + "/api/pazmo/intakes", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ request: "Review the parser.", risk: "normal" }),
+  });
+  assert.equal(created.status, 201);
+  const item = await created.json();
+  const list = await (
+    await fetch(base + "/api/pazmo/intakes", { headers })
+  ).json();
+  assert.equal(list.items.length, 1);
+  assert.equal(list.items[0].taskId, item.taskId);
+  assert.equal(list.items[0].state, "waiting_pm");
+  assert.ok(!JSON.stringify(list).includes(operator.token));
+});
 test("operator CLI publishes a saved proposal once, retains approval gates and restores links after restart", async (t) => {
   const { DatabaseSync } = await import("node:sqlite");
   const { OfficeStore } = await import("../src/core/store.ts");

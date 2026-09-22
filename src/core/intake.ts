@@ -36,6 +36,7 @@ type Row = {
   result_json: string | null;
   reason: string | null;
   task_status: string;
+  created_at: number;
 };
 
 /** Conversations share the Office queue; publication registers drafts without approval. */
@@ -72,7 +73,7 @@ export class IntakeLedger {
   #row(id: string): Row {
     const row = this.#db
       .prepare(
-        `SELECT i.*,t.status AS task_status FROM pazmo_intakes i JOIN tasks t ON t.id=i.task_id WHERE i.task_id=? AND t.project_path=?`,
+        `SELECT i.*,t.status AS task_status,t.created_at FROM pazmo_intakes i JOIN tasks t ON t.id=i.task_id WHERE i.task_id=? AND t.project_path=?`,
       )
       .get(id, this.#project) as Row | undefined;
     if (!row) fail("NOT_FOUND", "Office intake not found.");
@@ -162,6 +163,42 @@ export class IntakeLedger {
         payload: JSON.parse(payload_json),
       })),
       execution: "locked" as const,
+    };
+  }
+  list(before?: string) {
+    const cursor = before === undefined ? null : this.#row(before);
+    const rows = this.#db
+      .prepare(
+        `
+      SELECT i.task_id AS taskId,t.title,i.revision,i.reason,
+        CASE WHEN p.task_id IS NOT NULL THEN 'registered' ELSE i.state END AS state,
+        t.created_at AS createdAt,t.updated_at AS updatedAt
+      FROM pazmo_intakes i JOIN tasks t ON t.id=i.task_id
+      LEFT JOIN pazmo_intake_publications p ON p.task_id=i.task_id
+      WHERE t.project_path=? AND (? IS NULL OR t.created_at<? OR (t.created_at=? AND i.task_id<?))
+      ORDER BY t.created_at DESC,i.task_id DESC LIMIT 51
+    `,
+      )
+      .all(
+        this.#project,
+        cursor?.created_at ?? null,
+        cursor?.created_at ?? null,
+        cursor?.created_at ?? null,
+        before ?? null,
+      ) as {
+      taskId: string;
+      title: string;
+      revision: number;
+      reason: string | null;
+      state: State | "registered";
+      createdAt: number;
+      updatedAt: number;
+    }[];
+    const items = rows.slice(0, 50);
+    return {
+      project: this.#project,
+      items,
+      nextCursor: rows.length > 50 ? items.at(-1)!.taskId : null,
     };
   }
   create(token: string, request: string, risk: "normal" | "high") {
