@@ -29,6 +29,46 @@ import { verifyCandidate } from "../src/core/candidates.ts";
 import { runFixtureController } from "./codex-fixture-controller.mjs";
 
 const binary = process.argv[2];
+const qualify = process.argv.includes("--qualify");
+function assertQualified(controller, cancelled) {
+  assert.equal(controller.hookWrite, false);
+  assert.ok(controller.requests.length > 0);
+  for (const request of controller.requests) {
+    assert.equal(request.hostContextLeaked, false);
+    assert.ok(
+      request.tools.every((name) =>
+        ["exec_command", "write_stdin", "apply_patch"].includes(name),
+      ),
+      JSON.stringify(request.tools),
+    );
+  }
+  const events = controller.result.stdout
+    .split("\n")
+    .filter(Boolean)
+    .map(JSON.parse);
+  assert.ok(
+    events.some(
+      (e) =>
+        e.type === "item.completed" &&
+        e.item.type === "command_execution" &&
+        e.item.exit_code === 0 &&
+        e.item.aggregated_output.includes("VM_NETWORK_AND_ENV_DENIED"),
+    ),
+  );
+  if (!cancelled) {
+    assert.ok(
+      events.some(
+        (e) =>
+          e.type === "item.completed" &&
+          e.item.type === "command_execution" &&
+          e.item.exit_code === 0 &&
+          e.item.aggregated_output.includes("SESSION_IN_VM"),
+      ),
+    );
+    assert.match(controller.result.stderr, /spawn_agent/);
+    assert.match(controller.result.stderr, /view_image/);
+  }
+}
 if (!binary)
   throw Error("Pass the verified Linux exec-server binary explicitly.");
 const root = mkdtempSync(join(tmpdir(), "pazmo-codex-workspace-")),
@@ -40,6 +80,7 @@ try {
     "cancel",
     "review-invalid",
     "review-cancel",
+    ...(qualify ? ["executor-failure"] : []),
   ]) {
     const cleanups = [],
       f = fixture({ after: (fn) => cleanups.push(fn) }),
@@ -103,6 +144,8 @@ try {
           supervise: (handle, timeoutMs, signal) =>
             runFixtureController({
               client,
+              qualify,
+              breakExecutor: scenario === "executor-failure",
               handle,
               root: controllerRoot,
               timeoutMs,
@@ -123,9 +166,14 @@ try {
       );
       assert.equal(controller.localWrite, false);
       assert.equal(controller.fakeSecretUnchanged, true);
+      if (qualify)
+        assertQualified(
+          controller,
+          ["cancel", "executor-failure"].includes(scenario),
+        );
       assert.equal(existsSync(join(controllerRoot, "home/auth.json")), false);
       assert.ok(controller.methods.includes("process/start"));
-      if (scenario !== "cancel") {
+      if (!["cancel", "executor-failure"].includes(scenario)) {
         assert.equal(
           actual.report.observation.error,
           null,
@@ -166,6 +214,7 @@ try {
             supervise: (handle, timeoutMs, signal) =>
               runFixtureController({
                 client,
+                qualify,
                 handle,
                 root: reviewRoot,
                 timeoutMs,
@@ -239,6 +288,8 @@ try {
           );
         assert.equal(reviewController.localWrite, false);
         assert.equal(reviewController.fakeSecretUnchanged, true);
+        if (qualify)
+          assertQualified(reviewController, scenario === "review-cancel");
         assert.equal(existsSync(join(reviewRoot, "home/auth.json")), false);
         const reviewNode = reviewed.round.nodes.find(
           (n) => n.kind === "review",
@@ -254,7 +305,10 @@ try {
           assert.equal(reviewNode.result, null);
         }
       } else {
-        assert.equal(actual.report.observation.error, "CANCELLED");
+        assert.equal(
+          actual.report.observation.error,
+          scenario === "cancel" ? "CANCELLED" : "EXECUTOR_CLOSED",
+        );
         assert.equal(actual.handoff.state, "human_required");
         assert.equal(actual.handoff.candidate, null);
         assert.equal(verification.latest(task.id), null);

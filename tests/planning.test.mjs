@@ -317,6 +317,16 @@ test("planning receives an explicit readonly snapshot without leaking controller
   assert.equal(data.procedure.mode, "direct");
   assert.equal(data.procedure.skillStatus, "not-qualified");
   assert.equal(prompt.includes(context.directory), false);
+  assert.equal(data.verificationEnvironment.gitMetadata, false);
+  assert.deepEqual(data.verificationEnvironment.availableCommands, [
+    "node",
+    "/bin/sh",
+  ]);
+  assert.equal(data.verificationEnvironment.network, "none");
+  assert.match(
+    data.verificationEnvironment.evidenceBoundary,
+    /semantic.*Reviewer/,
+  );
   assert.equal(prompt.includes(f.project), false);
   assert.match(prompt, /read.*assigned.*snapshot/i);
   assert.equal(

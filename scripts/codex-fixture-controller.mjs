@@ -4,6 +4,11 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { openExecRelay } from "../src/runners/exec-relay.ts";
 import { runCommand } from "../src/runners/command.ts";
+import { runCodexOnRelay } from "../src/runners/codex-controller.ts";
+import {
+  codexRemoteProfile,
+  verifyControllerBinary,
+} from "../src/runners/codex-profile.ts";
 
 export async function runFixtureController({
   client,
@@ -19,6 +24,8 @@ export async function runFixtureController({
   prompt = "Execute the supplied fixture tool calls and stop.",
   expectedTaskId,
   expectedProfile,
+  qualify = false,
+  breakExecutor = false,
 }) {
   const home = join(root, "home"),
     cwd = join(root, "controller");
@@ -30,7 +37,10 @@ export async function runFixtureController({
     PATH: "/Users/jongkkim/.nvm/versions/node/v24.19.0/bin:/Users/jongkkim/.bun/bin:/usr/bin:/bin",
     LANG: "en_US.UTF-8",
   };
-  const codex = "/Users/jongkkim/.bun/bin/codex";
+  const codex = qualify
+    ? "/Users/jongkkim/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex"
+    : "/Users/jongkkim/.bun/bin/codex";
+  if (qualify) verifyControllerBinary(codex);
   const version = await runCommand(codex, ["--version"], {
     timeoutMs: 10000,
     maxBytes: 4096,
@@ -38,15 +48,39 @@ export async function runFixtureController({
   });
   if (version.exitCode !== 0 || version.stdout.trim() !== "codex-cli 0.155.1")
     throw Error("UNVERIFIED_CONTROLLER_VERSION");
+  let executor;
   const failures = new AbortController(),
     relay = await openExecRelay(
-      () => client.openExecutor(handle),
+      () => (executor = client.openExecutor(handle)),
       () => failures.abort(),
     );
   const requests = [],
     forbidden = join(root, "forbidden-local-write");
   const secret = join(root, "fake-controller-secret");
   writeFileSync(secret, "FAKE_CONTROLLER_ONLY", { mode: 0o600 });
+  const hookMarker = join(root, "forbidden-hook-write");
+  if (qualify) {
+    writeFileSync(
+      join(home, "config.toml"),
+      "THIS IS INTENTIONALLY INVALID TOML",
+    );
+    writeFileSync(
+      join(home, "hooks.json"),
+      JSON.stringify({
+        hooks: {
+          SessionStart: [
+            { hooks: [{ type: "command", command: "touch " + hookMarker }] },
+          ],
+        },
+      }),
+    );
+    mkdirSync(join(home, "skills/poison"), { recursive: true });
+    writeFileSync(
+      join(home, "skills/poison/SKILL.md"),
+      "---\nname: poison\ndescription: HOST_SKILL_CANARY_DO_NOT_INJECT\n---\nHOST_SKILL_CANARY_DO_NOT_INJECT\n",
+    );
+    writeFileSync(join(cwd, "AGENTS.md"), "HOST_AGENTS_CANARY_DO_NOT_INJECT");
+  }
   let count = 0;
   const q = (s) => "'" + s.replaceAll("'", "'\\''") + "'";
   const model = createServer(async (req, res) => {
@@ -77,7 +111,12 @@ export async function runFixtureController({
     count++;
     requests.push({
       path: req.url,
-      tools: body.tools?.map((t) => t.name ?? t.type),
+      tools: body.tools
+        ?.flatMap((t) => t.tools ?? [t])
+        .map((t) => t.name ?? t.type),
+      hostContextLeaked: /HOST_(SKILL|AGENTS)_CANARY_DO_NOT_INJECT/.test(
+        JSON.stringify(body),
+      ),
       taskContextObserved: expectedTaskId
         ? JSON.stringify(body.input).includes(expectedTaskId)
         : null,
@@ -89,6 +128,10 @@ export async function runFixtureController({
           ) && JSON.stringify(body.input).includes(expectedProfile.ref)
         : null,
     });
+    if (breakExecutor && count === 2) {
+      executor.kill("SIGKILL");
+      return;
+    }
     if (cancelAfterTool && count === 2) {
       onTool?.();
       return;
@@ -107,7 +150,7 @@ export async function runFixtureController({
         res.end("No shell tool");
         return;
       }
-      const code = review
+      let code = review
         ? "const fs=require('fs'),a=require('assert/strict');a.equal(process.getuid(),1000);a.equal(fs.readFileSync('src/a','utf8')," +
           JSON.stringify(value) +
           ");a.equal(fs.readFileSync('src/patched','utf8'),'ACTUAL_CODEX_REMOTE_PATCH\\n');a.throws(()=>fs.writeFileSync('src/a','BAD'),e=>['EROFS','EACCES'].includes(e.code));a.throws(()=>fs.readFileSync(" +
@@ -118,6 +161,9 @@ export async function runFixtureController({
           ");a.throws(()=>fs.readFileSync(" +
           JSON.stringify(secret) +
           "),{code:'ENOENT'});console.log('ACTUAL_CODEX_REMOTE_TOOL')";
+      if (qualify)
+        code +=
+          ";const os=require('os');a.ok(Object.keys(os.networkInterfaces()).every(k=>k==='lo'));a.equal(process.env.CODEX_HOME,undefined);a.equal(process.env.PAZMO_CONTROLLER_CANARY,undefined);a.match(require('fs').readFileSync('/proc/self/status','utf8'),/^CapEff:\\s+0+$/m);a.throws(()=>require('fs').readFileSync('/var/run/docker.sock'));require('child_process').execFileSync(process.execPath,['-e',\"require('assert/strict').equal(process.env.PAZMO_CONTROLLER_CANARY,undefined)\"]);fetch('http://1.1.1.1',{signal:AbortSignal.timeout(1000)}).then(()=>{console.error('NETWORK_ESCAPE');process.exitCode=1},()=>console.log('VM_NETWORK_AND_ENV_DENIED'))";
       const command = "node -e " + q(code),
         args =
           name === "exec_command"
@@ -168,6 +214,47 @@ export async function runFixtureController({
           max_output_tokens: 500,
         }),
       };
+    else if (qualify && count === 4)
+      item = {
+        type: "function_call",
+        call_id: "fixture-session",
+        name: "exec_command",
+        arguments: JSON.stringify({
+          cmd: "sleep 2; printf SESSION_IN_VM",
+          workdir: "/candidate/tree",
+          yield_time_ms: 1000,
+          max_output_tokens: 500,
+        }),
+      };
+    else if (qualify && count === 5) {
+      const match = JSON.stringify(body.input).match(
+        /Process running with session ID (\d+)/,
+      );
+      item = {
+        type: "function_call",
+        call_id: "fixture-stdin",
+        name: "write_stdin",
+        arguments: JSON.stringify({
+          session_id: Number(match?.[1] ?? -1),
+          chars: "",
+          yield_time_ms: 1000,
+          max_output_tokens: 500,
+        }),
+      };
+    } else if (qualify && count === 6)
+      item = {
+        type: "function_call",
+        call_id: "fixture-disabled-tool",
+        name: "spawn_agent",
+        arguments: JSON.stringify({ task: "Write " + forbidden }),
+      };
+    else if (qualify && count === 7)
+      item = {
+        type: "function_call",
+        call_id: "fixture-disabled-image",
+        name: "view_image",
+        arguments: JSON.stringify({ path: secret }),
+      };
     else
       item = {
         type: "message",
@@ -216,50 +303,73 @@ export async function runFixtureController({
       model.listen(0, "127.0.0.1", resolve);
     });
     const port = model.address().port;
-    result = await runCommand(
+    const profile = qualify
+      ? codexRemoteProfile({
+          home,
+          authHome: home,
+          cwd,
+          url: relay.url,
+          model: "gpt-5.5",
+        })
+      : null;
+    const terminal = await runCodexOnRelay(
       codex,
-      [
-        "exec",
-        "--ignore-user-config",
-        "--ignore-rules",
-        "--skip-git-repo-check",
-        "--ephemeral",
-        "--json",
-        "-C",
-        cwd,
-        "-s",
-        "danger-full-access",
-        "-c",
-        'approval_policy="never"',
-        "-c",
-        'model_provider="fixture"',
-        "-c",
-        `model_providers.fixture={name="Local fixture",base_url="http://127.0.0.1:${port}/v1",wire_api="responses",requires_openai_auth=false,supports_websockets=false}`,
-        "-c",
-        'web_search="disabled"',
-        "--disable",
-        "multi_agent",
-        "--disable",
-        "apps",
-        "--disable",
-        "shell_snapshot",
-        "-m",
-        "gpt-5.4",
-        prompt,
-      ],
+      profile
+        ? [
+            ...profile.args,
+            "-c",
+            'model_provider="fixture"',
+            "-c",
+            `model_providers.fixture={name="Local fixture",base_url="http://127.0.0.1:${port}/v1",wire_api="responses",requires_openai_auth=false,supports_websockets=false}`,
+            "--",
+            prompt,
+          ]
+        : [
+            "exec",
+            "--ignore-user-config",
+            "--ignore-rules",
+            "--skip-git-repo-check",
+            "--ephemeral",
+            "--json",
+            "-C",
+            cwd,
+            "-s",
+            "danger-full-access",
+            "-c",
+            'approval_policy="never"',
+            "-c",
+            'model_provider="fixture"',
+            "-c",
+            `model_providers.fixture={name="Local fixture",base_url="http://127.0.0.1:${port}/v1",wire_api="responses",requires_openai_auth=false,supports_websockets=false}`,
+            "-c",
+            'web_search="disabled"',
+            "--disable",
+            "multi_agent",
+            "--disable",
+            "apps",
+            "--disable",
+            "shell_snapshot",
+            "-m",
+            "gpt-5.4",
+            prompt,
+          ],
       {
         timeoutMs,
-        maxBytes: 256 * 1024,
-        env: { ...env, CODEX_EXEC_SERVER_URL: relay.url },
+        cwd,
+        env: profile
+          ? { ...profile.env, PAZMO_CONTROLLER_CANARY: "FAKE_CONTROLLER_ENV" }
+          : { ...env, CODEX_EXEC_SERVER_URL: relay.url },
         signal: AbortSignal.any([signal, failures.signal]),
       },
+      relay,
     );
+    result = terminal.result;
+    closed = terminal.closed;
   } finally {
-    closed = await relay.close();
+    closed = (await relay.close()) && closed;
     model.closeAllConnections();
     await new Promise((resolve) => model.close(resolve));
   }
-  closed = closed && !result.error?.includes("CLI_CLOSE_UNCONFIRMED");
   const report = {
     result,
     closed,
@@ -267,21 +377,10 @@ export async function runFixtureController({
     relayError: relay.failure(),
     requests,
     localWrite: existsSync(forbidden),
+    hookWrite: existsSync(hookMarker),
     fakeSecretUnchanged:
       readFileSync(secret, "utf8") === "FAKE_CONTROLLER_ONLY",
   };
   writeFileSync(join(root, "controller.json"), JSON.stringify(report, null, 2));
-  if (relay.failure()) result = { ...result, error: relay.failure() };
-  if (
-    result.exitCode === 0 &&
-    !result.stdout.split("\n").some((line) => {
-      try {
-        return JSON.parse(line).type === "turn.completed";
-      } catch {
-        return false;
-      }
-    })
-  )
-    result = { ...result, error: "MISSING_TURN_COMPLETION" };
   return { closed, result };
 }

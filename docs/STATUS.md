@@ -1,5 +1,9 @@
 # 진행 상태 — 2026-09-22
 
+- 2026-09-22: 승인된 기존 Codex 로그인으로 실제 PM→Lead 인계를 두 번 확인했다. 고정 controller/model catalog, 내부 opt-in job adapter, 실제 VM 경계 5개 흐름을 연결했다. 최종 root 273/273, 타입 검사와 Story checker exit 0. 생성된 검증 계획의 Git 가정을 발견해 실행 환경 문맥을 보강했으며 제안은 승인하거나 인도하지 않았다. 전체 완료가 아니라 인증·계획 인계의 실제 검증이다. [검증과 남은 범위](verification/2026-09-22-subscription-controller.md).
+
+- 인증 위치 G3 승인: 사용자가 Mac의 기존 Codex 로그인은 controller만 사용하고 파일·명령 도구는 VM에 제한하는 구성의 구현·검증·실제 작업 시험을 승인했다. [결정 기록](understanding/remote-controller-auth-decision.md). 아래 과거 기록의 인증 대기는 당시 상태다. 도구/설정/네트워크 경계 검증과 실제 모델·G4 증거는 여전히 필요하다.
+
 - 2026-09-22: Office의 **작업 관리** 화면에서 현재 프로젝트 요청 등록·목록·대화·PM 답변·취소를 기존 operator API에 연결했다. 브라우저 등록/답변/재시작/취소와 root **267/267**을 확인했다. 질문은 fixture이며 모델 실행·실제 G4·프로젝트 전환·승인 UI는 남아 있다. [사용 안내](LOCAL-PREVIEW.md#planning-conversation-screen) · [검증](verification/2026-09-22-intake-console.md).
 
 - kit 4.0.0 인계를 코드/패키지와 비교했다. Office DB에 kit 전이를 원자적으로 반영할 API는 추가 협의가 필요하며, Office 설치는 3.1.1을 유지한다. PM/Lead에 읽기 전용 snapshot 문맥과 스킬 미검증/direct 상태를 전달하도록 수정했다. root **260/260**, 타입 검사, 실제 VM 읽기/쓰기 차단 시험 통과. 모델 응답은 fixture다. [검토·kit API 요청](kit-office-integration-request.md) · [변경·검증 경계](verification/2026-09-21-kit-handoff-context.md).
@@ -60,7 +64,7 @@
 
 native 격리 canary가 필수 조건을 충족하지 못했다. 명시적 deny에도 `/private/tmp`의 가짜 보호 파일에 읽기/쓰기가 가능했고, 일반 경로에서도 Codex native binary의 새 프로세스 실행이 가능했다. 실제 인증 파일·사용자 DB는 시험에 쓰지 않았다. 인증된 모델 호출이나 sandbox 탈출이 성공했다는 의미는 아니다.
 
-[전용 Linux VM 설계 G3](understanding/native-runner-isolation-decision.md)는 사용자의 후속 진행 요청으로 승인됐다. VM 기초 경계는 시험했지만, 해당 컨테이너 안의 Codex sandbox는 namespace 생성에서 실패했다. 따라서 live 실행은 계속 잠겨 있다. **도구 실행과 내부 역할 조정은 무인증 Codex/VM 시험에 연결했고, 다음은 live 전 canary·역할 프로필 검증과 사용자 실행 경로 연결**이다. 실제 인증 실행에는 별도로 대기 중인 controller 인증 위치 G3 승인이 필요하다. U3의 candidate/결과 연결 및 U4–U8 구현과 인증된 전체 runner, G4 및 전체 Story 인도는 남아 있다. 기초 canary 통과를 U4 전체 완료로 간주하지 않는다.
+[전용 Linux VM 설계 G3](understanding/native-runner-isolation-decision.md)는 사용자의 후속 진행 요청으로 승인됐다. VM 기초 경계는 시험했지만, 해당 컨테이너 안의 Codex sandbox는 namespace 생성에서 실패했다. 따라서 live 실행은 계속 잠겨 있다. **도구 실행과 내부 역할 조정은 무인증 Codex/VM 시험에 연결했고, 다음은 live 전 canary·역할 프로필 검증과 사용자 실행 경로 연결**이다. controller 인증 위치 G3는 2026-09-22 승인됐다. 이 결정은 과거 pending 기록을 대체하며 live 전체 흐름과 G4 증거는 별도로 필요하다. U3의 candidate/결과 연결 및 U4–U8 구현과 인증된 전체 runner, G4 및 전체 Story 인도는 남아 있다. 기초 canary 통과를 U4 전체 완료로 간주하지 않는다.
 
 전용 VM에서 직접 실행해도 AppArmor가 user namespace 관련 권한을 거부했다. 고정 bwrap 경로에만 예외를 주는 [구체적인 변경](understanding/vm-bwrap-policy-decision.md)은 자동 승인 검토에서 거절됐다. 사용자에게 별도 승인을 요청했고, 아직 적용하지 않았다. 이 대기와 독립적인 계약·승인 구현은 진행 중이다.
 
@@ -70,7 +74,7 @@ native 격리 canary가 필수 조건을 충족하지 못했다. 명시적 deny�
 
 ai-workflow-kit 3.1.1 doctor와 Story checker exit 0. Story가 Delivered가 아니므로 checker는 G4를 검사하지 않았다. ce-work → test-first → ce-simplify-code → ce-code-review → 재검증을 U2 변경에 적용했다. 사용자 도구 매핑에 따라 리뷰는 같은 세션에서 순차 수행했으며 독립 모델 리뷰로 주장하지 않는다. 이번 진단의 준비 단계 실패와 음성 대조군, 리뷰 보강은 [VM 검증](verification/2026-09-18-vm-isolation.md)에 기록했다. Compound로 [읽기 전용 후보 준비와 검사 원칙](solutions/integration-issues/prepare-readonly-container-candidates.md)을 남겼다. 인증 격리 자체는 해결됐다고 기록하지 않았다.
 
-Jira를 만들지 않았고, 모델·다른 provider·Remotion/PPT·submodule·npm publish·main merge를 실행하지 않았다. U1 게시 정리와 원본 보존은 [과거 게시 기록](verification/2026-09-18-publication.md)을 따른다. 자격증명을 포함하는 로컬 원본 보존 브랜치는 푸시하지 않는다.
+Jira를 만들지 않았고 다른 provider·Remotion/PPT·submodule·npm publish·main merge를 실행하지 않았다. 2026-09-22에는 승인된 기존 구독으로 내부 PM/Lead 실제 모델 시험을 수행했다. U1 게시 정리와 원본 보존은 [과거 게시 기록](verification/2026-09-18-publication.md)을 따른다. 자격증명을 포함하는 로컬 원본 보존 브랜치는 푸시하지 않는다.
 
 ## 입력 문서의 권한
 

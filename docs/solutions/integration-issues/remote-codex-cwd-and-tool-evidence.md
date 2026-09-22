@@ -1,7 +1,7 @@
 ---
 title: Verify executor paths and tool artifacts separately from Codex turn completion
 date: "2026-09-21"
-last_updated: "2026-09-21"
+last_updated: "2026-09-22"
 category: integration-issues
 module: Codex remote execution diagnostic
 problem_type: integration_issue
@@ -61,3 +61,15 @@ Actual CLI/VM tests demonstrated that the Reviewer could read the candidate but 
 - [Diagnostic and companion relay](../../../scripts/probe-codex-remote.py)
 - [Observed failures, success and boundaries](../../verification/2026-09-21-codex-remote-execution.md)
 - [Verification join evidence](../../verification/2026-09-21-verification-join.md)
+
+## Extension: pin the model tool catalog as well as the executable
+
+On Codex 0.155.1 the 5.6 catalog entries select `code_mode_only` before the feature flags are considered. Disabling `code_mode_host` therefore removed the advertised direct tools even though some direct calls from a scripted response still executed. This was caught by checking the model-visible tool inventory, not merely a final message or CLI exit code. The older fixture model GPT-5.4 also had a retirement marker and was not a valid live default.
+
+The first subscription controller uses GPT-5.5 and an unchanged, SHA-256-pinned entry extracted from the same official source release. The static catalog prevents a later remote metadata refresh from silently widening the qualified tool surface. It does not prove server-side model identity or continued account entitlement. No automatic model substitution is allowed.
+
+The profile ignores personal config/rules, disables hooks/plugins/apps and host skill discovery, and supplies bounded Office role text explicitly. Pin the native executable, not just a version string or mutable npm launcher. A private HOME/cwd/log/state path is separate from the existing CODEX_HOME used for login. Model calls have account access in the trusted controller; command/patch/session tools are routed to the VM.
+
+Expanded actual CLI fixtures verify the three advertised tools, command and child-process environment isolation, VM network failure, disabled-tool requests, readonly review, cancellation, executor loss and resource cleanup. One fixture initially failed because its appended JavaScript redeclared a variable; requiring an observed zero tool exit and the canary output prevented a false pass. A turn completing after an unsupported tool call is still not evidence that that tool succeeded.
+
+These tests qualify the documented configuration on the current machine. They do not establish that every future Codex version, model catalog, enterprise policy, or Office public launch is safe. Repeat qualification when those inputs change. Actual user G4 and end-to-end delivery remain separate.

@@ -153,6 +153,17 @@ export function planningPrompt(
           purpose: "proposal",
         }
       : null,
+    verificationEnvironment: {
+      workspace: "/candidate/tree",
+      access: "read-only",
+      gitMetadata: false,
+      availableCommands: ["node", "/bin/sh"],
+      network: "none",
+      dependencies:
+        "Only selected snapshot files; no installation or implicit global packages.",
+      evidenceBoundary:
+        "Office checks the selected file manifest and supplies the baseline diff to Reviewer. Candidate checks have no .git or baseline checkout. Use available commands only: no git, rg, bash assumption, installs, or negated pipelines hiding failures. Deterministic checks cannot prove semantic correctness; Reviewer must assess wording and requirement contradictions. Do not ban required links or keywords appearing in negative warnings. Check JavaScript and regex escaping before proposing node -e commands.",
+    },
     procedure: {
       mode: "direct",
       skillStatus: "not-qualified",

@@ -1,7 +1,7 @@
 # G3 proposal: keep Codex authentication in the controller, execute tools in the VM
 
-Status: Awaiting user approval
-Understanding gate (G3): pending
+Status: Approved
+Understanding gate (G3): user conversation · 2026-09-22 · Check-in: accepted
 Story: pazmo-agent-office-contract.md (M3/M4; V3/V4)
 Prior approved decision: native-runner-isolation-decision.md
 
@@ -9,7 +9,7 @@ Prior approved decision: native-runner-isolation-decision.md
 
 Use the existing official macOS Codex ChatGPT login for the trusted model/controller process. Send all model-requested file and command tools to a dedicated disposable container in the existing VM through Codex's official remote execution interface. Do not copy authentication files into workers or change global Codex configuration.
 
-This changes the earlier decision's sentence: “모델 인증은 VM 전용 공식 Codex 로그인 경로로 별도 검증한다.” The user must approve the authentication-location change before real account execution in this topology. The earlier pending AppArmor exception is not authorized or applied by this proposal.
+This changes the earlier decision's sentence: “모델 인증은 VM 전용 공식 Codex 로그인 경로로 별도 검증한다.” The user approved this authentication-location change on 2026-09-22 after clarification that it authorizes Office's actual Codex model calls using the existing Mac login, with file/command tools confined to the VM. The earlier pending AppArmor exception is not authorized or applied by this decision.
 
 ## Concrete behavior and invariant
 
@@ -30,4 +30,12 @@ If a canary fails, stop the disposable execution environment, preserve evidence 
 
 ## Approval scope
 
-Approval would authorize implementing and validating this topology and then testing it through the user's existing Codex subscription after the boundary checks pass. It would not establish that isolation already passed, authorize the AppArmor change, or replace task G1/G3/G4 and delivery checks.
+Approval authorizes implementing and validating this topology and then testing it through the user's existing Codex subscription after the boundary checks pass. It does not establish that isolation already passed, authorize the AppArmor change, or replace task G1/G3/G4 and delivery checks.
+
+## Human decision
+
+The assistant explained model login separately from the Office operator key and asked: “이 구조로 Mac의 기존 Codex 로그인을 사용해 실제 작업을 시험해도 될까?” The user answered: “응 그렇게 해”. The prior question asking what authentication meant was clarification only; this subsequent answer is the approval. No authentication secret is part of this record.
+
+## Subsequent evidence
+
+The 2026-09-22 [controller qualification and actual planning calls](../verification/2026-09-22-subscription-controller.md) now record the fixed configuration, five actual CLI/VM fixture scenarios and authenticated PM/Lead reports. This establishes a bounded internal planning connection, not whole-product isolation, Engineer/Reviewer completion, public launch or human G4.
