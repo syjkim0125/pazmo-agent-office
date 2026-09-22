@@ -1,5 +1,7 @@
 # 진행 상태 — 2026-09-22
 
+- 2026-09-22: 승인된 개별 계약을 실제 구독 controller와 기존 Engineer→Reviewer/검사→최대 두 번 수정→G4 증거 준비에 연결하는 내부 실행 명령을 추가했다. 실제 PM/Lead의 README 인증 안내 제안을 검토해 등록했으며 **개별 사용자 G1 대기**다. 관련 21개 테스트와 실제 VM의 검사 대조군을 확인했다. 이번 단계에서 실제 Engineer/Reviewer를 호출하거나 G4/인도를 완료하지 않았다. [실행·증거·남은 범위](verification/2026-09-22-live-contract.md).
+
 - 2026-09-22: 승인된 기존 Codex 로그인으로 실제 PM→Lead 인계를 두 번 확인했다. 고정 controller/model catalog, 내부 opt-in job adapter, 실제 VM 경계 5개 흐름을 연결했다. 최종 root 273/273, 타입 검사와 Story checker exit 0. 생성된 검증 계획의 Git 가정을 발견해 실행 환경 문맥을 보강했으며 제안은 승인하거나 인도하지 않았다. 전체 완료가 아니라 인증·계획 인계의 실제 검증이다. [검증과 남은 범위](verification/2026-09-22-subscription-controller.md).
 
 - 인증 위치 G3 승인: 사용자가 Mac의 기존 Codex 로그인은 controller만 사용하고 파일·명령 도구는 VM에 제한하는 구성의 구현·검증·실제 작업 시험을 승인했다. [결정 기록](understanding/remote-controller-auth-decision.md). 아래 과거 기록의 인증 대기는 당시 상태다. 도구/설정/네트워크 경계 검증과 실제 모델·G4 증거는 여전히 필요하다.

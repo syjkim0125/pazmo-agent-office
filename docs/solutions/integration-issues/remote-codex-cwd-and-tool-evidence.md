@@ -73,3 +73,11 @@ The profile ignores personal config/rules, disables hooks/plugins/apps and host 
 Expanded actual CLI fixtures verify the three advertised tools, command and child-process environment isolation, VM network failure, disabled-tool requests, readonly review, cancellation, executor loss and resource cleanup. One fixture initially failed because its appended JavaScript redeclared a variable; requiring an observed zero tool exit and the canary output prevented a false pass. A turn completing after an unsupported tool call is still not evidence that that tool succeeded.
 
 These tests qualify the documented configuration on the current machine. They do not establish that every future Codex version, model catalog, enterprise policy, or Office public launch is safe. Repeat qualification when those inputs change. Actual user G4 and end-to-end delivery remain separate.
+
+## Extension: qualify generated verification commands before approving a plan
+
+The authenticated Lead produced syntax-valid `node -e` commands whose regex metacharacters were overescaped. It also proposed forbidden-word checks that do not understand negative completion warnings. Schema validation, a zero model exit and JavaScript syntax checks therefore did not make its verification plan execution-ready.
+
+For the first documentation pilot, retain the original PM/Lead receipt and label the controller's changes in the bound plan. Prefer simple structural checks for file inventory, unchanged reference-file digest, required terminology, preserved warning and a concrete documentation link. Leave meaning, overclaims and diff scope to the separate Reviewer instead of claiming a keyword test proves them.
+
+Run those checks in the actual verifier environment on unchanged input and a clearly labeled synthetic positive control. The unchanged README failed the three missing-content checks, while the temporary positive control passed all five. Neither was an Engineer-produced candidate, a human approval or pilot completion. Keep those evidence categories distinct when recording a successful checker repair. See [the pilot preparation evidence](../../verification/2026-09-22-live-contract.md).

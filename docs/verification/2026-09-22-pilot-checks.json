@@ -1,0 +1,156 @@
+{
+  "runs": [
+    {
+      "scope": "Actual readonly VM checks against unchanged project input; not model implementation or approval.",
+      "candidateDigest": "15c5e6d3a57557ba0c013b34f168e41436264353951543444a002e269e45ad38",
+      "outcomes": [
+        {
+          "id": "V1",
+          "handle": "96e633e611d22985df969afa0411e3b613cc513419c9cf95535703077f8c59f2",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V2",
+          "handle": "1692aa36cd9e6efb8568dd0de03e98114d171a970fd97319317d080025455ede",
+          "closed": true,
+          "observation": {
+            "exitCode": 1,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "node:internal/assert/utils:77\n    throw err;\n    ^\n\nAssertionError [ERR_ASSERTION]: missing Operator\n    at [eval]:1:155\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:451:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:449:60)\n    at evalFunction (node:internal/process/execution:283:30)\n    at evalTypeScript (node:internal/process/execution:295:3)\n    at node:internal/main/eval_string:71:3 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V3",
+          "handle": "46a146ea9b5d6abba9f4f0923f2a2cc5ad1efa28a445b8d2116c99d10690eefa",
+          "closed": true,
+          "observation": {
+            "exitCode": 1,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "node:internal/assert/utils:77\n    throw err;\n    ^\n\nAssertionError [ERR_ASSERTION]: missing Mac\n    at [eval]:1:146\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:451:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:449:60)\n    at evalFunction (node:internal/process/execution:283:30)\n    at evalTypeScript (node:internal/process/execution:295:3)\n    at node:internal/main/eval_string:71:3 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V4",
+          "handle": "1862c00fccb59b4622bb6a592f7619ab17245a800c78e7fd0a9eb708102064c3",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V5",
+          "handle": "79bb7ee12102d96f7b6accf48d6633da6e394e7ce297e20152a5ecf68a657906",
+          "closed": true,
+          "observation": {
+            "exitCode": 1,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "node:internal/assert/utils:77\n    throw err;\n    ^\n\nAssertionError [ERR_ASSERTION]: link to the existing task-management instructions\n    at [eval]:1:105\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:451:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:449:60)\n    at evalFunction (node:internal/process/execution:283:30)\n    at evalTypeScript (node:internal/process/execution:295:3)\n    at node:internal/main/eval_string:71:3 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        }
+      ]
+    },
+    {
+      "scope": "Synthetic positive control in actual readonly VM; not model implementation, a delivery candidate or approval.",
+      "candidateDigest": "7b92d30d31c656d68f8e85c7ab864c31f077b163cbe584bcc8d6fd465d847053",
+      "outcomes": [
+        {
+          "id": "V1",
+          "handle": "ecaf7d36499034ae61dee23f48931fcd6b9868a99e2c5db3a2f16575c8bb8cda",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V2",
+          "handle": "38402164041e15a93ddd0eac63f52972a89df08045b6e3c762d60050de32bd8b",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V3",
+          "handle": "5b583745d8c3feb2b74a869fc0fbe0e282117aebe3dff5399d47c670cb83768d",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V4",
+          "handle": "f2fd939ba2be90fbc40f506b06466d04df42045c33b15e315bdfdfa05ddd4d2f",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        },
+        {
+          "id": "V5",
+          "handle": "053b44207bec2d551cc3456aae7253b0df2fe1e5144d74ccf1ff95d20e48f160",
+          "closed": true,
+          "observation": {
+            "exitCode": 0,
+            "signal": null,
+            "timedOut": false,
+            "error": null,
+            "output": "",
+            "kind": "test"
+          },
+          "cleanupErrors": []
+        }
+      ]
+    }
+  ]
+}
