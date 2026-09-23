@@ -1,4 +1,5 @@
-import { OfficeError } from "../cli/project.ts";
+import { OfficeError, fail } from "../cli/project.ts";
+import { KitPlanning } from "./kit-planning.ts";
 import type { IntakeLedger } from "../core/intake.ts";
 import type { ExecutionLedger } from "../core/budgets.ts";
 import type { Candidate } from "../core/candidates.ts";
@@ -8,6 +9,7 @@ import { planningPrompt } from "./planning.ts";
 import type { PlanningPacket } from "./planning.ts";
 
 type Dependencies = {
+  project?: string;
   intake: IntakeLedger;
   execution: ExecutionLedger;
   planner: ContainerPlanner;
@@ -56,7 +58,32 @@ export class PlanningCoordinator {
         let lease;
         try {
           const packet = intake.packet(taskId, item.revision, item.inputDigest);
-          const prompt = planningPrompt(packet, context);
+          const kit = packet.workflow
+            ? new KitPlanning(
+                this.#d.project ??
+                  fail(
+                    "KIT_PROJECT_REQUIRED",
+                    "Native planning needs its controller project root.",
+                  ),
+                intake,
+              )
+            : null;
+          const stage = kit
+            ? await kit.dispatch(
+                taskId,
+                item.revision,
+                packet,
+                context,
+                leases.some((l) => l.revision === item.revision),
+              )
+            : null;
+          const prompt = planningPrompt(
+            packet,
+            context,
+            stage
+              ? { runFile: stage.run.runFile, node: stage.node }
+              : undefined,
+          );
           const job = jobFor(packet, context, prompt);
           lease = execution.reservePlanning(
             taskId,
@@ -108,18 +135,44 @@ export class PlanningCoordinator {
             if (
               report.handle &&
               execution.getPlanning(lease.id).state === "running"
-            )
-              execution.finishPlanning(lease.id, report.handle, {
-                closed: report.closed,
-                result: report.result,
-              });
-            else execution.markPlanningUnknown(lease.id);
+            ) {
+              let accept: (() => void) | undefined;
+              if (stage && kit && report.closed && !abort.signal.aborted) {
+                try {
+                  accept = await kit.record(stage, {
+                    closed: report.closed,
+                    result: report.result,
+                  });
+                } catch (error) {
+                  // Role evidence failure is not unknown process liveness. Keep
+                  // the failure while still releasing a supervisor-confirmed exit.
+                  intake.interrupt(
+                    taskId,
+                    item.revision,
+                    item.inputDigest,
+                    error instanceof OfficeError
+                      ? error.code
+                      : "KIT_PLANNING_FAILED",
+                  );
+                }
+              }
+              execution.finishPlanning(
+                lease.id,
+                report.handle,
+                {
+                  closed: report.closed,
+                  result: report.result,
+                },
+                accept,
+              );
+            } else execution.markPlanningUnknown(lease.id);
           } finally {
             clearInterval(timer);
             parent?.removeEventListener("abort", inspect);
           }
         } catch (error) {
-          if (lease) execution.markPlanningUnknown(lease.id);
+          if (lease && execution.getPlanning(lease.id).state !== "released")
+            execution.markPlanningUnknown(lease.id);
           else if (
             error instanceof OfficeError &&
             ["SLOT_LIMIT", "TASK_ACTIVE", "DUPLICATE_EXECUTION"].includes(

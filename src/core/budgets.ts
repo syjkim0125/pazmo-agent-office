@@ -231,6 +231,7 @@ export class ExecutionLedger {
     id: string,
     handle: string,
     completion: Parameters<IntakeLedger["accept"]>[3],
+    accept?: () => void,
   ): PlanningLease {
     this.expire();
     return transaction(this.#db, () => {
@@ -259,13 +260,16 @@ export class ExecutionLedger {
               .prepare("SELECT status FROM tasks WHERE id=?")
               .get(lease.task_id) as { status: string }
           ).status === "inbox";
-        if (current)
-          this.#planning().accept(
-            lease.task_id,
-            lease.revision,
-            lease.input_digest,
-            completion,
-          );
+        if (current) {
+          if (accept) accept();
+          else
+            this.#planning().accept(
+              lease.task_id,
+              lease.revision,
+              lease.input_digest,
+              completion,
+            );
+        }
         this.#db
           .prepare(
             "UPDATE pazmo_planning_leases SET state='released',reason=? WHERE id=?",

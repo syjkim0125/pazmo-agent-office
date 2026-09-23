@@ -24,6 +24,58 @@ const saved = {
     },
   ],
 };
+
+test("Story approval shows the full proposed scope and sends the user's addressed G1 decision", async (t) => {
+  let posted;
+  const proposal = {
+    ...saved,
+    workflow: "kit-role-v1",
+    state: "human_required",
+    reason: "G1_REQUIRED",
+    questions: null,
+    story: {
+      title: "Parser",
+      goal: "Validate input",
+      domain: "Preserve records",
+      must: ["Validate"],
+      should: ["Readable errors"],
+      out: ["No deployment"],
+      assumptions: ["Existing parser only"],
+      verify: [{ must: [1], scenario: "Invalid input rejected" }],
+    },
+  };
+  const doc = setup(t, async (path, options) => {
+    if (options.method === "POST") {
+      posted = { path, body: JSON.parse(options.body) };
+      return response({ ...proposal, state: "waiting_lead", reason: null });
+    }
+    return response(path.endsWith("/a1") ? proposal : list);
+  });
+  await connect(doc);
+  doc.querySelector("#requests button").click();
+  await settle();
+  assert.match(doc.querySelector("#detail").textContent, /No deployment/);
+  assert.match(
+    doc.querySelector("#detail").textContent,
+    /Existing parser only/,
+  );
+  assert.match(doc.querySelector("#detail").textContent, /Preserve records/);
+  const form = doc.querySelector('[data-form="story-approval"]');
+  assert.ok(form);
+  form.querySelector("textarea").value = "I accept only this scope";
+  submit(doc, '[data-form="story-approval"]');
+  await settle();
+  assert.deepEqual(posted, {
+    path: "/api/pazmo/intakes/a1/approve-story",
+    body: {
+      revision: 3,
+      inputDigest: saved.inputDigest,
+      answer: { decision: "approve", note: "I accept only this scope" },
+    },
+  });
+  assert.equal(doc.querySelector('[data-form="story-approval"]'), null);
+  assert.match(doc.querySelector("#detail").textContent, /팀장 실행 대기/);
+});
 const list = {
   project: "/tmp/example",
   items: [{ taskId: "a1", title: saved.request, state: saved.state }],

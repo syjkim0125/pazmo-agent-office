@@ -63,6 +63,12 @@ test("operator page exposes no capability and intake listing requires the existi
   }
   assert.equal((await fetch(base + "/api/pazmo/intakes")).status, 401);
   const headers = { Authorization: `Bearer ${operator.token}` };
+  assert.equal((await fetch(base + "/api/pazmo/evidence/a1")).status, 401);
+  const unknownEvidence = await fetch(base + "/api/pazmo/evidence/a1", {
+    headers,
+  });
+  assert.equal(unknownEvidence.status, 404);
+  assert.equal((await unknownEvidence.json()).error, "NOT_FOUND");
   assert.equal(
     (
       await fetch(base + "/api/pazmo/intakes", {
@@ -235,7 +241,7 @@ test("operator CLI persists intake questions across restart and rejects stale or
     ]
       .map(JSON.stringify)
       .join("\n");
-    intake.accept(s.taskId, s.revision, s.inputDigest, {
+    const observation = {
       closed: true,
       result: {
         exitCode: 0,
@@ -245,7 +251,48 @@ test("operator CLI persists intake questions across restart and rejects stale or
         stdout,
         stderr: "",
       },
+    };
+    const { VerificationLedger } = await import("../src/core/verification.ts");
+    const { ExecutionLedger } = await import("../src/core/budgets.ts");
+    const { PlanningCoordinator } =
+      await import("../src/runners/planning-coordinator.ts");
+    const { freezeCandidate } = await import("../src/core/candidates.ts");
+    const store = new OfficeStore(db, manifest.project, "a".repeat(64));
+    const verification = new VerificationLedger(db, store);
+    const execution = new ExecutionLedger(
+      db,
+      store,
+      verification,
+      Date.now,
+      intake,
+    );
+    writeFileSync(
+      join(manifest.project, "context.txt"),
+      "Disposable planning context",
+    );
+    mkdirSync(join(f.root, "planning-context"));
+    const context = freezeCandidate(
+      manifest.project,
+      ["context.txt"],
+      join(f.root, "planning-context"),
+    );
+    const coordinator = new PlanningCoordinator({
+      project: manifest.project,
+      intake,
+      execution,
+      jobFor: () => ({ binary: "unused-fixture", timeoutMs: 10000 }),
+      planner: {
+        async run(_context, _job, beforeStart) {
+          const handle = "fixture-planning-question";
+          beforeStart(handle);
+          return { ...observation, handle, cleanupErrors: [] };
+        },
+      },
     });
+    assert.equal(
+      (await coordinator.run(s.taskId, context)).state,
+      "awaiting_answer",
+    );
   } finally {
     db.close();
   }

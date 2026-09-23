@@ -77,7 +77,7 @@ export async function handleOperator(
       if (
         parts.length > 2 ||
         (parts.length === 2 &&
-          !["answer", "cancel", "publish"].includes(parts[1]))
+          !["answer", "cancel", "publish", "approve-story"].includes(parts[1]))
       )
         fail("NOT_FOUND", "Unknown intake operation.");
       if (req.method === "GET" && parts.length === 1) {
@@ -109,7 +109,9 @@ export async function handleOperator(
           ? ["request", "risk"]
           : parts[1] === "answer"
             ? ["revision", "inputDigest", "answers"]
-            : ["revision", "inputDigest"];
+            : parts[1] === "approve-story"
+              ? ["revision", "inputDigest", "answer"]
+              : ["revision", "inputDigest"];
       if (Object.keys(input).sort().join(",") !== keys.sort().join(","))
         fail("INVALID_REQUEST", "Unexpected or missing intake fields.");
       if (!parts.length)
@@ -119,6 +121,7 @@ export async function handleOperator(
             token,
             input.request as string,
             input.risk as "normal" | "high",
+            true,
           ),
         );
       else if (parts[1] === "answer")
@@ -130,6 +133,17 @@ export async function handleOperator(
             input.revision as number,
             input.inputDigest as string,
             input.answers,
+          ),
+        );
+      else if (parts[1] === "approve-story")
+        json(
+          200,
+          intake.approveStory(
+            token,
+            id(parts[0]),
+            input.revision as number,
+            input.inputDigest as string,
+            input.answer as ApprovalAnswer,
           ),
         );
       else if (parts[1] === "publish")

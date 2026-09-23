@@ -300,6 +300,7 @@ process.once("message", async (raw: unknown) => {
           path.startsWith("/api/pazmo/approvals/") ||
           path === "/api/pazmo/deliveries" ||
           path.startsWith("/api/pazmo/deliveries/") ||
+          path.startsWith("/api/pazmo/evidence/") ||
           path.startsWith("/api/pazmo/verification/")
         ) {
           void handleOperator(req, res, path, ledgers);

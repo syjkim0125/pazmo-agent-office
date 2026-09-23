@@ -3,13 +3,16 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { OfficeError, fail, noSymlinks } from "../cli/project.ts";
-import { transaction } from "./approvals.ts";
+import { ApprovalLedger, transaction } from "./approvals.ts";
+import type { ApprovalAnswer } from "./approvals.ts";
 import type { OfficeStore } from "./store.ts";
 import { digest } from "./candidates.ts";
 import {
   beginPlanning,
   acceptPlanning,
   answerPlanning,
+  continuePlanning,
+  renderPlanningStory,
 } from "../runners/planning.ts";
 import type { PlanningPacket } from "../runners/planning.ts";
 type Result = ReturnType<typeof acceptPlanning>;
@@ -143,6 +146,8 @@ export class IntakeLedger {
       inputDigest: packet.inputDigest,
       request: packet.request,
       risk: packet.risk,
+      workflow: packet.workflow ?? "legacy",
+      story: packet.story,
       reason: row.reason,
       questions: result?.kind === "questions" ? result.questions : null,
       proposal: result?.kind === "proposal" ? result : null,
@@ -201,10 +206,15 @@ export class IntakeLedger {
       nextCursor: rows.length > 50 ? items.at(-1)!.taskId : null,
     };
   }
-  create(token: string, request: string, risk: "normal" | "high") {
+  create(
+    token: string,
+    request: string,
+    risk: "normal" | "high",
+    kitRoles = false,
+  ) {
     this.#store.authorize(token);
     const id = randomUUID(),
-      packet = beginPlanning(id, request, risk);
+      packet = beginPlanning(id, request, risk, kitRoles);
     return transaction(this.#db, () => {
       this.#db
         .prepare(
@@ -263,6 +273,11 @@ export class IntakeLedger {
   ) {
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
+      if (packet.workflow)
+        fail(
+          "KIT_EVIDENCE_REQUIRED",
+          "Native planning must return through its assigned kit node.",
+        );
       if (!["waiting_pm", "waiting_lead"].includes(row.state))
         fail("INTAKE_STATE", "No planning role is pending.");
       let result: Result;
@@ -299,6 +314,141 @@ export class IntakeLedger {
       );
     });
   }
+  /** Controller transport of a native CLI result, not a second node scheduler. */
+  acceptKit(
+    id: string,
+    revision: number,
+    inputDigest: string,
+    result: Result,
+    kit: {
+      runId: string;
+      runFile: string;
+      nodeId: string;
+      action: string;
+      revisionToken: string;
+      questionId?: string;
+    },
+  ) {
+    return transaction(this.#db, () => {
+      const { row, packet } = this.#match(id, revision, inputDigest);
+      if (
+        !packet.workflow ||
+        !["waiting_pm", "waiting_lead"].includes(row.state)
+      )
+        fail("INTAKE_STATE", "No native planning assignment is pending.");
+      if (result.kind === "questions")
+        return this.#advance(
+          row,
+          packet,
+          "awaiting_answer",
+          result,
+          packet.role,
+          { ...result, kit },
+        );
+      if (packet.role === "pm" && result.kind === "lead") {
+        const complete = kit.action === "role-complete";
+        return this.#advance(
+          row,
+          continuePlanning(
+            packet,
+            result.packet.story!,
+            complete ? "lead" : "pm",
+          ),
+          complete ? "human_required" : "waiting_pm",
+          null,
+          "pm",
+          { kind: "requirements", story: result.packet.story, kit },
+          complete ? "G1_REQUIRED" : null,
+        );
+      }
+      if (packet.role === "lead" && result.kind === "proposal")
+        return this.#advance(
+          row,
+          packet,
+          kit.action === "role-complete" ? "proposal" : "waiting_lead",
+          result,
+          "lead",
+          { ...result, kit },
+        );
+      fail(
+        "PLANNING_INVALID",
+        "Native role output does not match the Office assignment.",
+      );
+    });
+  }
+  #storySubject(id: string, packet: PlanningPacket) {
+    if (!packet.workflow || packet.role !== "lead" || !packet.story)
+      return fail(
+        "G1_REQUIRED",
+        "A completed native PM Story proposal is required.",
+      );
+    return digest(
+      JSON.stringify({
+        type: "intake-story",
+        project: this.#project,
+        taskId: id,
+        storyDigest: digest(renderPlanningStory(packet.story)),
+      }),
+    );
+  }
+  /** The operator approves the exact PM proposal, before any Lead model starts. */
+  approveStory(
+    token: string,
+    id: string,
+    revision: number,
+    inputDigest: string,
+    answer: ApprovalAnswer,
+  ) {
+    this.#store.authorize(token);
+    return transaction(this.#db, () => {
+      const { row, packet } = this.#match(id, revision, inputDigest);
+      if (row.state !== "human_required" || row.reason !== "G1_REQUIRED")
+        fail(
+          "INTAKE_STATE",
+          "This conversation is not awaiting Story approval.",
+        );
+      const approvals = new ApprovalLedger(this.#db, token);
+      const challenge = approvals.issue(
+        token,
+        "G1",
+        this.#storySubject(id, packet),
+      );
+      approvals.decide(token, challenge.id, answer);
+      return this.#advance(
+        row,
+        packet,
+        answer.decision === "approve" ? "waiting_lead" : "human_required",
+        null,
+        "human",
+        { scopeApproval: { ...challenge, answer } },
+        answer.decision === "approve" ? null : "G1_REJECTED",
+      );
+    });
+  }
+  /** Derive kit's source from the actual Office G1; no worker-authored gate text. */
+  storyApproval(id: string) {
+    const row = this.#row(id),
+      packet = JSON.parse(row.packet_json) as PlanningPacket;
+    if (row.task_status !== "inbox" || row.state !== "waiting_lead")
+      fail("INTAKE_STATE", "No Lead assignment is pending.");
+    const subject = this.#storySubject(id, packet);
+    const approval = this.#db
+      .prepare(
+        "SELECT challenge_id,answer_json,accepted_at FROM pazmo_approvals WHERE gate='G1' AND subject=?",
+      )
+      .get(subject) as
+      | { challenge_id: string; answer_json: string; accepted_at: number }
+      | undefined;
+    if (!approval)
+      fail("G1_REQUIRED", "Lead requires the user's actual Story approval.");
+    return {
+      subject,
+      story: renderPlanningStory(packet.story!),
+      challengeId: approval.challenge_id,
+      answer: JSON.parse(approval.answer_json),
+      acceptedAt: approval.accepted_at,
+    };
+  }
   answer(
     token: string,
     id: string,
@@ -315,9 +465,16 @@ export class IntakeLedger {
       if (row.state !== "awaiting_answer" || result?.kind !== "questions")
         fail("INTAKE_STATE", "This conversation is not awaiting answers.");
       const next = answerPlanning(packet, result, answers);
-      return this.#advance(row, next, "waiting_pm", null, "human", {
-        answers: next.dialogue.at(-1)!.answers,
-      });
+      return this.#advance(
+        row,
+        next,
+        next.role === "lead" ? "waiting_lead" : "waiting_pm",
+        null,
+        "human",
+        {
+          answers: next.dialogue.at(-1)!.answers,
+        },
+      );
     });
   }
   cancel(token: string, id: string, revision: number, inputDigest: string) {

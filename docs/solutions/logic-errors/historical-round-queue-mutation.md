@@ -1,7 +1,7 @@
 ---
 title: Keep historical verification rounds from mutating the current queue item
 date: "2026-09-21"
-last_updated: "2026-09-21"
+last_updated: "2026-09-23"
 category: logic-errors
 module: Office verification ledger
 problem_type: logic_error
@@ -54,6 +54,8 @@ Persist operator cancellation before aborting the workers. Otherwise their cance
 The planning intake applies the same boundary before execution exists: each answer or model result names the task, saved conversation revision and current packet digest. Match all three inside the transaction, check that the task still belongs to intake, then update its state and append the event together. The question set comes from the saved PM result, not the caller. Regression tests reconstruct the ledger, reject a duplicate answer/late result after cancellation, and inject an event-insert failure to prove that neither the state nor a newly created queue item survives rollback. This protects persisted conversation ownership; it does not prove that an unlaunched planning role is a live supervised process.
 
 Planning supervision now extends this distinction to pre-contract PM/Lead work. Its leases bind the saved conversation revision, packet digest, readonly context digest and supervisor handle. Accepting the role result, advancing intake, appending its event and releasing the slot happen in one synchronous transaction. A cancelled conversation discards late successful evidence but releases a still-owned closed supervisor; restart and uncertain closure quarantine its slot and interrupt only the matching pending revision.
+
+The native kit adapter adds a file write before that SQLite transaction. The transaction guarantee covers Office acceptance/events/release only, not the kit CLI file. In the current unmerged role-graph continuation, an interrupted cross-store write stops for inspection without replaying the model. A malformed response from a confirmed-closed supervisor must also remain a protocol failure, not become unknown liveness merely because native evidence acceptance throws. The RED test observed `SUPERVISOR_FAILED` with a held slot; the fix preserves `PLANNING_INVALID`, interrupts only the matching conversation revision and still releases the owned closed lease. See the [native planning evidence](../../verification/2026-09-23-kit-role-runs.md#native-planning-and-story-g1-continuation). Keep these three facts separate: whether a process stopped, whether its output is admissible, and whether both persistence steps completed.
 
 Do not give planning a separate capacity pool. An additive planning-lease table preserves the existing contract-revision foreign key, while one transaction counts active reservations from both tables. Five independent SQLite controllers racing mixed planning/implementation requests admit exactly three. The first service-restart regression failed because startup constructed the execution ledger without intake; unit reconstruction alone did not catch that dependency. Startup now supplies intake before recovery. A separate context-corruption test caught a boolean validation result that was called but not checked. Read the actual validator contract and assert the resulting state, not just that validation was invoked. [Planning execution evidence](../../verification/2026-09-21-planning-execution.md).
 

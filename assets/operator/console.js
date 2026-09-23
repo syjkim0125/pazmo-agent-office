@@ -90,16 +90,22 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       });
     return data;
   }
-  function saveApprovalDraft() {
-    const values = [...doc.querySelectorAll("[data-g4-field]")]
+  function saveApprovalDraft(root = $("execution-detail")) {
+    const values = [...root.querySelectorAll("[data-g4-field],[data-g1-field]")]
       .filter((input) => input.value)
-      .map((input) => input.dataset.g4Field + ": " + input.value);
+      .map(
+        (input) =>
+          (input.dataset.g4Field ?? input.dataset.g1Field) + ": " + input.value,
+      );
     if (!values.length) return;
     const draft = el("details", "");
     draft.open = true;
-    const target = $("execution-detail").querySelector("h3")?.textContent;
+    const target =
+      root === $("execution-detail")
+        ? root.querySelector("h3")?.textContent
+        : current?.taskId;
     draft.append(
-      el("summary", "이전 G4 답변 초안 · " + target),
+      el("summary", "이전 승인 답변 초안 · " + target),
       el("pre", values.join("\n\n")),
     );
     $("drafts").append(draft);
@@ -277,6 +283,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       if (!valid()) return;
       if (error.code === "UNAUTHORIZED") {
         saveApprovalDraft();
+        saveApprovalDraft($("detail"));
         const request = $("request").value,
           risk = $("risk").value;
         const answers = [...$("answers").querySelectorAll("textarea")]
@@ -327,6 +334,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
     button.append(el("span", states[item.state] ?? item.state, "state"));
     button.addEventListener("click", () =>
       perform(async (valid) => {
+        saveApprovalDraft($("detail"));
         const data = await api("/" + item.taskId);
         if (valid()) {
           showDetail(data);
@@ -356,6 +364,68 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       el("p", "요청 ID · " + data.taskId, "muted"),
     );
     if (data.reason) $("detail").append(el("p", "확인 필요 · " + data.reason));
+    if (data.story) {
+      const story = el("details", "");
+      story.open = data.reason === "G1_REQUIRED";
+      story.append(
+        el("summary", "PM의 Story 제안"),
+        el("pre", conversationText({ story: data.story })),
+      );
+      $("detail").append(story);
+    }
+    if (
+      data.workflow === "kit-role-v1" &&
+      data.state === "human_required" &&
+      data.reason === "G1_REQUIRED"
+    ) {
+      const form = el("form", "");
+      form.dataset.form = "story-approval";
+      form.append(
+        el(
+          "p",
+          "G1은 맡길 작업 범위를 확인하는 단계입니다. 위 결과·제외 범위·가정·확인 방법을 승인하면 팀장이 실행 계획을 제안합니다. 구현 실행이나 최종 결과 승인을 대신하지 않습니다.",
+        ),
+      );
+      const note = el("textarea", ""),
+        label = el("label", "범위 승인 또는 거절 이유");
+      note.id = "story-approval-note";
+      note.dataset.g1Field = "Story G1";
+      note.required = true;
+      note.rows = 3;
+      note.maxLength = 4000;
+      label.htmlFor = note.id;
+      const approve = el("button", "이 범위로 계획 진행"),
+        reject = el("button", "범위 거절", "secondary");
+      approve.type = "submit";
+      reject.type = "button";
+      const decide = (decision) =>
+        perform(async (valid) => {
+          if (!note.value.trim()) {
+            notice("본인의 승인 또는 거절 이유를 입력하세요.");
+            return;
+          }
+          const result = await api("/" + data.taskId + "/approve-story", {
+            revision: data.revision,
+            inputDigest: data.inputDigest,
+            answer: { decision, note: note.value },
+          });
+          if (valid()) {
+            showDetail(result);
+            notice(
+              decision === "approve"
+                ? "범위를 승인했습니다. 팀장 실행 대기 상태입니다."
+                : "거절 의사를 저장했습니다.",
+            );
+          }
+        });
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        void decide("approve");
+      });
+      reject.addEventListener("click", () => void decide("reject"));
+      form.append(label, note, approve, reject);
+      $("detail").append(form);
+    }
     if (data.proposal) {
       const details = el("details", "");
       details.append(
@@ -375,7 +445,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       details.append(
         el(
           "summary",
-          `${actors[event.actor] ?? event.actor} · ${event.revision}`,
+          `${actors[event.actor] ?? event.actor} · ${event.revision}${event.payload.kit ? " · " + event.payload.kit.nodeId : ""}`,
         ),
         el("pre", conversationText(event.payload)),
       );
@@ -457,6 +527,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
   );
   $("refresh-detail").addEventListener("click", () =>
     perform(async (valid) => {
+      saveApprovalDraft($("detail"));
       const drafts = [...$("answers").querySelectorAll("textarea")]
         .filter((input) => input.value)
         .map((input) => input.dataset.questionId + ": " + input.value);
@@ -504,7 +575,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       });
       if (valid()) {
         showDetail(data);
-        notice("답변을 저장했습니다. PM 실행 대기 상태입니다.");
+        notice("답변을 저장했습니다. 담당 역할의 실행 대기 상태입니다.");
       }
     });
   });

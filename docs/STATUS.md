@@ -1,5 +1,6 @@
 # 2026-09-23 kit role integration checkpoint
 
+- 새 요청의 **PM clarify/propose → 화면의 실제 사용자 G1 입력 → Lead investigate/plan** 연결을 구현했다. kit CLI가 노드·질문 재개를 결정하고 Office는 승인·대화·실행 슬롯을 관리한다. 기존 대화는 유지한다. 전체 회귀 314개, 최종 관련 38개, 타입 검사 및 Chrome 모의 화면 검사를 통과했다. 실제 모델은 이번 연결에서 호출하지 않았다. 공개 모델 시작·계획 등록/실행 승인·G4 평가 controller 연결과 화면을 통한 실제 인수 검증은 남아 있다. [검증과 경계](verification/2026-09-23-kit-role-runs.md#native-planning-and-story-g1-continuation).
 - 첫 실사용 마일스톤을 사용자 목표대로 확정했다. kit 4.1.0과 현재 브랜치를 유지하며, 추가 업무 유형·tarball·학습 고도화 등은 전체 Story의 후속으로 남긴다. [목표](local-alpha-goal-prompt.md).
 - 후속 연결: **실행 결과 → 결과 목록 조회 → 검증된 diff와 승인 자료 보기**에서 준비된 실제 diff·파일 권한과 G4 질문을 조회하고 본인 답변/거절을 제출할 수 있다. 서버에서 승인이 확인된 결과물은 **승인된 결과물 인도받기**로 인도하고 경로를 표시한다. 답변 평가 controller와 공개 모델 실행 연결은 아직 남아 있다. 전체 회귀 304개와 후속 UI 수정 후 관련 17개, 타입 검사 및 Chrome 모의 API 화면 검사를 통과했다. [검증과 경계](verification/2026-09-22-intake-console.md).
 - README 결과물은 사용자의 **“결과 일단 승인할게 넘어가.”** 발언으로 대화상 승인됐다. 같은 G4 문답은 반복하지 않는다. Office DB의 G4 처리·인도 및 로컬 알파 전체 인수 검증은 별도 미완료다. [원문 승인 기록](understanding/auth-guide-pilot-diff.md).
@@ -7,7 +8,7 @@
 - kit 4.1.0의 실제 역할 CLI를 설치하고 Developer/self-check/Reviewer/feedback을 기존 Office runner에 연결했다. 역할 상태는 kit 파일, 프로젝트·프로세스·승인은 Office DB가 소유한다. 상세 증거와 남은 범위: [검증 기록](verification/2026-09-23-kit-role-runs.md).
 - README 인증 안내 작업의 G1은 사용자의 **“이 문서 작업으로 진행”** 응답으로 승인됐다. 기존 인증 G3도 유효하다. 아래 날짜의 G1/인증 대기 설명은 과거 상태다.
 - 실제 Developer와 Reviewer가 첫 후보를 만들고 검사 5개를 통과했다. 이후 controller 통합 검토가 실제 문구 모순을 발견해 기존 리뷰를 보존한 채 수정 요청을 기록했다. 같은 Developer run에서 **실제 수정 1회와 새 Reviewer/검사 5개 재검증**이 완료됐다. 현재는 [사용자 승인 원문을 보존한 상태](understanding/auth-guide-pilot-diff.md)이며 Office DB 처리·인도 전이다. 해당 실행기 변경 당시 Office 회귀 292/292, VM 경계 5/5 통과.
-- 공개 화면에서 전체 작업 실행, PM/Lead 역할 그래프, worker CE/Superpowers 검증, 질문 재개 및 전체 제품 완료를 의미하지 않는다. main 병합과 배포는 사용자 담당이다.
+- 공개 화면에서 전체 작업 실행, worker CE/Superpowers 검증 및 전체 제품 완료를 의미하지 않는다. PM/Lead 역할 그래프와 질문 재개는 위 후속 연결의 모의 모델 검사까지 완료됐다. main 병합과 배포는 사용자 담당이다.
 
 ## 이전 진행 기록
 

@@ -88,6 +88,7 @@ type Dialogue = {
   answers: { id: string; answer: string }[];
 };
 type Input = {
+  workflow?: "kit-role-v1";
   requestId: string;
   request: string;
   risk: "normal" | "high";
@@ -117,6 +118,7 @@ export function beginPlanning(
   requestId: string,
   request: string,
   risk: "normal" | "high",
+  kitRoles = false,
 ): PlanningPacket {
   if (!/^[a-f0-9-]{36}$/.test(requestId) || !["normal", "high"].includes(risk))
     invalid();
@@ -128,6 +130,7 @@ export function beginPlanning(
   )
     invalid();
   return seal({
+    ...(kitRoles ? { workflow: "kit-role-v1" as const } : {}),
     requestId,
     request,
     risk,
@@ -136,15 +139,34 @@ export function beginPlanning(
     story: null,
   });
 }
+export function continuePlanning(
+  packet: PlanningPacket,
+  story: Story,
+  role: "pm" | "lead",
+) {
+  current(packet);
+  return seal({
+    requestId: packet.requestId,
+    request: packet.request,
+    risk: packet.risk,
+    dialogue: packet.dialogue,
+    story,
+    role,
+    ...(packet.workflow ? { workflow: packet.workflow } : {}),
+  });
+}
+
 export function planningPrompt(
   packet: PlanningPacket,
   context?: Candidate,
+  kit?: { runFile: string; node: import("../core/kit-role-runs.ts").KitNode },
 ): string {
   current(packet);
   if (context && !verifyCandidate(context))
     fail("CANDIDATE_CHANGED", "Planning context changed.");
   const data = {
     ...packet,
+    ...(kit ? { kit } : {}),
     context: context
       ? {
           digest: context.digest,
@@ -177,6 +199,12 @@ export function planningPrompt(
   };
   return [
     ...packet.profile.files.map((f) => f.content),
+    ...(kit
+      ? [
+          `Assigned kit node: ${kit.node.id}. Perform only this node's description and verification. Do not start another graph or issue human approvals. A write node permits returning proposal documents, not editing the readonly repository snapshot. PM clarify and propose each return the existing PM JSON schema; Lead investigate and plan each return the existing Lead JSON schema. Use kit.node.input dependencies and packet.story as prior proposals. ${packet.role === "pm" ? "Your proposal does not grant G1; Office asks the human after propose completes." : "This Lead assignment follows actual Office G1 for this Story."}`,
+          'Either role may instead ask necessary questions using {"version":1,"inputDigest":"the supplied digest","status":"questions","questions":[{"id":"Q1","text":"question","reason":"blocking decision"}]}. Office transports the answer and resumes this node; do not guess a human decision.',
+        ]
+      : []),
     "BEGIN PLANNING TASK DATA\n" +
       JSON.stringify(data) +
       "\nEND PLANNING TASK DATA",
@@ -205,10 +233,10 @@ export function answerPlanning(
 ): PlanningPacket {
   current(packet);
   if (
-    packet.role !== "pm" ||
+    (!packet.workflow && packet.role !== "pm") ||
     questions.kind !== "questions" ||
     questions.inputDigest !== packet.inputDigest ||
-    packet.dialogue.length >= 3
+    (!packet.workflow && packet.dialogue.length >= 3)
   )
     invalid();
   const answers = list(
@@ -226,11 +254,12 @@ export function answerPlanning(
   )
     invalid();
   return seal({
+    ...(packet.workflow ? { workflow: packet.workflow } : {}),
     requestId: packet.requestId,
     request: packet.request,
     risk: packet.risk,
-    role: "pm",
-    story: null,
+    role: packet.role,
+    story: packet.workflow ? packet.story : null,
     dialogue: [...packet.dialogue, { questions: questions.questions, answers }],
   });
 }
@@ -256,37 +285,41 @@ export function acceptPlanning(
     const value = raw as Record<string, unknown>;
     if (value.version !== 1 || value.inputDigest !== packet.inputDigest)
       invalid();
+    if (
+      value.status === "questions" &&
+      (packet.role === "pm" || packet.workflow)
+    ) {
+      object(value, ["version", "inputDigest", "status", "questions"]);
+      if (!packet.workflow && packet.dialogue.length >= 3) invalid();
+      const questions = list(
+        value.questions,
+        (v) => {
+          const q = object(v, ["id", "text", "reason"]);
+          if (typeof q.id !== "string" || !/^Q[1-3]$/.test(q.id)) invalid();
+          return {
+            id: q.id,
+            text: text(q.text, 1000),
+            reason: text(q.reason, 1000),
+          };
+        },
+        3,
+      );
+      if (new Set(questions.map((q) => q.id)).size !== questions.length)
+        invalid();
+      return {
+        kind: "questions",
+        inputDigest: packet.inputDigest,
+        questions,
+      };
+    }
     if (packet.role === "pm") {
-      if (value.status === "questions") {
-        object(value, ["version", "inputDigest", "status", "questions"]);
-        if (packet.dialogue.length >= 3) invalid();
-        const questions = list(
-          value.questions,
-          (v) => {
-            const q = object(v, ["id", "text", "reason"]);
-            if (typeof q.id !== "string" || !/^Q[1-3]$/.test(q.id)) invalid();
-            return {
-              id: q.id,
-              text: text(q.text, 1000),
-              reason: text(q.reason, 1000),
-            };
-          },
-          3,
-        );
-        if (new Set(questions.map((q) => q.id)).size !== questions.length)
-          invalid();
-        return {
-          kind: "questions",
-          inputDigest: packet.inputDigest,
-          questions,
-        };
-      }
       object(value, ["version", "inputDigest", "status", "story"]);
       if (value.status !== "ready") invalid();
       const story = parseStory(value.story);
       return {
         kind: "lead",
         packet: seal({
+          ...(packet.workflow ? { workflow: packet.workflow } : {}),
           requestId: packet.requestId,
           request: packet.request,
           risk: packet.risk,
@@ -302,6 +335,17 @@ export function acceptPlanning(
   } catch {
     return invalid();
   }
+}
+
+export function renderPlanningStory(story: Story): string {
+  const bullets = (values: string[], prefix: string) =>
+    values.length
+      ? values.map((v, i) => `- ${prefix}${i + 1}. ${v}`).join("\n")
+      : "- None.";
+  return `# Story: ${story.title}\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\nUnderstanding gate (G4): pending\n\n## Goal\n${story.goal}\n\n## Domain\n${story.domain}\n\n## MUST\n${bullets(story.must, "M")}\n\n## SHOULD\n${bullets(story.should, "S")}\n\n## OUT\n${bullets(story.out, "O")}\n\n## Decisions\n${bullets(
+    story.assumptions.map((s) => "ASSUMED: " + s),
+    "D",
+  )}\n\n## Verify\n${story.verify.map((v, i) => `- V${i + 1} [${v.must.map((m) => "M" + m).join(", ")}]. ${v.scenario}`).join("\n")}\n`;
 }
 
 function proposal(
@@ -381,15 +425,8 @@ function proposal(
     story.verify.some((_, i) => !tasks.some((t) => t.verify.includes(i + 1)))
   )
     invalid();
-  const bullets = (values: string[], prefix: string) =>
-    values.length
-      ? values.map((v, i) => `- ${prefix}${i + 1}. ${v}`).join("\n")
-      : "- None.";
   const files: Record<string, string> = {
-    "story.md": `# Story: ${story.title}\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\nUnderstanding gate (G4): pending\n\n## Goal\n${story.goal}\n\n## Domain\n${story.domain}\n\n## MUST\n${bullets(story.must, "M")}\n\n## SHOULD\n${bullets(story.should, "S")}\n\n## OUT\n${bullets(story.out, "O")}\n\n## Decisions\n${bullets(
-      story.assumptions.map((s) => "ASSUMED: " + s),
-      "D",
-    )}\n\n## Verify\n${story.verify.map((v, i) => `- V${i + 1} [${v.must.map((m) => "M" + m).join(", ")}]. ${v.scenario}`).join("\n")}\n`,
+    "story.md": renderPlanningStory(story),
     "plan.md": `# Proposed implementation plan\n\nRequest: ${packet.requestId}\nInput digest: ${packet.inputDigest}\n\n${plan}\n\nThis is a model proposal. No repository inspection or approval is established by this document.\n`,
   };
   if (packet.risk === "high")
