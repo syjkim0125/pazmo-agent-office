@@ -58,6 +58,142 @@ async function connect(doc) {
   await settle();
 }
 
+test("execution results show the current candidate and pending G4 without issuing a write", async (t) => {
+  const calls = [];
+  const doc = setup(t, async (path, options) => {
+    calls.push({ path, options });
+    if (path === "/api/pazmo/contracts")
+      return response({
+        contracts: [
+          {
+            id: "job-1",
+            title: "Document task",
+            status: "review",
+            blocker: null,
+          },
+        ],
+      });
+    if (path === "/api/pazmo/verification/job-1")
+      return response({
+        verification: {
+          state: "awaiting_g4",
+          number: 2,
+          candidate: { digest: "candidate-2" },
+          nodes: [
+            { kind: "test", check: { id: "V1" }, result: { verdict: "pass" } },
+            {
+              kind: "review",
+              result: {
+                verdict: "pass",
+                observation: {
+                  report: { summary: "<img src=x onerror=bad()>" },
+                },
+              },
+            },
+          ],
+        },
+        executions: [{ role: "engineer", state: "released" }],
+        completion: { status: "awaiting_answer", approved: false },
+        delivery: { status: "not_delivered" },
+      });
+    return response(list);
+  });
+  await connect(doc);
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  doc.querySelector("#contracts button").click();
+  await settle();
+  const text = doc.querySelector("#execution-detail").textContent;
+  assert.match(text, /사용자 승인 대기/);
+  assert.match(text, /candidate-2/);
+  assert.match(text, /V1.*pass/);
+  assert.match(text, /인도 전/);
+  assert.equal(doc.querySelectorAll("#execution-detail img").length, 0);
+  assert.ok(calls.every((c) => c.options.method === "GET"));
+  doc.querySelector("#disconnect").click();
+  assert.equal(doc.querySelector("#execution-detail").textContent, "");
+});
+
+test("delivered work is not mislabeled as awaiting approval", async (t) => {
+  const doc = setup(t, async (path) =>
+    response(
+      path === "/api/pazmo/contracts"
+        ? { contracts: [{ id: "done", status: "done" }] }
+        : path.includes("/verification/")
+          ? {
+              verification: {
+                state: "awaiting_g4",
+                candidate: { digest: "verified" },
+                number: 1,
+                nodes: [],
+              },
+              executions: [],
+              completion: { status: "approved", approved: true },
+              delivery: { status: "delivered" },
+            }
+          : list,
+    ),
+  );
+  await connect(doc);
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  doc.querySelector("#contracts button").click();
+  await settle();
+  assert.doesNotMatch(
+    doc.querySelector("#execution-detail").textContent,
+    /사용자 승인 대기/,
+  );
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /산출물 인도 완료/,
+  );
+});
+
+test("disconnect ignores a late verification response and a failed refresh never displays stale success", async (t) => {
+  let release,
+    fail = false;
+  const doc = setup(t, async (path) => {
+    if (path === "/api/pazmo/contracts") {
+      if (fail) throw Error("offline");
+      return response({
+        contracts: [{ id: "job-1", title: "Task", status: "review" }],
+      });
+    }
+    if (path.includes("/verification/"))
+      return new Promise((resolve) => {
+        release = resolve;
+      });
+    return response(list);
+  });
+  await connect(doc);
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  fail = true;
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  assert.equal(doc.querySelector("#contracts").textContent, "");
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /확인하지 못/,
+  );
+  fail = false;
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  doc.querySelector("#contracts button").click();
+  await settle();
+  doc.querySelector("#disconnect").click();
+  release(
+    response({
+      verification: null,
+      completion: { status: "not_requested" },
+      delivery: { status: "not_delivered" },
+      executions: [],
+    }),
+  );
+  await settle();
+  assert.equal(doc.querySelector("#execution-detail").textContent, "");
+});
+
 test("console answers the displayed revision, preserves draft on conflict and renders model content as text", async (t) => {
   const calls = [];
   const doc = setup(t, async (path, options) => {

@@ -45,7 +45,15 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
     busy = false;
     current = null;
     next = null;
-    for (const id of ["requests", "detail", "answers", "project", "drafts"])
+    for (const id of [
+      "requests",
+      "detail",
+      "answers",
+      "project",
+      "drafts",
+      "contracts",
+      "execution-detail",
+    ])
       $(id).replaceChildren();
     for (const form of doc.forms) form.reset();
     for (const id of [
@@ -61,8 +69,8 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
     notice("연결이 해제되었습니다.");
     $("credential").focus();
   }
-  async function api(path, body) {
-    const response = await fetchImpl("/api/pazmo/intakes" + path, {
+  async function api(path, body, resource = "intakes") {
+    const response = await fetchImpl("/api/pazmo/" + resource + path, {
       method: body === undefined ? "GET" : "POST",
       credentials: "omit",
       redirect: "error",
@@ -81,6 +89,152 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       });
     return data;
   }
+  function showExecution(data, taskId) {
+    const target = $("execution-detail"),
+      round = data.verification;
+    target.replaceChildren(el("h3", "작업 · " + taskId));
+    const status = {
+      checking: "검증 중",
+      fix_required: "수정 필요",
+      awaiting_g4: "사용자 승인 대기",
+      human_required: "사람의 확인 필요",
+      cancelled: "취소됨",
+    };
+    target.append(
+      el(
+        "p",
+        round
+          ? round.state === "awaiting_g4" && data.completion.approved
+            ? "검증 및 사용자 승인 완료"
+            : (status[round.state] ?? round.state)
+          : "아직 실행 결과가 없습니다.",
+        "state",
+      ),
+    );
+    if (round) {
+      target.append(
+        el("p", `변경본 · ${round.candidate.digest}`, "project"),
+        el("p", `검증 회차 · ${round.number}`),
+      );
+      if (round.reason) target.append(el("p", "대기 이유 · " + round.reason));
+      const results = el("ul", "");
+      for (const node of round.nodes) {
+        const item = el(
+          "li",
+          `${node.kind === "review" ? "Reviewer" : node.check.id} · ${node.result?.verdict ?? "대기"}`,
+        );
+        const report = node.result?.observation?.report;
+        if (report) {
+          const detail = el("details", "");
+          detail.append(
+            el("summary", "검토 근거"),
+            el(
+              "pre",
+              report.summary + "\n" + (report.findings ?? []).join("\n"),
+            ),
+          );
+          item.append(detail);
+        }
+        results.append(item);
+      }
+      target.append(results);
+      if (round.integrationFeedback)
+        target.append(
+          el(
+            "pre",
+            "통합 검토 · " + round.integrationFeedback.findings.join("\n"),
+          ),
+        );
+    }
+    const approval = {
+      not_requested: "요청 전",
+      awaiting_answer: "사용자 답변 대기",
+      awaiting_evaluation: "답변 평가 대기",
+      needs_restatement: "다시 설명 필요",
+      expired: "승인 질문 만료 · 현재 근거로 다시 요청 필요",
+      stale: "변경본이 달라져 이전 승인 사용 불가",
+      approved: "승인됨",
+      rejected: "거절됨",
+    };
+    target.append(
+      el(
+        "p",
+        "G4 · " + (approval[data.completion.status] ?? data.completion.status),
+      ),
+    );
+    target.append(
+      el(
+        "p",
+        data.delivery.status === "delivered"
+          ? "산출물 인도 완료"
+          : data.delivery.status === "invalid"
+            ? "인도 자료 확인 필요"
+            : "산출물 인도 전",
+      ),
+    );
+    const leases = el("details", "");
+    leases.append(el("summary", "역할 실행 기록"));
+    for (const execution of data.executions)
+      leases.append(
+        el(
+          "p",
+          `${execution.role} · ${execution.state}${execution.reason ? " · " + execution.reason : ""}`,
+        ),
+      );
+    target.append(leases);
+  }
+  $("refresh-results").addEventListener("click", () =>
+    perform(async (valid) => {
+      $("contracts").replaceChildren();
+      $("execution-detail").textContent = "실행 결과 목록 조회 중…";
+      try {
+        const data = await api("", undefined, "contracts");
+        if (!valid()) return;
+        $("execution-detail").textContent = data.contracts.length
+          ? "작업을 선택하면 최신 실행 기록을 조회합니다."
+          : "등록된 실행 계약이 없습니다.";
+        for (const item of data.contracts) {
+          const row = el("li", ""),
+            button = el(
+              "button",
+              `${item.title ?? item.id} · ${item.blocker ?? item.status}`,
+            );
+          button.type = "button";
+          button.addEventListener("click", () =>
+            perform(async (current) => {
+              $("execution-detail").textContent = "최신 실행 결과 조회 중…";
+              try {
+                const result = await api(
+                  "/" + encodeURIComponent(item.id),
+                  undefined,
+                  "verification",
+                );
+                if (current()) {
+                  showExecution(result, item.id);
+                  notice(
+                    "실행 결과를 조회했습니다. 갱신하려면 작업을 다시 선택하세요.",
+                  );
+                }
+              } catch (error) {
+                if (current())
+                  $("execution-detail").textContent =
+                    "최신 결과를 확인하지 못했습니다. 작업을 다시 선택해 조회하세요.";
+                throw error;
+              }
+            }),
+          );
+          row.append(button);
+          $("contracts").append(row);
+        }
+        notice("실행 결과 목록을 조회했습니다.");
+      } catch (error) {
+        if (valid())
+          $("execution-detail").textContent =
+            "목록을 확인하지 못했습니다. 다시 조회하세요.";
+        throw error;
+      }
+    }),
+  );
   async function perform(work) {
     if (busy) return;
     const version = generation;

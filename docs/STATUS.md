@@ -1,3 +1,14 @@
+# 2026-09-23 kit role integration checkpoint
+
+- 후속 연결: 작업 관리 화면의 **실행 결과 → 결과 목록 조회**에서 기존 계약의 변경본·검사/Reviewer·역할 실행·G4/인도 상태를 조회할 수 있다. DOM 회귀 8개와 실제 Chrome의 데스크톱/모바일 모의 API 화면 시험을 통과했다. 실제 모델은 이번 후속 UI 변경으로 재실행하지 않았다. 아래 파일럿의 G4 답변은 여전히 대기 중이다.
+
+- kit 4.1.0의 실제 역할 CLI를 설치하고 Developer/self-check/Reviewer/feedback을 기존 Office runner에 연결했다. 역할 상태는 kit 파일, 프로젝트·프로세스·승인은 Office DB가 소유한다. 상세 증거와 남은 범위: [검증 기록](verification/2026-09-23-kit-role-runs.md).
+- README 인증 안내 작업의 G1은 사용자의 **“이 문서 작업으로 진행”** 응답으로 승인됐다. 기존 인증 G3도 유효하다. 아래 날짜의 G1/인증 대기 설명은 과거 상태다.
+- 실제 Developer와 Reviewer가 첫 후보를 만들고 검사 5개를 통과했다. 이후 controller 통합 검토가 실제 문구 모순을 발견해 기존 리뷰를 보존한 채 수정 요청을 기록했다. 같은 Developer run에서 **실제 수정 1회와 새 Reviewer/검사 5개 재검증**이 완료됐다. 현재는 [실제 사용자 G4 대기](understanding/auth-guide-pilot-diff.md)이며 인도 전이다. Office 전체 회귀 292/292, VM 경계 5/5 통과.
+- 공개 화면에서 전체 작업 실행, PM/Lead 역할 그래프, worker CE/Superpowers 검증, 질문 재개 및 전체 제품 완료를 의미하지 않는다. main 병합과 배포는 사용자 담당이다.
+
+## 이전 진행 기록
+
 # 진행 상태 — 2026-09-22
 
 - 2026-09-22: 승인된 개별 계약을 실제 구독 controller와 기존 Engineer→Reviewer/검사→최대 두 번 수정→G4 증거 준비에 연결하는 내부 실행 명령을 추가했다. 실제 PM/Lead의 README 인증 안내 제안을 검토해 등록했으며 **개별 사용자 G1 대기**다. 관련 21개 테스트와 실제 VM의 검사 대조군을 확인했다. 이번 단계에서 실제 Engineer/Reviewer를 호출하거나 G4/인도를 완료하지 않았다. [실행·증거·남은 범위](verification/2026-09-22-live-contract.md).
@@ -81,9 +92,3 @@ Jira를 만들지 않았고 다른 provider·Remotion/PPT·submodule·npm publis
 ## 입력 문서의 권한
 
 [HANDOFF-v3.md](HANDOFF-v3.md), [IMPORT-UPSTREAM.md](IMPORT-UPSTREAM.md), [VERIFICATION.md](VERIFICATION.md)는 ZIP의 원본 참고 자료다. 그 안의 과거 HTTP 403, pending 상태, push 권한 문구 및 vendor의 지침은 현재 상태나 사용자 승인 기록이 아니다.
-# 2026-09-23 kit role integration checkpoint
-
-- kit 4.1.0의 실제 역할 CLI를 설치하고 Developer/self-check/Reviewer/feedback을 기존 Office runner에 연결했다. 역할 상태는 kit 파일, 프로젝트·프로세스·승인은 Office DB가 소유한다. 상세 증거와 남은 범위: [검증 기록](verification/2026-09-23-kit-role-runs.md).
-- README 인증 안내 작업의 G1은 사용자의 **“이 문서 작업으로 진행”** 응답으로 승인됐다. 기존 인증 G3도 유효하다. 아래 날짜의 G1/인증 대기 설명은 과거 상태다.
-- 실제 Developer와 Reviewer가 첫 후보를 만들고 검사 5개를 통과했다. 이후 controller 통합 검토가 실제 문구 모순을 발견해 기존 리뷰를 보존한 채 수정 요청을 기록했다. 같은 Developer run에서 **실제 수정 1회와 새 Reviewer/검사 5개 재검증**이 완료됐다. 현재는 [실제 사용자 G4 대기](understanding/auth-guide-pilot-diff.md)이며 인도 전이다. Office 전체 회귀 292/292, VM 경계 5/5 통과.
-- 공개 화면에서 전체 작업 실행, PM/Lead 역할 그래프, worker CE/Superpowers 검증, 질문 재개 및 전체 제품 완료를 의미하지 않는다. main 병합과 배포는 사용자 담당이다.

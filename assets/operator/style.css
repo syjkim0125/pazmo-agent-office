@@ -151,7 +151,8 @@ ul {
   list-style: none;
   padding: 0;
 }
-#requests button {
+#requests button,
+#contracts button {
   display: block;
   text-align: left;
   width: 100%;

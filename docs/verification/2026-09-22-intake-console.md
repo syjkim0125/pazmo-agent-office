@@ -1,3 +1,15 @@
+# 2026-09-23 continuation: execution result visibility
+
+Task: `docs/tasks/U7-execution-results.md`. The existing operator shell now reads `/api/pazmo/contracts` and `/api/pazmo/verification/:id` to display the current candidate, test/Reviewer outcomes, integration feedback, process leases and G4/delivery status. It creates no approval, execution or delivery and does not copy kit transitions into UI state. Reuse the same in-memory bearer credential, generation guard and request wrapper.
+
+Fresh evidence: `node --test tests/operator-console.test.mjs` **8/8**, exit 0 after formatting. Three new cases cover authenticated GET-only reads, untrusted model content, failed refresh, late response after disconnect, and accepted/delivered versus awaiting-G4 display. RED observed missing controls, then the delivered-state label bug; GREEN after implementation/correction. Parent Story and U7 Task checker exit 0; G4 remains unverified. The prior 292-test integration result belongs to the preceding commit, not this UI change.
+
+Actual installed Chrome with a disposable profile passed desktop 1280px and mobile 390px rendering, no horizontal overflow, no page errors and disconnect clearing. The Playwright bundled browser cache was absent, so the run used installed Chrome. The fixture intercepted every request and exercised no real authentication, model or approval. Evidence: `/private/tmp/pazmo-results-browser.mjs`, screenshots `/private/tmp/pazmo-results-desktop.png` and `/private/tmp/pazmo-results-mobile.png`; mobile screenshot visually inspected. These temporary files are not distributed runtime dependencies.
+
+Sequential inline simplify/review checked reuse of credential/error lifecycle, absence of write calls, text-only rendering, cancellation races and server-owned state. No additional abstraction or code simplification was warranted. Compound capture was considered after verification: the new UI mechanics and corrected status label are fully explained by code/tests and the existing authority learning; no distinct durable lesson justified another learning file. No new skill execution inside model workers is claimed.
+
+Use **작업 관리 → 연결 → 실행 결과 → 결과 목록 조회**, then select a registered task. Select it again to refresh. An empty list means no contracts are registered in that Office instance; the separate internal pilot database is not imported automatically. Model launch, G4 answer/evaluation controls, raw-diff UI and native kit progress remain subsequent connections. Historical intake-only evidence follows.
+
 # Operator intake screen
 
 Date: 2026-09-22
