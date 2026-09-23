@@ -606,7 +606,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   const migrated = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
     readOnly: true,
   });
-  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 10);
+  assert.equal(migrated.prepare("PRAGMA user_version").get().user_version, 11);
   assert.equal(
     migrated.prepare("SELECT COUNT(*) AS n FROM pazmo_task_contracts").get().n,
     0,
@@ -622,7 +622,7 @@ test("owned v1 database gets a restorable backup before additive contract migrat
   );
 });
 
-for (const oldVersion of [2, 3, 4, 5, 6, 7, 8, 9])
+for (const oldVersion of [2, 3, 4, 5, 6, 7, 8, 9, 10])
   test(`owned v${oldVersion} migration backs up data before adding execution tables`, async (t) => {
     const { DatabaseSync } = await import("node:sqlite");
     const { applyBaseSchema } =
@@ -645,8 +645,12 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7, 8, 9])
       oldVersion,
     );
     const store = new OfficeStore(db, manifest.project, "a".repeat(64));
+    db.exec(
+      "DROP TABLE pazmo_kit_receipts; DROP TABLE pazmo_kit_assignments",
+    );
     if (oldVersion >= 3) {
       const verification = new VerificationLedger(db, store);
+      db.exec("DROP TABLE pazmo_integration_feedback");
       if (oldVersion >= 4) {
         const { ExecutionLedger } = await import("../src/core/budgets.ts");
         const execution = new ExecutionLedger(db, store, verification);
@@ -774,7 +778,15 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7, 8, 9])
     const current = new DatabaseSync(join(manifest.dataDir, "office.sqlite"), {
       readOnly: true,
     });
-    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 10);
+    assert.equal(current.prepare("PRAGMA user_version").get().user_version, 11);
+    assert.equal(
+      current.prepare("SELECT count(*) n FROM pazmo_kit_assignments").get().n,
+      0,
+    );
+    assert.equal(
+      current.prepare("SELECT count(*) n FROM pazmo_kit_receipts").get().n,
+      0,
+    );
     assert.equal(
       current.prepare("SELECT count(*) n FROM pazmo_intake_publications").get()
         .n,

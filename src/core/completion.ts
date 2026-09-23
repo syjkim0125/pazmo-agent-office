@@ -44,12 +44,14 @@ const evidenceSubject = (
   verification: string,
   diff: CandidateDiff,
   handoff: string,
+  kit: string | null = null,
 ): string =>
   digest(
     JSON.stringify({
       verification,
       handoff,
       diff: digest(JSON.stringify(diff)),
+      ...(kit ? { kit } : {}),
     }),
   );
 
@@ -133,7 +135,11 @@ export class CompletionLedger {
         );
       throw error;
     }
-    return { ...round, g4Subject: round.g4Subject };
+    return {
+      ...round,
+      g4Subject: round.g4Subject,
+      kitReceipt: this.#store.kitReceipt(taskId, round.candidate.digest),
+    };
   }
   #bundle(taskId: string): Bundle {
     const round = this.#eligible(taskId);
@@ -151,7 +157,13 @@ export class CompletionLedger {
       diff.candidateDigest !== round.candidate.digest ||
       diff.baselineDigest !== handoff.baseline.digest ||
       evidence.handoff !== handoff.leaseId ||
-      bundle.subject !== evidenceSubject(round.g4Subject, diff, handoff.leaseId)
+      bundle.subject !==
+        evidenceSubject(
+          round.g4Subject,
+          diff,
+          handoff.leaseId,
+          round.kitReceipt,
+        )
     )
       return fail(
         "EVIDENCE_REQUIRED",
@@ -330,7 +342,12 @@ export class CompletionLedger {
       fail("STALE_EVIDENCE", "Verification changed during diff capture.");
     return transaction(this.#db, () => {
       const round = this.#eligible(taskId);
-      const subject = evidenceSubject(round.g4Subject, diff, handoff.leaseId);
+      const subject = evidenceSubject(
+        round.g4Subject,
+        diff,
+        handoff.leaseId,
+        round.kitReceipt,
+      );
       const existing = this.#db
         .prepare("SELECT subject FROM pazmo_g4_evidence WHERE round_id=?")
         .get(round.id) as { subject: string } | undefined;
@@ -350,6 +367,7 @@ export class CompletionLedger {
             JSON.stringify({
               diff,
               handoff: handoff.leaseId,
+              ...(round.kitReceipt ? { kitReceipt: round.kitReceipt } : {}),
               contract: this.#store.get(taskId).contract,
               results: round.nodes.map((n) => ({
                 id: n.id,

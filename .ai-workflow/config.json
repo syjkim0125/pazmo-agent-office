@@ -1,15 +1,17 @@
 {
   "schemaVersion": 2,
-  "packageVersion": "3.1.1",
+  "packageVersion": "4.1.0",
   "hosts": [
     "codex"
   ],
   "managedFiles": {
     "templates/ai-workflow/STORY.md": "b5f75baacea8f8e6cf2130eb09b7a8ea35d63e043b3f680bef728ad5a180b64a",
     "templates/ai-workflow/TASK.md": "b10903e82d8ebc462e925e01b9a4716b54d111190559124229caf38bfadc221b",
+    ".ai-workflow/bin/graph.mjs": "ed2fb1af98763132a0904d684627e2166b0022fd903a48c8fb1efeb2e02a580b",
     ".ai-workflow/bin/check.mjs": "f45c30a55f7de8fb9c62a4c363e47323a46a21e6400eb658ef0b54457808f57f"
   },
   "managedTrees": {
-    ".agents/skills/workflow": "a44a1c2942b1edfabea2c359624ec77c9d89d128152a61cb399445cb2fdf77e4"
+    ".ai-workflow/graph": "62e9104774c4264979586db0f445bffb30574d3e32b1fd6e1eb1f8de43ae1a79",
+    ".agents/skills/workflow": "cd4d8cbc89a024d9c84a2c2c6e59ca9571b7a51cfddb53d418cc6638b38d6c65"
   }
 }

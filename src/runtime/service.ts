@@ -24,7 +24,7 @@ import { applyBaseSchema } from "../../vendor/claw-empire/server/modules/bootstr
 import { applyDefaultSeeds } from "../../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { noSymlinks, packageRoot } from "../cli/project.ts";
 
-const schemaVersion = 10;
+const schemaVersion = 11;
 const supportedVersion = (version: number) =>
   Number.isInteger(version) && version >= 1 && version <= schemaVersion;
 

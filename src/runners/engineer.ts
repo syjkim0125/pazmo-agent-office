@@ -13,8 +13,9 @@ export async function runEngineerJob(
   taskId: string,
   job: { argv: string[]; timeoutMs: number } | RemoteJob,
   signal?: AbortSignal,
+  prepared?: ReturnType<HandoffLedger["prepare"]>,
 ) {
-  const attempt = handoffs.prepare(taskId, job.timeoutMs);
+  const attempt = prepared ?? handoffs.prepare(taskId, job.timeoutMs);
   let report;
   try {
     const beforeStart = (handle: string) => {

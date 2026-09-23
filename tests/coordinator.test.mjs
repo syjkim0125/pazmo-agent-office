@@ -6,6 +6,7 @@ import test from "node:test";
 import { officeFixture } from "./coordinator-fixture.mjs";
 import { OfficeCoordinator } from "../src/runners/coordinator.ts";
 import { freezeCandidate } from "../src/core/candidates.ts";
+import { OfficeError } from "../src/cli/project.ts";
 
 function runner(
   f,
@@ -16,6 +17,9 @@ function runner(
     onReview,
     jobError,
     engineerError,
+    kit,
+    reviewFailures = 0,
+    onEngineer,
   } = {},
 ) {
   const packets = [],
@@ -37,6 +41,7 @@ function runner(
     leave = () => active--;
   const c = new OfficeCoordinator({
     ...f,
+    roles: kit,
     jobFor(packet) {
       packets.push(packet);
       if (jobError?.(packet)) throw Error("Unable to construct role job");
@@ -58,6 +63,7 @@ function runner(
             join(destination, "src/a"),
             engineers <= failures ? "needs-fix" : "after",
           );
+          onEngineer?.(destination, engineers);
           return {
             handle: "engineer-" + engineers,
             closed: true,
@@ -119,9 +125,12 @@ function runner(
               ...base,
               kind: "review",
               report: {
-                verdict: "pass",
+                verdict: engineers <= reviewFailures ? "fail" : "pass",
                 summary: "Fixture review.",
-                findings: [],
+                findings:
+                  engineers <= reviewFailures
+                    ? ["Fixture R1: explain the missing case."]
+                    : [],
               },
               error: signal.aborted ? "CANCELLED" : null,
             },
@@ -144,6 +153,55 @@ function runner(
     },
   };
 }
+
+test("integration feedback invalidates prepared G4 and reaches the same Developer run before fresh review", async (t) => {
+  const f = await officeFixture(t, true, true);
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const { CompletionLedger } = await import("../src/core/completion.ts");
+  const completion = new CompletionLedger(
+    f.db,
+    f.store,
+    f.verification,
+    f.execution,
+    "a".repeat(64),
+    f.handoffs,
+  );
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, {
+    kit,
+    onEngineer(directory, attempt) {
+      if (attempt > 1)
+        writeFileSync(join(directory, "src/clarification"), "fixed ambiguity");
+    },
+  });
+  const first = await r.c.run(f.task.id);
+  assert.equal(first.state, "awaiting_g4");
+  await completion.prepare(f.task.id);
+  f.verification.requestChanges({
+    roundId: first.round.id,
+    candidateDigest: first.round.candidate.digest,
+    contractDigest: first.round.contractDigest,
+    source: "controller integration review",
+    findings: ["M1: clarify the contradictory sentence."],
+  });
+  assert.throws(() => completion.request("a".repeat(64), f.task.id), {
+    code: "EVIDENCE_REQUIRED",
+  });
+  const resumed = await r.c.run(f.task.id);
+  assert.equal(resumed.state, "awaiting_g4", JSON.stringify(resumed));
+  assert.equal(resumed.round.number, 2);
+  assert.notEqual(resumed.round.candidate.digest, first.round.candidate.digest);
+  const second = r.packets.filter((p) => p.role === "engineer")[1];
+  assert.deepEqual(second.integrationFeedback.findings, [
+    "M1: clarify the contradictory sentence.",
+  ]);
+  assert.equal(
+    f.store.kitAssignments(f.task.id).filter((a) => a.role === "developer")
+      .length,
+    1,
+  );
+  await completion.prepare(f.task.id);
+});
 test("approved work automatically fixes and re-verifies a new candidate then stops at G4", async (t) => {
   const f = await officeFixture(t),
     r = runner(f, { failures: 1 });
@@ -177,6 +235,70 @@ test("approved work automatically fixes and re-verifies a new candidate then sto
   );
   await r.c.run(f.task.id);
   assert.equal(r.engineers, 2);
+});
+
+test("kit native needs_changes sends Reviewer evidence to the same Developer run", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, { reviewFailures: 1, kit });
+  const result = await r.c.run(f.task.id);
+  assert.equal(result.state, "awaiting_g4");
+  assert.equal(r.engineers, 2);
+  const assignments = f.store.kitAssignments(f.task.id);
+  assert.equal(assignments.filter((a) => a.role === "developer").length, 1);
+  const reviews = assignments.filter((a) => a.role === "reviewer");
+  assert.equal(reviews.length, 2);
+  const first = JSON.parse(
+    readFileSync(join(f.project, reviews[0].run_file), "utf8"),
+  );
+  assert.equal(first.state.nodes.review.output.verdict, "needs_changes");
+  assert.match(
+    JSON.stringify(r.packets.filter((p) => p.role === "engineer")[1].feedback),
+    /Fixture R1/,
+  );
+  const legacy = runner(f);
+  const bypass = await legacy.c.run(f.task.id);
+  assert.equal(bypass.state, "human_required");
+  assert.equal(bypass.reason, "KIT_REQUIRED");
+  assert.equal(legacy.engineers, 0);
+});
+
+test("kit role integration cannot reserve a fourth Developer after two failed fixes", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, { reviewFailures: 9, kit });
+  const result = await r.c.run(f.task.id);
+  assert.equal(result.state, "human_required");
+  assert.equal(r.engineers, 3);
+  assert.equal((await r.c.run(f.task.id)).state, "human_required");
+  assert.equal(r.engineers, 3);
+});
+
+test("kit self-check continues its existing token after transient capacity shortage", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const reserve = f.execution.reserveNode.bind(f.execution);
+  f.execution.reserveNode = () => {
+    throw new OfficeError("SLOT_LIMIT", "Fixture external capacity");
+  };
+  const r = runner(f, { kit });
+  const waiting = await r.c.run(f.task.id);
+  assert.equal(waiting.state, "deferred");
+  f.execution.reserveNode = reserve;
+  const done = await r.c.run(f.task.id);
+  assert.equal(done.state, "awaiting_g4");
+  assert.equal(r.engineers, 1);
+  const developer = await kit.developer(
+    f.task.id,
+    f.handoffs.forRound(done.round.id).baseline,
+  );
+  const raw = JSON.parse(
+    readFileSync(join(f.project, developer.runFile), "utf8"),
+  );
+  assert.equal(raw.state.nodes["self-check"].attempts, 1);
 });
 
 test("a failed closed Engineer remains human_required on coordinator reconstruction", async (t) => {
@@ -242,6 +364,26 @@ test("external capacity defers without spending an Engineer attempt, then explic
   assert.equal(r.engineers, 1);
 });
 
+test("kit Reviewer can resume a dispatch that never acquired an Office process lease", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const reserve = f.execution.reserveNode.bind(f.execution);
+  f.execution.reserveNode = (roundId, nodeId, ...args) => {
+    if (
+      f.verification.get(roundId).nodes.find((n) => n.id === nodeId)?.kind ===
+      "review"
+    )
+      throw new OfficeError("SLOT_LIMIT", "Fixture external capacity");
+    return reserve(roundId, nodeId, ...args);
+  };
+  const r = runner(f, { kit });
+  assert.equal((await r.c.run(f.task.id)).state, "deferred");
+  f.execution.reserveNode = reserve;
+  assert.equal((await r.c.run(f.task.id)).state, "awaiting_g4");
+  assert.equal(r.calls.filter((c) => c === "review").length, 1);
+});
+
 test("failure constructing a fix persists human_required instead of retrying the failed round", async (t) => {
   const f = await officeFixture(t),
     r = runner(f, {
@@ -255,6 +397,24 @@ test("failure constructing a fix persists human_required instead of retrying the
   assert.equal(r.engineers, 1);
   const later = await runner(f).c.run(f.task.id);
   assert.equal(later.state, "human_required");
+});
+
+test("kit consumes an immutable view of the real Office G1 event without rewriting the canonical Story", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t);
+  const before = readFileSync(join(f.project, "story.md"), "utf8");
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, { kit });
+  const done = await r.c.run(f.task.id);
+  assert.equal(done.state, "awaiting_g4");
+  assert.equal(readFileSync(join(f.project, "story.md"), "utf8"), before);
+  const source = r.packets.find((p) => p.role === "engineer").kit.assignment
+    .source;
+  assert.match(source, /^\.pazmo-office\/approved-contracts\//);
+  const approved = readFileSync(join(f.project, source), "utf8");
+  assert.match(approved, /Status: Approved/);
+  assert.match(approved, /Canonical source: story.md/);
+  assert.match(approved, /M1\. Reject invalid input/);
 });
 
 test("already aborted work is cancelled without constructing a role job", async (t) => {
@@ -334,4 +494,60 @@ test("contract mutation during review aborts without admitting old evidence", as
   assert.notEqual(done.state, "awaiting_g4");
   assert.equal(r.engineers, 1);
   assert.equal(done.round.state, "human_required");
+});
+
+test("kit-backed Office execution preserves one Developer run through feedback and verifies the revised candidate", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, { failures: 1, kit });
+  const result = await r.c.run(f.task.id);
+  assert.equal(result.state, "awaiting_g4");
+  assert.equal(r.engineers, 2);
+  assert.equal(f.store.get(f.task.id).status, "review");
+  const developer = await kit.developer(
+    f.task.id,
+    f.handoffs.forRound(result.round.id).baseline,
+  );
+  const state = await developer.status();
+  assert.equal(state.action, "role-complete");
+  assert.equal(
+    state.submission.output.producedRevision,
+    result.round.candidate.digest,
+  );
+  const raw = JSON.parse(
+    readFileSync(join(f.project, developer.runFile), "utf8"),
+  );
+  assert.equal(raw.state.nodes.implement.attempts, 2);
+  assert.equal(raw.history.filter((e) => e.event === "feedback").length, 1);
+  assert.ok(
+    r.packets
+      .filter((p) => p.role === "engineer")
+      .every((p) => p.kit.node.id === "implement"),
+  );
+  assert.ok(
+    r.packets
+      .filter((p) => p.role === "reviewer")
+      .every((p) => p.kit.assignment.targetRevision === p.candidateDigest),
+  );
+  const { CompletionLedger } = await import("../src/core/completion.ts");
+  const completion = new CompletionLedger(
+    f.db,
+    f.store,
+    f.verification,
+    f.execution,
+    "a".repeat(64),
+    f.handoffs,
+  );
+  await completion.prepare(f.task.id);
+  await developer.feedback(
+    state.revisionToken,
+    "implement",
+    "A new independent finding",
+    "Fixture late finding invalidates role evidence.",
+  );
+  assert.throws(
+    () => completion.request("a".repeat(64), f.task.id),
+    /kit|role/i,
+  );
 });

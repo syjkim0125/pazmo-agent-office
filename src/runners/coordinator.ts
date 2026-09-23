@@ -15,6 +15,7 @@ import { runRegisteredChecks } from "./dispatch.ts";
 import { captureCandidateDiff } from "./candidate-diff.ts";
 import { rolePacket } from "./role-context.ts";
 import type { RolePacket } from "./role-context.ts";
+import type { KitDelivery } from "./kit-delivery.ts";
 
 type Dependencies = {
   store: OfficeStore;
@@ -26,6 +27,7 @@ type Dependencies = {
   verifier: ContainerVerifier;
   // Trusted construction only; execution starts in the reserved runner, not here.
   jobFor: (packet: RolePacket) => RemoteJob;
+  roles?: KitDelivery;
 };
 const capacity = new Set([
   "SLOT_LIMIT",
@@ -51,8 +53,11 @@ export class OfficeCoordinator {
       round: d.verification.latest(taskId),
       executions: d.execution.list(taskId),
     });
+    if (!d.roles && d.store.kitAssignments(taskId).length)
+      return result("human_required", "KIT_REQUIRED");
     if (d.store.get(taskId).status === "done") {
-      d.verification.latest(taskId);
+      const delivered = d.verification.latest(taskId);
+      if (delivered) d.store.kitReceipt(taskId, delivered.candidate.digest);
       if (d.store.get(taskId).status === "done") return result("delivered");
     }
     if (this.#active.has(taskId))
@@ -95,6 +100,8 @@ export class OfficeCoordinator {
         let round = d.verification.latest(taskId);
         if (item.status === "cancelled") return result("cancelled");
         if (!item.ready) return result("approval_required", item.blocker);
+        if (d.roles && round?.state === "awaiting_g4")
+          await d.roles.verifyCompletion(round);
         if (round && !["checking", "fix_required"].includes(round.state))
           return result(round.state, round.reason);
         if (abort.signal.aborted)
@@ -111,7 +118,22 @@ export class OfficeCoordinator {
             lastHandoff.reason ?? "ENGINEER_FAILED",
           );
         if (!round || round.state === "fix_required") {
-          const job = d.jobFor(rolePacket(d.store, taskId, "engineer", round));
+          const prepared = d.roles
+            ? d.handoffs.prepare(taskId, 240000)
+            : undefined;
+          let stage;
+          let job;
+          try {
+            stage =
+              d.roles && prepared
+                ? await d.roles.beginEngineer(taskId, prepared)
+                : undefined;
+            const packet = rolePacket(d.store, taskId, "engineer", round);
+            job = d.jobFor(stage ? d.roles!.packet(packet, stage) : packet);
+          } catch (error) {
+            if (prepared) d.execution.markUnknown(prepared.leaseId);
+            throw error;
+          }
           const ran = await runEngineerJob(
             d.execution,
             d.handoffs,
@@ -119,6 +141,7 @@ export class OfficeCoordinator {
             taskId,
             job,
             abort.signal,
+            prepared,
           );
           if (ran.handoff.state !== "candidate_frozen") {
             if (d.store.get(taskId).status === "cancelled")
@@ -128,20 +151,48 @@ export class OfficeCoordinator {
               ran.recordingError ?? ran.handoff.reason ?? "ENGINEER_FAILED",
             );
           }
+          if (stage && ran.handoff.round)
+            await d.roles!.finishEngineer(stage, ran.handoff.round);
           continue;
+        }
+        if (d.roles) {
+          const checkStage = await d.roles.beginSelfCheck(round);
+          if (checkStage) {
+            const checked = await runRegisteredChecks(
+              d.execution,
+              d.verification,
+              d.verifier,
+              round.id,
+              abort.signal,
+            );
+            round = d.verification.get(round.id);
+            if (round.state !== "checking")
+              return result(round.state, round.reason);
+            if (checked.pending.length)
+              return result(
+                "deferred",
+                checked.deferredReason ?? "VERIFICATION_PENDING",
+              );
+            await d.roles.finishSelfCheck(checkStage, round);
+          }
         }
         const initialResults = round.nodes.filter((n) => n.result).length;
         const review = round.nodes.find(
           (n) => n.kind === "review" && !n.result,
         );
         let job: RemoteJob | undefined;
+        let reviewStage;
         if (review) {
           const origin = d.handoffs.forRound(round.id).baseline;
           const diff = await captureCandidateDiff(origin, round.candidate);
           monitor();
           round = d.verification.get(round.id);
           if (round.state !== "checking" || abort.signal.aborted) continue;
-          job = d.jobFor(rolePacket(d.store, taskId, "reviewer", round, diff));
+          reviewStage = d.roles ? await d.roles.beginReview(round) : undefined;
+          const packet = rolePacket(d.store, taskId, "reviewer", round, diff);
+          job = d.jobFor(
+            reviewStage ? d.roles!.packet(packet, reviewStage) : packet,
+          );
         }
         // Reserve the reviewer first; tests use remaining global capacity.
         const reviewing =
@@ -179,6 +230,11 @@ export class OfficeCoordinator {
           }
         monitor();
         const current = d.verification.get(round.id);
+        if (
+          reviewStage &&
+          current.nodes.some((n) => n.kind === "review" && n.result)
+        )
+          await d.roles!.finishReview(reviewStage, current);
         if (
           current.state === "checking" &&
           current.nodes.filter((n) => n.result).length === initialResults

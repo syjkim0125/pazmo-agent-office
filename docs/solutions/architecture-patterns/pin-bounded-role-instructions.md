@@ -1,7 +1,7 @@
 ---
-title: Pin bounded role instructions while keeping graph authority in Office
+title: Pin bounded role instructions and separate role from project authority
 date: "2026-09-21"
-last_updated: "2026-09-21"
+last_updated: "2026-09-23"
 category: architecture-patterns
 module: Office role profiles
 problem_type: architecture_pattern
@@ -13,7 +13,7 @@ applies_when:
 tags: [roles, profiles, provenance, workflow, integrity, controller]
 ---
 
-# Pin bounded role instructions while keeping graph authority in Office
+# Pin bounded role instructions and separate role from project authority
 
 ## Context
 
@@ -21,7 +21,7 @@ The Office coordinator already handled Engineer, tests, Reviewer and bounded fix
 
 ## Guidance
 
-Keep graph transitions, approvals, execution budgets and delivery in the controller. Assign each role an explicit bounded procedure. When the runtime cannot satisfy an upstream skill's required orchestration, provide a clearly named first-party protocol or block that skill; do not claim the full skill ran.
+Keep project approvals, execution budgets and delivery in Office. Delegate role-local transitions to the installed kit CLI and retain its run file as the authoritative local state. The earlier guidance to keep all graph authority in Office is superseded by the user's D7 responsibility split. Assign each role an explicit bounded procedure. When the runtime cannot satisfy an upstream skill's required orchestration, provide a clearly named first-party protocol or block that skill; do not claim the full skill ran.
 
 Package instruction sources and a provenance lock together. Record role, source path, immutable version ref, license reference and hashes for every included instruction. Validate fixed installation paths before job construction and revalidate the packet before rendering its prompt. Keep trusted instructions outside the task-data block; remove their duplicated content from the metadata inside that block.
 
@@ -46,6 +46,14 @@ The PM/Lead proposal protocol exposed a related handoff gap: a Task could name `
 The next inspection found that planning had an available readonly VM snapshot while its instructions forbade reading any files. Supply the snapshot's identity, worker-visible path and permitted use explicitly, and pass the rendered prompt to the actual job factory. Do not infer context delivery from a mount alone. Tests first failed on absent context metadata and the missing factory prompt; the corrected code passed 260 root tests and the readonly VM exercise. Those observations use scripted planning responses, not live planning quality.
 
 Separate a pre-G1 proposal from planning against an approved Story. Also separate skills installed in the controller's session from skills qualified in its worker. Explicit `direct`/`not-qualified` metadata prevents reporting CE/Superpowers execution without evidence. When pinned instructions change, reject old persisted packets without rewriting their history or carrying approvals to a new packet; record the manual continuation boundary. Prompt metadata defines intended use but never substitutes for sandbox enforcement.
+
+The pending 4.1.0 integration exposed a second authority boundary: a native role-complete result can change after Office records its tests. G4 must bind the kit run, assignment, source and evidence hashes as well as the same actual candidate. The adapter now rechecks that receipt before G4; a test mutates the completed run after evidence preparation and confirms rejection. Persisting a display status alone would miss this failure.
+
+A kit start and an Office process reservation are separate writes. Preserve the native dispatch packet before execution and never synthesize its token after a capacity wait. The adapter resumes a saved self-check or review packet only after Office finds no active or unknown leases; it does not automatically replay Developer work. A crash before the dispatch receipt is saved still requires explicit recovery. Tests cover both self-check and Reviewer capacity waits without adding an attempt. This is controlled reconciliation, not a cross-store transaction guarantee.
+
+Office's G1 event may approve a contract whose source file still says Draft. The adapter materializes an immutable approved input view from that actual event while checking the original contract on each dispatch. Preserve the original requirements and approval provenance; do not silently rewrite the source or treat a derived view as an independently approved contract. A regression test verifies the original Draft bytes stay unchanged.
+
+The actual README pilot's model Reviewer passed an ambiguous authentication sentence that controller integration review rejected. Record that disagreement as a separate candidate-bound finding rather than editing the model's immutable verdict or pretending a test failed. The pending integration-feedback path invalidates G4 eligibility and uses the same fix budget, while the next Developer packet receives both the original observations and the new finding. This preserves who decided what and why the project returned to implementation even though the role had completed.
 
 ## Related
 

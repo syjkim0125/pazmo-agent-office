@@ -50,6 +50,11 @@ type RoundRow = {
   deadline: number;
 };
 type NodeRow = { definition_json: string; result_json: string | null };
+type IntegrationFeedback = {
+  source: string;
+  findings: string[];
+  recordedAt: number;
+};
 const queueStatus: Record<State, string> = {
   checking: "review",
   awaiting_g4: "review",
@@ -132,6 +137,10 @@ export class VerificationLedger {
         node_id TEXT NOT NULL, ordinal INTEGER NOT NULL,
         definition_json TEXT NOT NULL, result_json TEXT,
         PRIMARY KEY(round_id,node_id), UNIQUE(round_id,ordinal)
+      );
+      CREATE TABLE IF NOT EXISTS pazmo_integration_feedback (
+        round_id TEXT PRIMARY KEY REFERENCES pazmo_verification_rounds(id),
+        feedback_json TEXT NOT NULL
       );
     `);
     deliverySchema(db);
@@ -283,6 +292,16 @@ export class VerificationLedger {
         state: row.state,
         reason: row.reason,
         deadline: row.deadline,
+        integrationFeedback: (() => {
+          const saved = this.#db
+            .prepare(
+              "SELECT feedback_json FROM pazmo_integration_feedback WHERE round_id=?",
+            )
+            .get(row.id) as { feedback_json: string } | undefined;
+          return saved
+            ? (JSON.parse(saved.feedback_json) as IntegrationFeedback)
+            : null;
+        })(),
         nodes,
         g4Subject,
       };
@@ -414,6 +433,70 @@ export class VerificationLedger {
       const row = this.#refresh(this.#row(id));
       if (["checking", "fix_required"].includes(row.state))
         this.#state(row, "human_required", reason);
+    });
+  }
+  /** Trusted integration review before delivery. Preserve the original model
+   * observations and invalidate their acceptance with a separate factual finding.
+   */
+  requestChanges(input: {
+    roundId: string;
+    candidateDigest: string;
+    contractDigest: string;
+    source: string;
+    findings: string[];
+  }) {
+    this.get(input.roundId); // Persist cancellation or stale-contract invalidation first.
+    return transaction(this.#db, () => {
+      const row = this.#refresh(this.#row(input.roundId));
+      if (
+        row.state !== "awaiting_g4" ||
+        this.#latest(row.task_id)?.id !== row.id ||
+        this.#store.get(row.task_id).status === "done"
+      )
+        fail(
+          "ROUND_CLOSED",
+          "Only the current undelivered verified candidate can receive integration feedback.",
+        );
+      if (
+        input.candidateDigest !==
+          (JSON.parse(row.candidate_json) as Candidate).digest ||
+        input.contractDigest !== row.contract_digest
+      )
+        fail(
+          "STALE_EVIDENCE",
+          "Feedback must identify the exact reviewed candidate and contract.",
+        );
+      if (
+        typeof input.source !== "string" ||
+        !input.source.trim() ||
+        input.source.length > 1000 ||
+        !Array.isArray(input.findings) ||
+        !input.findings.length ||
+        input.findings.length > 20 ||
+        input.findings.some(
+          (f) => typeof f !== "string" || !f.trim() || f.length > 8000,
+        )
+      )
+        fail(
+          "INVALID_EVIDENCE",
+          "Integration feedback requires bounded source and factual findings.",
+        );
+      this.#db
+        .prepare("INSERT INTO pazmo_integration_feedback VALUES (?,?)")
+        .run(
+          row.id,
+          JSON.stringify({
+            source: input.source,
+            findings: input.findings,
+            recordedAt: this.#now(),
+          }),
+        );
+      this.#state(
+        row,
+        row.number < 3 ? "fix_required" : "human_required",
+        row.number < 3 ? "INTEGRATION_FEEDBACK" : "FIX_BUDGET_EXHAUSTED",
+      );
+      return this.get(row.id);
     });
   }
   invalidate(

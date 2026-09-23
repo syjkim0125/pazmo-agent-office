@@ -1,6 +1,8 @@
 import { randomUUID } from "node:crypto";
+import { join } from "node:path";
+import { mkdirSync, writeFileSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
-import { fail } from "../cli/project.ts";
+import { fail, noSymlinks } from "../cli/project.ts";
 import { ApprovalLedger, transaction } from "./approvals.ts";
 import type { ApprovalAnswer, Gate } from "./approvals.ts";
 import {
@@ -9,7 +11,7 @@ import {
   readContract,
 } from "./contracts.ts";
 import type { Contract, ContractInput } from "./contracts.ts";
-import { digest } from "./candidates.ts";
+import { digest, readStable, validPath } from "./candidates.ts";
 
 type Row = {
   id: string;
@@ -39,10 +41,193 @@ export class OfficeStore {
         task_id TEXT NOT NULL, revision INTEGER NOT NULL, gate TEXT NOT NULL,
         FOREIGN KEY(task_id,revision) REFERENCES pazmo_contract_revisions(task_id,revision)
       );
+      CREATE TABLE IF NOT EXISTS pazmo_kit_assignments (
+        task_id TEXT NOT NULL, revision INTEGER NOT NULL, assignment_id TEXT NOT NULL,
+        role TEXT NOT NULL, run_file TEXT NOT NULL, target_revision TEXT NOT NULL,
+        PRIMARY KEY(task_id,revision,assignment_id),
+        FOREIGN KEY(task_id,revision) REFERENCES pazmo_contract_revisions(task_id,revision)
+      );
+      CREATE TABLE IF NOT EXISTS pazmo_kit_receipts (
+        task_id TEXT NOT NULL, revision INTEGER NOT NULL, candidate_digest TEXT NOT NULL,
+        proof_json TEXT NOT NULL,
+        PRIMARY KEY(task_id,revision,candidate_digest),
+        FOREIGN KEY(task_id,revision) REFERENCES pazmo_contract_revisions(task_id,revision)
+      );
     `);
   }
   authorize(token: string): void {
     this.#ledger.authorize(token);
+  }
+  /** Materialize a read-only input view, never a second approval decision.
+   * The canonical bytes and SQLite approval stay authoritative at every dispatch.
+   */
+  kitSource(taskId: string): string {
+    const { item, documents } = this.roleContext(taskId);
+    if (item.status === "cancelled")
+      fail("CONTRACT_NOT_READY", "Task was cancelled.");
+    const approval = this.#db
+      .prepare(
+        "SELECT challenge_id,answer_json,accepted_at FROM pazmo_approvals WHERE gate='G1' AND subject=?",
+      )
+      .get(this.#subject(this.#row(taskId), item.contract, "G1")) as
+      | { challenge_id: string; answer_json: string; accepted_at: number }
+      | undefined;
+    if (!approval)
+      fail("G1_REQUIRED", "Kit requires the actual Office approval event.");
+    const directory = `.pazmo-office/approved-contracts/${digest(`${taskId}:${item.revision}:${item.contract.digest}`)}`;
+    noSymlinks(join(this.#project, directory));
+    mkdirSync(join(this.#project, directory), { recursive: true, mode: 0o700 });
+    const evidence = `${directory}/g1.json`,
+      source = `${directory}/story.md`;
+    const original = documents.find(
+      (d) => d.path === item.contract.input.story,
+    )!.content;
+    const gate = `Understanding gate (G1): ${evidence} · ${new Date(approval.accepted_at).toISOString().slice(0, 10)} · Check-in: accepted`;
+    const view = original
+      .replace(/^Understanding gate \(G1\):.*\n?/gm, "")
+      .replace(
+        /^Status:.*$/m,
+        `Status: Approved\n${gate}\nCanonical source: ${item.contract.input.story}\nOffice contract digest: ${item.contract.digest}\nApproval view: derived from the Office event; requirements remain owned by the canonical source.`,
+      );
+    for (const [path, content] of [
+      [
+        evidence,
+        JSON.stringify({
+          taskId,
+          revision: item.revision,
+          contractDigest: item.contract.digest,
+          challengeId: approval.challenge_id,
+          answer: JSON.parse(approval.answer_json),
+          acceptedAt: approval.accepted_at,
+        }),
+      ],
+      [source, view],
+    ]) {
+      noSymlinks(join(this.#project, path));
+      try {
+        writeFileSync(join(this.#project, path), content, {
+          flag: "wx",
+          mode: 0o600,
+        });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
+        if (
+          readStable(join(this.#project, path), 1024 * 1024).toString() !==
+          content
+        )
+          fail(
+            "KIT_SOURCE_CHANGED",
+            "The immutable approval view changed; preserve and inspect it.",
+          );
+      }
+    }
+    return source;
+  }
+  bindKitRole(
+    taskId: string,
+    assignmentId: string,
+    role: string,
+    runFile: string,
+    targetRevision: string,
+  ) {
+    const item = this.get(taskId);
+    if (!item.ready || item.status === "cancelled")
+      fail(
+        "CONTRACT_NOT_READY",
+        "Kit assignment requires the current approved contract.",
+      );
+    this.#db
+      .prepare(
+        "INSERT OR IGNORE INTO pazmo_kit_assignments VALUES (?,?,?,?,?,?)",
+      )
+      .run(taskId, item.revision, assignmentId, role, runFile, targetRevision);
+    const prior = this.#db
+      .prepare(
+        "SELECT * FROM pazmo_kit_assignments WHERE task_id=? AND revision=? AND assignment_id=?",
+      )
+      .get(taskId, item.revision, assignmentId);
+    if (
+      prior?.role !== role ||
+      prior?.run_file !== runFile ||
+      prior?.target_revision !== targetRevision
+    )
+      fail("ASSIGNMENT_CHANGED", "Office assignment cannot be rebound.");
+  }
+  kitAssignments(taskId: string) {
+    const item = this.get(taskId);
+    return this.#db
+      .prepare(
+        "SELECT assignment_id,role,run_file,target_revision FROM pazmo_kit_assignments WHERE task_id=? AND revision=? ORDER BY rowid",
+      )
+      .all(taskId, item.revision) as {
+      assignment_id: string;
+      role: string;
+      run_file: string;
+      target_revision: string;
+    }[];
+  }
+  recordKitReceipt(
+    taskId: string,
+    candidateDigest: string,
+    files: { path: string; digest: string }[],
+  ) {
+    const item = this.get(taskId);
+    if (
+      !item.ready ||
+      item.status === "cancelled" ||
+      !this.kitAssignments(taskId).length
+    )
+      fail(
+        "KIT_EVIDENCE_REQUIRED",
+        "Current Office kit assignment is required.",
+      );
+    const proof = JSON.stringify(files);
+    this.#db
+      .prepare("INSERT OR IGNORE INTO pazmo_kit_receipts VALUES (?,?,?,?)")
+      .run(taskId, item.revision, candidateDigest, proof);
+    if (this.kitReceipt(taskId, candidateDigest) !== digest(proof))
+      fail(
+        "KIT_EVIDENCE_CHANGED",
+        "Kit completion evidence cannot be replaced.",
+      );
+  }
+  kitReceipt(taskId: string, candidateDigest: string): string | null {
+    const item = this.get(taskId);
+    if (!this.kitAssignments(taskId).length) return null; // Preserve legacy deliveries.
+    const row = this.#db
+      .prepare(
+        "SELECT proof_json FROM pazmo_kit_receipts WHERE task_id=? AND revision=? AND candidate_digest=?",
+      )
+      .get(taskId, item.revision, candidateDigest) as
+      | { proof_json: string }
+      | undefined;
+    if (!row)
+      fail(
+        "KIT_EVIDENCE_REQUIRED",
+        "Kit roles have not supplied completion evidence for this candidate.",
+      );
+    const files = JSON.parse(row.proof_json) as {
+      path: string;
+      digest: string;
+    }[];
+    try {
+      for (const file of files) {
+        validPath(file.path, true);
+        noSymlinks(join(this.#project, file.path));
+        if (
+          digest(
+            readStable(join(this.#project, file.path), 4 * 1024 * 1024),
+          ) !== file.digest
+        )
+          throw Error("Changed role evidence");
+      }
+    } catch {
+      fail(
+        "KIT_EVIDENCE_CHANGED",
+        "Kit role or evidence changed; obtain fresh verified role outcomes before G4.",
+      );
+    }
+    return digest(row.proof_json);
   }
   #row(id: string): Row {
     const row = this.#db

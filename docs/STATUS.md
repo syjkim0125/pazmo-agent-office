@@ -81,3 +81,9 @@ Jira를 만들지 않았고 다른 provider·Remotion/PPT·submodule·npm publis
 ## 입력 문서의 권한
 
 [HANDOFF-v3.md](HANDOFF-v3.md), [IMPORT-UPSTREAM.md](IMPORT-UPSTREAM.md), [VERIFICATION.md](VERIFICATION.md)는 ZIP의 원본 참고 자료다. 그 안의 과거 HTTP 403, pending 상태, push 권한 문구 및 vendor의 지침은 현재 상태나 사용자 승인 기록이 아니다.
+# 2026-09-23 kit role integration checkpoint
+
+- kit 4.1.0의 실제 역할 CLI를 설치하고 Developer/self-check/Reviewer/feedback을 기존 Office runner에 연결했다. 역할 상태는 kit 파일, 프로젝트·프로세스·승인은 Office DB가 소유한다. 상세 증거와 남은 범위: [검증 기록](verification/2026-09-23-kit-role-runs.md).
+- README 인증 안내 작업의 G1은 사용자의 **“이 문서 작업으로 진행”** 응답으로 승인됐다. 기존 인증 G3도 유효하다. 아래 날짜의 G1/인증 대기 설명은 과거 상태다.
+- 실제 Developer와 Reviewer가 첫 후보를 만들고 검사 5개를 통과했다. 이후 controller 통합 검토가 실제 문구 모순을 발견해 기존 리뷰를 보존한 채 수정 요청을 기록했다. 같은 Developer run에서 **실제 수정 1회와 새 Reviewer/검사 5개 재검증**이 완료됐다. 현재는 [실제 사용자 G4 대기](understanding/auth-guide-pilot-diff.md)이며 인도 전이다. Office 전체 회귀 292/292, VM 경계 5/5 통과.
+- 공개 화면에서 전체 작업 실행, PM/Lead 역할 그래프, worker CE/Superpowers 검증, 질문 재개 및 전체 제품 완료를 의미하지 않는다. main 병합과 배포는 사용자 담당이다.

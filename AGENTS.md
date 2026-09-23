@@ -7,7 +7,9 @@ Invoke: `$workflow <request>`, `$workflow status`, `$workflow finish`. Start a n
 - Keep one concise canonical Story contract: Goal, Domain, MUST, SHOULD, OUT, Decisions, Verify.
 - Ask only blocking behavior questions; label safe defaults `ASSUMED` instead of silently inventing scope.
 - Keep Tasks at most 30 non-empty lines and reference Story M/V IDs; HOW belongs to the repository-grounded plan.
-- Use Compound Engineering when available: normal work `ce-plan → ce-work → ce-simplify-code → ce-code-review`; simplify after related tests pass, revalidate edits before G4. Follow the workflow execution reference for direct fallback; high-risk work adds a human plan gate.
+- After G1, automatically initialize/resume the installed graph with `node .ai-workflow/bin/graph.mjs`. Follow the workflow graph reference; record node evidence, route failures and require graph readiness before G4. No separate npm dependency or Graph opt-in is needed.
+- Within an assigned kit graph node, apply only its role/task procedure and return evidence to that run. Office assigns roles and launches agents; the kit graph still controls readiness, joins and failure routing. Do not recursively start full delivery workflows.
+- Use compatible Superpowers focused TDD, diagnosis and fresh-verification skills with CE caller-owned planning, `ce-simplify-code`, report-only review and verified learning capture. Read the workflow skill-integration reference for exact modes, direct fallback and host limits. Do not nest end-to-end workflows or repeat approved plans. High-risk work retains G3.
 - Do not merge non-trivial changes until the workflow's G4 question gate records that a human understands behavior, an invariant/failure path, and the evidence boundary.
 - Gates are satisfied by evidence, not by assertion. Verify with `node .ai-workflow/bin/check.mjs story <story-file>` and report the exit code; exit 0 is the only pass.
 <!-- END ai-workflow-kit -->

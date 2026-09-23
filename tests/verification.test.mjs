@@ -79,6 +79,41 @@ function finish(f, round, node, verdict = "pass", overrides = {}) {
   });
 }
 
+test("controller findings preserve passed observations, bind the candidate and consume the existing fix budget", async (t) => {
+  const f = await setup(t);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const round = f.ledger.begin(f.item.id, f.candidate);
+    for (const node of round.nodes) finish(f, round, node);
+    const before = f.ledger.get(round.id);
+    const feedback = {
+      roundId: round.id,
+      candidateDigest: round.candidate.digest,
+      contractDigest: round.contractDigest,
+      source: "controller review",
+      findings: ["M1: the wording contradicts the approved behavior."],
+    };
+    assert.throws(
+      () =>
+        f.ledger.requestChanges({
+          ...feedback,
+          candidateDigest: "0".repeat(64),
+        }),
+      { code: "STALE_EVIDENCE" },
+    );
+    const after = f.ledger.requestChanges(feedback);
+    assert.deepEqual(after.nodes, before.nodes);
+    assert.equal(after.g4Subject, null);
+    assert.deepEqual(after.integrationFeedback.findings, feedback.findings);
+    assert.equal(after.state, attempt < 3 ? "fix_required" : "human_required");
+    assert.throws(() => f.ledger.requestChanges(feedback), {
+      code: "ROUND_CLOSED",
+    });
+  }
+  assert.throws(() => f.ledger.begin(f.item.id, f.candidate), {
+    code: "HUMAN_REQUIRED",
+  });
+});
+
 test("all required commands and review must join on the exact candidate before G4", async (t) => {
   const f = await setup(t);
   const round = f.ledger.begin(f.item.id, f.candidate);

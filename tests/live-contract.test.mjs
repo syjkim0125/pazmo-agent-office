@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { officeFixture } from "./coordinator-fixture.mjs";
 
 const script = new URL("../scripts/run-live-contract.mjs", import.meta.url);
-function run(f) {
+function run(f, extra = []) {
   return spawnSync(
     process.execPath,
     [
@@ -16,6 +16,7 @@ function run(f) {
       join(f.root, "office.sqlite"),
       f.task.id,
       "/missing-executor-must-not-be-opened",
+      ...extra,
     ],
     { encoding: "utf8" },
   );
@@ -28,6 +29,14 @@ test("live entry stops before Docker or login when this contract lacks human G1"
   assert.equal(JSON.parse(result.stdout).reason, "G1_REQUIRED");
   assert.equal(f.execution.list(f.task.id).length, 0);
   assert.equal(f.store.get(f.task.id).approved.G1, false);
+});
+
+test("kit role opt-in preserves the real G1 boundary before graph or model execution", async (t) => {
+  const f = await officeFixture(t, false);
+  const result = run(f, ["--kit-roles"]);
+  assert.equal(result.status, 2, result.stderr);
+  assert.equal(JSON.parse(result.stdout).reason, "G1_REQUIRED");
+  assert.equal(f.execution.list(f.task.id).length, 0);
 });
 
 test("live entry rejects a task from a different project before model dispatch", async (t) => {

@@ -38,7 +38,8 @@ export async function runFixtureController({
     LANG: "en_US.UTF-8",
   };
   const codex = qualify
-    ? "/Users/jongkkim/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex"
+    ? (process.env.PAZMO_CODEX_CONTROLLER ??
+      "/Users/jongkkim/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex")
     : "/Users/jongkkim/.bun/bin/codex";
   if (qualify) verifyControllerBinary(codex);
   const version = await runCommand(codex, ["--version"], {

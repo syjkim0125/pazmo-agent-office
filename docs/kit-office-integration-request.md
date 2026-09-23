@@ -1,4 +1,25 @@
-# kit 4.0.0 → Office 연동 검토와 API 요청
+# kit → Office 연동 기록과 남은 연결
+
+## 2026-09-23: 4.1.0 연결이 대체한 이전 제안
+
+사용자 승인 방향 D7에 따라 **kit run 파일이 역할 그래프 상태의 원본**이다. Office SQLite는 프로젝트 계약·배정·프로세스·대화·실제 승인을 소유한다. 아래 4.0.0 조사의 DB 내 순수 전이 API 요청은 당시 제안이며 현재 연동의 선행 조건이 아니다. 인증 G3도 2026-09-22 승인되어 더 이상 대기 사항이 아니다.
+
+공식 4.1.0 패키지의 실제 `init-role/status/start/record/question/answer/feedback/reset` 명령을 설치·시험했다. `upstream/kit.lock.json`은 npm integrity와 실행 파일 해시를 고정한다. Office adapter는 명령을 호출하고 반환된 token만 전달한다. Developer의 실제 snapshot digest를 self-check와 Reviewer에 연결하고, 역할 완료 증거를 사용자 G4의 대상에 포함한다. Office의 전역 두 번 수정 제한은 프로세스 예산이며 kit 내부 전이를 대체하지 않는다.
+
+### 현재 API로 해결한 승인 표현 차이
+
+- 입력: 원본 Story는 Draft이고, 해당 원본·Task·계획·검증 파일 digest에 대한 실제 사용자 G1은 Office DB에 있다.
+- 현재 CLI 요구: source Story의 Approved/G1 문서 기록.
+- Office 대응: 원본 요구사항은 그대로 두고 실제 DB 승인 이벤트에서 읽기 전용 source view와 G1 근거를 만든다. source view는 원본 경로와 계약 digest를 명시한다. 모든 CLI 호출 전후에 원본 계약과 DB 승인의 유효성을 검사한다. 이는 새 승인이나 두 번째 요구사항 원본이 아니다.
+
+### kit에 전달할 선택적 개선 요청 — 현재 API가 아님
+
+1. **중단 후 dispatch 조회:** 입력은 저장된 run과 running node, 기대 revision이다. 기대 출력은 동일 시도의 native started/resumed 입력 또는 명시적 복구 거절이다. 재현: `start`가 run 파일을 쓴 직후 controller가 반환값을 저장하기 전에 종료되면 `status`는 running을 보여도 원래 dispatch 입력을 복구할 공식 명령이 없다. Office는 반환값을 별도 immutable receipt로 보관하고, 없으면 자동 재실행하지 않는다. 프로세스 종료 여부 확인은 계속 Office 책임이다.
+2. **외부 승인 참조:** 입력은 canonical source digest와 host가 확인한 실제 G1 이벤트다. 기대 출력은 원본 요구사항을 복제하지 않고 source 승인을 연결하는 공식 host 계약이다. 재현은 위 Draft source/DB 승인 사례다. 현재 immutable view로 진행 가능하므로 Office 개발의 차단 사유는 아니다.
+
+PM/Lead의 역할 그래프, 사용자 화면의 실행·질문 재개 연결, worker에서 실제 CE/Superpowers 스킬 실행 검증은 여전히 Office 작업이다. 호스트에 설치된 스킬이나 adapter 단위 테스트를 worker의 스킬 실행 증거로 보고하지 않는다.
+
+## 아래는 4.0.0 당시 조사 기록
 
 2026-09-21. Office Story M2/M3/M4, V2/V3/V4의 후속 검토다. 요구사항 원본은 [승인된 Story](understanding/pazmo-agent-office-contract.md)이며, 이 문서는 새 승인이나 구현 완료 기록이 아니다. kit 원본은 읽기만 했다.
 
