@@ -9,6 +9,7 @@ import { captureCandidateDiff } from "../runners/candidate-diff.ts";
 import type { CandidateDiff } from "../runners/candidate-diff.ts";
 import type { OfficeStore } from "./store.ts";
 import type { VerificationLedger } from "./verification.ts";
+import { isUnderstandingLease } from "./budgets.ts";
 import type { ExecutionLedger } from "./budgets.ts";
 import { createDelivery, storedDelivery, validDelivery } from "./delivery.ts";
 import type { DeliveryRecord } from "./delivery.ts";
@@ -99,14 +100,23 @@ export class CompletionLedger {
       );
     `);
   }
-  #eligible(taskId: string) {
+  #eligible(taskId: string, viewingAssessment = false) {
     const leases = this.#execution.list(taskId);
     const round = this.#verification.latest(taskId);
     if (
       !round ||
       round.state !== "awaiting_g4" ||
       !round.g4Subject ||
-      leases.some((l) => l.state !== "released") ||
+      leases.some(
+        (l) =>
+          l.state !== "released" &&
+          !(
+            viewingAssessment &&
+            isUnderstandingLease(l) &&
+            l.round_id === round.id &&
+            ["reserved", "running"].includes(l.state)
+          ),
+      ) ||
       round.nodes.some(
         (n) =>
           !leases.some(
@@ -141,8 +151,8 @@ export class CompletionLedger {
       kitReceipt: this.#store.kitReceipt(taskId, round.candidate.digest),
     };
   }
-  #bundle(taskId: string): Bundle {
-    const round = this.#eligible(taskId);
+  #bundle(taskId: string, viewingAssessment = false): Bundle {
+    const round = this.#eligible(taskId, viewingAssessment);
     const bundle = this.#db
       .prepare("SELECT * FROM pazmo_g4_evidence WHERE round_id=?")
       .get(round.id) as Bundle | undefined;
@@ -179,12 +189,12 @@ export class CompletionLedger {
       fail("NOT_FOUND", "G4 request not found.")
     );
   }
-  #currentRequest(id: string) {
+  #currentRequest(id: string, viewingAssessment = false) {
     const request = this.#request(id);
     const stored = this.#db
       .prepare("SELECT * FROM pazmo_g4_evidence WHERE subject=?")
       .get(request.subject) as Bundle;
-    const current = this.#bundle(stored.task_id);
+    const current = this.#bundle(stored.task_id, viewingAssessment);
     if (current.subject !== request.subject)
       fail(
         "STALE_APPROVAL",
@@ -200,7 +210,7 @@ export class CompletionLedger {
   /** Read the same validated bundle used by G4, without issuing a challenge. */
   evidence(token: string, taskId: string) {
     this.#approvals.authorize(token);
-    const bundle = this.#bundle(taskId);
+    const bundle = this.#bundle(taskId, true);
     return {
       subject: bundle.subject,
       roundId: bundle.round_id,
@@ -462,6 +472,38 @@ export class CompletionLedger {
       return this.get(bundle.task_id, id);
     });
   }
+  /** Exact persisted human input, readable during its own readonly assessment.
+   * No operator capability is returned to the worker.
+   */
+  assessmentInput(
+    token: string,
+    taskId: string,
+    id: string,
+    answerDigest: string,
+  ) {
+    this.#approvals.authorize(token);
+    const { request, bundle } = this.#currentRequest(id, true);
+    this.#approvals.pending(token, id);
+    if (
+      bundle.task_id !== taskId ||
+      request.status !== "awaiting_evaluation" ||
+      request.answer_digest !== answerDigest
+    )
+      fail("STALE_APPROVAL", "Assess the exact stored, pending human answer.");
+    const round = this.#eligible(taskId, true);
+    return {
+      taskId,
+      requestId: id,
+      subject: bundle.subject,
+      answerDigest,
+      roundId: bundle.round_id,
+      candidate: round.candidate,
+      answer: JSON.parse(request.answer_json!) as ApprovalAnswer,
+      questions,
+      evidence: JSON.parse(bundle.evidence_json),
+      contract: this.#store.inspectContract(taskId),
+    };
+  }
   /** Called after the trusted controller compares the exact answer to raw evidence.
    * There is deliberately no HTTP/CLI endpoint accepting this assessment.
    */
@@ -519,7 +561,7 @@ export class CompletionLedger {
     this.#store.get(taskId);
     let currentSubject: string | null = null;
     try {
-      currentSubject = this.#bundle(taskId).subject;
+      currentSubject = this.#bundle(taskId, true).subject;
     } catch (error) {
       if (!(error instanceof OfficeError) || error.code !== "EVIDENCE_REQUIRED")
         throw error;
@@ -549,6 +591,7 @@ export class CompletionLedger {
       approved:
         current &&
         row.status === "approved" &&
+        this.#execution.list(taskId).every((l) => l.state === "released") &&
         this.#approvals.has("G4", row.subject),
       answerDigest: row.answer_digest,
       answer: row.answer_json ? JSON.parse(row.answer_json) : null,

@@ -242,7 +242,13 @@ process.once("message", async (raw: unknown) => {
       return { store, verification, execution, completion, handoffs, intake };
     });
     const live = c.live
-      ? await createLiveRuntime(c.live, c.project, c.dataDir, ledgers)
+      ? await createLiveRuntime(
+          c.live,
+          c.project,
+          c.dataDir,
+          ledgers,
+          c.operatorToken,
+        )
       : undefined;
     const dist = realpathSync(join(packageRoot, "vendor/claw-empire/dist"));
     let boundPort = 0;

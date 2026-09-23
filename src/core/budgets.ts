@@ -36,6 +36,10 @@ type PlanningLease = {
   deadline: number;
   reason: string | null;
 };
+export const isUnderstandingLease = (lease: Lease) =>
+  lease.role === "reviewer" &&
+  lease.node_id === null &&
+  /^g4:[a-f0-9]{64}:[a-f0-9]{64}:[12]$/.test(lease.purpose);
 const active = "state IN ('reserved','running','unknown')";
 const taskBudgetMs = 60 * 60 * 1000;
 
@@ -484,6 +488,53 @@ export class ExecutionLedger {
       );
     });
   }
+  /** Controller-owned semantic assessment; no verification node or new workflow. */
+  reserveUnderstanding(
+    roundId: string,
+    requestId: string,
+    answerDigest: string,
+    timeoutMs: number,
+  ): Lease {
+    this.#verification.get(roundId);
+    this.expire();
+    return transaction(this.#db, () => {
+      const round = this.#verification.get(roundId);
+      if (
+        round.state !== "awaiting_g4" ||
+        !round.g4Subject ||
+        this.#store.get(round.taskId).status !== "review"
+      )
+        fail(
+          "ROUND_CLOSED",
+          "Only the current verified candidate may be assessed.",
+        );
+      if (![requestId, answerDigest].every((v) => /^[a-f0-9]{64}$/.test(v)))
+        fail(
+          "INVALID_EXECUTION",
+          "Assessment requires an exact request and answer digest.",
+        );
+      const leases = this.list(round.taskId);
+      if (leases.some((l) => l.state !== "released"))
+        fail("TASK_ACTIVE", "Another process is active or requires recovery.");
+      const prefix = `g4:${requestId}:${answerDigest}:`;
+      const attempts = leases.filter((l) =>
+        l.purpose.startsWith(prefix),
+      ).length;
+      if (attempts >= 2)
+        fail(
+          "ASSESSMENT_LIMIT",
+          "Two assessments were attempted; inspect the failure before continuing.",
+        );
+      return this.#reserve(
+        round.taskId,
+        "reviewer",
+        `${prefix}${attempts + 1}`,
+        roundId,
+        null,
+        { timeoutMs },
+      );
+    });
+  }
   start(id: string, handle: string): Lease {
     this.expire();
     const prior = this.get(id);
@@ -515,6 +566,17 @@ export class ExecutionLedger {
             "ROUND_CLOSED",
             "Implementation reservation no longer matches the workflow.",
           );
+      } else if (isUnderstandingLease(lease)) {
+        const round = this.#verification.latest(lease.task_id);
+        if (
+          item.status !== "review" ||
+          round?.id !== lease.round_id ||
+          round.state !== "awaiting_g4"
+        )
+          fail(
+            "ROUND_CLOSED",
+            "The assessment candidate is no longer awaiting G4.",
+          );
       } else {
         const round = this.#verification.get(lease.round_id!);
         if (
@@ -537,7 +599,11 @@ export class ExecutionLedger {
   finish(
     id: string,
     handle: string,
-    completion: { closed: boolean; observation?: Observation },
+    completion: {
+      closed: boolean;
+      observation?: Observation;
+      failure?: string;
+    },
   ): Lease {
     this.expire();
     const prior = this.get(id);
@@ -554,10 +620,20 @@ export class ExecutionLedger {
           "INVALID_EXECUTION",
           "Supervisor closure confirmation is required.",
         );
+      if (
+        completion.failure !== undefined &&
+        (!isUnderstandingLease(lease) ||
+          typeof completion.failure !== "string" ||
+          !/^[A-Z_]{1,100}$/.test(completion.failure))
+      )
+        fail(
+          "INVALID_EXECUTION",
+          "Only an understanding assessment may supply its terminal failure code.",
+        );
       if (!completion.closed)
         this.#quarantine(lease, "PROCESS_LIVENESS_UNKNOWN");
       else {
-        let reason: string | null = null;
+        let reason: string | null = completion.failure ?? null;
         if (lease.node_id) {
           const round = this.#verification.get(lease.round_id!);
           if (round.state === "checking")

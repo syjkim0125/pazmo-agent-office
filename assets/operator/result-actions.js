@@ -41,6 +41,83 @@ export function resultActions({
       );
     panel.append(assessment);
   }
+  if (data.completion.status === "awaiting_evaluation") {
+    const active = data.active?.some((op) => op.kind === "understanding");
+    const unknown = data.executions?.some(
+      (lease) => lease.state !== "released",
+    );
+    const attempts =
+      data.executions?.filter((lease) =>
+        lease.purpose?.startsWith(
+          `g4:${data.completion.id}:${data.completion.answerDigest}:`,
+        ),
+      ).length ?? 0;
+    panel.append(
+      el(
+        "p",
+        active
+          ? "답변 확인 중 · 결과 목록을 새로고침하면 평가 결과를 볼 수 있습니다."
+          : "답변 평가 대기 · 저장된 본인 답변을 해당 변경본의 근거와 대조합니다.",
+      ),
+    );
+    if (data.executionError)
+      panel.append(
+        el(
+          "p",
+          "답변 확인 실행 결과 · " + data.executionError.code,
+          "boundary",
+        ),
+      );
+    if (!active && unknown)
+      panel.append(
+        el(
+          "p",
+          "종료가 확인되지 않은 실행이 있습니다. 복구 확인 전에는 다시 실행하지 않습니다.",
+          "boundary",
+        ),
+      );
+    else if (!active && attempts >= 2)
+      panel.append(
+        el(
+          "p",
+          "답변 확인을 두 번 시도했습니다. 원인을 확인한 뒤 복구가 필요합니다. 본인 답변은 보존됐습니다.",
+          "boundary",
+        ),
+      );
+    else if (
+      !active &&
+      data.execution === "ready" &&
+      data.completion.id &&
+      data.completion.answerDigest
+    )
+      panel.append(
+        button("저장된 G4 답변 확인 실행", "evaluate-g4", async (valid) => {
+          await api(
+            "/" + encodeURIComponent(taskId) + "/understanding",
+            {
+              requestId: data.completion.id,
+              answerDigest: data.completion.answerDigest,
+            },
+            "executions",
+          );
+          if (!valid()) return;
+          update({
+            ...data,
+            active: [...(data.active ?? []), { kind: "understanding", taskId }],
+          });
+          notice(
+            "저장된 답변 확인을 시작했습니다. 완료 후 결과 목록을 새로고침하세요.",
+          );
+        }),
+      );
+    else if (!active && !unknown && attempts < 2)
+      panel.append(
+        el(
+          "p",
+          "실제 실행 모드로 Office를 시작한 뒤 저장된 답변을 확인할 수 있습니다.",
+        ),
+      );
+  }
   if (data.delivery.directory) {
     panel.append(
       el("p", "결과물 위치 · " + data.delivery.directory, "project"),
@@ -120,7 +197,7 @@ export function resultActions({
             el(
               "p",
               view.completion.status === "awaiting_evaluation"
-                ? "답변 평가 대기 · 저장된 답변을 확인하는 controller 연결이 필요합니다. 다시 제출하지 않아도 됩니다."
+                ? "답변 평가 대기 · 저장된 G4 답변 확인 실행 버튼을 사용하세요. 답변을 다시 제출할 필요는 없습니다."
                 : view.completion.status === "approved"
                   ? "이 변경본은 승인됐습니다."
                   : "이 변경본을 거절했습니다. 후속 조정이 필요합니다.",

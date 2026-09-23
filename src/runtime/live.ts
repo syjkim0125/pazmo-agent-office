@@ -15,6 +15,7 @@ import type { ExecutionLedger } from "../core/budgets.ts";
 import type { HandoffLedger } from "../core/handoffs.ts";
 import type { VerificationLedger } from "../core/verification.ts";
 import type { CompletionLedger } from "../core/completion.ts";
+import { UnderstandingRunner } from "../runners/understanding.ts";
 import { PlanningCoordinator } from "../runners/planning-coordinator.ts";
 import { OfficeCoordinator } from "../runners/coordinator.ts";
 import { KitDelivery } from "../runners/kit-delivery.ts";
@@ -49,11 +50,24 @@ type Ledgers = {
   verification: VerificationLedger;
   completion: CompletionLedger;
 };
-type Operation = { kind: "planning" | "implementation"; taskId: string };
+type Operation =
+  | { kind: "planning" | "implementation"; taskId: string }
+  | {
+      kind: "understanding";
+      taskId: string;
+      requestId: string;
+      answerDigest: string;
+    };
 type Active = Operation & { abort: AbortController; done: Promise<void> };
 type Runners = {
   planning: (id: string, signal: AbortSignal) => Promise<unknown>;
   implementation: (id: string, signal: AbortSignal) => Promise<unknown>;
+  understanding: (
+    id: string,
+    requestId: string,
+    answerDigest: string,
+    signal: AbortSignal,
+  ) => Promise<unknown>;
   dispose: () => void;
 };
 
@@ -105,6 +119,30 @@ export class LiveRuntime {
       );
     return this.#start({ kind: "implementation", taskId: id });
   }
+  startUnderstanding(
+    token: string,
+    id: string,
+    requestId: string,
+    answerDigest: string,
+  ) {
+    this.#ledgers.completion.assessmentInput(
+      token,
+      id,
+      requestId,
+      answerDigest,
+    );
+    if (this.#ledgers.execution.list(id).some((l) => l.state !== "released"))
+      fail(
+        "TASK_ACTIVE",
+        "An assessment process is active or requires recovery.",
+      );
+    return this.#start({
+      kind: "understanding",
+      taskId: id,
+      requestId,
+      answerDigest,
+    });
+  }
   #start(operation: Operation) {
     if (this.#closing) fail("EXECUTION_LOCKED", "The controller is stopping.");
     if (this.#active.has(operation.taskId))
@@ -112,10 +150,19 @@ export class LiveRuntime {
     const abort = new AbortController();
     const active = { ...operation, abort, done: Promise.resolve() };
     this.#active.set(operation.taskId, active);
+    if (this.#error?.taskId === operation.taskId) this.#error = null;
     active.done = Promise.resolve()
       .then(async () => {
         if (abort.signal.aborted) return;
-        await this.#runners[operation.kind](operation.taskId, abort.signal);
+        if (operation.kind === "understanding")
+          await this.#runners.understanding(
+            operation.taskId,
+            operation.requestId,
+            operation.answerDigest,
+            abort.signal,
+          );
+        else
+          await this.#runners[operation.kind](operation.taskId, abort.signal);
       })
       .catch((error) => {
         const code =
@@ -252,6 +299,7 @@ export async function createLiveRuntime(
   project: string,
   dataDir: string,
   ledgers: Ledgers,
+  operatorToken: string,
 ) {
   for (const path of Object.values(config)) {
     if (typeof path !== "string" || !isAbsolute(path))
@@ -323,6 +371,13 @@ export async function createLiveRuntime(
       verifier: new ContainerVerifier(client.run),
       jobFor: (packet) => job(rolePrompt(packet)),
     });
+    const understanding = new UnderstandingRunner({
+      completion: ledgers.completion,
+      execution: ledgers.execution,
+      token: operatorToken,
+      planner: new ContainerPlanner(client.run),
+      jobFor: job,
+    });
     return new LiveRuntime(ledgers, {
       planning: async (id, signal) =>
         planning.run(id, await planningSnapshot(project, dataDir, id), signal),
@@ -332,6 +387,8 @@ export async function createLiveRuntime(
           await ledgers.completion.prepare(id);
         return result;
       },
+      understanding: (id, requestId, answerDigest, signal) =>
+        understanding.run(id, requestId, answerDigest, signal),
       dispose: client.dispose,
     });
   } catch (error) {

@@ -86,7 +86,10 @@ export async function handleOperator(
     }
     if (path.startsWith("/api/pazmo/executions/")) {
       const parts = path.slice("/api/pazmo/executions/".length).split("/");
-      if (parts.length !== 2 || !["run", "cancel"].includes(parts[1]))
+      if (
+        parts.length !== 2 ||
+        !["run", "cancel", "understanding"].includes(parts[1])
+      )
         fail("NOT_FOUND", "Unknown execution operation.");
       if (req.method !== "POST") {
         json(405, { error: "METHOD_NOT_ALLOWED" });
@@ -98,6 +101,27 @@ export async function handleOperator(
           "Start Office with the qualified live runtime configuration.",
         );
       const input = await body(req);
+      if (parts[1] === "understanding") {
+        if (
+          Object.keys(input).sort().join() !== "answerDigest,requestId" ||
+          typeof input.answerDigest !== "string" ||
+          !/^[a-f0-9]{64}$/.test(input.answerDigest)
+        )
+          fail(
+            "INVALID_REQUEST",
+            "Send only the saved request identity and answer digest.",
+          );
+        json(
+          202,
+          live.startUnderstanding(
+            token,
+            id(parts[0]),
+            id(input.requestId),
+            input.answerDigest,
+          ),
+        );
+        return;
+      }
       if (
         Object.keys(input).join() !== "contractDigest" ||
         typeof input.contractDigest !== "string"
@@ -285,6 +309,15 @@ export async function handleOperator(
         handoffs: handoffs.list(taskId),
         contract: store.inspectContract(taskId),
         execution: live?.status().execution ?? "locked",
+        ...(live
+          ? {
+              active: live.status().active.filter((op) => op.taskId === taskId),
+              executionError:
+                live.status().lastError?.taskId === taskId
+                  ? live.status().lastError
+                  : null,
+            }
+          : {}),
       });
       return;
     }

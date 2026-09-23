@@ -87,3 +87,12 @@ The authenticated Lead produced syntax-valid `node -e` commands whose regex meta
 For the first documentation pilot, retain the original PM/Lead receipt and label the controller's changes in the bound plan. Prefer simple structural checks for file inventory, unchanged reference-file digest, required terminology, preserved warning and a concrete documentation link. Leave meaning, overclaims and diff scope to the separate Reviewer instead of claiming a keyword test proves them.
 
 Run those checks in the actual verifier environment on unchanged input and a clearly labeled synthetic positive control. The unchanged README failed the three missing-content checks, while the temporary positive control passed all five. Neither was an Engineer-produced candidate, a human approval or pilot completion. Keep those evidence categories distinct when recording a successful checker repair. See [the pilot preparation evidence](../../verification/2026-09-22-live-contract.md).
+
+
+## Extension: G4 assessment must not mistake its own execution for product evidence
+
+The unmerged G4 continuation reuses the execution ledger for a readonly semantic assessment. The original all-processes-closed G4 guard would also make the saved answer and evidence appear stale during that assessment. Removing the closure guard globally would admit approval while a worker was still active. Instead, only evidence views and the trusted assessment input tolerate a known current-round G4 lease; evaluation and delivery retain strict closure checks. Unknown leases never receive this exception.
+
+A second review finding was diagnostic loss: confirmed closure released the assessment lease with a null reason even when the output was invalid, while the failure existed only in runtime memory. The regression observed that null reason. The final runner validates the terminal result separately, releases known closure with the failure code, and preserves uncertain liveness as unknown. This prevents treating a semantic/protocol failure as an orphaned process or losing the reason after restart. See [runner](../../../src/runners/understanding.ts), [completion boundary](../../../src/core/completion.ts), [tests](../../../tests/completion.test.mjs), and [checkpoint evidence](../../verification/2026-09-23-g4-runtime.md).
+
+Keep read visibility, process closure, assessment validity and actual human approval as separate facts even when they share one screen. These regressions use fixture model judgments; they do not prove that an actual model correctly assesses human understanding.

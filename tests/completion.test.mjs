@@ -692,3 +692,332 @@ test("even passing supervised checks cannot use an unbound Engineer candidate", 
   });
   assert.equal(f.completion.get(f.task.id).approved, false);
 });
+
+test("G4 assessment input keeps the human answer and evidence visible while a bounded readonly lease runs", async (t) => {
+  const f = await setup(t);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  const request = f.completion.request(token, f.task.id);
+  const submitted = f.completion.submit(token, request.id, answer);
+  assert.equal(typeof f.completion.assessmentInput, "function");
+  const input = f.completion.assessmentInput(
+    token,
+    f.task.id,
+    request.id,
+    submitted.answerDigest,
+  );
+  assert.deepEqual(input.answer, answer);
+  assert.equal(input.subject, request.subject);
+  assert.equal(input.candidate.digest, f.candidate.digest);
+  assert.match(input.evidence.diff.rawDiff, /validate\(input\)/);
+  assert.throws(
+    () =>
+      f.completion.assessmentInput(
+        token,
+        f.task.id,
+        request.id,
+        "b".repeat(64),
+      ),
+    { code: "STALE_APPROVAL" },
+  );
+  const lease = f.execution.reserveUnderstanding(
+    f.round.id,
+    request.id,
+    submitted.answerDigest,
+    10000,
+  );
+  f.execution.start(lease.id, "fixture-understanding");
+  assert.equal(f.completion.get(f.task.id).status, "awaiting_evaluation");
+  assert.equal(
+    f.completion.evidence(token, f.task.id).subject,
+    request.subject,
+  );
+  assert.throws(
+    () =>
+      f.completion.evaluate(
+        token,
+        request.id,
+        submitted.answerDigest,
+        evaluation,
+      ),
+    { code: "EVIDENCE_REQUIRED" },
+  );
+  assert.throws(() => f.completion.deliver(token, f.task.id), {
+    code: "EVIDENCE_REQUIRED",
+  });
+  f.execution.finish(lease.id, "fixture-understanding", { closed: true });
+  f.completion.evaluate(token, request.id, submitted.answerDigest, evaluation);
+  assert.equal(f.completion.get(f.task.id).approved, true);
+  assert.deepEqual(f.completion.get(f.task.id).answer, answer);
+});
+
+test("G4 assessment restart retains the unknown slot and refuses replay; closed attempts are bounded", async (t) => {
+  const f = await setup(t);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  const request = f.completion.request(token, f.task.id);
+  const submitted = f.completion.submit(token, request.id, answer);
+  assert.equal(typeof f.execution.reserveUnderstanding, "function");
+  for (let n = 0; n < 2; n++) {
+    const lease = f.execution.reserveUnderstanding(
+      f.round.id,
+      request.id,
+      submitted.answerDigest,
+      10000,
+    );
+    f.execution.start(lease.id, "assessment-" + n);
+    if (n === 0)
+      f.execution.finish(lease.id, "assessment-" + n, { closed: true });
+    else {
+      f.execution.recoverInterrupted();
+      assert.equal(f.execution.get(lease.id).state, "unknown");
+      assert.equal(f.completion.get(f.task.id).approved, false);
+      assert.throws(
+        () =>
+          f.completion.assessmentInput(
+            token,
+            f.task.id,
+            request.id,
+            submitted.answerDigest,
+          ),
+        { code: "EVIDENCE_REQUIRED" },
+      );
+      assert.throws(
+        () =>
+          f.execution.reserveUnderstanding(
+            f.round.id,
+            request.id,
+            submitted.answerDigest,
+            10000,
+          ),
+        { code: "TASK_ACTIVE" },
+      );
+    }
+  }
+});
+
+for (const scenario of [
+  "pass",
+  "needs_restatement",
+  "forged_subject",
+  "string_boolean",
+  "missing_aspect",
+  "extra_key",
+  "tool_output",
+  "cancel",
+  "abort",
+  "expired",
+  "unknown",
+  "failed_process",
+]) {
+  test(`trusted G4 runner ${scenario} never replaces the human answer or bypasses closure`, async (t) => {
+    const { UnderstandingRunner } =
+      await import("../src/runners/understanding.ts");
+    const f = await setup(t);
+    f.round.nodes.forEach(f.finish);
+    await f.completion.prepare(f.task.id);
+    const request = f.completion.request(token, f.task.id);
+    const submitted = f.completion.submit(token, request.id, answer);
+    const report = {
+      version: 1,
+      requestId: request.id,
+      subject: request.subject,
+      answerDigest: submitted.answerDigest,
+      evaluation: structuredClone(evaluation),
+    };
+    if (scenario === "needs_restatement")
+      report.evaluation.evidence.correct = false;
+    if (scenario === "forged_subject") report.subject = "b".repeat(64);
+    if (scenario === "string_boolean")
+      report.evaluation.behavior.correct = "true";
+    if (scenario === "missing_aspect") delete report.evaluation.invariant;
+    if (scenario === "extra_key") report.approved = true;
+    const events = [
+      { type: "turn.started" },
+      {
+        type: "item.completed",
+        item: {
+          type:
+            scenario === "tool_output" ? "command_execution" : "agent_message",
+          text: JSON.stringify(report),
+        },
+      },
+      { type: "turn.completed" },
+    ]
+      .map(JSON.stringify)
+      .join("\n");
+    const parent = new AbortController();
+    const runner = new UnderstandingRunner({
+      completion: f.completion,
+      execution: f.execution,
+      token,
+      jobFor(prompt) {
+        assert.ok(prompt.includes(answer.understanding.behavior));
+        assert.ok(!prompt.includes(token));
+        return { timeoutMs: 10000 };
+      },
+      planner: {
+        async run(candidate, _job, start) {
+          assert.equal(candidate.digest, f.candidate.digest);
+          start("understanding-fixture");
+          assert.equal(
+            f.completion.get(f.task.id).status,
+            "awaiting_evaluation",
+          );
+          if (scenario === "abort") parent.abort();
+          if (scenario === "cancel") f.verification.cancel(f.round.id);
+          if (scenario === "expired")
+            f.db
+              .prepare(
+                "UPDATE pazmo_approval_challenges SET expires_at=0 WHERE id=?",
+              )
+              .run(request.id);
+          return {
+            handle: "understanding-fixture",
+            closed: scenario !== "unknown",
+            result: {
+              exitCode: scenario === "failed_process" ? 1 : 0,
+              error: null,
+              signal: null,
+              timedOut: false,
+              stdout: events,
+              stderr: "",
+            },
+          };
+        },
+      },
+    });
+    if (["pass", "needs_restatement"].includes(scenario))
+      await runner.run(f.task.id, request.id, submitted.answerDigest);
+    else
+      await assert.rejects(
+        runner.run(
+          f.task.id,
+          request.id,
+          submitted.answerDigest,
+          parent.signal,
+        ),
+      );
+    const current = f.completion.get(f.task.id);
+    assert.equal(current.approved, scenario === "pass");
+    assert.deepEqual(current.answer, answer);
+    if (scenario === "needs_restatement")
+      assert.equal(current.status, "needs_restatement");
+    const leases = f.execution
+      .list(f.task.id)
+      .filter((l) => l.purpose.startsWith("g4:"));
+    assert.equal(leases.length, 1);
+    assert.equal(
+      leases[0].state,
+      scenario === "unknown" ? "unknown" : "released",
+    );
+    if (scenario === "failed_process")
+      assert.equal(leases[0].reason, "EVALUATION_FAILED");
+    if (scenario === "extra_key")
+      assert.equal(leases[0].reason, "INVALID_EVALUATION");
+    if (scenario === "pass") {
+      await assert.rejects(
+        runner.run(f.task.id, request.id, submitted.answerDigest),
+      );
+      assert.equal(
+        f.execution.list(f.task.id).filter((l) => l.purpose.startsWith("g4:"))
+          .length,
+        1,
+      );
+    }
+  });
+}
+
+test("operator assessment launch rejects unauthenticated, stale, duplicate and caller-evaluated requests", async (t) => {
+  const { LiveRuntime } = await import("../src/runtime/live.ts");
+  const f = await setup(t);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  const request = f.completion.request(token, f.task.id);
+  const submitted = f.completion.submit(token, request.id, answer);
+  let calls = 0,
+    release;
+  const live = new LiveRuntime(f, {
+    planning: async () => assert.fail("wrong runner"),
+    implementation: async () => assert.fail("wrong runner"),
+    understanding: async (id, rid, ad, signal) => {
+      calls++;
+      assert.equal(id, f.task.id);
+      assert.equal(rid, request.id);
+      assert.equal(ad, submitted.answerDigest);
+      await new Promise((resolve) => {
+        release = resolve;
+        signal.addEventListener("abort", resolve);
+      });
+    },
+    dispose() {},
+  });
+  const server = createServer(
+    (req, res) =>
+      void handleOperator(
+        req,
+        res,
+        new URL(req.url, "http://localhost").pathname,
+        { ...f, live },
+      ),
+  );
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(async () => {
+    await live.close();
+    await new Promise((resolve) => server.close(resolve));
+  });
+  const url = `http://127.0.0.1:${server.address().port}/api/pazmo/executions/${f.task.id}/understanding`;
+  const send = (body, auth = token) =>
+    fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${auth}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  const input = { requestId: request.id, answerDigest: submitted.answerDigest };
+  assert.equal((await send(input, "b".repeat(64))).status, 401);
+  assert.equal((await send({ ...input, evaluation })).status, 400);
+  assert.equal(
+    (await send({ ...input, answerDigest: "b".repeat(64) })).status,
+    409,
+  );
+  assert.equal(calls, 0);
+  assert.equal((await send(input)).status, 202);
+  assert.equal((await send(input)).status, 409);
+  assert.equal(calls, 1);
+  assert.equal(f.completion.get(f.task.id).approved, false);
+  release();
+  await live.close();
+});
+
+test("two confirmed-closed failed assessments cannot renew their per-answer budget", async (t) => {
+  const f = await setup(t);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  const request = f.completion.request(token, f.task.id);
+  const submitted = f.completion.submit(token, request.id, answer);
+  for (let n = 0; n < 2; n++) {
+    const lease = f.execution.reserveUnderstanding(
+      f.round.id,
+      request.id,
+      submitted.answerDigest,
+      10000,
+    );
+    f.execution.start(lease.id, "bounded-" + n);
+    f.execution.finish(lease.id, "bounded-" + n, { closed: true });
+  }
+  assert.throws(
+    () =>
+      f.execution.reserveUnderstanding(
+        f.round.id,
+        request.id,
+        submitted.answerDigest,
+        10000,
+      ),
+    { code: "ASSESSMENT_LIMIT" },
+  );
+  assert.equal(f.completion.get(f.task.id).status, "awaiting_evaluation");
+  assert.equal(f.completion.get(f.task.id).approved, false);
+});

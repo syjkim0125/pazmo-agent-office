@@ -787,3 +787,51 @@ test("expired credentials keep unsent request text for reconnection without reta
   assert.equal(doc.querySelector("#credential").value, "");
   assert.equal(doc.querySelector("#workspace").hidden, true);
 });
+
+test("saved G4 answers launch only an addressed assessment and never send a verdict or duplicate launch", async (t) => {
+  const writes = [];
+  const completion = {
+    status: "awaiting_evaluation",
+    approved: false,
+    id: "g4-1",
+    answerDigest: "answer-1",
+    answer: { note: "My decision", understanding: { behavior: "My behavior" } },
+  };
+  const result = {
+    ...verifiedResult,
+    completion,
+    execution: "ready",
+    active: [],
+  };
+  const doc = setup(
+    t,
+    resultFetch(async (path, options) => {
+      writes.push({ path, body: JSON.parse(options.body) });
+      return response(
+        { state: "accepted", kind: "understanding", taskId: "a1" },
+        202,
+      );
+    }, result),
+  );
+  await openResult(doc);
+  const launch = doc.querySelector('[data-action="evaluate-g4"]');
+  assert.ok(launch, "a stored answer needs a supported evaluation control");
+  launch.click();
+  await settle();
+  assert.deepEqual(writes, [
+    {
+      path: "/api/pazmo/executions/a1/understanding",
+      body: { requestId: "g4-1", answerDigest: "answer-1" },
+    },
+  ]);
+  assert.equal(doc.querySelector('[data-action="evaluate-g4"]'), null);
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /답변 확인 중/,
+  );
+  assert.equal(doc.querySelector('[data-action="deliver"]'), null);
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /My decision/,
+  );
+});
