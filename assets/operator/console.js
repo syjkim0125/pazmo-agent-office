@@ -1,4 +1,5 @@
 import { conversationText } from "./conversation.js";
+import { resultActions } from "./result-actions.js";
 const states = {
   waiting_pm: "PM 실행 대기",
   waiting_lead: "팀장 실행 대기",
@@ -88,6 +89,20 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
         code: data.error,
       });
     return data;
+  }
+  function saveApprovalDraft() {
+    const values = [...doc.querySelectorAll("[data-g4-field]")]
+      .filter((input) => input.value)
+      .map((input) => input.dataset.g4Field + ": " + input.value);
+    if (!values.length) return;
+    const draft = el("details", "");
+    draft.open = true;
+    const target = $("execution-detail").querySelector("h3")?.textContent;
+    draft.append(
+      el("summary", "이전 G4 답변 초안 · " + target),
+      el("pre", values.join("\n\n")),
+    );
+    $("drafts").append(draft);
   }
   function showExecution(data, taskId) {
     const target = $("execution-detail"),
@@ -182,9 +197,22 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
         ),
       );
     target.append(leases);
+    target.append(
+      resultActions({
+        el,
+        api,
+        perform,
+        notice,
+        data,
+        taskId,
+        saveDraft: saveApprovalDraft,
+        update: (next) => showExecution(next, taskId),
+      }),
+    );
   }
   $("refresh-results").addEventListener("click", () =>
     perform(async (valid) => {
+      saveApprovalDraft();
       $("contracts").replaceChildren();
       $("execution-detail").textContent = "실행 결과 목록 조회 중…";
       try {
@@ -202,6 +230,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
           button.type = "button";
           button.addEventListener("click", () =>
             perform(async (current) => {
+              saveApprovalDraft();
               $("execution-detail").textContent = "최신 실행 결과 조회 중…";
               try {
                 const result = await api(
@@ -247,6 +276,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
     } catch (error) {
       if (!valid()) return;
       if (error.code === "UNAUTHORIZED") {
+        saveApprovalDraft();
         const request = $("request").value,
           risk = $("risk").value;
         const answers = [...$("answers").querySelectorAll("textarea")]
@@ -257,6 +287,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
         disconnect();
         $("request").value = request;
         $("risk").value = risk;
+        $("drafts").append(...previousDrafts);
         if (answers.length) {
           const draft = el("details", "");
           draft.open = true;
@@ -265,7 +296,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
             el("pre", answers.join("\n\n")),
           );
           $("drafts").append(draft);
-        } else $("drafts").append(...previousDrafts);
+        }
         notice(
           "인증키가 유효하지 않습니다. 입력 초안은 이 페이지에 보존했습니다. Office 재시작 후에는 새 키로 연결하세요.",
         );

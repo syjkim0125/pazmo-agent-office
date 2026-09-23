@@ -197,6 +197,18 @@ export class CompletionLedger {
       this.#db.prepare("SELECT 1 FROM pazmo_g4_requests WHERE id=?").get(id),
     );
   }
+  /** Read the same validated bundle used by G4, without issuing a challenge. */
+  evidence(token: string, taskId: string) {
+    this.#approvals.authorize(token);
+    const bundle = this.#bundle(taskId);
+    return {
+      subject: bundle.subject,
+      roundId: bundle.round_id,
+      questions,
+      evidence: JSON.parse(bundle.evidence_json),
+      completion: this.get(taskId),
+    };
+  }
   /** Only the operator can request local delivery. G4 remains a separate fact. */
   deliver(token: string, taskId: string) {
     this.#approvals.authorize(token);

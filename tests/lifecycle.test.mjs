@@ -47,6 +47,7 @@ test("operator page exposes no capability and intake listing requires the existi
   for (const path of [
     "/operator",
     "/operator/console.js",
+    "/operator/result-actions.js",
     "/operator/conversation.js",
     "/operator/start.js",
     "/operator/style.css",

@@ -58,6 +58,331 @@ async function connect(doc) {
   await settle();
 }
 
+const verifiedResult = {
+  verification: {
+    state: "awaiting_g4",
+    number: 1,
+    candidate: { digest: "candidate" },
+    nodes: [],
+  },
+  executions: [],
+  completion: { status: "not_requested", approved: false },
+  delivery: { status: "not_delivered" },
+};
+const preparedEvidence = {
+  subject: "verified-subject",
+  roundId: "round-1",
+  evidence: {
+    diff: {
+      rawDiff: "+<script>untrusted()</script>",
+      candidateDigest: "candidate",
+    },
+  },
+  questions: ["Behavior?", "Invariant?", "Evidence?"],
+  completion: verifiedResult.completion,
+};
+const challenge = {
+  id: "g4-1",
+  subject: "verified-subject",
+  status: "awaiting_answer",
+  questions: preparedEvidence.questions,
+  evidence: preparedEvidence.evidence,
+};
+async function openResult(doc) {
+  await connect(doc);
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  doc.querySelector("#contracts button").click();
+  await settle();
+}
+function resultFetch(handler, result = verifiedResult) {
+  return async (path, options) => {
+    if (path === "/api/pazmo/intakes") return response(list);
+    if (path === "/api/pazmo/contracts")
+      return response({ contracts: [{ id: "a1", status: "review" }] });
+    if (path === "/api/pazmo/verification/a1") return response(result);
+    return handler(path, options);
+  };
+}
+
+test("operator reads the diff then submits only their own G4 words without approving or delivering", async (t) => {
+  const writes = [];
+  const doc = setup(
+    t,
+    resultFetch(async (path, options) => {
+      if (options.method === "GET") return response(preparedEvidence);
+      writes.push({ path, body: JSON.parse(options.body) });
+      if (path.endsWith("/request")) return response(challenge, 201);
+      return response({
+        status: "awaiting_evaluation",
+        approved: false,
+        answer: writes.at(-1).body.answer,
+        id: "g4-1",
+      });
+    }),
+  );
+  await openResult(doc);
+  const inspect = doc.querySelector('[data-action="evidence"]');
+  assert.ok(inspect, "verified output needs a diff inspection control");
+  inspect.click();
+  await settle();
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /untrusted\(\)/,
+  );
+  assert.equal(doc.querySelector("#execution-detail script"), null);
+  assert.equal(writes.length, 0);
+  doc.querySelector('[data-action="request-g4"]').click();
+  await settle();
+  for (const [key, value] of Object.entries({
+    behavior: "My behavior",
+    invariant: "My failure path",
+    evidence: "My evidence limits",
+    note: "I accept this candidate",
+  }))
+    doc.querySelector(`[data-g4-field="${key}"]`).value = value;
+  submit(doc, '[data-form="g4"]');
+  await settle();
+  assert.deepEqual(writes, [
+    {
+      path: "/api/pazmo/approvals/request",
+      body: { taskId: "a1", gate: "G4" },
+    },
+    {
+      path: "/api/pazmo/approvals/decide",
+      body: {
+        id: "g4-1",
+        answer: {
+          decision: "approve",
+          note: "I accept this candidate",
+          understanding: {
+            behavior: "My behavior",
+            invariant: "My failure path",
+            evidence: "My evidence limits",
+          },
+        },
+      },
+    },
+  ]);
+  assert.match(doc.querySelector("#execution-detail").textContent, /평가 대기/);
+  assert.equal(doc.querySelector('[data-action="deliver"]'), null);
+});
+
+test("existing G4 questions resume without another request and failed submissions retain drafts without retry", async (t) => {
+  let writes = 0;
+  const doc = setup(
+    t,
+    resultFetch(async (_path, options) => {
+      if (options.method === "POST") {
+        writes++;
+        throw Error("lost response");
+      }
+      return response({
+        ...preparedEvidence,
+        completion: { ...challenge, approved: false },
+      });
+    }),
+  );
+  await openResult(doc);
+  assert.ok(doc.querySelector('[data-action="evidence"]'));
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  assert.equal(doc.querySelector('[data-action="request-g4"]'), null);
+  for (const input of doc.querySelectorAll("[data-g4-field]"))
+    input.value = "My unsent words";
+  submit(doc, '[data-form="g4"]');
+  await settle();
+  assert.equal(writes, 1);
+  assert.equal(
+    doc.querySelector('[data-g4-field="note"]').value,
+    "My unsent words",
+  );
+});
+
+test("a changed evidence subject cannot silently inherit answers for a previous candidate", async (t) => {
+  const doc = setup(
+    t,
+    resultFetch(async (_path, options) =>
+      response(
+        options.method === "POST"
+          ? { ...challenge, subject: "new-subject" }
+          : preparedEvidence,
+      ),
+    ),
+  );
+  await openResult(doc);
+  assert.ok(doc.querySelector('[data-action="evidence"]'));
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  doc.querySelector('[data-action="request-g4"]').click();
+  await settle();
+  assert.equal(doc.querySelector('[data-form="g4"]'), null);
+  assert.match(doc.querySelector("#notice").textContent, /변경|다시/);
+});
+
+test("local delivery is an explicit action after approval and displays the returned location", async (t) => {
+  const calls = [];
+  const doc = setup(
+    t,
+    resultFetch(
+      async (path, options) => {
+        calls.push({ path, options });
+        return response({
+          status: "delivered",
+          directory: "/tmp/office/results/a1",
+          candidateDigest: "candidate",
+        });
+      },
+      { ...verifiedResult, completion: { status: "approved", approved: true } },
+    ),
+  );
+  await openResult(doc);
+  assert.equal(calls.length, 0);
+  assert.ok(doc.querySelector('[data-action="deliver"]'));
+  doc.querySelector('[data-action="deliver"]').click();
+  await settle();
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].path, "/api/pazmo/deliveries");
+  assert.deepEqual(JSON.parse(calls[0].options.body), { taskId: "a1" });
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /\/tmp\/office\/results\/a1/,
+  );
+  assert.equal(doc.querySelector('[data-action="deliver"]'), null);
+});
+
+test("expired credentials preserve the human G4 draft separately without copying it into a new question", async (t) => {
+  const doc = setup(
+    t,
+    resultFetch(async (_path, options) =>
+      options.method === "POST"
+        ? response({ error: "UNAUTHORIZED" }, 401)
+        : response({
+            ...preparedEvidence,
+            completion: { ...challenge, approved: false },
+          }),
+    ),
+  );
+  await openResult(doc);
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  for (const input of doc.querySelectorAll("[data-g4-field]"))
+    input.value = "Keep my approval draft";
+  submit(doc, '[data-form="g4"]');
+  await settle();
+  assert.match(
+    doc.querySelector("#drafts").textContent,
+    /Keep my approval draft/,
+  );
+  assert.equal(doc.querySelector('[data-form="g4"]'), null);
+  assert.equal(doc.querySelector("#workspace").hidden, true);
+});
+
+test("non-UTF8 diff is labeled as encoded bytes and includes separate permission changes", async (t) => {
+  const doc = setup(
+    t,
+    resultFetch(async () =>
+      response({
+        ...preparedEvidence,
+        evidence: {
+          diff: {
+            candidateDigest: "candidate",
+            rawDiff: "YWJj",
+            rawDiffEncoding: "base64",
+            modeChanges: [{ path: "script.sh", before: "0644", after: "0755" }],
+          },
+        },
+      }),
+    ),
+  );
+  await openResult(doc);
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  assert.match(doc.querySelector("#execution-detail").textContent, /Base64/);
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /script.sh.*0644.*0755/,
+  );
+});
+
+test("late evidence after disconnect cannot restore private diff or an approval form", async (t) => {
+  let resolve;
+  const doc = setup(
+    t,
+    resultFetch(
+      () =>
+        new Promise((done) => {
+          resolve = done;
+        }),
+    ),
+  );
+  await openResult(doc);
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  doc.querySelector("#disconnect").click();
+  resolve(response(preparedEvidence));
+  await settle();
+  assert.equal(doc.querySelector("#execution-detail").textContent, "");
+  assert.equal(doc.querySelector('[data-form="g4"]'), null);
+});
+
+test("rejecting a candidate sends only the user's decision and reason", async (t) => {
+  let sent;
+  const doc = setup(
+    t,
+    resultFetch(async (_path, options) => {
+      if (options.method === "GET")
+        return response({ ...preparedEvidence, completion: challenge });
+      sent = JSON.parse(options.body);
+      return response({
+        status: "rejected",
+        approved: false,
+        answer: sent.answer,
+      });
+    }),
+  );
+  await openResult(doc);
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  doc.querySelector('[data-g4-field="note"]').value =
+    "Missing the agreed output";
+  doc.querySelector('[data-action="reject-g4"]').click();
+  await settle();
+  assert.deepEqual(sent, {
+    id: "g4-1",
+    answer: { decision: "reject", note: "Missing the agreed output" },
+  });
+  assert.equal(doc.querySelector('[data-action="deliver"]'), null);
+});
+
+test("refreshing evidence or the result list retains G4 drafts without attaching them to another question", async (t) => {
+  const doc = setup(
+    t,
+    resultFetch(async () =>
+      response({ ...preparedEvidence, completion: challenge }),
+    ),
+  );
+  await openResult(doc);
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  doc.querySelector('[data-g4-field="note"]').value = "First evidence draft";
+  doc.querySelector('[data-action="evidence"]').click();
+  await settle();
+  assert.match(
+    doc.querySelector("#drafts").textContent,
+    /First evidence draft/,
+  );
+  assert.equal(doc.querySelector('[data-g4-field="note"]').value, "");
+  doc.querySelector('[data-g4-field="note"]').value = "Before refreshing list";
+  doc.querySelector("#refresh-results").click();
+  await settle();
+  assert.match(
+    doc.querySelector("#drafts").textContent,
+    /Before refreshing list/,
+  );
+  assert.equal(doc.querySelector('[data-form="g4"]'), null);
+});
+
 test("execution results show the current candidate and pending G4 without issuing a write", async (t) => {
   const calls = [];
   const doc = setup(t, async (path, options) => {

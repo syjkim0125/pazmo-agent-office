@@ -15,6 +15,41 @@ import { handleOperator } from "../src/runtime/operator.ts";
 
 const token = "a".repeat(64);
 
+test("operator evidence is authenticated, read-only and bound to the current verified candidate", async (t) => {
+  const f = await setup(t);
+  const server = createServer(
+    (req, res) =>
+      void handleOperator(
+        req,
+        res,
+        new URL(req.url, "http://localhost").pathname,
+        f,
+      ),
+  );
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => server.close(resolve)));
+  const url = `http://127.0.0.1:${server.address().port}/api/pazmo/evidence/${f.task.id}`;
+  const get = (auth = token) =>
+    fetch(url, { headers: { Authorization: `Bearer ${auth}` } });
+  assert.equal((await get("worker")).status, 401);
+  assert.equal((await get()).status, 409);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  const response = await get();
+  assert.equal(response.status, 200);
+  const view = await response.json();
+  assert.equal(view.roundId, f.round.id);
+  assert.equal(view.evidence.diff.candidateDigest, f.round.candidate.digest);
+  assert.match(view.evidence.diff.rawDiff, /validate\(input\)/);
+  assert.equal(view.questions.length, 3);
+  assert.equal(view.completion.status, "not_requested");
+  assert.equal(f.completion.get(f.task.id).status, "not_requested");
+  const request = f.completion.request(token, f.task.id);
+  assert.equal((await (await get()).json()).completion.id, request.id);
+  f.verification.invalidate(f.round.id, "TEST_INVALIDATION");
+  assert.equal((await get()).status, 409);
+});
+
 test("operator HTTP can submit an answer but cannot forge its evaluation", async (t) => {
   const f = await setup(t);
   f.round.nodes.forEach(f.finish);

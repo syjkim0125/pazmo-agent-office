@@ -124,6 +124,9 @@ form > button,
 #more {
   margin-top: 1rem;
 }
+form > button + button {
+  margin-inline-start: 0.5rem;
+}
 .secondary {
   color: var(--accent);
   background: var(--surface);

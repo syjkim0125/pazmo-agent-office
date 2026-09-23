@@ -10,6 +10,10 @@ const files = new Map([
   ["/operator/start.js", ["start.js", "text/javascript; charset=utf-8"]],
   ["/operator/console.js", ["console.js", "text/javascript; charset=utf-8"]],
   [
+    "/operator/result-actions.js",
+    ["result-actions.js", "text/javascript; charset=utf-8"],
+  ],
+  [
     "/operator/conversation.js",
     ["conversation.js", "text/javascript; charset=utf-8"],
   ],

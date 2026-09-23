@@ -169,6 +169,16 @@ The private API is POST `/api/pazmo/intakes/:id/publish` with exactly `revision`
 On failure or a concurrent losing request, the new directory may remain without a committed publication. Preserve it for inspection; the error identifies the directory when available. A retry creates a different directory and never adopts or deletes abandoned files or user edits. A crash before commit has the same possible orphan-file outcome. Read the intake and `contracts` to establish whether registration committed before retrying. SQLite cannot roll back project files, and power-loss durability is not established by these tests. Published intakes no longer accept planning answers or intake cancellation; downstream execution has its own cancellation lifecycle.
 
 
+## Inspect and accept a verified result in the operator screen
+
+Open `/operator`, connect with the current Operator key, select **실행 결과 → 결과 목록 조회**, and choose a registered task. **검증된 diff와 승인 자료 보기** reads the controller's prepared evidence without creating an approval. The screen shows the actual diff and file permission changes; non-UTF-8 diffs are explicitly labeled Base64.
+
+If G4 is waiting for an answer, the same question resumes. Otherwise **G4 답변 작성** requests a question for the displayed evidence. Enter your own understanding and decision; rejection requires only a reason. Submitting an answer is not approval. **답변 평가 대기** currently needs the trusted controller's separate evaluation; the public model/evaluator connection is still being implemented. No evaluation can be supplied by the browser. Previously saved answers and controller feedback are visible.
+
+After server-confirmed approval, **승인된 결과물 인도받기** invokes the existing local delivery operation and shows the result directory. It does not modify the original project. Expired credentials preserve unsent text separately for reconnection; explicit disconnect clears it. Uncertain writes are never automatically retried: reload the task to confirm whether the server stored the result. Evidence reads reject missing, changed or invalidated verification; they cannot manufacture a diff or approve a task.
+
+These controls were verified against real HTTP/SQLite ledgers with fixture role/approval results, and in Chrome with intercepted fixture API responses. They do not prove a completed live model/user flow. The earlier README pilot's explicit conversational approval remains recorded separately from its pending Office DB handling and delivery.
+
 ## Local delivery after evaluated G4
 
 After the controller has separately evaluated G4, the operator may create the approved local artifact:

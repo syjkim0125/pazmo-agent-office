@@ -154,6 +154,20 @@ export async function handleOperator(
         );
       return;
     }
+    if (path.startsWith("/api/pazmo/evidence/")) {
+      if (req.method !== "GET") {
+        json(405, { error: "METHOD_NOT_ALLOWED" });
+        return;
+      }
+      json(
+        200,
+        completion.evidence(
+          token,
+          id(path.slice("/api/pazmo/evidence/".length)),
+        ),
+      );
+      return;
+    }
     if (path.startsWith("/api/pazmo/deliveries/")) {
       if (req.method !== "GET") {
         json(405, { error: "METHOD_NOT_ALLOWED" });
