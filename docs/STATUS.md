@@ -1,5 +1,6 @@
 # 2026-09-23 kit role integration checkpoint
 
+- 정식 **start --live → 화면의 PM/팀장 실행 → 계획 등록·실행 승인 → 구현/리뷰/검증 실행·취소** 경로를 연결했다. 실제 검증된 바이너리·VM으로 시작/상태/종료를 확인했으며 이 검사는 모델을 호출하지 않았다. 전체 회귀 323개와 관련 검사를 통과했다. **G4 답변 평가 연결, 지속 가능한 초기 설정, 화면을 통한 실제 모델·사용자 인수 검증은 미완료**다. [현재 실행 안내](LOCAL-PREVIEW.md#qualified-live-startup-and-screen-controls) · [검증 경계](verification/2026-09-23-live-launch.md). 아래 공개 실행 미연결 표현은 이 후속 작업 이전의 기록이다.
 - 새 요청의 **PM clarify/propose → 화면의 실제 사용자 G1 입력 → Lead investigate/plan** 연결을 구현했다. kit CLI가 노드·질문 재개를 결정하고 Office는 승인·대화·실행 슬롯을 관리한다. 기존 대화는 유지한다. 전체 회귀 314개, 최종 관련 38개, 타입 검사 및 Chrome 모의 화면 검사를 통과했다. 실제 모델은 이번 연결에서 호출하지 않았다. 공개 모델 시작·계획 등록/실행 승인·G4 평가 controller 연결과 화면을 통한 실제 인수 검증은 남아 있다. [검증과 경계](verification/2026-09-23-kit-role-runs.md#native-planning-and-story-g1-continuation).
 - 첫 실사용 마일스톤을 사용자 목표대로 확정했다. kit 4.1.0과 현재 브랜치를 유지하며, 추가 업무 유형·tarball·학습 고도화 등은 전체 Story의 후속으로 남긴다. [목표](local-alpha-goal-prompt.md).
 - 후속 연결: **실행 결과 → 결과 목록 조회 → 검증된 diff와 승인 자료 보기**에서 준비된 실제 diff·파일 권한과 G4 질문을 조회하고 본인 답변/거절을 제출할 수 있다. 서버에서 승인이 확인된 결과물은 **승인된 결과물 인도받기**로 인도하고 경로를 표시한다. 답변 평가 controller와 공개 모델 실행 연결은 아직 남아 있다. 전체 회귀 304개와 후속 UI 수정 후 관련 17개, 타입 검사 및 Chrome 모의 API 화면 검사를 통과했다. [검증과 경계](verification/2026-09-22-intake-console.md).

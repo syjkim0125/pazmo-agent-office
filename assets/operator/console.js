@@ -46,6 +46,8 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
     busy = false;
     current = null;
     next = null;
+    $("runtime-status").textContent =
+      "연결 후 모델 실행 준비 상태를 확인하세요.";
     for (const id of [
       "requests",
       "detail",
@@ -90,6 +92,21 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       });
     return data;
   }
+  async function runtimeReady(valid) {
+    const runtime = await api("", undefined, "runtime");
+    if (!valid()) return false;
+    $("runtime-status").textContent =
+      runtime.execution === "ready"
+        ? `모델 실행 준비됨 · ${runtime.model ?? "Codex"} · 진행 중 ${runtime.active?.length ?? 0}건. 실행 버튼을 누르면 계정 사용량이 소비됩니다.`
+        : "모델 실행 잠김 · 문서의 start --live 명령과 검증된 Codex·VM 설정을 확인하세요.";
+    if (runtime.lastError)
+      $("runtime-status").textContent +=
+        ` 최근 실행 오류: ${runtime.lastError.code} · ${runtime.lastError.taskId}`;
+    if (runtime.execution !== "ready")
+      notice("start --live 설정과 실행 준비 상태를 확인하세요.");
+    return runtime.execution === "ready";
+  }
+  $("refresh-runtime").addEventListener("click", () => perform(runtimeReady));
   function saveApprovalDraft(root = $("execution-detail")) {
     const values = [...root.querySelectorAll("[data-g4-field],[data-g1-field]")]
       .filter((input) => input.value)
@@ -114,6 +131,135 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
     const target = $("execution-detail"),
       round = data.verification;
     target.replaceChildren(el("h3", "작업 · " + taskId));
+    if (data.contract) {
+      const item = data.contract;
+      for (const button of $("contracts").querySelectorAll("button"))
+        if (button.dataset.contractId === taskId)
+          button.textContent = `${item.contract.title ?? taskId} · ${item.blocker ?? item.status}`;
+      target.append(el("p", "실행 승인 상태 · " + (item.blocker ?? "승인됨")));
+      const plan = el("details", "");
+      plan.append(
+        el("summary", "실행 계획·범위·검사 확인"),
+        el(
+          "pre",
+          JSON.stringify(
+            {
+              workspace: item.contract.workspace,
+              checks: item.contract.checks,
+            },
+            null,
+            2,
+          ),
+        ),
+      );
+      for (const file of item.documents ?? [])
+        plan.append(el("h4", file.path), el("pre", file.content));
+      target.append(plan);
+      if (["G1_REQUIRED", "G3_REQUIRED"].includes(item.blocker)) {
+        const gate = item.blocker === "G1_REQUIRED" ? "G1" : "G3";
+        const request = el(
+          "button",
+          gate === "G1" ? "실행 계획 승인하기" : "위험 설계 결정 승인하기",
+        );
+        request.type = "button";
+        request.dataset.action = "execution-approval";
+        request.addEventListener("click", () =>
+          perform(async (valid) => {
+            const challenge = await api(
+              "/request",
+              { taskId, gate },
+              "approvals",
+            );
+            if (!valid()) return;
+            if (challenge.contract.digest !== item.contract.digest) {
+              notice("실행 계획이 변경됐습니다. 다시 조회하고 확인하세요.");
+              return;
+            }
+            request.remove();
+            plan.open = true;
+            const form = el("form", ""),
+              note = el("textarea", ""),
+              label = el(
+                "label",
+                "검토한 범위·검사·위험에 대한 본인의 승인 또는 거절 이유",
+              );
+            form.dataset.form = "execution-approval";
+            form.append(
+              el(
+                "p",
+                "이 승인은 위 실행 계획과 검사 명령에 적용됩니다. PM 범위 승인 및 최종 결과 승인과 구분됩니다.",
+              ),
+            );
+            note.id = "execution-approval-note";
+            note.required = true;
+            note.maxLength = 4000;
+            note.dataset.g1Field = "실행 계획 " + gate;
+            label.htmlFor = note.id;
+            const approve = el("button", "검토한 실행 계획 승인"),
+              reject = el("button", "거절", "secondary");
+            approve.type = "submit";
+            reject.type = "button";
+            const decide = (decision) =>
+              perform(async (current) => {
+                if (!note.value.trim()) {
+                  notice("본인의 승인 또는 거절 이유를 입력하세요.");
+                  return;
+                }
+                await api(
+                  "/decide",
+                  { id: challenge.id, answer: { decision, note: note.value } },
+                  "approvals",
+                );
+                if (current()) {
+                  form.remove();
+                  notice(
+                    "결정을 저장했습니다. 작업을 다시 선택해 현재 승인·실행 상태를 확인하세요.",
+                  );
+                }
+              });
+            form.addEventListener("submit", (event) => {
+              event.preventDefault();
+              void decide("approve");
+            });
+            reject.addEventListener("click", () => void decide("reject"));
+            form.append(label, note, approve, reject);
+            target.append(form);
+          }),
+        );
+        target.append(request);
+      }
+      if (item.ready && !["done", "cancelled"].includes(item.status)) {
+        for (const [action, label] of [
+          ["run", "구현·리뷰·검증 실행"],
+          ["cancel", "이 작업 실행 취소"],
+        ]) {
+          const button = el(
+            "button",
+            label,
+            action === "cancel" ? "secondary" : "",
+          );
+          button.type = "button";
+          button.dataset.action = action + "-implementation";
+          button.addEventListener("click", () =>
+            perform(async (valid) => {
+              if (action === "run" && !(await runtimeReady(valid))) return;
+              await api(
+                `/${taskId}/${action}`,
+                { contractDigest: item.contract.digest },
+                "executions",
+              );
+              if (valid())
+                notice(
+                  action === "run"
+                    ? "실행을 접수했습니다. 작업을 다시 선택하면 최신 상태를 확인합니다."
+                    : "취소를 접수했습니다. 프로세스 정리가 끝날 때까지 기다리세요.",
+                );
+            }),
+          );
+          target.append(button);
+        }
+      }
+    }
     const status = {
       checking: "검증 중",
       fix_required: "수정 필요",
@@ -233,6 +379,7 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
               "button",
               `${item.title ?? item.id} · ${item.blocker ?? item.status}`,
             );
+          button.dataset.contractId = item.id;
           button.type = "button";
           button.addEventListener("click", () =>
             perform(async (current) => {
@@ -311,6 +458,22 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
         notice(
           "대화 상태가 변경되었습니다. 입력은 보존했습니다. 대화를 새로고침하여 최신 상태를 확인하세요.",
         );
+      else if (error.code === "TASK_ACTIVE")
+        notice(
+          "이미 실행 중이거나 종료 확인이 필요한 작업입니다. 준비 상태와 작업 기록을 확인하고, 취소했다면 정리가 끝날 때까지 기다리세요.",
+        );
+      else if (error.code === "EXECUTION_LOCKED")
+        notice(
+          "모델 실행이 잠겨 있습니다. 문서의 start --live 설정을 확인하세요.",
+        );
+      else if (
+        ["CONTRACT_CHANGED", "CONTRACT_NOT_READY", "STALE_APPROVAL"].includes(
+          error.code,
+        )
+      )
+        notice(
+          "실행 계획이 바뀌었거나 승인이 필요합니다. 작업을 다시 선택해 현재 내용과 승인 상태를 확인하세요.",
+        );
       else
         notice(
           "결과를 확인하지 못했습니다. 입력은 보존했습니다. 목록과 대화를 새로고침해 저장 여부를 확인한 뒤 다시 시도하세요.",
@@ -364,6 +527,35 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
       el("p", "요청 ID · " + data.taskId, "muted"),
     );
     if (data.reason) $("detail").append(el("p", "확인 필요 · " + data.reason));
+    if (data.active)
+      $("detail").append(
+        el(
+          "p",
+          "담당 역할 실행 중 · 대화 새로고침으로 진행 상황을 확인하세요.",
+        ),
+      );
+    if (!data.active && ["waiting_pm", "waiting_lead"].includes(data.state)) {
+      const run = el(
+        "button",
+        data.state === "waiting_pm" ? "PM 실행" : "팀장 실행",
+      );
+      run.type = "button";
+      run.dataset.action = "run-planning";
+      run.addEventListener("click", () =>
+        perform(async (valid) => {
+          if (!(await runtimeReady(valid))) return;
+          await api(`/${data.taskId}/run`, {
+            revision: data.revision,
+            inputDigest: data.inputDigest,
+          });
+          if (valid())
+            notice(
+              "실행을 접수했습니다. 대화 새로고침으로 질문·승인 대기·완료 상태를 확인하세요.",
+            );
+        }),
+      );
+      $("detail").append(run);
+    }
     if (data.story) {
       const story = el("details", "");
       story.open = data.reason === "G1_REQUIRED";
@@ -433,6 +625,25 @@ export function mountConsole(doc, fetchImpl = globalThis.fetch) {
         el("pre", conversationText(data.proposal)),
       );
       $("detail").append(details);
+      if (data.state === "proposal") {
+        const publish = el("button", "이 계획을 실행 승인 대기로 등록");
+        publish.type = "button";
+        publish.addEventListener("click", () =>
+          perform(async (valid) => {
+            const result = await api(`/${data.taskId}/publish`, {
+              revision: data.revision,
+              inputDigest: data.inputDigest,
+            });
+            if (valid()) {
+              showDetail(result);
+              notice(
+                "계획을 등록했습니다. 실행 결과 목록에서 작업을 선택해 실행 범위와 검사를 승인하세요.",
+              );
+            }
+          }),
+        );
+        $("detail").append(publish);
+      }
     }
     if (data.publication)
       $("detail").append(

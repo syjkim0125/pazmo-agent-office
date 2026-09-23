@@ -13,6 +13,7 @@ import {
 import { dirname, join } from "node:path";
 import { fail, noSymlinks, packageRoot, readManifest } from "./project.ts";
 import type { Project } from "./project.ts";
+import type { LiveConfig } from "../runtime/live.ts";
 
 type Running = {
   version: 1;
@@ -56,12 +57,18 @@ async function control(s: Running, action: "status" | "stop") {
     signal: AbortSignal.timeout(1500),
     redirect: "error",
   });
+  if (response.status === 409 && action === "stop")
+    fail(
+      "TASK_ACTIVE",
+      "Cancel active tasks and wait for cleanup before stopping Office.",
+    );
   if (!response.ok)
     throw new Error("Controller identity was not authenticated.");
   const value = (await response.json()) as {
     instance: string;
     project: string;
     status: string;
+    execution?: string;
   };
   if (value.instance !== s.instance || value.project !== s.project)
     throw new Error("Controller identity mismatch.");
@@ -76,7 +83,13 @@ export async function status(p: Project) {
       execution: "locked",
     };
   try {
-    await control(s, "status");
+    const current = await control(s, "status");
+    return {
+      status: "running",
+      execution: current.execution ?? "locked",
+      url: `http://127.0.0.1:${s.port}`,
+      dataDir: p.dataDir,
+    };
   } catch {
     return {
       status: "unknown",
@@ -85,16 +98,14 @@ export async function status(p: Project) {
         "Saved runtime cannot be authenticated; no PID will be signalled.",
     };
   }
-  return {
-    status: "running",
-    execution: "locked",
-    url: `http://127.0.0.1:${s.port}`,
-    dataDir: p.dataDir,
-  };
 }
-export async function start(p: Project, port: number) {
+export async function start(p: Project, port: number, live?: LiveConfig) {
   const current = await status(p);
-  if (current.status === "running") return current;
+  if (current.status === "running") {
+    if (live && current.execution !== "ready")
+      fail("EXECUTION_LOCKED", "Stop the preview before starting with --live.");
+    return current;
+  }
   if (current.status !== "stopped")
     fail("UNKNOWN", "Resolve the preserved runtime state before restarting.");
   if (!existsSync(join(packageRoot, "vendor/claw-empire/dist/index.html")))
@@ -168,6 +179,7 @@ export async function start(p: Project, port: number) {
           token,
           instance,
           operatorToken,
+          ...(live ? { live } : {}),
         });
       });
       const state: Running = {
@@ -195,7 +207,7 @@ export async function start(p: Project, port: number) {
     child.unref();
     return {
       status: "running",
-      execution: "locked",
+      execution: live ? "ready" : "locked",
       url: `http://127.0.0.1:${readyPort}`,
       dataDir: p.dataDir,
     };
@@ -215,7 +227,13 @@ export async function stop(p: Project) {
   try {
     await control(s, "status");
     await control(s, "stop");
-  } catch {
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      "code" in error &&
+      error.code === "TASK_ACTIVE"
+    )
+      throw error;
     return fail(
       "UNKNOWN",
       "Runtime could not be authenticated. No process was signalled; state is preserved.",

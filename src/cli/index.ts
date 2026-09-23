@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
+import { homedir } from "node:os";
 import {
   init,
   locate,
@@ -16,7 +17,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]",
+        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nLive startup: start --live --controller /qualified/macos/codex --executor /qualified/linux/codex --project PATH --data-dir PATH",
       );
       return;
     }
@@ -61,11 +62,15 @@ export async function main(args: string[]): Promise<void> {
           "--task-id",
           "--gate",
           "--challenge",
+          "--live",
+          "--controller",
+          "--executor",
         ].includes(flag) ||
         flag in options
       )
         fail("ARGUMENT", `Unknown or repeated option: ${flag}`);
-      if (flag === "--apply" || flag === "--dry-run") options[flag] = true;
+      if (flag === "--apply" || flag === "--dry-run" || flag === "--live")
+        options[flag] = true;
       else {
         const value = args.shift();
         if (!value || value.startsWith("--"))
@@ -85,6 +90,18 @@ export async function main(args: string[]): Promise<void> {
       );
     if (options["--port"] !== undefined && command !== "start")
       fail("ARGUMENT", "Port is only supported by start.");
+    if (
+      ["--live", "--controller", "--executor"].some(
+        (key) => options[key] !== undefined,
+      ) &&
+      command !== "start"
+    )
+      fail("ARGUMENT", "Live runtime options are only supported by start.");
+    if (
+      (options["--controller"] || options["--executor"]) &&
+      !options["--live"]
+    )
+      fail("ARGUMENT", "Use --live with both qualified runtime binaries.");
     const allowed: Record<string, string[]> = {
       "--file": [
         "contract",
@@ -210,7 +227,18 @@ export async function main(args: string[]): Promise<void> {
         Number(rawPort) > 65535
       )
         fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
-      result = await start(p, Number(rawPort));
+      result = await start(
+        p,
+        Number(rawPort),
+        options["--live"]
+          ? {
+              controller: required("--controller"),
+              binary: required("--executor"),
+              authHome: join(homedir(), ".codex"),
+              socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
+            }
+          : undefined,
+      );
     }
     console.log(JSON.stringify(result));
   } catch (error) {

@@ -8,6 +8,7 @@ import type { ExecutionLedger } from "../core/budgets.ts";
 import type { CompletionLedger } from "../core/completion.ts";
 import type { HandoffLedger } from "../core/handoffs.ts";
 import type { IntakeLedger } from "../core/intake.ts";
+import type { LiveRuntime } from "./live.ts";
 
 async function body(req: IncomingMessage): Promise<Record<string, unknown>> {
   if (req.headers["content-type"]?.split(";")[0] !== "application/json")
@@ -45,6 +46,7 @@ export async function handleOperator(
     completion,
     handoffs,
     intake,
+    live,
   }: {
     store: OfficeStore;
     verification: VerificationLedger;
@@ -52,6 +54,7 @@ export async function handleOperator(
     completion: CompletionLedger;
     handoffs: HandoffLedger;
     intake: IntakeLedger;
+    live?: LiveRuntime;
   },
 ): Promise<void> {
   const json = (status: number, value: unknown) => {
@@ -66,6 +69,51 @@ export async function handleOperator(
     const token =
       req.headers.authorization?.match(/^Bearer ([a-f0-9]{64})$/)?.[1] ?? "";
     store.authorize(token);
+    if (path === "/api/pazmo/runtime") {
+      if (req.method !== "GET") {
+        json(405, { error: "METHOD_NOT_ALLOWED" });
+        return;
+      }
+      json(
+        200,
+        live?.status() ?? {
+          execution: "locked",
+          reason: "Start Office with the qualified live runtime configuration.",
+          active: [],
+        },
+      );
+      return;
+    }
+    if (path.startsWith("/api/pazmo/executions/")) {
+      const parts = path.slice("/api/pazmo/executions/".length).split("/");
+      if (parts.length !== 2 || !["run", "cancel"].includes(parts[1]))
+        fail("NOT_FOUND", "Unknown execution operation.");
+      if (req.method !== "POST") {
+        json(405, { error: "METHOD_NOT_ALLOWED" });
+        return;
+      }
+      if (!live)
+        fail(
+          "EXECUTION_LOCKED",
+          "Start Office with the qualified live runtime configuration.",
+        );
+      const input = await body(req);
+      if (
+        Object.keys(input).join() !== "contractDigest" ||
+        typeof input.contractDigest !== "string"
+      )
+        fail(
+          "INVALID_REQUEST",
+          "Inspect the execution contract before this operation.",
+        );
+      json(
+        202,
+        parts[1] === "run"
+          ? live.startImplementation(id(parts[0]), input.contractDigest)
+          : live.cancelImplementation(id(parts[0]), input.contractDigest),
+      );
+      return;
+    }
     if (
       path === "/api/pazmo/intakes" ||
       path.startsWith("/api/pazmo/intakes/")
@@ -77,11 +125,23 @@ export async function handleOperator(
       if (
         parts.length > 2 ||
         (parts.length === 2 &&
-          !["answer", "cancel", "publish", "approve-story"].includes(parts[1]))
+          !["answer", "cancel", "publish", "approve-story", "run"].includes(
+            parts[1],
+          ))
       )
         fail("NOT_FOUND", "Unknown intake operation.");
       if (req.method === "GET" && parts.length === 1) {
-        json(200, intake.get(id(parts[0])));
+        const taskId = id(parts[0]);
+        json(200, {
+          ...intake.get(taskId),
+          ...(live
+            ? {
+                active: live
+                  .status()
+                  .active.some((operation) => operation.taskId === taskId),
+              }
+            : {}),
+        });
         return;
       }
       if (req.method === "GET" && parts.length === 0) {
@@ -156,7 +216,21 @@ export async function handleOperator(
             input.inputDigest as string,
           ),
         );
-      else
+      else if (parts[1] === "run") {
+        if (!live)
+          fail(
+            "EXECUTION_LOCKED",
+            "Start Office with the qualified live runtime configuration.",
+          );
+        json(
+          202,
+          live.startPlanning(
+            id(parts[0]),
+            input.revision as number,
+            input.inputDigest as string,
+          ),
+        );
+      } else {
         json(
           200,
           intake.cancel(
@@ -166,6 +240,8 @@ export async function handleOperator(
             input.inputDigest as string,
           ),
         );
+        live?.abort(id(parts[0]));
+      }
       return;
     }
     if (path.startsWith("/api/pazmo/evidence/")) {
@@ -207,7 +283,8 @@ export async function handleOperator(
         completion: completion.get(taskId),
         delivery,
         handoffs: handoffs.list(taskId),
-        execution: "locked",
+        contract: store.inspectContract(taskId),
+        execution: live?.status().execution ?? "locked",
       });
       return;
     }
@@ -260,28 +337,30 @@ export async function handleOperator(
   } catch (error) {
     const code = error instanceof OfficeError ? error.code : "REQUEST_FAILED";
     const status =
-      code === "UNAUTHORIZED"
-        ? 401
-        : code === "NOT_FOUND"
-          ? 404
-          : code === "BODY_LIMIT"
-            ? 413
-            : [
-                  "CONTRACT_CHANGED",
-                  "STALE_APPROVAL",
-                  "ALREADY_APPROVED",
-                  "TASK_ACTIVE",
-                  "EVIDENCE_REQUIRED",
-                  "G4_REQUIRED",
-                  "DELIVERY_INVALID",
-                  "STALE_EVIDENCE",
-                  "STALE_INTAKE",
-                  "INTAKE_STATE",
-                ].includes(code)
-              ? 409
-              : error instanceof OfficeError
-                ? 400
-                : 500;
+      code === "EXECUTION_LOCKED"
+        ? 423
+        : code === "UNAUTHORIZED"
+          ? 401
+          : code === "NOT_FOUND"
+            ? 404
+            : code === "BODY_LIMIT"
+              ? 413
+              : [
+                    "CONTRACT_CHANGED",
+                    "STALE_APPROVAL",
+                    "ALREADY_APPROVED",
+                    "TASK_ACTIVE",
+                    "EVIDENCE_REQUIRED",
+                    "G4_REQUIRED",
+                    "DELIVERY_INVALID",
+                    "STALE_EVIDENCE",
+                    "STALE_INTAKE",
+                    "INTAKE_STATE",
+                  ].includes(code)
+                ? 409
+                : error instanceof OfficeError
+                  ? 400
+                  : 500;
     json(status, {
       error: code,
       message: error instanceof OfficeError ? error.message : "Request failed.",

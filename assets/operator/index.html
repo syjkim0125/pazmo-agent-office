@@ -17,9 +17,9 @@
       <p class="muted">
         요청과 대화를 저장하고, 필요한 결정에 답하는 공간입니다.
       </p>
-      <p class="boundary">
-        AI 실행 준비 중 · 요청 등록과 답변은 저장되지만, 아직 모델이 자동으로
-        작업을 시작하지 않습니다.
+      <p class="boundary" id="runtime-status">
+        실행 상태를 확인하세요. 실제 모델 사용에는 검증된 live 실행 설정이
+        필요합니다.
       </p>
       <section id="connection" aria-labelledby="connect-title">
         <h2 id="connect-title">이 Office에 연결</h2>
@@ -49,6 +49,9 @@
       <p id="notice" role="status" aria-live="polite"></p>
       <section id="workspace" hidden aria-label="현재 프로젝트 작업">
         <p class="project" id="project"></p>
+        <button id="refresh-runtime" type="button" class="secondary">
+          모델 실행 준비 상태 확인
+        </button>
         <div id="drafts"></div>
         <section aria-labelledby="results-title">
           <div class="section-heading">
@@ -59,8 +62,8 @@
           </div>
           <p class="muted">
             등록된 작업의 변경 내용과 검증 결과를 확인하고 G4 답변을 제출합니다.
-            승인이 확인된 결과물은 여기서 인도받을 수 있습니다. 모델 실행은 아직
-            연결 중입니다.
+            실행 계획을 승인한 뒤 모델 작업을 시작할 수 있습니다. 최종 승인이
+            확인된 결과물은 여기서 인도받습니다.
           </p>
           <ul id="contracts"></ul>
           <div id="execution-detail" aria-live="polite"></div>
@@ -119,7 +122,7 @@
             </p>
             <div id="detail"></div>
             <form id="answer-form" hidden>
-              <h3>PM 질문에 답하기</h3>
+              <h3>담당 역할의 질문에 답하기</h3>
               <p class="muted">
                 답변은 요구사항을 정리하기 위한 것이며 작업 승인이 아닙니다.
               </p>

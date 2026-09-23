@@ -63,6 +63,17 @@ test("operator page exposes no capability and intake listing requires the existi
   }
   assert.equal((await fetch(base + "/api/pazmo/intakes")).status, 401);
   const headers = { Authorization: `Bearer ${operator.token}` };
+  assert.equal((await fetch(base + "/api/pazmo/runtime")).status, 401);
+  const runtime = await fetch(base + "/api/pazmo/runtime", { headers });
+  assert.equal(runtime.status, 200);
+  assert.equal((await runtime.json()).execution, "locked");
+  const lockedRun = await fetch(base + "/api/pazmo/executions/a1/run", {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ contractDigest: "a".repeat(64) }),
+  });
+  assert.equal(lockedRun.status, 423);
+  assert.equal((await lockedRun.json()).error, "EXECUTION_LOCKED");
   assert.equal((await fetch(base + "/api/pazmo/evidence/a1")).status, 401);
   const unknownEvidence = await fetch(base + "/api/pazmo/evidence/a1", {
     headers,

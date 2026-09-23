@@ -285,6 +285,17 @@ export class OfficeStore {
         .all() as { task_id: string }[]
     ).map((row) => this.get(row.task_id));
   }
+  /** Verified source bytes for operator inspection; this grants no approval. */
+  inspectContract(id: string) {
+    const item = this.get(id);
+    return {
+      ...item,
+      documents:
+        item.blocker === "CONTRACT_CHANGED"
+          ? []
+          : contractDocuments(this.#project, item.contract),
+    };
+  }
   /** Controller-internal role input. No operator token or host path is returned. */
   roleContext(id: string) {
     const item = this.get(id);

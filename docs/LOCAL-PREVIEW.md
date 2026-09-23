@@ -1,6 +1,6 @@
 # Local development preview
 
-Requires Node **24.19.0** (tested) and the checked-out repository. The Claw preview is read-only; the separate operator screen can save planning requests and answers. This is not the packaged product or a live AI runner. Do not use the imported vendor start/dev commands: those start the unguarded upstream runtime.
+Requires Node **24.19.0** (tested) and the checked-out repository. The Claw preview stays read-only. The separate operator screen supports planning, approvals and execution when the qualified runtime is explicitly enabled below. The complete local-alpha model/user acceptance flow is still under verification. Do not use the imported vendor start/dev commands: those start the unguarded upstream runtime.
 
 ## Build
 
@@ -34,11 +34,38 @@ node bin/pazmo-office.mjs remove --project /absolute/path/to/project --data-dir 
 
 `start` prints a loopback URL. Port `0` chooses a free port; the default is `8790`. Three seeded roles are visible but no models run. CLI stop authenticates the controller instance; it never signals a PID copied from a state file. Doctor reports build/initialization facts and `execution: locked`; exit 0 is not live-execution readiness.
 
+## Qualified live startup and screen controls
+
+Use the existing Mac Codex login and the already qualified dedicated `pazmo-office` Colima VM. The controller must be the native macOS arm64 Codex **0.155.1** binary matching Office's pinned hash; the VM executor must be the qualified Linux arm64 **0.154.0** binary. A mutable npm launcher or updated global installation is not accepted. Durable qualified-binary installation is still part of the remaining first-use setup; this command assumes those two files already exist. No credentials are copied into candidates or containers.
+
+After `init --apply`, stop any existing preview, then run from this Office checkout:
+
+```sh
+node bin/pazmo-office.mjs start --live \
+  --controller /absolute/path/to/qualified/macos/codex \
+  --executor /absolute/path/to/qualified/linux/codex \
+  --project /absolute/path/to/existing-git-project \
+  --data-dir /absolute/path/to/persistent-office-data --port 0
+```
+
+Startup checks binary hashes, login-file presence, the Git root and dedicated VM/image. Login-file presence does not prove that the subscription is currently valid; actual model errors remain in task state. Per-run VM configuration and kit integrity checks remain mandatory. `status` reports the instance's runtime readiness. `doctor` remains a preview/installation check. Keep the same persistent data path across normal restarts. The worker Git project must be outside the Office installation and must not contain it.
+
+1. Open **작업 관리** and connect using the private Operator key described below. **모델 실행 준비 상태 확인** shows readiness and owned operations.
+2. Save a request, select it, and click **PM 실행**. Model calls consume the existing Codex account's usage. Use **대화 새로고침** to see progress, questions or Story G1. Answer questions and explicitly resume the waiting role.
+3. Inspect and approve the PM Story scope. Click **팀장 실행**, inspect the proposal, then **이 계획을 실행 승인 대기로 등록**. Registration writes proposed documents and contract drafts; it does not authorize implementation.
+4. Select the registered task under **실행 결과**. Inspect **실행 계획·범위·검사 확인**, including actual documents, workspace and check commands. **실행 계획 승인하기** records execution-contract G1; high-risk contracts also require G3. These differ from PM scope approval and final G4.
+5. Select the task again to refresh, then **구현·리뷰·검증 실행**. Inspect the same-candidate checks, review and diff. **이 작업 실행 취소** persists cancellation before signaling workers; a request's own cancel control applies to PM/Lead.
+6. G4 questions and answer submission are supported. **The trusted G4 answer evaluator is not yet connected to this live service**, so a new answer remains awaiting evaluation. The system will not fabricate approval or deliver without it.
+
+Normal `stop` refuses while an operation owns a worker: cancel, wait for cleanup, then stop. SIGTERM requests cleanup before SQLite closes. Unknown leases remain held after restart and require inspection; do not delete records to retry. Planning captures bounded tracked/nonignored files once, omits protected authentication/Office metadata, and reuses that frozen context across questions/G1. Later edits are not silently added. Unsupported selections such as submodules fail explicitly. Capture is not an atomic snapshot of concurrent editor changes or a general secret scanner.
+
+[Launch validation and remaining alpha work](verification/2026-09-23-live-launch.md).
+
 ## Preview limits
 
-The internal `PlanningCoordinator` uses kit 4.1.0 PM clarify/propose, waits for an actual operator Story G1, then uses Lead investigate/plan against a controller-selected readonly snapshot. Questions resume the same native node. It shares the three execution slots with Engineer/Reviewer/tests and retains unknown slots after restart. Existing legacy conversations keep their original protocol. There is no public model-launch route yet; the Mac controller/VM authentication choice is approved, but the complete supported launch flow is still being connected. [Native planning evidence and limits](verification/2026-09-23-kit-role-runs.md#native-planning-and-story-g1-continuation).
+`PlanningCoordinator` uses kit 4.1.0 PM clarify/propose, waits for actual operator Story G1, then uses Lead investigate/plan against a readonly snapshot. Questions resume the same native node. It shares the three execution slots with Engineer/Reviewer/tests and retains unknown slots after restart. Existing legacy conversations keep their original protocol. The supported operator launch reuses this coordinator. [Native planning evidence](verification/2026-09-23-kit-role-runs.md#native-planning-and-story-g1-continuation).
 
-An internal `OfficeCoordinator` now connects approved role context, Engineer, parallel registered checks/readonly review and up to two fixes. Its actual CLI/VM integration uses scripted model responses and stops at G4 waiting. This is not a public preview launch command, live model service or automatic capacity-wakeup scheduler. [Coordinator evidence](verification/2026-09-21-role-coordinator.md).
+`OfficeCoordinator` connects approved context, Engineer, registered checks/readonly review and up to two fixes. Live operator launch reuses it and stops at G4 waiting. Earlier actual-model evidence came from the internal pilot; the complete screen-driven model/user flow remains unverified. There is no automatic capacity-wakeup scheduler. [Coordinator evidence](verification/2026-09-21-role-coordinator.md).
 
 Office, Dashboard and the empty Tasks board were exercised in the browser. The banner and Dashboard describe the lock. Creation controls on Dashboard/Tasks are disabled. Other imported controls are not supported workflows and may show an error; the server rejects all public mutations and unsupported APIs with 423. WebSocket orchestration is not connected, so the original UI displays Offline/Disconnected. No operator approval session is granted by `/api/auth/session`.
 
@@ -48,19 +75,19 @@ The preview process imports the pinned Claw schema/seeds and uses its UI; it doe
 
 ### Planning conversation screen
 
-Open the `start` URL and follow **작업 관리**, or append `/operator`. The screen uses the same operator capability as the CLI. It does not grant access from the loopback address alone, and it does not start Codex models.
+Open the `start` URL and follow **작업 관리**, or append `/operator`. The screen uses the same operator capability as the CLI; loopback alone grants no access. Preview saves requests; qualified live startup enables explicit model execution.
 
 Use the actual project-specific `dataDir` returned by `start`/`status`. In your private terminal, read its `running.json` to obtain `instance`, then open `operator-<instance>.json` in that same directory and copy only its `token` value into **Operator 인증키**. Do not paste that file into an agent conversation, place it in the project, or share it. The screen does not receive the runtime control token from `running.json`. This manual pairing is an interim user flow; automatic browser pairing is not implemented.
 
 This key permits operating this Office instance. It is separate from the Codex account login needed for actual model execution. The browser keeps the key only in page memory, sends it in the existing Authorization header, and clears it on disconnect/reload. Office restart rotates the key; reconnect with the new instance's operator key.
 
-The screen supports the current project's request creation, 50-item pages, saved conversations, role question answers and cancellation. New requests select native kit role graphs. Registration waits for the still-locked public model runner. When the internal controller has completed PM, the screen displays the full Story including exclusions, assumptions and verification, and offers **이 범위로 계획 진행** or **범위 거절** with the operator's own reason. Scope approval permits Lead planning; it does not approve the later execution contract or final result. Questions and Story approvals exercised in this screen's checks were fixtures, not actual model/user decisions.
+The screen supports request creation, 50-item pages, saved conversations, role questions and cancellation. New requests select native kit role graphs. After PM completes, the full Story includes exclusions, assumptions and verification. **이 범위로 계획 진행** or **범위 거절** records the operator's own reason. Scope approval permits Lead planning; it does not approve the execution contract or final result. Automated screen checks use fixture questions and approvals, not actual model/user decisions.
 
-Failed writes preserve drafts and are never automatically retried: refresh the list/conversation to determine whether an uncertain request was saved. Refreshing a changed conversation keeps its previous answers as a separate draft instead of applying them to new questions. Explicit disconnect or page reload clears local drafts; saved Office conversations remain. Story G1 and final result controls are available here; proposal publication, execution-contract approval and public model launch remain to be connected. G4 answer submission is distinct from the trusted controller's evaluation and does not itself authorize delivery.
+Failed writes preserve drafts and are never automatically retried: refresh to determine whether an uncertain request was saved. Changed conversations retain previous answers as separate drafts instead of applying them to new questions. Disconnect/reload clears local drafts; saved Office conversations remain. G4 submission is distinct from the trusted controller's evaluation and does not itself authorize delivery.
 
 [Screen verification and evidence limits](verification/2026-09-22-intake-console.md).
 
-The local operator can now register contracts and record G1/G3 decisions. The browser remains a preview, and approval does **not** unlock model execution. `ready: true` means only that the current contract has its required approvals; `execution: locked` remains authoritative.
+Contract `ready: true` means only that the current contract has required approvals; runtime readiness and explicit launch are separate. Contract records retain legacy `execution: locked` metadata. Use `/api/pazmo/runtime` or `status` for the live controller's capability, never the contract alone.
 
 Prepare canonical Story and Task Markdown in the target project. The Task must be `Implementation-ready`, with `Story: story.md` pointing to the selected project-relative Story path and real M/V references. Draft Stories may be submitted for G1, but unresolved `OPEN BLOCKING` decisions are rejected. Markdown `Approved` or `PASS` text never grants operator approval.
 

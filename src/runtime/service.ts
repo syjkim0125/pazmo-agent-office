@@ -20,6 +20,8 @@ import { IntakeLedger } from "../core/intake.ts";
 import { transaction } from "../core/approvals.ts";
 import { handleOperator } from "./operator.ts";
 import { serveOperatorPage } from "./operator-page.ts";
+import { createLiveRuntime } from "./live.ts";
+import type { LiveConfig } from "./live.ts";
 import { applyBaseSchema } from "../../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { applyDefaultSeeds } from "../../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { noSymlinks, packageRoot } from "../cli/project.ts";
@@ -29,7 +31,7 @@ const supportedVersion = (version: number) =>
   Number.isInteger(version) && version >= 1 && version <= schemaVersion;
 
 // This entry does not import the upstream scheduler, routes, CLI probes or recovery.
-// Until isolation is proved, model execution has no code path in this process.
+// Preview stays locked unless the trusted CLI explicitly supplies a qualified runtime.
 type Startup = {
   project: string;
   dataDir: string;
@@ -37,6 +39,7 @@ type Startup = {
   token: string;
   instance: string;
   operatorToken: string;
+  live?: LiveConfig;
 };
 function readStats(db: DatabaseSync) {
   const tasks: Record<string, number> = {
@@ -238,6 +241,9 @@ process.once("message", async (raw: unknown) => {
       completion.reconcileDeliveries();
       return { store, verification, execution, completion, handoffs, intake };
     });
+    const live = c.live
+      ? await createLiveRuntime(c.live, c.project, c.dataDir, ledgers)
+      : undefined;
     const dist = realpathSync(join(packageRoot, "vendor/claw-empire/dist"));
     let boundPort = 0;
     const server = createServer((req, res) => {
@@ -274,10 +280,22 @@ process.once("message", async (raw: unknown) => {
               status: "running",
               instance: c.instance,
               project: c.project,
+              execution: live?.status().execution ?? "locked",
             });
             return;
           }
           if (path === "/__pazmo/stop" && req.method === "POST") {
+            try {
+              live?.assertIdle();
+            } catch {
+              json(409, {
+                error: "TASK_ACTIVE",
+                message:
+                  "Cancel active tasks and wait for cleanup before stopping Office.",
+              });
+              return;
+            }
+            void live?.close();
             db.close();
             server.close(() => {
               process.exit(0);
@@ -295,6 +313,8 @@ process.once("message", async (raw: unknown) => {
         }
         if (
           path === "/api/pazmo/contracts" ||
+          path === "/api/pazmo/runtime" ||
+          path.startsWith("/api/pazmo/executions/") ||
           path === "/api/pazmo/intakes" ||
           path.startsWith("/api/pazmo/intakes/") ||
           path.startsWith("/api/pazmo/approvals/") ||
@@ -303,7 +323,7 @@ process.once("message", async (raw: unknown) => {
           path.startsWith("/api/pazmo/evidence/") ||
           path.startsWith("/api/pazmo/verification/")
         ) {
-          void handleOperator(req, res, path, ledgers);
+          void handleOperator(req, res, path, { ...ledgers, live });
           return;
         }
         if (req.method !== "GET" && req.method !== "HEAD") {
@@ -443,12 +463,16 @@ process.once("message", async (raw: unknown) => {
       boundPort = (server.address() as { port: number }).port;
       process.send?.({ type: "ready", port: boundPort });
     });
-    process.once("SIGTERM", () =>
-      server.close(() => {
-        db.close();
-        process.exit(0);
-      }),
-    );
+    process.once("SIGTERM", () => {
+      void (async () => {
+        await live?.close();
+        server.close(() => {
+          db.close();
+          process.exit(0);
+        });
+        server.closeIdleConnections();
+      })();
+    });
   } catch (error) {
     process.send?.({
       type: "error",

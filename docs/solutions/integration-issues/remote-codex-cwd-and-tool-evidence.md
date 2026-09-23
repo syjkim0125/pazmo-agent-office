@@ -1,7 +1,7 @@
 ---
 title: Verify executor paths and tool artifacts separately from Codex turn completion
 date: "2026-09-21"
-last_updated: "2026-09-22"
+last_updated: "2026-09-23"
 category: integration-issues
 module: Codex remote execution diagnostic
 problem_type: integration_issue
@@ -16,6 +16,12 @@ tags: [codex, remote-execution, cwd, verification, false-pass]
 ---
 
 # Verify executor paths and tool artifacts separately from Codex turn completion
+
+## Host-side project discovery boundary
+
+Supported live startup revealed a separate execution path before model calls: `git ls-files --cached --others --exclude-standard` can execute a target repository's `core.fsmonitor` command on the host. A clean subprocess environment and `--no-optional-locks` do not suppress repository-local configuration. The RED test used a disposable monitor script writing a marker and observed the marker during snapshot discovery.
+
+The current unmerged continuation invokes both Git discovery commands with `-c core.fsmonitor=false -c core.untrackedCache=false`, explicit environment and no global/system config. The same real-Git regression now passes without a marker; original project files remain untouched. See [runtime source](../../../src/runtime/live.ts), [regression](../../../tests/live-runtime.test.mjs) and [launch evidence](../../verification/2026-09-23-live-launch.md). Trusted host preparation needs its own configuration boundary even when model tools are remote. This covers these discovery commands; it does not imply arbitrary Git commands cannot invoke hooks, filters, diff tools or helpers.
 
 ## Problem
 

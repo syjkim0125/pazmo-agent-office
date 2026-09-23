@@ -81,6 +81,51 @@ const list = {
   items: [{ taskId: "a1", title: saved.request, state: saved.state }],
   nextCursor: null,
 };
+test("planning run checks runtime readiness and addresses the displayed conversation", async (t) => {
+  const writes = [];
+  const pending = { ...saved, state: "waiting_pm", questions: null };
+  const doc = setup(t, async (path, options) => {
+    if (path === "/api/pazmo/runtime")
+      return response({ execution: "ready", active: [] });
+    if (options.method === "POST") {
+      writes.push({ path, body: JSON.parse(options.body) });
+      return response({ state: "accepted" }, 202);
+    }
+    return response(path.endsWith("/a1") ? pending : list);
+  });
+  await connect(doc);
+  doc.querySelector("#requests button").click();
+  await settle();
+  const run = doc.querySelector('[data-action="run-planning"]');
+  assert.ok(run);
+  run.click();
+  await settle();
+  assert.deepEqual(writes, [
+    {
+      path: "/api/pazmo/intakes/a1/run",
+      body: { revision: 3, inputDigest: saved.inputDigest },
+    },
+  ]);
+  assert.match(doc.querySelector("#notice").textContent, /접수/);
+});
+test("locked runtime never submits a planning launch", async (t) => {
+  const doc = setup(t, async (path, options) => {
+    assert.notEqual(options.method, "POST");
+    if (path === "/api/pazmo/runtime")
+      return response({ execution: "locked", active: [] });
+    return response(
+      path.endsWith("/a1") ? { ...saved, state: "waiting_pm" } : list,
+    );
+  });
+  await connect(doc);
+  doc.querySelector("#requests button").click();
+  await settle();
+  const run = doc.querySelector('[data-action="run-planning"]');
+  assert.ok(run);
+  run.click();
+  await settle();
+  assert.match(doc.querySelector("#notice").textContent, /live/);
+});
 function setup(t, fetch) {
   const dom = new JSDOM(
     readFileSync(
@@ -121,6 +166,74 @@ const verifiedResult = {
   completion: { status: "not_requested", approved: false },
   delivery: { status: "not_delivered" },
 };
+test("execution approval displays the actual plan and submits only the operator's decision", async (t) => {
+  const writes = [];
+  const contract = {
+    id: "a1",
+    status: "inbox",
+    ready: false,
+    blocker: "G1_REQUIRED",
+    approved: { G1: false, G3: false },
+    contract: {
+      digest: "current-plan",
+      workspace: { include: ["src"], exclude: [] },
+      checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 1000 }],
+    },
+    documents: [
+      { path: "plan.md", content: "Only change the parser; never deploy." },
+    ],
+  };
+  const data = { ...verifiedResult, verification: null, contract };
+  const doc = setup(
+    t,
+    resultFetch(async (path, options) => {
+      writes.push({ path, body: JSON.parse(options.body) });
+      if (path.endsWith("/request"))
+        return response({
+          id: "gate-1",
+          gate: "G1",
+          contract: contract.contract,
+        });
+      if (path.endsWith("/decide")) {
+        contract.ready = true;
+        contract.blocker = null;
+        return response(contract);
+      }
+      assert.fail(path);
+    }, data),
+  );
+  await openResult(doc);
+  assert.match(
+    doc.querySelector("#execution-detail").textContent,
+    /Only change the parser; never deploy/,
+  );
+  const request = doc.querySelector('[data-action="execution-approval"]');
+  assert.ok(request);
+  request.click();
+  await settle();
+  const form = doc.querySelector('[data-form="execution-approval"]');
+  assert.ok(form);
+  form.querySelector("textarea").value =
+    "Approve only the displayed parser work and checks.";
+  submit(doc, '[data-form="execution-approval"]');
+  await settle();
+  assert.deepEqual(writes, [
+    {
+      path: "/api/pazmo/approvals/request",
+      body: { taskId: "a1", gate: "G1" },
+    },
+    {
+      path: "/api/pazmo/approvals/decide",
+      body: {
+        id: "gate-1",
+        answer: {
+          decision: "approve",
+          note: "Approve only the displayed parser work and checks.",
+        },
+      },
+    },
+  ]);
+});
 const preparedEvidence = {
   subject: "verified-subject",
   roundId: "round-1",
