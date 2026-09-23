@@ -1,0 +1,205 @@
+{
+  "scope": "real offline dispatch; no authenticated reviewer or G4",
+  "recordedAt": "2026-09-21T02:12:03.460599+00:00",
+  "rawReport": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-dispatch-evidence-2V9Uxh/report.json",
+  "rawSha256": "5dd378acfda96864b01134338aeb225253885c9f0ca590bb3c21761692cbf699",
+  "sourceSha256": {
+    "src/runners/dispatch.ts": "45b79ea61601718a4d86e98edfd0bcb0864e450045dcd8d85dcc1e30295571b1",
+    "src/runners/verification.ts": "d520a6fee8e44bfd2fe39228cfb47c5d7107d74ba77c2d295e175fa313b6a1e2",
+    "src/runners/container-verifier.ts": "b365b8545b58e6e270cd733f855ec6f8e0d350fe374b1b4686e41d879d003676",
+    "src/core/budgets.ts": "98aa62908f4ad241a0ef80bf4d4500845fe93e11a9c025131cd90306810ff25c",
+    "src/core/verification.ts": "3e4739f89fdc9d9fe93da57c0199d25783530062f281097b63846aedc6026b97",
+    "scripts/test-verification-dispatch.mjs": "c9256da8ad308d4e465ae186e9f9a4d4151853710308bedac652049e8b046e36"
+  },
+  "inventory": [
+    {
+      "args": [
+        "ps",
+        "-a",
+        "--filter",
+        "label=pazmo.verifier",
+        "--format",
+        "{{.Names}}"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "timedOut": false,
+      "error": null
+    },
+    {
+      "args": [
+        "volume",
+        "ls",
+        "--filter",
+        "label=pazmo.verifier",
+        "--format",
+        "{{.Name}}"
+      ],
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "timedOut": false,
+      "error": null
+    }
+  ],
+  "reports": [
+    {
+      "scenario": "parallel-pass",
+      "attached": [
+        "6b6e09ca7707fd501af5fd365be9826103e1b24cf6e0242282d4dd422e938621",
+        "741d11bad22d58c39165e48e2e76265e2e81ab909bf5ee91313af3f6e50ca965",
+        "f1d7c3b9b5efb8392b7808e67753dd0117a028dd6caa741df7f420a7aace6ecc",
+        "c784c0ac891ad1e7ced54aef7b93e9c22ffddcd11fb6719a98d2a42f34bd24a9"
+      ],
+      "roundState": "checking",
+      "candidateDigest": "590afb08fb558fdfd8a9d2f26ff45ac74899d51625556dc825f54eebb0082c90",
+      "executions": [
+        {
+          "state": "released",
+          "reason": null,
+          "nodeId": "1ad974d2-0eeb-40e5-8c0c-d8c1da995992",
+          "handle": "741d11bad22d58c39165e48e2e76265e2e81ab909bf5ee91313af3f6e50ca965"
+        },
+        {
+          "state": "released",
+          "reason": null,
+          "nodeId": "74aeb29b-6c8e-40e2-add0-e0ebf35e8709",
+          "handle": "f1d7c3b9b5efb8392b7808e67753dd0117a028dd6caa741df7f420a7aace6ecc"
+        },
+        {
+          "state": "released",
+          "reason": null,
+          "nodeId": "27cba156-32e7-4101-8b82-73130d1388e9",
+          "handle": "6b6e09ca7707fd501af5fd365be9826103e1b24cf6e0242282d4dd422e938621"
+        },
+        {
+          "state": "released",
+          "reason": null,
+          "nodeId": "212ca0a6-b533-4aec-a9d6-fc140219a4ca",
+          "handle": "c784c0ac891ad1e7ced54aef7b93e9c22ffddcd11fb6719a98d2a42f34bd24a9"
+        }
+      ],
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "pass",
+          "output": "{\"index\":0,\"start\":1789956590304}\n{\"index\":0,\"end\":1789956593310}\n"
+        },
+        {
+          "kind": "test",
+          "verdict": "pass",
+          "output": "{\"index\":1,\"start\":1789956590313}\n{\"index\":1,\"end\":1789956593319}\n"
+        },
+        {
+          "kind": "test",
+          "verdict": "pass",
+          "output": "{\"index\":2,\"start\":1789956590279}\n{\"index\":2,\"end\":1789956593288}\n"
+        },
+        {
+          "kind": "test",
+          "verdict": "pass",
+          "output": "{\"index\":3,\"start\":1789956593783}\n{\"index\":3,\"end\":1789956596786}\n"
+        },
+        {
+          "kind": "review",
+          "verdict": null,
+          "output": null
+        }
+      ],
+      "pending": [],
+      "deferredReason": null,
+      "errors": [],
+      "processIntervals": [
+        {
+          "index": 0,
+          "start": 1789956590304,
+          "end": 1789956593310
+        },
+        {
+          "index": 1,
+          "start": 1789956590313,
+          "end": 1789956593319
+        },
+        {
+          "index": 2,
+          "start": 1789956590279,
+          "end": 1789956593288
+        },
+        {
+          "index": 3,
+          "start": 1789956593783,
+          "end": 1789956596786
+        }
+      ]
+    },
+    {
+      "scenario": "parallel-cancel",
+      "attached": [
+        "bf17f9a68a0f998feaf1b7ee794eee6f936c8ae6f5bffcdad5cc977db1dfb82c",
+        "c003d47ab569c9d895bf6f91aec0192dbf2207b8abbaa78fc8b85f9f134e90a3",
+        "447fa191dcff9a14edc6ad3b72d9eb844701ef2e06077f0c87bca56ff9cef1ce"
+      ],
+      "roundState": "cancelled",
+      "candidateDigest": "590afb08fb558fdfd8a9d2f26ff45ac74899d51625556dc825f54eebb0082c90",
+      "executions": [
+        {
+          "state": "released",
+          "reason": "ROUND_CLOSED",
+          "nodeId": "a21780a7-9767-4f74-91d4-07e5c1e3c95d",
+          "handle": "bf17f9a68a0f998feaf1b7ee794eee6f936c8ae6f5bffcdad5cc977db1dfb82c"
+        },
+        {
+          "state": "released",
+          "reason": "ROUND_CLOSED",
+          "nodeId": "7265957a-aef3-4111-b0f4-374fccb264df",
+          "handle": "c003d47ab569c9d895bf6f91aec0192dbf2207b8abbaa78fc8b85f9f134e90a3"
+        },
+        {
+          "state": "released",
+          "reason": "ROUND_CLOSED",
+          "nodeId": "ff182080-12e8-4766-a44f-591f11f2c500",
+          "handle": "447fa191dcff9a14edc6ad3b72d9eb844701ef2e06077f0c87bca56ff9cef1ce"
+        }
+      ],
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": null,
+          "output": null
+        },
+        {
+          "kind": "test",
+          "verdict": null,
+          "output": null
+        },
+        {
+          "kind": "test",
+          "verdict": null,
+          "output": null
+        },
+        {
+          "kind": "test",
+          "verdict": null,
+          "output": null
+        },
+        {
+          "kind": "review",
+          "verdict": null,
+          "output": null
+        }
+      ],
+      "pending": [
+        "a21780a7-9767-4f74-91d4-07e5c1e3c95d",
+        "7265957a-aef3-4111-b0f4-374fccb264df",
+        "ff182080-12e8-4766-a44f-591f11f2c500",
+        "b491c91e-6bde-445b-8f8c-4d8c942034d7"
+      ],
+      "deferredReason": null,
+      "errors": [],
+      "processIntervals": null
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # Intake and Contract
 
+For a PM assignment, perform only intake and return the Story proposal or question to the host. Use `skill-integration.md` for optional CE exploration; do not start another design approval workflow over an already settled scope. G1 still requires the actual user's decision.
+
 ## Internal Domain Frame
 
 Derive before asking: actor, desired outcome, terms/entities, state change, invariant/forbidden outcome, failure, external side effect, and observable evidence.
@@ -80,8 +82,10 @@ node .ai-workflow/bin/check.mjs story <story-file>
 node .ai-workflow/bin/check.mjs gate G1 <story-file>
 ```
 
-`story` checks that the contract is well formed. `gate G1` checks that a human actually
-approved it. Run `story` while the file still says `Draft` and it exits 0 on shape alone —
+`story` checks that the contract is well formed. `gate G1` validates the approval record
+and referenced artifact; it does not authenticate the person who approved it. The host
+must obtain the actual user's decision. Never create approval from an agent's own claim.
+Run `story` while the file still says `Draft` and it exits 0 on shape alone —
 that is not approval, and the output says which gate it skipped. Do not start implementation
 unless both exit 0, and never claim the gate passed without that output.
 

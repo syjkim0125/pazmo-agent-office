@@ -1,3 +1,4 @@
+// Modified by Pazmo Agent Office, 2026-09-18: propagate read-only preview state.
 import { useMemo } from "react";
 import type { Agent, CompanyStats, Task } from "../types";
 import { localeName, useI18n } from "../i18n";
@@ -17,9 +18,10 @@ interface DashboardProps {
   tasks: Task[];
   companyName: string;
   onPrimaryCtaClick: () => void;
+  readOnly?: boolean;
 }
 
-export default function Dashboard({ stats, agents, tasks, companyName, onPrimaryCtaClick }: DashboardProps) {
+export default function Dashboard({ stats, agents, tasks, companyName, onPrimaryCtaClick, readOnly }: DashboardProps) {
   const { t, language, locale: localeTag } = useI18n();
   const { date, time, briefing } = useNow(localeTag, t);
   const agentMap = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents]);
@@ -176,6 +178,7 @@ export default function Dashboard({ stats, agents, tasks, companyName, onPrimary
       <div className="pointer-events-none absolute left-1/3 bottom-32 h-72 w-72 rounded-full bg-amber-500/[0.05] blur-[80px]" />
 
       <DashboardHeroHeader
+        readOnly={readOnly}
         companyName={companyName}
         time={time}
         date={date}

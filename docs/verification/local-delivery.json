@@ -1,0 +1,175 @@
+{
+  "date": "2026-09-21",
+  "scope": "Automatic real Codex/VM tools through local artifact delivery. Model, human answer and G4 evaluation are scripted fixtures; not user acceptance or a live project pilot.",
+  "rootTests": 205,
+  "deliveryTests": 20,
+  "schemaVersion": 7,
+  "rootTestsExit": 0,
+  "typecheckExit": 0,
+  "configuredVendorLint": {
+    "exit": 0,
+    "errors": 0,
+    "existingWarnings": 40,
+    "rootCodeCovered": false
+  },
+  "storyCheckerExit": 0,
+  "taskCheckerExit": 0,
+  "storyG4Checked": false,
+  "compoundFrontmatterExit": 0,
+  "formattingExit": 0,
+  "gitDiffCheckExit": 0,
+  "actualToolScenarios": 1,
+  "liveModel": false,
+  "actualUserG4": false,
+  "realProjectPilotComplete": false,
+  "fixtureDelivery": {
+    "status": "delivered",
+    "directory": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/deliveries/delivery-iwIW3n",
+    "receiptDigest": "12ea6fede992134dafbaa44a75082bbf52fcf85c7aeb2388b9f8ab57f24df3e7",
+    "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+    "roundId": "3b37be09-929f-4407-ba0d-b87b13fba446",
+    "createdAt": 1789966063901
+  },
+  "artifactVerifiedAfterFixtureCleanup": true,
+  "rawReport": {
+    "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/report.json",
+    "sha256": "033f6e28916d3ee85ec42b8cbd4ea655b582b3ff044c4409985055ab57ce1f0a"
+  },
+  "artifactReceipt": {
+    "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/deliveries/delivery-iwIW3n/receipt.json",
+    "sha256": "12ea6fede992134dafbaa44a75082bbf52fcf85c7aeb2388b9f8ab57f24df3e7"
+  },
+  "controllers": [
+    {
+      "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/engineer-1/controller.json",
+      "sha256": "7ec6ed916b2d8430d2e12aaa2346203b6eae899784f7f1f3a490c715cef9ba59"
+    },
+    {
+      "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/reviewer-1/controller.json",
+      "sha256": "04d1513dde9f157eee8da91b0f46ba34e84d0d5cce34d50e09d2e82cee5df823"
+    },
+    {
+      "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/engineer-2/controller.json",
+      "sha256": "bc981d2b04e8b237c553412295e8777b3d43bb3831dcdb9c67c1366f460a8a7f"
+    },
+    {
+      "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-QOL3e1/reviewer-2/controller.json",
+      "sha256": "e0b911bc6cd27e36fee1578bd800e5c8857a538a907d3a9de958b6e0db30365e"
+    }
+  ],
+  "cleanup": {
+    "containers": "",
+    "volumes": ""
+  },
+  "sources": [
+    {
+      "path": "src/core/delivery.ts",
+      "sha256": "5c9b6ba3dcb350117b3f68d195af298e1d9bba39a1959b21bad75b338aea7137"
+    },
+    {
+      "path": "src/core/completion.ts",
+      "sha256": "4f24ca0e00503cd0278b7f614666786cc4184a72062a0f805dcdd79c6013120a"
+    },
+    {
+      "path": "src/core/verification.ts",
+      "sha256": "50658d28ebabf416d5ca66bc937df6b2c07a4dbd685284fc91f6e1160d86357f"
+    },
+    {
+      "path": "src/runners/coordinator.ts",
+      "sha256": "eb858c602c1e2f591be47d5c2ad3aef7984663f78679ce1621a04230a6af009c"
+    },
+    {
+      "path": "src/runtime/operator.ts",
+      "sha256": "ad38c2b833be7641223364c772e2150adaeca41d0c7d447242c200db681d5e7d"
+    },
+    {
+      "path": "src/runtime/service.ts",
+      "sha256": "ae2d07e04fc962821de237d853a2b8a6da064019378c516336381ff7c8ea55a4"
+    },
+    {
+      "path": "src/cli/index.ts",
+      "sha256": "f43d61c454ca5d0d47f5dc8ee641d9b985f1df772caac13971480a1429db5742"
+    },
+    {
+      "path": "tests/delivery.test.mjs",
+      "sha256": "7ec5ec723de17226e7769d72c4178369c9d237772d7eaf5f0d9fcad0eb484074"
+    },
+    {
+      "path": "tests/lifecycle.test.mjs",
+      "sha256": "e8797f4d2d1094fea41d8f697a7ab9455d932141bd86629a2366006203d92f21"
+    },
+    {
+      "path": "scripts/test-role-coordinator.mjs",
+      "sha256": "5daa079d11477bb9ec63b6507c7b6986ce0ab02236b374510c646fdcb53a70ae"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/private/tmp/pazmo-delivery-red.log",
+      "sha256": "3acad85863acbd69075740aeac03c645ca5a5e40075bf73d0d7f910c4b4755b5"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-cli-red.log",
+      "sha256": "dcce2d0afe037a62b9a8c962973dbc09b8525a2da3f69b8370cd47f9241b65e2"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-review-red.log",
+      "sha256": "3c30e870f2ca15cb6ea4194f881c4c760ff9890c8f2eadbf0ecb144de33193c4"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-coordinator-red.log",
+      "sha256": "752afe609bfee2b3dc2d6bf2f5f0e1c14dc9c0bb8d46ddfefd03d8d43fd5ad7b"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-guard-red.log",
+      "sha256": "2b03d2750870c135bc0612765a919e7340337f05596b9b66de5ab6fca12e565f"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-final-tests.log",
+      "sha256": "bc4cd17883e5b82abf4eb8bc85f4aa4bb88fe61cb08c40673c82dfc5b4ea07e7"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-vm.log",
+      "sha256": "71fcb44f683a9284ee853425c25b491d0e7912be01e220ee2c57d9d491880f1e"
+    },
+    {
+      "path": "/private/tmp/pazmo-delivery-final-lint.log",
+      "sha256": "5cbba86c6592dba3f7aded1042fc72355f7772bf6afa582a22089e705f07ec63"
+    }
+  ],
+  "review": {
+    "mode": "sequential in-session per user instructions",
+    "independentPeer": false,
+    "branchWideCeReceipt": false,
+    "lenses": [
+      "correctness",
+      "authorization",
+      "data integrity",
+      "API/CLI",
+      "failure/restart",
+      "testing",
+      "reuse",
+      "quality",
+      "efficiency"
+    ],
+    "resolved": [
+      "late cancellation undid committed delivery",
+      "coordinator reported awaiting_g4 after delivery",
+      "done exception omitted current G4/evidence association"
+    ],
+    "limits": [
+      "startup/explicit-inspection invalidation, no filesystem watcher",
+      "filesystem/SQLite crash atomicity and power-loss durability unqualified",
+      "large artifact latency unmeasured"
+    ]
+  },
+  "implementation": {
+    "engine": "native inline",
+    "externalBinding": null,
+    "task": "U7-local-delivery",
+    "wholeUnitU7Complete": false,
+    "wholeStoryComplete": false,
+    "standaloneShippingSkipped": true
+  },
+  "scriptFormattingAfterRun": "Prettier only, followed by node --check"
+}

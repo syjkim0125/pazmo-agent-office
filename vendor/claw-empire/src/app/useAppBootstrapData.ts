@@ -1,3 +1,4 @@
+// Modified by Pazmo Agent Office, 2026-09-18: do not persist automatic UI settings in a read-only preview.
 import { useCallback, useEffect } from "react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 
@@ -96,6 +97,7 @@ export function useAppBootstrapData({
       }
 
       if (
+        !sett.pazmoReadOnly &&
         hasLocalRoomThemesRef.current &&
         Object.keys(initialRoomThemes.themes).length > 0 &&
         (!dbRoomThemes || Object.keys(dbRoomThemes).length === 0)
@@ -105,7 +107,7 @@ export function useAppBootstrapData({
         });
       }
 
-      if (shouldAutoAssignLanguage && mergedSettings.language !== autoDetectedLanguage) {
+      if (!sett.pazmoReadOnly && shouldAutoAssignLanguage && mergedSettings.language !== autoDetectedLanguage) {
         api.saveSettings(nextSettings).catch((error) => {
           console.error("Auto language sync failed:", error);
         });

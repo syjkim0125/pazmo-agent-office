@@ -8,7 +8,7 @@ argument-hint: "[request | status | finish]"
 
 Invoke in Codex with `$workflow`; in Claude Code with `/workflow`. After installation or updates, start a new task/session.
 
-Turn `$ARGUMENTS` into an approved, reviewable change without creating documentation debt.
+Turn `$ARGUMENTS` into an approved change. For assigned roles, follow `references/role-graphs.md` and `references/skill-integration.md`: reuse the supplied run/node/token or automatically initialize `init-role`. Do not restart delivery.
 
 ## Non-negotiable gates
 
@@ -18,13 +18,13 @@ Turn `$ARGUMENTS` into an approved, reviewable change without creating documenta
 
 ## Explain before asking
 
-Before G1 or G3, explain the problem, intended change, safety rule and verification in plain language. Put the short explanation before technical details; use one concrete example when helpful. Keep G4 prediction-before-reveal intact.
+Before G1/G3, explain the problem, change, safety rule and verification plainly. Keep G4 prediction-before-reveal intact.
 
 ## Route by current state
 
 1. **No approved Story:** read `references/intake.md`. Use `assets/STORY.md`; ask only missing behavior questions and obtain G1.
-2. **Approved, not implemented:** read `references/execution.md`. Read `references/domain-risks.md` only for relevant risk domains. Create a Task from `assets/TASK.md` only when one PR is not reviewable.
+2. **Approved, not implemented:** read `references/execution.md` and `references/graph-engineering.md`. Automatically initialize/resume the installed Graph CLI; use the minimal plan for small work. Read `references/domain-risks.md` for relevant risks. Create a Task only when one PR is not reviewable.
 3. **Implemented or `finish`:** complete pending checks in `references/execution.md`, then follow `references/understanding-gate.md` for G4.
-4. **`status`:** report stage, blocking decision, evidence present, and the single next action.
+4. **`status`:** run the existing graph's `status` command; report stage, blocking decision, evidence and next action. Without a run, report the Story stage.
 
-Use the user's language. Keep each response focused on one decision. Surface assumptions and evidence boundaries. Never say “AI decided”; name the human-owned decision or mark it open.
+Use the user's language. State assumptions, evidence limits and human-owned decisions.

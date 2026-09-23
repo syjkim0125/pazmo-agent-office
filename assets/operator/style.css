@@ -1,0 +1,251 @@
+:root {
+  color-scheme: light dark;
+  --surface: #fff;
+  --page: #f4f6f8;
+  --text: #17212e;
+  --muted: #526071;
+  --line: #c9d1db;
+  --accent: #185b98;
+  --notice: #fff4d6;
+  --notice-text: #583d00;
+  font:
+    16px/1.6 system-ui,
+    sans-serif;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--text);
+}
+[hidden] {
+  display: none !important;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+}
+header a {
+  color: var(--text);
+  font-weight: 700;
+}
+header span {
+  color: var(--muted);
+}
+header button {
+  margin-left: auto;
+}
+main {
+  max-width: 88rem;
+  margin: auto;
+  padding: 2rem;
+}
+h1 {
+  font-size: 1.75rem;
+  margin: 0;
+}
+h2 {
+  font-size: 1.125rem;
+  margin: 0 0 1rem;
+}
+h3 {
+  font-size: 1rem;
+}
+p {
+  margin: 0.5rem 0 1rem;
+}
+.muted {
+  color: var(--muted);
+}
+.boundary {
+  padding: 0.75rem 1rem;
+  background: var(--notice);
+  color: var(--notice-text);
+  border-left: 3px solid currentColor;
+}
+.project {
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+.columns {
+  display: grid;
+  grid-template-columns: minmax(17rem, 1fr) minmax(0, 2fr);
+  gap: 1.5rem;
+}
+section section,
+#connection {
+  padding: 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+#connection {
+  max-width: 40rem;
+}
+label {
+  display: block;
+  font-weight: 600;
+  margin: 0.75rem 0 0.25rem;
+}
+input,
+textarea,
+select {
+  width: 100%;
+  padding: 0.65rem;
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.25rem;
+}
+textarea {
+  resize: vertical;
+}
+button {
+  font: inherit;
+  font-weight: 600;
+  padding: 0.5rem 0.875rem;
+  min-height: 2.75rem;
+  border: 1px solid transparent;
+  border-radius: 0.25rem;
+  background: var(--accent);
+  color: #fff;
+  cursor: pointer;
+}
+form > button,
+#cancel,
+#more {
+  margin-top: 1rem;
+}
+form > button + button {
+  margin-inline-start: 0.5rem;
+}
+.secondary {
+  color: var(--accent);
+  background: var(--surface);
+  border-color: var(--line);
+}
+button:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+.section-heading h2 {
+  margin: 0;
+}
+ul {
+  list-style: none;
+  padding: 0;
+}
+#requests button,
+#contracts button {
+  display: block;
+  text-align: left;
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border-bottom: 1px solid var(--line);
+  border-radius: 0;
+  overflow-wrap: anywhere;
+}
+#requests button[aria-current="true"] {
+  border-left: 3px solid var(--accent);
+  background: var(--page);
+}
+.state {
+  font-size: 0.875rem;
+  color: var(--muted);
+  display: block;
+}
+.request-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  font-size: 0.875rem;
+  background: var(--page);
+  padding: 0.75rem;
+}
+details {
+  border-top: 1px solid var(--line);
+  padding: 0.75rem 0;
+}
+summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+#notice {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+#detail {
+  overflow-wrap: anywhere;
+}
+#cancel {
+  color: var(--text);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --surface: #17212e;
+    --page: #101722;
+    --text: #e4ebf3;
+    --muted: #adbac9;
+    --line: #435062;
+    --accent: #8cc5ff;
+    --notice: #362f1c;
+    --notice-text: #ffe1a0;
+  }
+  button {
+    color: #102334;
+  }
+  .secondary {
+    color: var(--accent);
+  }
+}
+@media (max-width: 760px) {
+  main {
+    padding: 1rem;
+  }
+  .columns {
+    grid-template-columns: 1fr;
+  }
+  header {
+    padding: 1rem;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  header span {
+    display: none;
+  }
+  section section,
+  #connection {
+    padding: 1rem;
+  }
+  .section-heading {
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  h1 {
+    font-size: 1.5rem;
+  }
+}

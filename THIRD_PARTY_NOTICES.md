@@ -22,6 +22,16 @@ This file records source attribution. It does not replace any upstream LICENSE o
 
 ## Optional skills and components
 
+The controller's pinned `assets/codex/gpt-5.5.json` contains the unchanged
+GPT-5.5 model entry extracted from OpenAI Codex `rust-v0.155.1`,
+`codex-rs/models-manager/models.json`. Source:
+https://github.com/openai/codex/tree/rust-v0.155.1. License: Apache-2.0;
+the original license and notice are retained at `assets/codex/LICENSE` and
+`assets/codex/NOTICE`. Only the selected
+entry and JSON formatting were changed. The CLI binary is not redistributed.
+The catalog describes client tool behavior; it does not guarantee account
+entitlement, model availability, or the model actually served.
+
 Compound Engineering, Superpowers, PM Skills, Impeccable, Vercel/HashiCorp skills and Trail of Bits are selected design inputs, not included installed dependencies in this pack. Before redistributing any of their code or skill text, record exact ref, files, license and notices. Do not imply endorsement.
 
 `tools/playwright-mcp` and `tools/ppt_team_agent` are separate pinned Git submodules of Claw-Empire. Preserving their gitlinks does not copy their contents or complete their license review.

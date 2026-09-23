@@ -11,3 +11,13 @@ GitHub push protection rejected the exact original snapshot because of these emb
 
 Approval: [publication decision](../docs/understanding/source-publication-decision.md).
 Verification: [focused test and publication checks](../docs/verification/2026-09-18-publication.md).
+
+## 2026-09-18 — Read-only Pazmo preview
+
+The following Claw UI files carry modification notices: `src/types/index.ts`, `src/app/useAppBootstrapData.ts`, `src/app/AppMainLayout.tsx`, `src/components/Dashboard.tsx`, `src/components/TaskBoard.tsx`, and `src/components/dashboard/HeroSections.tsx` (all under `vendor/claw-empire/`). They add the optional read-only setting, suppress automatic persistence, identify preview state and disable the Dashboard/empty-board mutation controls. Two adjacent preview tests are new Pazmo-authored tests.
+
+The root `src/runtime/service.ts` is new Pazmo code. It imports Claw's unmodified base schema and seeds and serves the built UI through a read-only adapter. It does not start the upstream scheduler or agent runtime and is not a second scheduler. SQLite is the single Office data store. Automatic migration of existing user databases is disabled.
+
+The lock file's published tree remains the source-import checkpoint, not the working vendor tree after these disclosed UI changes. Original Apache-2.0 licensing and notices remain in place; new root code retains the project MIT license.
+
+Verification: [runtime baseline](../docs/verification/2026-09-18-runtime-baseline.md).

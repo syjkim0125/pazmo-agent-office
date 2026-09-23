@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-21",
+  "node": "24.19.0",
+  "schema": 6,
+  "root_tests": {
+    "passed": 145,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "integration_tests": {
+    "passed": 35,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "typecheck_exit_code": 0,
+  "vendor_lint": {
+    "exit_code": 0,
+    "errors": 0,
+    "warnings": 40,
+    "covers_root_modules": false
+  },
+  "source_sha256": {
+    "src/core/handoffs.ts": "e314336fc4a3be85e82c781a93b98d78e5916fd2acd6f876f8dca41d46d66ccb",
+    "src/core/workspace.ts": "56d0cc0427261b7cbdf4e4a8d7cef52c6e31d0f2e803db139aadb543fc49478b",
+    "src/core/candidates.ts": "ad1e8914f25b7e119587f6c77f275c07e74907c8805d5f8cea8c54ae0fdd2506",
+    "src/core/contracts.ts": "cdcad01c6beda1ecf195ec11816fd6bc875305d2dd751567b2f89349549c92cb",
+    "src/core/completion.ts": "15147af8a708dba88aeb22687e3710c1407f9587672d5bfaaf8d71d46ec4e6fa",
+    "src/core/verification.ts": "e5dbd01ad85292f6f6d491f1f7411cc864e4ee2dc3e30556fd4acde12fb6f4ad",
+    "src/runtime/service.ts": "c46648b48a20407367663c5efabb50cdad6b9a1d3347f16f958c6f0c532f04fc",
+    "src/runtime/operator.ts": "9cddcad4f22a3b1ad91bb54ad122ce4ffa1c7d2692fdb15030ba74f2377cc508",
+    "tests/handoffs.test.mjs": "fa35d40aec0c8e9c2a31b656164c6d02c490f4eceb384d05453e9f9f02dcaebe",
+    "tests/workspace.test.mjs": "a1eeaa164fa990e58742acd9af6362a6374ef550297165b66989dbbc3a53e5d5",
+    "tests/completion.test.mjs": "888d01f9d1961afd97900758a38e92bad68eac4ff47bb43942a875c40b281079",
+    "tests/lifecycle.test.mjs": "d9110887aecb8c0de4d260da46a844c645daac23302ed120295d1a4add4b9028"
+  },
+  "logs": {
+    "/private/tmp/pazmo-handoff-full.log": "f66311b86e17f434b435848f2cb7ebe98328435ff9eb1a064f92dfe7f97386eb",
+    "/private/tmp/pazmo-handoff-integration.log": "37324dfd63dafeb66d1d84a3093ec483459e67a0cb903e97d63b174e3666e64d",
+    "/private/tmp/pazmo-handoff-lint.log": "89c7c382b190ce53e8677b5e613afb9e7e6a763dd63362bcad4ac8af8767cf3d"
+  },
+  "boundary": "Real local filesystem, SQLite, Git, CLI and loopback HTTP; Engineer/reviewer observations and G4 assessments are fixtures. No new VM or model execution; public Office remains locked."
+}

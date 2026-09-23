@@ -1,0 +1,11 @@
+# Runtime checkpoint — 2026-09-21
+
+Branch: `codex/office-runtime-baseline`, based on main `8e14344e97ae5effd90bd5b00fff8334bab63425`. This checkpoint saves the continuing U2–U7 implementation; it does not deliver the complete Story or authorize merging main.
+
+The included files comprise local CLI/preview, contract and approval guards, candidate/handoff/execution/verification/delivery ledgers, restricted VM tool adapters, internal Engineer/Reviewer coordination, pinned role profiles and the PM/Lead proposal protocol. Evidence and lessons from each implementation increment remain linked from [STATUS](../STATUS.md). The default checkout's pre-existing user files are outside this worktree and excluded.
+
+Fresh checkpoint checks: root tests **221/221 exit 0**, project TypeScript exit 0, vendor ESLint exit 0 (0 errors/40 existing warnings), current Story and planning Task PASS, changed source formatting and `git diff --check`. UI build/browser evidence and VM transport evidence were gathered during their respective earlier increments; they are not described as fresh checks of the entire checkpoint. Latest PM/Lead tests use scripted reports and real contract/SQLite approval integration, not authenticated models.
+
+Before staging, all 157 then-changed files (983,671 bytes) were inventoried. A bounded known-format scan found no private-key blocks, GitHub/OpenAI/Anthropic/AWS/Google token patterns, JWTs or auth/.env/database files. This is a limited credential-pattern check, not proof that every possible secret format is absent. The checkpoint adds this document after that scan; staging includes an explicit file inventory. Only this branch is eligible for push; the original credential-bearing local preservation branch is excluded. No force push, main merge, npm publish or production writes are part of the checkpoint.
+
+Outstanding: PM/Lead supervision and budgets, persistent conversations and publication, user-facing project/task/approval flows, shared learning retrieval, full canaries and pending authentication-location G3, authenticated project pilots with real feedback and user G4, tarball installation qualification and full-story review. A clean Git tree or a pushed branch does not satisfy these requirements.

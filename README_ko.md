@@ -6,7 +6,7 @@
 
 **기존 시스템 개선부터 새로운 제품 개발까지, 내가 지휘하는 AI 팀.**
 
-![단계](https://img.shields.io/badge/stage-bootstrap-orange)
+![단계](https://img.shields.io/badge/stage-read--only_preview-orange)
 ![Pazmo 신규 코드](https://img.shields.io/badge/Pazmo_originals-MIT-blue)
 ![원본 라이선스](https://img.shields.io/badge/Claw--Empire-Apache--2.0-blue)
 ![설계 방향](https://img.shields.io/badge/workflow_design-Jira_optional-purple)
@@ -17,7 +17,7 @@
 
 </div>
 
-> **현재는 bootstrap 단계입니다.** 고정된 Claw-Empire 정식 릴리스를 기반으로 독립 배포판을 준비하고 있습니다. 아래 워크플로우·안전장치·npm 설치기는 개발 목표이며 완료된 기능이 아닙니다. 고정 원본의 로컬 반입·tree 검증은 완료했습니다. 게시본에서는 Google OAuth 내장 기본값 두 개를 제거했습니다([변경 고지](upstream/CHANGES.md)). 런타임·실제 Codex·패키지 시험은 아직 실행하지 않았습니다.
+> **읽기 전용 개발 미리보기입니다.** 로컬 CLI와 Claw 화면을 신규 Office DB로 실행할 수 있습니다. AI 작업 실행은 서버에서 잠겨 있습니다. macOS native 격리 canary가 필수 조건을 통과하지 못해 실제 Codex 팀 실행은 제공하지 않습니다. npm 게시·설치 시험 및 전체 업무 흐름은 아직 미완료입니다. [검증 기록](docs/verification/2026-09-18-runtime-baseline.md)을 확인하세요.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/GreenSheep01201/claw-empire/5c928b24ffa55b403fe7c5521d4ac3ac49516137/Sample_Img/Office.png" alt="Claw-Empire 원본 사무실 화면. 완성된 Pazmo 기능 화면이 아닌 출처가 표시된 참고 이미지" width="100%" />
@@ -77,7 +77,9 @@ CE는 제한된 구현·리뷰 절차를, Superpowers는 테스트·디버깅·�
 | 새 저장소 source import | **원본 로컬 검증·게시본 자격증명 제거** — [검증 기록](docs/verification/2026-09-18-publication.md) |
 | Story·Task | 원본 일치 확인; workflow 도구 3.1.1 설치 |
 | Jira 없는 팀 실행 | 구현 예정·필수 E2E 시험 |
-| 실행 권한·완료 guard | 구현 예정; 원본 기본값을 안전하다고 보장하지 않음 |
+| 로컬 CLI·읽기 전용 Office | 구현·시험됨; AI 실행 잠금, [실행 안내](docs/LOCAL-PREVIEW.md) |
+| 계약 등록·G1/G3 승인 CLI | 실제 HTTP/SQLite 시험 통과; 실행은 계속 잠김 — [검증 기록](docs/verification/2026-09-19-contract-approvals.md) |
+| 실행 격리·완료 guard | native canary 불충족; live runner·완료 guard는 미완료 |
 | npm `@pazmo/agent-office` | 예정 이름; 게시·설치 시험 전 |
 
 지금은 실행 가능한 Pazmo npx quickstart가 없습니다. [현재 상태와 다음 단계](docs/STATUS.md), [승인된 Story](docs/understanding/pazmo-agent-office-contract.md), [구현 계획](docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md)을 확인해 주세요. [v3 핸드오프](docs/HANDOFF-v3.md)와 [반입 절차](docs/IMPORT-UPSTREAM.md)는 과거 입력 자료이며 사용자 승인 기록이 아닙니다. 실행 경계 검증 전 회사 자격증명을 연결하지 마세요.

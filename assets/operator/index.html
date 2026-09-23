@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>작업 관리 · Pazmo Agent Office</title>
+    <link rel="stylesheet" href="/operator/style.css" />
+    <script type="module" src="/operator/start.js"></script>
+  </head>
+  <body>
+    <header>
+      <a href="/">Pazmo Agent Office</a><span>작업 관리</span
+      ><button id="disconnect" type="button" hidden>연결 해제</button>
+    </header>
+    <main>
+      <h1>프로젝트의 일을 맡기세요</h1>
+      <p class="muted">
+        요청과 대화를 저장하고, 필요한 결정에 답하는 공간입니다.
+      </p>
+      <p class="boundary" id="runtime-status">
+        실행 상태를 확인하세요. 실제 모델 사용에는 검증된 live 실행 설정이
+        필요합니다.
+      </p>
+      <section id="connection" aria-labelledby="connect-title">
+        <h2 id="connect-title">이 Office에 연결</h2>
+        <p>
+          Office를 시작한 터미널에서 확인한 operator 인증키를 입력하세요. 연결
+          해제나 새로고침 시 다시 입력해야 합니다.
+        </p>
+        <form id="connect-form">
+          <label for="credential">Operator 인증키</label>
+          <input
+            id="credential"
+            type="password"
+            autocomplete="off"
+            spellcheck="false"
+            required
+            pattern="[a-f0-9]{64}"
+            minlength="64"
+            maxlength="64"
+          />
+          <button type="submit">연결</button>
+        </form>
+        <p class="muted">
+          인증키는 현재 페이지의 메모리에만 보관합니다. 공유 화면에서 키를
+          표시하지 마세요.
+        </p>
+      </section>
+      <p id="notice" role="status" aria-live="polite"></p>
+      <section id="workspace" hidden aria-label="현재 프로젝트 작업">
+        <p class="project" id="project"></p>
+        <button id="refresh-runtime" type="button" class="secondary">
+          모델 실행 준비 상태 확인
+        </button>
+        <div id="drafts"></div>
+        <section aria-labelledby="results-title">
+          <div class="section-heading">
+            <h2 id="results-title">실행 결과</h2>
+            <button id="refresh-results" type="button" class="secondary">
+              결과 목록 조회
+            </button>
+          </div>
+          <p class="muted">
+            등록된 작업의 변경 내용과 검증 결과를 확인하고 G4 답변을 제출합니다.
+            실행 계획을 승인한 뒤 모델 작업을 시작할 수 있습니다. 최종 승인이
+            확인된 결과물은 여기서 인도받습니다.
+          </p>
+          <ul id="contracts"></ul>
+          <div id="execution-detail" aria-live="polite"></div>
+        </section>
+        <div class="columns">
+          <div>
+            <section aria-labelledby="create-title">
+              <h2 id="create-title">새 요청</h2>
+              <form id="create-form">
+                <label for="request">원하는 결과와 확인 방법</label>
+                <textarea
+                  id="request"
+                  required
+                  maxlength="4000"
+                  rows="5"
+                  placeholder="예: 잘못된 이메일을 입력하면 저장하지 않고 이유를 보여주세요."
+                ></textarea>
+                <label for="risk">작업 위험도</label>
+                <select id="risk">
+                  <option value="normal">일반 작업</option>
+                  <option value="high">
+                    인증·권한·데이터 변경 등 고위험 작업
+                  </option>
+                </select>
+                <button type="submit">요청 저장</button>
+              </form>
+            </section>
+            <section aria-labelledby="list-title">
+              <div class="section-heading">
+                <h2 id="list-title">저장된 요청</h2>
+                <button id="refresh" type="button" class="secondary">
+                  목록 새로고침
+                </button>
+              </div>
+              <p id="empty" class="muted">아직 저장된 요청이 없습니다.</p>
+              <ul id="requests"></ul>
+              <button id="more" class="secondary" type="button" hidden>
+                이전 요청 더 보기
+              </button>
+            </section>
+          </div>
+          <section aria-label="선택한 요청">
+            <div class="section-heading">
+              <h2>요청과 대화</h2>
+              <button
+                id="refresh-detail"
+                type="button"
+                class="secondary"
+                hidden
+              >
+                대화 새로고침
+              </button>
+            </div>
+            <p id="select-hint" class="muted">
+              저장된 요청을 선택하면 대화와 대기 이유를 볼 수 있습니다.
+            </p>
+            <div id="detail"></div>
+            <form id="answer-form" hidden>
+              <h3>담당 역할의 질문에 답하기</h3>
+              <p class="muted">
+                답변은 요구사항을 정리하기 위한 것이며 작업 승인이 아닙니다.
+              </p>
+              <div id="answers"></div>
+              <button type="submit">답변 저장</button>
+            </form>
+            <button id="cancel" type="button" class="secondary" hidden>
+              이 요청 취소
+            </button>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

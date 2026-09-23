@@ -1,6 +1,7 @@
-# 고위험 설계 검토(G3) — 승인 대기
+# 고위험 설계 검토(G3) — 승인됨
 
-Status: Pending
+Status: Approved
+Understanding gate (G3): accepted · 2026-09-18
 Story: docs/understanding/pazmo-agent-office-contract.md
 Plan: docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md
 
@@ -21,4 +22,4 @@ Plan: docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md
 - 후보 변경·실패·unknown·충돌·예산 소진·취소/재시작·UI/API 우회 전이를 별도로 시험한다.
 
 ## 승인 기록
-아직 사용자 응답 없음. G1의 “오케이. 진행해.”와 checkpoint 커밋·푸시 요청을 이 설계의 G3 승인으로 해석하지 않았다. 다음 결정은 위 선택안으로 U2–U8을 진행할지 여부다.
+사용자에게 권한 분리, 실제 격리 시험 전 실행 잠금, 격리 부족 시 별도 계정/컨테이너 검토, 별도 데이터 및 복구 원칙을 설명했다. 사용자는 “응 그렇게 해.”라고 승인했다. 이 응답으로 본 설계와 U2–U8 구현을 진행한다. native 격리 통과나 G4 승인으로 간주하지 않는다.
