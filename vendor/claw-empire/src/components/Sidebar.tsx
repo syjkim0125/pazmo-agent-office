@@ -35,7 +35,9 @@ export default function Sidebar({ currentView, onChangeView, departments, agents
     agents: tr("직원관리", "Agents", "社員管理", "员工管理"),
     skills: tr("문서고", "Library", "ライブラリ", "文档库"),
     dashboard: tr("대시보드", "Dashboard", "ダッシュボード", "仪表盘"),
-    tasks: tr("업무 관리", "Tasks", "タスク管理", "任务管理"),
+    tasks: settings.pazmoReadOnly
+      ? tr("진행과 결과", "Activity", "進捗と結果", "进度与结果")
+      : tr("업무 관리", "Tasks", "タスク管理", "任务管理"),
     settings: tr("설정", "Settings", "設定", "设置"),
   };
 
@@ -80,7 +82,10 @@ export default function Sidebar({ currentView, onChangeView, departments, agents
         {NAV_ITEMS.map((item) => (
           <button
             key={item.view}
-            onClick={() => onChangeView(item.view)}
+            onClick={() => {
+              if (settings.pazmoReadOnly && item.view === "tasks") window.location.assign("/activity");
+              else onChangeView(item.view);
+            }}
             className={`sidebar-nav-item ${
               currentView === item.view ? "active font-semibold shadow-sm shadow-blue-500/10" : ""
             }`}

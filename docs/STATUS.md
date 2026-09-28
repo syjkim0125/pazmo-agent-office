@@ -1,3 +1,10 @@
+# 2026-09-28 chat control and read-only observation checkpoint
+
+- 사용자의 “진행해”에 따라 요청·질문 답변·승인·취소는 **Codex 채팅**, Office는 **진행과 결과 조회**로 변경했다. 내부 인증과 기존 승인·VM·kit 역할 그래프 경계는 유지한다. `bridge`는 지원된 기존 API만 호출하고 `monitor`는 조회 전용 연결을 연다. 사용자 키 입력과 옛 operator 조작 UI를 제거했다. 메인 Tasks 진입점은 조회 화면으로 연결된다.
+- 전체 root 333개, 마지막 관련 7개 및 UI 3개 재검사, 타입·Story/Task 검사와 Office 빌드를 확인했다. 기존 조작 UI 전용 테스트는 새 bridge/관찰 검사로 교체했다. 실제 브라우저에서 키 입력 없는 연결·요청 등록 표시·취소·메인 버튼 이동을 확인했다. **모델을 호출하지 않은 연결 검증**이며, 새 채팅 경로의 실제 모델·사용자 G4·인도 인수시험은 미완료다.
+- 현재 열린 서버는 `/private/tmp/pazmo-office-visual-preview/project`의 모델 없는 미리보기다. 실제 작업은 사용자 대상 Git 프로젝트와 작업을 선택한 뒤 검증된 영구 설정으로 시작한다. 별도 상주 자동화는 추가하지 않았다. 기존 README pilot 승인/증거를 보존하며 전체 Story를 완료로 표시하지 않는다.
+- [사용 순서](LOCAL-PREVIEW.md) · [채팅 호스트 규약](CHAT-CONTROL.md) · [이번 검증과 리뷰](verification/2026-09-28-chat-observation.md). 아래 화면 조작 방식과 미완료 표기는 각 당시의 기록이다.
+
 # 2026-09-28 persistent setup checkpoint
 
 - **setup-runtime --apply → start --live → operator-key**를 연결했다. 고정된 공식 배포본을 영구 데이터 폴더에 설치하고 기존 바이너리 해시를 확인한다. 현재 Mac에서 실제 설치·재사용과 모델 호출 없는 시작/종료/재시작 두 회를 확인했다. 전체 회귀 **348/348**, 타입·Story/Task 검사 통과. [현재 Mac 실행 순서](LOCAL-PREVIEW.md#현재-mac에서-시작하기) · [검증 범위](verification/2026-09-28-runtime-setup.md).

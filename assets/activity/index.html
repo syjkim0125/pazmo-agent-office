@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>진행과 결과 · Pazmo Agent Office</title>
+    <link rel="stylesheet" href="/activity/style.css" />
+    <script type="module" src="/activity/start.js"></script>
+  </head>
+  <body>
+    <header><a href="/">Pazmo Agent Office</a><span>진행과 결과</span></header>
+    <main>
+      <h1>채팅으로 맡기고, 여기서 확인하세요</h1>
+      <p>요청·답변·승인·취소는 업무를 맡긴 채팅에서 진행합니다.</p>
+      <p id="notice" role="status" aria-live="polite">
+        Office에 연결하는 중입니다.
+      </p>
+      <section id="workspace" hidden>
+        <p id="project" class="project"></p>
+        <p id="runtime" class="boundary"></p>
+        <div class="columns">
+          <div>
+            <section>
+              <h2>요청</h2>
+              <ul id="requests"></ul>
+              <button id="more" class="secondary" hidden>
+                이전 요청 더 보기
+              </button>
+            </section>
+            <section>
+              <h2>실행 작업</h2>
+              <ul id="contracts"></ul>
+            </section>
+          </div>
+          <section>
+            <h2 id="detail-title">진행과 결과</h2>
+            <div id="detail"><p>확인할 요청이나 작업을 선택하세요.</p></div>
+          </section>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

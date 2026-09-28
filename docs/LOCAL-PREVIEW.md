@@ -1,40 +1,52 @@
-# Local development preview
+# Local Office 실행 안내
 
-Requires Node **24.19.0** (tested) and the checked-out repository. The Claw preview stays read-only. The separate operator screen supports planning, approvals and execution when the qualified runtime is explicitly enabled below. The complete local-alpha model/user acceptance flow is still under verification. Do not use the imported vendor start/dev commands: those start the unguarded upstream runtime.
+작업은 Codex 채팅으로 맡기고, Office에서는 진행과 결과를 확인한다. 채팅 담당자의 실행 규약은 [채팅 연결 안내](CHAT-CONTROL.md)에 있다. 사용자는 Operator 키를 입력하거나 승인 JSON을 만들 필요가 없다. 내부 인증·격리·실제 사용자 승인 규칙은 유지한다.
 
 ## 현재 Mac에서 시작하기
 
-현재 체크아웃과 기존 전용 VM을 사용하는 안내입니다. 실제 모델·사용자 승인까지의 전체 인수시험은 아직 완료되지 않았습니다. 아래 `OFFICE_PROJECT`만 작업할 기존 Git 저장소의 절대 경로로 바꾸세요. Office 설치 폴더 자체나 그 상위 폴더는 대상이 될 수 없습니다.
+현재 작업 checkout에서 검증된 Node 24.19.0을 사용한다. 아래 `OFFICE_PROJECT`는 실제 작업을 맡길 **기존 로컬 Git 저장소의 절대 경로**로 바꾼다. 채팅에 경로와 작업을 알려주면 호스트가 이 명령을 처리할 수 있다.
 
 ```sh
-cd /Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4
 export PATH="$HOME/.nvm/versions/node/v24.19.0/bin:$PATH"
-OFFICE_PROJECT="/absolute/path/to/existing-git-project"
+OFFICE_PROJECT=/absolute/path/to/existing-git-project
 node bin/pazmo-office.mjs setup-runtime --apply
 node bin/pazmo-office.mjs init --project "$OFFICE_PROJECT" --apply
 node bin/pazmo-office.mjs start --live --project "$OFFICE_PROJECT" --port 0
-node bin/pazmo-office.mjs operator-key --project "$OFFICE_PROJECT"
 ```
 
-마지막 명령의 `url`을 브라우저로 열고 `token` 값을 **Operator 키** 입력란에 붙여 넣어 연결하세요. 파일 탐색기에서 HTML을 직접 열면 서버와 연결되지 않습니다. 이 키는 Office의 작업·승인 화면을 조작하는 용도이고, 모델 호출에는 Mac의 기존 Codex 로그인을 사용합니다. 키를 문서·Git·공유 채팅에 저장하지 마세요.
+`setup-runtime --apply`는 공식 npm의 고정된 Mac controller 0.155.1과 Linux executor 0.154.0 배포본을 받아 해시를 검사한다. 전역 Codex나 인증 파일을 바꾸지 않는다. 기존에 일치하는 바이너리가 있으면 다시 받지 않는다. 기본 데이터 위치는 `$XDG_DATA_HOME/pazmo-agent-office` 또는 `$HOME/.local/share/pazmo-agent-office`이며, 프로젝트별 폴더에 DB·검증·결과물을 보관한다. `--data-dir`을 선택하면 모든 명령에 같은 값을 사용한다.
 
-화면에서 요청 등록 → PM 실행 → 필요한 답변·범위 승인 → 팀장 실행 → 계획 등록·실행 승인 → 구현·리뷰·검증 실행 → 결과 확인 → 본인 G4 답변 제출 → 저장된 답변 확인 실행 → 승인된 결과물 인도받기 순서로 진행합니다. 진행 결과는 각 새로고침 버튼으로 확인합니다. 원본 프로젝트에는 자동으로 결과를 덮어쓰지 않습니다. 인도된 폴더와 검증·승인 기록의 위치가 화면에 표시됩니다.
-
-종료는 `node bin/pazmo-office.mjs stop --project "$OFFICE_PROJECT"`입니다. 진행 중이면 먼저 화면에서 취소하고 정리가 끝난 뒤 종료하세요. 다시 쓸 때는 같은 프로젝트와 데이터 경로로 `start --live`를 실행하고 새 Operator 키를 조회합니다. 기존 대화와 결과 기록은 유지됩니다.
-
-`setup-runtime`은 기본 dry-run이며 `--apply`일 때만 공식 npm의 고정된 두 배포본을 받습니다. 현재 기본 경로는 `$XDG_DATA_HOME/pazmo-agent-office` 또는 `$HOME/.local/share/pazmo-agent-office`입니다. 여기의 `qualified-runtime/`에 바이너리가, 프로젝트별 하위 폴더에 DB·검증·결과물이 저장됩니다. `--data-dir`을 지정한다면 위 모든 명령에 같은 값을 사용하세요. 이미 일치하는 바이너리는 다시 받지 않으며 전역 Codex 설치나 인증 파일은 변경하지 않습니다.
-
-현재 Mac에는 Node 24.19.0, 전용 Colima VM과 검증된 이미지가 준비되어 있습니다. VM이 멈췄다면 아래의 기존 격리 설정으로 시작하세요. `LOGIN_REQUIRED`이면 Mac에서 Codex에 로그인한 뒤 다시 시작합니다. 설치 성공은 계정 유효성이나 실제 모델 작업 성공을 증명하지 않습니다.
+이미 preview가 실행 중이면 `stop --project "$OFFICE_PROJECT"` 후 `start --live`한다. 실행 중인 작업이 있으면 먼저 채팅으로 취소하고 정리가 끝나야 종료할 수 있다. VM이 멈췄다면 기존 격리 설정을 유지해 시작한다.
 
 ```sh
 colima start pazmo-office --mount none --activate=false --ssh-config=false --ssh-agent=false --port-forwarder none
 ```
 
-일반 `doctor`는 설치 확인만 하며 모델 실행을 켜지 않습니다. 실제 준비 상태는 `start --live`, `status`와 화면의 **모델 실행 준비 상태 확인**에서 확인하세요. 전체 인수시험의 범위와 한계는 [영구 실행 환경 검증](verification/2026-09-28-runtime-setup.md)에 기록합니다.
+`LOGIN_REQUIRED`이면 Mac에서 Codex 로그인 후 다시 시작한다. 모델 인증은 Mac의 신뢰된 controller만 사용하고 파일·명령 도구는 전용 VM에서 실행한다. 로그인 파일 존재나 설치 성공만으로 실제 계정 호출 성공을 증명하지 않는다. 일반 `doctor`는 설치 확인이며 모델 실행 준비 완료가 아니다. 준비 상태는 `start --live`, `status`, 화면에서 확인한다.
 
-## Build
+## 사용 순서
 
-The root package has no dependencies. Development build tools come from the pinned vendor lockfile. Installation explicitly skips all dependency lifecycle scripts.
+1. 채팅에 프로젝트 경로와 작업을 말한다. 호스트는 Office에 등록하고 실제 PM을 실행한다.
+2. PM의 필요한 질문과 범위 승인에 채팅으로 답한다. 호스트가 팀장 계획과 필요한 결정을 전달하고 승인된 구현·리뷰·검사를 이어간다.
+3. “Office 화면 열어줘”라고 요청한다. 호스트가 `monitor` 명령의 조회 전용 주소를 브라우저로 연다. Office 하단 **진행과 결과**에서 대화, diff, 검사·리뷰, 승인 대기 이유를 확인한다. 옛 `/operator` 주소도 조회 화면으로 연결된다.
+4. G4 질문에 본인이 답하고 승인 여부를 정한다. 답변 저장 후 별도 controller 평가와 현재 변경본의 검증이 통과해야 인도된다. 호스트가 결과 폴더와 기록 위치를 알려준다. 원본 프로젝트를 자동으로 덮어쓰지 않는다.
+5. 중단하려면 채팅에 작업 취소를 요청한다. 다시 이어갈 때는 저장된 기록을 먼저 읽는다. Office를 재시작하면 화면의 조회 연결도 새로 연다.
+
+이 연결은 해당 지원 명령을 실행할 수 있는 신뢰된 로컬 채팅 호스트를 사용한다. 별도 상주 자동화는 없으므로 채팅 종료 후에도 호스트가 다음 역할을 계속 호출한다고 보장하지 않는다. 이미 시작된 프로세스는 Office가 관리한다.
+
+## 모델 없는 화면 미리보기
+
+```sh
+node bin/pazmo-office.mjs init --project /absolute/path/to/project --apply
+node bin/pazmo-office.mjs start --project /absolute/path/to/project --port 0
+node bin/pazmo-office.mjs monitor --project /absolute/path/to/project
+```
+
+`start`가 출력한 주소는 Office 그림, `monitor`의 주소는 인증된 조회 화면이다. 호스트가 후자를 직접 연다. 주소의 조회 정보는 문서나 Git에 저장하지 않는다. 실제 모델 실행은 `--live` 없이 시작되지 않는다. 정적인 역할 배치/캐릭터 애니메이션 자체는 실제 모델 실행 증거가 아니다. 실제 실행·대화·검증 상태는 **진행과 결과**의 저장 기록을 기준으로 본다.
+
+초기화는 `.pazmo-office`의 소유권 manifest와 템플릿만 추가한다. `init`/`remove`는 기본 dry-run이고 `--apply`가 변경을 실행한다. `remove --apply`는 변경되지 않은 소유 파일만 제거하고 사용자 수정 파일과 DB·로그를 보존한다. 알 수 없는 런타임 파일을 지우거나 PID를 직접 종료해 복구하지 않는다.
+
+## 개발 명령과 호환 API
 
 ```sh
 npx --yes pnpm@10.30.1 --dir vendor/claw-empire install --frozen-lockfile --ignore-scripts
@@ -43,214 +55,12 @@ npm run typecheck
 npm test
 ```
 
-Tests start temporary loopback servers. Restricted execution environments must permit that binding. Remotion browser downloads, optional submodule initialization, provider authentication and model execution are not part of these commands.
+테스트는 임시 loopback 서버를 띄운다. 모델 로그인/실행이나 공개 배포는 이 명령에 포함되지 않는다. 기존 `contracts`, `contract`, `intake-*`, `approval-*`, `verification`, `delivery`, `deliver`와 private operator API는 내부 호환을 위해 유지한다. 새 채팅 호스트는 `bridge`를 사용한다. 옛 키 출력 명령은 호환용으로만 남으며 사용자 화면에 키 입력란은 없다.
 
-## Run against an existing project directory
+작업 계약은 Story/Task/검사 계획과 관련 파일 해시에 연결된다. 문서가 바뀌면 이전 승인을 사용할 수 없다. 실행 요청은 현재 계약 해시, PM 답변은 현재 요청 버전과 질문 ID, G4 평가는 저장된 답변 해시에 연결된다. CLI나 브라우저에서 평가를 위조하는 API는 없다.
 
-Use an existing project outside the Office installation. Choose a controller data directory outside both the project and Office installation, and pass the same paths on every invocation. The data directory gets a project-specific hash suffix.
+인도는 controller 데이터 폴더의 `deliveries/` 아래 읽기 전용 `candidate/tree`, manifest, `receipt.json`을 만든다. 기록에는 후보, diff, 검사·리뷰, 실제 승인 답변과 평가가 연결된다. 검증된 파일과 인도 기록이 확정돼야 작업이 완료된다. 재시작/명시적 결과 조회에서 훼손이 발견되면 복구 필요 상태로 전환한다. 출처 없는 폴더를 인도 완료로 취급하지 않는다.
 
-```sh
-node bin/pazmo-office.mjs init --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs init --project /absolute/path/to/project --data-dir /absolute/path/to/office-data --apply
-node bin/pazmo-office.mjs doctor --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs start --project /absolute/path/to/project --data-dir /absolute/path/to/office-data --port 0
-node bin/pazmo-office.mjs status --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs stop --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs remove --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs remove --project /absolute/path/to/project --data-dir /absolute/path/to/office-data --apply
-```
+## 검증 범위
 
-`init` and `remove` default to dry-run. `--apply` is the only mutating form. A new `.pazmo-office` folder contains templates and an ownership manifest; other project files remain untouched. Remove deletes only unchanged manifest-listed regular files, retaining modified files and the Office DB/logs. Partial init, foreign DBs and unauthenticated runtime state are preserved for inspection, not repaired automatically. Do not delete an unknown runtime state file just to restart it.
-
-`start` prints a loopback URL. Port `0` chooses a free port; the default is `8790`. Three seeded roles are visible but no models run. CLI stop authenticates the controller instance; it never signals a PID copied from a state file. Doctor reports build/initialization facts and `execution: locked`; exit 0 is not live-execution readiness.
-
-## Qualified live startup and screen controls
-
-Use the existing Mac Codex login and the already qualified dedicated `pazmo-office` Colima VM. The controller must be the native macOS arm64 Codex **0.155.1** binary matching Office's pinned hash; the VM executor must be the qualified Linux arm64 **0.154.0** binary. A mutable npm launcher or updated global installation is not accepted. Use `setup-runtime --apply` to install these exact binaries in persistent storage; normal `start --live` then selects them automatically. The explicit overrides below are optional. No credentials are copied into candidates or containers.
-
-After `init --apply`, stop any existing preview, then run from this Office checkout:
-
-```sh
-node bin/pazmo-office.mjs start --live \
-  --controller /absolute/path/to/qualified/macos/codex \
-  --executor /absolute/path/to/qualified/linux/codex \
-  --project /absolute/path/to/existing-git-project \
-  --data-dir /absolute/path/to/persistent-office-data --port 0
-```
-
-Startup checks binary hashes, login-file presence, the Git root and dedicated VM/image. Login-file presence does not prove that the subscription is currently valid; actual model errors remain in task state. Per-run VM configuration and kit integrity checks remain mandatory. `status` reports the instance's runtime readiness. `doctor` remains a preview/installation check. Keep the same persistent data path across normal restarts. The worker Git project must be outside the Office installation and must not contain it.
-
-1. Open **작업 관리** and connect using the private Operator key described below. **모델 실행 준비 상태 확인** shows readiness and owned operations.
-2. Save a request, select it, and click **PM 실행**. Model calls consume the existing Codex account's usage. Use **대화 새로고침** to see progress, questions or Story G1. Answer questions and explicitly resume the waiting role.
-3. Inspect and approve the PM Story scope. Click **팀장 실행**, inspect the proposal, then **이 계획을 실행 승인 대기로 등록**. Registration writes proposed documents and contract drafts; it does not authorize implementation.
-4. Select the registered task under **실행 결과**. Inspect **실행 계획·범위·검사 확인**, including actual documents, workspace and check commands. **실행 계획 승인하기** records execution-contract G1; high-risk contracts also require G3. These differ from PM scope approval and final G4.
-5. Select the task again to refresh, then **구현·리뷰·검증 실행**. Inspect the same-candidate checks, review and diff. **이 작업 실행 취소** persists cancellation before signaling workers; a request's own cancel control applies to PM/Lead.
-6. Inspect **검증된 diff와 승인 자료 보기**, answer G4 in your own words, and submit your decision. This stores the answer without approving it. Click **저장된 G4 답변 확인 실행** to run the qualified readonly evaluator against that exact answer, candidate and evidence. Refresh the result list to inspect the assessment; if approved, click **승인된 결과물 인도받기**. The evaluator cannot replace your decision or answers. This connection has protocol/browser fixture coverage; the full actual-model/user screen flow remains unverified.
-
-Assessment uses the existing shared slots and task time budget. There is no automatic retry; at most two explicitly launched assessments are allowed for the same request/answer. A closed failed assessment retains its failure code in the execution history and permits the remaining attempt. Unknown liveness retains the slot and requires inspection. Oversized evidence is rejected before launch rather than silently truncated. Cancelling the task discards a late assessment. The ten-minute approval challenge and operator-session binding still apply; expired or stale answers remain recorded but cannot authorize delivery.
-
-Normal `stop` refuses while an operation owns a worker: cancel, wait for cleanup, then stop. SIGTERM requests cleanup before SQLite closes. Unknown leases remain held after restart and require inspection; do not delete records to retry. Planning captures bounded tracked/nonignored files once, omits protected authentication/Office metadata, and reuses that frozen context across questions/G1. Later edits are not silently added. Unsupported selections such as submodules fail explicitly. Capture is not an atomic snapshot of concurrent editor changes or a general secret scanner.
-
-[Launch validation and remaining alpha work](verification/2026-09-23-live-launch.md).
-
-## Preview limits
-
-`PlanningCoordinator` uses kit 4.1.0 PM clarify/propose, waits for actual operator Story G1, then uses Lead investigate/plan against a readonly snapshot. Questions resume the same native node. It shares the three execution slots with Engineer/Reviewer/tests and retains unknown slots after restart. Existing legacy conversations keep their original protocol. The supported operator launch reuses this coordinator. [Native planning evidence](verification/2026-09-23-kit-role-runs.md#native-planning-and-story-g1-continuation).
-
-`OfficeCoordinator` connects approved context, Engineer, registered checks/readonly review and up to two fixes. Live operator launch reuses it and stops at G4 waiting. Earlier actual-model evidence came from the internal pilot; the complete screen-driven model/user flow remains unverified. There is no automatic capacity-wakeup scheduler. [Coordinator evidence](verification/2026-09-21-role-coordinator.md).
-
-Office, Dashboard and the empty Tasks board were exercised in the browser. The banner and Dashboard describe the lock. Creation controls on Dashboard/Tasks are disabled. Other imported controls are not supported workflows and may show an error; the server rejects all public mutations and unsupported APIs with 423. WebSocket orchestration is not connected, so the original UI displays Offline/Disconnected. No operator approval session is granted by `/api/auth/session`.
-
-The preview process imports the pinned Claw schema/seeds and uses its UI; it does not import its scheduler, process launcher, updater or recovery routes. These will need the approved guard integration before live operation. Source-free tarball execution, Linux support and browser approval flows are unverified.
-
-## Operator contract and approval CLI
-
-These are advanced protocol commands. For normal first use, use the screen controls above; handwritten approval JSON is not required. `operator-key --project PATH` explicitly displays the current authenticated instance’s screen URL and operator token. Normal start/status commands do not expose it.
-
-### Planning conversation screen
-
-Open the `start` URL and follow **작업 관리**, or append `/operator`. The screen uses the same operator capability as the CLI; loopback alone grants no access. Preview saves requests; qualified live startup enables explicit model execution.
-
-Use the actual project-specific `dataDir` returned by `start`/`status`. In your private terminal, read its `running.json` to obtain `instance`, then open `operator-<instance>.json` in that same directory and copy only its `token` value into **Operator 인증키**. Do not paste that file into an agent conversation, place it in the project, or share it. The screen does not receive the runtime control token from `running.json`. This manual pairing is an interim user flow; automatic browser pairing is not implemented.
-
-This key permits operating this Office instance. It is separate from the Codex account login needed for actual model execution. The browser keeps the key only in page memory, sends it in the existing Authorization header, and clears it on disconnect/reload. Office restart rotates the key; reconnect with the new instance's operator key.
-
-The screen supports request creation, 50-item pages, saved conversations, role questions and cancellation. New requests select native kit role graphs. After PM completes, the full Story includes exclusions, assumptions and verification. **이 범위로 계획 진행** or **범위 거절** records the operator's own reason. Scope approval permits Lead planning; it does not approve the execution contract or final result. Automated screen checks use fixture questions and approvals, not actual model/user decisions.
-
-Failed writes preserve drafts and are never automatically retried: refresh to determine whether an uncertain request was saved. Changed conversations retain previous answers as separate drafts instead of applying them to new questions. Disconnect/reload clears local drafts; saved Office conversations remain. G4 submission is distinct from the trusted controller's evaluation and does not itself authorize delivery.
-
-[Screen verification and evidence limits](verification/2026-09-22-intake-console.md).
-
-Contract `ready: true` means only that the current contract has required approvals; runtime readiness and explicit launch are separate. Contract records retain legacy `execution: locked` metadata. Use `/api/pazmo/runtime` or `status` for the live controller's capability, never the contract alone.
-
-Prepare canonical Story and Task Markdown in the target project. The Task must be `Implementation-ready`, with `Story: story.md` pointing to the selected project-relative Story path and real M/V references. Draft Stories may be submitted for G1, but unresolved `OPEN BLOCKING` decisions are rejected. Markdown `Approved` or `PASS` text never grants operator approval.
-
-Create `contract.json` with project-relative document paths:
-
-```json
-{
-  "story": "story.md",
-  "task": "task.md",
-  "verification": "verify.json",
-  "risk": "high",
-  "decision": "decision.md"
-}
-```
-
-For normal-risk work use `"risk": "normal", "decision": null`. The operator chooses the risk classification; this is not an automatic risk detector. High-risk work requires a decision document and G3. Document paths must be distinct and cannot contain symlinks or hidden path components. Each document is limited to 1 MiB.
-
-`verify.json` records the exact future verifier command and timeout; registration never executes it:
-
-```json
-{
-  "version": 1,
-  "checks": [{ "id": "V1", "argv": ["node", "--test"], "timeoutMs": 30000 }],
-  "workspace": { "include": ["src", "test", "package.json"], "exclude": [] }
-}
-```
-
-Every covered V ID needs a check, and the selected V cases must cover the Task's M IDs. There can be 1–32 checks, each with a timeout of 1–600000 ms. Commands will need the isolated runner before they can execute.
-
-`workspace` declares the complete project-relative input/output selection for the Engineer. Included roots may be absent initially; exclusions are scratch paths strictly inside those roots. Use explicit roots appropriate to the task, or `"include": ["."]` with deliberate exclusions. Protected metadata/authentication paths are omitted from source and rejected in output; this is not a general secret scanner. The selection is part of the approved contract. Older contracts without it remain inspectable but cannot prepare an Engineer attempt. Changing it requires a new approved revision. No CLI command launches the Engineer yet.
-
-With the Office started, use the same project/data paths as lifecycle commands:
-
-```sh
-node bin/pazmo-office.mjs contract --file /absolute/path/to/contract.json --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs contracts --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs approval-request --task-id TASK_ID --gate G1 --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-```
-
-Read the referenced documents and the returned digest/revision/checks. Write your decision as JSON, for example `{"decision":"approve","note":"I reviewed the scope and verification limits."}`, then submit it using the returned challenge ID:
-
-```sh
-node bin/pazmo-office.mjs approval-decide --challenge CHALLENGE_ID --file /absolute/path/to/answer.json --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-```
-
-Repeat the request/decision for G3 when required. A challenge expires after ten minutes and can be consumed once. `reject` records rejection of a pending gate; it does not withdraw a previously accepted gate. Refresh a changed contract with `contract --task-id TASK_ID --file ...`; its new revision requires new approval. Changed documents immediately make `contracts` report `CONTRACT_CHANGED`, even before refresh. The imported task board may still show the last stored `planned` status; it is not a current execution-readiness indicator.
-
-Operator credentials are generated separately from lifecycle credentials, stored with mode 0600 outside the project, and removed on an authenticated stop. Loopback and Markdown are not operator authentication. Processes with access to that private directory can act as the operator. The qualified live path keeps it outside worker snapshots and VM mounts; preview execution remains locked. G4 requests require joined verification, closed execution receipts and a controller-prepared raw-diff bundle; otherwise they return `EVIDENCE_REQUIRED`.
-
-### G4 understanding protocol
-
-Once that evidence exists, `approval-request --gate G4 --task-id TASK_ID` returns raw evidence and three questions. Use `approval-decide` with your own `understanding.behavior`, `understanding.invariant` and `understanding.evidence` strings alongside `decision` and `note`. This records **awaiting_evaluation**, not acceptance. The trusted controller must separately evaluate the exact answer; there is no CLI command to self-approve that evaluation. The internal preparer now derives `evidence.diff` from two frozen snapshots using actual Git, verifies patch replay, and exposes `rawDiffEncoding` (`utf8` or `base64`) plus `modeChanges`. Empty diffs can mean permission-only changes or an unchanged snapshot; inspect the metadata and both digests. Old bundles without this proof cannot open G4. The internal preparer selects the original baseline from a persisted successful Engineer handoff and rejects unbound candidates. The qualified live service now connects actual-model adapters and a readonly semantic evaluator. Protocol tests use fixture judgments and human assessments; actual-model screen acceptance remains a separate unfinished check.
-
-Use `verification --task-id TASK_ID` to inspect `completion`. It distinguishes pending answers/evaluation, required restatement, rejection, accepted current evidence, stale evidence and expired pending challenges. A new operator session expires old pending questions while preserving their answers. G4 acceptance alone does not deliver files or unlock model execution.
-
-## Verification evidence
-
-With the Office started, inspect the latest controller-owned verification round:
-
-```sh
-node bin/pazmo-office.mjs verification --task-id TASK_ID --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-```
-
-The response contains `verification: null` if this registered task has no round, or its candidate, required nodes, recorded results and routing state. It also includes `executions`, the task's execution reservations and their state, and `handoffs`, including baseline/candidate ancestry and supervisor receipts. These are private controller records, not worker-submitted proof. Unknown task IDs fail. The corresponding `GET /api/pazmo/verification/:taskId` requires the private operator credential; lifecycle credentials are insufficient. There is no public result-submission endpoint. Candidate/contract changes or expired execution reservations discovered on inspection invalidate eligibility, so this query can persist a safety-state change.
-
-At startup, interrupted `checking` rounds become `human_required` with `CONTROLLER_RESTARTED` before requests are accepted. Completed evidence remains available and is rechecked on inspection. This neither resumes nor proves termination of a worker. Actual execution remains locked; G4 needs the additional evidence and assessment described above.
-
-Interrupted execution reservations also become `unknown` on restart and keep their slots occupied. The internal accounting caps all executions at three, with two Engineer slots and two automatic fixes. Offline test supervision/dispatch and an internal VM workspace job adapter are connected. The latter performs actual Codex file edits and result recovery in disposable integration tests. A readonly Codex Reviewer adapter joins a structured report on that candidate, with malformed output and cancellation refusing success. These use scripted model responses and have no public CLI launch command. See [evidence](verification/2026-09-21-codex-workspace-review.md). Authenticated model supervision is still unconnected. There is no operator command to discard unknown leases or force free slots.
-
-New instances use schema version 10. An owned version-1 through version-9 Office DB gets an `office-vVERSION-UUID.sqlite` backup before the additive migration; foreign or unknown databases are refused. Schema creation, version changes and interrupted-round/execution recovery share a transaction. To recover a failed migration, stop the Office, preserve its failed DB and backup, and restore the matching backup together with the previous runtime. Do not overwrite a running database.
-
-### Planning requests and replies
-
-With the Office running, save `request.json` containing `{"request":"Validate parser input.","risk":"normal"}`. Use `high` for a task that requires a separate G3 decision. Register and inspect it with:
-
-```sh
-node bin/pazmo-office.mjs intake-create --project /absolute/project --file request.json
-node bin/pazmo-office.mjs intake --project /absolute/project --task-id TASK_ID
-```
-
-Include the same `--data-dir` used at init if it was overridden. Registration currently persists `waiting_pm`; live PM/Lead supervision remains disabled. It does not silently start a model. Questions and model proposals can only be recorded by the internal controller, not through an operator model-result endpoint.
-
-When an intake is `awaiting_answer`, copy its current numeric `revision`, `inputDigest`, and exact question IDs into an answer file such as `{"revision":2,"inputDigest":"DIGEST_FROM_INTAKE","answers":[{"id":"Q1","answer":"The public parser."}]}`. Then submit:
-
-```sh
-node bin/pazmo-office.mjs intake-answer --project /absolute/project --task-id TASK_ID --file answers.json
-```
-
-A stale revision, wrong question ID, or missing answer is rejected. Re-read the intake rather than resubmitting an obsolete answer. To cancel, save only the current `revision` and `inputDigest` in `cancel.json`, then run `intake-cancel` with the same project/task flags and `--file cancel.json`. Dialogue and cancellation survive restart. Invalid model evidence becomes `human_required`; automatic recovery is not enabled.
-
-These commands use the private operator capability internally. The corresponding private paths are POST `/api/pazmo/intakes`, GET `/api/pazmo/intakes/:id`, and POST `/api/pazmo/intakes/:id/answer` or `/cancel`. No approval is created by any of them. The interactive Office controls and live planning supervision remain pending.
-
-### Register a saved proposal
-
-When the controller has produced an intake with `state: "proposal"`, inspect its proposed documents, commands and workspace scope. Save its numeric `revision` and `inputDigest` in `publication.json`, then run:
-
-```sh
-node bin/pazmo-office.mjs intake-publish --project /absolute/project --task-id INTAKE_ID --file publication.json
-node bin/pazmo-office.mjs contracts --project /absolute/project
-```
-
-This command writes a new `office-plan-RANDOM/` directory in the project. It preserves existing documents and creates every proposed task in one database transaction with the publication receipt and dialogue event. It returns `state: "registered"` and `publication.taskIds`. These IDs identify the execution contracts; the original intake remains their conversation record. Each task still requires G1 and, for high-risk work, G3 through the existing approval commands. Registration starts no worker and does not approve the proposal.
-
-The private API is POST `/api/pazmo/intakes/:id/publish` with exactly `revision` and `inputDigest`. The controller chooses the directory; caller-selected paths, documents or approval fields are rejected. Repeating the original successful request returns the same receipt, including after restart. Changing registered files makes the affected contracts report `CONTRACT_CHANGED`; refresh those contracts and obtain new approvals. `publication.documents` records original file digests, not a claim that the files are still unchanged.
-
-On failure or a concurrent losing request, the new directory may remain without a committed publication. Preserve it for inspection; the error identifies the directory when available. A retry creates a different directory and never adopts or deletes abandoned files or user edits. A crash before commit has the same possible orphan-file outcome. Read the intake and `contracts` to establish whether registration committed before retrying. SQLite cannot roll back project files, and power-loss durability is not established by these tests. Published intakes no longer accept planning answers or intake cancellation; downstream execution has its own cancellation lifecycle.
-
-
-## Inspect and accept a verified result in the operator screen
-
-Open `/operator`, connect with the current Operator key, select **실행 결과 → 결과 목록 조회**, and choose a registered task. **검증된 diff와 승인 자료 보기** reads the controller's prepared evidence without creating an approval. The screen shows the actual diff and file permission changes; non-UTF-8 diffs are explicitly labeled Base64.
-
-If G4 is waiting for an answer, the same question resumes. Otherwise **G4 답변 작성** requests a question for the displayed evidence. Enter your own understanding and decision; rejection requires only a reason. Submitting an answer is not approval. In live mode, **저장된 G4 답변 확인 실행** starts the trusted controller's separate assessment of the saved answer. Refresh the result list afterward; no automatic retry occurs. No evaluation can be supplied by the browser. Previously saved answers and controller feedback are visible.
-
-After server-confirmed approval, **승인된 결과물 인도받기** invokes the existing local delivery operation and shows the result directory. It does not modify the original project. Expired credentials preserve unsent text separately for reconnection; explicit disconnect clears it. Uncertain writes are never automatically retried: reload the task to confirm whether the server stored the result. Evidence reads reject missing, changed or invalidated verification; they cannot manufacture a diff or approve a task.
-
-These controls were verified against real HTTP/SQLite ledgers with fixture role/approval results, and in Chrome with intercepted fixture API responses. They do not prove a completed live model/user flow. The earlier README pilot's explicit conversational approval remains recorded separately from its pending Office DB handling and delivery.
-
-## Local delivery after evaluated G4
-
-After the controller has separately evaluated G4, the operator may create the approved local artifact:
-
-```sh
-node bin/pazmo-office.mjs deliver --task-id TASK_ID --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-node bin/pazmo-office.mjs delivery --task-id TASK_ID --project /absolute/path/to/project --data-dir /absolute/path/to/office-data
-```
-
-`deliver` is a write command. `delivery` inspects the committed result. Both require the private operator credential. Delivery writes a controller-owned directory under the instance's `deliveries/`, containing readonly `candidate/tree`, its manifest, and `receipt.json` with raw diff, mode metadata, required results and G4 answer/evaluation. The receipt is private task evidence, not a public distribution package. The original checkout is untouched. The response returns the directory and content identities; inspect the candidate manifest for original file modes.
-
-A current approved G4, joined evidence and confirmed process closure are all required. There is no CLI override for missing evaluator approval or an arbitrary output path. A successful repeat returns the same receipt. Only after the files are verified and the receipt commits does the task become done. Startup or private `delivery`/`verification` inspection detects missing/changed output and moves it to explicit recovery; ordinary preview polling shows the last stored state, not continuous filesystem validation. Never treat an unreferenced output directory as delivered.
-
-This path was tested with scripted G4 judgments and actual Codex/VM tool output. The live evaluator and public execution controls are now connected, but the complete actual-model/user screen flow remains pending. [Original delivery evidence](verification/2026-09-21-local-delivery.md) · [G4 connection and its limits](verification/2026-09-23-g4-runtime.md).
+[채팅/관찰 변경 검증](verification/2026-09-28-chat-observation.md)에서 구현, fixture 검사, 브라우저 확인을 구분한다. 기존 [실행 환경 검증](verification/2026-09-28-runtime-setup.md)과 README pilot의 실제 증거는 보존한다. 새 채팅 경로로 실제 프로젝트의 PM부터 사용자 G4·인도까지 한 건 확인하는 인수 검증은 별도이며, 자동 테스트 통과로 대신하지 않는다.

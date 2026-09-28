@@ -11,12 +11,14 @@ import {
   readManifest,
 } from "./project.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
+import { bridge, readBridgeInput } from "./bridge.ts";
 import {
   start,
   status,
   stop,
   operatorRequest,
   operatorKey,
+  monitor,
 } from "./lifecycle.ts";
 
 export async function main(args: string[]): Promise<void> {
@@ -24,7 +26,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <setup-runtime|operator-key|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
+        "pazmo-office <setup-runtime|bridge|monitor|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
       );
       return;
     }
@@ -35,6 +37,8 @@ export async function main(args: string[]): Promise<void> {
     if (
       ![
         "setup-runtime",
+        "bridge",
+        "monitor",
         "operator-key",
         "init",
         "doctor",
@@ -177,7 +181,9 @@ export async function main(args: string[]): Promise<void> {
     );
     const apply = options["--apply"] === true;
     let result: unknown;
-    if (command === "intake-create")
+    if (command === "bridge") result = await bridge(p, await readBridgeInput());
+    else if (command === "monitor") result = await monitor(p);
+    else if (command === "intake-create")
       result = await operatorRequest(p, "/api/pazmo/intakes", inputJSON());
     else if (command === "intake")
       result = await operatorRequest(
@@ -241,7 +247,8 @@ export async function main(args: string[]): Promise<void> {
           join(packageRoot, "vendor/claw-empire/dist/index.html"),
         ),
         execution: "locked",
-        reason: "Doctor checks installation only. Use start --live and runtime readiness for model execution.",
+        reason:
+          "Doctor checks installation only. Use start --live and runtime readiness for model execution.",
       };
     } else if (command === "status") result = await status(p);
     else if (command === "stop") result = await stop(p);

@@ -378,7 +378,7 @@ export default function AppMainLayout({
             currentView={view}
             connected={connected}
             viewTitle={labels.viewTitle}
-            tasksPrimaryLabel={labels.tasksPrimaryLabel}
+            tasksPrimaryLabel={settings.pazmoReadOnly ? "진행과 결과" : labels.tasksPrimaryLabel}
             decisionLabel={labels.decisionLabel}
             decisionInboxLoading={decisionInboxLoading}
             decisionInboxCount={decisionInboxCount}
@@ -389,7 +389,10 @@ export default function AppMainLayout({
             theme={theme}
             mobileHeaderMenuOpen={mobileHeaderMenuOpen}
             onOpenMobileNav={() => setMobileNavOpen(true)}
-            onOpenTasks={() => setView("tasks")}
+            onOpenTasks={() => {
+              if (settings.pazmoReadOnly) window.location.assign("/activity");
+              else setView("tasks");
+            }}
             onOpenDecisionInbox={onOpenDecisionInbox}
             onOpenAgentStatus={onOpenAgentStatus}
             onOpenReportHistory={onOpenReportHistory}

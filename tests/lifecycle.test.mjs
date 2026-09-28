@@ -36,7 +36,7 @@ function setup(t) {
   assert.equal(call(f, "init", "--apply").status, 0);
   return f;
 }
-test("operator page exposes no capability and intake listing requires the existing operator boundary", async (t) => {
+test("observation page exposes no capability and intake listing requires the existing operator boundary", async (t) => {
   const f = setup(t),
     running = call(f, "start", "--port", "0").value;
   const state = JSON.parse(readFileSync(join(running.dataDir, "running.json")));
@@ -45,12 +45,10 @@ test("operator page exposes no capability and intake listing requires the existi
   );
   const base = `http://127.0.0.1:${state.port}`;
   for (const path of [
-    "/operator",
-    "/operator/console.js",
-    "/operator/result-actions.js",
-    "/operator/conversation.js",
-    "/operator/start.js",
-    "/operator/style.css",
+    "/activity",
+    "/activity/monitor.js",
+    "/activity/start.js",
+    "/activity/style.css",
   ]) {
     const response = await fetch(base + path);
     assert.equal(response.status, 200);

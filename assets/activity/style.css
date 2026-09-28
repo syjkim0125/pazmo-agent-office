@@ -38,9 +38,6 @@ header a {
 header span {
   color: var(--muted);
 }
-header button {
-  margin-left: auto;
-}
 main {
   max-width: 88rem;
   margin: auto;
@@ -78,35 +75,12 @@ p {
   grid-template-columns: minmax(17rem, 1fr) minmax(0, 2fr);
   gap: 1.5rem;
 }
-section section,
-#connection {
+section section {
   padding: 1.5rem;
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 0.5rem;
   margin-bottom: 1.5rem;
-}
-#connection {
-  max-width: 40rem;
-}
-label {
-  display: block;
-  font-weight: 600;
-  margin: 0.75rem 0 0.25rem;
-}
-input,
-textarea,
-select {
-  width: 100%;
-  padding: 0.65rem;
-  font: inherit;
-  color: var(--text);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 0.25rem;
-}
-textarea {
-  resize: vertical;
 }
 button {
   font: inherit;
@@ -119,13 +93,8 @@ button {
   color: #fff;
   cursor: pointer;
 }
-form > button,
-#cancel,
 #more {
   margin-top: 1rem;
-}
-form > button + button {
-  margin-inline-start: 0.5rem;
 }
 .secondary {
   color: var(--accent);
@@ -139,16 +108,6 @@ button:disabled {
 :focus-visible {
   outline: 3px solid var(--accent);
   outline-offset: 3px;
-}
-.section-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.section-heading h2 {
-  margin: 0;
 }
 ul {
   list-style: none;
@@ -165,7 +124,8 @@ ul {
   border-radius: 0;
   overflow-wrap: anywhere;
 }
-#requests button[aria-current="true"] {
+#requests button[aria-current="true"],
+#contracts button[aria-current="true"] {
   border-left: 3px solid var(--accent);
   background: var(--page);
 }
@@ -201,9 +161,6 @@ summary {
 #detail {
   overflow-wrap: anywhere;
 }
-#cancel {
-  color: var(--text);
-}
 @media (prefers-color-scheme: dark) {
   :root {
     --surface: #17212e;
@@ -237,13 +194,8 @@ summary {
   header span {
     display: none;
   }
-  section section,
-  #connection {
+  section section {
     padding: 1rem;
-  }
-  .section-heading {
-    align-items: flex-start;
-    flex-wrap: wrap;
   }
   h1 {
     font-size: 1.5rem;

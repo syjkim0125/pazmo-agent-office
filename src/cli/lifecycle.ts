@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import { fail, noSymlinks, packageRoot, readManifest } from "./project.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
+import { viewerToken } from "../runtime/observation.ts";
 
 type Running = {
   version: 1;
@@ -279,6 +280,15 @@ export async function operatorKey(p: Project) {
   return {
     url: `http://127.0.0.1:${session.port}/operator`,
     token: session.token,
+  };
+}
+
+/** Trusted chat host opens this URL; only a read capability reaches the browser. */
+export async function monitor(p: Project) {
+  const session = await operatorSession(p);
+  return {
+    url: `http://127.0.0.1:${session.port}/activity#view=${viewerToken(session.token)}`,
+    access: "read-only",
   };
 }
 
