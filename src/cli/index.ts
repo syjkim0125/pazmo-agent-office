@@ -10,14 +10,21 @@ import {
   packageRoot,
   readManifest,
 } from "./project.ts";
-import { start, status, stop, operatorRequest } from "./lifecycle.ts";
+import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
+import {
+  start,
+  status,
+  stop,
+  operatorRequest,
+  operatorKey,
+} from "./lifecycle.ts";
 
 export async function main(args: string[]): Promise<void> {
   try {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nLive startup: start --live --controller /qualified/macos/codex --executor /qualified/linux/codex --project PATH --data-dir PATH",
+        "pazmo-office <setup-runtime|operator-key|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
       );
       return;
     }
@@ -27,6 +34,8 @@ export async function main(args: string[]): Promise<void> {
     }
     if (
       ![
+        "setup-runtime",
+        "operator-key",
         "init",
         "doctor",
         "start",
@@ -82,11 +91,11 @@ export async function main(args: string[]): Promise<void> {
       fail("ARGUMENT", "Choose either apply or dry-run.");
     if (
       (options["--apply"] || options["--dry-run"]) &&
-      !["init", "remove"].includes(command)
+      !["init", "remove", "setup-runtime"].includes(command)
     )
       fail(
         "ARGUMENT",
-        "Apply and dry-run are only supported by init and remove.",
+        "Apply and dry-run are only supported by init, remove and setup-runtime.",
       );
     if (options["--port"] !== undefined && command !== "start")
       fail("ARGUMENT", "Port is only supported by start.");
@@ -144,6 +153,22 @@ export async function main(args: string[]): Promise<void> {
         );
       return JSON.parse(readFileSync(file, "utf8"));
     };
+    if (command === "setup-runtime") {
+      if (options["--project"])
+        fail(
+          "ARGUMENT",
+          "setup-runtime prepares the shared runtime; omit --project.",
+        );
+      console.log(
+        JSON.stringify(
+          await setupRuntime(
+            options["--data-dir"] as string | undefined,
+            options["--apply"] === true,
+          ),
+        ),
+      );
+      return;
+    }
     if (typeof options["--project"] !== "string")
       fail("ARGUMENT", "--project is required.");
     const p = locate(
@@ -167,6 +192,7 @@ export async function main(args: string[]): Promise<void> {
         `/api/pazmo/intakes/${encodeURIComponent(required("--task-id"))}/${command.slice("intake-".length)}`,
         inputJSON(),
       );
+    else if (command === "operator-key") result = await operatorKey(p);
     else if (command === "contracts")
       result = await operatorRequest(p, "/api/pazmo/contracts");
     else if (command === "delivery")
@@ -215,7 +241,7 @@ export async function main(args: string[]): Promise<void> {
           join(packageRoot, "vendor/claw-empire/dist/index.html"),
         ),
         execution: "locked",
-        reason: "Isolation and completion guards are not yet verified.",
+        reason: "Doctor checks installation only. Use start --live and runtime readiness for model execution.",
       };
     } else if (command === "status") result = await status(p);
     else if (command === "stop") result = await stop(p);
@@ -227,13 +253,21 @@ export async function main(args: string[]): Promise<void> {
         Number(rawPort) > 65535
       )
         fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
+      const binaries = options["--live"]
+        ? options["--controller"] || options["--executor"]
+          ? {
+              controller: required("--controller"),
+              binary: required("--executor"),
+            }
+          : installedRuntime(options["--data-dir"] as string | undefined)
+        : undefined;
       result = await start(
         p,
         Number(rawPort),
         options["--live"]
           ? {
-              controller: required("--controller"),
-              binary: required("--executor"),
+              controller: binaries!.controller,
+              binary: binaries!.binary,
               authHome: join(homedir(), ".codex"),
               socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
             }

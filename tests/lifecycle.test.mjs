@@ -704,9 +704,7 @@ for (const oldVersion of [2, 3, 4, 5, 6, 7, 8, 9, 10])
       oldVersion,
     );
     const store = new OfficeStore(db, manifest.project, "a".repeat(64));
-    db.exec(
-      "DROP TABLE pazmo_kit_receipts; DROP TABLE pazmo_kit_assignments",
-    );
+    db.exec("DROP TABLE pazmo_kit_receipts; DROP TABLE pazmo_kit_assignments");
     if (oldVersion >= 3) {
       const verification = new VerificationLedger(db, store);
       db.exec("DROP TABLE pazmo_integration_feedback");
@@ -1354,4 +1352,21 @@ test("service startup quarantines a running planning role and preserves its occu
     2,
   );
   saved.close();
+});
+
+test("operator key retrieval authenticates the running instance and stays out of normal status", async (t) => {
+  const f = setup(t),
+    running = call(f, "start", "--port", "0").value;
+  const state = JSON.parse(readFileSync(join(running.dataDir, "running.json")));
+  const operator = JSON.parse(
+    readFileSync(join(running.dataDir, `operator-${state.instance}.json`)),
+  );
+  const selected = call(f, "operator-key");
+  assert.equal(selected.status, 0, selected.value.error);
+  assert.equal(selected.value.token, operator.token);
+  assert.equal(selected.value.url, `http://127.0.0.1:${state.port}/operator`);
+  assert.ok(!JSON.stringify(call(f, "status").value).includes(operator.token));
+  assert.ok(!JSON.stringify(running).includes(operator.token));
+  assert.equal(call(f, "stop").status, 0);
+  assert.equal(call(f, "operator-key").value.code, "NOT_RUNNING");
 });

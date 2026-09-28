@@ -6,6 +6,7 @@ import {
   readFileSync,
   writeFileSync,
   readdirSync,
+  realpathSync,
   symlinkSync,
   rmSync,
 } from "node:fs";
@@ -97,4 +98,30 @@ test("invalid and contradictory flags fail before writing", (t) => {
   run(f, ["init", "--aply"], false);
   run(f, ["start", "--dry-run"], false);
   assert.deepEqual(readdirSync(f.project), []);
+});
+
+test("runtime setup previews pinned persistent paths without project selection or writes", (t) => {
+  const f = fixture(t);
+  const result = spawnSync(
+    process.execPath,
+    [cli.pathname, "setup-runtime", "--data-dir", f.data],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  const plan = JSON.parse(result.stdout);
+  assert.equal(plan.applied, false);
+  assert.equal(plan.execution, "locked");
+  assert.ok(
+    plan.controller.startsWith(join(realpathSync(f.root), "data") + "/"),
+  );
+  assert.ok(plan.binary.startsWith(join(realpathSync(f.root), "data") + "/"));
+  assert.deepEqual(readdirSync(f.root).sort(), ["project"]);
+});
+
+test("default live startup points to supported setup when qualified binaries are absent", (t) => {
+  const f = fixture(t);
+  run(f, ["init", "--apply"]);
+  const result = run(f, ["start", "--live"], false);
+  assert.equal(result.code, "RUNTIME_SETUP_REQUIRED");
+  assert.match(result.error, /setup-runtime/);
 });

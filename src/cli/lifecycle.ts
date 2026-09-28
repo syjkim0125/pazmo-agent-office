@@ -249,12 +249,8 @@ export async function stop(p: Project) {
   return { status: "stopped", execution: "locked", dataPreserved: p.dataDir };
 }
 
-/** Operator capability stays in the private controller data directory. */
-export async function operatorRequest(
-  p: Project,
-  path: string,
-  body?: unknown,
-): Promise<unknown> {
+/** Authenticate the controller before exposing or using its operator capability. */
+async function operatorSession(p: Project) {
   readManifest(p);
   const s = readState(p);
   if (!s)
@@ -274,10 +270,29 @@ export async function operatorRequest(
     !/^[a-f0-9]{64}$/.test(operator.token)
   )
     fail("UNKNOWN", "Operator capability is invalid.");
-  const response = await fetch(`http://127.0.0.1:${s.port}${path}`, {
+  return { port: s.port, token: operator.token };
+}
+
+/** Explicit terminal action only; never included in ordinary status or startup. */
+export async function operatorKey(p: Project) {
+  const session = await operatorSession(p);
+  return {
+    url: `http://127.0.0.1:${session.port}/operator`,
+    token: session.token,
+  };
+}
+
+/** Operator capability stays in the private controller data directory. */
+export async function operatorRequest(
+  p: Project,
+  path: string,
+  body?: unknown,
+): Promise<unknown> {
+  const session = await operatorSession(p);
+  const response = await fetch(`http://127.0.0.1:${session.port}${path}`, {
     method: body === undefined ? "GET" : "POST",
     headers: {
-      Authorization: `Bearer ${operator.token}`,
+      Authorization: `Bearer ${session.token}`,
       "Content-Type": "application/json",
     },
     body: body === undefined ? undefined : JSON.stringify(body),

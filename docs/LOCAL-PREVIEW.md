@@ -2,6 +2,36 @@
 
 Requires Node **24.19.0** (tested) and the checked-out repository. The Claw preview stays read-only. The separate operator screen supports planning, approvals and execution when the qualified runtime is explicitly enabled below. The complete local-alpha model/user acceptance flow is still under verification. Do not use the imported vendor start/dev commands: those start the unguarded upstream runtime.
 
+## 현재 Mac에서 시작하기
+
+현재 체크아웃과 기존 전용 VM을 사용하는 안내입니다. 실제 모델·사용자 승인까지의 전체 인수시험은 아직 완료되지 않았습니다. 아래 `OFFICE_PROJECT`만 작업할 기존 Git 저장소의 절대 경로로 바꾸세요. Office 설치 폴더 자체나 그 상위 폴더는 대상이 될 수 없습니다.
+
+```sh
+cd /Users/jongkkim/Documents/pazmo-agent-office/.worktrees/bootstrap-claw-v2.0.4
+export PATH="$HOME/.nvm/versions/node/v24.19.0/bin:$PATH"
+OFFICE_PROJECT="/absolute/path/to/existing-git-project"
+node bin/pazmo-office.mjs setup-runtime --apply
+node bin/pazmo-office.mjs init --project "$OFFICE_PROJECT" --apply
+node bin/pazmo-office.mjs start --live --project "$OFFICE_PROJECT" --port 0
+node bin/pazmo-office.mjs operator-key --project "$OFFICE_PROJECT"
+```
+
+마지막 명령의 `url`을 브라우저로 열고 `token` 값을 **Operator 키** 입력란에 붙여 넣어 연결하세요. 파일 탐색기에서 HTML을 직접 열면 서버와 연결되지 않습니다. 이 키는 Office의 작업·승인 화면을 조작하는 용도이고, 모델 호출에는 Mac의 기존 Codex 로그인을 사용합니다. 키를 문서·Git·공유 채팅에 저장하지 마세요.
+
+화면에서 요청 등록 → PM 실행 → 필요한 답변·범위 승인 → 팀장 실행 → 계획 등록·실행 승인 → 구현·리뷰·검증 실행 → 결과 확인 → 본인 G4 답변 제출 → 저장된 답변 확인 실행 → 승인된 결과물 인도받기 순서로 진행합니다. 진행 결과는 각 새로고침 버튼으로 확인합니다. 원본 프로젝트에는 자동으로 결과를 덮어쓰지 않습니다. 인도된 폴더와 검증·승인 기록의 위치가 화면에 표시됩니다.
+
+종료는 `node bin/pazmo-office.mjs stop --project "$OFFICE_PROJECT"`입니다. 진행 중이면 먼저 화면에서 취소하고 정리가 끝난 뒤 종료하세요. 다시 쓸 때는 같은 프로젝트와 데이터 경로로 `start --live`를 실행하고 새 Operator 키를 조회합니다. 기존 대화와 결과 기록은 유지됩니다.
+
+`setup-runtime`은 기본 dry-run이며 `--apply`일 때만 공식 npm의 고정된 두 배포본을 받습니다. 현재 기본 경로는 `$XDG_DATA_HOME/pazmo-agent-office` 또는 `$HOME/.local/share/pazmo-agent-office`입니다. 여기의 `qualified-runtime/`에 바이너리가, 프로젝트별 하위 폴더에 DB·검증·결과물이 저장됩니다. `--data-dir`을 지정한다면 위 모든 명령에 같은 값을 사용하세요. 이미 일치하는 바이너리는 다시 받지 않으며 전역 Codex 설치나 인증 파일은 변경하지 않습니다.
+
+현재 Mac에는 Node 24.19.0, 전용 Colima VM과 검증된 이미지가 준비되어 있습니다. VM이 멈췄다면 아래의 기존 격리 설정으로 시작하세요. `LOGIN_REQUIRED`이면 Mac에서 Codex에 로그인한 뒤 다시 시작합니다. 설치 성공은 계정 유효성이나 실제 모델 작업 성공을 증명하지 않습니다.
+
+```sh
+colima start pazmo-office --mount none --activate=false --ssh-config=false --ssh-agent=false --port-forwarder none
+```
+
+일반 `doctor`는 설치 확인만 하며 모델 실행을 켜지 않습니다. 실제 준비 상태는 `start --live`, `status`와 화면의 **모델 실행 준비 상태 확인**에서 확인하세요. 전체 인수시험의 범위와 한계는 [영구 실행 환경 검증](verification/2026-09-28-runtime-setup.md)에 기록합니다.
+
 ## Build
 
 The root package has no dependencies. Development build tools come from the pinned vendor lockfile. Installation explicitly skips all dependency lifecycle scripts.
@@ -36,7 +66,7 @@ node bin/pazmo-office.mjs remove --project /absolute/path/to/project --data-dir 
 
 ## Qualified live startup and screen controls
 
-Use the existing Mac Codex login and the already qualified dedicated `pazmo-office` Colima VM. The controller must be the native macOS arm64 Codex **0.155.1** binary matching Office's pinned hash; the VM executor must be the qualified Linux arm64 **0.154.0** binary. A mutable npm launcher or updated global installation is not accepted. Durable qualified-binary installation is still part of the remaining first-use setup; this command assumes those two files already exist. No credentials are copied into candidates or containers.
+Use the existing Mac Codex login and the already qualified dedicated `pazmo-office` Colima VM. The controller must be the native macOS arm64 Codex **0.155.1** binary matching Office's pinned hash; the VM executor must be the qualified Linux arm64 **0.154.0** binary. A mutable npm launcher or updated global installation is not accepted. Use `setup-runtime --apply` to install these exact binaries in persistent storage; normal `start --live` then selects them automatically. The explicit overrides below are optional. No credentials are copied into candidates or containers.
 
 After `init --apply`, stop any existing preview, then run from this Office checkout:
 
@@ -74,6 +104,8 @@ Office, Dashboard and the empty Tasks board were exercised in the browser. The b
 The preview process imports the pinned Claw schema/seeds and uses its UI; it does not import its scheduler, process launcher, updater or recovery routes. These will need the approved guard integration before live operation. Source-free tarball execution, Linux support and browser approval flows are unverified.
 
 ## Operator contract and approval CLI
+
+These are advanced protocol commands. For normal first use, use the screen controls above; handwritten approval JSON is not required. `operator-key --project PATH` explicitly displays the current authenticated instance’s screen URL and operator token. Normal start/status commands do not expose it.
 
 ### Planning conversation screen
 
@@ -137,7 +169,7 @@ node bin/pazmo-office.mjs approval-decide --challenge CHALLENGE_ID --file /absol
 
 Repeat the request/decision for G3 when required. A challenge expires after ten minutes and can be consumed once. `reject` records rejection of a pending gate; it does not withdraw a previously accepted gate. Refresh a changed contract with `contract --task-id TASK_ID --file ...`; its new revision requires new approval. Changed documents immediately make `contracts` report `CONTRACT_CHANGED`, even before refresh. The imported task board may still show the last stored `planned` status; it is not a current execution-readiness indicator.
 
-Operator credentials are generated separately from lifecycle credentials, stored with mode 0600 outside the project, and removed on an authenticated stop. Loopback and Markdown are not operator authentication. Processes with access to that private directory can act as the operator; separation from an actual untrusted worker remains unverified and execution stays locked. G4 requests require joined verification, closed execution receipts and a controller-prepared raw-diff bundle; otherwise they return `EVIDENCE_REQUIRED`.
+Operator credentials are generated separately from lifecycle credentials, stored with mode 0600 outside the project, and removed on an authenticated stop. Loopback and Markdown are not operator authentication. Processes with access to that private directory can act as the operator. The qualified live path keeps it outside worker snapshots and VM mounts; preview execution remains locked. G4 requests require joined verification, closed execution receipts and a controller-prepared raw-diff bundle; otherwise they return `EVIDENCE_REQUIRED`.
 
 ### G4 understanding protocol
 

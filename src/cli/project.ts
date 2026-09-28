@@ -61,6 +61,15 @@ function within(parent: string, child: string): boolean {
     r === "" || (!r.startsWith(`..${sep}`) && r !== ".." && !isAbsolute(r))
   );
 }
+export function dataRoot(dataArgument?: string): string {
+  return canonicalDestination(
+    dataArgument ??
+      join(
+        process.env.XDG_DATA_HOME || join(homedir(), ".local/share"),
+        "pazmo-agent-office",
+      ),
+  );
+}
 export type Project = { project: string; directory: string; dataDir: string };
 export function locate(
   projectArgument: string,
@@ -76,13 +85,7 @@ export function locate(
       "The worker project must be separate from the Office installation.",
     );
   const id = createHash("sha256").update(project).digest("hex").slice(0, 24);
-  const root = canonicalDestination(
-    dataArgument ??
-      join(
-        process.env.XDG_DATA_HOME || join(homedir(), ".local/share"),
-        "pazmo-agent-office",
-      ),
-  );
+  const root = dataRoot(dataArgument);
   const dataDir = join(root, id);
   if (
     within(project, dataDir) ||
