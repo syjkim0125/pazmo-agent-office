@@ -47,6 +47,19 @@ test("native assignment adopts the original task and uses the same authoritative
   assert.equal(calls.length, 1);
   await office.assign("11111111-1111-4111-8111-111111111111");
   assert.equal(calls.length, 1, "must not replay uncertain planning dispatch");
+  assert.equal(
+    office.progress("11111111-1111-4111-8111-111111111111").canRun,
+    false,
+  );
+  assert.doesNotThrow(() => office.checkTaskMutation(taskId, { hidden: 1 }));
+  assert.throws(
+    () => office.checkTaskMutation(taskId, { hidden: 1, status: "done" }),
+    /managed/,
+  );
+  assert.throws(
+    () => office.checkTaskMutation(taskId, { hidden: 2 }),
+    /managed/,
+  );
   assert.throws(
     () => office.checkTaskMutation("11111111-1111-4111-8111-111111111111"),
     /managed/,
@@ -260,7 +273,33 @@ test("native G4 preserves exact numbered answers and delivers only after trusted
       },
     });
   }
+  // Synthetic publication links the native parent to the verified child.
+  const parent = office.ledgers.intake.create(
+    "a".repeat(64),
+    "README request",
+    "normal",
+  );
+  f.db
+    .prepare("INSERT INTO pazmo_intake_publications VALUES (?,?)")
+    .run(parent.taskId, JSON.stringify({ taskIds: [f.task.id] }));
+  f.db
+    .prepare("UPDATE tasks SET status='planned' WHERE id=?")
+    .run(parent.taskId);
   await office.refresh();
+  assert.equal(
+    f.db.prepare("SELECT status FROM tasks WHERE id=?").get(parent.taskId)
+      .status,
+    "review",
+  );
+  assert.deepEqual(office.progress(parent.taskId).childTaskIds, [f.task.id]);
+  assert.match(office.progress(parent.taskId).message, /Decisions/);
+  const runAgain = await office.assign(parent.taskId);
+  assert.equal(runAgain.workflow.canRun, false);
+  assert.equal(
+    calls.length,
+    0,
+    "Run on a published parent cannot restart implementation",
+  );
   const decision = office.decisions()[0];
   assert.ok(decision);
   assert.match(office.diff(f.task.id).diff, /after/);
@@ -282,6 +321,29 @@ test("native G4 preserves exact numbered answers and delivers only after trusted
     Object.fromEntries(
       ["behavior", "invariant", "evidence"].map((k) => [
         k,
+        { correct: false, rationale: "Explain fixture boundary" },
+      ]),
+    ),
+  );
+  await office.refresh();
+  const retry = office.decisions()[0];
+  assert.notEqual(retry.id, decision.id);
+  assert.match(retry.summary, /추가 설명이 필요/);
+  assert.match(retry.summary, /Explain fixture boundary/);
+  assert.match(retry.summary, /Changes src\/a to after/);
+  assert.match(office.progress(f.task.id).message, /Decisions/);
+  await office.refresh();
+  assert.equal(office.decisions()[0].id, retry.id);
+  assert.equal(calls.length, 1, "feedback projection must not start a model");
+  await office.reply(retry.id, 1, note);
+  const revised = completion.get(f.task.id);
+  completion.evaluate(
+    "a".repeat(64),
+    revised.id,
+    revised.answerDigest,
+    Object.fromEntries(
+      ["behavior", "invariant", "evidence"].map((k) => [
+        k,
         { correct: true, rationale: "Scripted test judgment" },
       ]),
     ),
@@ -289,8 +351,13 @@ test("native G4 preserves exact numbered answers and delivers only after trusted
   await office.refresh();
   assert.equal(store.get(f.task.id).status, "done");
   assert.equal(completion.delivery(f.task.id).status, "delivered");
+  assert.equal(
+    f.db.prepare("SELECT status FROM tasks WHERE id=?").get(parent.taskId)
+      .status,
+    "done",
+  );
   await office.refresh();
-  assert.equal(calls.length, 1);
+  assert.equal(calls.length, 2);
 });
 
 test("native expired contract Decisions cannot approve and refresh with a new challenge", async (t) => {

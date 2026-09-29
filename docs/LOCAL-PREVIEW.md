@@ -4,6 +4,26 @@
 
 **`--claw`는 화면·작업 저장 미리보기이며 모델 호출을 차단한다. `--claw --live`는 기존 Mac Codex 로그인과 검증된 전용 VM을 사용하는 실제 역할 실행 경로다. 새 원본 UI 파일럿은 PM·팀장·Developer·Reviewer와 검사 6개를 마치고 실제 사용자 G4 대기 중이다. 아직 전체 인도 완료로 간주하지 않는다. 화면의 Live 표시는 WebSocket 연결을 뜻한다.**
 
+## 팀원용 한 명령 실행 (Apple Silicon Mac)
+
+Office 작업 브랜치 `codex/office-kit-role-graphs`를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, Mac의 `codex login`이다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
+
+```sh
+# 최초 한 번: Office 설치 폴더와 별도인 기존 Git 프로젝트 선택
+./office --project /absolute/path/to/project
+
+# 다음부터: 마지막으로 선택한 프로젝트 실행
+./office
+```
+
+이 명령은 고정 pnpm 10.30.1과 lockfile로 의존성을 설치하고 필요한 경우 UI를 빌드한다. 해시가 고정된 Codex 실행 파일, 호스트 공유가 없는 `pazmo-office` VM, 고정 Node 이미지를 준비하고 경계 검사를 거쳐 Office를 띄운 후 기본 브라우저를 연다. 첫 실행은 다운로드 시간이 필요하며 단계별 진행을 터미널에 표시한다. 이미 같은 프로젝트의 live Office가 떠 있으면 그대로 재사용한다. 코드 업데이트 적용은 진행 중인 작업이 없는 때 `node bin/pazmo-office.mjs stop --project /absolute/path/to/project` 후 `./office`로 한다.
+
+첫 로그인은 사용자가 Mac에서 직접 한다. 로그인 파일을 VM이나 팀원에게 복사하지 않는다. 기존 VM 설정이 검증된 값과 다르면 덮어쓰지 않고 원인을 알려준다. 처음 실패한 설치는 같은 명령으로 다시 확인할 수 있다. `--data-dir /absolute/path`로 별도 데이터를 선택했다면 이후에도 같은 옵션을 쓰며, 자동 브라우저 열기가 불필요한 진단에서는 `--no-open`을 붙인다.
+
+Tasks의 새 요청은 배정/Run으로 접수할 수 있다. 접수 후에는 Office가 역할과 상태를 관리하므로 같은 요청을 다시 Run하거나 상태를 수동으로 Done으로 바꾸지 않는다. 부모 카드에서 하위 작업과 승인 대기를 확인하고 상단 Decisions에서 답한다. 최종 답변이 보완 요청을 받으면 **이전 답변과 항목별 평가 이유**가 표시된다. 이때 구현이 처음부터 다시 실행된 것은 아니다.
+
+별도 설치 시험은 [검증 기록](verification/2026-09-29-native-claw-preview.md)을 참조한다. 같은 Mac의 깨끗한 소스·의존성·프로젝트·데이터 시험이며, 새 팀원 기기의 최초 로그인·VM 생성 검증과 실제 사용자 승인 완료를 대신하지 않는다.
+
 ## 원본 화면 실행
 
 Office 저장소의 현재 작업 브랜치에서 Node 24.19를 사용한다. UI 빌드가 없다면 먼저 `npm run build:office`를 실행한다.

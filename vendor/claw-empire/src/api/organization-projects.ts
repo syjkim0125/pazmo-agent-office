@@ -266,8 +266,8 @@ export async function assignTask(id: string, agentId: string): Promise<void> {
   await post(`/api/tasks/${id}/assign`, { agent_id: agentId });
 }
 
-export async function runTask(id: string): Promise<void> {
-  await post(`/api/tasks/${id}/run`);
+export async function runTask(id: string): Promise<{ workflow?: { message: string } } | undefined> {
+  return post(`/api/tasks/${id}/run`);
 }
 
 export async function stopTask(id: string): Promise<void> {

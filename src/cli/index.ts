@@ -10,6 +10,7 @@ import {
   packageRoot,
   readManifest,
 } from "./project.ts";
+import { up } from "./launcher.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { bridge, readBridgeInput } from "./bridge.ts";
 import {
@@ -26,7 +27,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <setup-runtime|bridge|monitor|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
+        "pazmo-office <up|setup-runtime|bridge|monitor|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
       );
       return;
     }
@@ -36,6 +37,7 @@ export async function main(args: string[]): Promise<void> {
     }
     if (
       ![
+        "up",
         "setup-runtime",
         "bridge",
         "monitor",
@@ -66,6 +68,7 @@ export async function main(args: string[]): Promise<void> {
       const flag = args.shift()!;
       if (
         ![
+          "--no-open",
           "--project",
           "--data-dir",
           "--apply",
@@ -84,6 +87,7 @@ export async function main(args: string[]): Promise<void> {
       )
         fail("ARGUMENT", `Unknown or repeated option: ${flag}`);
       if (
+        flag === "--no-open" ||
         flag === "--apply" ||
         flag === "--dry-run" ||
         flag === "--live" ||
@@ -107,8 +111,8 @@ export async function main(args: string[]): Promise<void> {
         "ARGUMENT",
         "Apply and dry-run are only supported by init, remove and setup-runtime.",
       );
-    if (options["--port"] !== undefined && command !== "start")
-      fail("ARGUMENT", "Port is only supported by start.");
+    if (options["--port"] !== undefined && !["start", "up"].includes(command))
+      fail("ARGUMENT", "Port is only supported by start and up.");
     if (
       ["--claw", "--live", "--controller", "--executor"].some(
         (key) => options[key] !== undefined,
@@ -163,6 +167,29 @@ export async function main(args: string[]): Promise<void> {
         );
       return JSON.parse(readFileSync(file, "utf8"));
     };
+    if (options["--no-open"] && command !== "up")
+      fail("ARGUMENT", "--no-open is only supported by up.");
+    if (command === "up") {
+      const rawPort = options["--port"];
+      if (
+        rawPort !== undefined &&
+        (typeof rawPort !== "string" ||
+          !/^\d+$/.test(rawPort) ||
+          Number(rawPort) > 65535)
+      )
+        fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
+      console.log(
+        JSON.stringify(
+          await up({
+            project: options["--project"] as string | undefined,
+            dataDir: options["--data-dir"] as string | undefined,
+            port: rawPort === undefined ? undefined : Number(rawPort),
+            open: !options["--no-open"],
+          }),
+        ),
+      );
+      return;
+    }
     if (command === "setup-runtime") {
       if (options["--project"])
         fail(

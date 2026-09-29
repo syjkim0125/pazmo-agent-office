@@ -557,6 +557,29 @@ export class CompletionLedger {
       return this.get(bundle.task_id, id);
     });
   }
+  /** Prior assessment is a read-only projection, scoped to current evidence. */
+  feedback(taskId: string, requestId?: string) {
+    const current = this.get(taskId, requestId);
+    if (
+      !current.subject ||
+      ["stale", "not_requested"].includes(current.status) ||
+      current.approved
+    )
+      return null;
+    const row = this.#db
+      .prepare(
+        "SELECT id FROM pazmo_g4_requests WHERE subject=? AND status='needs_restatement' ORDER BY rowid DESC LIMIT 1",
+      )
+      .get(current.subject) as { id: string } | undefined;
+    if (!row) return null;
+    const previous = this.get(taskId, row.id);
+    return {
+      requestId: row.id,
+      subject: current.subject,
+      answer: previous.answer,
+      evaluation: previous.evaluation,
+    };
+  }
   get(taskId: string, requestId?: string) {
     this.#store.get(taskId);
     let currentSubject: string | null = null;

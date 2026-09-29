@@ -473,11 +473,14 @@ export async function createNativeOffice(c: Config) {
               "DELETE FROM pazmo_native_decisions WHERE task_id=? AND kind='G4'",
             ).run(item.id);
             const request = completion.request(token, item.id);
+            const renewed = ["expired", "stale"].includes(g4.status)
+              ? "이전 요청의 유효기간·세션 또는 검증 대상이 바뀌어 새 승인 요청을 열었습니다. 이전 답변을 자동 재전송하지 않습니다.\n"
+              : "";
             addDecision(
               item.id,
               "G4",
               { challengeId: request.id },
-              `최종 결과 승인\n${request.questions.map((q, n) => `${n + 1}. ${q}`).join("\n")}\n세 질문에 번호별로 답해주세요. 승인 선택은 현재 변경본에만 적용됩니다.\n검증과 변경 내용:\n${JSON.stringify(request.evidence, null, 2)}`,
+              `최종 결과 승인\n${renewed}${request.questions.map((q, n) => `${n + 1}. ${q}`).join("\n")}\n세 질문에 번호별로 답해주세요. 승인 선택은 현재 변경본에만 적용됩니다.\n검증과 변경 내용:\n${JSON.stringify(request.evidence, null, 2)}`,
             );
           }
         }
@@ -486,6 +489,24 @@ export async function createNativeOffice(c: Config) {
         .prepare("SELECT task_id FROM pazmo_intakes")
         .all() as { task_id: string }[]) {
         const children = intake.get(row.task_id).publication?.taskIds;
+        if (
+          children?.length &&
+          !["cancelled", "done"].includes(task(row.task_id).status)
+        ) {
+          const status = children.every((id) =>
+            ["review", "done"].includes(task(id).status),
+          )
+            ? "review"
+            : "collaborating";
+          if (task(row.task_id).status !== status) {
+            db.prepare("UPDATE tasks SET status=?,updated_at=? WHERE id=?").run(
+              status,
+              Date.now(),
+              row.task_id,
+            );
+            broadcast("task_update", task(row.task_id));
+          }
+        }
         if (
           children?.length &&
           !["cancelled", "done"].includes(task(row.task_id).status) &&
@@ -569,7 +590,69 @@ export async function createNativeOffice(c: Config) {
       );
     }
     await pump();
-    return { ok: true, task: task(id) };
+    return { ok: true, task: task(id), workflow: progress(id) };
+  }
+  function decisionSummary(d: Decision) {
+    const feedback = completion.feedback(
+      d.task_id,
+      JSON.parse(d.payload).challengeId,
+    );
+    if (!feedback) return d.summary;
+    const labels = {
+      behavior: "사용자에게 달라지는 동작",
+      invariant: "지켜야 할 규칙·실패 동작",
+      evidence: "검증 범위와 한계",
+    };
+    const reasons = Object.entries(labels)
+      .map(([key, label], index) => {
+        const result = feedback.evaluation?.[key];
+        return `${index + 1}. ${label}: ${result?.correct ? "확인됨" : "보완 필요"} — ${result?.rationale ?? "평가 설명 없음"}`;
+      })
+      .join("\n");
+    const note = String(feedback.answer?.note ?? "")
+      .split("\n")
+      .map((line) => `> ${line}`)
+      .join("\n");
+    return d.summary.replace(
+      "최종 결과 승인\n",
+      `최종 결과 승인\n**이전 답변에 추가 설명이 필요합니다.** 작업을 다시 실행한 것이 아닙니다. 아래 피드백을 확인하고 답변을 보완해주세요.\n\n${reasons}\n\n이전 제출 답변:\n${note}\n\n다시 답할 질문:\n`,
+    );
+  }
+  function progress(id: string) {
+    if (!managed(id)) return undefined;
+    const row = task(id);
+    const children = db
+      .prepare("SELECT 1 FROM pazmo_intakes WHERE task_id=?")
+      .get(id)
+      ? (intake.get(id).publication?.taskIds ?? []).map(task)
+      : [];
+    const ids = [id, ...children.map((child) => child.id)];
+    const waiting = (
+      db.prepare("SELECT task_id FROM pazmo_native_decisions").all() as {
+        task_id: string;
+      }[]
+    ).filter((decision) => ids.includes(decision.task_id));
+    const running =
+      live?.status().active.filter((entry) => ids.includes(entry.taskId)) ?? [];
+    const assessing = running.some((entry) => entry.kind === "understanding");
+    let message =
+      "요청이 이미 접수됐습니다. 대화·Decisions에서 진행 또는 재개 이유를 확인해주세요.";
+    if (row.status === "done") message = "사용자 승인 후 결과물 인도 완료";
+    else if (row.status === "cancelled") message = "취소됨";
+    else if (waiting.length)
+      message = `Decisions에서 답변·승인 대기 (${waiting.length}건).${children.length ? ` 하위 작업: ${children.map((child) => child.title).join(", ")}` : ""}`;
+    else if (assessing)
+      message =
+        "제출한 답변을 확인 중입니다. 결과와 보완할 내용은 Decisions에 표시됩니다.";
+    else if (running.length)
+      message = "에이전트 실행 중입니다. 중복 실행하지 않습니다.";
+    else if (children.length)
+      message = `하위 작업 진행 확인: ${children.map((child) => `${child.title} (${child.status})`).join(", ")}`;
+    return {
+      canRun: false,
+      message,
+      childTaskIds: children.map((child) => child.id),
+    };
   }
   function decisions() {
     return (
@@ -582,7 +665,7 @@ export async function createNativeOffice(c: Config) {
         id: d.id,
         kind: "workflow_gate" as const,
         created_at: d.created_at,
-        summary: d.summary,
+        summary: d.kind === "G4" ? decisionSummary(d) : d.summary,
         agent_id: t.assigned_agent_id,
         agent_name: "Office",
         agent_name_ko: "Office",
@@ -839,6 +922,7 @@ export async function createNativeOffice(c: Config) {
     assign,
     chat,
     decisions,
+    progress,
     refresh: pump,
     async inspect(req: IncomingMessage, res: ServerResponse, path: string) {
       await handleOperator(req, res, path, { ...ledgers, live });
@@ -874,7 +958,16 @@ export async function createNativeOffice(c: Config) {
     reply,
     cancel,
     status: () => live?.status() ?? { execution: "locked", active: [] },
-    checkTaskMutation(id: string) {
+    checkTaskMutation(id: string, patch?: unknown) {
+      // Hiding a card changes presentation only; no workflow transition.
+      if (
+        patch &&
+        typeof patch === "object" &&
+        Object.keys(patch).length === 1 &&
+        "hidden" in patch &&
+        [0, 1].includes(patch.hidden as number)
+      )
+        return;
       if (managed(id))
         fail(
           "MANAGED_TASK",

@@ -1,3 +1,4 @@
+import { pazmoOffice } from "../../../../pazmo/host.ts";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -186,7 +187,12 @@ export function registerTaskCrudRoutes(deps: TaskCrudRouteDeps): void {
         .all(...(params as SQLInputValue[]));
     }
 
-    res.json({ tasks });
+    res.json({
+      tasks: tasks.map((row) => {
+        const task = row as { id: string };
+        return { ...task, workflow: pazmoOffice()?.progress(task.id) };
+      }),
+    });
   });
 
   app.post("/api/tasks", (req, res) => {

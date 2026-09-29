@@ -187,10 +187,15 @@ export function useAppActions({
   const handleRunTask = useCallback(
     async (id: string) => {
       try {
-        await api.runTask(id);
+        const result = await api.runTask(id);
+        if (result?.workflow?.message) window.alert(result.workflow.message);
         await refreshTasksAndAgents();
       } catch (error) {
         console.error("Run task failed:", error);
+        const detail = api.isApiRequestError(error)
+          ? (error.details as { message?: string } | undefined)?.message
+          : undefined;
+        window.alert(detail || "작업 실행에 실패했습니다. 실행 환경과 Decisions를 확인해주세요.");
       }
     },
     [refreshTasksAndAgents],

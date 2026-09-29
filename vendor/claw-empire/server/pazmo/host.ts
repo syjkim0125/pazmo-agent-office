@@ -19,12 +19,13 @@ export type NativeOfficeBridge = {
     messageType?: string;
   }): Promise<void>;
   decisions(): unknown[];
+  progress(id: string): { canRun: boolean; message: string; childTaskIds: string[] } | undefined;
   refresh(): Promise<void>;
   inspect(req: IncomingMessage, res: ServerResponse, path: string): Promise<void>;
   diff(id: string): unknown;
   reply(id: string, option: number, note: string): Promise<unknown>;
   cancel(id: string): Promise<unknown>;
-  checkTaskMutation(id: string): void;
+  checkTaskMutation(id: string, patch?: unknown): void;
 };
 export type PazmoHost = {
   project: string;
@@ -115,7 +116,8 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
         return next();
       }
       const mutation = req.path.match(/^\/tasks\/([^/]+)$/);
-      if (mutation && !["GET", "HEAD"].includes(req.method)) office.checkTaskMutation(mutation[1]);
+      if (mutation && !["GET", "HEAD"].includes(req.method))
+        office.checkTaskMutation(mutation[1], req.method === "PATCH" ? req.body : undefined);
       next();
     } catch (error) {
       const e = error as Error & { code?: string };

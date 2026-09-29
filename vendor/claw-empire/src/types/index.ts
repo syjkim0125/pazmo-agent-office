@@ -108,6 +108,7 @@ export const WORKFLOW_PACK_KEYS = [
 export type WorkflowPackKey = (typeof WORKFLOW_PACK_KEYS)[number];
 
 export interface Task {
+  workflow?: { canRun: boolean; message: string; childTaskIds: string[] };
   id: string;
   title: string;
   description: string | null;

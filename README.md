@@ -6,7 +6,7 @@
 
 **Build products and improve existing systems with a team you direct.**
 
-![Stage](https://img.shields.io/badge/stage-read--only_preview-orange)
+![Stage](https://img.shields.io/badge/stage-local_alpha-orange)
 ![Pazmo originals](https://img.shields.io/badge/Pazmo_originals-MIT-blue)
 ![Upstream license](https://img.shields.io/badge/Claw--Empire-Apache--2.0-blue)
 ![Workflow design](https://img.shields.io/badge/workflow_design-Jira_optional-purple)
@@ -17,7 +17,7 @@
 
 </div>
 
-> **Read-only development preview.** The local CLI runs the Claw UI against a new Office database. Model execution is locked at the server. Native macOS isolation probes did not meet the required boundary; live Codex team execution remains unavailable. npm distribution and the complete workflow are not ready. See [verification evidence](docs/verification/2026-09-18-runtime-baseline.md).
+> **Local alpha on Apple Silicon macOS.** Original Claw Tasks and Decisions connect to kit 4.1.0 roles through a trusted Mac controller and a dedicated VM. The README pilot completed real PM, Lead, Developer, Reviewer and six checks; its final human G4 and delivery are pending. npm distribution and general project acceptance remain unverified. See [evidence](docs/verification/2026-09-29-native-claw-preview.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/GreenSheep01201/claw-empire/5c928b24ffa55b403fe7c5521d4ac3ac49516137/Sample_Img/Office.png" alt="Upstream Claw-Empire office interface, shown as a credited reference rather than completed Pazmo features" width="100%" />
@@ -68,6 +68,10 @@ Compound Engineering supplies bounded implementation and review procedures. Sele
 
 **Use it for:** changes to existing systems, new products, and evidence-based local reports. Non-code work uses source and result checks rather than artificial code-test ceremonies. Unattended production writes are outside the initial release.
 
+## Local startup
+
+On Apple Silicon macOS, complete the initial login and prerequisites, then run `./office --project /absolute/path/to/project` from this repository. Later, run `./office` to reopen the selected project. See [startup instructions and limits](docs/LOCAL-PREVIEW.md).
+
 ## Current status
 
 | Area | Status |
@@ -75,11 +79,11 @@ Compound Engineering supplies bounded implementation and review procedures. Sele
 | Selected upstream | Claw-Empire `v2.0.4`, checked 2026-09-17 |
 | Required commit | `5c928b24ffa55b403fe7c5521d4ac3ac49516137` |
 | Destination source import | **Original verified locally; publication sanitized** — [evidence](docs/verification/2026-09-18-publication.md) |
-| Story and Task templates | Exact upstream copies; installed workflow tooling 3.1.1 |
-| Jira-independent team execution | Planned; required end-to-end acceptance test |
-| Local CLI and read-only Office | Implemented and tested; [local preview guide](docs/LOCAL-PREVIEW.md) |
-| Operator contract and G1/G3 CLI | Implemented with real HTTP/SQLite tests; execution stays locked — [evidence](docs/verification/2026-09-19-contract-approvals.md) |
-| Execution isolation and completion guards | Native canary did not meet requirements; live runner and completion guards remain incomplete |
+| Story and Task templates | Installed kit 4.1.0 role graphs; Office owns assignments and approvals |
+| Jira-independent team execution | Real README pilot through review; final human G4/delivery pending |
+| Local launcher and original Office UI | `./office`; clean source installation checked on this Mac; [local preview guide](docs/LOCAL-PREVIEW.md) |
+| Operator contract and G1/G3 CLI | Implemented with real HTTP/SQLite tests; native Decisions used for live work — [evidence](docs/verification/2026-09-19-contract-approvals.md) |
+| Execution isolation and completion guards | Dedicated VM checks and guarded completion implemented; native host-only execution stays disabled |
 | npm `@pazmo/agent-office` | Target package name; not published or installation-tested |
 
 There is no Pazmo `npx` quickstart yet. Do not infer a working installer from the package name. Read the [current status and next step](docs/STATUS.md), [approved Story](docs/understanding/pazmo-agent-office-contract.md), and [implementation plan](docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md) first. The [v3 handoff](docs/HANDOFF-v3.md) and [source import procedure](docs/IMPORT-UPSTREAM.md) are historical inputs, not approval records. Do not run imported upstream agents with company credentials before their execution boundaries are verified.

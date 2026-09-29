@@ -9,6 +9,8 @@ severity: medium
 symptoms:
   - "A saved answer changed the detail but left the request list showing the old state"
   - "Credential expiry cleared an unsent request during reconnect"
+  - "A rejected G4 answer produced another generic approval request without its assessment"
+  - "A published parent stayed Planned while its child waited for G4"
 root_cause: logic_error
 resolution_type: code_fix
 tags: ["intake", "drafts", "state", "credentials", "async"]
@@ -66,3 +68,13 @@ The native G4 request carried the complete evidence bundle into Markdown, overwh
 The browser check caught a second surface: chat notices truncate the evidence JSON, so the same parser cannot reliably summarize them. Keep the questions there and point to the complete Decisions entry. Never infer a pass from partial evidence. Component tests cover malformed/truncated data and failure visibility; the actual browser verified both surfaces. [Verification](../../verification/2026-09-29-native-claw-preview.md).
 
 The next actual G4 submission exposed the same draft-loss invariant in the native modal: it cleared input immediately after invoking an asynchronous callback that catches API errors. Keep the draft until authoritative request-list reconciliation removes the addressed item. Show structured `ANSWER_REQUIRED` feedback instead of asking the user to repeat an invalid submission. Display the numbered format at the input, preserve approval expiry, and never replay an old answer into a replacement request. A resolved callback alone cannot prove acceptance when its owner handles errors internally. Pending/rejected submission and resolved-item-removal tests now enforce this distinction.
+
+## Native Decisions and parent tasks (2026-09-29)
+
+Actual users submitted a numbered answer twice; the model returned `needs_restatement` with reasons, but the successor request hid that assessment. The transport was working, so repeating the POST or merely replacing its generic error was insufficient. `CompletionLedger.feedback` now reads the latest failed assessment for the displayed request's current evidence subject. The native Decision projects the exact prior answer and three assessment reasons without altering the stored evidence, accepting an answer, or starting another model. Expired or changed requests explain renewal separately. Never carry an assessment to another candidate.
+
+A second projection gap left the intake parent Planned after its children had been published. Use the intake publication receipt as the child list, project Review/collaborating onto the native parent, and reserve Done for actual child delivery. Managed cards explain their pending Decision or running assessment; upstream Run remains available for unadopted requests. Hide unsupported Resume/delete and disable status/reassignment controls instead of offering silent no-ops. Cancel remains available for unfinished managed work. Preserve upstream Hide through an exact hidden-only PATCH allowlist; adding a status or any other field still fails the workflow guard.
+
+Review removed candidate/evidence revalidation from the frequently polled Task Board progress projection: only runtime activity is needed to label an active answer assessment. The actual approval and feedback paths retain exact evidence validation. Do not turn a harmless progress label into repeated disk hashing.
+
+Regression evidence covers rejected answer → successor with reasons → no automatic reassessment → actual addressed fixture answer → trusted fixture assessment → child/parent delivery; stale evidence suppresses feedback. UI tests distinguish managed and upstream tasks. The actual browser showed both Sage and Hawk in Review, no parent Run, and saved model assessment reasons. These checks do not stand in for final human G4. See the current native verification record for the evidence boundary.

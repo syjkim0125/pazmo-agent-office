@@ -411,6 +411,7 @@ test("an incorrect restatement requires a new answer before it can be accepted",
     },
   });
   assert.equal(f.completion.get(f.task.id).status, "needs_restatement");
+  assert.equal(f.completion.feedback(f.task.id).requestId, first.id);
   assert.equal(f.completion.get(f.task.id).approved, false);
   assert.throws(
     () =>
@@ -1020,4 +1021,26 @@ test("two confirmed-closed failed assessments cannot renew their per-answer budg
   );
   assert.equal(f.completion.get(f.task.id).status, "awaiting_evaluation");
   assert.equal(f.completion.get(f.task.id).approved, false);
+});
+
+test("restatement feedback survives a successor request but never crosses invalidated evidence", async (t) => {
+  const f = await setup(t);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  assert.equal(f.completion.feedback(f.task.id), null);
+  const first = f.completion.request(token, f.task.id);
+  const submitted = f.completion.submit(token, first.id, answer);
+  f.completion.evaluate(token, first.id, submitted.answerDigest, {
+    ...evaluation,
+    evidence: { correct: false, rationale: "Fixture evidence only" },
+  });
+  const second = f.completion.request(token, f.task.id);
+  const feedback = f.completion.feedback(f.task.id);
+  assert.equal(feedback.requestId, first.id);
+  assert.equal(feedback.answer.note, answer.note);
+  assert.equal(feedback.evaluation.evidence.rationale, "Fixture evidence only");
+  assert.equal(f.completion.get(f.task.id).id, second.id);
+  assert.equal(f.completion.get(f.task.id).approved, false);
+  f.verification.invalidate(f.round.id, "TEST_INVALIDATION");
+  assert.equal(f.completion.feedback(f.task.id), null);
 });

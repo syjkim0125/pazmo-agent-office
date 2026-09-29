@@ -1,0 +1,4 @@
+#!/bin/sh
+# Run from any directory. Node's checked CLI handles the rest.
+set -eu
+exec node "$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)/bin/pazmo-office.mjs" up "$@"
