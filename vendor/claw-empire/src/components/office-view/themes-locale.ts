@@ -4,15 +4,15 @@ import type { MeetingReviewDecision } from "../../types";
 import type { RoomTheme } from "./model";
 
 const OFFICE_PASTEL_LIGHT = {
-  creamWhite: 0xf8f3ec,
-  creamDeep: 0xebdfcf,
+  creamWhite: 0xf8e8ca,
+  creamDeep: 0xe6c99e,
   softMint: 0xbfded5,
   softMintDeep: 0x8fbcb0,
   dustyRose: 0xd5a5ae,
   dustyRoseDeep: 0xb67d89,
   warmSand: 0xd6b996,
-  warmWood: 0xb8906d,
-  cocoa: 0x6f4d3a,
+  warmWood: 0xb7764e,
+  cocoa: 0x52394a,
   ink: 0x2f2530,
   slate: 0x586378,
 };
@@ -35,9 +35,9 @@ const OFFICE_PASTEL_DARK = {
 let OFFICE_PASTEL = OFFICE_PASTEL_LIGHT;
 
 const DEFAULT_CEO_THEME_LIGHT: RoomTheme = {
-  floor1: 0xe5d9b9,
-  floor2: 0xdfd0a8,
-  wall: 0x998243,
+  floor1: 0xd8b576,
+  floor2: 0xceaa70,
+  wall: 0x70523e,
   accent: 0xa77d0c,
 };
 const DEFAULT_CEO_THEME_DARK: RoomTheme = {
@@ -48,8 +48,8 @@ const DEFAULT_CEO_THEME_DARK: RoomTheme = {
 };
 
 const DEFAULT_BREAK_THEME_LIGHT: RoomTheme = {
-  floor1: 0xf7e2b7,
-  floor2: 0xf6dead,
+  floor1: 0xe0ba86,
+  floor2: 0xd6af7c,
   wall: 0xa99c83,
   accent: 0xf0c878,
 };
@@ -409,12 +409,12 @@ const BREAK_SPOTS = [
 ];
 
 const DEPT_THEME_LIGHT: Record<string, RoomTheme> = {
-  dev: { floor1: 0xd8e8f5, floor2: 0xcce1f2, wall: 0x6c96b7, accent: 0x5a9fd4 },
-  design: { floor1: 0xe8def2, floor2: 0xe1d4ee, wall: 0x9378ad, accent: 0x9a6fc4 },
-  planning: { floor1: 0xf0e1c5, floor2: 0xeddaba, wall: 0xae9871, accent: 0xd4a85a },
-  operations: { floor1: 0xd0eede, floor2: 0xc4ead5, wall: 0x6eaa89, accent: 0x5ac48a },
-  qa: { floor1: 0xf0cbcb, floor2: 0xedc0c0, wall: 0xae7979, accent: 0xd46a6a },
-  devsecops: { floor1: 0xf0d5c5, floor2: 0xedcdba, wall: 0xae8871, accent: 0xd4885a },
+  dev: { floor1: 0xa5bfca, floor2: 0x97b1be, wall: 0x485d7c, accent: 0x5a9fd4 },
+  design: { floor1: 0xc0adce, floor2: 0xb49fc4, wall: 0x654973, accent: 0x9a6fc4 },
+  planning: { floor1: 0xddbd8c, floor2: 0xd2af7e, wall: 0x785739, accent: 0xd4a85a },
+  operations: { floor1: 0xacc5a3, floor2: 0x9bb693, wall: 0x47644c, accent: 0x5ac48a },
+  qa: { floor1: 0xd4a4a0, floor2: 0xc79492, wall: 0x784950, accent: 0xd46a6a },
+  devsecops: { floor1: 0xd7b296, floor2: 0xc9a184, wall: 0x7d5547, accent: 0xd4885a },
 };
 const DEPT_THEME_DARK: Record<string, RoomTheme> = {
   dev: { floor1: 0x0c1620, floor2: 0x0a121c, wall: 0x1e3050, accent: 0x285890 },

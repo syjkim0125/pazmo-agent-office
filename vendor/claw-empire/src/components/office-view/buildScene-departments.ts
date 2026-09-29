@@ -110,7 +110,7 @@ export function buildDepartmentRooms({
     drawRoomAtmosphere(room, rx, ry, roomW, roomH, theme.wall, theme.accent);
 
     const wallG = new Graphics();
-    wallG.roundRect(rx, ry, roomW, roomH, 3).stroke({ width: 2.5, color: theme.wall });
+    wallG.rect(rx, ry, roomW, roomH).stroke({ width: 3, color: theme.wall });
     room.addChild(wallG);
 
     const doorG = new Graphics();

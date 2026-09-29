@@ -97,69 +97,40 @@ function drawCoffeeMachine(parent: Container, x: number, y: number) {
 
 function drawSofa(parent: Container, x: number, y: number, color: number) {
   const g = new Graphics();
-  const seatBase = blendColor(color, OFFICE_PASTEL.creamWhite, 0.18);
-  const seatFront = blendColor(seatBase, OFFICE_PASTEL.ink, 0.08);
-  const seatBack = blendColor(seatBase, OFFICE_PASTEL.ink, 0.18);
-  const seatDark = blendColor(seatBase, OFFICE_PASTEL.ink, 0.28);
-  // Floor shadow
-  g.ellipse(x + 40, y + 20, 44, 5).fill({ color: 0x000000, alpha: 0.06 });
-  // Sofa feet (tiny wooden)
-  g.roundRect(x + 2, y + 16, 4, 3, 1).fill(0xb89060);
-  g.roundRect(x + 74, y + 16, 4, 3, 1).fill(0xb89060);
-  // Seat cushion
-  g.roundRect(x, y, 80, 18, 5).fill(seatBase);
-  g.roundRect(x + 2, y + 2, 76, 14, 4).fill(seatFront);
-  // Seat highlight (top edge)
-  g.moveTo(x + 6, y + 1.5)
-    .lineTo(x + 74, y + 1.5)
-    .stroke({ width: 0.6, color: 0xffffff, alpha: 0.14 });
-  // Backrest (taller, with detail)
-  g.roundRect(x + 3, y - 10, 74, 12, 4).fill(seatBack);
-  g.roundRect(x + 3, y - 10, 74, 12, 4).stroke({ width: 0.5, color: seatDark, alpha: 0.15 });
-  // Backrest highlight
-  g.roundRect(x + 6, y - 9, 68, 3, 2).fill({ color: 0xffffff, alpha: 0.08 });
-  // Armrests (rounder, softer)
-  g.roundRect(x - 5, y - 8, 9, 24, 4).fill(seatBack);
-  g.roundRect(x - 5, y - 8, 9, 24, 4).stroke({ width: 0.5, color: seatDark, alpha: 0.12 });
-  g.roundRect(x + 76, y - 8, 9, 24, 4).fill(seatBack);
-  g.roundRect(x + 76, y - 8, 9, 24, 4).stroke({ width: 0.5, color: seatDark, alpha: 0.12 });
-  // Armrest top highlights
-  g.roundRect(x - 3, y - 7, 5, 2, 1).fill({ color: 0xffffff, alpha: 0.1 });
-  g.roundRect(x + 78, y - 7, 5, 2, 1).fill({ color: 0xffffff, alpha: 0.1 });
-  // Cushion divider lines (softer)
-  g.moveTo(x + 27, y + 3)
-    .lineTo(x + 27, y + 14)
-    .stroke({ width: 0.6, color: 0x000000, alpha: 0.1 });
-  g.moveTo(x + 53, y + 3)
-    .lineTo(x + 53, y + 14)
-    .stroke({ width: 0.6, color: 0x000000, alpha: 0.1 });
-  // Cushion puff highlights
-  g.ellipse(x + 14, y + 7, 8, 4).fill({ color: 0xffffff, alpha: 0.06 });
-  g.ellipse(x + 40, y + 7, 8, 4).fill({ color: 0xffffff, alpha: 0.06 });
-  g.ellipse(x + 66, y + 7, 8, 4).fill({ color: 0xffffff, alpha: 0.06 });
-  // Decorative throw pillow (cute accent)
-  g.roundRect(x + 6, y - 3, 10, 8, 3).fill(blendColor(color, 0xffffff, 0.3));
-  g.roundRect(x + 6, y - 3, 10, 8, 3).stroke({ width: 0.4, color: seatDark, alpha: 0.15 });
-  // Pillow pattern (tiny star)
-  g.star(x + 11, y + 1, 5, 1.5, 0.8, 0).fill({ color: 0xffffff, alpha: 0.15 });
+  x = Math.round(x);
+  y = Math.round(y);
+  const ink = 0x332638;
+  const mid = blendColor(color, ink, 0.22);
+  const light = blendColor(color, 0xffecc2, 0.28);
+  g.rect(x + 2, y + 16, 5, 4).fill(ink);
+  g.rect(x + 73, y + 16, 5, 4).fill(ink);
+  g.rect(x, y - 10, 80, 28).fill(ink);
+  g.rect(x + 2, y - 8, 76, 8).fill(mid);
+  g.rect(x + 3, y - 8, 74, 2).fill(light);
+  g.rect(x + 2, y + 1, 76, 13).fill(color);
+  g.rect(x + 2, y + 14, 76, 2).fill(mid);
+  for (const seam of [27, 53]) g.rect(x + seam, y + 1, 1, 13).fill(mid);
+  for (const arm of [-5, 76]) {
+    g.rect(x + arm, y - 6, 9, 22).fill(ink);
+    g.rect(x + arm + 2, y - 4, 5, 18).fill(mid);
+    g.rect(x + arm + 2, y - 4, 5, 2).fill(light);
+  }
+  g.rect(x + 8, y - 2, 10, 9).fill(ink);
+  g.rect(x + 9, y - 1, 8, 7).fill(light);
   parent.addChild(g);
 }
 
 function drawCoffeeTable(parent: Container, x: number, y: number) {
   const g = new Graphics();
-  // table top (elliptical)
-  g.ellipse(x + 18, y + 5, 18, 8).fill(0xb89060);
-  g.ellipse(x + 18, y + 5, 16, 6).fill(0xd0a878);
-  // legs
-  g.rect(x + 6, y + 10, 3, 8).fill(0xa07840);
-  g.rect(x + 27, y + 10, 3, 8).fill(0xa07840);
-  // coffee cup
-  g.roundRect(x + 12, y + 1, 5, 4, 1).fill(0xfffaf6);
-  g.rect(x + 13, y + 2, 3, 2).fill(0x8d654c);
-  // snack plate
-  g.ellipse(x + 24, y + 4, 4, 2.5).fill(0xf4ede6);
-  g.circle(x + 23, y + 3.5, 1.5).fill(0xedc27a);
-  g.circle(x + 25.5, y + 4, 1.5).fill(0xdba282);
+  g.rect(x + 5, y + 10, 4, 8).fill(0x332638);
+  g.rect(x + 27, y + 10, 4, 8).fill(0x332638);
+  g.rect(x, y, 36, 13).fill(0x332638);
+  g.rect(x + 2, y + 2, 32, 9).fill(0xdca36b);
+  g.rect(x + 2, y + 2, 32, 2).fill(0xf0c58a);
+  g.rect(x + 10, y + 4, 6, 5).fill(0xffecc2);
+  g.rect(x + 11, y + 4, 4, 2).fill(0x704135);
+  g.rect(x + 23, y + 4, 7, 5).fill(0xffecc2);
+  g.rect(x + 24, y + 5, 5, 2).fill(0xb7764e);
   parent.addChild(g);
 }
 
