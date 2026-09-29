@@ -1,3 +1,4 @@
+import { assertDirectExecutionAllowed } from "../../../pazmo/host.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { spawn } from "node:child_process";
@@ -83,6 +84,7 @@ export function createOneShotRunner(deps: CreateOneShotRunnerDeps) {
     prompt: string,
     opts: OneShotRunOptions = {},
   ): Promise<OneShotRunResult> {
+    assertDirectExecutionAllowed("meeting");
     const provider = agent.cli_provider || "claude";
     const timeoutMs = opts.timeoutMs ?? 180_000;
     const projectPath = opts.projectPath || process.cwd();

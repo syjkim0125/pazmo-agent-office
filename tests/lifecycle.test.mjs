@@ -44,21 +44,9 @@ test("observation page exposes no capability and intake listing requires the exi
     readFileSync(join(running.dataDir, `operator-${state.instance}.json`)),
   );
   const base = `http://127.0.0.1:${state.port}`;
-  for (const path of [
-    "/activity",
-    "/activity/monitor.js",
-    "/activity/start.js",
-    "/activity/style.css",
-  ]) {
-    const response = await fetch(base + path);
-    assert.equal(response.status, 200);
-    assert.equal(response.headers.get("cache-control"), "no-store");
-    assert.match(
-      response.headers.get("content-security-policy"),
-      /frame-ancestors 'none'/,
-    );
-    assert.ok(!(await response.text()).includes(operator.token));
-  }
+  const page = await fetch(base + "/?officeView=tasks");
+  assert.equal(page.status, 200);
+  assert.ok(!(await page.text()).includes(operator.token));
   assert.equal((await fetch(base + "/api/pazmo/intakes")).status, 401);
   const headers = { Authorization: `Bearer ${operator.token}` };
   assert.equal((await fetch(base + "/api/pazmo/runtime")).status, 401);
@@ -406,7 +394,7 @@ test("start/status/stop use an isolated locked Office and preserve its database"
   const health = await (await fetch(url + "/api/pazmo/status")).json();
   assert.equal(health.execution, "locked");
   const html = await (await fetch(url)).text();
-  assert.ok(html.includes("AI execution locked"));
+  assert.ok(!html.includes('href="/activity"'));
   assert.ok(html.includes("Pazmo Agent Office — Read-only preview"));
   const agents = await (await fetch(url + "/api/agents")).json();
   assert.ok(agents.agents.length >= 3);

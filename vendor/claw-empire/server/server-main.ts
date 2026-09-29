@@ -1,4 +1,5 @@
 import express from "express";
+import { registerPazmoHost, pazmoOffice } from "./pazmo/host.ts";
 import { WebSocketServer, WebSocket } from "ws";
 import type { BaseRuntimeContext, RuntimeContext } from "./types/runtime-context.ts";
 
@@ -57,6 +58,7 @@ applyBaseSchema(db);
 const oauthRuntime = initializeOAuthRuntime({ db, nowMs, runInTransaction });
 applyTaskSchemaMigrations(db);
 applyDefaultSeeds(db);
+await registerPazmoHost(app, db);
 
 const messageIdempotency = createMessageIdempotencyTools({
   db,
@@ -122,6 +124,7 @@ const runtimeContext: Record<string, any> & BaseRuntimeContext = {
 const runtimeProxy = createDeferredRuntimeProxy(runtimeContext);
 
 Object.assign(runtimeContext, initializeWorkflow(runtimeProxy as RuntimeContext));
+pazmoOffice()?.setBroadcast(runtimeContext.broadcast);
 Object.assign(runtimeContext, registerApiRoutes(runtimeContext as RuntimeContext));
 
 assertRuntimeFunctionsResolved(runtimeContext, ROUTE_RUNTIME_HELPER_KEYS, "route helper wiring");

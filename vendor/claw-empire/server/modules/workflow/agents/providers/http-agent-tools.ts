@@ -1,3 +1,4 @@
+import { assertDirectExecutionAllowed } from "../../../../pazmo/host.ts";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -97,6 +98,7 @@ export function createHttpAgentTools(deps: CreateHttpAgentToolsDeps) {
     preferredAccountId?: string | null,
     safeWriteOverride?: (text: string) => boolean,
   ): Promise<void> {
+    assertDirectExecutionAllowed("oauth");
     const safeWrite = safeWriteOverride ?? createSafeLogStreamOps(logStream).safeWrite;
     const modelConfig = getProviderModelConfig();
     const defaultRawModel = modelConfig.copilot?.model || "github-copilot/gpt-4o";
@@ -203,6 +205,7 @@ export function createHttpAgentTools(deps: CreateHttpAgentToolsDeps) {
     preferredAccountId?: string | null,
     safeWriteOverride?: (text: string) => boolean,
   ): Promise<void> {
+    assertDirectExecutionAllowed("oauth");
     const safeWrite = safeWriteOverride ?? createSafeLogStreamOps(logStream).safeWrite;
     const modelConfig = getProviderModelConfig();
     const defaultRawModel = modelConfig.antigravity?.model || "google/antigravity-gemini-2.5-pro";
@@ -329,6 +332,7 @@ export function createHttpAgentTools(deps: CreateHttpAgentToolsDeps) {
     preferredOAuthAccountId?: string | null,
     onComplete?: (exitCode: number) => void,
   ): void {
+    assertDirectExecutionAllowed("oauth-launch");
     const logStream = fs.createWriteStream(logPath, { flags: "a" });
     const { safeWrite, safeEnd } = createSafeLogStreamOps(logStream);
     safeWrite(`\n===== task run start ${new Date().toISOString()} | provider=${agent} =====\n`);

@@ -7,6 +7,7 @@ import { DatabaseSync } from "node:sqlite";
 import { fixture } from "./contract-fixture.mjs";
 import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
+import { workspaceScope } from "../src/core/workspace.ts";
 import {
   beginPlanning,
   answerPlanning,
@@ -238,6 +239,12 @@ test("approval injection, unmapped requirements, invalid checks and incomplete p
       v.tasks[0].workspace.include = ["../outside"];
     },
     (v) => {
+      v.tasks[0].workspace = {
+        include: ["README_ko.md"],
+        exclude: ["src", "docs", "package.json", "package-lock.json"],
+      };
+    },
+    (v) => {
       v.tasks = [];
     },
     (v) => {
@@ -323,6 +330,10 @@ test("planning receives an explicit readonly snapshot without leaking controller
     "/bin/sh",
   ]);
   assert.equal(data.verificationEnvironment.network, "none");
+  assert.deepEqual(
+    workspaceScope(data.verificationEnvironment.workspaceSelection.singleFileExample),
+    { include: ["README_ko.md"], exclude: [] },
+  );
   assert.match(
     data.verificationEnvironment.evidenceBoundary,
     /semantic.*Reviewer/,

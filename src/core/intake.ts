@@ -145,6 +145,7 @@ export class IntakeLedger {
       state: publication ? ("registered" as const) : row.state,
       inputDigest: packet.inputDigest,
       request: packet.request,
+      role: packet.role,
       risk: packet.risk,
       workflow: packet.workflow ?? "legacy",
       story: packet.story,
@@ -211,20 +212,39 @@ export class IntakeLedger {
     request: string,
     risk: "normal" | "high",
     kitRoles = false,
+    existingTaskId?: string,
   ) {
     this.#store.authorize(token);
-    const id = randomUUID(),
+    const id = existingTaskId ?? randomUUID(),
       packet = beginPlanning(id, request, risk, kitRoles);
     return transaction(this.#db, () => {
-      this.#db
-        .prepare(
-          "INSERT INTO tasks (id,title,project_path,status) VALUES (?,?,?,'inbox')",
+      if (existingTaskId) {
+        const task = this.#db
+          .prepare("SELECT project_path,status FROM tasks WHERE id=?")
+          .get(id) as { project_path: string; status: string } | undefined;
+        if (
+          !task ||
+          task.project_path !== this.#project ||
+          task.status !== "inbox" ||
+          this.#db
+            .prepare("SELECT 1 FROM pazmo_task_contracts WHERE task_id=?")
+            .get(id)
         )
-        .run(
-          id,
-          request.trim().replace(/\s+/g, " ").slice(0, 120),
-          this.#project,
-        );
+          fail(
+            "INTAKE_STATE",
+            "Only an unstarted task in the selected project can enter intake.",
+          );
+      } else {
+        this.#db
+          .prepare(
+            "INSERT INTO tasks (id,title,project_path,status) VALUES (?,?,?,'inbox')",
+          )
+          .run(
+            id,
+            request.trim().replace(/\s+/g, " ").slice(0, 120),
+            this.#project,
+          );
+      }
       this.#db
         .prepare(
           "INSERT INTO pazmo_intakes VALUES (?,1,'waiting_pm',?,NULL,NULL)",
@@ -422,6 +442,77 @@ export class IntakeLedger {
         "human",
         { scopeApproval: { ...challenge, answer } },
         answer.decision === "approve" ? null : "G1_REJECTED",
+      );
+    });
+  }
+  /** Explicit recovery of a closed, rejected planning response; never an approval
+   * or a way to release uncertain processes. Budget spans successor kit runs. */
+  retryPlanning(
+    token: string,
+    id: string,
+    revision: number,
+    inputDigest: string,
+    note: string,
+  ) {
+    this.#store.authorize(token);
+    return transaction(this.#db, () => {
+      const { row, packet } = this.#match(id, revision, inputDigest);
+      if (
+        !packet.workflow ||
+        row.state !== "human_required" ||
+        row.reason !== "PLANNING_INVALID"
+      )
+        fail(
+          "INTAKE_STATE",
+          "Only rejected native planning output can be resumed.",
+        );
+      if (typeof note !== "string" || !note.trim() || note.length > 16000)
+        fail("ANSWER_REQUIRED", "Record the actual recovery request.");
+      const leases = this.#db
+        .prepare(
+          "SELECT * FROM pazmo_planning_leases WHERE task_id=? ORDER BY rowid",
+        )
+        .all(id) as {
+        id: string;
+        revision: number;
+        input_digest: string;
+        state: string;
+        handle: string | null;
+      }[];
+      if (leases.some((l) => l.state !== "released"))
+        fail("TASK_ACTIVE", "Planning process closure is not confirmed.");
+      const prior = leases.at(-1);
+      if (
+        !prior?.handle ||
+        prior.revision !== revision - 1 ||
+        prior.input_digest !== inputDigest
+      )
+        fail(
+          "PLANNING_RECOVERY_REQUIRED",
+          "No matching closed planning execution.",
+        );
+      const retries = this.get(id).events.filter(
+        (e) => e.payload.planningRetry,
+      );
+      if (retries.length >= 2)
+        fail(
+          "PLANNING_RETRY_LIMIT",
+          "Two planning recoveries were already requested; inspect the failure.",
+        );
+      return this.#advance(
+        row,
+        packet,
+        packet.role === "pm" ? "waiting_pm" : "waiting_lead",
+        null,
+        "human",
+        {
+          planningRetry: {
+            role: packet.role,
+            fromRevision: revision,
+            leaseId: prior.id,
+            note,
+          },
+        },
       );
     });
   }

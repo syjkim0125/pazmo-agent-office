@@ -220,3 +220,11 @@ Story 상태 검사는 `.ai-workflow/bin/check.mjs story`와 해당 `gate G1|G4`
 - 단순화 후 최종 diff를 리뷰하고 수정된 동작을 재검증한다. G4의 사람 응답·평가와 checker exit 0이 있어야 Delivered로 변경한다.
 - 실험·폐기 코드와 불필요한 배포 파일을 정리하고 사용자 파일·작업 후보·실패 증거를 보존한다.
 - 재사용할 교훈은 Compound로 기록하고 없는 경우 이유를 남긴다. 원격 PR/merge/npm publish는 별도 권한 없이 실행하지 않는다.
+
+U7 correction (2026-09-28): restore existing Tasks navigation; mount the existing read-only observer inside the Office Tasks view; scope its CSS/DOM to that component and dispose polling on navigation. The monitor URL opens Tasks within the existing app. Retire standalone activity HTML/routes, retaining safe redirects for old links. Reuse read capability/bridge/ledgers; test React remount and session initialization, build, then verify the actual existing Office tab. No character/Decisions projection is added by this correction.
+
+### 2026-09-29 D11 native Claw continuation (M2/M3/M4, V8)
+
+Reuse upstream server, TaskBoard, chat/delegation and WebSocket. First expose an explicitly locked `--claw` entry with native DB separated from preserved legacy data; block provider/meeting/start/merge fallthrough at their entry points. Next bind qualified controller/VM runners and kit role runs to native assignments and exact candidates, then connect native Decisions to actual user approval/delivery. Do not launch a second legacy coordinator or duplicate task authority. Existing upstream orchestration closures capture functions: guarding only exported context is insufficient. The first slice is verified; role execution and final acceptance remain open.
+
+Planning recovery (M3/M4, V8): the installed kit rejects reset for action=human. After an explicit addressed user recovery request, retain the same Office task/packet/G1 and all old runs, confirm every planning lease is released, and create only the pending role's successor through kit init-role. Persist predecessor identity/revision and the human event in an immutable recovery receipt. Across successor runs, allow at most two planning recoveries in the Office request. Repeated responses are stale, unknown/cancelled/source-changed work stays blocked, and recovery is never contract or G4 approval. Use the original Decisions surface; no new screen or direct DB repair.

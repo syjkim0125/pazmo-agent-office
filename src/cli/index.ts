@@ -26,7 +26,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <setup-runtime|bridge|monitor|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
+        "pazmo-office <setup-runtime|bridge|monitor|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
       );
       return;
     }
@@ -76,13 +76,19 @@ export async function main(args: string[]): Promise<void> {
           "--gate",
           "--challenge",
           "--live",
+          "--claw",
           "--controller",
           "--executor",
         ].includes(flag) ||
         flag in options
       )
         fail("ARGUMENT", `Unknown or repeated option: ${flag}`);
-      if (flag === "--apply" || flag === "--dry-run" || flag === "--live")
+      if (
+        flag === "--apply" ||
+        flag === "--dry-run" ||
+        flag === "--live" ||
+        flag === "--claw"
+      )
         options[flag] = true;
       else {
         const value = args.shift();
@@ -104,7 +110,7 @@ export async function main(args: string[]): Promise<void> {
     if (options["--port"] !== undefined && command !== "start")
       fail("ARGUMENT", "Port is only supported by start.");
     if (
-      ["--live", "--controller", "--executor"].some(
+      ["--claw", "--live", "--controller", "--executor"].some(
         (key) => options[key] !== undefined,
       ) &&
       command !== "start"
@@ -279,6 +285,7 @@ export async function main(args: string[]): Promise<void> {
               socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
             }
           : undefined,
+        options["--claw"] ? "claw" : "legacy",
       );
     }
     console.log(JSON.stringify(result));

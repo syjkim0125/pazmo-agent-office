@@ -306,3 +306,15 @@ test("independent SQLite controllers cannot overbook mixed planning and implemen
     JSON.stringify(results),
   );
 });
+
+test('confirmed preparation failure releases an unstarted lease but cannot clear unknown or running work', t => {
+ const f=setup(t),s=f.create(),lease=f.reserve(s);
+ f.execution.failPlanningPreparation(lease.id,'VM_PREPARATION_FAILED');
+ assert.equal(f.execution.getPlanning(lease.id).state,'released');
+ assert.equal(f.intake.get(s.taskId).reason,'VM_PREPARATION_FAILED');
+ const active=f.reserve(f.create());f.execution.startPlanning(active.id,'actual-handle');
+ assert.throws(()=>f.execution.failPlanningPreparation(active.id,'no'),/unstarted/);
+ f.execution.markPlanningUnknown(active.id);
+ assert.throws(()=>f.execution.failPlanningPreparation(active.id,'no'),/unstarted/);
+ assert.equal(f.execution.getPlanning(active.id).state,'unknown');
+});

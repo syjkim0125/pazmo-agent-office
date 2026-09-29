@@ -73,6 +73,7 @@ type Runners = {
 
 /** Process ownership only. Existing ledgers and kit remain the work-state owners. */
 export class LiveRuntime {
+  onSettled?: () => Promise<void>;
   #ledgers: Ledgers;
   #runners: Runners;
   #active = new Map<string, Active>();
@@ -178,8 +179,9 @@ export class LiveRuntime {
           );
         }
       })
-      .finally(() => {
+      .finally(async () => {
         this.#active.delete(operation.taskId);
+        await this.onSettled?.();
       });
     return { state: "accepted", ...operation };
   }
@@ -269,17 +271,33 @@ export async function planningSnapshot(
       );
     return candidate;
   }
-  const files = (
-    await git(project, [
+  const [listed, indexed] = await Promise.all([
+    git(project, [
       "ls-files",
       "-z",
       "--cached",
       "--others",
       "--exclude-standard",
-    ])
-  )
+    ]),
+    git(project, ["ls-files", "-z", "--stage"]),
+  ]);
+  // Gitlinks are repository references, not files in this project's snapshot.
+  // Never initialize, recurse into, or execute submodule configuration here.
+  const gitlinks = new Set(
+    indexed
+      .split("\0")
+      .filter((p) => p.startsWith("160000 "))
+      .map((p) => p.slice(p.indexOf("\t") + 1)),
+  );
+  const files = listed
     .split("\0")
-    .filter((p) => p && !protectedPath(p) && existsSync(join(project, p)));
+    .filter(
+      (p) =>
+        p &&
+        !gitlinks.has(p) &&
+        !protectedPath(p) &&
+        existsSync(join(project, p)),
+    );
   if (!files.length)
     fail(
       "CONTEXT_REQUIRED",

@@ -1,7 +1,7 @@
 ---
 title: Pin bounded role instructions and separate role from project authority
 date: "2026-09-21"
-last_updated: "2026-09-23"
+last_updated: "2026-09-29"
 category: architecture-patterns
 module: Office role profiles
 problem_type: architecture_pattern
@@ -62,3 +62,17 @@ The actual README pilot's model Reviewer passed an ambiguous authentication sent
 - [PM/Lead protocol and plan-context regression](../../verification/2026-09-21-planning-protocol.md)
 - [Nonblocking contract file validation](../runtime-errors/nonblocking-contract-file-validation.md)
 - [Tool evidence versus model completion](../integration-issues/remote-codex-cwd-and-tool-evidence.md)
+
+## Restoring upstream execution without bypassing role boundaries
+
+Original Claw workflow factories capture provider functions in closures. Replacing only the exported runtime-context function does not intercept those internal calls. Guard the concrete CLI, one-shot meeting, API/OAuth, task-start and merge entries before activating the original server, then connect the qualified adapter explicitly. Tests invoke these entries with missing dependencies and require the boundary error before any tool, credential, file or task-state access. HTTP-only blocking is not sufficient for timers or internal delegation.
+
+Keep native data separate from preserved legacy data until a reviewed migration exists; do not run two authoritative coordinators for one task. The locked native startup and HTTP/DB/WebSocket tests are integration evidence, not proof of a working kit/model workflow. [Native restoration evidence](../../verification/2026-09-29-native-claw-preview.md).
+
+## Human-routed planning recovery is not a reset
+
+The restored native pilot exposed a distinction between a closed process and a resumable graph. The real Lead returned a workspace selection rejected by Office, and kit recorded it with action `human`. The initial suggestion to reset that same run was wrong: the installed kit CLI refuses reset for human-routed failures and requires a decision followed by a new run. Do not patch its state or fabricate a successful proposal from a diagnostically corrected response.
+
+The pending Office recovery change uses the actual user's addressed recovery request, confirms all planning processes for that task are released, and preserves the task, approved Story, G1 and failed run. Only the pending role receives a successor, with an immutable receipt linking predecessor identity/revision and the human event. Office's total of two planning recoveries spans successors; kit still controls each run's nodes and readiness. This extra host budget matters because a new graph's attempt counter does not remember earlier graphs. Missing or changed predecessors and unknown processes stop before a model starts. Tests cover preserved failed bytes and G1, duplicate replies, restart, cancellation and exhaustion. The actual resumed Lead passed its previously rejected investigate node; downstream delivery is separate evidence.
+
+Prevention: inspect the installed CLI's permitted transition before promising recovery. Classify malformed protocol output separately from unknown process liveness, and do not confuse a recovery request with scope approval or G4. Model prompts must state the workspace selection invariant enforced by the parser; unrelated paths outside include must not be supplied as exclusions.

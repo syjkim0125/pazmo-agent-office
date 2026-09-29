@@ -1,3 +1,4 @@
+import { assertDirectExecutionAllowed } from "../../../pazmo/host.ts";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -226,6 +227,7 @@ export function createCliRuntimeTools(deps: CliRuntimeDeps) {
     model?: string,
     reasoningLevel?: string,
   ): ChildProcess {
+    assertDirectExecutionAllowed("cli");
     clearCliOutputDedup(taskId);
     // Save prompt for debugging
     const promptPath = path.join(logsDir, `${taskId}.prompt.txt`);

@@ -264,3 +264,25 @@ test("authenticated HTTP launch and cancel own the same planning operation witho
     "Only unrelated fixture approvals exist",
   );
 });
+
+test("planning snapshots skip uninitialized Git submodule entries without traversing them", async (t) => {
+  const f = await setup(t);
+  execFileSync("/usr/bin/git", ["init", "-q", f.project]);
+  mkdirSync(join(f.project, "vendor", "uninitialized"), { recursive: true });
+  execFileSync("/usr/bin/git", [
+    "-C",
+    f.project,
+    "update-index",
+    "--add",
+    "--cacheinfo",
+    "160000," + "1".repeat(40) + ",vendor/uninitialized",
+  ]);
+  const result = await planningSnapshot(f.project, f.root, "submodule-test");
+  const manifest = JSON.parse(
+    readFileSync(join(result.directory, "manifest.json"), "utf8"),
+  );
+  assert.ok(manifest.entries.length);
+  assert.ok(
+    !manifest.entries.some((e) => e.path.startsWith("vendor/uninitialized")),
+  );
+});

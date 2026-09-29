@@ -6,16 +6,26 @@ export function serveOperatorPage(
   res: ServerResponse,
   path: string,
 ): boolean {
-  if (path !== "/operator" && !path.startsWith("/operator/")) return false;
-  const redirect = path === "/operator" || path === "/operator/";
+  if (
+    !["/operator", "/activity"].some(
+      (prefix) => path === prefix || path.startsWith(prefix + "/"),
+    )
+  )
+    return false;
+  const redirect = [
+    "/operator",
+    "/operator/",
+    "/activity",
+    "/activity/",
+  ].includes(path);
   res.writeHead(redirect ? 302 : 410, {
     "Cache-Control": "no-store",
-    ...(redirect ? { Location: "/activity" } : {}),
+    ...(redirect ? { Location: "/?officeView=tasks" } : {}),
   });
   res.end(
     req.method === "HEAD"
       ? undefined
-      : "Use chat for requests and /activity to observe.",
+      : "Use chat for requests and Office Tasks to observe.",
   );
   return true;
 }

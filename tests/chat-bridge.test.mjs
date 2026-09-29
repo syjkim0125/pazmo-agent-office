@@ -118,7 +118,13 @@ test("monitor gets a distinct read-only capability, supports session login, and 
   const base = url.origin;
   const legacy = await fetch(base + "/operator", { redirect: "manual" });
   assert.equal(legacy.status, 302);
-  assert.equal(legacy.headers.get("location"), "/activity");
+  assert.equal(legacy.headers.get("location"), "/?officeView=tasks");
+  assert.equal(url.pathname, "/");
+  assert.equal(url.searchParams.get("officeView"), "tasks");
+  const retired = await fetch(base + "/activity", { redirect: "manual" });
+  assert.equal(retired.status, 302);
+  assert.equal(retired.headers.get("location"), "/?officeView=tasks");
+  assert.equal((await fetch(base + "/activity/monitor.js")).status, 410);
   assert.equal((await fetch(base + "/operator/console.js")).status, 410);
   const shell = await fetch(base + "/activity");
   assert.equal(shell.status, 200);

@@ -1,4 +1,4 @@
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fail, noSymlinks } from "../cli/project.ts";
 import { digest, readStable, verifyCandidate } from "../core/candidates.ts";
@@ -63,12 +63,21 @@ export class KitPlanning {
       "request.json",
       JSON.stringify({ taskId, request: packet.request, risk: packet.risk }),
     );
-    const open = (role: "pm" | "team-lead", source: string, scope: string[]) =>
-      KitRoleRun.open({
+    const events = this.intake.get(taskId).events;
+    const open = async (
+      role: "pm" | "team-lead",
+      source: string,
+      scope: string[],
+    ) => {
+      const retries = events.filter(
+        (e) =>
+          e.payload.planningRetry?.role === (role === "pm" ? "pm" : "lead"),
+      );
+      const base = `${taskId}:planning:${role}`;
+      const binding = {
         project: this.project,
-        assignmentId: `${taskId}:planning:${role}`,
         assignment: {
-          version: 1,
+          version: 1 as const,
           taskId,
           role,
           source,
@@ -77,7 +86,43 @@ export class KitPlanning {
         },
         candidate,
         guard,
-      });
+      };
+      // Kit forbids resetting action=human. Explicit recovery uses its supported
+      // new-run protocol, linked to immutable predecessors and Office's budget.
+      let identity = base;
+      for (const retry of retries) {
+        const priorFile = `.pazmo-office/role-runs/${digest(identity)}/run.json`;
+        if (!existsSync(join(this.project, priorFile)))
+          fail(
+            "KIT_RECOVERY_REQUIRED",
+            "The predecessor run must remain available.",
+          );
+        const prior = await KitRoleRun.open({
+          ...binding,
+          assignmentId: identity,
+        });
+        const status = await prior.status();
+        if (status.action !== "human" || status.failed.length !== 1)
+          fail(
+            "KIT_RECOVERY_REQUIRED",
+            "Only the rejected predecessor may receive a successor.",
+          );
+        identity = `${base}:recovery:${retry.revision}`;
+        immutable(
+          `recovery-${retry.revision}.json`,
+          JSON.stringify({
+            event: retry,
+            predecessor: {
+              runFile: priorFile,
+              runId: status.runId,
+              revisionToken: status.revisionToken,
+            },
+            successor: `.pazmo-office/role-runs/${digest(identity)}/run.json`,
+          }),
+        );
+      }
+      return KitRoleRun.open({ ...binding, assignmentId: identity });
+    };
     let run: KitRoleRun;
     if (packet.role === "pm") run = await open("pm", request, []);
     else {

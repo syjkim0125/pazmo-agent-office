@@ -96,3 +96,8 @@ describe("decision inbox helpers", () => {
     expect(items[0]?.agentAvatar).toBe("🎬");
   });
 });
+
+it("does not reinterpret persisted workflow status as another approval request", () => {
+  const message=createMessage({id:"managed-status",message_type:"status_update",content:"진행 옵션\n1. README only\n2. No deployment",created_at:1000});
+  expect(buildDecisionInboxItems([message],AGENTS)).toEqual([]);
+});

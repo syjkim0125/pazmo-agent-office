@@ -183,6 +183,10 @@ export function planningPrompt(
       network: "none",
       dependencies:
         "Only selected snapshot files; no installation or implicit global packages.",
+      workspaceSelection: {
+        rule: "include selects the complete allowed tree. Every exclude must be strictly inside an included directory; paths outside include are already unavailable. For a single file, use an empty exclude list. Do not list unrelated source, docs or package files as exclusions.",
+        singleFileExample: { include: ["README_ko.md"], exclude: [] },
+      },
       evidenceBoundary:
         "Office checks the selected file manifest and supplies the baseline diff to Reviewer. Candidate checks have no .git or baseline checkout. Use available commands only: no git, rg, bash assumption, installs, or negated pipelines hiding failures. Deterministic checks cannot prove semantic correctness; Reviewer must assess wording and requirement contradictions. Do not ban required links or keywords appearing in negative warnings. Check JavaScript and regex escaping before proposing node -e commands.",
     },

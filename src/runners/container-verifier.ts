@@ -31,6 +31,10 @@ const preparation = readFileSync(
   new URL("./prepare-candidate.mjs", import.meta.url),
   "utf8",
 );
+const executorPreparation = readFileSync(
+  new URL("./prepare-executor.cjs", import.meta.url),
+  "utf8",
+);
 const exporter = readFileSync(
   new URL("./export-workspace.cjs", import.meta.url),
   "utf8",
@@ -409,7 +413,7 @@ async function runContainer(
       "-e",
       preparation +
         (remote
-          ? `\nconst runtimeHash=crypto.createHash('sha256'), runtimeBuffer=Buffer.alloc(65536), runtimeFd=fs.openSync('/runner/codex',fs.constants.O_RDONLY|fs.constants.O_NOFOLLOW);let runtimeRead;while((runtimeRead=fs.readSync(runtimeFd,runtimeBuffer,0,runtimeBuffer.length,null))>0)runtimeHash.update(runtimeBuffer.subarray(0,runtimeRead));fs.closeSync(runtimeFd);if(runtimeHash.digest('hex')!==${JSON.stringify(EXEC_SERVER_SHA256)})throw Error('UNVERIFIED_EXEC_SERVER');`
+          ? `\nconst expectedExecutorDigest=${JSON.stringify(EXEC_SERVER_SHA256)};\n${executorPreparation}`
           : ""),
       candidate.digest,
       ...(workspace ? ["writable"] : []),

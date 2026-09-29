@@ -1,3 +1,19 @@
+# 2026-09-29 원본 Claw 복구 진행
+
+- CEO를 직원과 같은 사람형 픽셀 캐릭터로 변경하고 화면에서 확인했다.
+- 원본 TaskBoard·서버·로컬 세션·WebSocket을 연결했다. `start --claw`로 시작하며 현재 49930 미리보기도 원본 서버를 사용한다. 별도 Tasks 대체 컴포넌트는 제거했다.
+- 관련 33개 테스트, 양쪽 타입 검사와 UI 빌드 통과. 작업 저장/재시작, 인증 거절, 실시간 task 이벤트, 직접 provider·자동 병합 차단을 확인했다.
+- `--claw --live`로 기존 kit/VM 실행기와 원본 task·대화·Decisions를 연결했다. 실제 PM 완료·사용자 G1 이후 팀장의 잘못된 exclude 목록으로 멈췄던 파일럿을 재개했다. 사용자 요청을 기존 Decisions로 기록하고, 실패 run·Office 작업·기존 승인을 보존했다. 실제 팀장 → Developer → Reviewer와 동일 변경본의 검사 6개가 통과했다. **현재 실제 G4 답변·평가·인도 대기이며 전체 알파 완료는 아니다.** 이번 후보는 첫 검증에서 통과했으며 실제 수정 루프 성공으로 보고하지 않는다.
+- kit가 human 상태의 reset을 금지하므로 공식 init-role로 팀장 후속 run을 만들고 이전 run·사용자 재개 기록을 연결했다. Office 요청 전체의 재개 한도는 2회이며 새로운 run으로 초기화되지 않는다. PM/G1은 재실행하지 않았다. 재개 관련 41개 테스트·타입 검사·vendor lint·Story checker(exit 0)가 통과했다. 단위 검사와 실제 모델 증거는 구분한다.
+- 이번 연결의 관련 95개 테스트가 통과했고, 후속 수정 후 native/planning 35개와 Decisions 4개, root 타입 검사·UI 빌드가 통과했다. 이 자동 검증을 실제 모델의 전체 인도 증거로 취급하지 않는다.
+- [실행 안내](LOCAL-PREVIEW.md) · [증거와 남은 작업](verification/2026-09-29-native-claw-preview.md). 아래는 변경 당시의 기록이며 현재 완료 주장으로 사용하지 않는다.
+
+# 2026-09-28 Tasks integration correction
+
+- 사용자 정정에 따라 **별도 activity 페이지를 제거하고 기존 Tasks 메뉴를 복원**했다. 요청·대화·diff·검증·승인·인도 조회는 Office 앱의 Tasks 내부로 옮겼다. 채팅 제어와 내부 인증은 유지한다. 옛 주소는 Tasks로 이동하며 별도 HTML/JS는 제공하지 않는다.
+- 이 변경은 화면 통합이다. **실제 실행에 따른 캐릭터 상태와 Decisions 연동은 아직 미구현**이다. 이전 화면 구현/테스트 성공을 이 기능들의 완료로 확대하지 않는다. 실제 모델·사용자 G4·인도 인수시험도 남아 있다.
+- [현재 사용 안내](LOCAL-PREVIEW.md) · [통합 검증](verification/2026-09-28-tasks-observation.md). 아래 standalone activity 관련 설명은 변경 전 기록이다.
+
 # 2026-09-28 chat control and read-only observation checkpoint
 
 - 사용자의 “진행해”에 따라 요청·질문 답변·승인·취소는 **Codex 채팅**, Office는 **진행과 결과 조회**로 변경했다. 내부 인증과 기존 승인·VM·kit 역할 그래프 경계는 유지한다. `bridge`는 지원된 기존 API만 호출하고 `monitor`는 조회 전용 연결을 연다. 사용자 키 입력과 옛 operator 조작 UI를 제거했다. 메인 Tasks 진입점은 조회 화면으로 연결된다.

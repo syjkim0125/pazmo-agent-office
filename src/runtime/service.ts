@@ -20,7 +20,6 @@ import { IntakeLedger } from "../core/intake.ts";
 import { transaction } from "../core/approvals.ts";
 import { handleOperator } from "./operator.ts";
 import { serveOperatorPage } from "./operator-page.ts";
-import { serveActivityPage } from "./activity-page.ts";
 import { observationPath } from "./observation.ts";
 import { createLiveRuntime } from "./live.ts";
 import type { LiveConfig } from "./live.ts";
@@ -357,7 +356,6 @@ process.once("message", async (raw: unknown) => {
           json(200, { execution: "locked", mode: "read-only-preview" });
           return;
         }
-        if (serveActivityPage(req, res, path)) return;
         if (serveOperatorPage(req, res, path)) return;
         if (path === "/api/auth/session") {
           json(200, { ok: true, authenticated: false, execution: "locked" });
@@ -457,16 +455,6 @@ process.once("message", async (raw: unknown) => {
               .replace(
                 /<title>[^<]*<\/title>/,
                 "<title>Pazmo Agent Office — Read-only preview</title>",
-              )
-              .replace(
-                /<body\b[^>]*>/,
-                (match) =>
-                  match +
-                  '<aside role="status" style="position:fixed;bottom:8px;left:8px;z-index:99999;padding:8px 12px;border-radius:8px;background:#fff3cd;color:#382a00;font:14px system-ui;box-shadow:0 2px 8px #0002">업무 요청·승인·취소는 채팅에서 · <a href="/activity">진행과 결과</a> · ' +
-                  (live
-                    ? "모델 실행 연결됨"
-                    : "미리보기 / AI execution locked") +
-                  "</aside>",
               ),
           );
         res.writeHead(200, {

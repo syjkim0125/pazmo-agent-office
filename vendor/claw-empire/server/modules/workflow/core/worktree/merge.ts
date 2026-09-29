@@ -1,3 +1,4 @@
+import { assertDirectExecutionAllowed } from "../../../../pazmo/host.ts";
 import { execFileSync } from "node:child_process";
 import { decryptSecret } from "../../../../oauth/helpers.ts";
 import type { WorktreeInfo } from "./lifecycle.ts";
@@ -32,6 +33,7 @@ export function createWorktreeMergeTools(deps: CreateWorktreeMergeToolsDeps) {
     projectPath: string,
     taskId: string,
   ): { success: boolean; message: string; conflicts?: string[] } {
+    assertDirectExecutionAllowed("merge");
     const info = taskWorktrees.get(taskId);
     if (!info) return { success: false, message: "No worktree found for this task" };
     const taskRow = db.prepare("SELECT title, description FROM tasks WHERE id = ?").get(taskId) as
@@ -206,6 +208,7 @@ export function createWorktreeMergeTools(deps: CreateWorktreeMergeToolsDeps) {
     taskId: string,
     githubRepo: string,
   ): { success: boolean; message: string; conflicts?: string[]; prUrl?: string } {
+    assertDirectExecutionAllowed("merge");
     const info = taskWorktrees.get(taskId);
     if (!info) return { success: false, message: "No worktree found for this task" };
     const taskRow = db.prepare("SELECT title FROM tasks WHERE id = ?").get(taskId) as { title: string } | undefined;
@@ -414,6 +417,7 @@ export function createWorktreeMergeTools(deps: CreateWorktreeMergeToolsDeps) {
   function rollbackTaskWorktree(taskId: string, reason: string): boolean {
     const info = taskWorktrees.get(taskId);
     if (!info) return false;
+    assertDirectExecutionAllowed("worktree-cleanup");
 
     const diffSummary = getWorktreeDiffSummary(info.projectPath, taskId);
     if (hasVisibleDiffSummary(diffSummary)) {

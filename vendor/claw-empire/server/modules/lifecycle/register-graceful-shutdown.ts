@@ -13,7 +13,7 @@ interface RegisterGracefulShutdownHandlersOptions {
   wsClients: Set<WsSocket>;
   wss: WebSocketServer;
   server: { close: (callback: () => void) => void };
-  onBeforeClose?: () => void;
+  onBeforeClose?: () => void | Promise<void>;
 }
 
 export function registerGracefulShutdownHandlers({
@@ -29,11 +29,11 @@ export function registerGracefulShutdownHandlers({
   server,
   onBeforeClose,
 }: RegisterGracefulShutdownHandlersOptions): void {
-  function gracefulShutdown(signal: string): void {
+  async function gracefulShutdown(signal: string): Promise<void> {
     console.log(`\n[Claw-Empire] ${signal} received. Shutting down gracefully...`);
 
     try {
-      onBeforeClose?.();
+      await onBeforeClose?.();
     } catch {
       // ignore pre-close cleanup failures
     }

@@ -1,3 +1,4 @@
+import { pazmoOffice } from "../../../../pazmo/host.ts";
 import type { SQLInputValue } from "node:sqlite";
 import type { RuntimeContext } from "../../../../types/runtime-context.ts";
 import type { AgentRow, StoredMessage } from "../../shared/types.ts";
@@ -177,6 +178,15 @@ export function registerChatMessageRoutes(ctx: ChatMessageRouteCtx, deps: ChatMe
         })
       )
         return;
+      const office = pazmoOffice();
+      if (office) {
+        try {
+          await office.chat({ id: msg.id, content, receiverId, projectId, projectPath, messageType });
+        } catch (error) {
+          const e = error as Error & { code?: string };
+          return res.status(409).json({ error: e.code ?? "WORKFLOW_FAILED", message: e.message });
+        }
+      }
       return res.json({ ok: true, message: msg, duplicate: true });
     }
 
@@ -198,6 +208,16 @@ export function registerChatMessageRoutes(ctx: ChatMessageRouteCtx, deps: ChatMe
       return;
     broadcast("new_message", msg);
 
+    const office = pazmoOffice();
+    if (office) {
+      try {
+        await office.chat({ id: msg.id, content, receiverId, projectId, projectPath, messageType });
+        return res.json({ ok: true, message: db.prepare("SELECT * FROM messages WHERE id=?").get(msg.id) });
+      } catch (error) {
+        const e = error as Error & { code?: string };
+        return res.status(409).json({ error: e.code ?? "WORKFLOW_FAILED", message: e.message });
+      }
+    }
     // Schedule agent auto-reply when CEO messages an agent
     if (senderType === "ceo" && receiverType === "agent" && receiverId) {
       if (messageType === "report") {

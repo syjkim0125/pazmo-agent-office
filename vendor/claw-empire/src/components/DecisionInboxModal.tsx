@@ -4,6 +4,7 @@ import { pickLang } from "../i18n";
 import type { Agent } from "../types";
 import AgentAvatar, { buildSpriteMap } from "./AgentAvatar";
 import MessageContent from "./MessageContent";
+import WorkflowDecisionContent from "./WorkflowDecisionContent";
 import type { DecisionInboxItem } from "./chat/decision-inbox";
 import { formatDecisionInboxTime as formatTime, type DecisionInboxModalProps } from "./chat/decision-inbox-modal.meta";
 
@@ -89,7 +90,7 @@ export default function DecisionInboxModal({
   const canSubmitFollowup = !!(followupItem && followupDraft.trim() && !isFollowupSubmitting);
 
   function handleOptionClick(item: DecisionInboxItem, optionNumber: number, action?: string) {
-    if (action === "add_followup_request") {
+    if (action === "add_followup_request" || action === "workflow_answer") {
       setFollowupTarget({ itemId: item.id, optionNumber });
       setFollowupDraft("");
       return;
@@ -187,6 +188,7 @@ export default function DecisionInboxModal({
   }
 
   const getKindLabel = (kind: DecisionInboxItem["kind"]) => {
+    if (kind === "workflow_gate") return "작업 확인 및 승인";
     if (kind === "project_review_ready") {
       return t({ ko: "프로젝트 의사결정", en: "Project Decision", ja: "プロジェクト判断", zh: "项目决策" });
     }
@@ -305,7 +307,11 @@ export default function DecisionInboxModal({
                   </div>
 
                   <div className="rounded-lg border border-slate-700/70 bg-slate-900/60 px-2.5 py-2 text-xs text-slate-200">
-                    <MessageContent content={item.requestContent} />
+                    {item.kind === "workflow_gate" ? (
+                      <WorkflowDecisionContent content={item.requestContent} />
+                    ) : (
+                      <MessageContent content={item.requestContent} />
+                    )}
                   </div>
 
                   <div className="mt-2 space-y-1.5">
@@ -441,12 +447,14 @@ export default function DecisionInboxModal({
         {followupItem ? (
           <div className="border-t border-slate-700/60 bg-slate-900/90 px-4 py-3">
             <p className="mb-2 text-xs font-semibold text-slate-200">
-              {t({
-                ko: "추가요청사항 입력",
-                en: "Additional Follow-up Request",
-                ja: "追加要請内容の入力",
-                zh: "输入追加请求事项",
-              })}
+              {followupItem.kind === "workflow_gate"
+                ? "위 내용을 확인하고 답변을 적어주세요"
+                : t({
+                    ko: "추가요청사항 입력",
+                    en: "Additional Follow-up Request",
+                    ja: "追加要請内容の入力",
+                    zh: "输入追加请求事项",
+                  })}
             </p>
             <textarea
               value={followupDraft}

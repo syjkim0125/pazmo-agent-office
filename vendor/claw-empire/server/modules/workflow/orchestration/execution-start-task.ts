@@ -1,3 +1,4 @@
+import { assertDirectExecutionAllowed } from "../../../pazmo/host.ts";
 import path from "node:path";
 import type { RuntimeContext } from "../../../types/runtime-context.ts";
 import { getDepartmentPromptForPack } from "../packs/department-scope.ts";
@@ -74,6 +75,7 @@ export function createExecutionStartTaskTools(deps: CreateExecutionStartTaskTool
   } = deps;
 
   function startTaskExecutionForAgent(taskId: string, execAgent: any, deptId: string | null, deptName: string): void {
+    assertDirectExecutionAllowed("task-start");
     const execName = execAgent.name_ko || execAgent.name;
     const t = nowMs();
     db.prepare(

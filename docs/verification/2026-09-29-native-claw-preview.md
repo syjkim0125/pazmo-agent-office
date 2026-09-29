@@ -1,0 +1,71 @@
+# Native Claw preview — 2026-09-29
+
+Scope: Story D11, M2/M3/M4/M7, V7/V8. Worktree `bootstrap-claw-v2.0.4`, branch `codex/office-kit-role-graphs`. Implementation remains in progress; no G4 or overall delivery claim.
+
+## Implemented
+
+- Original TaskBoard and upstream Express/SQLite/WebSocket entry behind `start --claw`. Local cookie session; no operator-key input. Keep legacy data untouched and put original Claw data under `dataDir/claw`.
+- `--claw` stays locked; `--claw --live` connects the qualified controller/VM and kit role adapters to original task IDs in the Claw database. HTTP mutation gates plus concrete CLI, meeting, API/OAuth provider, task-start and automatic merge guards still block unmanaged execution. Managed startup skips upstream schedulers/recovery, provider auto-assignment, external chat receivers and token refresh. Legacy private API mutations reject; native chat/task/Decisions own writes.
+- Removed unused custom OfficeTasks and its retired observer tests. Original TaskBoard is the only Tasks component. Existing activity URLs are no longer a separate application.
+- CEO is now a transparent human pixel character shared by canvas/sidebar, sized consistently with employees.
+
+## Fresh evidence
+
+- Pre-commit verification of all accumulated changes: all 346 root tests passed with Node 24.19.0 and loopback binding permitted; root TypeScript exited 0. The initial restricted run failed HTTP/relay tests with `listen EPERM`; it was not a code regression. No additional actual-model pilot or human approval was run for this commit check.
+- RED: native lifecycle test expected `engine: claw`, received undefined from old runtime. Initial sandbox bind error was environmental, not RED. Native import also exposed upstream TS parameter properties unsupported by Node strip-only mode; use bundled upstream tsx loader.
+- GREEN: 33 relevant Node tests passed (`claw-host`, `claw-lifecycle`, `lifecycle`, `chat-bridge`). These cover real loopback HTTP/SQLite/WebSocket: cookie bootstrap, missing authorization, untrusted Origin, native task event, task preservation across restart, locked execution/completion, direct entry-point guards and existing legacy recovery behavior.
+- Root `tsc -p tsconfig.json`, vendor `tsc -b`, vendor `vite build`: exit 0. Existing bundle-size warning remains.
+- Story checker exit 0; G4 explicitly not checked because Story is not Delivered.
+- Actual browser at 127.0.0.1:49930: original Task Board with New Task, original 14 seeded agents, Live WebSocket connection, human CEO and pixel office. No model task was run. Live is transport connectivity, not execution readiness.
+- Existing preview database remains alongside new native data; its prior tasks/approvals were not copied or erased.
+
+## Review and simplification
+
+Sequential review in the main session per AGENTS tool mapping; not an independent reviewer claim. Checked auth middleware order, execution entry points, data separation, startup loader, cleanup and legacy compatibility. Fixed an overly broad first edit that also guarded read-only diff summaries; guarded destructive worktree cleanup only after an existing worktree is found. Confirmed provider guards fail before any dependency/tool/credential access. Removed the unused custom UI and obsolete asset instead of maintaining two Tasks implementations. Root NodeNext and upstream bundler-mode TypeScript remain separate compilation units.
+
+## Still required
+
+Real G4 and delivery through the restored native path. Actual Developer/Reviewer and same-candidate checks passed in the continuation below. Recovery uses the installed kit's supported successor-run protocol, preserving the failed predecessor and an Office-wide recovery budget. Old pilot evidence does not prove these newly restored routes. The native-claw kit implementation node remains open pending final acceptance.
+
+## Compact G4 display (user-requested follow-up)
+
+- Frontend-only projection in native Decisions: retain the three human questions and test/review pass counts; put the exact raw diff, file-mode changes, review report/findings and evidence limitation behind disclosures. Internal hashes, contract commands and model transcripts are omitted from this display. The server evidence, candidate binding and approval endpoints remain unchanged.
+- Chat notices can truncate JSON. The first browser check caught the raw fallback still appearing in chat; chat now retains the questions and directs users to Decisions for complete evidence and answers, without deriving results from truncated data. Unknown Decisions formats retain the original content rather than discard evidence.
+- Verification: six component tests plus four existing decision-inbox tests passed (10 total); vendor TypeScript, targeted ESLint and Vite build exited 0. Existing bundle-size warning remains. Story check exited 0; it explicitly did not check G4 because the Story is not Delivered. Sequential code review checked malformed reports, failed/missing results, raw-text escaping and unchanged answer handlers.
+- Actual browser: Decisions displayed automatic checks 6/6 and review 1/1, both disclosures initially collapsed; opening them retained the exact README diff and the review's limited source/tool access warning. Chat displayed the questions and Decisions guidance without the G4 JSON. One pending Decision remains; no approval, model call or server restart was performed. Static assets were rebuilt and the compact Decisions modal left open.
+
+## Native live pilot continuation
+
+- Project: `/Users/jongkkim/Documents/pazmo-office-live-pilot`, branch `codex/office-native-live-pilot`. Server: `http://127.0.0.1:49931/`. Task: `bdb3c55e-d30f-4ed5-bb9b-da1ae9624d1e`. Actual Codex model: `gpt-5.5`; kit: 4.1.0.
+- Original character chat → project selection → work request launched real PM clarify/propose. The original UI showed one working Planning agent. User corrected the accidental cancel answer with exact text `잘못 눌렀어 승인`; it was submitted to the existing native Story Decision. Cancellation had not been applied. The response was not reused as G4.
+- Actual Lead investigate returned exit 0, with a malformed workspace selection: include `[README_ko.md]`, exclude `[src, docs, package.json, package-lock.json]`. Exclusions must be strictly inside included roots, so Office rejected it as `PLANNING_INVALID`. Kit run `2037076b-8e5a-41a0-b225-8d79fe01a0d1` records failed investigate, attempt 1, action human; no Developer ran. Supervisor-confirmed process closure released the current planning lease. Runtime reports no active calls.
+- Read-only replay of the saved observation reproduced rejection; changing only exclude to `[]` in memory made the same response parse. That diagnostic result was never persisted as model evidence or an approved proposal. Supplied explicit workspace selection rules and a valid one-file example to future planning prompts. RED: absent prompt example; GREEN: planning/kit tests 12 passed. No automatic model retry or replacement run.
+- Native status messages now use `status_update`, which upstream free-text decision inference ignores. Only existing pending native notices matching their task and exact summary are normalized on startup. RED reproduced duplicate decision inference; four UI unit tests passed after the fix. Browser refresh after the real approval showed no pending decision badge and one working agent.
+- Earlier broad focused run: 95 passing tests. Fresh follow-up: native/planning tests 35 passed, Decisions tests 4 passed, root typecheck and Vite build exit 0 (existing chunk warning). The native G4/delivery test uses fixtures; it is not actual model or human acceptance.
+- Other preflight fixes: skip Git gitlinks in planning snapshots; verify the VM executor after restoring root ownership and only then make it executable. Credential-free VM probe returned `codex-cli 0.154.0`, exit 0 with confirmed cleanup, followed by successful actual PM calls. A confirmed pre-launch failure now releases only a reserved handle-less lease; unknown/running leases remain protected.
+- Sequential direct review checked message typing and exact-match startup normalization, preserved workspace validator rejection, and confirmed model prompt changes do not silently reinterpret failed evidence. Full independent CE review has not been completed. Compound eligibility review: these narrow fixes are represented by the tests, code and this evidence; no new duplicate learning document. Existing authority-boundary learning remains relevant.
+
+## Explicit recovery connection
+
+- The previous suggestion to reset this same kit run was incorrect: installed `graph.mjs reset` rejects action=human. The user explicitly requested recovery. Office now consumes an addressed `planning-retry` Decision, stores the exact request, and retains the task, packet, actual G1 and failed graph. Kit init-role creates the pending role's successor; immutable recovery receipts link predecessor run/revision, successor and human event. Old kit files are not patched. Global request recovery count remains at most two across new runs.
+- RED: the recovery method was absent. GREEN: 41 focused planning/intake/native tests passed, including preserved G1/predecessor bytes, only Lead reruns, rejected unknown/cancelled requests, stale duplicate rejection, two-recovery limit and restart-persistent Decisions. Root typecheck and whitespace check exit 0. These use fixture model responses.
+- Source review checked the cross-store failure boundary: a crash may leave a receipt/run but cannot create Office success; replay of a model-owned revision remains blocked. A missing, changed, non-human or exhausted predecessor fails before a replacement model starts. Existing approved scope is unchanged; no new execution provider or network permission.
+- Actual `재개 연결 마무리해줘.` was submitted to recovery Decision `d243236d-8819-4288-a1cd-ce7ea186cf4d`; the original task resumed with a real Lead model. No new PM pass or user G1 question was needed.
+- Actual recovered Lead completed investigate and plan. Original intake reached registered revision 9 with child `9b9e1790-46e1-45e4-899b-3b29ea1d957c`, contract `067c2508b6b6f0644e5e30e7734720b58e833a937ab50ec5de655d1369306d2e`, include `[README_ko.md]`, exclude `[]`. Controller reviewed the emitted plan and six readonly Node checks against the existing approved scope. The user's existing scope answer was forwarded to the matching child contract; no new human answer or G4 was invented. Developer then started in the qualified VM.
+- Simplification and review were sequential in the main session per repository instructions: reused existing Decisions, intake transactions and kit transport; no additional refactor was justified. Reviewed stale revisions, process ownership, immutable predecessor links and budget across successor runs. Root typecheck, vendor ESLint (`--quiet`, errors only), Story checker and whitespace check exited 0. No independent/cross-model review claim. Compound updated the existing authority-boundary learning in lightweight non-interactive mode; claims/frontmatter checks passed, no vocabulary file was created and project instructions already point to solutions.
+
+## Actual candidate awaiting G4
+
+- Developer produced candidate `7ede70e0aaf0e9ec4533212c3a3acbadc505e73bb4401870817678a49b549ee8`, verification round `f908ac50-bccb-4b6f-9c1d-98b91e3964bd`. Six registered Node checks exited 0; independent actual model Reviewer returned pass on the same candidate. All eight implementation/test/review leases are released. Runtime has no active call. Review only had the selected README and supplied baseline diff, not the referenced full source tree; marker checks do not establish all wording semantics or arbitrary project support.
+- Completion `dbac4d80a90783f85eff6f2d0746bb5ba93f8a4c98260ea0e52073f77fbff8a8` is awaiting_answer, approved=false. Native Decision `fb3ce8a8-7f6b-4230-86f2-331a326193e2` contains actual G4 questions. No user answer, delivery, original-project overwrite or main merge has occurred. This candidate passed its first verification round; no actual defect-correction loop is claimed for this pilot.
+- Raw patch excerpt (README_ko.md only, six added lines):
+
+```diff
+@@ -82,6 +82,12 @@
++로컬 실행 경계:
++
++- `start --claw`는 원본 Office 화면과 로컬 세션 상태를 확인하는 미리보기 경로입니다. 실제 kit 역할 실행이나 전용 VM 실행으로 해석하지 마세요.
++- `start --claw --live`는 실제 kit 역할과 전용 VM 실행을 분리해서 다루는 경로입니다. 초기 Codex 로그인과 준비된 전용 VM이 필요하며, 현재 상태 표의 미완료 조건을 넘어서는 검증을 의미하지 않습니다.
++- 브라우저에서 Operator 키를 직접 입력하는 방식이 아니라 캐릭터의 대화하기 또는 업무 배정으로 요청을 시작하고, Decisions 의사결정에서 승인하는 흐름을 기준으로 합니다.
++
+```

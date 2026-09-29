@@ -331,6 +331,148 @@ test("native source tampering after G1 cannot start Lead or silently replace the
   assert.equal(f.packets.length, 2);
 });
 
+test("explicit planning recovery preserves G1 and failed kit run while bounding retries", async (t) => {
+  const f = setup(t, "ready", true);
+  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+    decision: "approve",
+    note: "Fixture human G1",
+  });
+  const approval = f.intake.storyApproval(pm.taskId);
+  const original = f.planner.run;
+  f.planner.run = async (...args) => {
+    const report = await original(...args);
+    report.result.stdout = "malformed fixture response";
+    return report;
+  };
+  const failed = (await f.coordinator.run(pm.taskId, f.context)).intake;
+  const { digest } = await import("../src/core/candidates.ts");
+  const priorPath = join(
+    f.project,
+    `.pazmo-office/role-runs/${digest(`${pm.taskId}:planning:team-lead`)}/run.json`,
+  );
+  const prior = readFileSync(priorPath, "utf8");
+  assert.throws(
+    () =>
+      f.intake.retryPlanning(
+        "worker",
+        failed.taskId,
+        failed.revision,
+        failed.inputDigest,
+        "retry",
+      ),
+    { code: "UNAUTHORIZED" },
+  );
+  const next = f.intake.retryPlanning(
+    token,
+    failed.taskId,
+    failed.revision,
+    failed.inputDigest,
+    "Fixture user: resume after protocol fix",
+  );
+  assert.equal(next.state, "waiting_lead");
+  assert.deepEqual(f.intake.storyApproval(pm.taskId), approval);
+  assert.throws(
+    () =>
+      f.intake.retryPlanning(
+        token,
+        failed.taskId,
+        failed.revision,
+        failed.inputDigest,
+        "duplicate",
+      ),
+    { code: "STALE_INTAKE" },
+  );
+  f.planner.run = original;
+  const done = await new PlanningCoordinator(f.deps).run(pm.taskId, f.context);
+  assert.equal(done.state, "proposal");
+  assert.equal(readFileSync(priorPath, "utf8"), prior);
+  assert.deepEqual(
+    f.packets.map((p) => p.role),
+    ["pm", "pm", "lead", "lead", "lead"],
+  );
+  const proof = done.intake.events.filter((e) => e.payload.kit).at(-1)
+    .payload.kit;
+  assert.notEqual(proof.runFile, priorPath.slice(f.project.length + 1));
+  assert.equal(
+    JSON.parse(readFileSync(join(f.project, proof.runFile), "utf8")).state.nodes
+      .investigate.attempts,
+    1,
+  );
+});
+
+test("planning recovery rejects unknown, cancelled and exhausted requests without replay", async (t) => {
+  const f = setup(t, "ready", true),
+    original = f.planner.run;
+  f.planner.run = async (...args) => {
+    const r = await original(...args);
+    r.result.stdout = "malformed";
+    return r;
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const failed = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+    if (attempt === 0) {
+      const lease = f.execution.listPlanning(f.item.taskId).at(-1);
+      f.db
+        .prepare("UPDATE pazmo_planning_leases SET state='unknown' WHERE id=?")
+        .run(lease.id);
+      assert.throws(
+        () =>
+          f.intake.retryPlanning(
+            token,
+            failed.taskId,
+            failed.revision,
+            failed.inputDigest,
+            "resume",
+          ),
+        { code: "TASK_ACTIVE" },
+      );
+      f.db
+        .prepare("UPDATE pazmo_planning_leases SET state='released' WHERE id=?")
+        .run(lease.id);
+    }
+    if (attempt < 2)
+      f.intake.retryPlanning(
+        token,
+        failed.taskId,
+        failed.revision,
+        failed.inputDigest,
+        "Fixture explicit retry",
+      );
+    else {
+      assert.throws(
+        () =>
+          f.intake.retryPlanning(
+            token,
+            failed.taskId,
+            failed.revision,
+            failed.inputDigest,
+            "again",
+          ),
+        { code: "PLANNING_RETRY_LIMIT" },
+      );
+      const cancelled = f.intake.cancel(
+        token,
+        failed.taskId,
+        failed.revision,
+        failed.inputDigest,
+      );
+      assert.throws(
+        () =>
+          f.intake.retryPlanning(
+            token,
+            cancelled.taskId,
+            cancelled.revision,
+            cancelled.inputDigest,
+            "again",
+          ),
+        { code: "INTAKE_STATE" },
+      );
+    }
+  }
+  assert.equal(f.packets.length, 3);
+});
+
 test("native controller restart quarantines the active lease and never replays the same node", async (t) => {
   const f = setup(t, "ready", true),
     original = f.planner.run;

@@ -370,7 +370,7 @@ export function useAppActions({
         } else {
           const selectedAction = option.action ?? "";
           let payload: { note?: string; target_task_id?: string; selected_option_numbers?: number[] } | undefined;
-          if (selectedAction === "add_followup_request") {
+          if (selectedAction === "add_followup_request" || selectedAction === "workflow_answer") {
             const note = payloadInput?.note?.trim() ?? "";
             if (!note) {
               window.alert(

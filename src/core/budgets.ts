@@ -283,6 +283,18 @@ export class ExecutionLedger {
       return this.getPlanning(id);
     });
   }
+  /** Trusted supervisor only: no worker handle was issued and all preparation
+   * containers were confirmed removed. Unknown/running leases cannot use this. */
+  failPlanningPreparation(id: string, reason: string) {
+    transaction(this.#db, () => {
+      const lease = this.getPlanning(id);
+      if (lease.state !== "reserved" || lease.handle !== null)
+        fail("STALE_EXECUTION", "Only an unstarted reservation can fail preparation.");
+      const detail = reason.slice(0, 4000) || "VM_PREPARATION_FAILED";
+      this.#db.prepare("UPDATE pazmo_planning_leases SET state='released',reason=? WHERE id=?").run(detail, id);
+      this.#planning().interrupt(lease.task_id, lease.revision, lease.input_digest, detail);
+    });
+  }
   markPlanningUnknown(id: string) {
     transaction(this.#db, () => {
       const lease = this.getPlanning(id);

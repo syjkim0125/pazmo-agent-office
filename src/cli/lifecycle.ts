@@ -18,6 +18,7 @@ import { viewerToken } from "../runtime/observation.ts";
 
 type Running = {
   version: 1;
+  engine?: "legacy" | "claw";
   project: string;
   pid: number;
   port: number;
@@ -39,6 +40,7 @@ function readState(p: Project): Running | undefined {
   }
   if (
     s.version !== 1 ||
+    (s.engine !== undefined && !["legacy", "claw"].includes(s.engine)) ||
     s.project !== p.project ||
     !Number.isInteger(s.pid) ||
     s.pid <= 0 ||
@@ -88,6 +90,7 @@ export async function status(p: Project) {
     return {
       status: "running",
       execution: current.execution ?? "locked",
+      engine: s.engine ?? "legacy",
       url: `http://127.0.0.1:${s.port}`,
       dataDir: p.dataDir,
     };
@@ -100,9 +103,19 @@ export async function status(p: Project) {
     };
   }
 }
-export async function start(p: Project, port: number, live?: LiveConfig) {
+export async function start(
+  p: Project,
+  port: number,
+  live?: LiveConfig,
+  engine: "legacy" | "claw" = "legacy",
+) {
   const current = await status(p);
   if (current.status === "running") {
+    if (current.engine !== engine)
+      fail(
+        "ENGINE_MISMATCH",
+        "Stop the current Office before changing its runtime.",
+      );
     if (live && current.execution !== "ready")
       fail("EXECUTION_LOCKED", "Stop the preview before starting with --live.");
     return current;
@@ -135,13 +148,32 @@ export async function start(p: Project, port: number, live?: LiveConfig) {
       operatorToken = randomBytes(32).toString("hex");
     const child = spawn(
       process.execPath,
-      [join(packageRoot, "src/runtime/service.ts")],
+      [
+        ...(engine === "claw"
+          ? [
+              "--import",
+              join(
+                packageRoot,
+                "vendor/claw-empire/node_modules/tsx/dist/loader.mjs",
+              ),
+            ]
+          : []),
+        join(
+          packageRoot,
+          engine === "claw"
+            ? "src/runtime/claw-service.ts"
+            : "src/runtime/service.ts",
+        ),
+      ],
       {
         cwd: p.dataDir,
         detached: true,
         stdio: ["ignore", fd, fd, "ipc"],
         env: {
-          PATH: dirname(process.execPath),
+          PATH:
+            engine === "claw"
+              ? `${dirname(process.execPath)}:/usr/bin:/bin`
+              : dirname(process.execPath),
           HOME: join(p.dataDir, "home"),
           TMPDIR: join(p.dataDir, "tmp"),
           LANG: "en_US.UTF-8",
@@ -185,6 +217,7 @@ export async function start(p: Project, port: number, live?: LiveConfig) {
       });
       const state: Running = {
         version: 1,
+        engine,
         project: p.project,
         pid: child.pid!,
         port: readyPort,
@@ -209,6 +242,7 @@ export async function start(p: Project, port: number, live?: LiveConfig) {
     return {
       status: "running",
       execution: live ? "ready" : "locked",
+      engine,
       url: `http://127.0.0.1:${readyPort}`,
       dataDir: p.dataDir,
     };
@@ -260,6 +294,8 @@ async function operatorSession(p: Project) {
       "Start the Office before submitting a contract or approval.",
     );
   await control(s, "status");
+  if (s.engine === "claw")
+    return { port: s.port, token: s.token, engine: "claw" as const };
   const file = join(p.dataDir, `operator-${s.instance}.json`);
   noSymlinks(file);
   const operator = JSON.parse(readFileSync(file, "utf8")) as {
@@ -283,11 +319,16 @@ export async function operatorKey(p: Project) {
   };
 }
 
-/** Trusted chat host opens this URL; only a read capability reaches the browser. */
+/** Open the native local session or the legacy observation capability. */
 export async function monitor(p: Project) {
   const session = await operatorSession(p);
+  if (session.engine === "claw")
+    return {
+      url: `http://127.0.0.1:${session.port}/`,
+      access: "local-session",
+    };
   return {
-    url: `http://127.0.0.1:${session.port}/activity#view=${viewerToken(session.token)}`,
+    url: `http://127.0.0.1:${session.port}/?officeView=tasks#view=${viewerToken(session.token)}`,
     access: "read-only",
   };
 }

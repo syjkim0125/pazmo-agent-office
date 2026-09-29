@@ -165,6 +165,8 @@ export class PlanningCoordinator {
                 },
                 accept,
               );
+            } else if (!report.handle && report.closed && report.cleanupErrors.length === 0) {
+              execution.failPlanningPreparation(lease.id, report.result.error ?? "VM_PREPARATION_FAILED");
             } else execution.markPlanningUnknown(lease.id);
           } finally {
             clearInterval(timer);
