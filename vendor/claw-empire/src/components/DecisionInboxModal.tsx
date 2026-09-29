@@ -99,12 +99,12 @@ export default function DecisionInboxModal({
   }
 
   function handleSubmitFollowup() {
-    if (!followupItem || !followupTarget) return;
+    if (!followupItem || !followupTarget || isFollowupSubmitting) return;
     const note = followupDraft.trim();
     if (!note) return;
     onReplyOption(followupItem, followupTarget.optionNumber, { note });
-    setFollowupTarget(null);
-    setFollowupDraft("");
+    // Keep the human draft on rejection or uncertain delivery. The items effect
+    // clears it only after the server no longer lists this request.
   }
 
   function handleCancelFollowup() {
@@ -459,12 +459,16 @@ export default function DecisionInboxModal({
             <textarea
               value={followupDraft}
               onChange={(event) => setFollowupDraft(event.target.value)}
-              placeholder={t({
-                ko: "요청사항을 입력해 주세요.",
-                en: "Enter your request details.",
-                ja: "要請内容を入力してください。",
-                zh: "请输入请求详情。",
-              })}
+              placeholder={
+                followupItem.kind === "workflow_gate" && followupItem.requestContent.startsWith("최종 결과 승인\n")
+                  ? "1. 사용자가 겪는 변화\n2. 지켜야 할 규칙과 실패 시 동작\n3. 확인한 검사와 아직 확인하지 못한 범위"
+                  : t({
+                      ko: "요청사항을 입력해 주세요.",
+                      en: "Enter your request details.",
+                      ja: "要請内容を入力してください。",
+                      zh: "请输入请求详情。",
+                    })
+              }
               rows={3}
               className="w-full resize-y rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
             />
@@ -485,7 +489,9 @@ export default function DecisionInboxModal({
               >
                 {isFollowupSubmitting
                   ? t({ ko: "전송 중...", en: "Sending...", ja: "送信中...", zh: "发送中..." })
-                  : t({ ko: "요청 등록", en: "Submit Request", ja: "要請登録", zh: "提交请求" })}
+                  : followupItem.kind === "workflow_gate"
+                    ? t({ ko: "답변 제출", en: "Submit Answer", ja: "回答を送信", zh: "提交回答" })
+                    : t({ ko: "요청 등록", en: "Submit Request", ja: "要請登録", zh: "提交请求" })}
               </button>
             </div>
           </div>
