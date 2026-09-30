@@ -234,3 +234,8 @@ Planning recovery (M3/M4, V8): the installed kit rejects reset for action=human.
 1. Project persisted G4 restatement feedback for the same evidence into existing Decisions; preserve the exact prior answer, pending challenge and assessment. Project child execution/approval wait onto native parent Task Board and make Run feedback visible without replaying models. Test restatement/expiry/restart and native vs unmanaged cards.
 2. Reuse pinned runtime setup and existing lifecycle in a single local launcher. Check Node/dependencies/build, prepare the dedicated mount-free VM and pinned image, retain first project selection, start live and open browser. Preserve running instances and refuse incompatible VM configuration. No credential copying or new deployment architecture.
 3. Install from a clean source copy with separate dependencies/controller data, check actual UI and VM, and complete the already authorized small pilot only with actual human G4. Distinguish fresh checkout from a new physical Mac, fixture results from real models, and partial evidence from delivery.
+
+### 2026-09-30 G4 피드백 확인 승인 (D13, M2/M4, V8)
+- 기존 실패 평가에 연결한 명시적 확인 승인을 Completion ledger와 원본 Decisions에 연결한다. 평가 결과를 합격으로 변경하지 않는다.
+- 승인 전 동일 후보·검증·현재 challenge·세션·실행 종료를 확인한다. 중복·만료·변경 후보를 거부하고 재답변/모델 재호출 없이 인도한다.
+- 핵심 회귀 시험 → 단순화/리뷰 → 화면 반영 확인 → 기존 Compound 문서 갱신. 실제 승인 버튼은 사용자만 누른다.

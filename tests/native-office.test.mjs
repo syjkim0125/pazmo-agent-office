@@ -225,7 +225,7 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
   await assert.rejects(f.office.reply(decision.id, 1, "Replay"), /이미 처리/);
 });
 
-test("native G4 preserves exact numbered answers and delivers only after trusted assessment (fixture)", async (t) => {
+test("native G4 preserves failed feedback and delivers after explicit human acknowledgment (fixture)", async (t) => {
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const { writeFileSync } = await import("node:fs");
   const f = await officeFixture(t);
@@ -304,6 +304,9 @@ test("native G4 preserves exact numbered answers and delivers only after trusted
   assert.ok(decision);
   assert.match(office.diff(f.task.id).diff, /after/);
   assert.notEqual(store.get(f.task.id).status, "done");
+  await assert.rejects(office.reply(decision.id, 3, ""), {
+    code: "FEEDBACK_REQUIRED",
+  });
   await assert.rejects(office.reply(decision.id, 1, "yes"), /3개 질문/);
   assert.equal(completion.get(f.task.id).status, "awaiting_answer");
   const note =
@@ -328,27 +331,22 @@ test("native G4 preserves exact numbered answers and delivers only after trusted
   await office.refresh();
   const retry = office.decisions()[0];
   assert.notEqual(retry.id, decision.id);
-  assert.match(retry.summary, /추가 설명이 필요/);
+  assert.match(retry.summary, /다시 답하지 않아도 됩니다/);
+  assert.equal(retry.options[0].action, "workflow_acknowledge");
+  assert.equal(retry.options[0].number, 3);
   assert.match(retry.summary, /Explain fixture boundary/);
   assert.match(retry.summary, /Changes src\/a to after/);
   assert.match(office.progress(f.task.id).message, /Decisions/);
   await office.refresh();
   assert.equal(office.decisions()[0].id, retry.id);
   assert.equal(calls.length, 1, "feedback projection must not start a model");
-  await office.reply(retry.id, 1, note);
-  const revised = completion.get(f.task.id);
-  completion.evaluate(
-    "a".repeat(64),
-    revised.id,
-    revised.answerDigest,
-    Object.fromEntries(
-      ["behavior", "invariant", "evidence"].map((k) => [
-        k,
-        { correct: true, rationale: "Scripted test judgment" },
-      ]),
-    ),
+  await office.reply(retry.id, 3, "");
+  assert.equal(completion.get(f.task.id).evaluation.evidence.correct, false);
+  assert.equal(
+    completion.get(f.task.id).answer.feedbackAcknowledgment.requestId,
+    g4.id,
   );
-  await office.refresh();
+  await assert.rejects(office.reply(retry.id, 3, ""), /이미 처리/);
   assert.equal(store.get(f.task.id).status, "done");
   assert.equal(completion.delivery(f.task.id).status, "delivered");
   assert.equal(
@@ -357,7 +355,7 @@ test("native G4 preserves exact numbered answers and delivers only after trusted
     "done",
   );
   await office.refresh();
-  assert.equal(calls.length, 2);
+  assert.equal(calls.length, 1, "acknowledgment must not reassess the human");
 });
 
 test("native expired contract Decisions cannot approve and refresh with a new challenge", async (t) => {

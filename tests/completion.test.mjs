@@ -1044,3 +1044,96 @@ test("restatement feedback survives a successor request but never crosses invali
   f.verification.invalidate(f.round.id, "TEST_INVALIDATION");
   assert.equal(f.completion.feedback(f.task.id), null);
 });
+
+test("explicit feedback acknowledgment approves without relabeling the failed assessment", async (t) => {
+  const f = await setup(t);
+  f.round.nodes.forEach(f.finish);
+  await f.completion.prepare(f.task.id);
+  const first = f.completion.request(token, f.task.id);
+  assert.throws(
+    () => f.completion.acknowledgeFeedback(token, first.id, first.id),
+    { code: "FEEDBACK_REQUIRED" },
+  );
+  const submitted = f.completion.submit(token, first.id, answer);
+  const failed = {
+    ...evaluation,
+    evidence: { correct: false, rationale: "Fixture evidence only" },
+  };
+  f.completion.evaluate(token, first.id, submitted.answerDigest, failed);
+  const second = f.completion.request(token, f.task.id);
+  assert.throws(
+    () => f.completion.acknowledgeFeedback("b".repeat(64), second.id, first.id),
+    { code: "UNAUTHORIZED" },
+  );
+  assert.throws(
+    () => f.completion.acknowledgeFeedback(token, second.id, second.id),
+    { code: "FEEDBACK_REQUIRED" },
+  );
+  assert.equal(f.completion.get(f.task.id).approved, false);
+  const accepted = f.completion.acknowledgeFeedback(token, second.id, first.id);
+  assert.equal(accepted.approved, true);
+  assert.deepEqual(accepted.answer.understanding, answer.understanding);
+  assert.deepEqual(accepted.evaluation, failed);
+  assert.equal(accepted.answer.feedbackAcknowledgment.requestId, first.id);
+  assert.equal(
+    f.completion.get(f.task.id, first.id).status,
+    "needs_restatement",
+  );
+  assert.throws(() =>
+    f.completion.acknowledgeFeedback(token, second.id, first.id),
+  );
+});
+
+for (const scenario of [
+  "expired",
+  "invalidated",
+  "cancelled",
+  "active",
+  "changed-session",
+]) {
+  test(`feedback acknowledgment rejects ${scenario} state`, async (t) => {
+    const f = await setup(t);
+    f.round.nodes.forEach(f.finish);
+    await f.completion.prepare(f.task.id);
+    const first = f.completion.request(token, f.task.id);
+    const submitted = f.completion.submit(token, first.id, answer);
+    f.completion.evaluate(token, first.id, submitted.answerDigest, {
+      ...evaluation,
+      evidence: { correct: false, rationale: "Fixture boundary" },
+    });
+    const second = f.completion.request(token, f.task.id);
+    let ledger = f.completion;
+    if (scenario === "expired")
+      f.db
+        .prepare("UPDATE pazmo_approval_challenges SET expires_at=0 WHERE id=?")
+        .run(second.id);
+    if (scenario === "invalidated")
+      f.verification.invalidate(f.round.id, "TEST_INVALIDATION");
+    if (scenario === "cancelled") f.store.cancelExecution(f.task.id);
+    if (scenario === "active")
+      f.execution.reserveUnderstanding(
+        f.round.id,
+        first.id,
+        submitted.answerDigest,
+        10000,
+      );
+    if (scenario === "changed-session")
+      ledger = new CompletionLedger(
+        f.db,
+        f.store,
+        f.verification,
+        f.execution,
+        "b".repeat(64),
+        f.handoffs,
+      );
+    assert.throws(() =>
+      ledger.acknowledgeFeedback(
+        scenario === "changed-session" ? "b".repeat(64) : token,
+        second.id,
+        first.id,
+      ),
+    );
+    assert.equal(ledger.get(f.task.id).approved, false);
+    assert.equal(ledger.delivery(f.task.id).status, "not_delivered");
+  });
+}

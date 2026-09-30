@@ -8,6 +8,7 @@ export type ApprovalAnswer = {
   decision: "approve" | "reject";
   note: string;
   understanding?: { behavior: string; invariant: string; evidence: string };
+  feedbackAcknowledgment?: { requestId: string; evaluationDigest: string };
 };
 export function transaction<T>(db: DatabaseSync, action: () => T): T {
   const savepoint = db.isTransaction

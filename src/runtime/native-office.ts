@@ -592,11 +592,10 @@ export async function createNativeOffice(c: Config) {
     await pump();
     return { ok: true, task: task(id), workflow: progress(id) };
   }
-  function decisionSummary(d: Decision) {
-    const feedback = completion.feedback(
-      d.task_id,
-      JSON.parse(d.payload).challengeId,
-    );
+  function decisionSummary(
+    d: Decision,
+    feedback: ReturnType<typeof completion.feedback>,
+  ) {
     if (!feedback) return d.summary;
     const labels = {
       behavior: "사용자에게 달라지는 동작",
@@ -613,11 +612,12 @@ export async function createNativeOffice(c: Config) {
       .split("\n")
       .map((line) => `> ${line}`)
       .join("\n");
-    return d.summary.replace(
-      "최종 결과 승인\n",
-      `최종 결과 승인\n**이전 답변에 추가 설명이 필요합니다.** 작업을 다시 실행한 것이 아닙니다. 아래 피드백을 확인하고 답변을 보완해주세요.\n\n${reasons}\n\n이전 제출 답변:\n${note}\n\n다시 답할 질문:\n`,
+    const evidence = d.summary.slice(
+      d.summary.indexOf("\n검증과 변경 내용:\n"),
     );
+    return `최종 결과 승인\n**답변에 대한 피드백입니다. 다시 답하지 않아도 됩니다.** 아래 내용을 확인한 뒤 ‘피드백 확인 후 승인’을 누르면 현재 검증된 결과물을 인도합니다.\n\n${reasons}\n\n이전 제출 답변:\n${note}\n${evidence}`;
   }
+
   function progress(id: string) {
     if (!managed(id)) return undefined;
     const row = task(id);
@@ -661,11 +661,15 @@ export async function createNativeOffice(c: Config) {
         .all() as Decision[]
     ).map((d) => {
       const t = task(d.task_id);
+      const feedback =
+        d.kind === "G4"
+          ? completion.feedback(d.task_id, JSON.parse(d.payload).challengeId)
+          : null;
       return {
         id: d.id,
         kind: "workflow_gate" as const,
         created_at: d.created_at,
-        summary: d.kind === "G4" ? decisionSummary(d) : d.summary,
+        summary: d.kind === "G4" ? decisionSummary(d, feedback) : d.summary,
         agent_id: t.assigned_agent_id,
         agent_name: "Office",
         agent_name_ko: "Office",
@@ -675,16 +679,22 @@ export async function createNativeOffice(c: Config) {
         task_id: t.id,
         task_title: t.title,
         options: [
-          {
-            number: 1,
-            action: "workflow_answer",
-            label:
-              d.kind === "questions"
-                ? "답변 제출"
-                : d.kind === "planning-retry"
-                  ? "계획 재개"
-                  : "내용 확인 후 승인",
-          },
+          feedback
+            ? {
+                number: 3,
+                action: "workflow_acknowledge",
+                label: "피드백 확인 후 승인",
+              }
+            : {
+                number: 1,
+                action: "workflow_answer",
+                label:
+                  d.kind === "questions"
+                    ? "답변 제출"
+                    : d.kind === "planning-retry"
+                      ? "계획 재개"
+                      : "내용 확인 후 승인",
+              },
           { number: 2, action: "workflow_reject", label: "취소" },
         ],
       };
@@ -709,13 +719,19 @@ export async function createNativeOffice(c: Config) {
       .prepare("SELECT * FROM pazmo_native_decisions WHERE id=?")
       .get(id) as Decision | undefined;
     if (!d) fail("STALE_APPROVAL", "이미 처리됐거나 변경된 요청입니다.");
-    if (![1, 2].includes(option)) fail("INVALID_REQUEST", "Unknown option.");
+    if (![1, 2].includes(option) && !(option === 3 && d.kind === "G4"))
+      fail("INVALID_REQUEST", "Unknown option.");
     if (option === 1 && (!note?.trim() || note.length > 16000))
       fail("ANSWER_REQUIRED", "사용자의 답변을 적어주세요.");
     const p = JSON.parse(d.payload),
       answer = {
-        decision: option === 1 ? ("approve" as const) : ("reject" as const),
-        note: option === 1 ? note : "사용자가 취소를 선택했습니다.",
+        decision: option !== 2 ? ("approve" as const) : ("reject" as const),
+        note:
+          option === 3
+            ? "피드백 확인 후 승인"
+            : option === 1
+              ? note
+              : "사용자가 취소를 선택했습니다.",
       };
     if (d.kind === "story") {
       const next = intake.approveStory(
@@ -748,6 +764,10 @@ export async function createNativeOffice(c: Config) {
           })),
         );
       }
+    } else if (d.kind === "G4" && option === 3) {
+      const feedback = completion.feedback(d.task_id, p.challengeId);
+      if (!feedback) fail("FEEDBACK_REQUIRED", "확인할 피드백이 없습니다.");
+      completion.acknowledgeFeedback(token, p.challengeId, feedback.requestId);
     } else if (d.kind === "G4") {
       const values = option === 1 ? numbered(note, 3) : [];
       completion.submit(token, p.challengeId, {

@@ -56,3 +56,17 @@ describe("decision answer draft", () => {
     expect(screen.getByRole("button", { name: "Submit Answer" })).toBeTruthy();
   });
 });
+
+it("acknowledges displayed feedback directly without another answer form", async () => {
+  const reply = vi.fn();
+  const feedbackItem = {
+    ...item,
+    requestContent: "최종 결과 승인\n피드백: 실제 실행은 미검증",
+    options: [{ number: 3, label: "피드백 확인 후 승인", action: "workflow_acknowledge" }],
+  };
+  render(<DecisionInboxModal {...props} items={[feedbackItem]} onReplyOption={reply} />);
+  fireEvent.click(screen.getByRole("button", { name: /피드백 확인 후 승인/ }));
+  expect(reply).toHaveBeenCalledTimes(1);
+  expect(reply.mock.calls[0].slice(0, 2)).toEqual([feedbackItem, 3]);
+  expect(screen.queryByRole("textbox")).toBeNull();
+});

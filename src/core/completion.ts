@@ -235,10 +235,7 @@ export class CompletionLedger {
       round = this.#eligible(taskId),
       g4 = this.get(taskId);
     if (!g4.approved || !g4.id)
-      fail(
-        "G4_REQUIRED",
-        "The current evidence needs evaluated human G4 approval.",
-      );
+      fail("G4_REQUIRED", "The current evidence needs human G4 approval.");
     if (!this.#deliveryRoot)
       fail("DELIVERY_DISABLED", "Local delivery storage is not configured.");
     const created = createDelivery(this.#deliveryRoot, round.candidate, {
@@ -554,6 +551,38 @@ export class CompletionLedger {
           JSON.stringify(evaluation),
           id,
         );
+      return this.get(bundle.task_id, id);
+    });
+  }
+  /** Explicit human confirmation after feedback, not a corrected assessment.
+   * Uses the same evidence/authority/lease checks as submitting an answer.
+   */
+  acknowledgeFeedback(token: string, id: string, feedbackId: string) {
+    this.#approvals.authorize(token);
+    this.#currentRequest(id);
+    return transaction(this.#db, () => {
+      const { request, bundle } = this.#currentRequest(id);
+      this.#approvals.pending(token, id);
+      if (request.status !== "awaiting_answer")
+        fail("STALE_APPROVAL", "This request already has an answer.");
+      const feedback = this.feedback(bundle.task_id, id);
+      if (!feedback || feedback.requestId !== feedbackId)
+        fail("FEEDBACK_REQUIRED", "Confirm the feedback for this evidence.");
+      const previous = this.#request(feedbackId);
+      const answer: ApprovalAnswer = {
+        ...JSON.parse(previous.answer_json!),
+        feedbackAcknowledgment: {
+          requestId: feedbackId,
+          evaluationDigest: digest(previous.evaluation_json!),
+        },
+      };
+      this.#approvals.decide(token, id, answer);
+      const serialized = JSON.stringify(answer);
+      this.#db
+        .prepare(
+          "UPDATE pazmo_g4_requests SET status='approved',answer_json=?,answer_digest=?,evaluation_json=? WHERE id=?",
+        )
+        .run(serialized, digest(serialized), previous.evaluation_json, id);
       return this.get(bundle.task_id, id);
     });
   }
