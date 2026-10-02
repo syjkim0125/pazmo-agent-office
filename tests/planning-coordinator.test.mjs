@@ -104,6 +104,20 @@ function setup(t, mode = "ready", kitRoles = false) {
           stderr: "",
           stdout: [
             { type: "turn.started" },
+            // Lead nodes ground proposals in the readonly snapshot.
+            ...(job.packet.role === "lead"
+              ? [
+                  {
+                    type: "item.completed",
+                    item: {
+                      type: "command_execution",
+                      command: "/bin/bash -lc 'ls /candidate/tree'",
+                      exit_code: 0,
+                      status: "completed",
+                    },
+                  },
+                ]
+              : []),
             {
               type: "item.completed",
               item: {
@@ -411,6 +425,66 @@ test("explicit planning recovery preserves G1 and failed kit run while bounding 
   );
 });
 
+test("a Lead node that never inspected the readonly snapshot cannot become a proposal", async (t) => {
+  const f = setup(t, "ready", true);
+  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+    decision: "approve",
+    note: "Fixture human G1",
+  });
+  const original = f.planner.run;
+  f.planner.run = async (...args) => {
+    const report = await original(...args);
+    // Observed 2026-10-02: plan claimed /candidate/tree was unavailable without
+    // running any command, relying on investigate's earlier proposal.
+    if (args[1].packet.role === "lead" && f.packets.length === 4)
+      report.result.stdout = report.result.stdout
+        .split("\n")
+        .filter((line) => JSON.parse(line).item?.type !== "command_execution")
+        .join("\n");
+    return report;
+  };
+  const result = (await f.coordinator.run(pm.taskId, f.context)).intake;
+  assert.equal(result.state, "human_required");
+  assert.equal(result.reason, "INSPECTION_REQUIRED");
+  assert.equal(result.proposal, null);
+  assert.equal(f.execution.listPlanning(pm.taskId).at(-1).state, "released");
+  const reference = `.pazmo-office/role-runs/${(await import("../src/core/candidates.ts")).digest(`${pm.taskId}:planning:team-lead`)}/run.json`;
+  const run = JSON.parse(readFileSync(join(f.project, reference), "utf8"));
+  assert.equal(run.state.nodes.investigate.status, "completed");
+  assert.notEqual(run.state.nodes.plan.status, "completed");
+  assert.deepEqual(
+    f.prompts.map((p) => p.kit.node.id),
+    ["clarify", "propose", "investigate", "plan"],
+  );
+});
+
+test("Lead kit prompts state the snapshot is reachable and prior proposals are not evidence", async (t) => {
+  const f = setup(t, "ready", true),
+    original = f.deps.jobFor,
+    prompts = [];
+  f.deps.jobFor = (packet, context, prompt) => {
+    prompts.push({ role: packet.role, prompt });
+    return original(packet, context, prompt);
+  };
+  const pm = (await new PlanningCoordinator(f.deps).run(f.item.taskId, f.context))
+    .intake;
+  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+    decision: "approve",
+    note: "Fixture human G1",
+  });
+  await new PlanningCoordinator(f.deps).run(pm.taskId, f.context);
+  const instructions = (p) => p.split("BEGIN PLANNING TASK DATA")[0];
+  const lead = prompts.filter((p) => p.role === "lead");
+  assert.equal(lead.length, 2);
+  for (const { prompt } of lead) {
+    assert.match(instructions(prompt), /shell commands reach \/candidate\/tree/);
+    assert.match(instructions(prompt), /not evidence/);
+  }
+  for (const { prompt } of prompts.filter((p) => p.role === "pm"))
+    assert.doesNotMatch(instructions(prompt), /shell commands reach/);
+});
+
 test("planning recovery rejects unknown, cancelled and exhausted requests without replay", async (t) => {
   const f = setup(t, "ready", true),
     original = f.planner.run;
@@ -513,7 +587,7 @@ test("Lead can ask a native question without losing the approved Story or restar
     if (packet.role === "lead" && !asked) {
       asked = true;
       const lines = report.result.stdout.split("\n").map(JSON.parse);
-      lines[1].item.text = JSON.stringify({
+      lines.at(-2).item.text = JSON.stringify({
         version: 1,
         inputDigest: packet.inputDigest,
         status: "questions",

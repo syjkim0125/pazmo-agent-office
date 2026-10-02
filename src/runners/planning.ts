@@ -249,6 +249,13 @@ export function planningPrompt(
   };
   return [
     ...packet.profile.files.map((f) => f.content),
+    // Codex's local working directory is an empty host staging directory; a
+    // Lead node once skipped inspection and relied on investigate's proposal.
+    ...(kit && context && packet.role === "lead"
+      ? [
+          "Every Lead node, read or write, has the same readonly snapshot: your shell commands reach /candidate/tree through the remote executor even though your local working directory is an empty staging directory. Before returning tasks, run readonly commands there to confirm the paths, existing tests and baseline behavior your checks rely on. Dependency proposals and packet.story are prior claims, not evidence. Office rejects a Lead proposal without successful command evidence on /candidate/tree.",
+        ]
+      : []),
     ...(kit
       ? [
           `Assigned kit node: ${kit.node.id}. Perform only this node's description and verification. Do not start another graph or issue human approvals. A write node permits returning proposal documents, not editing the readonly repository snapshot. PM clarify and propose each return the existing PM JSON schema; Lead investigate and plan each return the existing Lead JSON schema. Use kit.node.input dependencies and packet.story as prior proposals. ${packet.role === "pm" ? "Your proposal does not grant G1; Office asks the human after propose completes." : "This Lead assignment follows actual Office G1 for this Story."}`,
@@ -444,6 +451,31 @@ export function renderPlanningStory(story: Story): string {
   )}\n\n## Verify\n${story.verify.map((v, i) => `- V${i + 1} [${v.must.map((m) => "M" + m).join(", ")}]. ${v.scenario}`).join("\n")}\n`;
 }
 
+/** Verify IDs for different MUST sets that share one exact argv cannot tell
+ * those requirements apart. Office warns; the human decides at review/G4. */
+function overlappingChecks(
+  story: Story,
+  tasks: { checks: { id: string; argv: string[] }[] }[],
+) {
+  const groups = new Map<string, Set<string>>();
+  for (const t of tasks)
+    for (const c of t.checks) {
+      const key = JSON.stringify(c.argv);
+      groups.set(key, (groups.get(key) ?? new Set()).add(c.id));
+    }
+  return [...groups].flatMap(([key, set]) => {
+    // Check IDs were validated as V<n> for an existing Verify scenario.
+    const ids = [...set].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))),
+      musts = ids.map((id) =>
+        story.verify[Number(id.slice(1)) - 1].must.map((m) => "M" + m).join(","),
+      );
+    if (new Set(musts).size < 2) return [];
+    // JSON keeps model-authored arguments on one line; bound the rendered length.
+    const command = key.length > 160 ? key.slice(0, 157) + "..." : key;
+    return [{ ids, musts, command }];
+  });
+}
+
 function proposal(
   packet: PlanningPacket,
   story: Story,
@@ -530,9 +562,19 @@ function proposal(
     if (!tasks.some((t) => t.verify.includes(i + 1)))
       invalid(`report.tasks: V${i + 1} not covered`);
   });
+  const overlaps = overlappingChecks(story, tasks);
+  const decisions = overlaps.length
+    ? `\n\n## Decisions\n${overlaps
+        .map(
+          (o, i) =>
+            `- D${i + 1}. WARNING: ${o.ids.join(", ")} run the same command ${o.command} but verify different MUST sets (${o.musts.join("; ")}); this check cannot distinguish them. Reviewer and G4 must confirm each MUST separately.`,
+        )
+        .join("\n")}`
+    : "";
+  // story.md stays the exact G1-approved text; warnings belong to the Lead plan.
   const files: Record<string, string> = {
     "story.md": renderPlanningStory(story),
-    "plan.md": `# Proposed implementation plan\n\nRequest: ${packet.requestId}\nInput digest: ${packet.inputDigest}\n\n${plan}\n\nThis is a model proposal. No repository inspection or approval is established by this document.\n`,
+    "plan.md": `# Proposed implementation plan\n\nRequest: ${packet.requestId}\nInput digest: ${packet.inputDigest}\n\n${plan}${decisions}\n\nThis is a model proposal. No repository inspection or approval is established by this document.\n`,
   };
   if (packet.risk === "high")
     files["decision.md"] =
@@ -540,8 +582,16 @@ function proposal(
   const contracts = tasks.map((t, i) => {
     const task = `task-${i + 1}.md`,
       verification = `verify-${i + 1}.json`;
+    const warnings = [...new Set(t.checks.map((c) => c.id))].flatMap((id) => {
+      const o = overlaps.find((o) => o.ids.includes(id));
+      return o
+        ? [
+            `- WARNING: ${id} shares its command with ${o.ids.filter((x) => x !== id).join(", ")}; see plan.md Decisions.\n`,
+          ]
+        : [];
+    });
     files[task] =
-      `# Task: ${t.title}\nReadiness: Implementation-ready\nStory: story.md\nPlan source: plan.md\n\n## Outcome\n${t.outcome}\n\n## Covers — Story M/V IDs\n- ${t.must.map((m) => "M" + m).join(", ")} / ${t.verify.map((v) => "V" + v).join(", ")}\n\n## Scope\n- IN: ${t.scope}\n\n## Constraints\n- ${t.constraints}\n\n## Verify\n- Registered checks: ${t.checks.map((c) => c.id).join(", ")}; see ${verification}.\n`;
+      `# Task: ${t.title}\nReadiness: Implementation-ready\nStory: story.md\nPlan source: plan.md\n\n## Outcome\n${t.outcome}\n\n## Covers — Story M/V IDs\n- ${t.must.map((m) => "M" + m).join(", ")} / ${t.verify.map((v) => "V" + v).join(", ")}\n\n## Scope\n- IN: ${t.scope}\n\n## Constraints\n- ${t.constraints}\n\n## Verify\n- Registered checks: ${t.checks.map((c) => c.id).join(", ")}; see ${verification}.\n${warnings.join("")}`;
     files[verification] =
       JSON.stringify(
         { version: 1, checks: t.checks, workspace: t.workspace },
