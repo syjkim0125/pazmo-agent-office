@@ -4,6 +4,8 @@ This gate checks ownership of the actual implementation. It is not a generated s
 
 ## Predict before reveal
 
+Before presenting G4, run `node .ai-workflow/bin/graph.mjs status <run.json>` and require `action: g4`. Graph readiness only establishes recorded workflow evidence; it never supplies the human answer or approves this gate. For work completed before graph installation, initialize a run and record freshly checked implementation/review/verification evidence before continuing.
+
 1. Gather the approved Story, test results, review findings, and the **raw diff** or mechanical diff/stat. Show only that evidence; do not explain the solution yet.
 2. Ask in the user's language: “이 변경 뒤에 사용자가 겪는 일이 어떻게 달라질까요? 꼭 지켜야 할 규칙과 실패했을 때의 동작은 무엇인가요? 어떤 테스트가 그걸 확인했고, 아직 확인하지 못한 것은 무엇인가요?” **END THE TURN.**
 3. Only after the human answers, **compare** the answer with the Story, diff, runtime flow, and tests.

@@ -1,0 +1,110 @@
+{
+  "scope": "Mechanical frozen diff and G4 binding; actual Git and offline VM, fixture reviewers/human answers; no live model or delivery",
+  "recordedAt": "2026-09-21T02:47:00.733895+00:00",
+  "gitVersion": "git version 2.50.1 (Apple Git-155)",
+  "rootTests": {
+    "passed": 124,
+    "failed": 0,
+    "exitCode": 0,
+    "log": "/private/tmp/pazmo-candidate-diff-final-tests.log",
+    "sha256": "d9b9ac863ba266aca7bd103649a5cd5fbad1323b8d85907ba5047bb4e32d2967"
+  },
+  "rawVMReport": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-verifier-evidence-fa0PPn/report.json",
+  "rawVMSha256": "b43a8ef262b31ba1661a9c38c10395fbca4bb28dc173290c56e4d3660c08fd1a",
+  "sourceSha256": {
+    "src/core/candidates.ts": "f865a1493ad2353f59c3a3646124725013517f1d13525e7bed61b8de0bd20b37",
+    "src/core/completion.ts": "553e6dff7d2767cf083e8370ac377704d51186a9d0ff5b477a6424c00780e892",
+    "src/runners/candidate-diff.ts": "273d227142d63489887b18f233910ae59c4b8bb1f092f5d4291059ce92549345",
+    "src/runners/command.ts": "0d13fcce70ccf45c2bfb1676d3f1f92d14e26de1de172e2e40fa851178bd008c",
+    "src/runners/prepare-candidate.mjs": "bc6796d9848c7a597fe5f33ecb12d94a1358ecff8b90b2e461b536b19b823f18",
+    "tests/candidate-diff.test.mjs": "16058f1c28ec89434fa10e5db3cec51c8c3fcc2b262369d54040018362bb7355",
+    "tests/completion.test.mjs": "8b1515eb58068b32c9df9676ec7326bda5775296aa7136b485c59cdc63baaf69",
+    "scripts/test-container-verifier.mjs": "d564dbfc031a374fc9e2760b8eab9b8a32c774694042602fcc288b4fef63af0f"
+  },
+  "vmScenarios": [
+    {
+      "scenario": "pass",
+      "exitCode": 0,
+      "error": null,
+      "closed": true,
+      "cleanupErrors": [],
+      "leaseState": "released",
+      "roundState": "checking",
+      "outputSha256": "0bd98b2b679bedb88289789bbef5a80fcaa351400f58091ca5bd3e56f2287dc7",
+      "outputPreview": "VERIFIED_REAL_CONTAINER\n"
+    },
+    {
+      "scenario": "empty",
+      "exitCode": 0,
+      "error": null,
+      "closed": true,
+      "cleanupErrors": [],
+      "leaseState": "released",
+      "roundState": "checking",
+      "outputSha256": "9adf30aa9ec3f15e362558cb20be6672f8c185353780070cc4f3b8cdaef6e309",
+      "outputPreview": "VERIFIED_EMPTY_CANDIDATE\n"
+    },
+    {
+      "scenario": "fail",
+      "exitCode": 7,
+      "error": null,
+      "closed": true,
+      "cleanupErrors": [],
+      "leaseState": "released",
+      "roundState": "checking",
+      "outputSha256": "5d75648e8d40111f3141b546de6c77a9443d0c3e8e32f4e6025132b633d67d4a",
+      "outputPreview": "REAL_FAILURE\n"
+    },
+    {
+      "scenario": "timeout",
+      "exitCode": null,
+      "error": "TIMEOUT",
+      "closed": true,
+      "cleanupErrors": [],
+      "leaseState": "unknown",
+      "roundState": "human_required",
+      "outputSha256": "36fd103b7f9ac360dec5fc48733fee76823a798d29c5b0494fb1d77b4cab12e1",
+      "outputPreview": "DESCENDANT_STARTED\n"
+    },
+    {
+      "scenario": "cancel",
+      "exitCode": null,
+      "error": "CANCELLED",
+      "closed": true,
+      "cleanupErrors": [],
+      "leaseState": "released",
+      "roundState": "human_required",
+      "outputSha256": "36fd103b7f9ac360dec5fc48733fee76823a798d29c5b0494fb1d77b4cab12e1",
+      "outputPreview": "DESCENDANT_STARTED\n"
+    },
+    {
+      "scenario": "output-limit",
+      "exitCode": null,
+      "error": "OUTPUT_LIMIT",
+      "closed": true,
+      "cleanupErrors": [],
+      "leaseState": "released",
+      "roundState": "human_required",
+      "outputSha256": "d509bff642a353f88582e8a846ecae041c333b79c57a7a24ff310fbdb7e914e9",
+      "outputPreview": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  ],
+  "cleanup": {
+    "containers": {
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "timedOut": false,
+      "error": null
+    },
+    "volumes": {
+      "exitCode": 0,
+      "signal": null,
+      "stdout": "",
+      "stderr": "",
+      "timedOut": false,
+      "error": null
+    }
+  }
+}

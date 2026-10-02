@@ -1,0 +1,19 @@
+{
+  "package": "@pazmo/ai-workflow-kit",
+  "version": "4.1.0",
+  "integrity": "sha512-vg+UsClSYyfBNixrD8u4jELDTozdZfhI5IIv6lvkkCZYa3ii8EryGZPGhpXCi8XlrZj+D6y+wB3AIK2AvDa+gQ==",
+  "sourceCommit": "696ac4b",
+  "files": {
+    ".ai-workflow/bin/graph.mjs": "ed2fb1af98763132a0904d684627e2166b0022fd903a48c8fb1efeb2e02a580b",
+    ".ai-workflow/bin/check.mjs": "f45c30a55f7de8fb9c62a4c363e47323a46a21e6400eb658ef0b54457808f57f",
+    ".ai-workflow/graph/cli.mjs": "b8d3be99ce9cf16742365ff8d5d40bc668188e97b5cd997d0e4d9320596a4900",
+    ".ai-workflow/graph/executor.mjs": "5da94c4b0d7e610ad27cd330b39e2b8a6d8d4dc15f84a894b6e770e122e0a7c2",
+    ".ai-workflow/graph/index.mjs": "e5723d8ed4fca2f0c7165973f6e184dab0ee21679bd802252f66481502814e13",
+    ".ai-workflow/graph/planning-graph.mjs": "fbf94a7c29e08797df27b1e3afe70163b01c6c7818ad1fe0834f75b39f43d693",
+    ".ai-workflow/graph/roles.mjs": "48144e7a80f3e7b4163ffd3d4f391a521a35e1734600b0e912eafcd301730207",
+    ".ai-workflow/graph/scheduler.mjs": "18f5a26a6af82c9e72a914cc91ed099559e3e7380733498797fbd22eae7b59be",
+    ".ai-workflow/graph/storage.mjs": "10e9319bbd692562d73fa13ff2ecc1f644f697197b80a02612b6e03e67eaeb05",
+    ".ai-workflow/graph/task-graph.mjs": "64ace4d2d4913e6d2b4b3ddb248148165222123f6e009f61204236a8fa5b7542",
+    ".ai-workflow/graph/workflow.mjs": "d5b825eaddc85a48eba028ffc36c160c432fc5f0e36a0e0ad5db5c9c58f23598"
+  }
+}

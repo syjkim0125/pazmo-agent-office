@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { CSSProperties } from "react";
 import type { Agent } from "../types";
+import { PIXEL_ATLAS_URL, PIXEL_ATLAS_WIDTH, PIXEL_ATLAS_HEIGHT, pixelAtlasFrame } from "./office-view/pixel-atlas";
 
 /** Map agent IDs to sprite numbers (stable order, same as OfficeView) */
 export function buildSpriteMap(agents: Agent[]): Map<string, number> {
@@ -71,6 +72,39 @@ export default function AgentAvatar({
   const spriteNum = resolveSpriteNum(agent, map);
 
   const roundedClass = rounded === "full" ? "rounded-full" : rounded === "xl" ? "rounded-xl" : "rounded-2xl";
+
+  const frame = spriteNum ? pixelAtlasFrame(spriteNum) : undefined;
+  if (frame) {
+    const scale = (imageFit === "contain" ? Math.min : Math.max)(size / frame.width, size / frame.height);
+    return (
+      <div
+        role="img"
+        aria-label={agent?.name ?? ""}
+        className={`${roundedClass} overflow-hidden bg-gray-700 flex-shrink-0 ${className}`}
+        style={{
+          width: size,
+          height: size,
+          display: "flex",
+          justifyContent: "center",
+          alignItems: imagePosition === "center top" ? "flex-start" : "center",
+        }}
+      >
+        <span
+          aria-hidden="true"
+          style={{
+            width: frame.width * scale,
+            height: frame.height * scale,
+            flexShrink: 0,
+            imageRendering: "pixelated",
+            backgroundImage: `url(${PIXEL_ATLAS_URL})`,
+            backgroundRepeat: "no-repeat",
+            backgroundSize: `${PIXEL_ATLAS_WIDTH * scale}px ${PIXEL_ATLAS_HEIGHT * scale}px`,
+            backgroundPosition: `${-frame.x * scale}px ${-frame.y * scale}px`,
+          }}
+        />
+      </div>
+    );
+  }
 
   if (spriteNum) {
     return (

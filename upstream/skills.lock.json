@@ -1,0 +1,77 @@
+{
+  "version": 1,
+  "profiles": {
+    "engineer": {
+      "role": "engineer",
+      "origin": "pazmo-authored",
+      "ref": "pazmo-engineer@1.0.0",
+      "license": "MIT",
+      "licensePath": "LICENSE",
+      "source": "assets/roles/engineer.md",
+      "files": [
+        {
+          "path": "assets/roles/common.md",
+          "digest": "c7e2882f28d9701541f62b9cbef5c54bd7da6b6132744341d1c62bf45dac8e92"
+        },
+        {
+          "path": "assets/roles/engineer.md",
+          "digest": "661b85158db4e298c3c35be9f0f9f10c56a08793a04734a9071db6109ae774d1"
+        }
+      ]
+    },
+    "reviewer": {
+      "role": "reviewer",
+      "origin": "pazmo-authored",
+      "ref": "pazmo-reviewer@1.0.0",
+      "license": "MIT",
+      "licensePath": "LICENSE",
+      "source": "assets/roles/reviewer.md",
+      "files": [
+        {
+          "path": "assets/roles/common.md",
+          "digest": "c7e2882f28d9701541f62b9cbef5c54bd7da6b6132744341d1c62bf45dac8e92"
+        },
+        {
+          "path": "assets/roles/reviewer.md",
+          "digest": "da1da1c13134c31a381a3a5b52c951c7062f6601e4f96ac3a60bbf528e01c840"
+        }
+      ]
+    },
+    "pm": {
+      "role": "pm",
+      "origin": "pazmo-authored",
+      "ref": "pazmo-pm@1.1.0",
+      "license": "MIT",
+      "licensePath": "LICENSE",
+      "source": "assets/roles/pm.md",
+      "files": [
+        {
+          "path": "assets/roles/planning-common.md",
+          "digest": "f1ad8e3b0971b3e0c544b21d3fa63048f6e903f705ff8b994020234cc34ddbbd"
+        },
+        {
+          "path": "assets/roles/pm.md",
+          "digest": "754eb8d792527a6b8df8bcf2dc036a093d55e08b01d9c5e39b5f959a5ff377a1"
+        }
+      ]
+    },
+    "lead": {
+      "role": "lead",
+      "origin": "pazmo-authored",
+      "ref": "pazmo-lead@1.1.0",
+      "license": "MIT",
+      "licensePath": "LICENSE",
+      "source": "assets/roles/lead.md",
+      "files": [
+        {
+          "path": "assets/roles/planning-common.md",
+          "digest": "f1ad8e3b0971b3e0c544b21d3fa63048f6e903f705ff8b994020234cc34ddbbd"
+        },
+        {
+          "path": "assets/roles/lead.md",
+          "digest": "2af01a40b32d0feb5a9acf977c02b42d4eadda39a3e9c006ec8570730f95cf53"
+        }
+      ]
+    }
+  }
+}

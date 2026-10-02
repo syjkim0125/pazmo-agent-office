@@ -1,3 +1,4 @@
+import { assertDirectExecutionAllowed } from "../../../../pazmo/host.ts";
 import fs from "node:fs";
 import path from "node:path";
 import type { ChildProcess } from "node:child_process";
@@ -195,6 +196,7 @@ export function createApiProviderTools(deps: CreateApiProviderToolsDeps) {
     apiModel?: string | null,
     safeWriteOverride?: (text: string) => boolean,
   ): Promise<void> {
+    assertDirectExecutionAllowed("api");
     const safeWrite = safeWriteOverride ?? createSafeLogStreamOps(logStream).safeWrite;
 
     if (!apiProviderId) {
@@ -253,6 +255,7 @@ export function createApiProviderTools(deps: CreateApiProviderToolsDeps) {
     fakePid: number,
     onComplete?: (exitCode: number) => void,
   ): void {
+    assertDirectExecutionAllowed("api-launch");
     const logStream = fs.createWriteStream(logPath, { flags: "a" });
     const { safeWrite, safeEnd } = createSafeLogStreamOps(logStream);
     safeWrite(`\n===== task run start ${new Date().toISOString()} | provider=api =====\n`);

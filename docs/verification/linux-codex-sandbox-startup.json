@@ -1,0 +1,136 @@
+{
+  "completeProof": false,
+  "execution": "locked",
+  "results": [
+    {
+      "args": [
+        "info",
+        "--format",
+        "{{.Name}}"
+      ],
+      "code": 0,
+      "stdout": "colima-pazmo-office\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "create",
+        "--name",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19",
+        "--pull",
+        "never",
+        "--network",
+        "none",
+        "--user",
+        "1000:1000",
+        "--cap-drop",
+        "ALL",
+        "--security-opt",
+        "no-new-privileges:true",
+        "--pids-limit",
+        "64",
+        "--memory",
+        "512m",
+        "--tmpfs",
+        "/work:rw,uid=1000,gid=1000,mode=700",
+        "--env",
+        "HOME=/work",
+        "--env",
+        "CODEX_HOME=/controller",
+        "node@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df",
+        "sleep",
+        "120"
+      ],
+      "code": 0,
+      "stdout": "c7c5363df7e3e4e93a4bd49dcf2b83017dd84b67e33c12adb2a90b567a713fd9\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "cp",
+        "/private/tmp/pazmo-linux-codex-0.154.0/package/vendor/aarch64-unknown-linux-musl",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19:/opt/codex"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "cp",
+        "/private/tmp/pazmo-linux-codex-0.154.0/fixtures",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19:/controller"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "cp",
+        "/private/tmp/pazmo-linux-codex-0.154.0/fixtures/probe.mjs",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19:/probe.mjs"
+      ],
+      "code": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "start",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19"
+      ],
+      "code": 0,
+      "stdout": "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19\n",
+      "stderr": ""
+    },
+    {
+      "args": [
+        "exec",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19",
+        "/opt/codex/bin/codex",
+        "--version"
+      ],
+      "code": 0,
+      "stdout": "codex-cli 0.154.0\n",
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Permission denied (os error 13)\n"
+    },
+    {
+      "args": [
+        "exec",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19",
+        "/opt/codex/bin/codex",
+        "sandbox",
+        "-P",
+        "pazmo",
+        "-C",
+        "/work",
+        "/usr/local/bin/node",
+        "/probe.mjs"
+      ],
+      "code": 1,
+      "stdout": "",
+      "stderr": "WARNING: proceeding, even though we could not create PATH aliases: Permission denied (os error 13)\nbwrap: No permissions to create a new namespace, likely because the kernel does not allow non-privileged user namespaces. On e.g. debian this can be enabled with 'sysctl kernel.unprivileged_userns_clone=1'.\n"
+    },
+    {
+      "args": [
+        "rm",
+        "--force",
+        "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19"
+      ],
+      "code": 0,
+      "stdout": "pazmo-codex-canary-b5c6a8478ca24884a1dc1c0df2b20c19\n",
+      "stderr": ""
+    }
+  ],
+  "scope": "Unauthenticated Codex sandbox startup compatibility; child probes never started",
+  "source": {
+    "package": "@openai/codex@0.154.0-linux-arm64",
+    "url": "https://registry.npmjs.org/@openai/codex/-/codex-0.154.0-linux-arm64.tgz",
+    "integrity": "sha512-KmTCB6ST484zeYlPpKP/K5P/gRaYmt6TihVD+zotoe6O9q0JSBP+FYvCz4A/zZXR7xDOHURTSjHp0sD8wWS0YQ==",
+    "integrityVerified": true
+  },
+  "trialScript": "import json,subprocess,uuid,os\nfrom pathlib import Path\nroot=Path('/private/tmp/pazmo-linux-codex-0.154.0')\ndocker=['/opt/homebrew/bin/docker','--host','unix:///Users/jongkkim/.colima/pazmo-office/docker.sock']\nenv={'HOME':str(Path.home()),'PATH':'/opt/homebrew/bin:/usr/bin:/bin'}\nname='pazmo-codex-canary-'+uuid.uuid4().hex\nimage='node@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df'\nresults=[]\ndef call(args):\n r=subprocess.run(docker+args,env=env,capture_output=True,text=True,timeout=35)\n results.append({'args':args,'code':r.returncode,'stdout':r.stdout,'stderr':r.stderr})\n return r\nfixture=root/'fixtures';fixture.mkdir(exist_ok=True)\n(fixture/'config.toml').write_text('[permissions.pazmo.filesystem]\\n\":minimal\" = \"read\"\\n\"/etc/ssl\" = \"read\"\\n\"/usr/local\" = \"read\"\\n\"/probe.mjs\" = \"read\"\\n\"/work\" = \"write\"\\n\"/opt/codex\" = \"deny\"\\n\"/controller\" = \"deny\"\\n[permissions.pazmo.network]\\nenabled = false\\n')\n(fixture/'fake-token').write_text('DISPOSABLE CANARY')\n(fixture/'probe.mjs').write_text('import fs from \"node:fs\"; import {spawnSync} from \"node:child_process\"; const r=[]; for(const p of [\"/controller/fake-token\", \"/opt/codex/bin/codex\"]) {try{fs.readFileSync(p);r.push({p,read:\"allowed\"})}catch(e){r.push({p,read:e.code})}} const c=spawnSync(\"/opt/codex/bin/codex\",[\"--version\"],{encoding:\"utf8\",timeout:2000});r.push({nestedCodex:c.status,error:c.error?.code,stderr:c.stderr});console.log(JSON.stringify(r));')\ncreated=False\ntry:\n assert call(['info','--format','{{.Name}}']).stdout.strip()=='colima-pazmo-office'\n r=call(['create','--name',name,'--pull','never','--network','none','--user','1000:1000','--cap-drop','ALL','--security-opt','no-new-privileges:true','--pids-limit','64','--memory','512m','--tmpfs','/work:rw,uid=1000,gid=1000,mode=700','--env','HOME=/work','--env','CODEX_HOME=/controller',image,'sleep','120']);assert r.returncode==0\n created=True\n assert call(['cp',str(root/'package/vendor/aarch64-unknown-linux-musl'),name+':/opt/codex']).returncode==0\n assert call(['cp',str(fixture),name+':/controller']).returncode==0\n assert call(['cp',str(fixture/'probe.mjs'),name+':/probe.mjs']).returncode==0\n assert call(['start',name]).returncode==0\n call(['exec',name,'/opt/codex/bin/codex','--version'])\n call(['exec',name,'/opt/codex/bin/codex','sandbox','-P','pazmo','-C','/work','/usr/local/bin/node','/probe.mjs'])\nfinally:\n if created:call(['rm','--force',name])\n (root/'trial-report.json').write_text(json.dumps({'completeProof':False,'execution':'locked','results':results},indent=2)+'\\n')\n print(json.dumps({'report':str(root/'trial-report.json'),'results':results[-4:]},indent=2))\n",
+  "profile": "[permissions.pazmo.filesystem]\n\":minimal\" = \"read\"\n\"/etc/ssl\" = \"read\"\n\"/usr/local\" = \"read\"\n\"/probe.mjs\" = \"read\"\n\"/work\" = \"write\"\n\"/opt/codex\" = \"deny\"\n\"/controller\" = \"deny\"\n[permissions.pazmo.network]\nenabled = false\n",
+  "probePayload": "import fs from \"node:fs\"; import {spawnSync} from \"node:child_process\"; const r=[]; for(const p of [\"/controller/fake-token\", \"/opt/codex/bin/codex\"]) {try{fs.readFileSync(p);r.push({p,read:\"allowed\"})}catch(e){r.push({p,read:e.code})}} const c=spawnSync(\"/opt/codex/bin/codex\",[\"--version\"],{encoding:\"utf8\",timeout:2000});r.push({nestedCodex:c.status,error:c.error?.code,stderr:c.stderr});console.log(JSON.stringify(r));"
+}

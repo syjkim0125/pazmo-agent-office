@@ -29,7 +29,7 @@ function loadEnvFile(filePath: string, override = false): void {
 }
 
 const rootEnvFilePath = path.resolve(SERVER_DIRNAME, "..", "..", ".env");
-loadEnvFile(rootEnvFilePath);
+if (process.env.PAZMO_MANAGED !== "1") loadEnvFile(rootEnvFilePath);
 
 // ---------------------------------------------------------------------------
 // Constants

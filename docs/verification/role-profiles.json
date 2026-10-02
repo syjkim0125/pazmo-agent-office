@@ -1,0 +1,135 @@
+{
+  "version": 1,
+  "date": "2026-09-21",
+  "scope": "U6 bounded first-party Engineer/Reviewer profiles; overall goal incomplete",
+  "implementationRoute": "native sequential in existing worktree; no subagents or external model",
+  "sources": [
+    {
+      "path": "src/runners/role-profiles.ts",
+      "sha256": "800c96ee79c1cc5c4800fb505668684d6bc6c67818c9e033cee37d705b0abcba"
+    },
+    {
+      "path": "src/runners/role-context.ts",
+      "sha256": "0f03342d3f171bcb6da03241fd63586dd2fe35e0ddd4a12c45ce5bcac5718969"
+    },
+    {
+      "path": "assets/roles/common.md",
+      "sha256": "c7e2882f28d9701541f62b9cbef5c54bd7da6b6132744341d1c62bf45dac8e92"
+    },
+    {
+      "path": "assets/roles/engineer.md",
+      "sha256": "661b85158db4e298c3c35be9f0f9f10c56a08793a04734a9071db6109ae774d1"
+    },
+    {
+      "path": "assets/roles/reviewer.md",
+      "sha256": "da1da1c13134c31a381a3a5b52c951c7062f6601e4f96ac3a60bbf528e01c840"
+    },
+    {
+      "path": "upstream/skills.lock.json",
+      "sha256": "114fd5d8bdd686de8aa09d3f9b14db9f839dd4929a5ad9e1d8c01b62f40f108f"
+    },
+    {
+      "path": "tests/role-profiles.test.mjs",
+      "sha256": "e64a1901e7f5a9cf034cabb4be4d0889f86d7981e819e8e3030b9e11bb34040b"
+    },
+    {
+      "path": "tests/coordinator.test.mjs",
+      "sha256": "427af4018903afe2efd3112732ef288aef6b1398c04ff5fff6a281c6e30a8fa4"
+    },
+    {
+      "path": "scripts/codex-fixture-controller.mjs",
+      "sha256": "16598725371800c96d14f1cc87e19deb0bec1abc88f8cfa070f32f1f61365d6a"
+    },
+    {
+      "path": "scripts/test-role-coordinator.mjs",
+      "sha256": "a92c2637f7caa97ff66d3af1ede2ca6873a09d38ff9eca3a8abca211c7645d6c"
+    }
+  ],
+  "rootTests": {
+    "passed": 215,
+    "failed": 0,
+    "exitCode": 0,
+    "path": "/private/tmp/pazmo-role-profiles-tests.log",
+    "sha256": "69ef1472985f97301805874f8d1aeee015aabad0ca9da6b5f04048948022a63e"
+  },
+  "typecheck": {
+    "exitCode": 0
+  },
+  "vendorLint": {
+    "exitCode": 0,
+    "errors": 0,
+    "warnings": 40,
+    "path": "/private/tmp/pazmo-role-profiles-lint.log",
+    "sha256": "5cbba86c6592dba3f7aded1042fc72355f7772bf6afa582a22089e705f07ec63"
+  },
+  "red": {
+    "path": "/private/tmp/pazmo-role-profiles-red.log",
+    "sha256": "0dd2c2cc1a62af7aa56659502f046b601daacf7e53bbf1f41d45bfac71392a3c"
+  },
+  "vm": {
+    "exitCode": 0,
+    "passed": 1,
+    "report": {
+      "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/report.json",
+      "sha256": "e6f7f65b042846f148ae82ca7bcf3d98717a0e158efd71ac55088b8282f948f2"
+    },
+    "log": {
+      "path": "/private/tmp/pazmo-role-profiles-vm.log",
+      "sha256": "773e1ef5f531cc3eba6a1703344d1ce4f0fbf3fb5f4c579ef827260a1cf36bb3"
+    },
+    "controllers": [
+      {
+        "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/engineer-1/controller.json",
+        "sha256": "d5742b7852884f54ea8e392a2562ec81ebd010ca75aadc7319e54a09348f670f",
+        "closed": true,
+        "profileObserved": true
+      },
+      {
+        "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/reviewer-1/controller.json",
+        "sha256": "b2f64000734af1a6a6d2ea3cb66bed3e4a280269b5e314c3557b46890533db03",
+        "closed": true,
+        "profileObserved": true
+      },
+      {
+        "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/engineer-2/controller.json",
+        "sha256": "9629da5ccf957fa1067720b4aac1a761983125a94f7d4cb7991dede08c16ab8b",
+        "closed": true,
+        "profileObserved": true
+      },
+      {
+        "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/reviewer-2/controller.json",
+        "sha256": "f317564af34599fa91ccada160f9d84bffba3e73db59d5283b2e45913e8714b1",
+        "closed": true,
+        "profileObserved": true
+      }
+    ],
+    "delivery": {
+      "status": "delivered",
+      "directory": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/deliveries/delivery-kWNeha",
+      "receiptDigest": "0a491cc65112341d71aac71290e2b27d1ef74c6ddfc139636d4eea6d61157a36",
+      "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+      "roundId": "d82ce867-87e4-4067-98e3-bb74f07e2d9b",
+      "createdAt": 1789967583686
+    },
+    "receipt": {
+      "path": "/private/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-yZz9xd/deliveries/delivery-kWNeha/receipt.json",
+      "sha256": "0a491cc65112341d71aac71290e2b27d1ef74c6ddfc139636d4eea6d61157a36"
+    },
+    "remainingPazmoContainers": 0,
+    "remainingPazmoVolumes": 0
+  },
+  "workflow": {
+    "story": "PASS; G4 not checked",
+    "task": "PASS",
+    "compoundFrontmatter": "PASS",
+    "review": "same-context sequential adaptation; not independent full CE receipt",
+    "compound": "docs/solutions/architecture-patterns/pin-bounded-role-instructions.md"
+  },
+  "limits": [
+    "No real model judgment, real human G4 or actual project pilot",
+    "Controller code and lock are trusted together; this is not OS isolation proof",
+    "Profiles not yet persisted as per-execution DB attestations",
+    "PM/Lead, structured role Q&A, UI and learning retrieval remain pending",
+    "Authenticated execution remains locked pending auth-location G3 and full canaries"
+  ]
+}

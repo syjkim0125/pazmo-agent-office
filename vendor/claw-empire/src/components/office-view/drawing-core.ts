@@ -119,24 +119,21 @@ function drawRoomAtmosphere(
 /* ================================================================== */
 
 function drawTiledFloor(g: Graphics, x: number, y: number, w: number, h: number, c1: number, c2: number) {
-  for (let ty = 0; ty < h; ty += TILE) {
-    for (let tx = 0; tx < w; tx += TILE) {
-      const isEven = ((tx / TILE + ty / TILE) & 1) === 0;
-      g.rect(x + tx, y + ty, TILE, TILE).fill(isEven ? c1 : c2);
-      // Top-left highlight (warm light)
-      g.moveTo(x + tx, y + ty)
-        .lineTo(x + tx + TILE, y + ty)
-        .stroke({ width: 0.3, color: 0xffffff, alpha: 0.15 });
-      g.moveTo(x + tx, y + ty)
-        .lineTo(x + tx, y + ty + TILE)
-        .stroke({ width: 0.3, color: 0xffffff, alpha: 0.1 });
-      // Bottom-right shadow (warm dark)
-      g.moveTo(x + tx, y + ty + TILE)
-        .lineTo(x + tx + TILE, y + ty + TILE)
-        .stroke({ width: 0.3, color: 0x8a7a60, alpha: 0.1 });
-      g.moveTo(x + tx + TILE, y + ty)
-        .lineTo(x + tx + TILE, y + ty + TILE)
-        .stroke({ width: 0.3, color: 0x8a7a60, alpha: 0.08 });
+  // Staggered planks with hard highlights; clip edge planks to the room bounds.
+  for (let row = 0, ty = 0; ty < h; row++, ty += TILE) {
+    for (let tx = row % 2 ? -TILE : 0; tx < w; tx += TILE * 2) {
+      const left = Math.max(0, tx);
+      const right = Math.min(w, tx + TILE * 2);
+      const height = Math.min(TILE, h - ty);
+      const width = right - left;
+      const color = ((row + Math.floor(tx / (TILE * 2))) & 1) === 0 ? c1 : c2;
+      g.rect(x + left, y + ty, width, height).fill(color);
+      g.rect(x + left, y + ty, width, 1).fill(blendColor(color, 0xffe4b4, 0.25));
+      g.rect(x + left, y + ty + height - 1, width, 1).fill(blendColor(color, 0x392b40, 0.23));
+      g.rect(x + right - 1, y + ty, 1, height).fill(blendColor(color, 0x392b40, 0.18));
+      if (width > 20 && height > 10) {
+        g.rect(x + left + 5, y + ty + 6, 10, 1).fill(blendColor(color, 0x392b40, 0.09));
+      }
     }
   }
 }

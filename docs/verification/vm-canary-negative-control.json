@@ -1,0 +1,648 @@
+{
+  "scope": "VM/container substrate only",
+  "execution": "locked",
+  "completeProof": false,
+  "image": "node@sha256:a9f5f7c91a432850b2a8a7797adf5eadb6c733ceed61167806cee7ea7fbc29df",
+  "fixtureRoot": "/private/tmp/pazmo-vm-canary-i06wm_jo",
+  "checks": [
+    {
+      "name": "vm-no-host-filesystem-mounts",
+      "passed": true
+    },
+    {
+      "name": "non-root",
+      "passed": true
+    },
+    {
+      "name": "no-effective-capabilities",
+      "passed": true
+    },
+    {
+      "name": "no-new-privileges",
+      "passed": true
+    },
+    {
+      "name": "seccomp-filter-active",
+      "passed": true
+    },
+    {
+      "name": "only-loopback-network",
+      "passed": true
+    },
+    {
+      "name": "pid-limit",
+      "passed": true
+    },
+    {
+      "name": "memory-limit",
+      "passed": true
+    },
+    {
+      "name": "cpu-limit",
+      "passed": true
+    },
+    {
+      "name": "workspace-write",
+      "passed": true
+    },
+    {
+      "name": "scratch-write",
+      "passed": true
+    },
+    {
+      "name": "candidate-read",
+      "passed": true
+    },
+    {
+      "name": "candidate-write",
+      "passed": false,
+      "detail": "unexpected access"
+    },
+    {
+      "name": "root-write",
+      "passed": true,
+      "detail": "EROFS"
+    },
+    {
+      "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/approval.sqlite",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/approval.sqlite",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/operator-token",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/operator-token",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/policy.json",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/policy.json",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/fake-home/auth.json",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/fake-home/auth.json",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/other-project/source.txt",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/other-project/source.txt",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "symlink-to-host-fixture",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "host-controller-signal",
+      "passed": true,
+      "detail": "ESRCH"
+    },
+    {
+      "name": "nested-node-cannot-read-host",
+      "passed": true
+    },
+    {
+      "name": "image-command-absent:codex",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "image-command-absent:docker",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "image-command-absent:osascript",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "image-command-absent:open",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "controller-loopback",
+      "passed": true,
+      "detail": "ECONNREFUSED"
+    },
+    {
+      "name": "host-gateway",
+      "passed": true,
+      "detail": "ENETUNREACH"
+    },
+    {
+      "name": "external-route",
+      "passed": true,
+      "detail": "ENETUNREACH"
+    },
+    {
+      "name": "controller-unix",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "docker-socket",
+      "passed": true,
+      "detail": "ENOENT"
+    },
+    {
+      "name": "candidate-unchanged",
+      "passed": false
+    },
+    {
+      "name": "descendant-started",
+      "passed": true
+    },
+    {
+      "name": "only-owned-readonly-candidate-volume",
+      "passed": false
+    },
+    {
+      "name": "container-cancellation",
+      "passed": true
+    },
+    {
+      "name": "host-fixtures-unchanged",
+      "passed": true
+    },
+    {
+      "name": "host-process-not-signalled",
+      "passed": true
+    },
+    {
+      "name": "removed:pazmo-canary-f0881327a64342cd86f301685e8c4497",
+      "passed": true
+    },
+    {
+      "name": "removed:pazmo-canary-f0881327a64342cd86f301685e8c4497-seed",
+      "passed": true
+    },
+    {
+      "name": "owned-volume-removed",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "sourceHashes": {
+    "probe-vm-isolation.py": "352b6a3c884a41cb28d37b0646afb787473f63cb16106257771aa01496fe2aa8",
+    "probe-vm-isolation.mjs": "86e8abfa5751f5e8d488f0ce769de6aff6e03b9629065343c6c2ddf397b7ed3d"
+  },
+  "versions": {
+    "Client": {
+      "Platform": {
+        "Name": "Docker Engine - Community"
+      },
+      "Version": "29.7.2",
+      "ApiVersion": "1.54",
+      "DefaultAPIVersion": "1.55",
+      "GitCommit": "a7dcaa6fdb",
+      "GoVersion": "go1.26.6",
+      "Os": "darwin",
+      "Arch": "arm64",
+      "BuildTime": "Wed Aug  5 17:34:15 2026",
+      "Context": "default"
+    },
+    "Server": {
+      "Platform": {
+        "Name": "Docker Engine - Community"
+      },
+      "Version": "29.5.2",
+      "ApiVersion": "1.54",
+      "MinAPIVersion": "1.40",
+      "Os": "linux",
+      "Arch": "arm64",
+      "Components": [
+        {
+          "Name": "Engine",
+          "Version": "29.5.2",
+          "Details": {
+            "ApiVersion": "1.54",
+            "Arch": "arm64",
+            "BuildTime": "Wed May 20 14:39:25 2026",
+            "Experimental": "false",
+            "GitCommit": "568f755",
+            "GoVersion": "go1.26.3",
+            "KernelVersion": "6.8.0-117-generic",
+            "MinAPIVersion": "1.40",
+            "Module": "github.com/moby/moby/v2",
+            "ModuleVersion": "v2.0.0+unknown",
+            "Os": "linux"
+          }
+        },
+        {
+          "Name": "containerd",
+          "Version": "v2.2.4",
+          "Details": {
+            "GitCommit": "193637f7ee8ae5f5aa5248f49e7baa3e6164966e"
+          }
+        },
+        {
+          "Name": "runc",
+          "Version": "1.3.5",
+          "Details": {
+            "GitCommit": "v1.3.5-0-g488fc13e"
+          }
+        },
+        {
+          "Name": "docker-init",
+          "Version": "0.19.0",
+          "Details": {
+            "GitCommit": "de40ad0"
+          }
+        }
+      ],
+      "GitCommit": "568f755",
+      "GoVersion": "go1.26.3",
+      "KernelVersion": "6.8.0-117-generic",
+      "BuildTime": "2026-05-20T14:39:25.000000000+00:00"
+    }
+  },
+  "vmMounts": "/ /dev/vda1 ext4\n/dev devtmpfs devtmpfs\n/proc proc proc\n/sys sysfs sysfs\n/sys/kernel/security securityfs securityfs\n/dev/shm tmpfs tmpfs\n/dev/pts devpts devpts\n/run tmpfs tmpfs\n/run/lock tmpfs tmpfs\n/sys/fs/cgroup cgroup2 cgroup2\n/sys/fs/pstore pstore pstore\n/sys/firmware/efi/efivars efivarfs efivarfs\n/sys/fs/bpf bpf bpf\n/proc/sys/fs/binfmt_misc systemd-1 autofs\n/dev/hugepages hugetlbfs hugetlbfs\n/dev/mqueue mqueue mqueue\n/sys/kernel/debug debugfs debugfs\n/sys/kernel/tracing tracefs tracefs\n/sys/kernel/config configfs configfs\n/sys/fs/fuse/connections fusectl fusectl\n/boot /dev/vda16 ext4\n/boot/efi /dev/vda15 vfat\n/proc/sys/fs/binfmt_misc binfmt_misc binfmt_misc\n/run/user/502 tmpfs tmpfs\n/mnt/lima-cidata /dev/vdc iso9660\n/mnt/lima-colima-pazmo-office /dev/vdb1 ext4\n/var/lib/docker /dev/vdb1[/docker] ext4\n/var/lib/containerd /dev/vdb1[/containerd] ext4\n/var/lib/rancher /dev/vdb1[/rancher] ext4\n/var/lib/cni /dev/vdb1[/cni] ext4\n/var/lib/ramalama /dev/vdb1[/ramalama] ext4\n",
+  "createFlags": [
+    "--name",
+    "pazmo-canary-f0881327a64342cd86f301685e8c4497",
+    "--label",
+    "pazmo.probe=pazmo-canary-f0881327a64342cd86f301685e8c4497",
+    "--pull",
+    "never",
+    "--network",
+    "none",
+    "--read-only",
+    "--user",
+    "1000:1000",
+    "--cap-drop",
+    "ALL",
+    "--security-opt",
+    "no-new-privileges:true",
+    "--pids-limit",
+    "64",
+    "--memory",
+    "256m",
+    "--memory-swap",
+    "256m",
+    "--cpus",
+    "1",
+    "--tmpfs",
+    "/work:rw,nosuid,nodev,noexec,size=32m,uid=1000,gid=1000,mode=700",
+    "--tmpfs",
+    "/tmp:rw,nosuid,nodev,noexec,size=32m,uid=1000,gid=1000,mode=700",
+    "--env",
+    "HOME=/work",
+    "--workdir",
+    "/work",
+    "--entrypoint",
+    "node",
+    "--mount",
+    "type=volume,src=pazmo-canary-f0881327a64342cd86f301685e8c4497-candidate,dst=/candidate,volume-nocopy"
+  ],
+  "container": {
+    "node": "v24.19.0",
+    "descendantPid": 24,
+    "checks": [
+      {
+        "name": "non-root",
+        "passed": true
+      },
+      {
+        "name": "no-effective-capabilities",
+        "passed": true
+      },
+      {
+        "name": "no-new-privileges",
+        "passed": true
+      },
+      {
+        "name": "seccomp-filter-active",
+        "passed": true
+      },
+      {
+        "name": "only-loopback-network",
+        "passed": true
+      },
+      {
+        "name": "pid-limit",
+        "passed": true
+      },
+      {
+        "name": "memory-limit",
+        "passed": true
+      },
+      {
+        "name": "cpu-limit",
+        "passed": true
+      },
+      {
+        "name": "workspace-write",
+        "passed": true
+      },
+      {
+        "name": "scratch-write",
+        "passed": true
+      },
+      {
+        "name": "candidate-read",
+        "passed": true
+      },
+      {
+        "name": "candidate-write",
+        "passed": false,
+        "detail": "unexpected access"
+      },
+      {
+        "name": "root-write",
+        "passed": true,
+        "detail": "EROFS"
+      },
+      {
+        "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/approval.sqlite",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/approval.sqlite",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/operator-token",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/operator-token",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/policy.json",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/controller/policy.json",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/fake-home/auth.json",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/fake-home/auth.json",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-read:/private/tmp/pazmo-vm-canary-i06wm_jo/other-project/source.txt",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "unmounted-write:/private/tmp/pazmo-vm-canary-i06wm_jo/other-project/source.txt",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "symlink-to-host-fixture",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "host-controller-signal",
+        "passed": true,
+        "detail": "ESRCH"
+      },
+      {
+        "name": "nested-node-cannot-read-host",
+        "passed": true
+      },
+      {
+        "name": "image-command-absent:codex",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "image-command-absent:docker",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "image-command-absent:osascript",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "image-command-absent:open",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "controller-loopback",
+        "passed": true,
+        "detail": "ECONNREFUSED"
+      },
+      {
+        "name": "host-gateway",
+        "passed": true,
+        "detail": "ENETUNREACH"
+      },
+      {
+        "name": "external-route",
+        "passed": true,
+        "detail": "ENETUNREACH"
+      },
+      {
+        "name": "controller-unix",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "docker-socket",
+        "passed": true,
+        "detail": "ENOENT"
+      },
+      {
+        "name": "candidate-unchanged",
+        "passed": false
+      },
+      {
+        "name": "descendant-started",
+        "passed": true
+      }
+    ]
+  },
+  "hostConfig": {
+    "Binds": null,
+    "ContainerIDFile": "",
+    "LogConfig": {
+      "Type": "json-file",
+      "Config": {}
+    },
+    "NetworkMode": "none",
+    "PortBindings": {},
+    "RestartPolicy": {
+      "Name": "no",
+      "MaximumRetryCount": 0
+    },
+    "AutoRemove": false,
+    "VolumeDriver": "",
+    "VolumesFrom": null,
+    "ConsoleSize": [
+      0,
+      0
+    ],
+    "CapAdd": null,
+    "CapDrop": [
+      "ALL"
+    ],
+    "CgroupnsMode": "private",
+    "Dns": null,
+    "DnsOptions": [],
+    "DnsSearch": [],
+    "ExtraHosts": null,
+    "GroupAdd": null,
+    "IpcMode": "private",
+    "Cgroup": "",
+    "Links": null,
+    "OomScoreAdj": 0,
+    "PidMode": "",
+    "Privileged": false,
+    "PublishAllPorts": false,
+    "ReadonlyRootfs": true,
+    "SecurityOpt": [
+      "no-new-privileges:true"
+    ],
+    "Tmpfs": {
+      "/tmp": "rw,nosuid,nodev,noexec,size=32m,uid=1000,gid=1000,mode=700",
+      "/work": "rw,nosuid,nodev,noexec,size=32m,uid=1000,gid=1000,mode=700"
+    },
+    "UTSMode": "",
+    "UsernsMode": "",
+    "ShmSize": 67108864,
+    "Runtime": "runc",
+    "Isolation": "",
+    "CpuShares": 0,
+    "Memory": 268435456,
+    "NanoCpus": 1000000000,
+    "CgroupParent": "",
+    "BlkioWeight": 0,
+    "BlkioWeightDevice": [],
+    "BlkioDeviceReadBps": [],
+    "BlkioDeviceWriteBps": [],
+    "BlkioDeviceReadIOps": [],
+    "BlkioDeviceWriteIOps": [],
+    "CpuPeriod": 0,
+    "CpuQuota": 0,
+    "CpuRealtimePeriod": 0,
+    "CpuRealtimeRuntime": 0,
+    "CpusetCpus": "",
+    "CpusetMems": "",
+    "Devices": [],
+    "DeviceCgroupRules": null,
+    "DeviceRequests": null,
+    "MemoryReservation": 0,
+    "MemorySwap": 268435456,
+    "MemorySwappiness": null,
+    "OomKillDisable": null,
+    "PidsLimit": 64,
+    "Ulimits": [],
+    "CpuCount": 0,
+    "CpuPercent": 0,
+    "IOMaximumIOps": 0,
+    "IOMaximumBandwidth": 0,
+    "Mounts": [
+      {
+        "Type": "volume",
+        "Source": "pazmo-canary-f0881327a64342cd86f301685e8c4497-candidate",
+        "Target": "/candidate",
+        "VolumeOptions": {
+          "NoCopy": true
+        }
+      }
+    ],
+    "MaskedPaths": [
+      "/proc/acpi",
+      "/proc/asound",
+      "/proc/interrupts",
+      "/proc/kcore",
+      "/proc/keys",
+      "/proc/latency_stats",
+      "/proc/sched_debug",
+      "/proc/scsi",
+      "/proc/timer_list",
+      "/proc/timer_stats",
+      "/sys/devices/virtual/powercap",
+      "/sys/firmware"
+    ],
+    "ReadonlyPaths": [
+      "/proc/bus",
+      "/proc/fs",
+      "/proc/irq",
+      "/proc/sys",
+      "/proc/sysrq-trigger"
+    ]
+  },
+  "containerMounts": [
+    {
+      "Type": "volume",
+      "Name": "pazmo-canary-f0881327a64342cd86f301685e8c4497-candidate",
+      "Source": "/var/lib/docker/volumes/pazmo-canary-f0881327a64342cd86f301685e8c4497-candidate/_data",
+      "Destination": "/candidate",
+      "Driver": "local",
+      "Mode": "z",
+      "RW": true,
+      "Propagation": ""
+    }
+  ],
+  "processesBeforeCancellation": "PID                 COMMAND\n2292                node /candidate/probe.mjs\n2321                /usr/local/bin/node -e setInterval(()=>{},1000)\n",
+  "stateAfterCancellation": {
+    "Status": "exited",
+    "Running": false,
+    "Paused": false,
+    "Restarting": false,
+    "OOMKilled": false,
+    "Dead": false,
+    "Pid": 0,
+    "ExitCode": 137,
+    "Error": "",
+    "StartedAt": "2026-09-18T09:06:25.593110361Z",
+    "FinishedAt": "2026-09-18T09:06:25.992337028Z"
+  },
+  "probeExitCode": 1,
+  "notProven": [
+    "authenticated Codex tool boundary",
+    "credential isolation inside model harness",
+    "downloaded/copied model executables",
+    "controller candidate/approval guards",
+    "browser sessions and Apple Events with a live runner",
+    "kernel/VM escape resistance"
+  ]
+}

@@ -1,0 +1,132 @@
+{
+  "date": "2026-09-21",
+  "node": "24.19.0",
+  "root_tests": {
+    "passed": 152,
+    "failed": 0,
+    "exit_code": 0
+  },
+  "typecheck_exit_code": 0,
+  "vendor_lint": {
+    "exit_code": 0,
+    "errors": 0,
+    "warnings": 40,
+    "covers_root_modules": false
+  },
+  "actual_vm": {
+    "passed": 8,
+    "exit_code": 0,
+    "scenarios": [
+      {
+        "name": "pass",
+        "exit_code": 0,
+        "timed_out": false,
+        "error": null,
+        "closed": true,
+        "state": "candidate_frozen",
+        "candidate_digest": "2e28000bc42e7606443a49e39d36ba863cd01eb37104456e1110cc96877d0105",
+        "verification_state": "checking"
+      },
+      {
+        "name": "delete",
+        "exit_code": 0,
+        "timed_out": false,
+        "error": null,
+        "closed": true,
+        "state": "candidate_frozen",
+        "candidate_digest": "8bcae181d21321b79e1cee4976a6c9759a0f03769dde64b6f821ab5d22a33921",
+        "verification_state": "checking"
+      },
+      {
+        "name": "fail",
+        "exit_code": 7,
+        "timed_out": false,
+        "error": null,
+        "closed": true,
+        "state": "human_required",
+        "candidate_digest": null,
+        "verification_state": null
+      },
+      {
+        "name": "outside",
+        "exit_code": 0,
+        "timed_out": false,
+        "error": "WORKSPACE_EXPORT_FAILED: [eval]:33\n      throw Error(\"OUTSIDE_WORKSPACE\");\n      ^\n\nError: OUTSIDE_WORKSPACE\n    at walk ([eval]:33:13)\n    at [eval]:77:1\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:451:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:449:60)\n    at evalFunction (node:internal/process/execution:283:30)\n    at evalTypeScript (node:internal/process/execution:295:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v24.19.0\n",
+        "closed": true,
+        "state": "human_required",
+        "candidate_digest": null,
+        "verification_state": null
+      },
+      {
+        "name": "escape",
+        "exit_code": 0,
+        "timed_out": false,
+        "error": "Invalid file type or link target.",
+        "closed": true,
+        "state": "human_required",
+        "candidate_digest": null,
+        "verification_state": null
+      },
+      {
+        "name": "special",
+        "exit_code": 0,
+        "timed_out": false,
+        "error": "WORKSPACE_EXPORT_FAILED: [eval]:45\n          throw Error(\"FILE_LIMIT\");\n          ^\n\nError: FILE_LIMIT\n    at walk ([eval]:45:17)\n    at walk ([eval]:34:29)\n    at [eval]:77:1\n    at runScriptInThisContext (node:internal/vm:219:10)\n    at node:internal/process/execution:451:12\n    at [eval]-wrapper:6:24\n    at runScriptInContext (node:internal/process/execution:449:60)\n    at evalFunction (node:internal/process/execution:283:30)\n    at evalTypeScript (node:internal/process/execution:295:3)\n    at node:internal/main/eval_string:71:3\n\nNode.js v24.19.0\n",
+        "closed": true,
+        "state": "human_required",
+        "candidate_digest": null,
+        "verification_state": null
+      },
+      {
+        "name": "timeout",
+        "exit_code": null,
+        "timed_out": true,
+        "error": "TIMEOUT",
+        "closed": true,
+        "state": "human_required",
+        "candidate_digest": null,
+        "verification_state": null
+      },
+      {
+        "name": "cancel",
+        "exit_code": null,
+        "timed_out": false,
+        "error": "CANCELLED",
+        "closed": true,
+        "state": "human_required",
+        "candidate_digest": null,
+        "verification_state": null
+      }
+    ],
+    "cleanup": {
+      "containers": "",
+      "volumes": ""
+    }
+  },
+  "readonly_vm_regression": {
+    "passed": 6,
+    "exit_code": 0
+  },
+  "reports": {
+    "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-workspace-evidence-JlbbGY/report.json": "c3bc158536afca41ee22117f55952d77cef6e7d3aac3d8395aa823c41ea145a0",
+    "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-verifier-evidence-69mCKe/report.json": "20171110041ae438508e968fc95853a6358f234e35ed5a348e49ffd85d8f4086"
+  },
+  "logs": {
+    "/private/tmp/pazmo-workspace-full.log": "fb213d426b771315ff2a6703b8546e3681ab2484abe482851c0f3fb953215731",
+    "/private/tmp/pazmo-workspace-lint.log": "89c7c382b190ce53e8677b5e613afb9e7e6a763dd63362bcad4ac8af8767cf3d",
+    "/private/tmp/pazmo-workspace-vm-final.log": "c8251c1a4533412b9325920bc6de1729247c41548f02bda5a5d8c2184c3538e7",
+    "/private/tmp/pazmo-workspace-readonly-vm.log": "a92288dc20be36a71d5fcf365439905c55063298ce136ca4734c3e06cdabaff6"
+  },
+  "source_sha256": {
+    "src/runners/container-verifier.ts": "22f4c1a7e4c3a31739b5c0d69b66acc8a3580eefffb4a2d9951a5264d80eb25b",
+    "src/runners/prepare-candidate.mjs": "f5ce7fe9c29f585d600fba64b5fd96e044c19e6c22d5a7685f59a8ca912d531b",
+    "src/runners/export-workspace.cjs": "61caea20c9d530ef3e4188cfb97e2321692c08687893697a18a0de394d509311",
+    "src/runners/workspace-transfer.ts": "601bfbb5eb75dd059309643a9c83600a02651d186bcb1ee7e2e900810b565b68",
+    "src/runners/engineer.ts": "5660f7d63631a2194498fcaa659d8a163b48a2c57cf1cd8e5411e2de71ebf608",
+    "tests/container-verifier.test.mjs": "6939fdc156b11e299ccc00478588aba6c5f55c7befa36545bdab08a619a1a173",
+    "tests/workspace-transfer.test.mjs": "7f2e588538064be212afd95ea0d8ee75819b182f3a047b36dd2f2b3899018d45",
+    "tests/handoffs.test.mjs": "83022c9dc39216c067f54b26c5a8cd7e466ad6836bbeb0d1b95e76086f1b46ba",
+    "scripts/test-container-workspace.mjs": "01538e3a2694510922e01b74ecea882aeb7e4fc89bc121ae941abea280e93eda"
+  },
+  "boundary": "Actual offline VM command edits and transfer into same-candidate verification. No authenticated Codex, Reviewer, G4 or real-project pilot. Public execution remains locked."
+}

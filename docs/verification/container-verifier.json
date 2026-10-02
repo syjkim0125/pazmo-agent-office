@@ -1,0 +1,157 @@
+{
+  "scope": "real offline container checks; no model or G4",
+  "recordedAt": "2026-09-21T02:00:06.004430+00:00",
+  "rawReport": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-verifier-evidence-U38HhO/report.json",
+  "rawSha256": "6ff1fbe47cf9df5c25ee66dd1bff1ad7bcb9d0b76157966d322e72f1d1b65774",
+  "sourceSha256": {
+    "src/runners/command.ts": "3b8034745a64a0f647acd98e2ac942b3ae78ae6fe1aa7bde77b2f74e927316d1",
+    "src/runners/container-verifier.ts": "b365b8545b58e6e270cd733f855ec6f8e0d350fe374b1b4686e41d879d003676",
+    "src/runners/prepare-candidate.mjs": "4629a98cba63a4e0010fd2b54319722751bb302bb1e057c339b66040d74000a4",
+    "src/runners/verification.ts": "d520a6fee8e44bfd2fe39228cfb47c5d7107d74ba77c2d295e175fa313b6a1e2",
+    "src/core/budgets.ts": "0cf16f822dd69647ef766c2d6a5babb84293b409f38c7f49e601319b99b3ebd4",
+    "src/core/verification.ts": "b65553d1606077aa2b8c71c9a46215ce530488d4d1c10fa78d470df2e9ecb806",
+    "scripts/test-container-verifier.mjs": "fcbc49af573d3e40822fe4ea0ab0350574168952da5780255b91fb88cdf7a47d"
+  },
+  "reports": [
+    {
+      "scenario": "pass",
+      "observation": {
+        "kind": "test",
+        "exitCode": 0,
+        "signal": null,
+        "timedOut": false,
+        "error": null,
+        "outputBytes": 24,
+        "outputSha256": "0bd98b2b679bedb88289789bbef5a80fcaa351400f58091ca5bd3e56f2287dc7",
+        "outputPreview": "VERIFIED_REAL_CONTAINER\n"
+      },
+      "closed": true,
+      "cleanupErrors": [],
+      "recordingError": null,
+      "leaseState": "released",
+      "roundState": "checking",
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "pass"
+        },
+        {
+          "kind": "review",
+          "verdict": null
+        }
+      ]
+    },
+    {
+      "scenario": "fail",
+      "observation": {
+        "kind": "test",
+        "exitCode": 7,
+        "signal": null,
+        "timedOut": false,
+        "error": null,
+        "outputBytes": 13,
+        "outputSha256": "5d75648e8d40111f3141b546de6c77a9443d0c3e8e32f4e6025132b633d67d4a",
+        "outputPreview": "REAL_FAILURE\n"
+      },
+      "closed": true,
+      "cleanupErrors": [],
+      "recordingError": null,
+      "leaseState": "released",
+      "roundState": "checking",
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "fail"
+        },
+        {
+          "kind": "review",
+          "verdict": null
+        }
+      ]
+    },
+    {
+      "scenario": "timeout",
+      "observation": {
+        "kind": "test",
+        "exitCode": null,
+        "signal": null,
+        "timedOut": true,
+        "error": "TIMEOUT",
+        "outputBytes": 19,
+        "outputSha256": "36fd103b7f9ac360dec5fc48733fee76823a798d29c5b0494fb1d77b4cab12e1",
+        "outputPreview": "DESCENDANT_STARTED\n"
+      },
+      "closed": true,
+      "cleanupErrors": [],
+      "recordingError": "Only the current supervisor can complete a running lease.",
+      "leaseState": "unknown",
+      "roundState": "human_required",
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "unknown"
+        },
+        {
+          "kind": "review",
+          "verdict": null
+        }
+      ]
+    },
+    {
+      "scenario": "cancel",
+      "observation": {
+        "kind": "test",
+        "exitCode": null,
+        "signal": null,
+        "timedOut": false,
+        "error": "CANCELLED",
+        "outputBytes": 19,
+        "outputSha256": "36fd103b7f9ac360dec5fc48733fee76823a798d29c5b0494fb1d77b4cab12e1",
+        "outputPreview": "DESCENDANT_STARTED\n"
+      },
+      "closed": true,
+      "cleanupErrors": [],
+      "recordingError": null,
+      "leaseState": "released",
+      "roundState": "human_required",
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "unknown"
+        },
+        {
+          "kind": "review",
+          "verdict": null
+        }
+      ]
+    },
+    {
+      "scenario": "output-limit",
+      "observation": {
+        "kind": "test",
+        "exitCode": null,
+        "signal": null,
+        "timedOut": false,
+        "error": "OUTPUT_LIMIT",
+        "outputBytes": 262144,
+        "outputSha256": "d509bff642a353f88582e8a846ecae041c333b79c57a7a24ff310fbdb7e914e9",
+        "outputPreview": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+      },
+      "closed": true,
+      "cleanupErrors": [],
+      "recordingError": null,
+      "leaseState": "released",
+      "roundState": "human_required",
+      "nodes": [
+        {
+          "kind": "test",
+          "verdict": "unknown"
+        },
+        {
+          "kind": "review",
+          "verdict": null
+        }
+      ]
+    }
+  ]
+}

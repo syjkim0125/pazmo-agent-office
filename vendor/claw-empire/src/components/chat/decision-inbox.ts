@@ -4,7 +4,7 @@ import type { DecisionOption } from "./decision-request";
 
 export interface DecisionInboxItem {
   id: string;
-  kind: "agent_request" | "project_review_ready" | "task_timeout_resume" | "review_round_pick";
+  kind: "agent_request" | "project_review_ready" | "task_timeout_resume" | "review_round_pick" | "workflow_gate";
   agentId: string | null;
   agentName: string;
   agentNameKo: string;
@@ -39,7 +39,7 @@ export function buildDecisionInboxItems(messages: Message[], agents: Agent[]): D
   const items: DecisionInboxItem[] = [];
 
   for (const msg of messages) {
-    if (msg.sender_type !== "agent" || !msg.sender_id) continue;
+    if (msg.sender_type !== "agent" || !msg.sender_id || msg.message_type === "status_update") continue;
     const parsed = parseDecisionRequest(msg.content);
     if (!parsed) continue;
 

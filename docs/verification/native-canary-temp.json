@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "platform": "darwin",
+  "root": "/private/tmp/pazmo-isolation-llmsyzwr",
+  "exitCode": 0,
+  "checks": [
+    {
+      "name": "workspace-write",
+      "actual": "allowed",
+      "expect": "allowed"
+    },
+    {
+      "name": "read:/private/tmp/pazmo-isolation-llmsyzwr/controller/approval.sqlite",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/private/tmp/pazmo-isolation-llmsyzwr/controller/approval.sqlite",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/private/tmp/pazmo-isolation-llmsyzwr/controller/operator-token",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/private/tmp/pazmo-isolation-llmsyzwr/controller/operator-token",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/private/tmp/pazmo-isolation-llmsyzwr/controller/policy.json",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/private/tmp/pazmo-isolation-llmsyzwr/controller/policy.json",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/private/tmp/pazmo-isolation-llmsyzwr/fake-home/auth.json",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/private/tmp/pazmo-isolation-llmsyzwr/fake-home/auth.json",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "read:/private/tmp/pazmo-isolation-llmsyzwr/other-project/source.txt",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "write:/private/tmp/pazmo-isolation-llmsyzwr/other-project/source.txt",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "symlink-escape",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "controller-signal",
+      "actual": "denied",
+      "code": "EPERM",
+      "expect": "denied"
+    },
+    {
+      "name": "child-read",
+      "actual": "allowed",
+      "expect": "denied"
+    },
+    {
+      "name": "new-codex-child",
+      "actual": "allowed",
+      "expect": "denied",
+      "status": 0,
+      "signal": null,
+      "stderr": ""
+    },
+    {
+      "name": "controller-tcp",
+      "actual": "denied",
+      "expect": "denied"
+    },
+    {
+      "name": "controller-unix",
+      "actual": "denied",
+      "expect": "denied"
+    }
+  ],
+  "controllerSignalsReceived": 0,
+  "stderr": "",
+  "execution": "locked",
+  "completeProof": false,
+  "unverified": [
+    "browser/Apple Events",
+    "Codex built-in tools and authenticated model traffic",
+    "full runner/tool allowlist"
+  ],
+  "probeExitCode": 1,
+  "codexVersion": "0.154.0",
+  "nodeVersion": "24.19.0",
+  "probeSha256": "da11e477d259ae5f4474b028a502069c91c006ba5d6aa5d48b6e89bbfad1d1db",
+  "permissionProfile": "[permissions.pazmo.filesystem]\n\":minimal\" = \"read\"\n\"/System/Library/OpenSSL\" = \"read\"\n\"/Users/jongkkim/.nvm/versions/node/v24.19.0\" = \"read\"\n\"/private/tmp/pazmo-isolation-llmsyzwr/work\" = \"write\"\n\"/private/tmp/pazmo-isolation-llmsyzwr/controller\" = \"deny\"\n\"/private/tmp/pazmo-isolation-llmsyzwr/fake-home\" = \"deny\"\n\"/private/tmp/pazmo-isolation-llmsyzwr/other-project\" = \"deny\"\n[permissions.pazmo.network]\nenabled = false\n"
+}

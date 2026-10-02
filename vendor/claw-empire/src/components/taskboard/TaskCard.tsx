@@ -79,11 +79,11 @@ export default function TaskCard({
   const department = departments.find((d) => d.id === task.department_id);
   const typeBadge = getTaskTypeBadge(task.task_type, t);
 
-  const canRun = task.status === "planned" || task.status === "inbox";
-  const canStop = task.status === "in_progress";
-  const canPause = task.status === "in_progress" && !!onPauseTask;
-  const canResume = (task.status === "pending" || task.status === "cancelled") && !!onResumeTask;
-  const canDelete = task.status !== "in_progress";
+  const canRun = task.workflow?.canRun ?? (task.status === "planned" || task.status === "inbox");
+  const canStop = task.workflow ? !["done", "cancelled"].includes(task.status) : task.status === "in_progress";
+  const canPause = !task.workflow && task.status === "in_progress" && !!onPauseTask;
+  const canResume = !task.workflow && (task.status === "pending" || task.status === "cancelled") && !!onResumeTask;
+  const canDelete = !task.workflow && task.status !== "in_progress";
   const canHideTask = isHideableStatus(task.status);
 
   return (
@@ -131,6 +131,7 @@ export default function TaskCard({
 
       <div className="mb-3">
         <select
+          disabled={!!task.workflow}
           value={task.status}
           onChange={(event) => onUpdateTask(task.id, { status: event.target.value as TaskStatus })}
           className="w-full rounded-lg border border-slate-600 bg-slate-700 px-2 py-1 text-xs text-white outline-none transition focus:border-blue-500"
@@ -161,7 +162,8 @@ export default function TaskCard({
         <span className="text-xs text-slate-500">{timeAgo(task.created_at, localeTag)}</span>
       </div>
 
-      <div
+      <fieldset
+        disabled={!!task.workflow}
         className={`mb-3 rounded-lg transition-all ${agentWarning ? "ring-2 ring-red-500 animate-[shake_0.4s_ease-in-out]" : ""}`}
       >
         <AgentSelect
@@ -197,7 +199,9 @@ export default function TaskCard({
             })}
           </p>
         )}
-      </div>
+      </fieldset>
+
+      {task.workflow && <p className="mb-3 whitespace-pre-wrap text-xs text-amber-200">{task.workflow.message}</p>}
 
       {(task.subtask_total ?? 0) > 0 && (
         <div className="mb-3">

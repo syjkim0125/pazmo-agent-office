@@ -6,7 +6,7 @@
 
 **기존 시스템 개선부터 새로운 제품 개발까지, 내가 지휘하는 AI 팀.**
 
-![단계](https://img.shields.io/badge/stage-bootstrap-orange)
+![단계](https://img.shields.io/badge/stage-local_alpha-orange)
 ![Pazmo 신규 코드](https://img.shields.io/badge/Pazmo_originals-MIT-blue)
 ![원본 라이선스](https://img.shields.io/badge/Claw--Empire-Apache--2.0-blue)
 ![설계 방향](https://img.shields.io/badge/workflow_design-Jira_optional-purple)
@@ -17,7 +17,7 @@
 
 </div>
 
-> **현재는 bootstrap 단계입니다.** 고정된 Claw-Empire 정식 릴리스를 기반으로 독립 배포판을 준비하고 있습니다. 아래 워크플로우·안전장치·npm 설치기는 개발 목표이며 완료된 기능이 아닙니다. 고정 원본의 로컬 반입·tree 검증은 완료했습니다. 게시본에서는 Google OAuth 내장 기본값 두 개를 제거했습니다([변경 고지](upstream/CHANGES.md)). 런타임·실제 Codex·패키지 시험은 아직 실행하지 않았습니다.
+> **Apple Silicon Mac용 로컬 알파입니다.** 원본 Claw Tasks·Decisions와 kit 4.1.0 역할 그래프를 신뢰된 Mac controller·전용 VM으로 연결했습니다. README 파일럿은 실제 PM·팀장·Developer·Reviewer와 검사 6개를 마쳤으며 최종 사용자 G4·인도는 대기 중입니다. npm 배포와 일반 프로젝트 전체 인수 검증은 미완료입니다. [검증 기록](docs/verification/2026-09-29-native-claw-preview.md)을 확인하세요.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/GreenSheep01201/claw-empire/5c928b24ffa55b403fe7c5521d4ac3ac49516137/Sample_Img/Office.png" alt="Claw-Empire 원본 사무실 화면. 완성된 Pazmo 기능 화면이 아닌 출처가 표시된 참고 이미지" width="100%" />
@@ -68,6 +68,10 @@ CE는 제한된 구현·리뷰 절차를, Superpowers는 테스트·디버깅·�
 
 대상은 기존 회사 시스템 변경, 신규 제품, 근거 있는 로컬 분석·보고서입니다. 비코드 업무에는 데이터·출처 검증을 사용합니다. 무인 운영 배포·고객 데이터 쓰기는 초기 범위가 아닙니다.
 
+## 로컬 실행
+
+Apple Silicon Mac에서 최초 로그인과 필수 도구 준비 후, Office 저장소에서 `./office --project /절대/프로젝트/경로`를 실행하세요. 다음부터는 `./office`로 같은 프로젝트를 열 수 있습니다. 설치 확인·VM 준비·Office 시작을 연결하며 자세한 조건과 한계는 [실행 안내](docs/LOCAL-PREVIEW.md)를 따릅니다.
+
 ## 현재 상태
 
 | 항목 | 상태 |
@@ -75,9 +79,11 @@ CE는 제한된 구현·리뷰 절차를, Superpowers는 테스트·디버깅·�
 | 선택한 기반 | Claw-Empire `v2.0.4` — 2026-09-17 확인 |
 | 고정 commit | `5c928b24ffa55b403fe7c5521d4ac3ac49516137` |
 | 새 저장소 source import | **원본 로컬 검증·게시본 자격증명 제거** — [검증 기록](docs/verification/2026-09-18-publication.md) |
-| Story·Task | 원본 일치 확인; workflow 도구 3.1.1 설치 |
-| Jira 없는 팀 실행 | 구현 예정·필수 E2E 시험 |
-| 실행 권한·완료 guard | 구현 예정; 원본 기본값을 안전하다고 보장하지 않음 |
+| Story·Task | kit 4.1.0 역할 그래프 연결; 배정·승인은 Office가 관리 |
+| Jira 없는 팀 실행 | 실제 README 작업 리뷰까지 완료; 최종 사용자 G4·인도 대기 |
+| 로컬 실행기·원본 Office UI | `./office` 구현; 현재 Mac의 별도 소스 설치 시험 통과, [실행 안내](docs/LOCAL-PREVIEW.md) |
+| 계약 등록·G1/G3 승인 CLI | 실제 HTTP/SQLite 시험 통과; live에서는 원본 Decisions 사용 — [검증 기록](docs/verification/2026-09-19-contract-approvals.md) |
+| 실행 격리·완료 guard | 전용 VM 검사·완료 guard 구현; 호스트 직접 실행은 계속 차단 |
 | npm `@pazmo/agent-office` | 예정 이름; 게시·설치 시험 전 |
 
 지금은 실행 가능한 Pazmo npx quickstart가 없습니다. [현재 상태와 다음 단계](docs/STATUS.md), [승인된 Story](docs/understanding/pazmo-agent-office-contract.md), [구현 계획](docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md)을 확인해 주세요. [v3 핸드오프](docs/HANDOFF-v3.md)와 [반입 절차](docs/IMPORT-UPSTREAM.md)는 과거 입력 자료이며 사용자 승인 기록이 아닙니다. 실행 경계 검증 전 회사 자격증명을 연결하지 마세요.

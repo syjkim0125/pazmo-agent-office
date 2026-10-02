@@ -1,0 +1,314 @@
+{
+  "taskId": "1673c3aa-71f7-47dc-a96e-601f6a7a4e93",
+  "contractDigest": "b7444f90c330eae51031791999b444a0bc22725e08771cc5dde1727a3a26f2c5",
+  "requestedModel": "gpt-5.5",
+  "servedModel": "unverified",
+  "g1": {
+    "answer": "이 문서 작업으로 진행",
+    "source": "actual user reply in the Office task"
+  },
+  "rounds": [
+    {
+      "id": "8f338688-9218-41d5-b998-aa3f4e71c0d8",
+      "number": 1,
+      "state": "fix_required",
+      "reason": "INTEGRATION_FEEDBACK",
+      "candidateDigest": "0f09ddfed26cbe0c6c00fa1697b7b78f620ff91ea610b220011c06d5253b8add",
+      "results": [
+        {
+          "id": "V1",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V2",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V3",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V4",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V5",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "Reviewer",
+          "kind": "review",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": {
+            "verdict": "pass",
+            "findings": [],
+            "summary": "Reviewed /candidate/tree against M1-M6 and V1-V5. Evidence: workspace contains only README_ko.md and docs/LOCAL-PREVIEW.md; docs/LOCAL-PREVIEW.md hash is 7c48413abee717ea6aa24278b1fee7fb9179c1b79b4e200959db6a28918dc7c7; README_ko.md line 22 adds a short Korean paragraph distinguishing the Operator key from Codex model subscription login, describes Mac controller and VM execution boundary, and links to docs/LOCAL-PREVIEW.md#planning-conversation-screen without claiming model execution, approvals, deployment, account changes, or full validation. I also ran the five registered Node checks in /candidate/tree and they exited 0. Limitation: this was a readonly semantic/documentation review of the frozen candidate, not G4 approval or delivery."
+          }
+        }
+      ],
+      "integrationFeedback": {
+        "source": "Office controller integration review of the actual frozen README, after model Reviewer pass",
+        "findings": [
+          "M2/M3, README_ko.md line 22: “실제 Codex 모델 호출은 사용자의 기존 Codex 구독 로그인과 별개의 인증 경계에 있고” says model calls are separate from the subscription login, which conflicts with the following clause saying the controller uses that login. Clarify that the Operator key is separate from the Codex subscription login, and actual model calls use that existing login via the Mac controller. Preserve the existing preview limitations and VM boundary; only README_ko.md may change."
+        ],
+        "recordedAt": 1790142655956
+      }
+    },
+    {
+      "id": "3f40d803-dd54-4153-a157-7d07be3e6368",
+      "number": 2,
+      "state": "awaiting_g4",
+      "reason": null,
+      "candidateDigest": "0f97c1493cb5c8c7b675808ebb4675b745ceff999760ed5f7734a96ca929399d",
+      "results": [
+        {
+          "id": "V1",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V2",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V3",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V4",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "V5",
+          "kind": "test",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": null
+        },
+        {
+          "id": "Reviewer",
+          "kind": "review",
+          "verdict": "pass",
+          "exitCode": 0,
+          "review": {
+            "verdict": "pass",
+            "findings": [],
+            "summary": "Reviewed /candidate/tree for the assigned README_ko.md authentication-boundary change against M1-M6/V1-V5. Evidence: file inventory contained only README_ko.md and docs/LOCAL-PREVIEW.md; docs/LOCAL-PREVIEW.md hash matched 7c48413abee717ea6aa24278b1fee7fb9179c1b79b4e200959db6a28918dc7c7; all registered Node checks V1-V5 passed with no output; README_ko.md line 22 clearly distinguishes Operator key use from Codex subscription login, describes the Mac controller and VM execution boundary, and links to docs/LOCAL-PREVIEW.md#planning-conversation-screen without claiming public model execution, deployment, account changes, or approval completion. Limitation: this was a readonly semantic/document review of the frozen candidate and registered checks, not an approval or delivery decision."
+          }
+        }
+      ],
+      "integrationFeedback": null
+    }
+  ],
+  "roles": [
+    {
+      "role": "developer",
+      "targetRevision": "15c5e6d3a57557ba0c013b34f168e41436264353951543444a002e269e45ad38",
+      "runId": "b6587e79-682c-4fb3-acbf-7c4c3fd7261f",
+      "action": "role-complete",
+      "completed": [
+        "implement",
+        "self-check"
+      ],
+      "attempts": {
+        "implement": 2,
+        "self-check": 2
+      },
+      "history": [
+        {
+          "event": "start",
+          "nodeId": "implement",
+          "at": "2026-09-23T05:44:23.284Z"
+        },
+        {
+          "event": "record",
+          "nodeId": "implement",
+          "at": "2026-09-23T05:45:57.627Z"
+        },
+        {
+          "event": "start",
+          "nodeId": "self-check",
+          "at": "2026-09-23T05:45:57.920Z"
+        },
+        {
+          "event": "record",
+          "nodeId": "self-check",
+          "at": "2026-09-23T05:45:59.929Z"
+        },
+        {
+          "event": "feedback",
+          "nodeId": "implement",
+          "at": "2026-09-23T05:51:21.029Z"
+        },
+        {
+          "event": "start",
+          "nodeId": "implement",
+          "at": "2026-09-23T05:51:21.402Z"
+        },
+        {
+          "event": "record",
+          "nodeId": "implement",
+          "at": "2026-09-23T05:53:35.894Z"
+        },
+        {
+          "event": "start",
+          "nodeId": "self-check",
+          "at": "2026-09-23T05:53:36.780Z"
+        },
+        {
+          "event": "record",
+          "nodeId": "self-check",
+          "at": "2026-09-23T05:53:40.705Z"
+        }
+      ]
+    },
+    {
+      "role": "reviewer",
+      "targetRevision": "0f09ddfed26cbe0c6c00fa1697b7b78f620ff91ea610b220011c06d5253b8add",
+      "runId": "d3f53188-039e-43f6-afec-772169a3725a",
+      "action": "role-complete",
+      "completed": [
+        "review"
+      ],
+      "attempts": {
+        "review": 1
+      },
+      "history": [
+        {
+          "event": "start",
+          "nodeId": "review",
+          "at": "2026-09-23T05:46:00.377Z"
+        },
+        {
+          "event": "record",
+          "nodeId": "review",
+          "at": "2026-09-23T05:47:06.629Z"
+        }
+      ]
+    },
+    {
+      "role": "reviewer",
+      "targetRevision": "0f97c1493cb5c8c7b675808ebb4675b745ceff999760ed5f7734a96ca929399d",
+      "runId": "773fd22a-faee-49cf-a735-6f28cdb798b1",
+      "action": "role-complete",
+      "completed": [
+        "review"
+      ],
+      "attempts": {
+        "review": 1
+      },
+      "history": [
+        {
+          "event": "start",
+          "nodeId": "review",
+          "at": "2026-09-23T05:53:42.458Z"
+        },
+        {
+          "event": "record",
+          "nodeId": "review",
+          "at": "2026-09-23T05:55:14.351Z"
+        }
+      ]
+    }
+  ],
+  "calls": [
+    {
+      "file": "live-contract-YCDDfr/engineer-1.json",
+      "sha256": "de54c606aa298def66651ddcbe1c1d498311a89cc80045c921ef90c22c271eba",
+      "exitCode": 0,
+      "closed": true,
+      "turnCompleted": true,
+      "usage": {
+        "input_tokens": 125918,
+        "cached_input_tokens": 100352,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 3114,
+        "reasoning_output_tokens": 498
+      }
+    },
+    {
+      "file": "live-contract-YCDDfr/reviewer-1.json",
+      "sha256": "4c8b726bd849986ddd61edea6022d3c6c4329ac259c40fa8e3cff0d739185731",
+      "exitCode": 0,
+      "closed": true,
+      "turnCompleted": true,
+      "usage": {
+        "input_tokens": 65581,
+        "cached_input_tokens": 45568,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1585,
+        "reasoning_output_tokens": 462
+      }
+    },
+    {
+      "file": "live-contract-ISY92J/engineer-2.json",
+      "sha256": "e9300955527d50e9962adafd9ea97aed528db398fe18952e2f668862d19f1759",
+      "exitCode": 0,
+      "closed": true,
+      "turnCompleted": true,
+      "usage": {
+        "input_tokens": 98971,
+        "cached_input_tokens": 77312,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 2427,
+        "reasoning_output_tokens": 472
+      }
+    },
+    {
+      "file": "live-contract-ISY92J/reviewer-2.json",
+      "sha256": "9252e5fd50c9aa6af9cdaaae8f1ae5cdff24eb18c531542112f3d7b17ffb3e2a",
+      "exitCode": 0,
+      "closed": true,
+      "turnCompleted": true,
+      "usage": {
+        "input_tokens": 67195,
+        "cached_input_tokens": 45568,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 1599,
+        "reasoning_output_tokens": 226
+      }
+    }
+  ],
+  "g4": {
+    "state": "awaiting_human",
+    "subject": "d160a17ef8b3802f403ebfa7017f34343649fa576282365231276e9e7e048dcf"
+  },
+  "delivery": "not_delivered",
+  "scope": "Actual authenticated model calls. Feedback came from controller integration review; both model Reviewers passed. No synthetic model output or human G4 answer.",
+  "diff": {
+    "version": 1,
+    "baselineDigest": "15c5e6d3a57557ba0c013b34f168e41436264353951543444a002e269e45ad38",
+    "candidateDigest": "0f97c1493cb5c8c7b675808ebb4675b745ceff999760ed5f7734a96ca929399d",
+    "rawDiff": "diff --git a/README_ko.md b/README_ko.md\nindex d849d18..752950c 100644\n--- a/README_ko.md\n+++ b/README_ko.md\n@@ -19,6 +19,8 @@\n \n > **읽기 전용 개발 미리보기입니다.** 로컬 CLI와 Claw 화면을 신규 Office DB로 실행할 수 있습니다. AI 작업 실행은 서버에서 잠겨 있습니다. macOS native 격리 canary가 필수 조건을 통과하지 못해 실제 Codex 팀 실행은 제공하지 않습니다. npm 게시·설치 시험 및 전체 업무 흐름은 아직 미완료입니다. [검증 기록](docs/verification/2026-09-18-runtime-baseline.md)을 확인하세요.\n \n+로컬 미리보기의 Operator 인증키는 Office 화면 또는 로컬 Operator 흐름을 조작하기 위한 키이며, 실제 Codex 모델 호출 권한이나 구독 로그인이 아닙니다. 실제 Codex 모델 호출은 Operator 키와 구분되는 인증 경계에 있고, 승인된 구조에서는 Mac controller가 사용자의 기존 Codex 구독 로그인을 사용하며 파일 및 명령 도구 실행은 전용 VM에서 이루어집니다. 작업 관리와 Operator 절차는 [로컬 미리보기 안내](docs/LOCAL-PREVIEW.md#planning-conversation-screen)를 따르세요.\n+\n <p align=\"center\">\n   <img src=\"https://raw.githubusercontent.com/GreenSheep01201/claw-empire/5c928b24ffa55b403fe7c5521d4ac3ac49516137/Sample_Img/Office.png\" alt=\"Claw-Empire 원본 사무실 화면. 완성된 Pazmo 기능 화면이 아닌 출처가 표시된 참고 이미지\" width=\"100%\" />\n   <br /><sub>Claw-Empire 원본 화면입니다. 아직 구현하지 않은 Pazmo 기능의 증거로 사용하지 않습니다.</sub>\n",
+    "rawDiffEncoding": "utf8",
+    "modeChanges": [],
+    "roundTripVerified": true
+  }
+}

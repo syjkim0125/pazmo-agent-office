@@ -1,4 +1,5 @@
 import type { RuntimeContext } from "../types/runtime-context.ts";
+import { isPazmoManaged, pazmoOffice } from "../pazmo/host.ts";
 import type { IncomingMessage } from "node:http";
 import type { WebSocket as WsSocket } from "ws";
 import fs from "node:fs";
@@ -452,6 +453,7 @@ export function startLifecycle(ctx: RuntimeContext): void {
   }
 
   // Run rotation every 60 seconds, and once on startup after 5s
+  if (!isPazmoManaged()) {
   setTimeout(rotateBreaks, 5_000);
   setInterval(rotateBreaks, 60_000);
   setTimeout(recoverInterruptedWorkflowOnStartup, 3_000);
@@ -460,13 +462,18 @@ export function startLifecycle(ctx: RuntimeContext): void {
   setTimeout(sweepPendingSubtaskDelegations, 4_000);
   setInterval(sweepPendingSubtaskDelegations, SUBTASK_DELEGATION_SWEEP_MS);
   setTimeout(autoAssignAgentProviders, 4_000);
-  const telegramReceiver = startTelegramReceiver({ db });
-  const discordReceiver = startDiscordReceiver({ db });
+  }
+  const telegramReceiver = isPazmoManaged() ? undefined : startTelegramReceiver({ db });
+  const discordReceiver = isPazmoManaged() ? undefined : startDiscordReceiver({ db });
 
   // ---------------------------------------------------------------------------
   // Start HTTP server + WebSocket
   // ---------------------------------------------------------------------------
   const server = app.listen(PORT, HOST, () => {
+    if (isPazmoManaged()) {
+      const address = server.address();
+      if (address && typeof address !== "string") process.send?.({ type: "ready", port: address.port });
+    }
     console.log(`[Claw-Empire] v${PKG_VERSION} listening on http://${HOST}:${PORT} (db: ${dbPath})`);
     if (isProduction) {
       console.log(`[Claw-Empire] mode: production (serving UI from ${distDir})`);
@@ -478,6 +485,7 @@ export function startLifecycle(ctx: RuntimeContext): void {
   // Background token refresh: check every 5 minutes for tokens expiring within 5 minutes
   setInterval(
     async () => {
+      if (isPazmoManaged()) return;
       try {
         const cred = getDecryptedOAuthToken("google_antigravity");
         if (!cred || !cred.refreshToken) return;
@@ -539,9 +547,10 @@ export function startLifecycle(ctx: RuntimeContext): void {
     wsClients,
     wss,
     server,
-    onBeforeClose: () => {
-      telegramReceiver.stop();
-      discordReceiver.stop();
+    onBeforeClose: async () => {
+      await pazmoOffice()?.close();
+      telegramReceiver?.stop();
+      discordReceiver?.stop();
     },
   });
 }

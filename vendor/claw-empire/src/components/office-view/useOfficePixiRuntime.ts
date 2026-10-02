@@ -1,5 +1,6 @@
 import { useEffect, type MutableRefObject } from "react";
-import { Application, Assets, TextureStyle, type Texture } from "pixi.js";
+import { Application, Assets, Rectangle, TextureStyle, Texture } from "pixi.js";
+import { PIXEL_ATLAS_URL, PIXEL_ATLAS_POSES, pixelAtlasFrame } from "./pixel-atlas";
 import type { Agent, Department, SubAgent, Task } from "../../types";
 import { buildSpriteMap } from "../AgentAvatar";
 import { type Delivery, MIN_OFFICE_W, findScrollContainer } from "./model";
@@ -81,7 +82,8 @@ export function useOfficePixiRuntime({
         height: 600,
         backgroundAlpha: 0,
         antialias: false,
-        resolution: Math.min(window.devicePixelRatio || 1, 2),
+        resolution: 1,
+        roundPixels: true,
         autoDensity: true,
       });
 
@@ -106,7 +108,18 @@ export function useOfficePixiRuntime({
       for (let i = 1; i <= 13; i++) spriteNums.add(i);
       for (const num of spriteMap.values()) spriteNums.add(num);
 
+      const atlas = await Assets.load<Texture>(PIXEL_ATLAS_URL).catch(() => undefined);
       for (const spriteNum of spriteNums) {
+        if (atlas && pixelAtlasFrame(spriteNum)) {
+          for (const pose of PIXEL_ATLAS_POSES) {
+            const frame = pixelAtlasFrame(spriteNum, pose)!;
+            textures[`${spriteNum}-${pose}`] = new Texture({
+              source: atlas.source,
+              frame: new Rectangle(frame.x, frame.y, frame.width, frame.height),
+            });
+          }
+          continue;
+        }
         for (const frame of [1, 2, 3]) {
           const key = `${spriteNum}-D-${frame}`;
           loads.push(
@@ -131,7 +144,7 @@ export function useOfficePixiRuntime({
       }
 
       loads.push(
-        Assets.load<Texture>("/sprites/ceo-lobster.png")
+        Assets.load<Texture>("/sprites/ceo-human-pixel.png")
           .then((texture) => {
             textures.ceo = texture;
           })

@@ -57,7 +57,9 @@ export default function App() {
   const initialRoomThemes = useMemo(() => readStoredRoomThemes(), []);
   const hasLocalRoomThemesRef = useRef<boolean>(initialRoomThemes.hasStored);
 
-  const [view, setView] = useState<View>("office");
+  const [view, setView] = useState<View>(() =>
+    new URLSearchParams(window.location.search).get("officeView") === "tasks" ? "tasks" : "office",
+  );
   const [departments, setDepartments] = useState<Department[]>([]);
   const [agents, setAgents] = useState<Agent[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);

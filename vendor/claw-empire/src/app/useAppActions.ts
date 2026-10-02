@@ -187,10 +187,15 @@ export function useAppActions({
   const handleRunTask = useCallback(
     async (id: string) => {
       try {
-        await api.runTask(id);
+        const result = await api.runTask(id);
+        if (result?.workflow?.message) window.alert(result.workflow.message);
         await refreshTasksAndAgents();
       } catch (error) {
         console.error("Run task failed:", error);
+        const detail = api.isApiRequestError(error)
+          ? (error.details as { message?: string } | undefined)?.message
+          : undefined;
+        window.alert(detail || "작업 실행에 실패했습니다. 실행 환경과 Decisions를 확인해주세요.");
       }
     },
     [refreshTasksAndAgents],
@@ -370,7 +375,7 @@ export function useAppActions({
         } else {
           const selectedAction = option.action ?? "";
           let payload: { note?: string; target_task_id?: string; selected_option_numbers?: number[] } | undefined;
-          if (selectedAction === "add_followup_request") {
+          if (selectedAction === "add_followup_request" || selectedAction === "workflow_answer") {
             const note = payloadInput?.note?.trim() ?? "";
             if (!note) {
               window.alert(
@@ -423,6 +428,28 @@ export function useAppActions({
         }
       } catch (error) {
         console.error("Decision reply failed:", error);
+        if (item.kind === "workflow_gate" && api.isApiRequestError(error)) {
+          const detail = error.details;
+          if (
+            ["ANSWER_REQUIRED", "UNDERSTANDING_REQUIRED"].includes(error.code ?? "") &&
+            detail &&
+            typeof detail === "object" &&
+            "message" in detail &&
+            typeof detail.message === "string"
+          ) {
+            window.alert(detail.message);
+            return;
+          }
+          if (error.code === "STALE_APPROVAL") {
+            window.alert(
+              pickLang(locale, {
+                ko: "승인 요청이 만료됐거나 변경되었습니다. 입력 내용을 복사해 둔 뒤 Refresh를 눌러 최신 요청을 확인해주세요. 답변은 자동 재전송하지 않습니다.",
+                en: "This approval request expired or changed. Copy your draft, then select Refresh and review the current request. Your answer will not be resent automatically.",
+              }),
+            );
+            return;
+          }
+        }
         window.alert(
           pickLang(locale, {
             ko: "의사결정 회신 전송에 실패했습니다. 잠시 후 다시 시도해 주세요.",

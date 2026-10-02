@@ -1,0 +1,217 @@
+{
+  "date": "2026-09-21",
+  "scope": "Automatic real Codex/VM tools: failed test, fix, fresh test/review join. Scripted model judgments; no G4 approval or delivery.",
+  "rootTests": 184,
+  "coordinatorTests": 12,
+  "actualCoordinatorScenarios": 1,
+  "actualReviewerRegressionScenarios": 4,
+  "liveModel": false,
+  "g4Approved": false,
+  "delivered": false,
+  "rawReport": {
+    "path": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-DUKfn6/report.json",
+    "sha256": "dcfad272fbf448306e9ed9a4f8b614b3d8b4e902a915f471c4c57a05017d5edc"
+  },
+  "terminal": {
+    "state": "awaiting_g4",
+    "round": 2,
+    "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+    "nodeVerdicts": [
+      {
+        "kind": "test",
+        "verdict": "pass"
+      },
+      {
+        "kind": "review",
+        "verdict": "pass"
+      }
+    ],
+    "executions": [
+      {
+        "role": "engineer",
+        "purpose": "initial",
+        "state": "released",
+        "timeout_ms": 60000
+      },
+      {
+        "role": "reviewer",
+        "purpose": "verify:5eea0c52-87e4-4745-8b23-7a9219c769e9:c4ed120d-c64b-4dd9-85fc-7eaa6290ba26",
+        "state": "released",
+        "timeout_ms": 60000
+      },
+      {
+        "role": "verifier",
+        "purpose": "verify:5eea0c52-87e4-4745-8b23-7a9219c769e9:725852e0-b75c-43a8-bf9b-bfddf756eef6",
+        "state": "released",
+        "timeout_ms": 15000
+      },
+      {
+        "role": "engineer",
+        "purpose": "fix:5eea0c52-87e4-4745-8b23-7a9219c769e9",
+        "state": "released",
+        "timeout_ms": 60000
+      },
+      {
+        "role": "reviewer",
+        "purpose": "verify:8249dd1d-a600-4636-ac16-4348b0440f3f:cef2947d-6527-4f8c-84d8-f7d99ecee753",
+        "state": "released",
+        "timeout_ms": 60000
+      },
+      {
+        "role": "verifier",
+        "purpose": "verify:8249dd1d-a600-4636-ac16-4348b0440f3f:5b595a7e-4577-49de-82e8-fae75260e849",
+        "state": "released",
+        "timeout_ms": 15000
+      }
+    ]
+  },
+  "packets": [
+    {
+      "role": "engineer",
+      "attempt": 1,
+      "contractDigest": "eba6fb6418ed5636460c9d03bc5a1116eb9df75f5643e6086f35632d5a575754",
+      "candidateDigest": null,
+      "diffVerified": null,
+      "feedback": []
+    },
+    {
+      "role": "reviewer",
+      "attempt": 1,
+      "contractDigest": "eba6fb6418ed5636460c9d03bc5a1116eb9df75f5643e6086f35632d5a575754",
+      "candidateDigest": "835b9d9e8f716a9e4f11305db13e3f50a6238312711d3e48e7c4bbc8b1f6279e",
+      "diffVerified": true,
+      "feedback": []
+    },
+    {
+      "role": "engineer",
+      "attempt": 2,
+      "contractDigest": "eba6fb6418ed5636460c9d03bc5a1116eb9df75f5643e6086f35632d5a575754",
+      "candidateDigest": "835b9d9e8f716a9e4f11305db13e3f50a6238312711d3e48e7c4bbc8b1f6279e",
+      "diffVerified": null,
+      "feedback": [
+        {
+          "kind": "test",
+          "verdict": "fail"
+        },
+        {
+          "kind": "review",
+          "verdict": "pass"
+        }
+      ]
+    },
+    {
+      "role": "reviewer",
+      "attempt": 2,
+      "contractDigest": "eba6fb6418ed5636460c9d03bc5a1116eb9df75f5643e6086f35632d5a575754",
+      "candidateDigest": "2196b5c6039cd71e8ee94bfec12677a1f11cb052713e5d19ae397e4a51499a06",
+      "diffVerified": true,
+      "feedback": []
+    }
+  ],
+  "controllers": [
+    {
+      "path": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-DUKfn6/engineer-1/controller.json",
+      "sha256": "bb4fb6cae24d3a84671638564b63969c56b5cb6b719c5b2724b0bd68a98c4fd1"
+    },
+    {
+      "path": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-DUKfn6/reviewer-1/controller.json",
+      "sha256": "bb419e34b2cb1f7469d66c87eac2d1b6114108b5df11e39d110ea85ac34d38ea"
+    },
+    {
+      "path": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-DUKfn6/engineer-2/controller.json",
+      "sha256": "8dae8dcce26d583001cc88b8d7a2f1d840747dc5663e9cc5659b84c87ad3302e"
+    },
+    {
+      "path": "/var/folders/08/wmthtc6s5yd0m1gd4vp0bldr0000gp/T/pazmo-coordinator-DUKfn6/reviewer-2/controller.json",
+      "sha256": "47ea3cac9772fb4567ea54654c34d5f012bf6aa51abdb2fc5a243156bf0846ee"
+    }
+  ],
+  "cleanup": {
+    "containers": "",
+    "volumes": ""
+  },
+  "sources": [
+    {
+      "path": "src/runners/coordinator.ts",
+      "sha256": "9606e79c9762a658e38948ae533a33667e15729ea0c34af0a0715795f49beae6"
+    },
+    {
+      "path": "src/runners/role-context.ts",
+      "sha256": "09b8e3171ad8bf53dbf822c573a262200af65d917fa26c381cff973725939546"
+    },
+    {
+      "path": "src/runners/engineer.ts",
+      "sha256": "422b9c660d204cf086670cf370c64a191bb36b6a39a76bf7ebcea63b0045d638"
+    },
+    {
+      "path": "src/runners/reviewer.ts",
+      "sha256": "700cb282ace17660d3c715c39eb808adea010cc0ab2f34dca6e0709a83ba5e52"
+    },
+    {
+      "path": "src/core/store.ts",
+      "sha256": "8f92a62ad3b1f0167b4e8a712904ef038c5ef08da6f23f8c7e435e5dfbafddd2"
+    },
+    {
+      "path": "src/core/contracts.ts",
+      "sha256": "25e2e6767aee90278766ab21fc89b3a3db5f4c7eb8042cf96b68f459c89fe8d7"
+    },
+    {
+      "path": "src/core/handoffs.ts",
+      "sha256": "9c1945e99139850578de2e22d824f367f10935316c190491af8b2dc320c9260f"
+    },
+    {
+      "path": "src/core/budgets.ts",
+      "sha256": "38bbf5b548aa2c7a0b873f132e181940c21cb10421bc8d1c0c386f445db8a0f9"
+    },
+    {
+      "path": "src/core/verification.ts",
+      "sha256": "3240558afd8d6cf48d2b363aa444fad3feedc9060086704a35f14a196dccac94"
+    },
+    {
+      "path": "tests/coordinator.test.mjs",
+      "sha256": "51d3bd7617e704800c5abe88d6b069f199b56d325d3056b4efd4f45c020ba88b"
+    },
+    {
+      "path": "tests/coordinator-fixture.mjs",
+      "sha256": "e90cede3ce5804a2269ea3adef1153f0204e6642e7dcb0a72a2f35b7904af44b"
+    },
+    {
+      "path": "scripts/codex-fixture-controller.mjs",
+      "sha256": "4f5e6914fdfd1cafe0bf88c39234a5d28558cb0eea0a06c72350730ad444ffab"
+    },
+    {
+      "path": "scripts/test-role-coordinator.mjs",
+      "sha256": "806d07bcc4aff117bf5204938f05ab811c8db1c01b3c4a4b05597e1ea6e3cf4a"
+    }
+  ],
+  "logs": [
+    {
+      "path": "/private/tmp/pazmo-coordinator-red.log",
+      "sha256": "988264b3ca3749baabe77bc05668cd059290842ce44b684712ef39c03bfb5e76"
+    },
+    {
+      "path": "/private/tmp/pazmo-coordinator-recovery-red.log",
+      "sha256": "3a3fbd084ae79eb20555a5da72a474134e73953f621e263ebd22fe76b06ccccb"
+    },
+    {
+      "path": "/private/tmp/pazmo-coordinator-final-targeted.log",
+      "sha256": "21da85fa719112d9b6cb94ee7ebc3c1fb142ac2a36f182223494936c4f98b1d9"
+    },
+    {
+      "path": "/private/tmp/pazmo-coordinator-final-tests.log",
+      "sha256": "f9894be3f0737abac5508bcf25f7ed1d634bcb51e40bc2f32d2e9a7d00bd24d8"
+    },
+    {
+      "path": "/private/tmp/pazmo-coordinator-final-vm.log",
+      "sha256": "b5df971981dbaaa16cfba2c017ad0a86722017bd2841357ab62828b8869c2114"
+    },
+    {
+      "path": "/private/tmp/pazmo-coordinator-final-lint.log",
+      "sha256": "5cbba86c6592dba3f7aded1042fc72355f7772bf6afa582a22089e705f07ec63"
+    },
+    {
+      "path": "/private/tmp/pazmo-coordinator-reviewer-regression.log",
+      "sha256": "9ea217c54b0b8521610925ae8d52330a544f89bae76931a5ec72e1c02470554e"
+    }
+  ]
+}

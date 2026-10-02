@@ -125,9 +125,9 @@ function findScrollContainer(start: HTMLElement | null, axis: ScrollAxis): HTMLE
 const MIN_OFFICE_W = 360;
 const CEO_ZONE_H = 110;
 const HALLWAY_H = 32;
-const TARGET_CHAR_H = 52;
+const TARGET_CHAR_H = 64;
 const MINI_CHAR_H = 28;
-const CEO_SIZE = 44;
+const CEO_SIZE = 64;
 const DESK_W = 48;
 const DESK_H = 26;
 const SLOT_W = 100;

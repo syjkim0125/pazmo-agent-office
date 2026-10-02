@@ -55,7 +55,7 @@ export default function Sidebar({ currentView, onChangeView, departments, agents
         >
           <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 relative overflow-visible">
             <img
-              src="/sprites/ceo-lobster.png"
+              src="/sprites/ceo-human-pixel.png"
               alt={tr("CEO", "CEO")}
               className="w-8 h-8 object-contain"
               style={{ imageRendering: "pixelated" }}

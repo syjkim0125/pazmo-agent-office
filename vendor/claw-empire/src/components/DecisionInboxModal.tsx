@@ -4,6 +4,7 @@ import { pickLang } from "../i18n";
 import type { Agent } from "../types";
 import AgentAvatar, { buildSpriteMap } from "./AgentAvatar";
 import MessageContent from "./MessageContent";
+import WorkflowDecisionContent from "./WorkflowDecisionContent";
 import type { DecisionInboxItem } from "./chat/decision-inbox";
 import { formatDecisionInboxTime as formatTime, type DecisionInboxModalProps } from "./chat/decision-inbox-modal.meta";
 
@@ -89,7 +90,7 @@ export default function DecisionInboxModal({
   const canSubmitFollowup = !!(followupItem && followupDraft.trim() && !isFollowupSubmitting);
 
   function handleOptionClick(item: DecisionInboxItem, optionNumber: number, action?: string) {
-    if (action === "add_followup_request") {
+    if (action === "add_followup_request" || action === "workflow_answer") {
       setFollowupTarget({ itemId: item.id, optionNumber });
       setFollowupDraft("");
       return;
@@ -98,12 +99,12 @@ export default function DecisionInboxModal({
   }
 
   function handleSubmitFollowup() {
-    if (!followupItem || !followupTarget) return;
+    if (!followupItem || !followupTarget || isFollowupSubmitting) return;
     const note = followupDraft.trim();
     if (!note) return;
     onReplyOption(followupItem, followupTarget.optionNumber, { note });
-    setFollowupTarget(null);
-    setFollowupDraft("");
+    // Keep the human draft on rejection or uncertain delivery. The items effect
+    // clears it only after the server no longer lists this request.
   }
 
   function handleCancelFollowup() {
@@ -187,6 +188,7 @@ export default function DecisionInboxModal({
   }
 
   const getKindLabel = (kind: DecisionInboxItem["kind"]) => {
+    if (kind === "workflow_gate") return "작업 확인 및 승인";
     if (kind === "project_review_ready") {
       return t({ ko: "프로젝트 의사결정", en: "Project Decision", ja: "プロジェクト判断", zh: "项目决策" });
     }
@@ -305,7 +307,11 @@ export default function DecisionInboxModal({
                   </div>
 
                   <div className="rounded-lg border border-slate-700/70 bg-slate-900/60 px-2.5 py-2 text-xs text-slate-200">
-                    <MessageContent content={item.requestContent} />
+                    {item.kind === "workflow_gate" ? (
+                      <WorkflowDecisionContent content={item.requestContent} />
+                    ) : (
+                      <MessageContent content={item.requestContent} />
+                    )}
                   </div>
 
                   <div className="mt-2 space-y-1.5">
@@ -441,22 +447,28 @@ export default function DecisionInboxModal({
         {followupItem ? (
           <div className="border-t border-slate-700/60 bg-slate-900/90 px-4 py-3">
             <p className="mb-2 text-xs font-semibold text-slate-200">
-              {t({
-                ko: "추가요청사항 입력",
-                en: "Additional Follow-up Request",
-                ja: "追加要請内容の入力",
-                zh: "输入追加请求事项",
-              })}
+              {followupItem.kind === "workflow_gate"
+                ? "위 내용을 확인하고 답변을 적어주세요"
+                : t({
+                    ko: "추가요청사항 입력",
+                    en: "Additional Follow-up Request",
+                    ja: "追加要請内容の入力",
+                    zh: "输入追加请求事项",
+                  })}
             </p>
             <textarea
               value={followupDraft}
               onChange={(event) => setFollowupDraft(event.target.value)}
-              placeholder={t({
-                ko: "요청사항을 입력해 주세요.",
-                en: "Enter your request details.",
-                ja: "要請内容を入力してください。",
-                zh: "请输入请求详情。",
-              })}
+              placeholder={
+                followupItem.kind === "workflow_gate" && followupItem.requestContent.startsWith("최종 결과 승인\n")
+                  ? "1. 사용자가 겪는 변화\n2. 지켜야 할 규칙과 실패 시 동작\n3. 확인한 검사와 아직 확인하지 못한 범위"
+                  : t({
+                      ko: "요청사항을 입력해 주세요.",
+                      en: "Enter your request details.",
+                      ja: "要請内容を入力してください。",
+                      zh: "请输入请求详情。",
+                    })
+              }
               rows={3}
               className="w-full resize-y rounded-lg border border-slate-600 bg-slate-950 px-3 py-2 text-xs text-slate-100 placeholder:text-slate-500 focus:border-indigo-400 focus:outline-none"
             />
@@ -477,7 +489,9 @@ export default function DecisionInboxModal({
               >
                 {isFollowupSubmitting
                   ? t({ ko: "전송 중...", en: "Sending...", ja: "送信中...", zh: "发送中..." })
-                  : t({ ko: "요청 등록", en: "Submit Request", ja: "要請登録", zh: "提交请求" })}
+                  : followupItem.kind === "workflow_gate"
+                    ? t({ ko: "답변 제출", en: "Submit Answer", ja: "回答を送信", zh: "提交回答" })
+                    : t({ ko: "요청 등록", en: "Submit Request", ja: "要請登録", zh: "提交请求" })}
               </button>
             </div>
           </div>

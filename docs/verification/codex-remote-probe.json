@@ -1,0 +1,254 @@
+{
+  "scope": "unauthenticated exec-server in disposable isolated VM container",
+  "liveReady": false,
+  "fixtureRoot": "/private/tmp/pazmo-exec-server-nu3ojwu9",
+  "events": [
+    {
+      "method": "initialize",
+      "response": {
+        "id": 1,
+        "result": {
+          "sessionId": "bbf929e9-765d-4fbc-abd7-e20bb77efb41",
+          "environmentInfo": {
+            "shell": {
+              "name": "bash",
+              "path": "/bin/bash"
+            },
+            "executorVersion": "0.0.0",
+            "providerId": "sha256:ee98eab596fe9f71b415600d19dd994055356ff01a7b7a019813868a53150124",
+            "cwd": "file:///work",
+            "userHomeDir": "file:///work",
+            "platformOs": "linux",
+            "temporaryDirectories": [],
+            "tempDir": "file:///tmp",
+            "capabilities": {
+              "networkProxyLaunch": true,
+              "capabilityDiscoverySandbox": true,
+              "environmentConfigRead": true,
+              "httpHeaderEnvVars": true,
+              "sandboxedFileStreaming": true,
+              "shellSnapshotV2": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "method": "process/start",
+      "response": {
+        "id": 2,
+        "result": {
+          "processId": "probe",
+          "sandboxType": "none"
+        }
+      }
+    },
+    {
+      "method": "process/read",
+      "response": {
+        "id": 3,
+        "result": {
+          "chunks": [
+            {
+              "seq": 1,
+              "stream": "stdout",
+              "chunk": "eyJ3cml0ZSI6dHJ1ZSwiaG9zdENvbnRyb2xsZXJEZW5pZWQiOnRydWUsInJ1bnRpbWVSZWFkb25seSI6dHJ1ZSwiYXV0aEFic2VudCI6dHJ1ZX0K"
+            }
+          ],
+          "nextSeq": 2,
+          "exited": false,
+          "exitCode": null,
+          "closed": false,
+          "failure": null,
+          "sandboxDenied": false
+        }
+      }
+    },
+    {
+      "method": "process/read",
+      "response": {
+        "id": 4,
+        "result": {
+          "chunks": [],
+          "nextSeq": 3,
+          "exited": true,
+          "exitCode": 0,
+          "closed": false,
+          "failure": null,
+          "sandboxDenied": false
+        }
+      }
+    },
+    {
+      "method": "process/read",
+      "response": {
+        "id": 5,
+        "result": {
+          "chunks": [],
+          "nextSeq": 4,
+          "exited": true,
+          "exitCode": 0,
+          "closed": true,
+          "failure": null,
+          "sandboxDenied": false
+        }
+      }
+    },
+    {
+      "method": "fs/readFile",
+      "response": {
+        "id": 6,
+        "result": {
+          "dataBase64": "dG9vbCBleGVjdXRpb24gd29ya3M="
+        }
+      }
+    },
+    {
+      "method": "fs/readFile",
+      "response": {
+        "error": {
+          "code": -32004,
+          "message": "No such file or directory (os error 2)"
+        },
+        "id": 7
+      }
+    },
+    {
+      "method": "fs/readFile",
+      "response": {
+        "id": 8,
+        "result": {
+          "dataBase64": "UkVNT1RFX0NPREVYX1RPT0w="
+        }
+      }
+    },
+    {
+      "method": "fs/readFile",
+      "response": {
+        "id": 9,
+        "result": {
+          "dataBase64": "UkVNT1RFX0NPREVYX1BBVENICg=="
+        }
+      }
+    }
+  ],
+  "checks": [
+    {
+      "name": "official-exec-server-initialized",
+      "passed": true
+    },
+    {
+      "name": "remote-process-started",
+      "passed": true
+    },
+    {
+      "name": "remote-process-exit-zero",
+      "passed": true
+    },
+    {
+      "name": "write",
+      "passed": true
+    },
+    {
+      "name": "hostControllerDenied",
+      "passed": true
+    },
+    {
+      "name": "runtimeReadonly",
+      "passed": true
+    },
+    {
+      "name": "authAbsent",
+      "passed": true
+    },
+    {
+      "name": "remote-filesystem-read",
+      "passed": true
+    },
+    {
+      "name": "rpc-host-controller-denied",
+      "passed": true
+    },
+    {
+      "name": "no-host-bind-mounts",
+      "passed": true
+    },
+    {
+      "name": "container-network-none",
+      "passed": true
+    },
+    {
+      "name": "container-capabilities-dropped",
+      "passed": true
+    },
+    {
+      "name": "mock-controller-tool-executed-remotely",
+      "passed": true
+    },
+    {
+      "name": "mock-controller-no-host-write",
+      "passed": true
+    },
+    {
+      "name": "mock-controller-explicit-local-denied",
+      "passed": true
+    },
+    {
+      "name": "mock-controller-exit-zero",
+      "passed": true
+    },
+    {
+      "name": "mock-controller-patch-executed-remotely",
+      "passed": true
+    }
+  ],
+  "errors": [],
+  "processOutput": "{\"write\":true,\"hostControllerDenied\":true,\"runtimeReadonly\":true,\"authAbsent\":true}\n",
+  "mockController": {
+    "exit": {
+      "code": 0,
+      "signal": null
+    },
+    "methods": [
+      "initialize",
+      "initialized",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "environmentConfig/read",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "fs/getMetadata",
+      "process/start",
+      "process/terminate",
+      "fs/getMetadata",
+      "fs/readFile",
+      "fs/writeFile"
+    ],
+    "requestCount": 4,
+    "unexpectedHostWrite": false,
+    "report": "/private/tmp/pazmo-exec-server-nu3ojwu9/mock-controller-report.json"
+  },
+  "versions": {
+    "controller": "codex-cli 0.155.1",
+    "execServerPackage": "@openai/codex@0.154.0-linux-arm64",
+    "binarySha256": "9b7c1c7abdc26fc3c4f47c77656a8e9121def5483dbae830ef1ee561758448a9"
+  },
+  "cleanupVerified": {
+    "containersRemaining": 0,
+    "probeVolumesRemaining": 0
+  }
+}

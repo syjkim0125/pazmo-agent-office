@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "workspace": {
+    "include": ["README_ko.md", "docs/LOCAL-PREVIEW.md"],
+    "exclude": []
+  },
+  "checks": [
+    {
+      "id": "V1",
+      "argv": [
+        "node",
+        "-e",
+        "const fs=require('node:fs'),a=require('node:assert/strict'),s=fs.readFileSync('README_ko.md','utf8'); const files=[];function walk(p=''){for(const e of fs.readdirSync(p||'.',{withFileTypes:true})){const n=p?p+'/'+e.name:e.name;if(e.isDirectory())walk(n);else files.push(n)}}walk();a.deepEqual(files.sort(),['README_ko.md','docs/LOCAL-PREVIEW.md']);a.equal(require('node:crypto').createHash('sha256').update(fs.readFileSync('docs/LOCAL-PREVIEW.md')).digest('hex'),'7c48413abee717ea6aa24278b1fee7fb9179c1b79b4e200959db6a28918dc7c7');"
+      ],
+      "timeoutMs": 15000
+    },
+    {
+      "id": "V2",
+      "argv": [
+        "node",
+        "-e",
+        "const fs=require('node:fs'),a=require('node:assert/strict'),s=fs.readFileSync('README_ko.md','utf8'); for(const word of ['Operator','Codex','구독','로그인'])a.ok(s.includes(word),'missing '+word);"
+      ],
+      "timeoutMs": 15000
+    },
+    {
+      "id": "V3",
+      "argv": [
+        "node",
+        "-e",
+        "const fs=require('node:fs'),a=require('node:assert/strict'),s=fs.readFileSync('README_ko.md','utf8'); for(const word of ['Mac','VM','파일','명령'])a.ok(s.includes(word),'missing '+word);"
+      ],
+      "timeoutMs": 15000
+    },
+    {
+      "id": "V4",
+      "argv": [
+        "node",
+        "-e",
+        "const fs=require('node:fs'),a=require('node:assert/strict'),s=fs.readFileSync('README_ko.md','utf8'); a.ok(s.includes('AI 작업 실행은 서버에서 잠겨 있습니다.'),'preserve preview limitation');"
+      ],
+      "timeoutMs": 15000
+    },
+    {
+      "id": "V5",
+      "argv": [
+        "node",
+        "-e",
+        "const fs=require('node:fs'),a=require('node:assert/strict'),s=fs.readFileSync('README_ko.md','utf8'); a.ok(s.includes('(docs/LOCAL-PREVIEW.md#planning-conversation-screen)'),'link to the existing task-management instructions');"
+      ],
+      "timeoutMs": 15000
+    }
+  ]
+}
