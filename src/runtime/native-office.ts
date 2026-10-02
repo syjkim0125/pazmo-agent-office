@@ -14,6 +14,10 @@ import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
 import { createLiveRuntime, type LiveConfig } from "./live.ts";
+import { renderPlanningStory } from "../runners/planning.ts";
+
+/** Shared with WorkflowDecisionContent: text after it is the full record. */
+const DETAIL_MARKER = "\n상세 원문:\n";
 
 type Task = {
   id: string;
@@ -185,6 +189,12 @@ export async function createNativeOffice(c: Config) {
     summary: string,
   ) {
     const binding = digest(JSON.stringify({ id, kind, payload }));
+    // Display text is not bound into the approval; refresh it for an
+    // already-pending notice so a wording change reaches open Decisions.
+    if (kind === "story" || kind === "planning-retry")
+      db.prepare(
+        "UPDATE pazmo_native_decisions SET summary=? WHERE binding=?",
+      ).run(summary, binding);
     db.prepare(
       "INSERT OR IGNORE INTO pazmo_native_decisions VALUES (?,?,?,?,?,?,?)",
     ).run(
@@ -334,7 +344,7 @@ export async function createNativeOffice(c: Config) {
             i.taskId,
             "story",
             { revision: i.revision, inputDigest: i.inputDigest },
-            `요구사항 범위 승인\n${JSON.stringify(i.story, null, 2)}`,
+            storySummary(i.story!),
           );
         } else if (i.state === "proposal") {
           const published = await intake.publish(
@@ -364,7 +374,8 @@ export async function createNativeOffice(c: Config) {
             i.taskId,
             "planning-retry",
             { revision: i.revision, inputDigest: i.inputDigest },
-            "계획 응답의 형식 검증이 실패했습니다. 실패 기록과 기존 승인은 보존됩니다. 원인 확인 후 같은 범위로 재개하려면 요청을 적어주세요. 계획 재개는 전체 두 번까지이며, 작업 범위나 최종 결과를 승인하는 동작이 아닙니다.",
+            "계획 응답의 형식 검증이 실패했습니다. 실패 기록과 기존 승인은 보존됩니다. 원인 확인 후 같은 범위로 재개하려면 요청을 적어주세요. 계획 재개는 전체 두 번까지이며, 작업 범위나 최종 결과를 승인하는 동작이 아닙니다." +
+              failureDetail(i.events),
           );
         } else if (
           i.state === "human_required" &&
@@ -410,6 +421,11 @@ export async function createNativeOffice(c: Config) {
               db.prepare("DELETE FROM pazmo_native_decisions WHERE id=?").run(
                 old.id,
               );
+            // Same challenge and contract: refresh display text only.
+            else
+              db.prepare(
+                "UPDATE pazmo_native_decisions SET summary=? WHERE id=?",
+              ).run(contractSummary(item.id, gate), old.id);
           }
           if (
             !db
@@ -426,10 +442,7 @@ export async function createNativeOffice(c: Config) {
                 challengeId: challenge.id,
                 contractDigest: item.contract.digest,
               },
-              `${gate}: 실행 계획과 범위를 확인해주세요.\n${store
-                .inspectContract(item.id)
-                .documents.map((d) => `${d.path}\n${d.content}`)
-                .join("\n\n")}`,
+              contractSummary(item.id, gate),
             );
           }
         } else if (item.ready && item.status === "planned") {
@@ -591,6 +604,106 @@ export async function createNativeOffice(c: Config) {
     }
     await pump();
     return { ok: true, task: task(id), workflow: progress(id) };
+  }
+  /** Human-readable projection of the PM Story. The structured Story stays in
+   * the intake record and G1 binds the rendered Story digest, not this text. */
+  function storySummary(story: NonNullable<ReturnType<typeof intake.get>["story"]>) {
+    const items = (values: string[], prefix = "") =>
+      values.length
+        ? values.map((v, n) => `- ${prefix ? `${prefix}${n + 1}. ` : ""}${v}`).join("\n")
+        : "- 없음";
+    return [
+      "요구사항 범위 승인",
+      `**${story.title}**`,
+      `목표: ${story.goal}`,
+      `영역: ${story.domain}`,
+      `꼭 할 일 (MUST)\n${items(story.must, "M")}`,
+      ...(story.should.length ? [`하면 좋은 일 (SHOULD)\n${items(story.should, "S")}`] : []),
+      `범위 밖 (OUT)\n${items(story.out)}`,
+      `가정 (ASSUMED)\n${items(story.assumptions)}`,
+      `확인 방법 (Verify)\n${story.verify
+        .map((v, n) => `- V${n + 1} [${v.must.map((m) => `M${m}`).join(", ")}]. ${v.scenario}`)
+        .join("\n")}`,
+      "승인은 아래 원문 Story를 기준으로 합니다.",
+    ].join("\n\n") + DETAIL_MARKER + renderPlanningStory(story);
+  }
+  /** Readable digest of the exact contract the gate binds. Every document is
+   * kept verbatim after DETAIL_MARKER; the UI folds it, never drops it. */
+  function contractSummary(id: string, gate: string) {
+    const item = store.inspectContract(id),
+      { input } = item.contract,
+      doc = (path: string | null | undefined) =>
+        item.documents.find((d) => d.path === path)?.content ?? "";
+    const story = doc(input.story),
+      task = doc(input.task),
+      plan = doc(input.plan);
+    const section = (text: string, heading: string) =>
+      text
+        .match(new RegExp(`^## ${heading}[^\\n]*\\n([\\s\\S]*?)(?=\\n## |(?![\\s\\S]))`, "m"))?.[1]
+        ?.trim()
+        .replace(/^- /, "");
+    const count = (pattern: RegExp) => story.match(pattern)?.length ?? 0;
+    const lines = [
+      `${gate}: 실행 계획과 범위를 확인해주세요.`,
+      `**작업: ${item.contract.title}**`,
+    ];
+    const storyTitle = story.match(/^# Story: (.+)$/m)?.[1];
+    if (storyTitle)
+      lines.push(
+        `Story: ${storyTitle} (MUST ${count(/^- M\d+\./gm)}개 · OUT ${count(/^- O\d+\./gm)}개)`,
+      );
+    const covers = section(task, "Covers"),
+      outcome = section(task, "Outcome");
+    if (covers) lines.push(`담당 범위: ${covers}`);
+    if (outcome) lines.push(`결과: ${outcome}`);
+    const include = item.contract.workspace?.include ?? [],
+      exclude = item.contract.workspace?.exclude ?? [];
+    if (include.length)
+      lines.push(
+        `수정 허용 경로 (${include.length})\n` +
+          include
+            .slice(0, 10)
+            .map((p) => `- ${p}`)
+            .join("\n") +
+          (include.length > 10 ? `\n- 외 ${include.length - 10}개` : "") +
+          (exclude.length ? `\n제외: ${exclude.join(", ")}` : ""),
+      );
+    const groups = new Map<string, string[]>();
+    for (const c of item.contract.checks) {
+      const key = JSON.stringify([c.argv, c.timeoutMs]);
+      groups.set(key, [...(groups.get(key) ?? []), c.id]);
+    }
+    if (item.contract.checks.length)
+      lines.push(
+        `등록 검사 ${item.contract.checks.length}개 (서로 다른 명령 ${groups.size}개)\n` +
+          [...groups]
+            .map(([key, ids]) => {
+              const [argv, timeoutMs] = JSON.parse(key) as [string[], number];
+              const command = argv.join(" ");
+              return `- ${ids.join(", ")}: \`${command.length > 160 ? command.slice(0, 160) + "…" : command}\` (${Math.ceil(timeoutMs / 1000)}초)`;
+            })
+            .join("\n"),
+      );
+    const body =
+      plan.match(/^Input digest: [^\n]*\n\n([\s\S]*?)\n\nThis is a model proposal\./m)?.[1] ??
+      plan;
+    if (body.trim())
+      lines.push(
+        `팀장 계획\n> ${(body.length > 800 ? body.slice(0, 800) + "…" : body).trim().replace(/\n/g, "\n> ")}`,
+      );
+    if (input.decision) lines.push("고위험 결정 문서(G3)가 원문에 포함되어 있습니다.");
+    lines.push("승인은 아래 원문 전체를 기준으로 합니다.");
+    return (
+      lines.join("\n\n") +
+      DETAIL_MARKER +
+      item.documents.map((d) => `${d.path}\n${d.content}`).join("\n\n")
+    );
+  }
+  function failureDetail(events: ReturnType<typeof intake.get>["events"]) {
+    const detail = events.findLast(
+      (e) => e.actor === "controller" && e.payload.error === "PLANNING_INVALID",
+    )?.payload.detail;
+    return typeof detail === "string" && detail ? `\n원인: ${detail}` : "";
   }
   function decisionSummary(
     d: Decision,

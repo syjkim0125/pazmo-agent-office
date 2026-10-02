@@ -1,6 +1,9 @@
 import MessageContent from "./MessageContent";
 
 const evidenceMarker = "\n검증과 변경 내용:\n";
+// Office appends the complete gate record (contract documents or Story) after
+// this marker; the summary above it is a projection, never a replacement.
+const detailMarker = "\n상세 원문:\n";
 
 type Result = {
   kind: "test" | "review";
@@ -62,6 +65,28 @@ export default function WorkflowDecisionContent({
       <div className="space-y-3">
         <MessageContent content={content.slice(0, split)} />
         <p>변경 내용·검증 결과 확인과 승인 답변은 상단 Decisions에서 진행해주세요.</p>
+      </div>
+    );
+  }
+  const detail = content.startsWith("최종 결과 승인\n") ? -1 : content.indexOf(detailMarker);
+  if (detail >= 0) {
+    const summary = <MessageContent content={content.slice(0, detail)} />;
+    if (chatPreview)
+      return (
+        <div className="space-y-3">
+          {summary}
+          <p>원문 확인과 승인 답변은 상단 Decisions에서 진행해주세요.</p>
+        </div>
+      );
+    return (
+      <div className="space-y-3">
+        {summary}
+        <details>
+          <summary className="cursor-pointer font-medium">원문 전체 보기</summary>
+          <div className="mt-2 max-h-96 overflow-auto break-words rounded bg-slate-950 p-3 text-xs">
+            <MessageContent content={content.slice(detail + detailMarker.length)} />
+          </div>
+        </details>
       </div>
     );
   }

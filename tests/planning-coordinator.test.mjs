@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { DatabaseSync } from "node:sqlite";
 import { join } from "node:path";
 import { createServer } from "node:http";
@@ -123,7 +123,16 @@ function setup(t, mode = "ready", kitRoles = false) {
       };
     },
   };
-  const deps = { intake, execution, planner, jobFor, project: f.project };
+  const dataDir = join(f.root, "data");
+  mkdirSync(dataDir);
+  const deps = {
+    intake,
+    execution,
+    planner,
+    jobFor,
+    project: f.project,
+    dataDir,
+  };
   return {
     ...f,
     db,
@@ -136,6 +145,7 @@ function setup(t, mode = "ready", kitRoles = false) {
     prompts,
     planner,
     deps,
+    dataDir,
     coordinator: new PlanningCoordinator(deps),
   };
 }
@@ -743,4 +753,69 @@ test("an old saved role profile stops for inspection instead of silently rewriti
       .get(f.item.taskId).packet_json,
     before,
   );
+});
+
+function rejectWith(f, stdout) {
+  const original = f.planner.run;
+  f.planner.run = async (...args) => {
+    const report = await original(...args);
+    report.result.stdout = stdout;
+    return report;
+  };
+}
+function rejection(f, result) {
+  const event = result.intake.events.at(-1);
+  assert.equal(event.actor, "controller");
+  return event.payload;
+}
+
+for (const kitRoles of [true, false])
+  test(`${kitRoles ? "native" : "legacy"} rejection records its rule and keeps raw output only in the data directory`, async (t) => {
+    const f = setup(t, "ready", kitRoles),
+      raw = "PROJECT-CONTENT-MARKER not a report";
+    rejectWith(f, raw);
+    const result = await f.coordinator.run(f.item.taskId, f.context);
+    assert.equal(result.intake.reason, "PLANNING_INVALID");
+    const payload = rejection(f, result);
+    assert.equal(payload.error, "PLANNING_INVALID");
+    assert.equal(payload.detail, `terminal report missing (stdout ${raw.length} bytes)`);
+    assert.match(payload.output, /^planning\/rejected\/[a-f0-9]{64}-r1\.jsonl$/);
+    assert.equal(payload.outputBytes, raw.length);
+    assert.equal(payload.truncated, undefined);
+    const file = join(f.dataDir, payload.output);
+    assert.equal(readFileSync(file, "utf8"), raw);
+    assert.equal(statSync(file).mode & 0o777, 0o600);
+    const stored = f.db
+      .prepare("SELECT payload_json FROM pazmo_intake_events")
+      .all()
+      .map((r) => r.payload_json)
+      .join("\n");
+    assert.doesNotMatch(stored, /PROJECT-CONTENT-MARKER/);
+    assert.equal(f.execution.listPlanning(f.item.taskId)[0].state, "released");
+  });
+
+test("rejected output is capped at 64KB and the original size is recorded", async (t) => {
+  const f = setup(t, "ready", true);
+  rejectWith(f, "x".repeat(100000));
+  const payload = rejection(
+    f,
+    await f.coordinator.run(f.item.taskId, f.context),
+  );
+  assert.equal(payload.outputBytes, 100000);
+  assert.equal(payload.truncated, true);
+  assert.equal(statSync(join(f.dataDir, payload.output)).size, 65536);
+});
+
+test("without a data directory the rejection still records its detail", async (t) => {
+  const f = setup(t, "ready", true);
+  rejectWith(f, "not a report");
+  delete f.deps.dataDir;
+  const payload = rejection(
+    f,
+    await new PlanningCoordinator(f.deps).run(f.item.taskId, f.context),
+  );
+  assert.deepEqual(payload, {
+    error: "PLANNING_INVALID",
+    detail: "terminal report missing (stdout 12 bytes)",
+  });
 });

@@ -76,3 +76,24 @@ describe("compact workflow approval evidence", () => {
     expect(container.textContent).toContain("계획 재개");
   });
 });
+
+describe("folded gate originals", () => {
+  const gate = "G1: 실행 계획과 범위를 확인해주세요.\n\n**작업: Apply design**\n\n승인은 아래 원문 전체를 기준으로 합니다.\n상세 원문:\nstory.md\n# Story: Full original\n- M1. ORIGINAL-ONLY-LINE";
+
+  it("shows the summary and keeps the complete original in a closed section", () => {
+    const { container } = render(<WorkflowDecisionContent content={gate} />);
+    expect(screen.getByText(/작업: Apply design/)).toBeTruthy();
+    const details = container.querySelectorAll("details");
+    expect(details).toHaveLength(1);
+    expect(details[0].open).toBe(false);
+    expect(details[0].querySelector("summary")?.textContent).toBe("원문 전체 보기");
+    expect(details[0].textContent).toContain("ORIGINAL-ONLY-LINE");
+    expect(container.textContent).not.toContain("상세 원문:");
+  });
+
+  it("omits the original from chat notices and points to Decisions", () => {
+    const { container } = render(<WorkflowDecisionContent content={gate} chatPreview />);
+    expect(screen.getByText(/상단 Decisions에서/)).toBeTruthy();
+    expect(container.textContent).not.toContain("ORIGINAL-ONLY-LINE");
+  });
+});
