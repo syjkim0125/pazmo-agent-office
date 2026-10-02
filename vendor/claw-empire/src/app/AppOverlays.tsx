@@ -8,6 +8,7 @@ import ReportHistory from "../components/ReportHistory";
 import AgentStatusPanel from "../components/AgentStatusPanel";
 import OfficeRoomManager from "../components/OfficeRoomManager";
 import type { DecisionInboxItem } from "../components/chat/decision-inbox";
+import type { DecisionReplyOutcome } from "../components/chat/decision-inbox-modal.meta";
 import type { Agent, Department, Message, RoomTheme, SubAgent, SubTask, Task, WorkflowPackKey } from "../types";
 import type { UiLanguage } from "../i18n";
 import type { ProjectMetaPayload, RoomThemeMap, TaskPanelTab } from "./types";
@@ -46,7 +47,7 @@ interface AppOverlaysProps {
     item: DecisionInboxItem,
     optionNumber: number,
     payloadInput?: { note?: string; selected_option_numbers?: number[] },
-  ) => Promise<void>;
+  ) => Promise<DecisionReplyOutcome>;
   onOpenDecisionChat: (agentId: string) => void;
   selectedAgent: Agent | null;
   activeOfficeWorkflowPack: WorkflowPackKey;
