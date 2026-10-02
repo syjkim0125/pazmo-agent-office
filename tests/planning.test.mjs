@@ -298,6 +298,66 @@ test("a normal-risk multi-task proposal preserves mappings without manufacturing
   assert.match(result.files["task-2.md"], /M2 \/ V2/);
 });
 
+test("identical check commands for different MUST sets are published as a Decisions warning, not rejected", () => {
+  const p = beginPlanning(randomUUID(), "Validate three inputs.", "normal");
+  const s = structuredClone(story);
+  s.must.push("Reject invalid secondary input.", "Keep existing records.");
+  s.verify.push(
+    { must: [2], scenario: "Invalid secondary input returns an error." },
+    { must: [3], scenario: "Existing records are unchanged." },
+  );
+  const lead = acceptPlanning(
+    p,
+    response(p, { status: "ready", story: s }),
+  ).packet;
+  const same = ["node", "--test", "test/mockup-ui.test.mjs"];
+  const task = (must, checks) => ({
+    title: `Task ${must}`,
+    outcome: "Reject input.",
+    scope: "Parser and tests.",
+    constraints: "Keep records.",
+    must: [must],
+    verify: [must],
+    checks,
+    workspace: { include: ["src"], exclude: [] },
+  });
+  // Observed 2026-10-02: V1-V8 all ran one already-passing test file.
+  const weak = acceptPlanning(
+    lead,
+    response(lead, {
+      plan: "Inspected the parser.",
+      tasks: [
+        task(1, [{ id: "V1", argv: same, timeoutMs: 1000 }]),
+        task(2, [{ id: "V2", argv: same, timeoutMs: 1000 }]),
+        task(3, [{ id: "V3", argv: ["node", "--test", "test/records.test.mjs"], timeoutMs: 1000 }]),
+      ],
+    }),
+  );
+  assert.equal(weak.kind, "proposal");
+  const decisions = weak.files["plan.md"].split("## Decisions\n")[1];
+  assert.match(decisions, /WARNING: V1, V2 run the same command/);
+  assert.match(decisions, /M1; M2/);
+  assert.doesNotMatch(decisions, /V3/);
+  assert.match(weak.files["task-1.md"], /WARNING: V1 shares its command with V2/);
+  assert.match(weak.files["task-2.md"], /WARNING: V2 shares its command with V1/);
+  assert.doesNotMatch(weak.files["task-3.md"], /WARNING/);
+  assert.equal(weak.files["story.md"].includes("WARNING"), false);
+
+  const distinct = acceptPlanning(
+    lead,
+    response(lead, {
+      plan: "Inspected the parser.",
+      tasks: [
+        task(1, [{ id: "V1", argv: [...same, "--test-name-pattern=primary"], timeoutMs: 1000 }]),
+        task(2, [{ id: "V2", argv: [...same, "--test-name-pattern=secondary"], timeoutMs: 1000 }]),
+        task(3, [{ id: "V3", argv: ["node", "--test", "test/records.test.mjs"], timeoutMs: 1000 }]),
+      ],
+    }),
+  );
+  assert.equal(distinct.files["plan.md"].includes("## Decisions"), false);
+  assert.equal(distinct.files["task-1.md"].includes("WARNING"), false);
+});
+
 test("planning receives an explicit readonly snapshot without leaking controller paths or implying skill execution", async (t) => {
   const { mkdirSync } = await import("node:fs");
   const { freezeCandidate } = await import("../src/core/candidates.ts");

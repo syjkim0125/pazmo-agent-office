@@ -371,6 +371,7 @@ export async function createLiveRuntime(
       );
     const planning = new PlanningCoordinator({
       project,
+      dataDir,
       intake: ledgers.intake,
       execution: ledgers.execution,
       planner: new ContainerPlanner(client.run),

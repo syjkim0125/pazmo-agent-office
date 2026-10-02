@@ -13,6 +13,7 @@ import {
   answerPlanning,
   continuePlanning,
   renderPlanningStory,
+  PlanningInvalid,
 } from "../runners/planning.ts";
 import type { PlanningPacket } from "../runners/planning.ts";
 type Result = ReturnType<typeof acceptPlanning>;
@@ -262,7 +263,13 @@ export class IntakeLedger {
     return packet;
   }
   /** A supervisor may interrupt only the still-pending conversation it owns. */
-  interrupt(id: string, revision: number, inputDigest: string, reason: string) {
+  interrupt(
+    id: string,
+    revision: number,
+    inputDigest: string,
+    reason: string,
+    record: Record<string, unknown> = {},
+  ) {
     return transaction(this.#db, () => {
       const row = this.#row(id),
         packet = JSON.parse(row.packet_json) as PlanningPacket;
@@ -280,7 +287,7 @@ export class IntakeLedger {
         "human_required",
         null,
         "controller",
-        { error: reason },
+        { ...record, error: reason },
         reason,
       );
     });
@@ -290,6 +297,7 @@ export class IntakeLedger {
     revision: number,
     inputDigest: string,
     observation: Parameters<typeof acceptPlanning>[1],
+    archive?: () => Record<string, unknown>,
   ) {
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
@@ -304,18 +312,14 @@ export class IntakeLedger {
       try {
         result = acceptPlanning(packet, observation);
       } catch (error) {
-        if (
-          !(error instanceof OfficeError) ||
-          error.code !== "PLANNING_INVALID"
-        )
-          throw error;
+        if (!(error instanceof PlanningInvalid)) throw error;
         return this.#advance(
           row,
           packet,
           "human_required",
           null,
           "controller",
-          { error: error.code },
+          { error: error.code, detail: error.detail, ...archive?.() },
           error.code,
         );
       }

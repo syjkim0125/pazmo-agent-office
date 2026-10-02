@@ -206,6 +206,16 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
     .run(agent, taskId);
   const decision = f.office.decisions()[0];
   assert.ok(decision);
+  const [readable, original] = decision.summary.split("\n상세 원문:\n");
+  assert.equal(
+    readable,
+    "요구사항 범위 승인\n\n**README**\n\n목표: Clarify execution\n\n영역: Documentation\n\n꼭 할 일 (MUST)\n- M1. Show actual command\n\n범위 밖 (OUT)\n- Runtime changes\n\n가정 (ASSUMED)\n- 없음\n\n확인 방법 (Verify)\n- V1 [M1]. Command matches CLI\n\n승인은 아래 원문 Story를 기준으로 합니다.",
+    "people read the Story, not its JSON",
+  );
+  assert.doesNotMatch(decision.summary, /[{}"]/);
+  const { renderPlanningStory } = await import("../src/runners/planning.ts");
+  assert.equal(original, renderPlanningStory(story), "the bound Story stays complete");
+  assert.deepEqual(f.office.ledgers.intake.get(taskId).story, story);
   human(f, "negative", "승인 안 해");
   await f.office.chat({
     id: "negative",
@@ -395,7 +405,9 @@ test("native recovery Decision survives restart and consumes exactly one human r
     10000,
   );
   execution.startPlanning(lease.id, "closed-planner");
-  intake.interrupt(taskId, i.revision, i.inputDigest, "PLANNING_INVALID");
+  intake.interrupt(taskId, i.revision, i.inputDigest, "PLANNING_INVALID", {
+    detail: "story.goal: line break",
+  });
   execution.finishPlanning(lease.id, "closed-planner", {
     closed: true,
     result: {
@@ -410,6 +422,7 @@ test("native recovery Decision survives restart and consumes exactly one human r
   await f.office.refresh();
   const before = f.office.decisions()[0];
   assert.equal(before.options[0].label, "계획 재개");
+  assert.match(before.summary, /\n원인: story\.goal: line break$/);
   const restarted = await f.restart();
   await restarted.refresh();
   assert.equal(restarted.decisions()[0].id, before.id);
@@ -428,4 +441,54 @@ test("native recovery Decision survives restart and consumes exactly one human r
     0,
     "recovery is not task approval",
   );
+});
+
+test("plan gates show a readable contract summary and keep every document verbatim", async (t) => {
+  const { officeFixture } = await import("./coordinator-fixture.mjs");
+  const f = await officeFixture(t, false);
+  applyDefaultSeeds(f.db);
+  f.put(
+    "plan.md",
+    "# Proposed implementation plan\n\nRequest: r\nInput digest: d\n\nWorker could not access the snapshot; no commands ran.\n\nThis is a model proposal. No repository inspection or approval is established by this document.\n",
+  );
+  const { readFileSync } = await import("node:fs");
+  f.put("task-plan.md", readFileSync(join(f.project, "task.md"), "utf8").replace("Plan source: N/A — small and reversible", "Plan source: plan.md"));
+  const task = await f.store.register("a".repeat(64), {
+    ...f.input,
+    task: "task-plan.md",
+    plan: "plan.md",
+  });
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token: "a".repeat(64),
+    createRuntime: async () => ({
+      status: () => ({ execution: "ready", active: [] }),
+      assertIdle() {},
+      close: async () => {},
+    }),
+  });
+  t.after(() => office.close());
+  await office.refresh();
+  const decision = office.decisions().find((d) => d.task_id === task.id);
+  const [readable, original] = decision.summary.split("\n상세 원문:\n");
+  assert.match(readable, /^G1: 실행 계획과 범위를 확인해주세요\.\n\n\*\*작업: Input validation\*\*/);
+  assert.match(readable, /Story: Validate input \(MUST 1개 · OUT 1개\)/);
+  assert.match(readable, /담당 범위: M1, V1/);
+  assert.match(readable, /결과: Reject invalid input\./);
+  assert.match(readable, /수정 허용 경로 \(1\)\n- src/);
+  assert.match(readable, /등록 검사 1개 \(서로 다른 명령 1개\)\n- V1: `node -e /);
+  assert.match(readable, /팀장 계획\n> Worker could not access the snapshot; no commands ran\./);
+  assert.match(readable, /고위험 결정 문서\(G3\)/);
+  assert.doesNotMatch(readable, /This is a model proposal/);
+  for (const path of ["story.md", "task-plan.md", "verify.json", "plan.md", "decision.md"])
+    assert.ok(original.includes(`${path}\n`), path);
+  assert.ok(original.includes(f.story), "documents are verbatim");
+  // An already-open Decision gets the new display text without a new challenge.
+  f.db.prepare("UPDATE pazmo_native_decisions SET summary='old' WHERE id=?").run(decision.id);
+  await office.refresh();
+  const again = office.decisions().find((d) => d.task_id === task.id);
+  assert.equal(again.id, decision.id);
+  assert.equal(again.summary, decision.summary);
 });

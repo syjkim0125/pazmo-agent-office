@@ -20,6 +20,8 @@ Read `docs/STATUS.md` for the active phase and evidence limits. The canonical St
 
 `docs/solutions/` contains reusable findings organized by category with YAML `module`, `problem_type`, and `tags`; relevant when importing upstream sources or working in a documented area.
 
+`CONCEPTS.md` defines shared domain vocabulary (Story, Gates, Decisions, planning recovery); relevant when orienting to the codebase or discussing domain concepts.
+
 ## Chat-controlled Office
 
 When the user delegates a project job to Office, follow `docs/CHAT-CONTROL.md`: use the supported `bridge` CLI with private local authentication, continue the existing Office role executions, relay only actual human answers, and open the read-only `monitor` URL. Do not ask the user to copy an operator key, compose approval JSON, or edit the database. Do not substitute your own implementation for Office's requested role execution. This is a host integration protocol, not another workflow graph or a background daemon.

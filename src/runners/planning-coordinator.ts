@@ -5,11 +5,14 @@ import type { ExecutionLedger } from "../core/budgets.ts";
 import type { Candidate } from "../core/candidates.ts";
 import type { ContainerPlanner } from "./container-verifier.ts";
 import type { RemoteJob } from "./remote-job.ts";
-import { planningPrompt } from "./planning.ts";
+import { PlanningInvalid, planningPrompt } from "./planning.ts";
+import { saveRejectedOutput } from "./planning-output.ts";
 import type { PlanningPacket } from "./planning.ts";
 
 type Dependencies = {
   project?: string;
+  /** Project-private data directory for rejected model output. */
+  dataDir?: string;
   intake: IntakeLedger;
   execution: ExecutionLedger;
   planner: ContainerPlanner;
@@ -136,7 +139,23 @@ export class PlanningCoordinator {
               report.handle &&
               execution.getPlanning(lease.id).state === "running"
             ) {
-              let accept: (() => void) | undefined;
+              const archive = () =>
+                saveRejectedOutput(
+                  this.#d.dataDir,
+                  taskId,
+                  item.revision,
+                  report.result.stdout,
+                );
+              let accept: (() => unknown) | undefined = stage
+                ? undefined
+                : () =>
+                    intake.accept(
+                      taskId,
+                      item.revision,
+                      item.inputDigest,
+                      { closed: report.closed, result: report.result },
+                      archive,
+                    );
               if (stage && kit && report.closed && !abort.signal.aborted) {
                 try {
                   accept = await kit.record(stage, {
@@ -153,6 +172,9 @@ export class PlanningCoordinator {
                     error instanceof OfficeError
                       ? error.code
                       : "KIT_PLANNING_FAILED",
+                    error instanceof PlanningInvalid
+                      ? { detail: error.detail, ...archive() }
+                      : {},
                   );
                 }
               }

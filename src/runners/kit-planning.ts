@@ -9,6 +9,25 @@ import type { KitNode, KitStatus } from "../core/kit-role-runs.ts";
 import { acceptPlanning } from "./planning.ts";
 import type { PlanningPacket } from "./planning.ts";
 
+/** Grounding is proven only by a completed, successful shell command on the
+ * readonly snapshot in this turn, never by the worker's or a prior node's claim. */
+function inspected(stdout: string) {
+  return stdout.split("\n").some((line) => {
+    try {
+      const { type, item } = JSON.parse(line);
+      return (
+        type === "item.completed" &&
+        item?.type === "command_execution" &&
+        item.exit_code === 0 &&
+        typeof item.command === "string" &&
+        item.command.includes("/candidate/tree")
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** Native role transitions stay in kit; this adapter transports proposals and
  * human answers to Office's existing conversation and supervisor ledgers. */
 export class KitPlanning {
@@ -216,6 +235,30 @@ export class KitPlanning {
         JSON.stringify({ taskId, revision, observation }),
       );
       throw error;
+    }
+    if (
+      packet.role === "lead" &&
+      result.kind !== "questions" &&
+      !inspected(observation.result.stdout)
+    ) {
+      await run.record(
+        node,
+        {
+          summary:
+            "Lead proposal lacked readonly snapshot evidence; no Office proposal accepted.",
+        },
+        {
+          passed: false,
+          action: "human",
+          feedback:
+            "No successful command on /candidate/tree; prior proposals are not inspection evidence.",
+        },
+        JSON.stringify({ taskId, revision, observation }),
+      );
+      fail(
+        "INSPECTION_REQUIRED",
+        "The Lead node returned a proposal without inspecting the readonly snapshot.",
+      );
     }
     let status: KitStatus;
     if (result.kind === "questions")
