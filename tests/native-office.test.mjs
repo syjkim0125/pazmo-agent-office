@@ -391,6 +391,96 @@ test("native expired contract Decisions cannot approve and refresh with a new ch
   assert.notEqual(office.decisions()[0].id, first.id);
 });
 
+test("reading Decisions replaces an expired approval with a new challenge for the same task and gate", async (t) => {
+  const { officeFixture } = await import("./coordinator-fixture.mjs");
+  const f = await officeFixture(t, false);
+  applyDefaultSeeds(f.db);
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token: "a".repeat(64),
+  });
+  t.after(() => office.close());
+  await office.refresh();
+  const first = office.decisions()[0];
+  assert.equal(first.decision_kind, "G1");
+  const issued = f.db
+    .prepare("SELECT expires_at FROM pazmo_approval_challenges WHERE consumed_at IS NULL")
+    .get();
+  assert.equal(first.expires_at, issued.expires_at, "the open window can show the deadline");
+  // Nothing is answered, so no human event refreshes the list (2026-10-02 eevee-be case).
+  assert.deepEqual(
+    (await office.currentDecisions()).map((d) => d.id),
+    [first.id],
+  );
+  f.db
+    .prepare("UPDATE pazmo_approval_challenges SET expires_at=?")
+    .run(Date.now() - 1);
+  const listed = await office.currentDecisions();
+  const sameGate = listed.filter(
+    (d) => d.task_id === first.task_id && d.decision_kind === "G1",
+  );
+  assert.equal(sameGate.length, 1, "the reissued request replaces the old one");
+  assert.notEqual(sameGate[0].id, first.id);
+  const { challengeId } = JSON.parse(
+    f.db
+      .prepare("SELECT payload FROM pazmo_native_decisions WHERE id=?")
+      .get(sameGate[0].id).payload,
+  );
+  const challenge = f.db
+    .prepare(
+      "SELECT expires_at,consumed_at FROM pazmo_approval_challenges WHERE id=?",
+    )
+    .get(challengeId);
+  assert.ok(challenge.expires_at > Date.now());
+  assert.equal(challenge.consumed_at, null, "reading never approves");
+  assert.equal(office.ledgers.store.get(f.task.id).approved.G1, false);
+  await assert.rejects(office.reply(first.id, 1, "late"), /처리됐거나/);
+  // A later read with nothing expired keeps the same request.
+  assert.deepEqual(
+    (await office.currentDecisions()).map((d) => d.id),
+    [sameGate[0].id],
+  );
+});
+
+test("reissuing an unchanged approval does not repeat its chat notice but still updates open clients", async (t) => {
+  const { officeFixture } = await import("./coordinator-fixture.mjs");
+  const f = await officeFixture(t, false);
+  applyDefaultSeeds(f.db);
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token: "a".repeat(64),
+  });
+  t.after(() => office.close());
+  const events = [];
+  office.setBroadcast((event, value) => events.push([event, value?.id]));
+  await office.refresh();
+  const notices = () =>
+    f.db
+      .prepare(
+        "SELECT COUNT(*) AS n FROM messages WHERE task_id=? AND content LIKE 'G1:%'",
+      )
+      .get(f.task.id).n;
+  assert.equal(notices(), 1);
+  for (let round = 0; round < 3; round++) {
+    const before = office.decisions()[0].id;
+    f.db
+      .prepare("UPDATE pazmo_approval_challenges SET expires_at=?")
+      .run(Date.now() - 1);
+    events.length = 0;
+    const [reissued] = await office.currentDecisions();
+    assert.notEqual(reissued.id, before);
+    assert.ok(
+      events.some(([event, id]) => event === "task_update" && id === f.task.id),
+      "open Decisions windows are told to reload",
+    );
+  }
+  assert.equal(notices(), 1, "the same plan is announced once, not every 10 minutes");
+});
+
 test("native recovery Decision survives restart and consumes exactly one human request", async (t) => {
   const f = await fixture(t);
   task(f);

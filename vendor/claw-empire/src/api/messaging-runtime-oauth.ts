@@ -36,6 +36,10 @@ export type DecisionInboxRouteOption = {
 export type DecisionInboxRouteItem = {
   id: string;
   kind: "project_review_ready" | "task_timeout_resume" | "review_round_pick" | "workflow_gate";
+  /** Office gate behind a workflow_gate (G1/G3/G4/story/questions/...); stable across challenge reissue. */
+  decision_kind?: string | null;
+  /** Deadline of the open approval challenge; Office replaces the request after it. */
+  expires_at?: number | null;
   created_at: number;
   summary: string;
   agent_id?: string | null;

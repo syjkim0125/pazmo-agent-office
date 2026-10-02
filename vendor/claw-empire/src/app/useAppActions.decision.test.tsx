@@ -31,39 +31,81 @@ function setup() {
   );
 }
 
-it.each([
-  ["ANSWER_REQUIRED", "1. 답변 형식으로 3개 질문에 답해주세요."],
-  [
-    "STALE_APPROVAL",
-    "This approval request expired or changed. Copy your draft, then select Refresh and review the current request. Your answer will not be resent automatically.",
-  ],
-  ["UNKNOWN_FAILURE", "Failed to send decision reply. Please try again."],
-])("explains %s without replaying the human reply", async (code, expected) => {
-  const detail = "1. 답변 형식으로 3개 질문에 답해주세요.";
+const gateItem: DecisionInboxItem = {
+  id: "g4",
+  kind: "workflow_gate",
+  agentId: null,
+  agentName: "Office",
+  agentNameKo: "Office",
+  requestContent: "최종 결과 승인",
+  createdAt: 1,
+  options: [{ number: 1, label: "Approve", action: "workflow_answer" }],
+};
+
+function rejectReply(code: string) {
   vi.spyOn(api, "replyDecisionInbox").mockRejectedValue(
     new api.ApiRequestError(code, {
       status: 409,
       code,
-      details: { error: code, message: detail },
+      details: { error: code, message: "1. 답변 형식으로 3개 질문에 답해주세요." },
       url: "/api/decision-inbox/g4/reply",
     }),
   );
+}
+
+it.each([
+  ["ANSWER_REQUIRED", "1. 답변 형식으로 3개 질문에 답해주세요."],
+  ["UNKNOWN_FAILURE", "Failed to send decision reply. Please try again."],
+])("explains %s without replaying the human reply", async (code, expected) => {
+  rejectReply(code);
   const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
   vi.spyOn(console, "error").mockImplementation(() => {});
   const { result } = setup();
-  const item: DecisionInboxItem = {
-    id: "g4",
-    kind: "workflow_gate",
-    agentId: null,
-    agentName: "Office",
-    agentNameKo: "Office",
-    requestContent: "최종 결과 승인",
-    createdAt: 1,
-    options: [{ number: 1, label: "Approve", action: "workflow_answer" }],
-  };
-  await act(async () => result.current.handleReplyDecisionOption(item, 1, { note: "승인" }));
+  let outcome: unknown;
+  await act(async () => {
+    outcome = await result.current.handleReplyDecisionOption(gateItem, 1, { note: "승인" });
+  });
   expect(alert).toHaveBeenCalledWith(expected);
+  expect(outcome).toBe("failed");
   expect(api.replyDecisionInbox).toHaveBeenCalledTimes(1);
+});
+
+it("reports STALE_APPROVAL to the open inbox and reloads it without replaying the answer", async () => {
+  rejectReply("STALE_APPROVAL");
+  vi.spyOn(api, "getMessages").mockResolvedValue([]);
+  vi.spyOn(api, "getDecisionInbox").mockResolvedValue([]);
+  const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const { result } = setup();
+  let outcome: unknown;
+  await act(async () => {
+    outcome = await result.current.handleReplyDecisionOption(gateItem, 1, { note: "승인" });
+  });
+  expect(outcome).toBe("stale");
+  expect(alert).not.toHaveBeenCalled();
+  expect(api.getDecisionInbox).toHaveBeenCalledTimes(1);
+  expect(api.replyDecisionInbox).toHaveBeenCalledTimes(1);
+});
+
+it("keeps the reissue lineage fields when mapping server decisions", async () => {
+  const { mapWorkflowDecisionItemsRaw } = await import("./decision-inbox");
+  const [mapped] = mapWorkflowDecisionItemsRaw([
+    {
+      id: "new",
+      kind: "workflow_gate",
+      decision_kind: "G1",
+      expires_at: 99,
+      created_at: 1,
+      summary: "G1",
+      project_id: null,
+      project_name: null,
+      project_path: null,
+      task_id: "task",
+      task_title: "Task",
+      options: [],
+    },
+  ]);
+  expect(mapped).toMatchObject({ taskId: "task", decisionKind: "G1", expiresAt: 99 });
 });
 
 it("Run shows the managed wait reason without resubmitting an approval", async () => {

@@ -3,6 +3,7 @@ import type { Dispatch, SetStateAction } from "react";
 import * as api from "../api";
 import { buildDecisionInboxItems } from "../components/chat/decision-inbox";
 import type { DecisionInboxItem } from "../components/chat/decision-inbox";
+import type { DecisionReplyOutcome } from "../components/chat/decision-inbox-modal.meta";
 import { LANGUAGE_USER_SET_STORAGE_KEY, normalizeLanguage, pickLang } from "../i18n";
 import { normalizeOfficeWorkflowPack } from "./office-workflow-pack";
 import type {
@@ -349,15 +350,15 @@ export function useAppActions({
       item: DecisionInboxItem,
       optionNumber: number,
       payloadInput?: { note?: string; selected_option_numbers?: number[] },
-    ) => {
+    ): Promise<DecisionReplyOutcome> => {
       const option = item.options.find((entry) => entry.number === optionNumber);
-      if (!option) return;
+      if (!option) return "failed";
       const busyKey = `${item.id}:${option.number}`;
       setDecisionReplyBusyKey(busyKey);
       const locale = normalizeLanguage(settings.language);
       try {
         if (item.kind === "agent_request") {
-          if (!item.agentId) return;
+          if (!item.agentId) return "failed";
           const replyContent = pickLang(locale, {
             ko: `[의사결정 회신] ${option.number}번으로 진행해 주세요. (${option.label})`,
             en: `[Decision Reply] Please proceed with option ${option.number}. (${option.label})`,
@@ -386,7 +387,7 @@ export function useAppActions({
                   zh: "追加请求内容为空。",
                 }),
               );
-              return;
+              return "failed";
             }
             payload = { note, ...(item.taskId ? { target_task_id: item.taskId } : {}) };
           } else if (item.kind === "review_round_pick") {
@@ -426,6 +427,7 @@ export function useAppActions({
           }
           await loadDecisionInbox();
         }
+        return "sent";
       } catch (error) {
         console.error("Decision reply failed:", error);
         if (item.kind === "workflow_gate" && api.isApiRequestError(error)) {
@@ -438,16 +440,13 @@ export function useAppActions({
             typeof detail.message === "string"
           ) {
             window.alert(detail.message);
-            return;
+            return "failed";
           }
           if (error.code === "STALE_APPROVAL") {
-            window.alert(
-              pickLang(locale, {
-                ko: "승인 요청이 만료됐거나 변경되었습니다. 입력 내용을 복사해 둔 뒤 Refresh를 눌러 최신 요청을 확인해주세요. 답변은 자동 재전송하지 않습니다.",
-                en: "This approval request expired or changed. Copy your draft, then select Refresh and review the current request. Your answer will not be resent automatically.",
-              }),
-            );
-            return;
+            // The host has already reissued the request. Reload so the open inbox can
+            // move the human's draft onto it; never resend the answer automatically.
+            await loadDecisionInbox();
+            return "stale";
           }
         }
         window.alert(
@@ -458,6 +457,7 @@ export function useAppActions({
             zh: "发送决策回复失败，请稍后重试。",
           }),
         );
+        return "failed";
       } finally {
         setDecisionReplyBusyKey((prev) => (prev === busyKey ? null : prev));
       }

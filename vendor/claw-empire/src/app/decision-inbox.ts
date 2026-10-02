@@ -23,6 +23,8 @@ function baseWorkflowDecisionItem(item: DecisionInboxRouteItem): Omit<DecisionIn
     requestContent: item.summary,
     createdAt: item.created_at,
     taskId: item.task_id,
+    decisionKind: item.decision_kind ?? null,
+    expiresAt: item.expires_at ?? null,
     projectId: item.project_id,
     projectName: item.project_name,
   };
