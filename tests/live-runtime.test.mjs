@@ -344,3 +344,17 @@ test("the user's home for runner discovery must be an absolute path", async (t) 
     /LIVE_CONFIG|absolute/,
   );
 });
+
+test("planning snapshots skip untracked nested repositories such as tool worktrees", async (t) => {
+  const f = await setup(t);
+  execFileSync("/usr/bin/git", ["init", "-q", f.project]);
+  writeFileSync(join(f.project, "README.md"), "# project\n");
+  const nested = join(f.project, ".claude/worktrees/feature");
+  mkdirSync(nested, { recursive: true });
+  execFileSync("/usr/bin/git", ["init", "-q", nested]);
+  writeFileSync(join(nested, "inner.md"), "nested repository file\n");
+  const candidate = await planningSnapshot(f.project, f.root, "nested-test");
+  const tree = join(candidate.directory, "tree");
+  assert.equal(existsSync(join(tree, "README.md")), true);
+  assert.equal(existsSync(join(tree, ".claude/worktrees/feature")), false);
+});
