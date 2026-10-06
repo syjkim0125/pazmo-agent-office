@@ -84,6 +84,10 @@ export default function CliSettingsTab({
                     </div>
                   </div>
 
+                  {!isReady && status.authHint && (
+                    <p className="pl-0 text-xs text-amber-300 sm:pl-8">{status.authHint}</p>
+                  )}
+
                   {isReady && (
                     <div className="space-y-1.5 pl-0 sm:pl-8">
                       <div className="flex min-w-0 flex-col items-stretch gap-1.5 sm:flex-row sm:items-center sm:gap-2">

@@ -14,6 +14,9 @@ import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
 import { createLiveRuntime, type LiveConfig } from "./live.ts";
+import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
+import type { RunnerCatalog } from "./runner-settings.ts";
+import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
 
 /** Shared with WorkflowDecisionContent: text after it is the full record. */
@@ -44,6 +47,8 @@ type Config = {
   token: string;
   live?: LiveConfig;
   createRuntime?: typeof createLiveRuntime;
+  /** Installed CLI discovery; injectable for tests. */
+  runnerCatalog?: (home?: string, pathEnv?: string) => Promise<RunnerCatalog>;
 };
 
 /** Reuses the qualified kit/VM implementation against Claw's original task DB.
@@ -105,6 +110,14 @@ export async function createNativeOffice(c: Config) {
       AND messages.content=d.summary || char(10) || char(10) || 'Decisions에서 확인하고 답해주세요.'
     )`,
   ).run();
+  // Role runner choices live on the role's claw agent row (see agent()).
+  const runners = {
+    // The service runs with an isolated HOME; discovery uses the user's own.
+    settings: new RunnerSettings(db, agent, () =>
+      (c.runnerCatalog ?? loadRunnerCatalog)(c.live?.userHome, c.live?.searchPath),
+    ),
+    evidence: new RunnerEvidence(db),
+  };
   const live =
     c.live || c.createRuntime
       ? await (c.createRuntime ?? createLiveRuntime)(
@@ -113,6 +126,7 @@ export async function createNativeOffice(c: Config) {
           c.dataDir,
           ledgers,
           token,
+          runners,
         )
       : undefined;
   let broadcast = (_event: string, _value: unknown) => {};
@@ -147,13 +161,12 @@ export async function createNativeOffice(c: Config) {
       .get(department, preferred) as { id: string } | undefined;
     return row?.id ?? null;
   }
-  // Managed roles use the qualified Codex controller, irrespective of upstream seeds.
-  if (live)
-    for (const role of ["pm", "lead", "engineer", "reviewer", "verifier"]) {
-      db.prepare("UPDATE agents SET cli_provider='codex' WHERE id=?").run(
-        agent(role),
-      );
-    }
+  // Managed roles keep the user's codex/claude choice; other providers reset.
+  if (live) {
+    if (!runners.settings.catalog) await runners.settings.refresh();
+    runners.settings.normalize();
+    live.prequalify?.();
+  }
   function message(
     id: string,
     identity: string,
@@ -1091,6 +1104,12 @@ export async function createNativeOffice(c: Config) {
     reply,
     cancel,
     status: () => live?.status() ?? { execution: "locked", active: [] },
+    async checkAgentMutation(id: string, patch?: unknown) {
+      await runners.settings.checkAgentMutation(id, patch);
+      live?.prequalify?.();
+    },
+    cliStatus: (o?: { refresh?: boolean }) => runners.settings.cliStatus(o),
+    cliModels: () => runners.settings.cliModels(),
     checkTaskMutation(id: string, patch?: unknown) {
       // Hiding a card changes presentation only; no workflow transition.
       if (

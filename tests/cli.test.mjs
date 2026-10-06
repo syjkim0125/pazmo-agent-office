@@ -125,3 +125,9 @@ test("default live startup points to supported setup when qualified binaries are
   assert.equal(result.code, "RUNTIME_SETUP_REQUIRED");
   assert.match(result.error, /setup-runtime/);
 });
+
+test("codex runtime choice is validated and limited to live startup", (t) => {
+  const f = fixture(t);
+  assert.match(run(f, ["start", "--codex-runtime", "latest"], false).error, /installed|pinned/);
+  assert.match(run(f, ["status", "--codex-runtime", "pinned"], false).error, /start|up/);
+});

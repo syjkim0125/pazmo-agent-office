@@ -9,6 +9,11 @@ The canonical contract for one request: its goal, domain, required behaviors (MU
 
 A Story is proposed by the PM role and means nothing until a human passes its Gate. Later planning and implementation are bound to the exact approved text, so changing a Story after approval invalidates the approvals that depend on it.
 
+### Candidate
+A frozen snapshot of proposed project changes that checks, review and a human Gate all judge as one exact subject.
+
+A candidate is never the user's project itself: roles work on isolated copies, and nothing reaches the project until the same candidate has passed its checks and human understanding. Any change produces a new candidate, so evidence gathered on an earlier one no longer counts.
+
 ### Gate
 A point where work stops until a human records an understanding or approval answer bound to an exact subject (a Story, a contract or a verified result). A Gate is passed by recorded evidence, never by a model's claim that it was approved.
 
@@ -24,3 +29,16 @@ A human-requested resumption of a planning role (PM or Lead) after its closed re
 *Avoid:* retry, reset
 
 Recovery is not an approval of scope or results, and it does not reset the failed attempt: the rejected run and its failure record are preserved, and a successor run is linked to it. Each request has a small fixed recovery budget that successor runs do not refill, so a recovery is meant to follow a recorded failure cause rather than a guess. It is only offered once the planning process is confirmed closed.
+
+## Runners
+
+### Runner
+The user's own installed and logged-in AI command-line tool (codex or claude) that answers a role's model calls, chosen per role and remembered across restarts.
+*Avoid:* provider, controller (when meaning the user's choice)
+
+A runner uses the user's own subscription login where the tool keeps it; Office never copies or reads the login, and never falls back to another runner or an API key. Only its model calls happen on the user's machine: every file or command action it requests runs in the disposable, network-less execution container. A runner that would carry the user's personal tool settings or instructions into a role run is blocked instead of used. Roles the user has not chosen use a logged-in runner by default.
+
+### Runner qualification
+The credential-free check a runner must pass, for an exact binary and model, before it may serve any role.
+
+It drives the runner against a scripted local model so that its tool actions provably run in the execution container, never on the host, and that no personal configuration leaks in. Only passing results are remembered, and any change to the runner's binary, the chosen model, the execution container's tool or Office's own boundary code requires qualifying again. Qualification is evidence about the boundary, not about the quality of the model's work, and it is no Gate.

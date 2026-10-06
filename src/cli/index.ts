@@ -82,6 +82,7 @@ export async function main(args: string[]): Promise<void> {
           "--claw",
           "--controller",
           "--executor",
+          "--codex-runtime",
         ].includes(flag) ||
         flag in options
       )
@@ -113,6 +114,11 @@ export async function main(args: string[]): Promise<void> {
       );
     if (options["--port"] !== undefined && !["start", "up"].includes(command))
       fail("ARGUMENT", "Port is only supported by start and up.");
+    const codexRuntime = options["--codex-runtime"] as "installed" | "pinned" | undefined;
+    if (codexRuntime !== undefined && !["start", "up"].includes(command))
+      fail("ARGUMENT", "--codex-runtime is only supported by start and up.");
+    if (codexRuntime !== undefined && !["installed", "pinned"].includes(codexRuntime))
+      fail("ARGUMENT", "--codex-runtime must be installed or pinned.");
     if (
       ["--claw", "--live", "--controller", "--executor"].some(
         (key) => options[key] !== undefined,
@@ -185,6 +191,7 @@ export async function main(args: string[]): Promise<void> {
             dataDir: options["--data-dir"] as string | undefined,
             port: rawPort === undefined ? undefined : Number(rawPort),
             open: !options["--no-open"],
+            ...(codexRuntime ? { codexRuntime } : {}),
           }),
         ),
       );
@@ -310,6 +317,9 @@ export async function main(args: string[]): Promise<void> {
               binary: binaries!.binary,
               authHome: join(homedir(), ".codex"),
               socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
+              userHome: homedir(),
+              searchPath: process.env.PATH ?? "",
+              ...(codexRuntime ? { codexRuntime } : {}),
             }
           : undefined,
         options["--claw"] ? "claw" : "legacy",

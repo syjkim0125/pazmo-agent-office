@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assertVmConfig, prepareVm } from "../src/cli/launcher.ts";
+import { assertRunnerLogin, assertVmConfig, prepareVm } from "../src/cli/launcher.ts";
 
 const safe =
   "vmType: vz\nmounts: null\nforwardAgent: false\nsshConfig: false\nportForwarder: none\n";
@@ -55,4 +55,29 @@ test("launcher stops before image/model preparation when actual VM mounts expose
     calls.some((args) => args.includes("pull")),
     false,
   );
+});
+
+const installs = (codex, claude) => ({
+  codex: { runner: "codex", status: codex ? "ready" : "missing", loggedIn: codex === "in", hint: "터미널에서 codex login을 실행하세요." },
+  claude: { runner: "claude", status: claude ? "ready" : "missing", loggedIn: claude === "in", hint: "터미널에서 claude auth login을 실행하세요." },
+});
+test("either logged-in CLI is enough to start; neither explains both logins", () => {
+  assert.doesNotThrow(() => assertRunnerLogin(installs(null, "in"), { codexAuth: false }));
+  assert.doesNotThrow(() => assertRunnerLogin(installs("in", null), { codexAuth: true }));
+  assert.throws(
+    () => assertRunnerLogin(installs("out", "out"), { codexAuth: false }),
+    (e) => e.code === "LOGIN_REQUIRED" && /codex login/.test(e.message) && /claude auth login/.test(e.message) && /복사하지 않습니다/.test(e.message),
+  );
+});
+test("the pinned codex runtime still requires the Mac codex login", () => {
+  assert.doesNotThrow(() => assertRunnerLogin(installs(null, null), { codexAuth: true, codexRuntime: "pinned" }));
+  assert.throws(() => assertRunnerLogin(installs(null, null), { codexAuth: false, codexRuntime: "pinned" }), /LOGIN_REQUIRED|codex login/);
+});
+
+test("a blocked codex does not count as a usable runner at startup", () => {
+  const i = installs("in", null);
+  i.codex.blocked = "~/.codex/AGENTS.md";
+  i.codex.hint = "~/.codex/AGENTS.md를 옮기거나 claude를 고르세요.";
+  assert.throws(() => assertRunnerLogin(i, { codexAuth: true }), (e) => e.code === "LOGIN_REQUIRED" && /AGENTS\.md/.test(e.message));
+  assert.throws(() => assertRunnerLogin(i, { codexAuth: true, codexRuntime: "pinned" }), /AGENTS\.md/);
 });

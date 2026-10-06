@@ -1,3 +1,10 @@
+# 2026-10-06 사용자 설치 codex·claude 실행기 선택 (커밋 전)
+
+- 역할(PM·Lead·Developer·Reviewer, G4 평가는 Reviewer 기준)마다 사용자 PC에 설치·로그인된 codex 또는 claude를 화면에서 고르고 저장한다. 별도 API 키 없이 각 CLI의 구독 로그인을 쓴다. 모델·effort 목록은 각 CLI에서 받는다. 둘 중 하나만 있어도 시작한다. 고정 0.155.1 codex는 `--codex-runtime pinned`로 남겼다. [G3 결정](understanding/cli-runner-selection-decision.md)
+- 로그인 정보는 읽거나 옮기지 않는다. 도구는 기존 VM 컨테이너에서만 실행한다(claude는 내장 도구 없이 Office MCP 다리로만). 바이너리는 (SHA, 모델)별로 로그인 없는 VM 검사를 통과해야 실행된다. 실패하면 다른 실행기·API 키로 자동 전환하지 않는다.
+- codex는 로그인 폴더의 개인 지침(`~/.codex/AGENTS.md`)을 항상 모델에 넣는다. 9/22부터 쓰던 고정 경로도 같았다. 사용자 결정에 따라 그 파일이 있으면 codex 역할을 막고 안내한다. **이 PC는 파일이 있어 codex가 차단되며, 고르지 않은 역할은 claude를 쓴다.**
+- root 451/451, 타입 검사 exit 0. vendor UI 98/100이며 실패 2건은 HEAD에서도 실패한다. 실제 VM 검사 codex 0.160.0·claude 2.1.280 각 7/7. 실제 구독 실행은 claude 최종 코드 1회 성공, codex 1회 성공(차단 전, 개인 지침 포함 가능). 별도 미리보기에서 화면 저장·재시작 유지를 확인했다. **역할 그래프 전체·사용자 G4 인수는 이번 범위가 아니다.** [검증 기록](verification/2026-10-06-cli-runner-selection.md)
+
 # 2026-09-29 Decisions·Task Board·한 명령 실행
 
 - 승인 평가가 보완을 요청했을 때 이전 답변과 실제 항목별 이유를 Decisions에 표시한다. 부모 요청은 하위 작업의 Review/인도 상태를 반영하며, 중복 Run과 지원되지 않는 수동 상태 전이를 제시하지 않는다.
