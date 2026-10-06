@@ -893,3 +893,37 @@ test("without a data directory the rejection still records its detail", async (t
     detail: "terminal report missing (stdout 12 bytes)",
   });
 });
+
+for (const [label, path, accepted] of [
+  ["a successful bridge file read inside the snapshot", "/candidate/tree/README.md", true],
+  ["a file read outside the snapshot", "/tmp/README.md", false],
+]) {
+  test(`Lead inspection evidence: ${label}`, async (t) => {
+    const f = setup(t, "ready", true);
+    const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+    f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+      decision: "approve",
+      note: "Fixture human G1",
+    });
+    const original = f.planner.run;
+    f.planner.run = async (...args) => {
+      const report = await original(...args);
+      // A claude Lead reads files through the Office bridge instead of a shell.
+      if (args[1].packet.role === "lead")
+        report.result.stdout = report.result.stdout
+          .split("\n")
+          .map((line) =>
+            JSON.parse(line).item?.type === "command_execution"
+              ? JSON.stringify({ type: "item.completed", item: { type: "file_read", path, status: "completed" } })
+              : line,
+          )
+          .join("\n");
+      return report;
+    };
+    const result = (await f.coordinator.run(pm.taskId, f.context)).intake;
+    if (accepted) {
+      assert.notEqual(result.reason, "INSPECTION_REQUIRED");
+      assert.ok(result.proposal);
+    } else assert.equal(result.reason, "INSPECTION_REQUIRED");
+  });
+}

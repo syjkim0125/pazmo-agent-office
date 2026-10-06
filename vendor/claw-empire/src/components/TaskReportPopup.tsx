@@ -1,7 +1,28 @@
 import { useMemo, useState, useEffect } from "react";
 import type { Agent, Department } from "../types";
-import type { TaskReportDetail, TaskReportDocument, TaskReportTeamSection } from "../api";
-import { archiveTaskReport, getTaskReportDetail } from "../api";
+import type { TaskReportDetail, TaskReportDocument, TaskReportRunner, TaskReportTeamSection } from "../api";
+import { archiveTaskReport, getTaskReportDetail, getTaskReportRunners } from "../api";
+
+const RUNNER_ROLES: [string, string][] = [
+  ["pm", "PM"],
+  ["lead", "Lead"],
+  ["engineer", "Developer"],
+  ["reviewer", "Reviewer(G4 평가 포함)"],
+];
+
+/** One line per role: runner, version and model, with how many runs used it. */
+function runnerLines(runs: TaskReportRunner[]): string[] {
+  const lines: string[] = [];
+  for (const [role, label] of RUNNER_ROLES) {
+    const counts = new Map<string, number>();
+    for (const r of runs.filter((x) => x.role === role)) {
+      const key = [r.runner, r.version].join(" ") + " · " + r.model + (r.reasoning ? ` (${r.reasoning})` : "");
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    for (const [key, n] of counts) lines.push(`${label} · ${key} · ${n}회`);
+  }
+  return lines;
+}
 import type { UiLanguage } from "../i18n";
 import { pickLang } from "../i18n";
 import AgentAvatar from "./AgentAvatar";
@@ -55,12 +76,28 @@ export default function TaskReportPopup({ report, agents, departments, uiLanguag
   const [activeTab, setActiveTab] = useState<string>("planning");
   const [expandedDocs, setExpandedDocs] = useState<Record<string, boolean>>({});
   const [documentPages, setDocumentPages] = useState<Record<string, number>>({});
+  const [runners, setRunners] = useState<TaskReportRunner[]>([]);
 
   useEffect(() => {
     setCurrentReport(report);
   }, [report]);
 
   const rootTaskId = currentReport.project?.root_task_id || currentReport.task.id;
+
+  useEffect(() => {
+    let cancelled = false;
+    getTaskReportRunners(rootTaskId)
+      .then((r) => {
+        if (!cancelled) setRunners(Array.isArray(r?.runs) ? r.runs : []);
+      })
+      .catch(() => {
+        if (!cancelled) setRunners([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [rootTaskId]);
+  const runnerSummary = useMemo(() => runnerLines(runners), [runners]);
   const teamReports = useMemo(() => currentReport.team_reports ?? [], [currentReport.team_reports]);
   const projectName = currentReport.project?.project_name || projectNameFromPath(currentReport.task.project_path);
   const projectPath = currentReport.project?.project_path || currentReport.task.project_path;
@@ -401,6 +438,21 @@ export default function TaskReportPopup({ report, agents, departments, uiLanguag
             </div>
           </div>
         </div>
+
+        {runnerSummary.length > 0 && (
+          <div className="border-b border-slate-700/40 px-6 py-2.5">
+            <p className="text-xs font-semibold text-slate-300">
+              {t({ ko: "실행기", en: "Runners", ja: "実行環境", zh: "执行器" })}
+            </p>
+            <ul className="mt-1 space-y-0.5 text-xs text-slate-400">
+              {runnerSummary.map((line) => (
+                <li key={line} data-testid="report-runner-line">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="border-b border-slate-700/40 px-6 py-2.5">
           <div className="flex flex-wrap items-center gap-2">

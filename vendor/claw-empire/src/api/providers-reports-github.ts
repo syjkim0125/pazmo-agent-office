@@ -304,6 +304,20 @@ export async function getTaskReportDetail(taskId: string): Promise<TaskReportDet
   return request<TaskReportDetail>(`/api/task-reports/${taskId}`);
 }
 
+/** One role run and the installed CLI that served it (Pazmo Office only). */
+export interface TaskReportRunner {
+  taskId: string;
+  role: string;
+  runner: string;
+  version: string;
+  model: string;
+  reasoning: string | null;
+}
+
+export async function getTaskReportRunners(taskId: string): Promise<{ runs: TaskReportRunner[] }> {
+  return request<{ runs: TaskReportRunner[] }>(`/api/task-reports/${taskId}/runners`);
+}
+
 export async function archiveTaskReport(taskId: string): Promise<{
   ok: boolean;
   root_task_id: string;

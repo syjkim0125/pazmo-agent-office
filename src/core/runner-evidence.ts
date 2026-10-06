@@ -27,6 +27,20 @@ export class RunnerEvidence {
       )
       .run(r.taskId, r.role, r.runner, r.version, r.sha256, r.model, r.reasoning, Date.now());
   }
+  /** Runs for a report: the request itself and the subtasks published from it. */
+  forRequest(rootId: string) {
+    // Subtask links come from a later claw migration; older schemas have none.
+    const linked = (this.#db.prepare("PRAGMA table_info(tasks)").all() as { name: string }[]).some(
+      (c) => c.name === "source_task_id",
+    );
+    if (!linked) return this.list(rootId);
+    return this.#db
+      .prepare(
+        `SELECT task_id AS taskId, role, runner, version, sha256, model, reasoning, at FROM pazmo_runner_runs
+         WHERE task_id=? OR task_id IN (SELECT id FROM tasks WHERE source_task_id=?) ORDER BY id`,
+      )
+      .all(rootId, rootId) as (RunnerRun & { at: number })[];
+  }
   list(taskId: string) {
     return this.#db
       .prepare(

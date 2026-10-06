@@ -137,3 +137,34 @@ test("a final message that is exactly one fenced JSON block is unwrapped; anythi
   assert.equal(read('```json\n{"report":1}\n```\nDone.'), null);
   assert.equal(read('```js\n{"report":1}\n```'), null);
 });
+
+test("successful Office bridge tool calls become inspection evidence; failed ones do not", () => {
+  const use = (id, name, input) => assistant({ type: "tool_use", id, name: "mcp__office__" + name, input });
+  const result = (id, text, is_error = false) => ({
+    type: "user",
+    message: { content: [{ type: "tool_result", tool_use_id: id, is_error, content: [{ type: "text", text }] }] },
+  });
+  const stdout = lines(
+    goodInit,
+    use("t1", "read_file", { path: "README.md" }),
+    result("t1", "path: /candidate/tree/README.md\n# Title\n"),
+    use("t2", "list_directory", { path: "." }),
+    result("t2", "path: /candidate/tree\nREADME.md\nsrc/"),
+    use("t3", "run_command", { command: "grep -n '^## ' README.md" }),
+    result("t3", "exit_code: 0\ncwd: /candidate/tree\n5:## A\n"),
+    use("t4", "run_command", { command: "false" }),
+    result("t4", "exit_code: 1\ncwd: /candidate/tree\n"),
+    use("t5", "read_file", { path: "missing.md" }),
+    result("t5", "No such file or directory", true),
+    assistant({ type: "text", text: '{"report":1}' }),
+    { type: "result", subtype: "success", is_error: false },
+  );
+  const items = normalizeClaudeStream(stdout).trim().split("\n").map((l) => JSON.parse(l)).filter((e) => e.item).map((e) => e.item);
+  assert.deepEqual(items.slice(0, 3), [
+    { type: "file_read", path: "/candidate/tree/README.md", status: "completed" },
+    { type: "file_read", path: "/candidate/tree", status: "completed" },
+    { type: "command_execution", command: "cd /candidate/tree && grep -n '^## ' README.md", exit_code: 0, status: "completed" },
+  ]);
+  assert.equal(items.length, 4, "failed command and failed read are not evidence");
+  assert.deepEqual(terminalReport(normalizeClaudeStream(stdout), ["report"]), { report: 1 });
+});

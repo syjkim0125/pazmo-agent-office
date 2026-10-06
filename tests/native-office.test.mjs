@@ -312,6 +312,11 @@ test("native G4 preserves failed feedback and delivers after explicit human ackn
   );
   const decision = office.decisions()[0];
   assert.ok(decision);
+  // A short, deterministic summary sits right under the three questions.
+  assert.match(
+    decision.summary,
+    /세 질문에 번호별로 답해주세요[^\n]*\n\[변경사항\]\n1\. 작업: .+\n2\. 변경 파일: src\/a \(\+1 −1줄\)\n3\. 확인: 검사 \d+개 통과 · 리뷰 통과\n검증과 변경 내용:/,
+  );
   assert.match(office.diff(f.task.id).diff, /after/);
   assert.notEqual(store.get(f.task.id).status, "done");
   await assert.rejects(office.reply(decision.id, 3, ""), {
@@ -342,6 +347,7 @@ test("native G4 preserves failed feedback and delivers after explicit human ackn
   const retry = office.decisions()[0];
   assert.notEqual(retry.id, decision.id);
   assert.match(retry.summary, /다시 답하지 않아도 됩니다/);
+  assert.match(retry.summary, /\[변경사항\]\n1\. 작업: /, "the feedback view keeps the change summary");
   assert.equal(retry.options[0].action, "workflow_acknowledge");
   assert.equal(retry.options[0].number, 3);
   assert.match(retry.summary, /Explain fixture boundary/);
@@ -631,5 +637,7 @@ test("role runner choices persist across live restarts and only CLI-listed value
   const second = await open();
   assert.equal(db.prepare("SELECT cli_provider FROM agents WHERE id=?").get(reviewer).cli_provider, "claude");
   assert.deepEqual(received[1].settings.choice("reviewer"), { runner: "claude", model: "haiku", reasoning: null });
+  received[1].evidence.record({ taskId: "11111111-1111-4111-8111-111111111111", role: "pm", runner: "claude", version: "2.1.280", sha256: "b".repeat(64), model: "haiku", reasoning: null });
+  assert.deepEqual(second.runnerRuns("11111111-1111-4111-8111-111111111111").runs.map((r) => r.role), ["pm"]);
   await second.close();
 });

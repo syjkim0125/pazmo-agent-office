@@ -325,11 +325,14 @@ export async function planningSnapshot(
       .filter((p) => p.startsWith("160000 "))
       .map((p) => p.slice(p.indexOf("\t") + 1)),
   );
+  // An untracked nested repository (e.g. a tool's git worktree) is listed as
+  // one "dir/" entry: like a gitlink it is a repository reference, not a file.
   const files = listed
     .split("\0")
     .filter(
       (p) =>
         p &&
+        !p.endsWith("/") &&
         !gitlinks.has(p) &&
         !protectedPath(p) &&
         existsSync(join(project, p)),

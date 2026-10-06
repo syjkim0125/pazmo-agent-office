@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { officeFixture } from "./coordinator-fixture.mjs";
+import { assertOfficesExited, officePid } from "./office-process.mjs";
 import { CompletionLedger } from "../src/core/completion.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
 const token = "a".repeat(64);
@@ -211,18 +212,22 @@ test("real operator CLI delivers once, survives restart and removes invalid outp
   const f = await ready(t);
   const data = join(f.root, "service");
   const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
+  const pids = [];
   const call = (...args) => {
     const r = spawnSync(
       process.execPath,
       [cli, ...args, "--project", f.project, "--data-dir", data],
       { encoding: "utf8", timeout: 20000 },
     );
-    return {
-      code: r.status,
-      value: JSON.parse(r.status === 0 ? r.stdout : r.stderr),
-    };
+    const value = JSON.parse(r.status === 0 ? r.stdout : r.stderr);
+    if (args[0] === "start" && r.status === 0)
+      pids.push(officePid(value.dataDir));
+    return { code: r.status, value };
   };
-  t.after(() => call("stop"));
+  f.defer(async () => {
+    call("stop");
+    await assertOfficesExited(pids);
+  });
   assert.equal(call("init", "--apply").code, 0);
   f.db.exec(
     "CREATE TABLE pazmo_instance (project TEXT NOT NULL, version INTEGER NOT NULL); PRAGMA user_version=7",

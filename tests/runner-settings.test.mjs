@@ -174,3 +174,19 @@ test("a blocked codex is not selectable and unchosen roles move to a logged-in c
   assert.equal(providers.codex.authenticated, false);
   assert.match(providers.codex.authHint, /AGENTS\.md/);
 });
+
+test("run evidence for a report covers the request and its published subtasks only", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec("CREATE TABLE tasks (id TEXT PRIMARY KEY, source_task_id TEXT)");
+  db.exec("INSERT INTO tasks VALUES ('root', NULL), ('child', 'root'), ('other', NULL)");
+  const evidence = new RunnerEvidence(db);
+  const run = (taskId, role) => ({ taskId, role, runner: "claude", version: "2.1.280", sha256: "b".repeat(64), model: "default", reasoning: null });
+  evidence.record(run("root", "pm"));
+  evidence.record(run("root", "lead"));
+  evidence.record(run("child", "engineer"));
+  evidence.record(run("child", "reviewer"));
+  evidence.record(run("other", "pm"));
+  const rows = evidence.forRequest("root");
+  assert.deepEqual(rows.map((r) => [r.taskId, r.role]), [["root", "pm"], ["root", "lead"], ["child", "engineer"], ["child", "reviewer"]]);
+  assert.deepEqual(evidence.forRequest("missing"), []);
+});

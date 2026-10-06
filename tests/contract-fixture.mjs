@@ -10,7 +10,17 @@ import { join } from "node:path";
 
 export function fixture(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-contract-")));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
+  // t.after hooks run in registration order, so a test's own after hook would
+  // run after root (and the Office manifest it needs to stop) is gone. Deferred
+  // cleanups run first, newest first; root is removed even if one throws.
+  const cleanups = [];
+  t.after(async () => {
+    try {
+      for (const cleanup of cleanups.reverse()) await cleanup();
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   const project = join(root, "project");
   mkdirSync(project);
   const story = `# Story: Validate input\nStatus: Draft\nOwner: Human\n\n## Goal\nReject invalid input.\n## Domain\nPreserve existing records.\n## MUST\n- M1. Reject invalid input.\n## SHOULD\n- S1. Explain errors.\n## OUT\n- O1. Deployment.\n## Decisions\n- D1. Local only.\n## Verify\n- V1 [M1]. Check invalid input.\n`;
@@ -29,6 +39,7 @@ export function fixture(t) {
   );
   return {
     root,
+    defer: (cleanup) => cleanups.push(cleanup),
     project,
     story,
     task,

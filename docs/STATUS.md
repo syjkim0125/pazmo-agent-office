@@ -4,6 +4,7 @@
 - 로그인 정보는 읽거나 옮기지 않는다. 도구는 기존 VM 컨테이너에서만 실행한다(claude는 내장 도구 없이 Office MCP 다리로만). 바이너리는 (SHA, 모델)별로 로그인 없는 VM 검사를 통과해야 실행된다. 실패하면 다른 실행기·API 키로 자동 전환하지 않는다.
 - codex는 로그인 폴더의 개인 지침(`~/.codex/AGENTS.md`)을 항상 모델에 넣는다. 9/22부터 쓰던 고정 경로도 같았다. 사용자 결정에 따라 그 파일이 있으면 codex 역할을 막고 안내한다. **이 PC는 파일이 있어 codex가 차단되며, 고르지 않은 역할은 claude를 쓴다.**
 - root 451/451, 타입 검사 exit 0. vendor UI 98/100이며 실패 2건은 HEAD에서도 실패한다. 실제 VM 검사 codex 0.160.0·claude 2.1.280 각 7/7. 실제 구독 실행은 claude 최종 코드 1회 성공, codex 1회 성공(차단 전, 개인 지침 포함 가능). 별도 미리보기에서 화면 저장·재시작 유지를 확인했다. **역할 그래프 전체·사용자 G4 인수는 이번 범위가 아니다.** [검증 기록](verification/2026-10-06-cli-runner-selection.md)
+- 실사용 시험: eevee-be "README 맨 위에 목차 추가"를 claude로 PM→Lead→Developer→Reviewer→G4(사용자)→인도까지 완료해 보고서에 올렸다. 시험 중 중첩 git 저장소 스냅샷 오류와 claude Lead 조사 근거 누락을 고쳤다. 요청에 따라 보고서 실행기 섹션과 G4 `[변경사항]` 3줄 요약을 추가했다. [검증 기록](verification/2026-10-06-cli-runner-selection.md#실사용-시험-eevee-be-readme-맨-위에-목차-추가-2026-10-06)
 
 # 2026-10-02 Decisions 승인 요청 만료·재발급
 
