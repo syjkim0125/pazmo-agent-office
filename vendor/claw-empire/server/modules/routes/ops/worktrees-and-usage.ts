@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
 import type { RuntimeContext } from "../../../types/runtime-context.ts";
 import type { CliUsageEntry } from "../shared/types.ts";
+import { isPazmoManaged } from "../../../pazmo/host.ts";
 
 function readGitLines(cwd: string, args: string[], timeout = 8000): string[] {
   const output = execFileSync("git", args, { cwd, stdio: "pipe", timeout }).toString().trim();
@@ -336,6 +337,11 @@ export function registerWorktreeAndUsageRoutes(ctx: RuntimeContext): {
   async function refreshCliUsageData(): Promise<Record<string, CliUsageEntry>> {
     const providers = ["claude", "codex", "gemini", "copilot", "antigravity"];
     const usage: Record<string, CliUsageEntry> = {};
+    // Office never reads CLI login files; usage APIs need those tokens, so report ownership instead.
+    if (isPazmoManaged()) {
+      for (const p of providers) usage[p] = { windows: [], error: "office_managed" };
+      return usage;
+    }
 
     const fetchMap: Record<string, () => Promise<CliUsageEntry>> = {
       claude: fetchClaudeUsage,
@@ -375,7 +381,7 @@ export function registerWorktreeAndUsageRoutes(ctx: RuntimeContext): {
   }
 
   app.get("/api/cli-usage", async (_req, res) => {
-    let usage = readCliUsageFromDb();
+    let usage = isPazmoManaged() ? {} : readCliUsageFromDb();
     if (Object.keys(usage).length === 0) {
       usage = await refreshCliUsageData();
     }

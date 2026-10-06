@@ -5,9 +5,11 @@ import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { noSymlinks } from "../cli/project.ts";
 import {
   CONTROLLER_MODEL,
+  codexPersonalInstructions,
   codexRemoteProfile,
   verifyControllerBinary,
 } from "./codex-profile.ts";
+import type { CodexSelection } from "./codex-profile.ts";
 import { openExecRelay } from "./exec-relay.ts";
 import { runCommand } from "./command.ts";
 import type { CommandResult } from "./command.ts";
@@ -56,7 +58,9 @@ export async function runCodexOnRelay(
  * boundary qualification and the VM lease. No public launch or fallback. */
 export function codexJob(
   options: {
-    controller: string;
+    /** Pinned runtime controller; ignored when a qualified selection is given. */
+    controller?: string;
+    selection?: CodexSelection;
     binary: string;
     authHome: string;
     timeoutMs: number;
@@ -87,7 +91,23 @@ export function codexJob(
             error: "CANCELLED",
           },
         };
-      verifyControllerBinary(options.controller);
+      const personal = codexPersonalInstructions(options.authHome);
+      if (personal.length)
+        return {
+          closed: true,
+          result: {
+            exitCode: null,
+            signal: null,
+            stdout: "",
+            stderr: "",
+            timedOut: false,
+            error: `CODEX_PERSONAL_INSTRUCTIONS: ${personal.map((f) => join(options.authHome, f)).join(", ")}`,
+          },
+        };
+      const selection = options.selection;
+      const controller = selection?.binary ?? options.controller;
+      if (!controller) throw new Error("INVALID_CODEX_JOB");
+      verifyControllerBinary(controller, selection?.sha256);
       noSymlinks(options.authHome);
       const root = realpathSync(
         mkdtempSync(join(tmpdir(), "pazmo-codex-controller-")),
@@ -106,10 +126,10 @@ export function codexJob(
           authHome: options.authHome,
           cwd: root,
           url: relay.url,
-          model: CONTROLLER_MODEL,
+          ...(selection ? { selection } : { model: CONTROLLER_MODEL }),
         });
         result = await runCodexOnRelay(
-          options.controller,
+          controller,
           [...profile.args, "--", prompt],
           {
             timeoutMs,

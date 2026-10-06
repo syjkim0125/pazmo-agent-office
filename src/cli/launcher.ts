@@ -21,6 +21,23 @@ import { monitor, start, status } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
 import { runCommand } from "../runners/command.ts";
 import { IMAGE } from "../runners/container-verifier.ts";
+import { discoverRunners } from "../runners/runner-discovery.ts";
+import type { RunnerInstall, RunnerName } from "../runners/runner-discovery.ts";
+
+/** Start needs one installed, logged-in CLI; the pinned runtime needs codex's. */
+export function assertRunnerLogin(
+  installs: Record<RunnerName, RunnerInstall>,
+  o: { codexAuth: boolean; codexRuntime?: "installed" | "pinned" },
+) {
+  const ready = Object.values(installs).some(
+    (i) => i.status === "ready" && i.loggedIn && !i.blocked,
+  );
+  if (o.codexRuntime === "pinned" ? o.codexAuth && !installs.codex.blocked : ready) return;
+  fail(
+    "LOGIN_REQUIRED",
+    `최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요. codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
+  );
+}
 
 type Run = (
   executable: string,
@@ -172,6 +189,7 @@ export async function up(options: {
   dataDir?: string;
   port?: number;
   open?: boolean;
+  codexRuntime?: "installed" | "pinned";
 }) {
   if (process.platform !== "darwin" || process.arch !== "arm64")
     fail("PLATFORM", "현재 live 실행은 Apple Silicon macOS에서 검증됐습니다.");
@@ -210,11 +228,13 @@ export async function up(options: {
           "PREREQUISITE",
           "최초 준비: Homebrew에서 brew install colima docker 후 다시 실행해주세요.",
         );
-    if (!existsSync(join(homedir(), ".codex/auth.json")))
-      fail(
-        "LOGIN_REQUIRED",
-        "최초 준비: Mac에서 codex login을 완료한 뒤 다시 실행해주세요. 로그인 정보는 VM에 복사하지 않습니다.",
-      );
+    assertRunnerLogin(
+      await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() }),
+      {
+        codexAuth: existsSync(join(homedir(), ".codex/auth.json")),
+        codexRuntime: options.codexRuntime,
+      },
+    );
     const vendor = join(packageRoot, "vendor/claw-empire");
     console.error("[1/4] 설치·빌드 확인 (첫 설치는 시간이 걸릴 수 있습니다)");
     await run(
@@ -264,6 +284,9 @@ export async function up(options: {
         binary: binaries.binary,
         authHome: join(homedir(), ".codex"),
         socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
+        userHome: homedir(),
+        searchPath: process.env.PATH ?? "",
+        ...(options.codexRuntime ? { codexRuntime: options.codexRuntime } : {}),
       },
       "claw",
     );

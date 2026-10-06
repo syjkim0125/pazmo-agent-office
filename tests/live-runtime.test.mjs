@@ -286,3 +286,61 @@ test("planning snapshots skip uninitialized Git submodule entries without traver
     !manifest.entries.some((e) => e.path.startsWith("vendor/uninitialized")),
   );
 });
+
+test("runner mode refuses startup when no installed CLI is logged in, naming both login commands", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  const settings = {
+    catalog: {
+      installs: {
+        codex: { runner: "codex", status: "missing", loggedIn: false, hint: "터미널에서 codex login을 실행하세요." },
+        claude: { runner: "claude", status: "ready", loggedIn: false, hint: "터미널에서 claude auth login을 실행하세요." },
+      },
+      models: {},
+    },
+    refresh: async () => settings.catalog,
+    choice: () => ({ runner: "codex", model: "gpt-5.5", reasoning: null }),
+  };
+  await assert.rejects(
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome: f.root, socket: join(f.root, "docker.sock"), codexRuntime: "installed" },
+      f.project,
+      f.root,
+      f,
+      token,
+      { settings, evidence: { record() {} } },
+    ),
+    (e) => e.code === "LOGIN_REQUIRED" && /codex login/.test(e.message) && /claude auth login/.test(e.message),
+  );
+});
+
+test("the codex runtime option is not treated as a path", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  await assert.rejects(
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome: f.root, socket: join(f.root, "docker.sock"), codexRuntime: "pinned" },
+      f.project,
+      f.root,
+      f,
+    ),
+    /UNVERIFIED_CONTROLLER_BINARY/,
+  );
+});
+
+test("the user's home for runner discovery must be an absolute path", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  await assert.rejects(
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome: f.root, socket: join(f.root, "docker.sock"), userHome: "relative/home" },
+      f.project,
+      f.root,
+      f,
+    ),
+    /LIVE_CONFIG|absolute/,
+  );
+});

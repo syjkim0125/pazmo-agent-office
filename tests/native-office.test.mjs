@@ -582,3 +582,54 @@ test("plan gates show a readable contract summary and keep every document verbat
   assert.equal(again.id, decision.id);
   assert.equal(again.summary, decision.summary);
 });
+
+test("role runner choices persist across live restarts and only CLI-listed values are accepted", async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "native-runners-"))),
+    project = join(root, "project");
+  mkdirSync(project);
+  const db = new DatabaseSync(":memory:");
+  applyBaseSchema(db);
+  applyDefaultSeeds(db);
+  const catalogCalls = [];
+  const catalog = async (...args) => (catalogCalls.push(args), {
+    installs: {
+      codex: { runner: "codex", status: "ready", version: "0.160.0", sha256: "a".repeat(64), path: "/c", loggedIn: true, hint: "준비됨" },
+      claude: { runner: "claude", status: "ready", version: "2.1.280", sha256: "b".repeat(64), path: "/k", loggedIn: true, hint: "준비됨" },
+    },
+    models: { codex: [{ slug: "gpt-5.5" }], claude: [{ slug: "haiku" }] },
+  });
+  const received = [];
+  const open = () =>
+    createNativeOffice({
+      db,
+      project,
+      dataDir: root,
+      token: "a".repeat(64),
+      runnerCatalog: catalog,
+      live: { controller: "/c", binary: "/b", authHome: "/Users/u/.codex", socket: "/s", userHome: "/Users/u", searchPath: "/opt/bin:/usr/bin" },
+      createRuntime: async (...args) => {
+        received.push(args[5]);
+        return { status: () => ({ execution: "ready", active: [] }), assertIdle() {}, close: async () => {}, abort() {} };
+      },
+    });
+  t.after(() => {
+    db.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+  const first = await open();
+  const reviewer = db.prepare("SELECT id FROM agents WHERE department_id='qa' ORDER BY (role='team_leader') DESC,id LIMIT 1").get().id;
+  const other = db.prepare("SELECT id FROM agents WHERE department_id='design' LIMIT 1").get()?.id;
+  await first.checkAgentMutation(reviewer, { cli_provider: "claude", cli_model: "haiku", oauth_account_id: null });
+  db.prepare("UPDATE agents SET cli_provider='claude', cli_model='haiku' WHERE id=?").run(reviewer);
+  await assert.rejects(first.checkAgentMutation(reviewer, { cli_provider: "claude", cli_model: "opus" }), /RUNNER_MODEL_UNKNOWN|지원하지 않는 모델/);
+  if (other) await assert.rejects(first.checkAgentMutation(other, { cli_provider: "claude" }), /에이전트의 실행기만/);
+  assert.deepEqual(Object.keys((await first.cliStatus()).providers).sort(), ["claude", "codex"]);
+  assert.deepEqual(first.cliModels().models.claude, [{ slug: "haiku" }]);
+  assert.equal(typeof received[0]?.settings?.choice, "function");
+  assert.deepEqual(catalogCalls[0], ["/Users/u", "/opt/bin:/usr/bin"], "discovery uses the user's home, not the isolated service HOME");
+  await first.close();
+  const second = await open();
+  assert.equal(db.prepare("SELECT cli_provider FROM agents WHERE id=?").get(reviewer).cli_provider, "claude");
+  assert.deepEqual(received[1].settings.choice("reviewer"), { runner: "claude", model: "haiku", reasoning: null });
+  await second.close();
+});

@@ -173,7 +173,10 @@ export default function CliUsagePanel({
                 {usage?.error === "not_implemented" && (
                   <p className="text-[11px] text-slate-500 italic">{t(LOCALE_TEXT.cliNoApi)}</p>
                 )}
-                {usage?.error && usage.error !== "unauthenticated" && usage.error !== "not_implemented" && (
+                {usage?.error === "office_managed" && (
+                  <p className="text-[11px] text-slate-500 italic">{t(LOCALE_TEXT.cliOfficeManaged)}</p>
+                )}
+                {usage?.error && !["unauthenticated", "not_implemented", "office_managed"].includes(usage.error) && (
                   <p className="text-[11px] text-slate-500 italic">{t(LOCALE_TEXT.cliUnavailable)}</p>
                 )}
 

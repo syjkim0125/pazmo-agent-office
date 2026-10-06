@@ -207,6 +207,12 @@ const LOCALE_TEXT = {
     ja: "使用量APIなし",
     zh: "无用量 API",
   },
+  cliOfficeManaged: {
+    ko: "Office에서는 사용량을 표시하지 않음",
+    en: "usage not shown in Office",
+    ja: "Officeでは使用量を表示しません",
+    zh: "Office 中不显示用量",
+  },
   cliUnavailable: {
     ko: "사용 불가",
     en: "unavailable",

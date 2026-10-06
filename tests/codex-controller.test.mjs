@@ -74,3 +74,54 @@ test("CLI zero cannot replace turn completion or confirmed transport closure", a
     assert.equal(result.result.error, expectedError);
   }
 });
+
+test("a selected user CLI with a changed SHA fails before its executor starts", async () => {
+  const { mkdtempSync, writeFileSync, realpathSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-selected-")));
+  const binary = join(root, "codex");
+  writeFileSync(binary, "updated codex", { mode: 0o700 });
+  let spawned = false;
+  const job = codexJob(
+    {
+      selection: {
+        binary,
+        sha256: "c".repeat(64),
+        model: "gpt-a",
+        catalog: { path: join(root, "catalog.json"), digest: "d".repeat(64) },
+      },
+      binary: "/qualified/executor",
+      authHome: root,
+      timeoutMs: 1000,
+      openExecutor: () => {
+        spawned = true;
+        throw Error("must not launch");
+      },
+    },
+    "Bounded task",
+  );
+  assert.equal(job.binary, "/qualified/executor");
+  await assert.rejects(
+    job.supervise("a".repeat(64), 1000, new AbortController().signal),
+    /UNVERIFIED_CONTROLLER_BINARY/,
+  );
+  assert.equal(spawned, false);
+});
+
+test("a personal AGENTS.md in the codex home blocks the run before anything starts", async () => {
+  const { mkdtempSync, writeFileSync, realpathSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  for (const name of ["AGENTS.md", "AGENTS.override.md"]) {
+    const home = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-codex-home-")));
+    writeFileSync(join(home, name), "personal rules");
+    let spawned = false;
+    const job = codexJob(
+      { controller: "/missing", binary: "/x", authHome: home, timeoutMs: 1000, openExecutor: () => { spawned = true; throw Error("must not launch"); } },
+      "Bounded task",
+    );
+    const out = await job.supervise("a".repeat(64), 1000, new AbortController().signal);
+    assert.equal(out.closed, true);
+    assert.match(out.result.error, new RegExp(`^CODEX_PERSONAL_INSTRUCTIONS: .*${name.replace(".", "\\.")}`));
+    assert.equal(spawned, false);
+  }
+});

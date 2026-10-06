@@ -458,7 +458,8 @@ export function registerAgentCrudRoutes(ctx: RuntimeContext): void {
     const nextOAuthProvider =
       nextProvider === "copilot" ? "github" : nextProvider === "antigravity" ? "google_antigravity" : null;
     const supportsCliModelOverride = ["claude", "codex", "gemini", "opencode", "kimi"].includes(nextProvider);
-    const supportsCliReasoningOverride = nextProvider === "codex";
+    // Codex reasoning levels and Claude Code effort levels share this field.
+    const supportsCliReasoningOverride = nextProvider === "codex" || nextProvider === "claude";
     const providerChanged = "cli_provider" in body && nextProvider !== String(existing.cli_provider ?? "claude");
 
     if (!nextOAuthProvider && !("oauth_account_id" in body) && "cli_provider" in body) {

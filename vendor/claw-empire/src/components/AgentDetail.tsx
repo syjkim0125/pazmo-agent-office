@@ -65,6 +65,9 @@ export default function AgentDetail({
   const [selectedCliModel, setSelectedCliModel] = useState(agent.cli_model ?? "");
   const [selectedCliReasoningLevel, setSelectedCliReasoningLevel] = useState(agent.cli_reasoning_level ?? "");
   const [savingCli, setSavingCli] = useState(false);
+  // Under Pazmo, Office reports only the runners it can execute (codex/claude).
+  const [managedProviders, setManagedProviders] = useState<string[] | null>(null);
+  const [cliError, setCliError] = useState<string | null>(null);
   const [oauthStatus, setOauthStatus] = useState<OAuthStatus | null>(null);
   const [oauthLoading, setOauthLoading] = useState(false);
   const [cliModels, setCliModels] = useState<Record<string, CliModelInfo[]>>({});
@@ -100,7 +103,12 @@ export default function AgentDetail({
     () => selectedCliModelOptions.find((model) => model.slug === selectedCliModel),
     [selectedCliModelOptions, selectedCliModel],
   );
+  const reasoningCli = selectedCli === "codex" || selectedCli === "claude";
+  const providerOptions = Object.entries(CLI_LABELS).filter(
+    ([key]) => !managedProviders || managedProviders.includes(key),
+  );
   const codexReasoningOptions = useMemo(() => {
+    if (selectedCli === "claude") return selectedCliModelMeta?.reasoningLevels ?? [];
     if (selectedCli !== "codex") return [];
     if (selectedCliModelMeta?.reasoningLevels && selectedCliModelMeta.reasoningLevels.length > 0) {
       return selectedCliModelMeta.reasoningLevels;
@@ -164,6 +172,22 @@ export default function AgentDetail({
   }, [editingCli, requiresOAuthAccount]);
 
   useEffect(() => {
+    if (!editingCli) return;
+    let cancelled = false;
+    api
+      .getCliStatus()
+      .then((status) => {
+        const keys = Object.keys(status ?? {});
+        if (!cancelled && keys.length > 0 && keys.every((key) => key === "codex" || key === "claude"))
+          setManagedProviders(keys);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [editingCli]);
+
+  useEffect(() => {
     if (!editingCli || !supportsCliModelOverride || Object.keys(cliModels).length > 0) return;
     let cancelled = false;
     setCliModelsLoading(true);
@@ -200,18 +224,19 @@ export default function AgentDetail({
   }, [supportsCliModelOverride, selectedCliModel]);
 
   useEffect(() => {
-    if (selectedCli !== "codex" && selectedCliReasoningLevel) {
+    if (!reasoningCli && selectedCliReasoningLevel) {
       setSelectedCliReasoningLevel("");
       return;
     }
-    if (selectedCli === "codex" && selectedCliReasoningLevel) {
+    if (reasoningCli && selectedCliReasoningLevel && codexReasoningOptions.length > 0) {
       const isValid = codexReasoningOptions.some((level) => level.effort === selectedCliReasoningLevel);
       if (!isValid) setSelectedCliReasoningLevel("");
     }
-  }, [selectedCli, selectedCliReasoningLevel, codexReasoningOptions]);
+  }, [reasoningCli, selectedCliReasoningLevel, codexReasoningOptions]);
 
   const handleSaveCli = useCallback(async () => {
     setSavingCli(true);
+    setCliError(null);
     try {
       await api.updateAgent(agent.id, {
         cli_provider: selectedCli,
@@ -219,18 +244,23 @@ export default function AgentDetail({
         api_provider_id: requiresApiProvider ? selectedApiProviderId || null : null,
         api_model: requiresApiProvider ? selectedApiModel || null : null,
         cli_model: supportsCliModelOverride ? selectedCliModel || null : null,
-        cli_reasoning_level: selectedCli === "codex" ? selectedCliReasoningLevel || null : null,
+        cli_reasoning_level: reasoningCli ? selectedCliReasoningLevel || null : null,
       });
       onAgentUpdated?.();
       setEditingCli(false);
     } catch (error) {
       console.error("Failed to update CLI:", error);
+      const details = (error as { details?: { message?: unknown } }).details;
+      setCliError(
+        typeof details?.message === "string" ? details.message : error instanceof Error ? error.message : String(error),
+      );
     } finally {
       setSavingCli(false);
     }
   }, [
     agent.id,
     selectedCli,
+    reasoningCli,
     requiresOAuthAccount,
     selectedOAuthAccountId,
     requiresApiProvider,
@@ -429,7 +459,7 @@ export default function AgentDetail({
               )}
               <div className="text-xs text-slate-500 mt-0.5">
                 {editingCli ? (
-                  selectedCli === "codex" ? (
+                  reasoningCli ? (
                     <div className="space-y-1">
                       <div className="flex w-full min-w-0 items-center gap-1 pb-0.5">
                         <span className="shrink-0">🔧</span>
@@ -442,7 +472,7 @@ export default function AgentDetail({
                           }}
                           className="w-[94px] shrink-0 bg-slate-700 text-slate-200 text-xs rounded px-1 py-0.5 border border-slate-600 focus:outline-none focus:border-blue-500"
                         >
-                          {Object.entries(CLI_LABELS).map(([key, label]) => (
+                          {providerOptions.map(([key, label]) => (
                             <option key={key} value={key}>
                               {label}
                             </option>
@@ -520,6 +550,7 @@ export default function AgentDetail({
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-1">
+                        {cliError && <span className="text-[10px] text-red-300">{cliError}</span>}
                         <span className="text-[10px] text-slate-400">
                           {t({
                             ko: "알바생 모델은 설정창 값을 따릅니다",
@@ -557,7 +588,7 @@ export default function AgentDetail({
                         }}
                         className="bg-slate-700 text-slate-200 text-xs rounded px-1.5 py-0.5 border border-slate-600 focus:outline-none focus:border-blue-500"
                       >
-                        {Object.entries(CLI_LABELS).map(([key, label]) => (
+                        {providerOptions.map(([key, label]) => (
                           <option key={key} value={key}>
                             {label}
                           </option>
@@ -692,7 +723,7 @@ export default function AgentDetail({
                       : agent.cli_model &&
                           CLI_MODEL_OVERRIDE_PROVIDERS.includes(agent.cli_provider) &&
                           agent.cli_provider !== "api"
-                        ? `${CLI_LABELS[agent.cli_provider] ?? agent.cli_provider} · ${agent.cli_model}${agent.cli_provider === "codex" && agent.cli_reasoning_level ? ` (${agent.cli_reasoning_level})` : ""}`
+                        ? `${CLI_LABELS[agent.cli_provider] ?? agent.cli_provider} · ${agent.cli_model}${(agent.cli_provider === "codex" || agent.cli_provider === "claude") && agent.cli_reasoning_level ? ` (${agent.cli_reasoning_level})` : ""}`
                         : agent.cli_provider === "codex" && agent.cli_reasoning_level
                           ? `${CLI_LABELS[agent.cli_provider] ?? agent.cli_provider} · (${agent.cli_reasoning_level})`
                           : (CLI_LABELS[agent.cli_provider] ?? agent.cli_provider)}

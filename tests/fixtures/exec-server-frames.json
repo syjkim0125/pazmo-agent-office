@@ -1,0 +1,255 @@
+{
+ "source": "Recorded 2026-10-02 from the qualified Linux exec-server 0.154.0 in a readonly ContainerPlanner container (no login, no model).",
+ "frames": [
+  {
+   "method": "initialize",
+   "params": {
+    "clientName": "pazmo-frames"
+   },
+   "response": {
+    "id": 1,
+    "result": {
+     "sessionId": "6efc85ab-0551-41cd-82c5-14d1b827b5af",
+     "environmentInfo": {
+      "shell": {
+       "name": "bash",
+       "path": "/bin/bash"
+      },
+      "executorVersion": "0.0.0",
+      "providerId": "sha256:ee98eab596fe9f71b415600d19dd994055356ff01a7b7a019813868a53150124",
+      "cwd": "file:///candidate/tree",
+      "userHomeDir": "file:///work",
+      "platformOs": "linux",
+      "temporaryDirectories": [
+       "file:///tmp"
+      ],
+      "tempDir": "file:///tmp",
+      "capabilities": {
+       "networkProxyLaunch": true,
+       "capabilityDiscoverySandbox": true,
+       "environmentConfigRead": true,
+       "httpHeaderEnvVars": true,
+       "sandboxedFileStreaming": true,
+       "shellSnapshotV2": true
+      }
+     }
+    }
+   }
+  },
+  {
+   "method": "environment/info",
+   "params": {},
+   "response": {
+    "id": 2,
+    "result": {
+     "shell": {
+      "name": "bash",
+      "path": "/bin/bash"
+     },
+     "executorVersion": "0.0.0",
+     "providerId": "sha256:ee98eab596fe9f71b415600d19dd994055356ff01a7b7a019813868a53150124",
+     "cwd": "file:///candidate/tree",
+     "userHomeDir": "file:///work",
+     "platformOs": "linux",
+     "temporaryDirectories": [
+      "file:///tmp"
+     ],
+     "tempDir": "file:///tmp",
+     "capabilities": {
+      "networkProxyLaunch": true,
+      "capabilityDiscoverySandbox": true,
+      "environmentConfigRead": true,
+      "httpHeaderEnvVars": true,
+      "sandboxedFileStreaming": true,
+      "shellSnapshotV2": true
+     }
+    }
+   }
+  },
+  {
+   "method": "fs/readDirectory",
+   "params": {
+    "path": "file:///candidate/tree",
+    "sandbox": null
+   },
+   "response": {
+    "id": 3,
+    "result": {
+     "entries": [
+      {
+       "fileName": "README.md",
+       "isDirectory": false,
+       "isFile": true
+      },
+      {
+       "fileName": "src",
+       "isDirectory": true,
+       "isFile": false
+      }
+     ]
+    }
+   }
+  },
+  {
+   "method": "fs/readFile",
+   "params": {
+    "path": "file:///candidate/tree/README.md",
+    "sandbox": null
+   },
+   "response": {
+    "id": 4,
+    "result": {
+     "dataBase64": "aGVsbG8gZnJhbWVzCg=="
+    }
+   }
+  },
+  {
+   "method": "fs/getMetadata",
+   "params": {
+    "path": "file:///candidate/tree/src",
+    "sandbox": null
+   },
+   "response": {
+    "id": 5,
+    "result": {
+     "isDirectory": true,
+     "isFile": false,
+     "isSymlink": false,
+     "size": 4096,
+     "createdAtMs": 0,
+     "modifiedAtMs": 1790931465000
+    }
+   }
+  },
+  {
+   "method": "fs/writeFile",
+   "params": {
+    "path": "file:///candidate/tree/new.txt",
+    "dataBase64": "eA==",
+    "sandbox": null
+   },
+   "response": {
+    "error": {
+     "code": -32603,
+     "message": "Read-only file system (os error 30)"
+    },
+    "id": 6
+   }
+  },
+  {
+   "method": "fs/writeFile",
+   "params": {
+    "path": "file:///tmp/new.txt",
+    "dataBase64": "eA==",
+    "sandbox": null
+   },
+   "response": {
+    "id": 7,
+    "result": {}
+   }
+  },
+  {
+   "method": "process/start",
+   "params": {
+    "processId": "p1",
+    "argv": [
+     "/bin/sh",
+     "-c",
+     "pwd; ls; echo err >&2; exit 3"
+    ],
+    "cwd": "file:///candidate/tree",
+    "env": {},
+    "tty": false,
+    "arg0": null
+   },
+   "response": {
+    "id": 8,
+    "result": {
+     "processId": "p1",
+     "sandboxType": "none"
+    }
+   }
+  },
+  {
+   "method": "process/read",
+   "params": {
+    "processId": "p1",
+    "afterSeq": null,
+    "maxBytes": 65536,
+    "waitMs": 500
+   },
+   "response": {
+    "id": 9,
+    "result": {
+     "chunks": [
+      {
+       "seq": 1,
+       "stream": "stdout",
+       "chunk": "L2NhbmRpZGF0ZS90cmVlCg=="
+      }
+     ],
+     "nextSeq": 2,
+     "exited": false,
+     "exitCode": null,
+     "closed": false,
+     "failure": null,
+     "sandboxDenied": false
+    }
+   }
+  },
+  {
+   "method": "process/read",
+   "params": {
+    "processId": "p1",
+    "afterSeq": 1,
+    "maxBytes": 65536,
+    "waitMs": 500
+   },
+   "response": {
+    "id": 10,
+    "result": {
+     "chunks": [
+      {
+       "seq": 2,
+       "stream": "stdout",
+       "chunk": "UkVBRE1FLm1kCnNyYwo="
+      }
+     ],
+     "nextSeq": 3,
+     "exited": false,
+     "exitCode": null,
+     "closed": false,
+     "failure": null,
+     "sandboxDenied": false
+    }
+   }
+  },
+  {
+   "method": "process/read",
+   "params": {
+    "processId": "p1",
+    "afterSeq": 2,
+    "maxBytes": 65536,
+    "waitMs": 500
+   },
+   "response": {
+    "id": 11,
+    "result": {
+     "chunks": [
+      {
+       "seq": 3,
+       "stream": "stderr",
+       "chunk": "ZXJyCg=="
+      }
+     ],
+     "nextSeq": 4,
+     "exited": true,
+     "exitCode": 3,
+     "closed": true,
+     "failure": null,
+     "sandboxDenied": false
+    }
+   }
+  }
+ ]
+}

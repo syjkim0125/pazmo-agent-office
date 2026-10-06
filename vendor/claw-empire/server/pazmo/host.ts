@@ -28,6 +28,10 @@ export type NativeOfficeBridge = {
   reply(id: string, option: number, note: string): Promise<unknown>;
   cancel(id: string): Promise<unknown>;
   checkTaskMutation(id: string, patch?: unknown): void;
+  /** Role agents may change only their codex/claude runner and listed model. */
+  checkAgentMutation(id: string, patch?: unknown): Promise<void>;
+  cliStatus(options?: { refresh?: boolean }): Promise<unknown>;
+  cliModels(): unknown;
 };
 export type PazmoHost = {
   project: string;
@@ -99,6 +103,15 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
       if (req.method === "GET" && req.path === "/decision-inbox") {
         return res.json({ items: await office.currentDecisions() });
       }
+      // The user's own installed CLIs, as discovered by trusted Office startup.
+      if (req.method === "GET" && req.path === "/cli-status")
+        return res.json(await office.cliStatus({ refresh: Boolean(req.query.refresh) }));
+      if (req.method === "GET" && req.path === "/cli-models") return res.json(office.cliModels());
+      const agentEdit = req.path.match(/^\/agents\/([^/]+)$/);
+      if (agentEdit && req.method === "PATCH") {
+        await office.checkAgentMutation(agentEdit[1], req.body);
+        res.locals.pazmoRunnerChecked = true;
+      }
       const diff = req.path.match(/^\/tasks\/([^/]+)\/diff$/);
       if (diff && req.method === "GET") {
         const result = office.diff(diff[1]);
@@ -133,6 +146,7 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
   // role adapter is connected. Do not enqueue work which cannot safely execute.
   app.use("/api", (req, res, next) => {
     if (["GET", "HEAD", "OPTIONS"].includes(req.method)) return next();
+    if (res.locals.pazmoRunnerChecked) return next();
     if (req.path === "/messages" && req.method === "POST" && office?.status().execution === "ready") return next();
     const taskCrud = /^\/tasks(?:\/[^/]+)?$/.test(req.path);
     const projectCrud = /^\/projects(?:\/[^/]+)?$/.test(req.path);

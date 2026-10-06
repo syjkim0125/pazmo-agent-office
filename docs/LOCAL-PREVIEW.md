@@ -2,11 +2,11 @@
 
 현재 원본 Claw Empire의 Office·Tasks·회의·Decisions 화면과 서버를 연결하는 중이다. 별도 activity/Tasks 대체 화면은 제거했다. 키 입력 없이 원본 로컬 세션으로 접속하며 CEO와 직원에게 픽셀 스타일을 적용했다.
 
-**`--claw`는 화면·작업 저장 미리보기이며 모델 호출을 차단한다. `--claw --live`는 기존 Mac Codex 로그인과 검증된 전용 VM을 사용하는 실제 역할 실행 경로다. 새 원본 UI 파일럿은 PM·팀장·Developer·Reviewer와 검사 6개를 마치고 실제 사용자 G4 대기 중이다. 아직 전체 인도 완료로 간주하지 않는다. 화면의 Live 표시는 WebSocket 연결을 뜻한다.**
+**`--claw`는 화면·작업 저장 미리보기이며 모델 호출을 차단한다. `--claw --live`는 Mac에 설치·로그인된 codex 또는 claude CLI와 검증된 전용 VM을 사용하는 실제 역할 실행 경로다. 역할별 실행기·모델은 오피스에서 에이전트를 클릭해 고른다. 새 원본 UI 파일럿은 PM·팀장·Developer·Reviewer와 검사 6개를 마치고 실제 사용자 G4 대기 중이다. 아직 전체 인도 완료로 간주하지 않는다. 화면의 Live 표시는 WebSocket 연결을 뜻한다.**
 
 ## 팀원용 한 명령 실행 (Apple Silicon Mac)
 
-Office 작업 브랜치 `codex/office-kit-role-graphs`를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, Mac의 `codex login`이다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
+Office 작업 브랜치 `codex/office-kit-role-graphs`를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, 그리고 Mac에 설치된 codex 또는 Claude Code 중 하나 이상의 로그인(`codex login` 또는 `claude auth login`)이다. 둘 다 있어도 되고 하나만 있어도 된다. 상태는 설정 → CLI 도구에서 확인한다. 고정 0.155.1 codex만 쓰려면 `--codex-runtime pinned`를 붙인다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
 
 ```sh
 # 최초 한 번: Office 설치 폴더와 별도인 기존 Git 프로젝트 선택
@@ -42,7 +42,7 @@ node bin/pazmo-office.mjs monitor --project /absolute/path/to/project
 
 ## 실제 역할 실행
 
-초기 Codex 로그인과 검증된 전용 VM 준비가 필요하다. 준비 여부와 설치 과정은 [실행 환경 기록](verification/2026-09-28-runtime-setup.md)을 따른다. 기존 서버를 중지한 뒤 같은 프로젝트로 시작한다.
+codex 또는 claude 중 하나 이상의 초기 로그인과 검증된 전용 VM 준비가 필요하다. 준비 여부와 설치 과정은 [실행 환경 기록](verification/2026-09-28-runtime-setup.md)을 따른다. 기존 서버를 중지한 뒤 같은 프로젝트로 시작한다.
 
 ```sh
 node bin/pazmo-office.mjs stop --project /absolute/path/to/project
