@@ -118,6 +118,6 @@ Scope: U8, Story M3/M4, V3/V4/V9, D15.
 ## 남은 일·한계
 
 - 작업별 실행기 선택, 다른 사람에게 배포·상용 제공(Anthropic Commercial Terms·OpenAI 확인 필요), VM executor 버전 변경은 범위 밖이다.
-- 업스트림 "CLI 사용량" 패널은 토큰 파일을 직접 읽는 방식이다. Office에서는 HOME 격리로 아무것도 읽지 않아 "로그인되지 않음"으로 보인다. 숨김·대체를 별도 작업으로 등록했다.
+- 업스트림 "CLI 사용량" 패널은 토큰 파일을 직접 읽는 방식이다. Office 관리 모드에서는 자격증명 파일을 읽지 않고 모든 CLI에 `office_managed`를 반환하며, 패널은 "Office에서는 사용량을 표시하지 않음"으로 표시한다(`aac796d`, `tests/claw-cli-usage.test.mjs`). Office에서 사용량 수치는 제공하지 않는다.
 - 설정 탭의 "메인 모델" 전역 저장은 기존처럼 Office 관리 모드에서 막혀 있다. 역할별 선택은 에이전트 상세에서 한다.
 - claude 문서상 `--bare`가 `-p` 기본값이 될 예정이다. 그때 구독 실행은 `apiKeySource` 검사·인증 실패로 잠기고, API 키로 자동 전환하지 않는다.
