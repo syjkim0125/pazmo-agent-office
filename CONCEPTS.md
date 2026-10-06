@@ -49,3 +49,11 @@ A runner uses the user's own subscription login where the tool keeps it; Office 
 The credential-free check a runner must pass, for an exact binary and model, before it may serve any role.
 
 It drives the runner against a scripted local model so that its tool actions provably run in the execution container, never on the host, and that no personal configuration leaks in. Only passing results are remembered, and any change to the runner's binary, the chosen model, the execution container's tool or Office's own boundary code requires qualifying again. Qualification is evidence about the boundary, not about the quality of the model's work, and it is no Gate.
+
+## Hosting
+
+### Managed mode
+The state in which the original Claw office app runs inside Office as Office's screen and data store, instead of as a standalone app.
+*Avoid:* Pazmo mode
+
+In managed mode Office owns every action the original app would otherwise take by itself. Original paths that would call a model, merge work, sign in to a provider, receive outside chat messages or run background sweeps are locked or switched off. Where the screen needs information, such as whether a Runner is installed and logged in, Office supplies its own answer. A feature that can only work by reading the user's login does not run at all; it shows that Office does not provide it, instead of appearing logged out or broken.
