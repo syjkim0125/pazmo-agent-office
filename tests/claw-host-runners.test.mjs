@@ -28,6 +28,7 @@ async function server(t) {
     },
     cliStatus: async (o) => (refreshes.push(!!o?.refresh), { providers: { codex: { installed: true, version: "0.160.0", authenticated: true, authHint: "준비됨" } } }),
     cliModels: () => ({ models: { claude: [{ slug: "haiku" }] } }),
+    runnerRuns: (id) => ({ runs: [{ taskId: id, role: "pm", runner: "claude", version: "2.1.280", model: "default", reasoning: null }] }),
   };
   configurePazmoHost({ project: "/p", instance: "i", token: "t".repeat(64), initialize: async () => bridge });
   const app = express();
@@ -72,6 +73,10 @@ test("managed CLI status, model lists and runner edits go through Office", async
   assert.equal(bad.status, 409);
   assert.equal(bad.json.error, "RUNNER_MODEL_UNKNOWN");
   assert.match(bad.json.message, /지원하지 않는 모델/);
+
+  const runs = await s.call("GET", "/api/task-reports/root-1/runners");
+  assert.equal(runs.status, 200);
+  assert.deepEqual(runs.json.runs.map((r) => [r.taskId, r.role, r.runner]), [["root-1", "pm", "claude"]]);
 
   const other = await s.call("POST", "/api/agents", { name: "new" });
   assert.equal(other.status, 423);

@@ -32,6 +32,8 @@ export type NativeOfficeBridge = {
   checkAgentMutation(id: string, patch?: unknown): Promise<void>;
   cliStatus(options?: { refresh?: boolean }): Promise<unknown>;
   cliModels(): unknown;
+  /** Which installed CLI served each role of a report's request. */
+  runnerRuns(id: string): unknown;
 };
 export type PazmoHost = {
   project: string;
@@ -107,6 +109,8 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
       if (req.method === "GET" && req.path === "/cli-status")
         return res.json(await office.cliStatus({ refresh: Boolean(req.query.refresh) }));
       if (req.method === "GET" && req.path === "/cli-models") return res.json(office.cliModels());
+      const runnersOf = req.path.match(/^\/task-reports\/([^/]+)\/runners$/);
+      if (runnersOf && req.method === "GET") return res.json(office.runnerRuns(runnersOf[1]));
       const agentEdit = req.path.match(/^\/agents\/([^/]+)$/);
       if (agentEdit && req.method === "PATCH") {
         await office.checkAgentMutation(agentEdit[1], req.body);

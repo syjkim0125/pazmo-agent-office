@@ -17,6 +17,7 @@ import { createLiveRuntime, type LiveConfig } from "./live.ts";
 import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
 import type { RunnerCatalog } from "./runner-settings.ts";
 import { RunnerEvidence } from "../core/runner-evidence.ts";
+import { changeSummary } from "./decision-summary.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
 
 /** Shared with WorkflowDecisionContent: text after it is the full record. */
@@ -510,7 +511,7 @@ export async function createNativeOffice(c: Config) {
               item.id,
               "G4",
               { challengeId: request.id },
-              `최종 결과 승인\n${renewed}${request.questions.map((q, n) => `${n + 1}. ${q}`).join("\n")}\n세 질문에 번호별로 답해주세요. 승인 선택은 현재 변경본에만 적용됩니다.\n검증과 변경 내용:\n${JSON.stringify(request.evidence, null, 2)}`,
+              `최종 결과 승인\n${renewed}${request.questions.map((q, n) => `${n + 1}. ${q}`).join("\n")}\n세 질문에 번호별로 답해주세요. 승인 선택은 현재 변경본에만 적용됩니다.\n${changeSummary(request.evidence)}\n검증과 변경 내용:\n${JSON.stringify(request.evidence, null, 2)}`,
               // Only a pure time-out repeats; a changed session or candidate is announced again.
               g4.status === "expired"
                 ? `decision-notice:${item.id}:G4-expired:${round.id}`
@@ -746,8 +747,10 @@ export async function createNativeOffice(c: Config) {
       .split("\n")
       .map((line) => `> ${line}`)
       .join("\n");
+    // Keep the [변경사항] summary (when present) with the verbatim evidence.
+    const summaryAt = d.summary.indexOf("\n[변경사항]\n");
     const evidence = d.summary.slice(
-      d.summary.indexOf("\n검증과 변경 내용:\n"),
+      summaryAt >= 0 ? summaryAt : d.summary.indexOf("\n검증과 변경 내용:\n"),
     );
     return `최종 결과 승인\n**답변에 대한 피드백입니다. 다시 답하지 않아도 됩니다.** 아래 내용을 확인한 뒤 ‘피드백 확인 후 승인’을 누르면 현재 검증된 결과물을 인도합니다.\n\n${reasons}\n\n이전 제출 답변:\n${note}\n${evidence}`;
   }
@@ -1147,6 +1150,7 @@ export async function createNativeOffice(c: Config) {
     },
     cliStatus: (o?: { refresh?: boolean }) => runners.settings.cliStatus(o),
     cliModels: () => runners.settings.cliModels(),
+    runnerRuns: (id: string) => ({ runs: runners.evidence.forRequest(id) }),
     checkTaskMutation(id: string, patch?: unknown) {
       // Hiding a card changes presentation only; no workflow transition.
       if (
