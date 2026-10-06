@@ -115,9 +115,10 @@ test("file tools translate to exec-server methods against the remote cwd", async
   t.after(() => bridge.child.kill());
   await bridge.init();
   const read = await bridge.call("read_file", { path: "README.md" });
-  assert.equal(read.content[0].text, "hello frames\n");
+  assert.equal(read.content[0].text, "path: /candidate/tree/README.md\nhello frames\n");
   assert.equal(relay.last("fs/readFile").params.path, "file:///candidate/tree/README.md");
   const list = await bridge.call("list_directory", { path: "." });
+  assert.match(list.content[0].text, /^path: \/candidate\/tree\n/);
   assert.match(list.content[0].text, /README\.md/);
   assert.match(list.content[0].text, /src\//);
   await bridge.call("write_file", { path: "/candidate/tree/src/b.ts", content: "b" });
@@ -178,7 +179,7 @@ test("run_command polls until closed and reports exit code and output", async (t
   assert.deepEqual(start.argv, ["/bin/sh", "-c", "npm test"]);
   assert.equal(start.cwd, "file:///candidate/tree");
   assert.deepEqual(start.env, {});
-  assert.match(r.content[0].text, /exit_code: 3/);
+  assert.match(r.content[0].text, /^exit_code: 3\ncwd: \/candidate\/tree\n/);
   assert.match(r.content[0].text, /out\n/);
   assert.match(r.content[0].text, /err\n/);
 });

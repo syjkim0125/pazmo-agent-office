@@ -97,14 +97,18 @@ function remote(path = ".") {
     throw new Error(`path must stay inside ${cwd}`);
   return "file://" + resolved.split("/").map(encodeURIComponent).join("/");
 }
+const localPath = (uri) => decodeURIComponent(uri.slice("file://".length));
 const clip = (text) =>
   text.length > limit ? text.slice(0, limit) + `\n[truncated at ${limit} bytes]` : text;
 
 async function call(name, args = {}) {
   await ready;
+  // The first line states the executor-side location actually used: trusted
+  // inspection evidence for Office, never the model's own claim.
   if (name === "read_file") {
-    const { dataBase64 } = await rpc("fs/readFile", { path: remote(args.path), sandbox: null });
-    return clip(Buffer.from(dataBase64 ?? "", "base64").toString("utf8"));
+    const path = remote(args.path);
+    const { dataBase64 } = await rpc("fs/readFile", { path, sandbox: null });
+    return `path: ${localPath(path)}\n` + clip(Buffer.from(dataBase64 ?? "", "base64").toString("utf8"));
   }
   if (name === "write_file") {
     if (typeof args.content !== "string") throw new Error("content must be a string");
@@ -114,11 +118,12 @@ async function call(name, args = {}) {
       dataBase64: Buffer.from(args.content, "utf8").toString("base64"),
       sandbox: null,
     });
-    return `wrote ${Buffer.byteLength(args.content)} bytes to ${decodeURIComponent(path.slice(7))}`;
+    return `wrote ${Buffer.byteLength(args.content)} bytes to ${localPath(path)}`;
   }
   if (name === "list_directory") {
-    const { entries = [] } = await rpc("fs/readDirectory", { path: remote(args.path), sandbox: null });
-    return entries.map((e) => e.fileName + (e.isDirectory ? "/" : "")).join("\n");
+    const path = remote(args.path);
+    const { entries = [] } = await rpc("fs/readDirectory", { path, sandbox: null });
+    return `path: ${localPath(path)}\n` + entries.map((e) => e.fileName + (e.isDirectory ? "/" : "")).join("\n");
   }
   if (name === "run_command") {
     if (typeof args.command !== "string" || !args.command.trim()) throw new Error("command is required");
@@ -148,10 +153,10 @@ async function call(name, args = {}) {
       }
       if (Date.now() > deadline) {
         await rpc("process/terminate", { processId }).catch(() => {});
-        return `exit_code: timeout after ${timeout}ms\n${clip(output.toString("utf8"))}`;
+        return `exit_code: timeout after ${timeout}ms\ncwd: ${cwd}\n${clip(output.toString("utf8"))}`;
       }
     }
-    return `exit_code: ${exitCode}\n${clip(output.toString("utf8"))}`;
+    return `exit_code: ${exitCode}\ncwd: ${cwd}\n${clip(output.toString("utf8"))}`;
   }
   throw new Error(`unknown tool ${name}`);
 }

@@ -63,7 +63,7 @@ test("tool calls reach the VM executor through the bridge and the report is runn
   assert.equal(result.exitCode, 0);
   assert.equal(closed, true);
   assert.deepEqual(terminalReport(result.stdout, ["report"]), {
-    report: { readme: "hello frames\n", promptSeen: true },
+    report: { readme: "path: /candidate/tree/README.md\nhello frames\n", promptSeen: true },
   });
   assert.equal(fx.executors(), 1);
 });

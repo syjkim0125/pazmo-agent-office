@@ -112,6 +112,29 @@ function unfence(text: string): string {
   return m ? m[1] : text;
 }
 
+/** A successful Office bridge call as inspection evidence. The location comes
+ * from the bridge's first result line (what the executor actually used). */
+function toolEvidence(use: { name?: string; input?: { command?: unknown } }, text: string) {
+  const name = use.name?.replace(/^mcp__office__/, "");
+  if (name === "read_file" || name === "list_directory") {
+    const path = /^path: (\/\S*)\n?/.exec(text)?.[1];
+    return path ? { type: "file_read", path, status: "completed" } : null;
+  }
+  if (name === "run_command" && typeof use.input?.command === "string") {
+    const cwd = /^exit_code: 0\ncwd: (\/\S*)\n/.exec(text)?.[1];
+    return cwd
+      ? { type: "command_execution", command: `cd ${cwd} && ${use.input.command}`, exit_code: 0, status: "completed" }
+      : null;
+  }
+  return null;
+}
+const resultText = (content: unknown): string =>
+  typeof content === "string"
+    ? content
+    : Array.isArray(content)
+      ? content.map((c) => (typeof c?.text === "string" ? c.text : "")).join("")
+      : "";
+
 /** Maps a claude stream onto the controller's single-turn event shape so the
  * existing role report readers stay runner-independent. */
 export function normalizeClaudeStream(stdout: string): string {
@@ -123,14 +146,25 @@ export function normalizeClaudeStream(stdout: string): string {
       .filter((l) => l.trim())
       .map((l) => JSON.parse(l));
     const results = events.filter((e) => e?.type === "result");
-    for (const e of events)
-      if (e?.type === "assistant" && Array.isArray(e.message?.content))
-        for (const block of e.message.content)
+    const uses = new Map<string, { name?: string; input?: { command?: unknown } }>();
+    for (const e of events) {
+      const content = Array.isArray(e?.message?.content) ? e.message.content : [];
+      if (e?.type === "assistant")
+        for (const block of content) {
+          if (block?.type === "tool_use" && typeof block.id === "string") uses.set(block.id, block);
           if (block?.type === "text" && typeof block.text === "string" && block.text.trim())
             out.push({
               type: "item.completed",
               item: { type: "agent_message", text: unfence(block.text) },
             });
+        }
+      if (e?.type === "user")
+        for (const block of content) {
+          const use = block?.type === "tool_result" && uses.get(block.tool_use_id);
+          const evidence = use && !block.is_error ? toolEvidence(use, resultText(block.content)) : null;
+          if (evidence) out.push({ type: "item.completed", item: evidence });
+        }
+    }
     completed =
       results.length === 1 &&
       events.at(-1) === results[0] &&

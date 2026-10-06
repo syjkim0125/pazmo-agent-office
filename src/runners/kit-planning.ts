@@ -9,18 +9,23 @@ import type { KitNode, KitStatus } from "../core/kit-role-runs.ts";
 import { acceptPlanning } from "./planning.ts";
 import type { PlanningPacket } from "./planning.ts";
 
-/** Grounding is proven only by a completed, successful shell command on the
- * readonly snapshot in this turn, never by the worker's or a prior node's claim. */
+/** Grounding is proven only by a completed, successful shell command or Office
+ * bridge file read on the readonly snapshot in this turn (2026-10-06 user
+ * decision), never by the worker's or a prior node's claim. */
 function inspected(stdout: string) {
   return stdout.split("\n").some((line) => {
     try {
       const { type, item } = JSON.parse(line);
       return (
         type === "item.completed" &&
-        item?.type === "command_execution" &&
-        item.exit_code === 0 &&
-        typeof item.command === "string" &&
-        item.command.includes("/candidate/tree")
+        ((item?.type === "command_execution" &&
+          item.exit_code === 0 &&
+          typeof item.command === "string" &&
+          item.command.includes("/candidate/tree")) ||
+          (item?.type === "file_read" &&
+            item.status === "completed" &&
+            typeof item.path === "string" &&
+            (item.path === "/candidate/tree" || item.path.startsWith("/candidate/tree/"))))
       );
     } catch {
       return false;
