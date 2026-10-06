@@ -13,6 +13,9 @@ export interface DecisionInboxItem {
   options: DecisionOption[];
   createdAt: number;
   taskId?: string | null;
+  /** Same task + decisionKind identifies a reissued approval request. */
+  decisionKind?: string | null;
+  expiresAt?: number | null;
   projectId?: string | null;
   projectName?: string | null;
 }

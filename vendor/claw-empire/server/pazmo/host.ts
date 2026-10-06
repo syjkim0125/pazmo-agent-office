@@ -19,6 +19,8 @@ export type NativeOfficeBridge = {
     messageType?: string;
   }): Promise<void>;
   decisions(): unknown[];
+  /** Like decisions(), but first replaces requests whose approval challenge expired. */
+  currentDecisions(): Promise<unknown[]>;
   progress(id: string): { canRun: boolean; message: string; childTaskIds: string[] } | undefined;
   refresh(): Promise<void>;
   inspect(req: IncomingMessage, res: ServerResponse, path: string): Promise<void>;
@@ -99,7 +101,7 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
         return await office.inspect(req, res, `/api${req.path}`);
       }
       if (req.method === "GET" && req.path === "/decision-inbox") {
-        return res.json({ items: office.decisions() });
+        return res.json({ items: await office.currentDecisions() });
       }
       // The user's own installed CLIs, as discovered by trusted Office startup.
       if (req.method === "GET" && req.path === "/cli-status")

@@ -24,6 +24,13 @@ A point where work stops until a human records an understanding or approval answ
 ### Decision
 A pending human answer that Office shows in its Decisions inbox: a Gate approval, answers to role questions, or a planning recovery request. Its display text is a readable projection; the answer is bound to the underlying subject, never to the text shown, and the complete subject stays available for inspection.
 
+A Decision is identified to the human by its task and gate, not by its inbox entry: when its Approval challenge expires, Office replaces the entry with a new one, and an unsent answer may follow it to any replacement for the same task and gate as text, but is never submitted automatically; the human re-reads before submitting.
+
+### Approval challenge
+The one-time authority a Gate Decision carries: a human answer is accepted only against a live challenge for that exact subject.
+
+A challenge is consumed by the first answer, belongs to the Office session that issued it, and expires after a short fixed time. An expired or foreign challenge rejects the answer without recording it; Office issues a fresh challenge for the same subject rather than extending the old one, so a stale answer can never be replayed into a later approval.
+
 ### Planning recovery
 A human-requested resumption of a planning role (PM or Lead) after its closed response was rejected as structurally invalid.
 *Avoid:* retry, reset

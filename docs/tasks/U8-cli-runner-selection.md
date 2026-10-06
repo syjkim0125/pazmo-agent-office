@@ -7,7 +7,7 @@ Plan source: docs/plans/2026-10-02-1747-feat-cli-runner-selection-plan.md (Task 
 사용자 PC에 설치·로그인된 codex 또는 claude를 구독 로그인 그대로 역할별로 실행한다. 실행기·모델 선택은 화면에서 저장되고 재시작 후에도 유지된다.
 
 ## Covers — Story M/V IDs
-- M3, M4 / V3, V4, V9 (D14)
+- M3, M4 / V3, V4, V9 (D15)
 
 ## Scope
 - IN: CLI 탐색·로그인 상태, CLI 모델 목록, (SHA, 모델)별 로그인 없는 검사, claude MCP 도구 다리, 역할별 선택 저장·검증, 실행 증거, 시작 조건.

@@ -8,6 +8,34 @@ import WorkflowDecisionContent from "./WorkflowDecisionContent";
 import type { DecisionInboxItem } from "./chat/decision-inbox";
 import { formatDecisionInboxTime as formatTime, type DecisionInboxModalProps } from "./chat/decision-inbox-modal.meta";
 
+type FollowupTarget = {
+  itemId: string;
+  optionNumber: number;
+  action?: string;
+  kind: DecisionInboxItem["kind"];
+  taskId?: string | null;
+  decisionKind?: string | null;
+};
+// "reissued": moved onto a new approval challenge; "gone": nothing to answer any more.
+type FollowupNotice = "stale" | "reissued" | "gone";
+
+const REISSUABLE_GATES = new Set(["G1", "G3", "G4"]);
+const EXPIRY_WARNING_MS = 2 * 60_000;
+
+/** Office replaces an expired approval challenge with a new request for the same task and gate. */
+function findReissuedDecision(items: DecisionInboxItem[], target: FollowupTarget) {
+  if (target.kind !== "workflow_gate" || !target.taskId || !REISSUABLE_GATES.has(target.decisionKind ?? "")) {
+    return null;
+  }
+  for (const entry of items) {
+    if (entry.kind !== "workflow_gate" || entry.taskId !== target.taskId) continue;
+    if (entry.decisionKind !== target.decisionKind) continue;
+    const option = entry.options.find((candidate) => candidate.action === target.action);
+    if (option) return { item: entry, optionNumber: option.number };
+  }
+  return null;
+}
+
 export default function DecisionInboxModal({
   open,
   loading,
@@ -28,11 +56,20 @@ export default function DecisionInboxModal({
     for (const agent of agents) map.set(agent.id, agent);
     return map;
   }, [agents]);
-  const [followupTarget, setFollowupTarget] = useState<{
-    itemId: string;
-    optionNumber: number;
-  } | null>(null);
+  const [followupTarget, setFollowupTarget] = useState<FollowupTarget | null>(null);
   const [followupDraft, setFollowupDraft] = useState("");
+  const [followupNotice, setFollowupNotice] = useState<FollowupNotice | null>(null);
+  const [followupPending, setFollowupPending] = useState(false);
+  const [optionStale, setOptionStale] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  const hasDeadline = open && items.some((entry) => entry.expiresAt);
+
+  useEffect(() => {
+    if (!hasDeadline) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(timer);
+  }, [hasDeadline]);
   const [reviewPickSelections, setReviewPickSelections] = useState<Record<string, number[]>>({});
   const [reviewPickDrafts, setReviewPickDrafts] = useState<Record<string, string>>({});
 
@@ -40,17 +77,29 @@ export default function DecisionInboxModal({
     if (!open) {
       setFollowupTarget(null);
       setFollowupDraft("");
+      setFollowupNotice(null);
+      setOptionStale(false);
       setReviewPickSelections({});
       setReviewPickDrafts({});
       return;
     }
-    if (!followupTarget) return;
-    const stillExists = items.some((entry) => entry.id === followupTarget.itemId);
-    if (!stillExists) {
-      setFollowupTarget(null);
-      setFollowupDraft("");
+    // While a reply is in flight its outcome decides; a vanished item may be our own success.
+    if (!followupTarget || followupPending) return;
+    if (items.some((entry) => entry.id === followupTarget.itemId)) return;
+    const reissued = findReissuedDecision(items, followupTarget);
+    if (reissued) {
+      setFollowupTarget({ ...followupTarget, itemId: reissued.item.id, optionNumber: reissued.optionNumber });
+      setFollowupNotice("reissued");
+      return;
     }
-  }, [open, followupTarget, items]);
+    if (followupNotice) {
+      // The human's answer was never applied, so keep it readable instead of dropping it.
+      if (followupNotice !== "gone") setFollowupNotice("gone");
+      return;
+    }
+    setFollowupTarget(null);
+    setFollowupDraft("");
+  }, [open, followupTarget, followupPending, followupNotice, items]);
 
   useEffect(() => {
     setReviewPickSelections((prev) => {
@@ -86,30 +135,85 @@ export default function DecisionInboxModal({
     [followupTarget, items],
   );
   const followupBusyKey = followupTarget ? `${followupTarget.itemId}:${followupTarget.optionNumber}` : null;
-  const isFollowupSubmitting = followupBusyKey ? busyKey === followupBusyKey : false;
+  const isFollowupSubmitting = followupPending || (followupBusyKey ? busyKey === followupBusyKey : false);
   const canSubmitFollowup = !!(followupItem && followupDraft.trim() && !isFollowupSubmitting);
 
-  function handleOptionClick(item: DecisionInboxItem, optionNumber: number, action?: string) {
+  async function handleOptionClick(item: DecisionInboxItem, optionNumber: number, action?: string) {
     if (action === "add_followup_request" || action === "workflow_answer") {
-      setFollowupTarget({ itemId: item.id, optionNumber });
+      setFollowupTarget({
+        itemId: item.id,
+        optionNumber,
+        action,
+        kind: item.kind,
+        taskId: item.taskId,
+        decisionKind: item.decisionKind,
+      });
       setFollowupDraft("");
+      setFollowupNotice(null);
       return;
     }
-    onReplyOption(item, optionNumber);
+    setOptionStale(false);
+    if ((await onReplyOption(item, optionNumber)) === "stale") setOptionStale(true);
   }
 
-  function handleSubmitFollowup() {
+  async function handleSubmitFollowup() {
     if (!followupItem || !followupTarget || isFollowupSubmitting) return;
     const note = followupDraft.trim();
     if (!note) return;
-    onReplyOption(followupItem, followupTarget.optionNumber, { note });
-    // Keep the human draft on rejection or uncertain delivery. The items effect
-    // clears it only after the server no longer lists this request.
+    setFollowupPending(true);
+    let outcome: Awaited<ReturnType<typeof onReplyOption>>;
+    try {
+      outcome = await onReplyOption(followupItem, followupTarget.optionNumber, { note });
+    } finally {
+      setFollowupPending(false);
+    }
+    if (outcome === "sent") {
+      setFollowupTarget(null);
+      setFollowupDraft("");
+      setFollowupNotice(null);
+    } else if (outcome === "stale") {
+      setFollowupNotice("stale");
+    }
+    // Otherwise keep the human draft on rejection or uncertain delivery. The items
+    // effect clears it only after the server no longer lists this request.
   }
 
   function handleCancelFollowup() {
     setFollowupTarget(null);
     setFollowupDraft("");
+    setFollowupNotice(null);
+  }
+
+  const followupNoticeText = followupNotice
+    ? {
+        stale: t({
+          ko: "승인 요청이 만료되었습니다. 적어 둔 메모는 그대로 두었습니다. 새로고침으로 새 요청을 불러온 뒤 다시 제출해 주세요.",
+          en: "This approval request expired. Your note is kept. Refresh to load the new request, then submit again.",
+        }),
+        reissued: t({
+          ko: "승인 요청이 만료되어 새 요청으로 바뀌었습니다. 위 내용을 다시 확인한 뒤 제출해 주세요. 적어 둔 메모는 그대로 두었고, 자동으로 다시 보내지 않습니다.",
+          en: "This approval request expired and was replaced by a new one. Review it again, then submit. Your note is kept and is not resent automatically.",
+        }),
+        gone: t({
+          ko: "이 요청은 더 이상 대기 중이 아닙니다. 적어 둔 메모가 필요하면 복사해 두세요.",
+          en: "This request is no longer pending. Copy your note if you still need it.",
+        }),
+      }[followupNotice]
+    : null;
+
+  function formatDeadline(expiresAt: number) {
+    const time = new Intl.DateTimeFormat(uiLanguage, { hour: "2-digit", minute: "2-digit" }).format(
+      new Date(expiresAt),
+    );
+    return expiresAt - now <= EXPIRY_WARNING_MS
+      ? t({
+          ko: `곧 만료 (${time}) · 만료되면 새 요청으로 자동 교체`,
+          en: `Expires soon (${time}) · replaced by a new request when it expires`,
+        })
+      : t({
+          ko: `${time}까지 유효 · 만료되면 새 요청으로 자동 교체`,
+          en: `Valid until ${time} · replaced by a new request when it expires`,
+        });
   }
 
   function getReviewPickOptions(item: DecisionInboxItem) {
@@ -247,6 +351,17 @@ export default function DecisionInboxModal({
         </div>
 
         <div className="max-h-[70vh] overflow-y-auto p-4">
+          {optionStale ? (
+            <p
+              role="status"
+              className="mb-3 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-200"
+            >
+              {t({
+                ko: "요청이 만료되어 새 요청으로 바뀌었습니다. 내용을 다시 확인한 뒤 선택해 주세요. 선택은 자동으로 다시 보내지 않습니다.",
+                en: "This request expired and was replaced. Review it again, then choose. Your choice is not resent automatically.",
+              })}
+            </p>
+          ) : null}
           {loading ? (
             <div className="py-12 text-center text-sm text-slate-500">
               {t({
@@ -292,6 +407,13 @@ export default function DecisionInboxModal({
                             </p>
                             <p className="text-[11px] text-indigo-300/90">{getKindLabel(item.kind)}</p>
                             <p className="text-[11px] text-slate-400">{formatTime(item.createdAt, uiLanguage)}</p>
+                            {item.expiresAt ? (
+                              <p
+                                className={`text-[11px] ${item.expiresAt - now <= EXPIRY_WARNING_MS ? "text-amber-300" : "text-slate-500"}`}
+                              >
+                                {formatDeadline(item.expiresAt)}
+                              </p>
+                            ) : null}
                           </div>
                         </div>
                       );
@@ -444,10 +566,18 @@ export default function DecisionInboxModal({
             </div>
           )}
         </div>
-        {followupItem ? (
+        {followupTarget && (followupItem || followupNotice === "gone") ? (
           <div className="border-t border-slate-700/60 bg-slate-900/90 px-4 py-3">
+            {followupNoticeText ? (
+              <p
+                role="status"
+                className="mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-200"
+              >
+                {followupNoticeText}
+              </p>
+            ) : null}
             <p className="mb-2 text-xs font-semibold text-slate-200">
-              {followupItem.kind === "workflow_gate"
+              {followupTarget.kind === "workflow_gate"
                 ? "위 내용을 확인하고 답변을 적어주세요"
                 : t({
                     ko: "추가요청사항 입력",
@@ -460,7 +590,7 @@ export default function DecisionInboxModal({
               value={followupDraft}
               onChange={(event) => setFollowupDraft(event.target.value)}
               placeholder={
-                followupItem.kind === "workflow_gate" && followupItem.requestContent.startsWith("최종 결과 승인\n")
+                followupItem?.kind === "workflow_gate" && followupItem.requestContent.startsWith("최종 결과 승인\n")
                   ? "1. 사용자가 겪는 변화\n2. 지켜야 할 규칙과 실패 시 동작\n3. 확인한 검사와 아직 확인하지 못한 범위"
                   : t({
                       ko: "요청사항을 입력해 주세요.",
@@ -489,7 +619,7 @@ export default function DecisionInboxModal({
               >
                 {isFollowupSubmitting
                   ? t({ ko: "전송 중...", en: "Sending...", ja: "送信中...", zh: "发送中..." })
-                  : followupItem.kind === "workflow_gate"
+                  : followupTarget.kind === "workflow_gate"
                     ? t({ ko: "답변 제출", en: "Submit Answer", ja: "回答を送信", zh: "提交回答" })
                     : t({ ko: "요청 등록", en: "Submit Request", ja: "要請登録", zh: "提交请求" })}
               </button>

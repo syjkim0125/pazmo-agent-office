@@ -20,7 +20,7 @@ execution: code
 
 **Tech Stack:** Node 24 (`node:test`, TS 직접 실행), `node:sqlite`, vendored `ws`, claw-empire React/Vite(vitest), Colima VM + docker.
 
-**Spec:** `docs/understanding/cli-runner-selection-decision.md` (G3 Approved 2026-10-02). Story M3/M4, V3/V4/V9, D14.
+**Spec:** `docs/understanding/cli-runner-selection-decision.md` (G3 Approved 2026-10-02). Story M3/M4, V3/V4/V9, D15.
 
 ## Global Constraints
 

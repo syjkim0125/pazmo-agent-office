@@ -200,6 +200,8 @@ export async function createNativeOffice(c: Config) {
     kind: string,
     payload: Record<string, unknown>,
     summary: string,
+    // Reissuing an expired challenge for unchanged content must not repost the notice.
+    notice?: string,
   ) {
     const binding = digest(JSON.stringify({ id, kind, payload }));
     // Display text is not bound into the approval; refresh it for an
@@ -221,10 +223,11 @@ export async function createNativeOffice(c: Config) {
     );
     message(
       id,
-      `decision:${binding}`,
+      notice ?? `decision:${binding}`,
       summary + "\n\nDecisions에서 확인하고 답해주세요.",
       kind === "questions" || kind === "story" ? "pm" : "lead",
     );
+    broadcast("task_update", task(id));
   }
   function dispatch(id: string, identity: string, run: () => unknown) {
     if (!live || closing || live.status().active.length >= 1) return;
@@ -456,6 +459,7 @@ export async function createNativeOffice(c: Config) {
                 contractDigest: item.contract.digest,
               },
               contractSummary(item.id, gate),
+              `decision-notice:${item.id}:${gate}:${item.contract.digest}`,
             );
           }
         } else if (item.ready && item.status === "planned") {
@@ -507,6 +511,10 @@ export async function createNativeOffice(c: Config) {
               "G4",
               { challengeId: request.id },
               `최종 결과 승인\n${renewed}${request.questions.map((q, n) => `${n + 1}. ${q}`).join("\n")}\n세 질문에 번호별로 답해주세요. 승인 선택은 현재 변경본에만 적용됩니다.\n검증과 변경 내용:\n${JSON.stringify(request.evidence, null, 2)}`,
+              // Only a pure time-out repeats; a changed session or candidate is announced again.
+              g4.status === "expired"
+                ? `decision-notice:${item.id}:G4-expired:${round.id}`
+                : undefined,
             );
           }
         }
@@ -787,13 +795,22 @@ export async function createNativeOffice(c: Config) {
         .all() as Decision[]
     ).map((d) => {
       const t = task(d.task_id);
+      const { challengeId } = JSON.parse(d.payload);
       const feedback =
-        d.kind === "G4"
-          ? completion.feedback(d.task_id, JSON.parse(d.payload).challengeId)
-          : null;
+        d.kind === "G4" ? completion.feedback(d.task_id, challengeId) : null;
+      // Only an unconsumed challenge has a deadline the human can still act on.
+      const open = challengeId
+        ? (db
+            .prepare(
+              "SELECT expires_at FROM pazmo_approval_challenges WHERE id=? AND consumed_at IS NULL",
+            )
+            .get(challengeId) as { expires_at: number } | undefined)
+        : undefined;
       return {
         id: d.id,
         kind: "workflow_gate" as const,
+        decision_kind: d.kind,
+        expires_at: open?.expires_at ?? null,
         created_at: d.created_at,
         summary: d.kind === "G4" ? decisionSummary(d, feedback) : d.summary,
         agent_id: t.assigned_agent_id,
@@ -825,6 +842,25 @@ export async function createNativeOffice(c: Config) {
         ],
       };
     });
+  }
+  // pump() replaces an expired challenge, but nothing else runs it while a human
+  // only reads. Reconcile once per expired challenge so the list stays answerable.
+  const reconciledExpiries = new Set<string>();
+  async function currentDecisions() {
+    const expired = (
+      db
+        .prepare(
+          `SELECT c.id FROM pazmo_native_decisions d
+          JOIN pazmo_approval_challenges c ON c.id=json_extract(d.payload,'$.challengeId')
+          WHERE c.consumed_at IS NULL AND c.expires_at<=?`,
+        )
+        .all(Date.now()) as { id: string }[]
+    ).filter((c) => !reconciledExpiries.has(c.id));
+    if (expired.length) {
+      for (const c of expired) reconciledExpiries.add(c.id);
+      await pump();
+    }
+    return decisions();
   }
   function numbered(note: string, count: number) {
     if (count === 1) return [note.trim()];
@@ -1068,6 +1104,7 @@ export async function createNativeOffice(c: Config) {
     assign,
     chat,
     decisions,
+    currentDecisions,
     progress,
     refresh: pump,
     async inspect(req: IncomingMessage, res: ServerResponse, path: string) {

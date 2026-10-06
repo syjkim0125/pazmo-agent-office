@@ -1,6 +1,6 @@
 # 사용자 설치 codex·claude 실행기와 역할별 모델 선택 — 검증 기록
 
-Scope: U8, Story M3/M4, V3/V4/V9, D14.
+Scope: U8, Story M3/M4, V3/V4/V9, D15.
 - G3: [cli-runner-selection-decision.md](../understanding/cli-runner-selection-decision.md) (2026-10-02 승인).
 - Plan: [2026-10-02-1747 plan](../plans/2026-10-02-1747-feat-cli-runner-selection-plan.md).
 
