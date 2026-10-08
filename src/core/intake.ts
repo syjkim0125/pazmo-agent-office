@@ -17,6 +17,25 @@ import {
 } from "../runners/planning.ts";
 import type { PlanningPacket } from "../runners/planning.ts";
 type Result = ReturnType<typeof acceptPlanning>;
+/** Recoveries are bounded per failure origin: a transient runner failure
+ * (auth, transport) must not spend the budget for rejected plan output.
+ * Retries recorded before origins existed count as output retries. */
+const PLANNING_RETRY_LIMIT = { output: 2, runner: 3 } as const;
+export function planningRetryBudget(
+  events: { actor: string; payload: Record<string, any> }[],
+) {
+  const originOf = (value: unknown) =>
+    value === "runner" ? ("runner" as const) : ("output" as const);
+  const origin = originOf(
+    events.findLast(
+      (e) => e.actor === "controller" && e.payload.error === "PLANNING_INVALID",
+    )?.payload.origin,
+  );
+  const used = events.filter(
+    (e) => e.payload.planningRetry && originOf(e.payload.planningRetry.origin) === origin,
+  ).length;
+  return { origin, limit: PLANNING_RETRY_LIMIT[origin], left: PLANNING_RETRY_LIMIT[origin] - used };
+}
 type Publication = {
   directory: string;
   sourceRevision: number;
@@ -319,7 +338,12 @@ export class IntakeLedger {
           "human_required",
           null,
           "controller",
-          { error: error.code, detail: error.detail, ...archive?.() },
+          {
+            error: error.code,
+            detail: error.detail,
+            origin: error.origin,
+            ...archive?.(),
+          },
           error.code,
         );
       }
@@ -495,13 +519,13 @@ export class IntakeLedger {
           "PLANNING_RECOVERY_REQUIRED",
           "No matching closed planning execution.",
         );
-      const retries = this.get(id).events.filter(
-        (e) => e.payload.planningRetry,
-      );
-      if (retries.length >= 2)
+      const budget = planningRetryBudget(this.get(id).events);
+      if (budget.left <= 0)
         fail(
           "PLANNING_RETRY_LIMIT",
-          "Two planning recoveries were already requested; inspect the failure.",
+          budget.origin === "runner"
+            ? `${budget.limit} runner-failure recoveries were already requested; fix the runner (e.g. sign in) before planning again.`
+            : "Two planning recoveries were already requested; inspect the failure.",
         );
       return this.#advance(
         row,
@@ -512,6 +536,7 @@ export class IntakeLedger {
         {
           planningRetry: {
             role: packet.role,
+            origin: budget.origin,
             fromRevision: revision,
             leaseId: prior.id,
             note,

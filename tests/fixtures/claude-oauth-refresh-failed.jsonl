@@ -1,0 +1,3 @@
+{"type":"turn.started"}
+{"type":"item.completed","item":{"type":"agent_message","text":"Failed to refresh OAuth token: another Claude Code process is refreshing it or exited mid-refresh. This is usually transient..."}}
+{"type":"turn.failed"}

@@ -173,7 +173,11 @@ export class PlanningCoordinator {
                       ? error.code
                       : "KIT_PLANNING_FAILED",
                     error instanceof PlanningInvalid
-                      ? { detail: error.detail, ...archive() }
+                      ? {
+                          detail: error.detail,
+                          origin: error.origin,
+                          ...archive(),
+                        }
                       : {},
                   );
                 }
