@@ -181,6 +181,7 @@ test("cancelled, stale and malformed model results cannot overwrite progress or 
   assert.deepEqual(failed.events.at(-1).payload, {
     error: "PLANNING_INVALID",
     detail: "process not closed",
+    origin: "output",
   });
   assert.throws(
     () => f.intake.packet(failed.taskId, failed.revision, failed.inputDigest),
