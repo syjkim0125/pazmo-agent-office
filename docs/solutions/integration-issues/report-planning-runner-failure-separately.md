@@ -30,8 +30,8 @@ When the PM planning role's runner failed before the model produced anything (he
   {"type":"item.completed","item":{"type":"agent_message","text":"Failed to refresh OAuth token: ..."}}
   {"type":"turn.failed"}
   ```
-- The Decisions inbox showed the fixed format-failure text (`src/runtime/native-office.ts:394`, "계획 응답의 형식 검증이 실패했습니다 …") followed by `원인: exitCode=1`. Nothing pointed at the runner or at signing in again.
-- Recovery was one shared counter for every cause: `retryPlanning` refused at two prior retries (`src/core/intake.ts:501-504`), and the Decision was offered only while fewer than two existed (`src/runtime/native-office.ts:387`).
+- The Decisions inbox showed the fixed format-failure text (`src/runtime/native-office.ts:394` before #12, "계획 응답의 형식 검증이 실패했습니다 …") followed by `원인: exitCode=1`. Nothing pointed at the runner or at signing in again.
+- Recovery was one shared counter for every cause: `retryPlanning` refused at two prior retries (`src/core/intake.ts:501-504` before #12), and the Decision was offered only while fewer than two existed (`src/runtime/native-office.ts:387` before #12).
 
 ## What Didn't Work
 - **One recovery counter for every cause.** The two-recovery cap was introduced with the planning-recovery path on 2026-09-29, after a genuine Lead format rejection, as a single counter shared by every planning failure; nothing then distinguished a runner failure from a rejected response (session history). That design is what let a transient sign-in problem spend a format recovery.
@@ -41,13 +41,13 @@ When the PM planning role's runner failed before the model produced anything (he
 - **Environment traps while verifying.** The shell's default Node was v22, so `.ts` imports failed with `ERR_UNKNOWN_FILE_EXTENSION`; the repo needs Node 24.19 (`.node-version`, `package.json` engines). `npx tsc` fetches an unrelated npm package; use `npm run typecheck`. A fresh worktree also needs the `vendor/claw-empire` build (see `fresh-worktree-tests-fail-without-office-ui-build.md`).
 
 ## Solution
-Opened in #12, unmerged as of 2026-10-08.
+Fixed in #12 (merged 2026-10-12). Line numbers cited "in #12" match `main` after that merge.
 
 **1. The rejection carries an origin.** `PlanningInvalid` gains `origin: "runner" | "output"`, defaulting to `"output"` (`src/runners/planning.ts:16-23` in #12). It is named `origin`, not `cause`, to avoid colliding with the built-in `Error.cause`.
 
 **2. `acceptPlanning` checks for a runner failure before the exit code.** Closure and timeout are still checked first; then the stream is inspected:
 ```ts
-// before (src/runners/planning.ts:362 at main)
+// before (src/runners/planning.ts:362 before #12)
 if (r.exitCode !== 0 || r.signal)
   invalid(
     `exitCode=${typeof r.exitCode === "number" ? r.exitCode : "null"}` +
@@ -89,10 +89,10 @@ The question that matters is whether a model response exists to validate, and th
 - Known leftovers: intakes that failed before #12 carry no origin and keep the format wording and budget. The kit run's internal feedback for a runner failure still says the response "did not satisfy the planning protocol" (`src/runners/kit-planning.ts:238` at main).
 
 ## Related Issues
-- [record-planning-rejection-cause.md](record-planning-rejection-cause.md) — predecessor in the same module: introduced `PlanningInvalid.detail`, the `원인:` Decision line, the rejected-output archive and the "no model text in `detail`" rule this fix keeps. Its statements that a process failure reads `exitCode=…` and that recovery is capped at two in total describe main before #12.
+- [record-planning-rejection-cause.md](record-planning-rejection-cause.md) — predecessor in the same module: introduced `PlanningInvalid.detail`, the `원인:` Decision line, the rejected-output archive and the "no model text in `detail`" rule this fix keeps. It now points here for runner failures and the per-origin recovery budget.
 - [pin-bounded-role-instructions.md](../architecture-patterns/pin-bounded-role-instructions.md) — why planning recovery creates a successor kit run and keeps a host-level budget across successors; #12 splits that budget per failure origin.
 - [historical-round-queue-mutation.md](../logic-errors/historical-round-queue-mutation.md) — keeps "process stopped" separate from "output admissible"; this fix adds "runner failed before any output" as a further distinction.
 - [remote-codex-cwd-and-tool-evidence.md](remote-codex-cwd-and-tool-evidence.md) — another case where a CLI exit code described the turn, not the thing being judged.
 - [claw-cli-usage-panel-reads-cli-login-credentials-under-office.md](../security-issues/claw-cli-usage-panel-reads-cli-login-credentials-under-office.md) — Office never reads CLI login files, which is why the runner Decision asks the user to sign in again instead of Office handling the token.
 - [fresh-worktree-tests-fail-without-office-ui-build.md](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md) — worktree setup needed to run the suite for this change.
-- PR: https://github.com/syjkim0125/pazmo-agent-office/pull/12 (unmerged as of 2026-10-08).
+- PR: https://github.com/syjkim0125/pazmo-agent-office/pull/12 (merged 2026-10-12).

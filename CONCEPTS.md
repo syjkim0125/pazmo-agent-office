@@ -32,10 +32,10 @@ The one-time authority a Gate Decision carries: a human answer is accepted only 
 A challenge is consumed by the first answer, belongs to the Office session that issued it, and expires after a short fixed time. An expired or foreign challenge rejects the answer without recording it; Office issues a fresh challenge for the same subject rather than extending the old one, so a stale answer can never be replayed into a later approval.
 
 ### Planning recovery
-A human-requested resumption of a planning role (PM or Lead) after its closed response was rejected as structurally invalid.
+A human-requested resumption of a planning role (PM or Lead) after its closed response was rejected as structurally invalid, or after its Runner failed before returning any plan (for example, a sign-in failure).
 *Avoid:* retry, reset
 
-Recovery is not an approval of scope or results, and it does not reset the failed attempt: the rejected run and its failure record are preserved, and a successor run is linked to it. Each request has a small fixed recovery budget that successor runs do not refill, so a recovery is meant to follow a recorded failure cause rather than a guess. It is only offered once the planning process is confirmed closed.
+Recovery is not an approval of scope or results, and it does not reset the failed attempt: the rejected run and its failure record are preserved, and a successor run is linked to it. Each request has small fixed recovery budgets, kept separately for rejected responses and for Runner failures, so a transient Runner problem does not use up the recoveries meant for fixing a response; successor runs do not refill either budget, and a recovery is meant to follow a recorded failure cause rather than a guess. It is only offered once the planning process is confirmed closed.
 
 ## Runners
 
