@@ -83,10 +83,11 @@ The question that matters is whether a model response exists to validate, and th
 - Tests that guard this (all in #12, each written to fail first):
   - `tests/planning-runner-failure.test.mjs`: the OAuth fixture gives `origin: "runner"` and the exact label detail; a failed turn with no plan output gives the generic runner label at exit 1 and exit 0, and a canary secret in the message never appears in `detail`; a plan-shaped message, alone or followed by an OAuth sentence, keeps `origin: "output"` with `detail: "exitCode=1"`; an OAuth sentence among other non-plan text gets the generic runner label, not the OAuth one; malformed output, a completed turn, an unclosed process and a timeout stay `"output"`.
   - `tests/planning-coordinator.test.mjs:578`: through the kit path, runner failures record `origin` and still archive output; two runner and three output failures each get their own retries, and the third output retry throws `PLANNING_RETRY_LIMIT`.
-  - `tests/planning-coordinator.test.mjs:607`: the fourth runner retry throws `PLANNING_RETRY_LIMIT`.
+  - `tests/planning-coordinator.test.mjs:635`: the fourth runner retry throws `PLANNING_RETRY_LIMIT`.
   - `tests/native-office.test.mjs:490`: a runner-origin Decision does not match `/형식 검증/`, mentions `실행기`, says it is not counted against the two format resumes, and ends with `원인: <detail>`.
 - Verification at the time of the change, per the session: 473/473 tests passing on Node 24.19, typecheck clean.
-- Known leftovers: intakes that failed before #12 carry no origin and keep the format wording and budget. The kit run's internal feedback for a runner failure still says the response "did not satisfy the planning protocol" (`src/runners/kit-planning.ts:238` at main).
+- Known leftover: intakes that failed before #12 carry no origin and keep the format wording and budget.
+- The kit run's own record follows the same split since #15: a runner-origin rejection records a summary and feedback saying the runner failed before any planning output and no model response was judged, while rejected model output keeps "did not satisfy the planning protocol" (`src/runners/kit-planning.ts:228-252`; `tests/planning-coordinator.test.mjs:607`).
 
 ## Related Issues
 - [record-planning-rejection-cause.md](record-planning-rejection-cause.md) — predecessor in the same module: introduced `PlanningInvalid.detail`, the `원인:` Decision line, the rejected-output archive and the "no model text in `detail`" rule this fix keeps. It now points here for runner failures and the per-origin recovery budget.
