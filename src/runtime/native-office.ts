@@ -8,7 +8,7 @@ import { fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
 import { digest } from "../core/candidates.ts";
 import { OfficeStore } from "../core/store.ts";
-import { IntakeLedger } from "../core/intake.ts";
+import { IntakeLedger, planningRetryBudget } from "../core/intake.ts";
 import { VerificationLedger } from "../core/verification.ts";
 import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
@@ -384,14 +384,17 @@ export async function createNativeOffice(c: Config) {
         } else if (
           i.state === "human_required" &&
           i.reason === "PLANNING_INVALID" &&
-          i.events.filter((e) => e.payload.planningRetry).length < 2 &&
+          planningRetryBudget(i.events).left > 0 &&
           execution.listPlanning(i.taskId).every((l) => l.state === "released")
         ) {
+          const budget = planningRetryBudget(i.events);
           addDecision(
             i.taskId,
             "planning-retry",
             { revision: i.revision, inputDigest: i.inputDigest },
-            "계획 응답의 형식 검증이 실패했습니다. 실패 기록과 기존 승인은 보존됩니다. 원인 확인 후 같은 범위로 재개하려면 요청을 적어주세요. 계획 재개는 전체 두 번까지이며, 작업 범위나 최종 결과를 승인하는 동작이 아닙니다." +
+            (budget.origin === "runner"
+              ? `계획 역할의 실행기가 응답을 내기 전에 실패했습니다(인증·연결 등). 계획 형식 문제가 아닙니다. 실패 기록과 기존 승인은 보존됩니다. 실행기 문제(예: 다시 로그인)를 해소한 뒤 같은 범위로 재개하려면 요청을 적어주세요. 이 재개는 형식 실패용 두 번 횟수에 포함되지 않으며, 실행기 실패 재개는 따로 ${budget.limit}번까지입니다. 작업 범위나 최종 결과를 승인하는 동작이 아닙니다.`
+              : "계획 응답의 형식 검증이 실패했습니다. 실패 기록과 기존 승인은 보존됩니다. 원인 확인 후 같은 범위로 재개하려면 요청을 적어주세요. 형식 실패로 인한 계획 재개는 두 번까지이며, 작업 범위나 최종 결과를 승인하는 동작이 아닙니다.") +
               failureDetail(i.events),
           );
         } else if (
