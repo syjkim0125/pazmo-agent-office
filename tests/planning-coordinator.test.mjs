@@ -604,6 +604,34 @@ test("a runner failure is recorded as one and does not spend the format recovery
   assert.deepEqual(origins, ["runner", "runner", "output", "output", "output"]);
 });
 
+test("the kit run records a runner failure as a runner failure, not a protocol violation", async (t) => {
+  const { digest } = await import("../src/core/candidates.ts");
+  const clarify = async (kind) => {
+    const f = setup(t, "ready", true);
+    failWith(f, [kind]);
+    await f.coordinator.run(f.item.taskId, f.context);
+    return JSON.parse(
+      readFileSync(
+        join(
+          f.project,
+          `.pazmo-office/role-runs/${digest(`${f.item.taskId}:planning:pm`)}/run.json`,
+        ),
+        "utf8",
+      ),
+    ).state.nodes.clarify;
+  };
+  const runner = await clarify("runner");
+  assert.equal(runner.status, "failed");
+  assert.match(runner.output.summary, /runner failed before any planning output/);
+  assert.match(runner.evaluation.feedback, /runner failed before returning a planning response/);
+  assert.doesNotMatch(runner.evaluation.feedback, /did not satisfy the planning protocol/);
+  assert.equal(runner.evaluation.action, "human");
+  // A rejected model response keeps the protocol wording.
+  const output = await clarify("output");
+  assert.equal(output.output.summary, "Planning output was rejected; no Office proposal accepted.");
+  assert.equal(output.evaluation.feedback, "The closed model response did not satisfy the planning protocol.");
+});
+
 test("runner failure recoveries have their own bound", async (t) => {
   const f = setup(t, "ready", true);
   failWith(f, ["runner", "runner", "runner", "runner"]);
@@ -994,3 +1022,4 @@ for (const [label, path, accepted] of [
     } else assert.equal(result.reason, "INSPECTION_REQUIRED");
   });
 }
+
