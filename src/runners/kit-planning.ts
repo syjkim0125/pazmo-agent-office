@@ -6,7 +6,7 @@ import type { Candidate } from "../core/candidates.ts";
 import type { IntakeLedger } from "../core/intake.ts";
 import { KitRoleRun } from "../core/kit-role-runs.ts";
 import type { KitNode, KitStatus } from "../core/kit-role-runs.ts";
-import { acceptPlanning } from "./planning.ts";
+import { PlanningInvalid, acceptPlanning } from "./planning.ts";
 import type { PlanningPacket } from "./planning.ts";
 
 /** Grounding is proven only by a completed, successful shell command or Office
@@ -226,16 +226,22 @@ export class KitPlanning {
     try {
       result = acceptPlanning(packet, observation);
     } catch (error) {
+      // A runner that failed before any plan output left nothing to judge.
+      const runner =
+        error instanceof PlanningInvalid && error.origin === "runner";
       await run.record(
         node,
         {
-          summary: "Planning output was rejected; no Office proposal accepted.",
+          summary: runner
+            ? "The planning runner failed before any planning output; no Office proposal accepted."
+            : "Planning output was rejected; no Office proposal accepted.",
         },
         {
           passed: false,
           action: "human",
-          feedback:
-            "The closed model response did not satisfy the planning protocol.",
+          feedback: runner
+            ? "The runner failed before returning a planning response (for example authentication or connection); no model response was judged."
+            : "The closed model response did not satisfy the planning protocol.",
         },
         JSON.stringify({ taskId, revision, observation }),
       );
