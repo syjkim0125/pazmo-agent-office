@@ -1,3 +1,10 @@
+# 2026-10-12 팀 허브 1단계
+
+- 초대받은 팀원이 사내망 허브(`pazmo-office hub`)에서 레포 목록과 요청 게시판을 함께 쓰고, 레포 담당자가 수락한 요청을 **자기 PC의 Office와 자기 로그인**으로 실행하는 1단계를 구현했다(M8·V10·D16, G3 2026-10-08 승인). 허브는 실행기·로그인·인도물을 갖지 않고, 각 Office는 `127.0.0.1` 경계를 유지한 채 `hub-link`로 나가는 연결만 더한다. 질문·G1은 요청자가 허브에서, 작업 G1·G3·G4와 인도는 맡은 사람이 자기 Office에서 한다.
+- 자동 검사 root **540/540**, 타입 검사 exit 0(2026-10-12). 단위별 리뷰와 최종 전체 리뷰(Critical 0)에서 나온 보안 결함(null Origin, CA 다중 인증서 고정 우회, CA 이름 제한 등)을 모두 고쳤다.
+- **내 Mac 한 대로 실제 확인을 통과했다(2026-10-12).** 허브에서 팀원 요청 → 수락 → Office 접수 → 허브 G1 → 로컬 작업 G1·G4 → 인도 → 허브 완료·diff·요약까지 확인했고 원본 eevee-be는 바뀌지 않았다. **다른 사람 PC, 회사 IT·보안 정책, 여러 날 운영은 아직 확인하지 않았다.** 다중 PC 검증 완료가 아니다. 노트북 IP 변경으로 허브·브라우저 세션이 끊기는 한계가 있어 고정 IP에서만 운영한다.
+- 변경은 커밋하지 않은 작업 트리 상태이며 사용자 검토를 기다린다. G4는 아직 기록되지 않았다. [사용 안내](LOCAL-PREVIEW.md#팀-허브-1단계-시험) · [검증 기록](verification/2026-10-12-team-hub.md) · [G3 결정](understanding/team-hub-decision.md)
+
 # 2026-10-06 사용자 설치 codex·claude 실행기 선택
 
 - 역할(PM·Lead·Developer·Reviewer, G4 평가는 Reviewer 기준)마다 사용자 PC에 설치·로그인된 codex 또는 claude를 화면에서 고르고 저장한다. 별도 API 키 없이 각 CLI의 구독 로그인을 쓴다. 모델·effort 목록은 각 CLI에서 받는다. 둘 중 하나만 있어도 시작한다. 고정 0.155.1 codex는 `--codex-runtime pinned`로 남겼다. [G3 결정](understanding/cli-runner-selection-decision.md)

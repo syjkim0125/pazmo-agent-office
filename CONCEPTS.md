@@ -57,3 +57,29 @@ The state in which the original Claw office app runs inside Office as Office's s
 *Avoid:* Pazmo mode
 
 In managed mode Office owns every action the original app would otherwise take by itself. Original paths that would call a model, merge work, sign in to a provider, receive outside chat messages or run background sweeps are locked or switched off. Where the screen needs information, such as whether a Runner is installed and logged in, Office supplies its own answer. A feature that can only work by reading the user's login does not run at all; it shows that Office does not provide it, instead of appearing logged out or broken.
+
+## Team hub
+
+### Team hub
+The invite-only, intranet-hosted board where teammates see the repo list, post requests and follow progress. It is a bulletin board and post office: it stores people, repos, requests, progress snapshots and answers, but never runs a model and holds no login, repository contents or deliverables.
+*Avoid:* team server, shared Office
+
+The hub is not a second Office. Each person's Office keeps its own `127.0.0.1` boundary and only reaches out to the hub; a compromised hub can forge a requester's answers but cannot deliver anything, because delivery needs the assignee's local G4.
+
+### Repo owner
+A teammate who may accept requests for a registered repo and connect their own Office to it. The person who registers a repo is its first owner; owners or the admin add and remove owners. Anyone may post a request, but only an owner takes it.
+
+### Assignment
+An owner's explicit acceptance of one hub request, binding it to that owner's Office, PC and login. There is no automatic assignment. The requester answers the questions and the scope Gate (G1) on the hub; the assignee answers the task Gates and G4 in their own Office. An assignee can release the request and the requester can cancel it.
+
+### Office link
+The one-owner, one-repo pairing between an Office and the hub, created by a single-use command (hub address, code, certificate fingerprint) run on the owner's PC. The Office trusts only the hub certificate with that fingerprint, and the stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations.
+*Avoid:* login, sync account
+
+A link is outbound and polled; the hub never opens a connection into an Office. Re-pairing moves the link to another Office and revokes the first, whose in-flight local work the hub can no longer reach.
+
+### Hub snapshot
+The single bounded summary an Office uploads for an accepted request: status, title, pending questions and scope Decisions, role conversation, the candidate diff, a short report and the runners used. The hub keeps only the latest one, so a reconnect simply sends it again.
+*Avoid:* event log, sync
+
+A snapshot is what leaves the owner's machine, so it is the unit to reason about for privacy. It never carries login information, the whole repository, delivered files or the raw G4 evidence.
