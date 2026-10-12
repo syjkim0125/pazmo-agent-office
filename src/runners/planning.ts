@@ -11,12 +11,16 @@ import { terminalReport } from "./terminal-report.ts";
  * text never enters `detail`; the controller may show it and store it. */
 export class PlanningInvalid extends OfficeError {
   detail: string;
-  constructor(detail: string) {
+  /** "runner": the role's runner failed before any plan output (auth,
+   * transport); "output": the closed response itself was rejected. */
+  origin: "runner" | "output";
+  constructor(detail: string, origin: "runner" | "output" = "output") {
     super(
       "PLANNING_INVALID",
       "Planning evidence is incomplete, stale or invalid; no work was approved.",
     );
     this.detail = detail.slice(0, 200);
+    this.origin = origin;
   }
 }
 /** One source for the validators and the prompt, so stated limits cannot drift. */
@@ -35,6 +39,56 @@ const LIMITS = {
 };
 function invalid(detail: string): never {
   throw new PlanningInvalid(detail);
+}
+/** Runner diagnostics recognized only as a failed turn's sole message. The
+ * shown label is Office-authored, so turn text never reaches `detail`. */
+const RUNNER_MESSAGES: [RegExp, string][] = [
+  [
+    /^Failed to refresh OAuth token\b/,
+    "OAuth token refresh failed (another CLI process was refreshing; usually transient)",
+  ],
+  [
+    /^(Invalid API key|OAuth token has expired|Please run \/login)\b/,
+    "authentication failed (sign the runner in again)",
+  ],
+  [/^API Error: (429|5\d\d)\b/, "API unavailable or rate limited"],
+];
+/** A turn that failed before returning anything plan-shaped is a runner
+ * failure, not a format rejection: no model response was there to validate. */
+function runnerFailure(stdout: unknown): string | null {
+  if (typeof stdout !== "string" || Buffer.byteLength(stdout) > 256 * 1024)
+    return null;
+  let events: { type?: unknown; item?: { type?: unknown; text?: unknown } }[];
+  try {
+    events = stdout
+      .split("\n")
+      .filter((line) => line.trim())
+      .map((line) => JSON.parse(line));
+  } catch {
+    return null;
+  }
+  if (
+    !events.some((e) => ["turn.failed", "error"].includes(e?.type as string)) ||
+    events.some((e) => e?.type === "turn.completed")
+  )
+    return null;
+  const messages = events
+    .filter((e) => e?.type === "item.completed" && e.item?.type === "agent_message")
+    .map((e) => e.item!.text);
+  const planShaped = (text: unknown) => {
+    try {
+      const value = JSON.parse(text as string);
+      return !!value && typeof value === "object";
+    } catch {
+      return false;
+    }
+  };
+  if (messages.some(planShaped)) return null;
+  const only = messages.length === 1 ? messages[0] : undefined;
+  return (
+    RUNNER_MESSAGES.find(([pattern]) => typeof only === "string" && pattern.test(only))?.[1] ??
+    "turn failed before any plan output"
+  );
 }
 const token = (value: unknown) =>
   typeof value === "string" && /^[A-Za-z0-9_.-]{1,40}$/.test(value)
@@ -359,11 +413,12 @@ export function acceptPlanning(
     const r = observation.result;
     if (!observation.closed) invalid("process not closed");
     if (r.timedOut) invalid("timed out");
-    if (r.exitCode !== 0 || r.signal)
-      invalid(
-        `exitCode=${typeof r.exitCode === "number" ? r.exitCode : "null"}` +
-          (r.signal ? `; signal=${token(r.signal)}` : ""),
-      );
+    const exit =
+      `exitCode=${typeof r.exitCode === "number" ? r.exitCode : "null"}` +
+      (r.signal ? `; signal=${token(r.signal)}` : "");
+    const runner = runnerFailure(r.stdout);
+    if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}`, "runner");
+    if (r.exitCode !== 0 || r.signal) invalid(exit);
     if (r.error) invalid(`error=${token(r.error)}`);
     const raw = terminalReport(r.stdout, ["inputDigest", "status", "tasks"]);
     if (!raw)

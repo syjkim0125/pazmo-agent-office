@@ -487,6 +487,46 @@ test("reissuing an unchanged approval does not repeat its chat notice but still 
   assert.equal(notices(), 1, "the same plan is announced once, not every 10 minutes");
 });
 
+test("a runner failure Decision names the runner cause instead of a format failure", async (t) => {
+  const f = await fixture(t);
+  task(f);
+  await f.office.assign(taskId);
+  const { intake, execution } = f.office.ledgers;
+  const i = intake.get(taskId);
+  const lease = execution.reservePlanning(
+    taskId,
+    i.revision,
+    i.inputDigest,
+    "b".repeat(64),
+    10000,
+  );
+  execution.startPlanning(lease.id, "closed-planner");
+  const detail =
+    "runner: OAuth token refresh failed (another CLI process was refreshing; usually transient); exitCode=1";
+  intake.interrupt(taskId, i.revision, i.inputDigest, "PLANNING_INVALID", {
+    detail,
+    origin: "runner",
+  });
+  execution.finishPlanning(lease.id, "closed-planner", {
+    closed: true,
+    result: {
+      exitCode: 1,
+      signal: null,
+      error: null,
+      timedOut: false,
+      stdout: "",
+      stderr: "",
+    },
+  });
+  await f.office.refresh();
+  const [decision] = f.office.decisions();
+  assert.equal(decision.options[0].label, "계획 재개");
+  assert.doesNotMatch(decision.summary, /형식 검증/);
+  assert.match(decision.summary, /실행기/);
+  assert.match(decision.summary, /두 번 횟수에 포함되지 않/);
+  assert.ok(decision.summary.endsWith(`\n원인: ${detail}`));
+});
+
 test("native recovery Decision survives restart and consumes exactly one human request", async (t) => {
   const f = await fixture(t);
   task(f);

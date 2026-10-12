@@ -557,6 +557,100 @@ test("planning recovery rejects unknown, cancelled and exhausted requests withou
   assert.equal(f.packets.length, 3);
 });
 
+function failWith(f, kinds) {
+  const original = f.planner.run,
+    oauth = readFileSync(
+      new URL("./fixtures/claude-oauth-refresh-failed.jsonl", import.meta.url),
+      "utf8",
+    );
+  f.planner.run = async (...args) => {
+    const r = await original(...args);
+    if (kinds.shift() === "runner") {
+      r.result.stdout = oauth;
+      r.result.exitCode = 1;
+    } else r.result.stdout = "malformed";
+    return r;
+  };
+}
+const failure = (i) =>
+  i.events.findLast((e) => e.actor === "controller" && e.payload.error).payload;
+
+test("a runner failure is recorded as one and does not spend the format recovery budget", async (t) => {
+  const f = setup(t, "ready", true);
+  failWith(f, ["runner", "runner", "output", "output", "output"]);
+  const origins = [];
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const failed = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+    assert.equal(failed.reason, "PLANNING_INVALID");
+    const payload = failure(failed);
+    origins.push(payload.origin);
+    if (payload.origin === "runner") {
+      assert.match(payload.detail, /^runner: OAuth token refresh failed/);
+      assert.ok(payload.output, "the raw runner output is still archived");
+    }
+    const retry = () =>
+      f.intake.retryPlanning(
+        token,
+        failed.taskId,
+        failed.revision,
+        failed.inputDigest,
+        "Fixture explicit retry",
+      );
+    if (attempt < 4) {
+      const next = retry();
+      assert.equal(next.events.at(-1).payload.planningRetry.origin, payload.origin);
+    } else assert.throws(retry, { code: "PLANNING_RETRY_LIMIT" });
+  }
+  assert.deepEqual(origins, ["runner", "runner", "output", "output", "output"]);
+});
+
+test("the kit run records a runner failure as a runner failure, not a protocol violation", async (t) => {
+  const { digest } = await import("../src/core/candidates.ts");
+  const clarify = async (kind) => {
+    const f = setup(t, "ready", true);
+    failWith(f, [kind]);
+    await f.coordinator.run(f.item.taskId, f.context);
+    return JSON.parse(
+      readFileSync(
+        join(
+          f.project,
+          `.pazmo-office/role-runs/${digest(`${f.item.taskId}:planning:pm`)}/run.json`,
+        ),
+        "utf8",
+      ),
+    ).state.nodes.clarify;
+  };
+  const runner = await clarify("runner");
+  assert.equal(runner.status, "failed");
+  assert.match(runner.output.summary, /runner failed before any planning output/);
+  assert.match(runner.evaluation.feedback, /runner failed before returning a planning response/);
+  assert.doesNotMatch(runner.evaluation.feedback, /did not satisfy the planning protocol/);
+  assert.equal(runner.evaluation.action, "human");
+  // A rejected model response keeps the protocol wording.
+  const output = await clarify("output");
+  assert.equal(output.output.summary, "Planning output was rejected; no Office proposal accepted.");
+  assert.equal(output.evaluation.feedback, "The closed model response did not satisfy the planning protocol.");
+});
+
+test("runner failure recoveries have their own bound", async (t) => {
+  const f = setup(t, "ready", true);
+  failWith(f, ["runner", "runner", "runner", "runner"]);
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const failed = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+    const retry = () =>
+      f.intake.retryPlanning(
+        token,
+        failed.taskId,
+        failed.revision,
+        failed.inputDigest,
+        "Fixture: signed in again",
+      );
+    if (attempt < 3) retry();
+    else assert.throws(retry, { code: "PLANNING_RETRY_LIMIT" });
+  }
+  assert.equal(f.packets.length, 4);
+});
+
 test("native controller restart quarantines the active lease and never replays the same node", async (t) => {
   const f = setup(t, "ready", true),
     original = f.planner.run;
@@ -891,6 +985,7 @@ test("without a data directory the rejection still records its detail", async (t
   assert.deepEqual(payload, {
     error: "PLANNING_INVALID",
     detail: "terminal report missing (stdout 12 bytes)",
+    origin: "output",
   });
 });
 
@@ -927,3 +1022,4 @@ for (const [label, path, accepted] of [
     } else assert.equal(result.reason, "INSPECTION_REQUIRED");
   });
 }
+
