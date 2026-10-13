@@ -14,6 +14,11 @@ A frozen snapshot of proposed project changes that checks, review and a human Ga
 
 A candidate is never the user's project itself: roles work on isolated copies, and nothing reaches the project until the same candidate has passed its checks and human understanding. Any change produces a new candidate, so evidence gathered on an earlier one no longer counts.
 
+### Office metadata area
+The one folder Office owns inside each user project for its own records — installation files, published Lead proposals, approval views and role-run evidence — kept apart from the project's own content.
+
+It is never part of a Candidate or of a planning role's view of the project, and a role result that touches it is rejected, so anything Office generates in a project belongs there rather than beside the user's files. Documents Office relies on there, such as a published Story, are re-read and checked against their approved bytes, so Office does not delete them on its own.
+
 ### Gate
 A point where work stops until a human records an understanding or approval answer bound to an exact subject (a Story, a contract or a verified result). A Gate is passed by recorded evidence, never by a model's claim that it was approved.
 
