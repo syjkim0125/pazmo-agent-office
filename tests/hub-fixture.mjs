@@ -47,7 +47,7 @@ export async function startTestHub(t) {
     const csrf = /name="csrf" value="([^"]+)"/.exec(page.text)[1];
     return { cookie, csrf, res };
   }
-  const api = (method, path, { body, token, protocol = "1" } = {}) =>
+  const api = (method, path, { body, token, protocol = "2" } = {}) =>
     call(method, path, {
       body: body === undefined ? undefined : JSON.stringify(body),
       headers: {

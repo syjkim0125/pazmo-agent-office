@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { noSymlinks } from "../cli/project.ts";
 import { createNativeOffice } from "./native-office.ts";
 import { startHubLink } from "./hub-link.ts";
+import { createHubGateway } from "./hub-outgoing.ts";
 import type { LiveConfig } from "./live.ts";
 import { configurePazmoHost } from "../../vendor/claw-empire/server/pazmo/host.ts";
 
@@ -46,16 +47,18 @@ process.once("message", async (raw: unknown) => {
       instance: value.instance,
       token: value.token,
       initialize: async (db) => {
+        // Outbound only: the Office still listens on 127.0.0.1 alone.
+        const hub = value.live ? createHubGateway({ dataDir, db, project }) : undefined;
         const office = await createNativeOffice({
           db,
           project,
           dataDir: nativeData,
           token: value.token,
           live: value.live,
+          hub,
         });
-        // Outbound only: the Office still listens on 127.0.0.1 alone.
-        if (value.live) {
-          const link = startHubLink({ dataDir, db, office });
+        if (hub) {
+          const link = startHubLink({ dataDir, db, office, outgoing: hub });
           const close = office.close;
           office.close = async () => {
             link.stop();

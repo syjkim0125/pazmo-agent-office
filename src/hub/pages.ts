@@ -112,7 +112,7 @@ export function request(me: Member, csrf: string, v: RequestView) {
       ? `<section><h2>진행</h2><p>맡은 사람의 Office가 아직 작업을 받지 않았습니다. Office 연결 확인 ${ago(v.officeSeen)}.</p></section>`
       : "";
   return layout("요청", me, [
-    `<section><p class="muted">${esc(v.repo.name)} · 요청자 ${esc(v.requester.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s?.title ?? v.body.slice(0, 80))}</h1><pre>${esc(v.body)}</pre><p><span class="pill">${esc(STATE[v.state] ?? v.state)}</span> 맡은 사람: ${esc(v.assignee?.name ?? "없음")}</p><div class="row">${actions}</div></section>`,
+    `<section><p class="muted">${esc(v.repo.name)} · 요청자 ${esc(v.requester.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p>${v.source ? `<p class="muted">출처: ${esc(v.source)}${v.parentId ? ` · <a href="/requests/${esc(v.parentId)}">상위 요청</a>` : ""}</p>` : ""}<h1>${esc(s?.title ?? v.body.slice(0, 80))}</h1><pre>${esc(v.body)}</pre><p><span class="pill">${esc(STATE[v.state] ?? v.state)}</span> 맡은 사람: ${esc(v.assignee?.name ?? "없음")}</p><div class="row">${actions}</div></section>`,
     progress,
     decisions || answers ? `<section><h2>질문·승인</h2>${decisions}${answers}</section>` : "",
     s?.diff ? `<section><h2>변경 내용</h2>${s.diff.truncated ? '<p class="muted">길어서 앞부분만 보여 줍니다.</p>' : ""}<pre>${esc(s.diff.text)}</pre></section>` : "",

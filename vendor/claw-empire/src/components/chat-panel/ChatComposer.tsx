@@ -18,6 +18,9 @@ interface ChatComposerProps {
   onInputChange: (value: string) => void;
   onSend: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
+  onSendToHub?: () => void;
+  /** Set when the linked hub is too old: the button stays visible but disabled with this hint. */
+  hubUpdateHint?: string;
 }
 
 export default function ChatComposer({
@@ -33,6 +36,8 @@ export default function ChatComposer({
   onInputChange,
   onSend,
   onKeyDown,
+  onSendToHub,
+  hubUpdateHint,
 }: ChatComposerProps) {
   return (
     <>
@@ -72,7 +77,21 @@ export default function ChatComposer({
           <span>📊</span>
           <span>{tr("보고 요청", "Report", "レポート依頼", "报告请求")}</span>
         </button>
+
+        {onSendToHub && (
+          <button
+            onClick={onSendToHub}
+            disabled={!!hubUpdateHint}
+            title={hubUpdateHint}
+            className="flex flex-1 items-center justify-center gap-1 rounded-lg bg-gray-700 px-2 py-1.5 text-xs font-medium text-gray-300 transition-colors hover:bg-gray-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <span>↗</span>
+            <span>{tr("팀 허브로", "Team hub", "チームハブへ", "团队中心")}</span>
+          </button>
+        )}
       </div>
+
+      {onSendToHub && hubUpdateHint && <p className="px-4 text-right text-[11px] text-amber-400">{hubUpdateHint}</p>}
 
       <ChatModeHint mode={mode} isDirectiveMode={isDirectiveMode} tr={tr} />
 

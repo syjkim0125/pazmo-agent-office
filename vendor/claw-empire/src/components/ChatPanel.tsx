@@ -2,12 +2,13 @@ import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import type { Agent, Message, Project } from "../types";
 import { buildSpriteMap } from "./AgentAvatar";
 import { useI18n } from "../i18n";
-import { createProject, getProjects } from "../api";
+import { createProject, getHubStatus, getProjects } from "../api";
 import { parseDecisionRequest } from "./chat/decision-request";
 import type { DecisionOption } from "./chat/decision-request";
 import ChatComposer from "./chat-panel/ChatComposer";
 import ChatMessageList from "./chat-panel/ChatMessageList";
 import ChatPanelHeader from "./chat-panel/ChatPanelHeader";
+import SendToHubModal from "./taskboard/SendToHubModal";
 import { useDecisionReplyHandlers } from "./chat-panel/useDecisionReply";
 import {
   ROLE_LABELS,
@@ -62,6 +63,14 @@ export function ChatPanel({
 }: ChatPanelProps) {
   const [input, setInput] = useState("");
   const [mode, setMode] = useState<ChatMode>(selectedAgent ? "task" : "announcement");
+  // "legacy": linked to a phase-1 hub, which cannot take requests from an Office.
+  const [hubState, setHubState] = useState<"none" | "ready" | "legacy">("none");
+  const [hubSendOpen, setHubSendOpen] = useState(false);
+  useEffect(() => {
+    getHubStatus()
+      .then((s) => setHubState(!s.linked ? "none" : s.legacy ? "legacy" : "ready"))
+      .catch(() => setHubState("none"));
+  }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const spriteMap = useMemo(() => buildSpriteMap(agents), [agents]);
@@ -92,14 +101,14 @@ export function ChatPanel({
     : selectedAgent?.department_id;
   const selectedTaskId = selectedAgent?.current_task_id;
 
-  // Close on Escape key
+  // Close on Escape key; while the team hub send window is open, Escape closes only that window.
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape" && !hubSendOpen) onClose();
     }
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onClose]);
+  }, [onClose, hubSendOpen]);
 
   // 스트리밍 중인 메시지가 현재 에이전트 것인지 판별
   const isStreamingForAgent = streamingMessage && selectedAgent && streamingMessage.agent_id === selectedAgent.id;
@@ -489,7 +498,11 @@ export function ChatPanel({
         onInputChange={setInput}
         onSend={handleSend}
         onKeyDown={handleKeyDown}
+        onSendToHub={hubState !== "none" ? () => setHubSendOpen(true) : undefined}
+        hubUpdateHint={hubState === "legacy" ? tr("허브를 업데이트해야 합니다", "The team hub must be updated") : undefined}
       />
+      {/* A chat send is not tied to the agent's current task; its source is "… Office 채팅". */}
+      {hubSendOpen && <SendToHubModal taskId={null} onClose={() => setHubSendOpen(false)} />}
     </div>
   );
 }

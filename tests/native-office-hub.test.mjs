@@ -9,7 +9,7 @@ import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/
 import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { createNativeOffice } from "../src/runtime/native-office.ts";
 
-async function office(t) {
+async function office(t, hub) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "native-hub-"))), project = join(root, "project");
   mkdirSync(project);
   const db = new DatabaseSync(":memory:");
@@ -17,7 +17,7 @@ async function office(t) {
   applyDefaultSeeds(db);
   const planned = [];
   const live = { status: () => ({ execution: "ready", active: [] }), startPlanning: (...a) => planned.push(a), assertIdle() {}, close: async () => {}, abort() {} };
-  const o = await createNativeOffice({ db, project, dataDir: root, token: "a".repeat(64), createRuntime: async () => live });
+  const o = await createNativeOffice({ db, project, dataDir: root, token: "a".repeat(64), createRuntime: async () => live, hub });
   t.after(async () => { await o.close(); db.close(); rmSync(root, { recursive: true, force: true }); });
   return { o, db, planned, root, project };
 }
@@ -102,4 +102,30 @@ test("ordinary chat never answers a hub task's questions; it explains where they
   assert.ok(db.prepare("SELECT 1 FROM pazmo_native_decisions WHERE id=?").get(q), "the question is still open");
   assert.equal(o.ledgers.intake.get(id).revision, item.revision);
   assert.equal(db.prepare("SELECT COUNT(*) n FROM messages WHERE task_id=? AND content='이 질문은 요청자가 팀 허브에서 답합니다.'").get(id).n, 1);
+});
+
+test("hub gateway items join the Decisions list and their answers go to the gateway", async (t) => {
+  const replies = [];
+  const hub = {
+    decisions: () => [{ id: "hubout:r1:d1", kind: "workflow_gate", decision_kind: "hub-story", summary: "팀 허브 · be · 범위 승인(G1)\n요약", options: [] }],
+    reply: async (...a) => (replies.push(a), { ok: true, action: "hub_answered", already: false }),
+    status: () => ({ linked: true, legacy: false, hub: "https://h", member: "관리자" }),
+    repos: async () => ({ repos: [] }),
+    send: async (input) => ({ requestId: "r2", created: true, url: "https://h/requests/r2", input }),
+    outgoing: () => ({ linked: true, items: [] }),
+  };
+  const { o } = await office(t, hub);
+  assert.ok(o.decisions().some((d) => d.id === "hubout:r1:d1"));
+  assert.deepEqual(await o.reply("hubout:r1:d1", 1, "승인"), { ok: true, action: "hub_answered", already: false });
+  assert.deepEqual(replies, [["hubout:r1:d1", 1, "승인"]]);
+  assert.equal((await o.hubSend({ repoId: "x" })).requestId, "r2");
+  assert.equal(o.hubStatus().linked, true);
+});
+
+test("without a gateway the Office reports itself unlinked", async (t) => {
+  const { o } = await office(t);
+  assert.deepEqual(o.hubStatus(), { linked: false, legacy: false, hub: null, member: null });
+  assert.deepEqual(o.hubOutgoing(), { linked: false, items: [] });
+  await assert.rejects(o.hubRepos(), { code: "HUB_NOT_LINKED" });
+  await assert.rejects(o.reply("hubout:r1:d1", 1, "x"), { code: "HUB_NOT_LINKED" });
 });

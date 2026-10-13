@@ -1,0 +1,91 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import { DatabaseSync } from "node:sqlite";
+import { getCsrfToken } from "../vendor/claw-empire/server/security/auth.ts";
+import { configurePazmoHost, registerPazmoHost } from "../vendor/claw-empire/server/pazmo/host.ts";
+
+const express = createRequire(new URL("../vendor/claw-empire/package.json", import.meta.url))("express");
+
+async function server(t) {
+  process.env.PAZMO_MANAGED = "1";
+  const checked = [];
+  const refreshes = [];
+  const sent = [];
+  const replied = [];
+  const bridge = {
+    status: () => ({ execution: "ready", active: [] }),
+    setBroadcast() {},
+    assertIdle() {},
+    close: async () => {},
+    decisions: () => [],
+    reply: async (...a) => (replied.push(a), { ok: true, resolved: true }),
+    progress: () => undefined,
+    refresh: async () => {},
+    inspect: async () => {},
+    diff: () => null,
+    checkTaskMutation() {},
+    async checkAgentMutation(id, patch) {
+      checked.push([id, patch]);
+      if (patch.cli_model === "bad")
+        throw Object.assign(new Error("claude가 지원하지 않는 모델입니다: bad"), { code: "RUNNER_MODEL_UNKNOWN" });
+    },
+    cliStatus: async (o) => (refreshes.push(!!o?.refresh), { providers: { codex: { installed: true, version: "0.160.0", authenticated: true, authHint: "준비됨" } } }),
+    cliModels: () => ({ models: { claude: [{ slug: "haiku" }] } }),
+    hubStatus: () => ({ linked: true, legacy: false, hub: "https://h", member: "관리자" }),
+    hubRepos: async () => ({ repos: [{ id: "be", name: "checkout-backend", owners: ["B"] }] }),
+    hubOutgoing: () => ({ linked: true, items: [] }),
+    hubSend: async (input) => (sent.push(input), { requestId: "r1", created: true, url: "https://h/requests/r1" }),
+    runnerRuns: (id) => ({ runs: [{ taskId: id, role: "pm", runner: "claude", version: "2.1.280", model: "default", reasoning: null }] }),
+  };
+  configurePazmoHost({ project: "/p", instance: "i", token: "t".repeat(64), initialize: async () => bridge });
+  const app = express();
+  app.use(express.json());
+  await registerPazmoHost(app, new DatabaseSync(":memory:"));
+  let upstream = 0;
+  app.get("/api/cli-status", (_q, r) => r.json({ upstream: ++upstream }));
+  app.get("/api/cli-models", (_q, r) => r.json({ upstream: ++upstream }));
+  app.patch("/api/agents/:id", (q, r) => r.json({ patched: q.params.id, body: q.body }));
+  const listener = await new Promise((resolve) => {
+    const s = app.listen(0, "127.0.0.1", () => resolve(s));
+  });
+  t.after(() => listener.close());
+  const base = `http://127.0.0.1:${listener.address().port}`;
+  const call = async (method, path, body, headers = {}) => {
+    const res = await fetch(base + path, {
+      method,
+      headers: { "content-type": "application/json", ...headers },
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+    return { status: res.status, json: await res.json() };
+  };
+  return { call, checked, refreshes, sent, replied, upstream: () => upstream };
+}
+
+test("hub routes, sends and hub-decision replies come from the Office and need the session CSRF token", async (t) => {
+  const s = await server(t);
+  assert.equal((await s.call("GET", "/api/hub/status")).json.member, "관리자");
+  assert.equal((await s.call("GET", "/api/hub/repos")).json.repos[0].name, "checkout-backend");
+  assert.deepEqual((await s.call("GET", "/api/hub/outgoing")).json, { linked: true, items: [] });
+  const body = { repoId: "be", body: "일", risk: "normal", key: "11111111-1111-4111-8111-111111111111", taskId: null };
+  assert.equal((await s.call("POST", "/api/hub/requests", body)).status, 403);
+  const ok = await s.call("POST", "/api/hub/requests", body, { "x-csrf-token": getCsrfToken() });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(s.sent, [body]);
+
+  // Answering: the UI sends encodeURIComponent(id); the host decodes it and requires CSRF for hub items.
+  const hubId = "hubout:11111111-1111-4111-8111-111111111111:d1";
+  const path = `/api/decision-inbox/${encodeURIComponent(hubId)}/reply`;
+  const answer = { option_number: 1, note: "승인" };
+  assert.equal((await s.call("POST", path, answer)).status, 403);
+  assert.deepEqual(s.replied, []);
+  const answered = await s.call("POST", path, answer, { "x-csrf-token": getCsrfToken() });
+  assert.equal(answered.status, 200);
+  assert.deepEqual(s.replied, [[hubId, 1, "승인"]]);
+  // Office's own decisions keep their existing behavior: no CSRF requirement here.
+  assert.equal((await s.call("POST", "/api/decision-inbox/native-1/reply", answer)).status, 200);
+  assert.deepEqual(s.replied.at(-1), ["native-1", 1, "승인"]);
+  const bad = await s.call("POST", "/api/decision-inbox/%E0%A4%A/reply", answer);
+  assert.equal(bad.status, 409);
+  assert.equal(bad.json.error, "STALE_APPROVAL");
+});

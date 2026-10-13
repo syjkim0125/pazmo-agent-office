@@ -20,6 +20,7 @@ import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { changeSummary } from "./decision-summary.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
 import { HUB_ANSWERABLE, HUB_REQUESTER_NOTE } from "../hub/protocol.ts";
+import type { HubGateway } from "./hub-outgoing.ts";
 
 /** Shared with WorkflowDecisionContent: text after it is the full record. */
 const DETAIL_MARKER = "\n상세 원문:\n";
@@ -51,6 +52,8 @@ type Config = {
   createRuntime?: typeof createLiveRuntime;
   /** Installed CLI discovery; injectable for tests. */
   runnerCatalog?: (home?: string, pathEnv?: string) => Promise<RunnerCatalog>;
+  /** Team hub bridge for requests this Office sends; absent when not live. */
+  hub?: HubGateway;
 };
 
 /** Reuses the qualified kit/VM implementation against Claw's original task DB.
@@ -802,7 +805,7 @@ export async function createNativeOffice(c: Config) {
     };
   }
   function decisions() {
-    return (
+    const native = (
       db
         .prepare("SELECT * FROM pazmo_native_decisions ORDER BY created_at")
         .all() as Decision[]
@@ -860,6 +863,8 @@ export async function createNativeOffice(c: Config) {
         ],
       };
     });
+    // Hub-owned items (hubout:) are listed for the human; hubSnapshot excludes them from task snapshots.
+    return [...native, ...(c.hub?.decisions() ?? [])];
   }
   // pump() replaces an expired challenge, but nothing else runs it while a human
   // only reads. Reconcile once per expired challenge so the list stays answerable.
@@ -901,7 +906,9 @@ export async function createNativeOffice(c: Config) {
       !!db.prepare("SELECT 1 FROM pazmo_hub_requests WHERE task_id=?").get(d.task_id)
     );
   }
+  const hubGateway = () => c.hub ?? fail("HUB_NOT_LINKED", "팀 허브에 연결되지 않았습니다. `pazmo-office hub-link`로 연결해주세요.");
   async function reply(id: string, option: number, note: string, by = "사용자", fromHub = false) {
+    if (id.startsWith("hubout:")) return hubGateway().reply(id, option, note);
     const d = db
       .prepare("SELECT * FROM pazmo_native_decisions WHERE id=?")
       .get(id) as Decision | undefined;
@@ -1265,6 +1272,10 @@ export async function createNativeOffice(c: Config) {
     cliStatus: (o?: { refresh?: boolean }) => runners.settings.cliStatus(o),
     cliModels: () => runners.settings.cliModels(),
     runnerRuns: (id: string) => ({ runs: runners.evidence.forRequest(id) }),
+    hubStatus: () => c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null },
+    hubRepos: async () => hubGateway().repos(),
+    hubSend: async (input: unknown) => hubGateway().send(input),
+    hubOutgoing: () => c.hub?.outgoing() ?? { linked: false, items: [] },
     checkTaskMutation(id: string, patch?: unknown) {
       // Hiding a card changes presentation only; no workflow transition.
       if (

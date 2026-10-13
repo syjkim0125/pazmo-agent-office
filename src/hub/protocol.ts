@@ -1,6 +1,8 @@
 /** Wire contract between the team hub and a member's Office. Bump on any
  * incompatible change; both sides refuse a different version. */
-export const HUB_PROTOCOL = "1";
+export const HUB_PROTOCOL = "2";
+/** Phase-1 Offices and hubs; the hub still serves their routes. */
+export const HUB_LEGACY_PROTOCOL = "1";
 
 /** Decisions the requester answers on the hub. G4 stays in the assignee's Office. */
 export const HUB_ANSWERABLE = ["questions", "story", "planning-retry"] as const;
@@ -82,3 +84,19 @@ export function parseSnapshot(value: unknown): HubSnapshot {
     summary: v.summary === null ? null : text(v.summary, 4000),
   };
 }
+
+/** Each outgoing question summary is capped tighter than the snapshot's own 20000. */
+export const OUTGOING_SUMMARY_LIMIT = 4000;
+/** A requester question as sent back to the Office; `rejected` is why the last relayed answer was refused. */
+export type OutgoingDecision = HubDecision & { rejected?: string | null };
+/** A request this Office sent, as the hub reports it back. Never carries a diff. */
+export type OutgoingView = {
+  requestId: string;
+  repoName: string;
+  state: "open" | "accepted" | "done" | "cancelled";
+  assignee: string | null;
+  status: HubSnapshot["status"] | null;
+  summary: string | null;
+  decisions: OutgoingDecision[];
+  updatedAt: number;
+};
