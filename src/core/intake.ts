@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdtempSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { OfficeError, fail, noSymlinks } from "../cli/project.ts";
@@ -7,6 +7,7 @@ import { ApprovalLedger, transaction } from "./approvals.ts";
 import type { ApprovalAnswer } from "./approvals.ts";
 import type { OfficeStore } from "./store.ts";
 import { digest } from "./candidates.ts";
+import { PLAN_ROOT } from "./contracts.ts";
 import {
   beginPlanning,
   acceptPlanning,
@@ -631,10 +632,11 @@ export class IntakeLedger {
       fail("INTAKE_STATE", "Only a saved Lead proposal can be published.");
 
     // A fresh exclusive directory is never adopted or overwritten on retry.
-    noSymlinks(this.#project);
-    const directory = basename(
-      mkdtempSync(join(this.#project, "office-plan-")),
-    );
+    // Office metadata keeps plans out of the project root and worker baselines.
+    const plans = join(this.#project, PLAN_ROOT);
+    noSymlinks(plans);
+    mkdirSync(plans, { recursive: true, mode: 0o700 });
+    const directory = `${PLAN_ROOT}/${basename(mkdtempSync(join(plans, "plan-")))}`;
     const documents: Publication["documents"] = [];
     try {
       for (const [name, content] of Object.entries(result.files)) {

@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import assert from "node:assert/strict";
-import { symlinkSync } from "node:fs";
+import { mkdirSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { readContract, contractMatches } from "../src/core/contracts.ts";
@@ -151,4 +151,69 @@ test("an optional plan must match the Task reference and remain part of the appr
   assert.equal(contractMatches(f.project, contract), true);
   f.put("plan.md", "Different instructions.");
   assert.equal(contractMatches(f.project, contract), false);
+});
+
+const placed = (f, directory) => {
+  mkdirSync(join(f.project, directory), { recursive: true });
+  f.put(`${directory}/story.md`, f.story);
+  f.put(
+    `${directory}/task.md`,
+    f.task.replace("Story: story.md", `Story: ${directory}/story.md`),
+  );
+  f.put(`${directory}/verify.json`, JSON.stringify(f.verification));
+  f.put(`${directory}/decision.md`, "Preserve existing records.");
+  return {
+    ...f.input,
+    story: `${directory}/story.md`,
+    task: `${directory}/task.md`,
+    verification: `${directory}/verify.json`,
+    decision: `${directory}/decision.md`,
+  };
+};
+
+test("Office plan documents are the only dot-prefixed contract location", async (t) => {
+  const f = fixture(t);
+  const contract = await readContract(
+    f.project,
+    placed(f, ".pazmo-office/plans/plan-a"),
+  );
+  assert.equal(contractMatches(f.project, contract), true);
+  for (const directory of [
+    ".pazmo-office/role-runs/x",
+    ".pazmo-office/plans/.hidden",
+    ".git/x",
+    ".codex",
+  ])
+    await assert.rejects(readContract(f.project, placed(f, directory)), {
+      code: "UNSAFE_PATH",
+    });
+  f.put(".env", f.story);
+  // Each target exists, so only the path rule can reject it.
+  symlinkSync("../role-runs/x", join(f.project, ".pazmo-office/plans/link"));
+  symlinkSync("../../.git/x", join(f.project, ".pazmo-office/plans/git"));
+  for (const story of [
+    ".env",
+    ".pazmo-office/plans",
+    ".pazmo-office/plans/",
+    ".pazmo-office/plans/../role-runs/x/story.md",
+    ".pazmo-office/plans/plan-a/../../role-runs/x/story.md",
+    ".pazmo-office/plans//plan-a/story.md",
+    ".pazmo-office/plans/./plan-a/story.md",
+    "./.pazmo-office/plans/plan-a/story.md",
+    ".pazmo-office/plans/plan-a\\story.md",
+    ".pazmo-office/plans/link/story.md",
+    ".pazmo-office/plans/git/story.md",
+  ])
+    await assert.rejects(readContract(f.project, { ...f.input, story }), {
+      code: "UNSAFE_PATH",
+    });
+});
+
+test("contracts registered under legacy root plan folders stay readable", async (t) => {
+  const f = fixture(t);
+  const contract = await readContract(
+    f.project,
+    placed(f, "office-plan-legacy"),
+  );
+  assert.equal(contractMatches(f.project, contract), true);
 });

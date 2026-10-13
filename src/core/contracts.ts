@@ -34,14 +34,20 @@ export type Contract = {
   checks: VerificationCheck[];
   workspace?: WorkspaceScope;
 };
+/** Office's own plan folder is the only dot-prefixed location a contract may name. */
+export const PLAN_ROOT = ".pazmo-office/plans";
 function read(project: string, path: string): string {
+  const local =
+    typeof path === "string" && path.startsWith(`${PLAN_ROOT}/`)
+      ? path.slice(PLAN_ROOT.length + 1)
+      : path;
   if (
     typeof path !== "string" ||
-    !path ||
+    !local ||
     isAbsolute(path) ||
     path.includes("\\") ||
     /[\x00-\x1f]/.test(path) ||
-    path
+    local
       .split("/")
       .some((p) => !p || p === "." || p === ".." || p.startsWith("."))
   )

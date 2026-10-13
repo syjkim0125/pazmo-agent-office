@@ -9,12 +9,16 @@ import {
   renameSync,
   mkdirSync,
   symlinkSync,
+  existsSync,
 } from "node:fs";
+import { execFileSync } from "node:child_process";
 import { fixture } from "./contract-fixture.mjs";
 import { proposal } from "./planning-fixture.mjs";
 import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { IntakeLedger } from "../src/core/intake.ts";
+import { freezeWorkspace } from "../src/core/workspace.ts";
+import { planningSnapshot } from "../src/runtime/live.ts";
 const token = "a".repeat(64);
 function setup(t) {
   const f = fixture(t),
@@ -27,8 +31,11 @@ function setup(t) {
 }
 const publish = (f, s) =>
   f.intake.publish(token, s.taskId, s.revision, s.inputDigest);
+const plans = ".pazmo-office/plans";
 const folders = (f) =>
-  readdirSync(f.project).filter((name) => name.startsWith("office-plan-"));
+  existsSync(join(f.project, plans))
+    ? readdirSync(join(f.project, plans)).map((name) => `${plans}/${name}`)
+    : [];
 
 test("publication preserves existing documents, registers every task and survives reconstruction without approvals", async (t) => {
   const f = setup(t),
@@ -39,6 +46,14 @@ test("publication preserves existing documents, registers every task and survive
   assert.equal(published.publication.taskIds.length, 2);
   assert.equal(readFileSync(join(f.project, "story.md"), "utf8"), f.story);
   assert.equal(folders(f).length, 1);
+  assert.equal(published.publication.directory, folders(f)[0]);
+  assert.deepEqual(readdirSync(f.project).sort(), [
+    ".pazmo-office",
+    "decision.md",
+    "story.md",
+    "task.md",
+    "verify.json",
+  ]);
   assert.deepEqual(
     new IntakeLedger(f.db, f.store, f.project).get(s.taskId),
     published,
@@ -222,4 +237,53 @@ test("publication cannot report success inside a caller-owned transaction", asyn
     f.db.exec("ROLLBACK");
   }
   assert.deepEqual(f.intake.get(s.taskId), s);
+});
+
+test("published plans stay out of planning snapshots and worker baselines", async (t) => {
+  const f = setup(t),
+    s = proposal(f.intake, token);
+  execFileSync("/usr/bin/git", ["init", "-q", f.project]);
+  const p = await publish(f, s);
+  assert.ok(p.publication.directory.startsWith(`${plans}/`));
+  const paths = (candidate) =>
+    JSON.parse(
+      readFileSync(join(candidate.directory, "manifest.json"), "utf8"),
+    ).entries.map((entry) => entry.path);
+  const storage = join(f.root, "baselines");
+  mkdirSync(storage);
+  for (const candidate of [
+    await planningSnapshot(f.project, f.root, "after-publication"),
+    freezeWorkspace(f.project, { include: ["."], exclude: [] }, storage),
+  ]) {
+    assert.ok(paths(candidate).includes("story.md"));
+    for (const document of p.publication.documents)
+      assert.equal(paths(candidate).includes(document.path), false);
+    assert.deepEqual(
+      paths(candidate).filter(
+        (path) =>
+          path.startsWith(".pazmo-office") || path.startsWith("office-plan-"),
+      ),
+      [],
+    );
+  }
+});
+
+test("failed publication names the preserved plan folder and a symlinked plan root is refused", async (t) => {
+  const f = setup(t),
+    s = proposal(f.intake, token);
+  f.db.exec(
+    "CREATE TRIGGER reject_publication BEFORE INSERT ON pazmo_intake_publications BEGIN SELECT RAISE(ABORT,'receipt failure'); END",
+  );
+  await assert.rejects(publish(f, s), (error) =>
+    error.message.includes(`preserved at ${folders(f)[0]};`),
+  );
+  f.db.exec("DROP TRIGGER reject_publication");
+  const g = setup(t),
+    other = join(g.root, "other");
+  mkdirSync(other);
+  symlinkSync(other, join(g.project, ".pazmo-office"));
+  await assert.rejects(publish(g, proposal(g.intake, token)), {
+    code: "UNSAFE_PATH",
+  });
+  assert.deepEqual(readdirSync(other), []);
 });
