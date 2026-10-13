@@ -1,0 +1,305 @@
+{
+  "version": 1,
+  "runId": "08afa979-f652-49ef-980a-00e85ea9be0c",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "295f326d5df6122be4eeb87dbb91b9ec705ef82d3def3daa7bd6c0fe5f3151de",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review fix: V2 now pins prefix-escape rejection (.., //, ./, leading ./, backslash, two symlinks inside plans) with existing targets; mutation (unchecked suffix) made it fail 8/9, restored 9/9. V4 asserts each published document path is absent from planning snapshot and worker baseline. Related 20/20, full suite 552/552 exit 0, typecheck exit 0.",
+          "evidence": [
+            "docs/verification/2026-10-13-office-plan-placement.md",
+            "tests/contracts.test.mjs",
+            "tests/intake-publication.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-office-plan-placement.md": "2260411ed4629655945609a982d696bba316e26207b67100a0f2da2d3fd01f9b",
+          "tests/contracts.test.mjs": "39eaed0f4f3e26388b5317df4f7dba1bb33c478de9ef3f7b70ca56113d6297d4",
+          "tests/intake-publication.test.mjs": "50bd09f744ecd95d72ff7fcae45d84d2262c37372b8f6f379c9cf4f759451bcc"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Re-review of the fix delta: Important 1 and Minor 1 resolved, no new Critical/Important; verdict Ready to merge (G4 still required).",
+          "evidence": [
+            ".ai-workflow/runs/office-plan-placement-review-2.md",
+            ".ai-workflow/runs/office-plan-placement-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/office-plan-placement-review-2.md": "ebe63196e996872bd4ed504dfd1e6fcd1545a7026da6ff9044385e28abc64712",
+          ".ai-workflow/runs/office-plan-placement-review-1.md": "b8914087bab81e7ebbe4dc13ea83fefd0ba5c318fc7aad1d6d03491b852a66c8"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review fixes: full suite 552/552 exit 0, typecheck exit 0, story check exit 0, G1 gate exit 0. Live Office publication not exercised.",
+          "evidence": [
+            ".ai-workflow/runs/office-plan-placement-verify-1.md",
+            "docs/verification/2026-10-13-office-plan-placement.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/office-plan-placement-verify-1.md": "75822d58609d6ec15293d556eed170d95ef7e2569ade9986a68b8be80b5be4a7",
+          "docs/verification/2026-10-13-office-plan-placement.md": "2260411ed4629655945609a982d696bba316e26207b67100a0f2da2d3fd01f9b"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/office-plan-placement-contract.md",
+    "fingerprint": "c24daf0e593afe2b48bbfb1e3a61276dd2ae32adc0d0546933d959ee59bc4970"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-13T08:05:50.177Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-13T08:11:45.268Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lead proposal publication now creates .pazmo-office/plans/plan-XXXXXX/ instead of office-plan-* in the project root; contracts.ts read() allows only the .pazmo-office/plans/ prefix among dot paths. RED shown for V1/V2/V4/V5 before the change; V3 legacy regression guard green throughout. Related 20/20, full suite 552/552 exit 0, typecheck exit 0 on Node 24.19.0. Simplification pass: no change (diff already minimal). Uncommitted pending review.",
+          "evidence": [
+            "docs/verification/2026-10-13-office-plan-placement.md",
+            "tests/contracts.test.mjs",
+            "tests/intake-publication.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-office-plan-placement.md": "892121f2edccc068323302d0a640b16f029666b3102057767ccbff886a16dd28",
+          "tests/contracts.test.mjs": "83f32440e19ce7f8ce18b2d7de366177f9577116732cd1aa357a3273a925668e",
+          "tests/intake-publication.test.mjs": "6fe34fa199ddffa06f258e86888a2dd2622319cb219749a65722454463ec2f7f"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T08:11:53.665Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T08:16:20.907Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only review: Critical 0, Important 1 (no regression tests pinning prefix-escape rejection), Minor 4. Code itself rejected every probed escape.",
+          "evidence": [
+            ".ai-workflow/runs/office-plan-placement-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: add regression tests for .pazmo-office/plans/ prefix escapes (.., //, ./, symlink inside plans) and assert published document paths are absent from snapshots directly."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/office-plan-placement-review-1.md": "b8914087bab81e7ebbe4dc13ea83fefd0ba5c318fc7aad1d6d03491b852a66c8"
+        },
+        "error": "implement: add regression tests for .pazmo-office/plans/ prefix escapes (.., //, ./, symlink inside plans) and assert published document paths are absent from snapshots directly."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Add prefix-escape regression tests and a direct V4 assertion requested by review attempt 1",
+      "at": "2026-10-13T08:16:21.036Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-13T08:16:25.960Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-13T08:18:09.546Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review fix: V2 now pins prefix-escape rejection (.., //, ./, leading ./, backslash, two symlinks inside plans) with existing targets; mutation (unchecked suffix) made it fail 8/9, restored 9/9. V4 asserts each published document path is absent from planning snapshot and worker baseline. Related 20/20, full suite 552/552 exit 0, typecheck exit 0.",
+          "evidence": [
+            "docs/verification/2026-10-13-office-plan-placement.md",
+            "tests/contracts.test.mjs",
+            "tests/intake-publication.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-office-plan-placement.md": "2260411ed4629655945609a982d696bba316e26207b67100a0f2da2d3fd01f9b",
+          "tests/contracts.test.mjs": "39eaed0f4f3e26388b5317df4f7dba1bb33c478de9ef3f7b70ca56113d6297d4",
+          "tests/intake-publication.test.mjs": "50bd09f744ecd95d72ff7fcae45d84d2262c37372b8f6f379c9cf4f759451bcc"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T08:18:14.126Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T08:18:58.735Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Re-review of the fix delta: Important 1 and Minor 1 resolved, no new Critical/Important; verdict Ready to merge (G4 still required).",
+          "evidence": [
+            ".ai-workflow/runs/office-plan-placement-review-2.md",
+            ".ai-workflow/runs/office-plan-placement-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/office-plan-placement-review-2.md": "ebe63196e996872bd4ed504dfd1e6fcd1545a7026da6ff9044385e28abc64712",
+          ".ai-workflow/runs/office-plan-placement-review-1.md": "b8914087bab81e7ebbe4dc13ea83fefd0ba5c318fc7aad1d6d03491b852a66c8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-13T08:19:06.315Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-13T08:20:26.579Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review fixes: full suite 552/552 exit 0, typecheck exit 0, story check exit 0, G1 gate exit 0. Live Office publication not exercised.",
+          "evidence": [
+            ".ai-workflow/runs/office-plan-placement-verify-1.md",
+            "docs/verification/2026-10-13-office-plan-placement.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/office-plan-placement-verify-1.md": "75822d58609d6ec15293d556eed170d95ef7e2569ade9986a68b8be80b5be4a7",
+          "docs/verification/2026-10-13-office-plan-placement.md": "2260411ed4629655945609a982d696bba316e26207b67100a0f2da2d3fd01f9b"
+        }
+      }
+    }
+  ]
+}
