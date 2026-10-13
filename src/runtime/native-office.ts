@@ -19,6 +19,7 @@ import type { RunnerCatalog } from "./runner-settings.ts";
 import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { changeSummary } from "./decision-summary.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
+import { HUB_ANSWERABLE, HUB_REQUESTER_NOTE } from "../hub/protocol.ts";
 
 /** Shared with WorkflowDecisionContent: text after it is the full record. */
 const DETAIL_MARKER = "\n상세 원문:\n";
@@ -101,6 +102,12 @@ export async function createNativeOffice(c: Config) {
     CREATE TABLE IF NOT EXISTS pazmo_native_decisions (
       id TEXT PRIMARY KEY,task_id TEXT NOT NULL REFERENCES tasks(id),kind TEXT NOT NULL,
       binding TEXT NOT NULL UNIQUE,payload TEXT NOT NULL,summary TEXT NOT NULL,created_at INTEGER NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS pazmo_hub_requests (hub_key TEXT PRIMARY KEY,task_id TEXT NOT NULL UNIQUE REFERENCES tasks(id),requester TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS pazmo_hub_answers (
+      answer_id TEXT PRIMARY KEY,decision_id TEXT NOT NULL,task_id TEXT NOT NULL,member_id TEXT NOT NULL,
+      member_name TEXT NOT NULL,note TEXT NOT NULL,at INTEGER NOT NULL,
+      hub_key TEXT NOT NULL,source TEXT NOT NULL,revision INTEGER
     );
   `);
   // Existing native approval notices are status, not upstream free-text choices.
@@ -818,7 +825,12 @@ export async function createNativeOffice(c: Config) {
         decision_kind: d.kind,
         expires_at: open?.expires_at ?? null,
         created_at: d.created_at,
-        summary: d.kind === "G4" ? decisionSummary(d, feedback) : d.summary,
+        summary:
+          d.kind === "G4"
+            ? decisionSummary(d, feedback)
+            : requesterOnly(d)
+              ? HUB_REQUESTER_NOTE + d.summary
+              : d.summary,
         agent_id: t.assigned_agent_id,
         agent_name: "Office",
         agent_name_ko: "Office",
@@ -882,11 +894,20 @@ export async function createNativeOffice(c: Config) {
       fail("ANSWER_REQUIRED", `1. 답변 형식으로 ${count}개 질문에 답해주세요.`);
     return parts.map((p) => p[2].trim());
   }
-  async function reply(id: string, option: number, note: string) {
+  /** A hub task's questions and scope are the requester's to answer, on the hub. */
+  function requesterOnly(d: { task_id: string; kind: string }) {
+    return (
+      (HUB_ANSWERABLE as readonly string[]).includes(d.kind) &&
+      !!db.prepare("SELECT 1 FROM pazmo_hub_requests WHERE task_id=?").get(d.task_id)
+    );
+  }
+  async function reply(id: string, option: number, note: string, by = "사용자", fromHub = false) {
     const d = db
       .prepare("SELECT * FROM pazmo_native_decisions WHERE id=?")
       .get(id) as Decision | undefined;
     if (!d) fail("STALE_APPROVAL", "이미 처리됐거나 변경된 요청입니다.");
+    if (!fromHub && requesterOnly(d))
+      fail("HUB_REQUESTER_ONLY", "이 질문은 요청자가 팀 허브에서 답합니다.");
     if (![1, 2].includes(option) && !(option === 3 && d.kind === "G4"))
       fail("INVALID_REQUEST", "Unknown option.");
     if (option === 1 && (!note?.trim() || note.length > 16000))
@@ -963,7 +984,7 @@ export async function createNativeOffice(c: Config) {
     message(
       d.task_id,
       `human:${id}`,
-      `사용자 응답 (${d.kind}): ${answer.note}`,
+      `${by} 응답 (${d.kind}): ${answer.note}`,
     );
     await pump();
     return { ok: true, action: "workflow_answered" };
@@ -1012,7 +1033,7 @@ export async function createNativeOffice(c: Config) {
         const d = pending[0];
         // Gate answers require the explicit Decisions action; ordinary chat
         // (including "do not approve") must never become approval.
-        if (d.kind === "questions") {
+        if (d.kind === "questions" && !requesterOnly(d)) {
           transaction(db, () => {
             const p = JSON.parse(d.payload);
             const values = numbered(input.content, p.questions.length);
@@ -1052,7 +1073,9 @@ export async function createNativeOffice(c: Config) {
         message(
           d.task_id,
           `reply-guidance:${input.id}`,
-          "현재 확인할 내용이 있습니다. Decisions에서 답변하거나, 새 작업은 Assign Task로 등록해주세요.",
+          requesterOnly(d)
+            ? "이 질문은 요청자가 팀 허브에서 답합니다."
+            : "현재 확인할 내용이 있습니다. Decisions에서 답변하거나, 새 작업은 Assign Task로 등록해주세요.",
         );
         return;
       }
@@ -1077,6 +1100,91 @@ export async function createNativeOffice(c: Config) {
       `요청을 접수했습니다. ${project}에서 PM이 요구사항을 정리합니다.`,
     );
     await pump();
+  }
+  /** A teammate's request that this Office's member accepted on the team hub.
+   * The assignment key makes a retried hand-off create one task, never two. */
+  async function submitFromHub(input: {
+    key: string;
+    content: string;
+    risk: "normal" | "high";
+    requester: string;
+  }) {
+    const known = db
+      .prepare("SELECT task_id FROM pazmo_hub_requests WHERE hub_key=?")
+      .get(input.key) as { task_id: string } | undefined;
+    if (known) return known.task_id;
+    if (!live) fail("EXECUTION_LOCKED", "실제 실행 설정으로 Office를 시작해주세요.");
+    const created = transaction(db, () => {
+      const c = intake.create(token, input.content, input.risk, true);
+      db.prepare("UPDATE tasks SET assigned_agent_id=? WHERE id=?").run(agent("pm"), c.taskId);
+      db.prepare("INSERT INTO pazmo_hub_requests VALUES (?,?,?)").run(input.key, c.taskId, input.requester);
+      return c;
+    });
+    message(
+      created.taskId,
+      `accepted:${created.taskId}`,
+      `팀 허브 요청을 접수했습니다(요청자: ${input.requester}). ${project}에서 PM이 요구사항을 정리합니다.`,
+    );
+    await pump();
+    return created.taskId;
+  }
+  /** The requester's answer relayed by the hub. G4 is never answerable here;
+   * the answer id makes a re-delivery after a lost acknowledgement a no-op. */
+  async function replyFromHub(input: {
+    taskId: string;
+    answerId: string;
+    decisionId: string;
+    option: number;
+    note: string;
+    member: { id: string; name: string };
+  }) {
+    const request = db
+      .prepare("SELECT hub_key FROM pazmo_hub_requests WHERE task_id=?")
+      .get(input.taskId) as { hub_key: string } | undefined;
+    if (!request) fail("HUB_TASK_UNKNOWN", "허브에서 접수한 요청이 아닙니다.");
+    const prior = db
+      .prepare("SELECT task_id,decision_id FROM pazmo_hub_answers WHERE answer_id=?")
+      .get(input.answerId) as { task_id: string; decision_id: string } | undefined;
+    if (prior) {
+      if (prior.task_id !== input.taskId || prior.decision_id !== input.decisionId)
+        fail("STALE_APPROVAL", "질문이 바뀌었습니다. 허브에서 새 질문에 다시 답해주세요.");
+      return { ok: true, action: "workflow_answered" };
+    }
+    const d = db
+      .prepare("SELECT task_id,kind FROM pazmo_native_decisions WHERE id=?")
+      .get(input.decisionId) as { task_id: string; kind: string } | undefined;
+    if (!d || d.task_id !== input.taskId)
+      fail("STALE_APPROVAL", "질문이 바뀌었습니다. 허브에서 새 질문에 다시 답해주세요.");
+    if (!(HUB_ANSWERABLE as readonly string[]).includes(d.kind))
+      fail("HUB_GATE_FORBIDDEN", "이 결정은 맡은 사람이 Office에서 처리합니다.");
+    if (input.option !== 1 && input.option !== 2) fail("INVALID_REQUEST", "Unknown option.");
+    db.prepare(
+      "INSERT INTO pazmo_hub_answers(answer_id,decision_id,task_id,member_id,member_name,note,at,hub_key,source) VALUES (?,?,?,?,?,?,?,?,?)",
+    ).run(
+      input.answerId, input.decisionId, input.taskId, input.member.id, input.member.name, input.note,
+      Date.now(), request.hub_key, `hub:${input.member.id}`,
+    );
+    let result: unknown;
+    try {
+      result = await reply(input.decisionId, input.option, input.note, `팀원 ${input.member.name}`, true);
+    } catch (error) {
+      // Applied answers delete their decision; only an unapplied one is retried.
+      if (db.prepare("SELECT 1 FROM pazmo_native_decisions WHERE id=?").get(input.decisionId)) {
+        db.prepare("DELETE FROM pazmo_hub_answers WHERE answer_id=?").run(input.answerId);
+        throw error;
+      }
+      console.error("[pazmo] hub answer applied but follow-up failed:", error);
+      result = { ok: true, action: "workflow_answered" };
+    }
+    // The answer's footprint in the authoritative intake record: the revision it produced.
+    let revision: number | null = null;
+    try {
+      revision = intake.get(input.taskId).revision;
+    } catch {
+      // A task without an intake has no revision to point at.
+    }
+    db.prepare("UPDATE pazmo_hub_answers SET revision=? WHERE answer_id=?").run(revision, input.answerId);
+    return result;
   }
   async function cancel(id: string) {
     if (!managed(id)) fail("NOT_FOUND", "Managed task not found.");
@@ -1144,7 +1252,10 @@ export async function createNativeOffice(c: Config) {
             : "바이너리 변경입니다. 최종 검증 기록에서 확인해주세요.",
       };
     },
-    reply,
+    // Only replyFromHub may answer as the hub.
+    reply: (id: string, option: number, note: string, by?: string) => reply(id, option, note, by),
+    submitFromHub,
+    replyFromHub,
     cancel,
     status: () => live?.status() ?? { execution: "locked", active: [] },
     async checkAgentMutation(id: string, patch?: unknown) {

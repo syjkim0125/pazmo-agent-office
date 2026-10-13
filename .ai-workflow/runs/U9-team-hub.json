@@ -1,0 +1,249 @@
+{
+  "version": 1,
+  "runId": "8c29fb7e-b150-4e60-972b-88568d1c4314",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "fc1c456edb0e86ee678e161fb212d468887b65edf3376be2fb3076fe77bb1f01",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team hub phase 1 implemented (src/hub/*, src/runtime/hub-link.ts, hub-snapshot.ts, native-office hub entry, CLI hub/hub-link/hub-unlink, copy button). TDD per task with task reviews and a final whole-branch review (Critical 0 after fixes). Full root suite 540/540, typecheck exit 0 (2026-10-12). Single-Mac real LAN check passed end to end (request -> accept -> PM/requester G1 on hub -> task G1/G4 by assignee in Office -> delivered -> hub done with diff/summary). Not verified: another person's PC, company IT policy, multi-day operation. Uncommitted pending user review.",
+          "evidence": [
+            "docs/verification/2026-10-12-team-hub.md",
+            "docs/plans/2026-10-08-0924-feat-team-hub-plan.md",
+            "docs/understanding/team-hub-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-12-team-hub.md": "bcac98e9c23437720abcb1db052c1573ca39b432b68bcfe8f9238a3998b0dbc1",
+          "docs/plans/2026-10-08-0924-feat-team-hub-plan.md": "68b8ebbb31c062cde79ea3916f49ee7df745e98cfdac9dc826c3bdae04aabea8",
+          "docs/understanding/team-hub-decision.md": "110a30d5d0c7b75fc6a314b7bb6f6d3c86172dc96a63c6dcc4e2109114953a3f"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Final whole-branch review (opus) of the full diff incl. failure paths: Critical 0; 5 Important fixed in one wave and re-reviewed (all addressed); residuals parked with rulings in docs/verification/2026-10-12-team-hub.md.",
+          "evidence": [
+            "docs/verification/2026-10-12-team-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-12-team-hub.md": "bcac98e9c23437720abcb1db052c1573ca39b432b68bcfe8f9238a3998b0dbc1"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification after review fixes and the copy-button change: npm test 540/540 (exit 0), npm run typecheck exit 0, Story/Task checkers exit 0; single-Mac real LAN check passed; unproven: other PCs, company IT policy, multi-day operation, system-keychain trust path.",
+          "evidence": [
+            "docs/verification/2026-10-12-team-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-12-team-hub.md": "bcac98e9c23437720abcb1db052c1573ca39b432b68bcfe8f9238a3998b0dbc1"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "4aa763bd94caac4fefa31ae905625f3dfbcd9553fbc72ba34e43b9113ef97516"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-08T01:06:46.116Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-12T09:28:41.162Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team hub phase 1 implemented (src/hub/*, src/runtime/hub-link.ts, hub-snapshot.ts, native-office hub entry, CLI hub/hub-link/hub-unlink, copy button). TDD per task with task reviews and a final whole-branch review (Critical 0 after fixes). Full root suite 540/540, typecheck exit 0 (2026-10-12). Single-Mac real LAN check passed end to end (request -> accept -> PM/requester G1 on hub -> task G1/G4 by assignee in Office -> delivered -> hub done with diff/summary). Not verified: another person's PC, company IT policy, multi-day operation. Uncommitted pending user review.",
+          "evidence": [
+            "docs/verification/2026-10-12-team-hub.md",
+            "docs/plans/2026-10-08-0924-feat-team-hub-plan.md",
+            "docs/understanding/team-hub-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-12-team-hub.md": "bcac98e9c23437720abcb1db052c1573ca39b432b68bcfe8f9238a3998b0dbc1",
+          "docs/plans/2026-10-08-0924-feat-team-hub-plan.md": "68b8ebbb31c062cde79ea3916f49ee7df745e98cfdac9dc826c3bdae04aabea8",
+          "docs/understanding/team-hub-decision.md": "110a30d5d0c7b75fc6a314b7bb6f6d3c86172dc96a63c6dcc4e2109114953a3f"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-12T09:28:52.041Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-12T09:28:52.177Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Final whole-branch review (opus) of the full diff incl. failure paths: Critical 0; 5 Important fixed in one wave and re-reviewed (all addressed); residuals parked with rulings in docs/verification/2026-10-12-team-hub.md.",
+          "evidence": [
+            "docs/verification/2026-10-12-team-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-12-team-hub.md": "bcac98e9c23437720abcb1db052c1573ca39b432b68bcfe8f9238a3998b0dbc1"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-12T09:28:52.333Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-12T09:28:52.506Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification after review fixes and the copy-button change: npm test 540/540 (exit 0), npm run typecheck exit 0, Story/Task checkers exit 0; single-Mac real LAN check passed; unproven: other PCs, company IT policy, multi-day operation, system-keychain trust path.",
+          "evidence": [
+            "docs/verification/2026-10-12-team-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-12-team-hub.md": "bcac98e9c23437720abcb1db052c1573ca39b432b68bcfe8f9238a3998b0dbc1"
+        }
+      }
+    }
+  ]
+}

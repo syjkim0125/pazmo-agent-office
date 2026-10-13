@@ -2,6 +2,7 @@ import { mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { noSymlinks } from "../cli/project.ts";
 import { createNativeOffice } from "./native-office.ts";
+import { startHubLink } from "./hub-link.ts";
 import type { LiveConfig } from "./live.ts";
 import { configurePazmoHost } from "../../vendor/claw-empire/server/pazmo/host.ts";
 
@@ -44,14 +45,25 @@ process.once("message", async (raw: unknown) => {
       project,
       instance: value.instance,
       token: value.token,
-      initialize: (db) =>
-        createNativeOffice({
+      initialize: async (db) => {
+        const office = await createNativeOffice({
           db,
           project,
           dataDir: nativeData,
           token: value.token,
           live: value.live,
-        }),
+        });
+        // Outbound only: the Office still listens on 127.0.0.1 alone.
+        if (value.live) {
+          const link = startHubLink({ dataDir, db, office });
+          const close = office.close;
+          office.close = async () => {
+            link.stop();
+            await close();
+          };
+        }
+        return office;
+      },
     });
     // Upstream uses its own bundler-mode TypeScript project; do not pull it
     // into the Office NodeNext compilation unit.

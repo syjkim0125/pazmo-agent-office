@@ -13,6 +13,7 @@ import {
 import { up } from "./launcher.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { bridge, readBridgeInput } from "./bridge.ts";
+import { runHub, linkOffice, unlinkOffice } from "./hub.ts";
 import {
   start,
   status,
@@ -27,7 +28,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|bridge|monitor|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
+        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
       );
       return;
     }
@@ -41,6 +42,9 @@ export async function main(args: string[]): Promise<void> {
         "setup-runtime",
         "bridge",
         "monitor",
+        "hub",
+        "hub-link",
+        "hub-unlink",
         "operator-key",
         "init",
         "doctor",
@@ -83,6 +87,11 @@ export async function main(args: string[]): Promise<void> {
           "--controller",
           "--executor",
           "--codex-runtime",
+          "--host",
+          "--name",
+          "--hub",
+          "--code",
+          "--fingerprint",
         ].includes(flag) ||
         flag in options
       )
@@ -112,8 +121,8 @@ export async function main(args: string[]): Promise<void> {
         "ARGUMENT",
         "Apply and dry-run are only supported by init, remove and setup-runtime.",
       );
-    if (options["--port"] !== undefined && !["start", "up"].includes(command))
-      fail("ARGUMENT", "Port is only supported by start and up.");
+    if (options["--port"] !== undefined && !["start", "up", "hub"].includes(command))
+      fail("ARGUMENT", "Port is only supported by start, up and hub.");
     const codexRuntime = options["--codex-runtime"] as "installed" | "pinned" | undefined;
     if (codexRuntime !== undefined && !["start", "up"].includes(command))
       fail("ARGUMENT", "--codex-runtime is only supported by start and up.");
@@ -153,6 +162,11 @@ export async function main(args: string[]): Promise<void> {
       ],
       "--gate": ["approval-request"],
       "--challenge": ["approval-decide"],
+      "--host": ["hub"],
+      "--name": ["hub"],
+      "--hub": ["hub-link"],
+      "--code": ["hub-link"],
+      "--fingerprint": ["hub-link"],
     };
     for (const [flag, commands] of Object.entries(allowed))
       if (options[flag] !== undefined && !commands.includes(command))
@@ -197,6 +211,19 @@ export async function main(args: string[]): Promise<void> {
       );
       return;
     }
+    if (command === "hub") {
+      if (options["--project"]) fail("ARGUMENT", "hub serves the whole team; omit --project.");
+      const rawPort = options["--port"] ?? "8443";
+      if (typeof rawPort !== "string" || !/^\d+$/.test(rawPort) || Number(rawPort) > 65535)
+        fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
+      console.log(JSON.stringify(await runHub({
+        host: required("--host"),
+        name: options["--name"] as string | undefined,
+        port: Number(rawPort),
+        dataDir: options["--data-dir"] as string | undefined,
+      })));
+      return;
+    }
     if (command === "setup-runtime") {
       if (options["--project"])
         fail(
@@ -223,6 +250,9 @@ export async function main(args: string[]): Promise<void> {
     let result: unknown;
     if (command === "bridge") result = await bridge(p, await readBridgeInput());
     else if (command === "monitor") result = await monitor(p);
+    else if (command === "hub-link")
+      result = await linkOffice(p, required("--hub"), required("--code"), required("--fingerprint"));
+    else if (command === "hub-unlink") result = unlinkOffice(p);
     else if (command === "intake-create")
       result = await operatorRequest(p, "/api/pazmo/intakes", inputJSON());
     else if (command === "intake")
