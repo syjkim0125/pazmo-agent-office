@@ -87,3 +87,14 @@ test("the assignee-side note on requester gates is not sent to the hub", () => {
   });
   assert.equal(hubSnapshot(db, office, ROOT).decisions[0].summary, "1. 어떤 목차?");
 });
+
+test("decisions this Office sent to other repositories never enter a request's snapshot", () => {
+  const { db, office } = fixture("in_progress", {
+    decisions: [
+      { id: "g4", task_id: CHILD, decision_kind: "G4", summary: "x", options: [] },
+      { id: "hubout:r1:d1", task_id: ROOT, decision_kind: "hub-story", summary: "팀 허브 · be", options: [] },
+      { id: "hubout:r2:d2", task_id: null, decision_kind: "hub-questions", summary: "y", options: [] },
+    ],
+  });
+  assert.deepEqual(hubSnapshot(db, office, ROOT).decisions.map((d) => d.id), ["g4"]);
+});

@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
-import { HUB_ANSWERABLE, parseSnapshot, type HubSnapshot } from "./protocol.ts";
+import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot, type OutgoingView } from "./protocol.ts";
 import { normalizeRemote } from "./remote.ts";
 
 export class HubError extends Error {
@@ -22,6 +22,9 @@ export const INVITE_TTL = 72 * 3600_000;
 export const SESSION_TTL = 30 * 86400_000;
 export const LINK_CODE_TTL = 10 * 60_000;
 export const REQUEST_BYTES = 16384;
+export const SEND_LIMIT_PER_HOUR = 30;
+const SOURCE_LIMIT = 200;
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type Member = { id: string; name: string; admin: boolean };
 export type Link = { id: string; member: Member; repoId: string };
@@ -62,6 +65,8 @@ export type RequestView = {
   snapshotAt: number | null;
   officeSeen: number | null;
   answers: { id: string; decisionId: string; option: number; note: string; state: string; result: string | null; at: number }[];
+  source: string | null;
+  parentId: string | null;
   createdAt: number;
 };
 export type HubWork = {
@@ -101,6 +106,9 @@ type RequestRecord = {
   requester_id: string;
   state: string;
   created_at: number;
+  source_note: string | null;
+  parent_request_id: string | null;
+  origin_repo_id: string | null;
 };
 type Arg = string | number | null;
 
@@ -127,6 +135,18 @@ export class HubStore {
     this.#db = db;
     this.#now = now;
     db.exec(SCHEMA);
+    this.#migrate();
+  }
+  /** Phase-2 columns for hubs created before this version; idempotent. */
+  #migrate() {
+    const have = new Set(
+      (this.#db.prepare("PRAGMA table_info(hub_requests)").all() as { name: string }[]).map((c) => c.name),
+    );
+    for (const [name, type] of [["source_note", "TEXT"], ["create_key", "TEXT"], ["origin_repo_id", "TEXT"]])
+      if (!have.has(name)) this.#db.exec(`ALTER TABLE hub_requests ADD COLUMN ${name} ${type}`);
+    this.#db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS hub_request_once ON hub_requests(requester_id,create_key) WHERE create_key IS NOT NULL",
+    );
   }
   #get<T>(sql: string, ...args: Arg[]) {
     const row = this.#db.prepare(sql).get(...args);
@@ -327,6 +347,15 @@ export class HubStore {
   }
 
   createRequest(by: Member, repoId: string, body: string, risk: "normal" | "high"): string {
+    return this.#insertRequest(by, repoId, body, risk, {});
+  }
+  #insertRequest(
+    by: Member,
+    repoId: string,
+    body: string,
+    risk: "normal" | "high",
+    extra: { source?: string; key?: string; originRepoId?: string; parentRequestId?: string | null },
+  ): string {
     const text = body.trim();
     if (!text) fail("INVALID", 400, "요청 내용을 적어주세요.");
     // The Office's planner refuses more than this many UTF-8 bytes, or NUL.
@@ -337,8 +366,10 @@ export class HubStore {
     const id = randomUUID(),
       now = this.#now();
     this.#run(
-      "INSERT INTO hub_requests(id,repo_id,body,risk,requester_id,state,created_at,updated_at) VALUES (?,?,?,?,?,'open',?,?)",
-      id, repoId, text, risk, by.id, now, now,
+      `INSERT INTO hub_requests(id,repo_id,body,risk,requester_id,parent_request_id,state,created_at,updated_at,source_note,create_key,origin_repo_id)
+       VALUES (?,?,?,?,?,?,'open',?,?,?,?,?)`,
+      id, repoId, text, risk, by.id, extra.parentRequestId ?? null, now, now,
+      extra.source ?? null, extra.key ?? null, extra.originRepoId ?? null,
     );
     return id;
   }
@@ -445,6 +476,8 @@ export class HubStore {
             a.id,
           )
         : [],
+      source: r.source_note ?? null,
+      parentId: r.parent_request_id ?? null,
       createdAt: r.created_at,
     };
   }
@@ -632,5 +665,103 @@ export class HubStore {
       fail("NOT_FOUND", 404, "연결을 찾을 수 없습니다.");
     if (!by.admin && l.member_id !== by.id) fail("FORBIDDEN", 403, "자기 Office 연결만 해제할 수 있습니다.");
     this.#run("UPDATE hub_links SET revoked_at=? WHERE id=? AND revoked_at IS NULL", this.#now(), id);
+  }
+
+  linkRepos(l: Link): { id: string; name: string; owners: string[] }[] {
+    return this.repos(l.member.id).map((r) => ({ id: r.id, name: r.name, owners: r.owners.map((o) => o.name) }));
+  }
+  /** One request per (requester, window key): a resend after a lost reply returns the first. */
+  createFromLink(
+    l: Link,
+    input: { repoId: string; body: string; risk: "normal" | "high"; key: string; source: string; parentAssignmentId: string | null },
+  ): { requestId: string; repoName: string; created: boolean } {
+    if (!UUID.test(input.key)) fail("INVALID", 400, "보내기 창 키 형식이 아닙니다.");
+    const source = input.source.trim();
+    if (!source || source.length > SOURCE_LIMIT || /[\u0000-\u001f\u007f]/.test(source))
+      fail("INVALID", 400, `출처는 제어 문자 없이 1~${SOURCE_LIMIT}자여야 합니다.`);
+    return transaction(this.#db, () => {
+      const repoName = (id: string) => this.#get<{ name: string }>("SELECT name FROM hub_repos WHERE id=?", id)?.name ?? "";
+      const prior = this.#get<{ id: string; repo_id: string }>(
+        "SELECT id,repo_id FROM hub_requests WHERE requester_id=? AND create_key=?", l.member.id, input.key,
+      );
+      if (prior) return { requestId: prior.id, repoName: repoName(prior.repo_id), created: false };
+      const recent = this.#get<{ n: number }>(
+        "SELECT COUNT(*) n FROM hub_requests WHERE requester_id=? AND origin_repo_id=? AND created_at>?",
+        l.member.id, l.repoId, this.#now() - 3600_000,
+      )!.n;
+      if (recent >= SEND_LIMIT_PER_HOUR) fail("RATE_LIMITED", 429, "보내기가 너무 많습니다. 잠시 뒤 다시 보내주세요.");
+      // A parent only when the work is still this link's live assignment; otherwise omitted.
+      const parent = input.parentAssignmentId
+        ? this.#get<{ request_id: string }>(
+            `SELECT a.request_id FROM hub_assignments a JOIN hub_requests r ON r.id=a.request_id
+             WHERE a.id=? AND a.member_id=? AND r.repo_id=? AND a.ended_at IS NULL`,
+            input.parentAssignmentId, l.member.id, l.repoId,
+          )?.request_id ?? null
+        : null;
+      const requestId = this.#insertRequest(l.member, input.repoId, input.body, input.risk, {
+        source, key: input.key, originRepoId: l.repoId, parentRequestId: parent,
+      });
+      return { requestId, repoName: repoName(input.repoId), created: true };
+    });
+  }
+  /** Requests this member sent from this link's repository; finished ones fade after 7 days. */
+  outgoing(l: Link): OutgoingView[] {
+    const rows = this.#all<{ id: string; repo_name: string; state: OutgoingView["state"]; updated_at: number }>(
+      `SELECT r.id,p.name repo_name,r.state,r.updated_at FROM hub_requests r JOIN hub_repos p ON p.id=r.repo_id
+       WHERE r.requester_id=? AND r.origin_repo_id=? AND (r.state IN ('open','accepted') OR r.updated_at>?)
+       ORDER BY r.updated_at DESC LIMIT 50`,
+      l.member.id, l.repoId, this.#now() - 7 * 86400_000,
+    );
+    return rows.map((r) => {
+      // A released request is open again: the ended assignment is no longer anyone's work.
+      const a =
+        r.state === "open"
+          ? undefined
+          : this.#get<Assignment>(
+              "SELECT * FROM hub_assignments WHERE request_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1", r.id,
+            );
+      const snap = a?.snapshot ? (JSON.parse(a.snapshot) as HubSnapshot) : null;
+      const pending = new Set(
+        a ? this.#all<{ decision_id: string }>("SELECT decision_id FROM hub_answers WHERE assignment_id=? AND state='pending'", a.id).map((x) => x.decision_id) : [],
+      );
+      return {
+        requestId: r.id,
+        repoName: r.repo_name,
+        state: r.state,
+        assignee: a ? this.#get<{ name: string }>("SELECT name FROM hub_members WHERE id=?", a.member_id)?.name ?? null : null,
+        status: snap?.status ?? null,
+        summary: snap?.summary ?? null,
+        decisions:
+          a && a.ended_at === null && snap
+            ? snap.decisions
+                .filter((d) => (HUB_ANSWERABLE as readonly string[]).includes(d.kind) && !pending.has(d.id))
+                .map((d) => ({ ...d, summary: d.summary.slice(0, OUTGOING_SUMMARY_LIMIT), rejected: this.#rejected(a.id, d.id) }))
+            : [],
+        updatedAt: r.updated_at,
+      };
+    });
+  }
+  /** Why the last relayed answer to this question was refused; null when none was, or a later one applied. */
+  #rejected(assignmentId: string, decisionId: string): string | null {
+    const last = this.#get<{ state: string; result: string | null }>(
+      "SELECT state,result FROM hub_answers WHERE assignment_id=? AND decision_id=? ORDER BY created_at DESC, rowid DESC LIMIT 1",
+      assignmentId, decisionId,
+    );
+    return last?.state === "rejected" ? (last.result ?? "") : null;
+  }
+  answerOutgoing(l: Link, requestId: string, decisionId: string, option: number, note: string): { ok: true; already: boolean } {
+    const r = this.#get<RequestRecord>("SELECT * FROM hub_requests WHERE id=?", requestId);
+    if (!r || r.requester_id !== l.member.id || r.origin_repo_id !== l.repoId)
+      fail("NOT_FOUND", 404, "이 Office에서 보낸 요청이 아닙니다.");
+    // The receiving Office turns option 2 into a cancel; only the hub page may reject or cancel.
+    if (option !== 1) fail("INVALID", 400, "요청 취소나 거절은 팀 허브 요청 화면에서 해주세요.");
+    try {
+      this.answer(l.member, requestId, decisionId, option, note);
+      return { ok: true, already: false };
+    } catch (error) {
+      // Already answered (e.g. on the hub page) and waiting for relay: nothing more to send.
+      if (error instanceof HubError && error.code === "CONFLICT") return { ok: true, already: true };
+      throw error;
+    }
   }
 }

@@ -1,6 +1,6 @@
 // Modified by Pazmo: disable empty-board mutation controls in the locked preview.
-import { useCallback, useMemo, useState } from "react";
-import { bulkHideTasks } from "../api";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { bulkHideTasks, getHubOutgoing, getHubStatus, type HubOutgoingItem } from "../api";
 import { useI18n } from "../i18n";
 import type { Agent, Department, SubTask, Task, WorkflowPackKey } from "../types";
 import ProjectManagerModal from "./ProjectManagerModal";
@@ -68,6 +68,28 @@ export function TaskBoard({
   const [filterType, setFilterType] = useState("");
   const [search, setSearch] = useState("");
   const [showAllTasks, setShowAllTasks] = useState(false);
+  const [hubLinked, setHubLinked] = useState(false);
+  const [hubLegacy, setHubLegacy] = useState(false);
+  const [hubOutgoing, setHubOutgoing] = useState<HubOutgoingItem[]>([]);
+  const loadHub = useCallback(() => {
+    getHubStatus()
+      .then((s) => {
+        setHubLinked(s.linked && !s.legacy);
+        setHubLegacy(s.linked && s.legacy);
+        return s.linked ? getHubOutgoing() : { linked: false, items: [] };
+      })
+      .then((o) => setHubOutgoing(o.items))
+      .catch(() => {
+        // An Office without the hub routes (preview) simply hides the feature.
+        setHubLinked(false);
+        setHubLegacy(false);
+      });
+  }, []);
+  useEffect(() => {
+    loadHub();
+    const timer = window.setInterval(loadHub, 5000);
+    return () => window.clearInterval(timer);
+  }, [loadHub]);
 
   const hiddenTaskIds = useMemo(
     () => new Set(tasks.filter((task) => task.hidden === 1).map((task) => task.id)),
@@ -288,6 +310,10 @@ export function TaskBoard({
                       onDiscardTask={onDiscardTask}
                       onHideTask={hideTask}
                       onUnhideTask={unhideTask}
+                      hubLinked={hubLinked}
+                      hubLegacy={hubLegacy}
+                      hubOutgoing={hubOutgoing.filter((x) => x.taskId === task.id)}
+                      onHubSent={loadHub}
                     />
                   ))
                 )}

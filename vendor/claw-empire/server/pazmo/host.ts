@@ -34,6 +34,11 @@ export type NativeOfficeBridge = {
   cliModels(): unknown;
   /** Which installed CLI served each role of a report's request. */
   runnerRuns(id: string): unknown;
+  /** Team hub, for requests this Office sends to other repositories. */
+  hubStatus?(): unknown;
+  hubRepos?(): Promise<unknown>;
+  hubSend?(input: unknown): Promise<unknown>;
+  hubOutgoing?(): unknown;
 };
 export type PazmoHost = {
   project: string;
@@ -65,6 +70,9 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
   if (!isPazmoManaged()) return;
   if (!host) throw new Error("PAZMO_HOST_NOT_CONFIGURED");
   const configured = host;
+  // Loaded lazily: security/auth.ts reads API_AUTH_TOKEN when first imported, and the
+  // service launcher sets it only after importing this module.
+  const { hasValidCsrfToken } = await import("../security/auth.ts");
   office = await configured.initialize?.(db);
   app.use("/__pazmo", (req, res, next) => {
     const received = Buffer.from(req.headers.authorization ?? "");
@@ -109,6 +117,17 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
       if (req.method === "GET" && req.path === "/cli-status")
         return res.json(await office.cliStatus({ refresh: Boolean(req.query.refresh) }));
       if (req.method === "GET" && req.path === "/cli-models") return res.json(office.cliModels());
+      if (req.path.startsWith("/hub/") && office.hubStatus) {
+        if (req.method === "GET" && req.path === "/hub/status") return res.json(office.hubStatus());
+        if (req.method === "GET" && req.path === "/hub/repos") return res.json(await office.hubRepos!());
+        if (req.method === "GET" && req.path === "/hub/outgoing") return res.json(office.hubOutgoing!());
+        if (req.method === "POST" && req.path === "/hub/requests") {
+          // Sending acts in the member's name on the team hub; require the session's CSRF token.
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          return res.json(await office.hubSend!(req.body ?? {}));
+        }
+        return res.status(404).json({ error: "NOT_FOUND" });
+      }
       const runnersOf = req.path.match(/^\/task-reports\/([^/]+)\/runners$/);
       if (runnersOf && req.method === "GET") return res.json(office.runnerRuns(runnersOf[1]));
       const agentEdit = req.path.match(/^\/agents\/([^/]+)$/);
@@ -122,8 +141,18 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
         if (result) return res.json(result);
       }
       const reply = req.path.match(/^\/decision-inbox\/([^/]+)\/reply$/);
-      if (reply && req.method === "POST")
-        return res.json(await office.reply(reply[1], Number(req.body?.option_number), req.body?.note ?? ""));
+      if (reply && req.method === "POST") {
+        // The UI sends encodeURIComponent(id) and Express leaves req.path encoded.
+        let id: string;
+        try {
+          id = decodeURIComponent(reply[1]);
+        } catch {
+          return res.status(409).json({ error: "STALE_APPROVAL", message: "이미 처리됐거나 변경된 요청입니다." });
+        }
+        // Answering a hub gate acts in the member's name on the team hub.
+        if (id.startsWith("hubout:") && !hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+        return res.json(await office.reply(id, Number(req.body?.option_number), req.body?.note ?? ""));
+      }
       const action = req.path.match(/^\/tasks\/([^/]+)\/(assign|run|stop)$/);
       if (action && req.method === "POST")
         return res.json(
@@ -142,7 +171,7 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
       const e = error as Error & { code?: string };
       if (e.code === "STALE_APPROVAL") await office?.refresh();
       res
-        .status(e.code === "EXECUTION_LOCKED" ? 423 : 409)
+        .status(e.code === "EXECUTION_LOCKED" ? 423 : e.code === "RATE_LIMITED" ? 429 : e.code === "HUB_UNREACHABLE" ? 503 : 409)
         .json({ error: e.code ?? "WORKFLOW_FAILED", message: e.message });
     }
   });

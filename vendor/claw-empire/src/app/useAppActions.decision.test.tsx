@@ -134,3 +134,55 @@ it("Run exposes a server failure instead of silently returning", async () => {
   expect(alert).toHaveBeenCalledWith("실제 실행 설정으로 Office를 시작해주세요.");
   expect(api.runTask).toHaveBeenCalledTimes(1);
 });
+
+it("answers a team hub question sent from this Office through the inbox and removes it once resolved", async () => {
+  const hubItem: DecisionInboxItem = {
+    id: "hubout:0b9f2c4e-1d3a-4b5c-8d7e-9f0a1b2c3d4e:d1",
+    kind: "workflow_gate",
+    decisionKind: "hub-story",
+    agentId: null,
+    agentName: "팀 허브",
+    agentNameKo: "팀 허브",
+    requestContent: "팀 허브 · checkout-backend · 범위 승인(G1)\n범위 요약",
+    createdAt: 1,
+    options: [{ number: 1, label: "내용 확인 후 승인", action: "workflow_answer" }],
+  };
+  vi.spyOn(api, "replyDecisionInbox").mockResolvedValue({ ok: true, action: "hub_answered", resolved: true } as never);
+  vi.spyOn(api, "getMessages").mockResolvedValue([]);
+  vi.spyOn(api, "getDecisionInbox").mockResolvedValue([]);
+  const setDecisionInboxItems = vi.fn();
+  const scheduleLiveSync = vi.fn();
+  const { result } = renderHook(() =>
+    useAppActions({
+      agents: [],
+      settings: { language: "ko" } as CompanySettings,
+      scheduleLiveSync,
+      setSettings: vi.fn(),
+      setAgents: vi.fn(),
+      setDepartments: vi.fn(),
+      setTasks: vi.fn(),
+      setStats: vi.fn(),
+      setMessages: vi.fn(),
+      setChatAgent: vi.fn(),
+      setShowChat: vi.fn(),
+      setUnreadAgentIds: vi.fn(),
+      setShowDecisionInbox: vi.fn(),
+      setDecisionInboxLoading: vi.fn(),
+      setDecisionInboxItems,
+      setDecisionReplyBusyKey: vi.fn(),
+      setCliStatus: vi.fn(),
+    }),
+  );
+  let outcome: unknown;
+  await act(async () => {
+    outcome = await result.current.handleReplyDecisionOption(hubItem, 1, { note: "  승인합니다  " });
+  });
+  expect(outcome).toBe("sent");
+  expect(api.replyDecisionInbox).toHaveBeenCalledWith(hubItem.id, 1, { note: "승인합니다" });
+  const removeResolved = setDecisionInboxItems.mock.calls
+    .map(([update]) => update)
+    .find((update): update is (prev: DecisionInboxItem[]) => DecisionInboxItem[] => typeof update === "function");
+  expect(removeResolved?.([hubItem, gateItem])).toEqual([gateItem]);
+  expect(scheduleLiveSync).toHaveBeenCalled();
+  expect(api.getDecisionInbox).toHaveBeenCalledTimes(1);
+});

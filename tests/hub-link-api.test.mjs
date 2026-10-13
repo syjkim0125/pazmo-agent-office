@@ -20,7 +20,7 @@ test("the link API refuses another protocol version and calls without a link tok
   const code = store.createLinkCode(admin, repo);
   const old = await api("POST", "/api/link/pair", { body: { code, remote: "x" }, protocol: "0" });
   assert.equal(old.status, 426);
-  assert.equal(old.json.expected, "1");
+  assert.equal(old.json.expected, "2");
   assert.equal((await api("GET", "/api/link/work")).status, 401);
   assert.equal((await api("GET", "/api/link/work", { token: "x".repeat(43) })).status, 401);
 });
@@ -230,4 +230,42 @@ test("body limits are per route: pair 64 KiB, link calls 1 MiB", async (t) => {
   assert.deepEqual(mid.json, { applied: true, seq: 1 });
   const over = { assignmentId, seq: 2, snapshot: snap({ diff: { text: "d".repeat(1100 * 1024), truncated: false } }) };
   assert.equal(await refused(ctx, "/api/link/snapshot", token, over), 413);
+});
+
+test("protocol 1 Offices keep working; the new routes need protocol 2", async (t) => {
+  const { api, store, admin, repo } = await seeded(t);
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  assert.equal((await api("GET", "/api/link/work", { token, protocol: "1" })).status, 200);
+  const old = await api("GET", "/api/link/repos", { token, protocol: "1" });
+  assert.equal(old.status, 426);
+  assert.equal(old.json.expected, "2");
+  const repos = await api("GET", "/api/link/repos", { token, protocol: "2" });
+  assert.equal(repos.json.repos[0].name, "eevee-be");
+  const sent = await api("POST", "/api/link/requests", { token, protocol: "2", body: { repoId: repo, body: "일", risk: "normal", key: "66666666-6666-4666-8666-666666666666", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  assert.equal(sent.status, 200);
+  assert.equal(sent.json.created, true);
+  const out = await api("GET", "/api/link/outgoing", { token, protocol: "2" });
+  assert.deepEqual(out.json.items.map((x) => x.requestId), [sent.json.requestId]);
+  const bad = await api("POST", "/api/link/requests", { token, protocol: "2", body: { repoId: repo, body: "일", risk: "normal", key: 7, source: "x", parentAssignmentId: null } });
+  assert.equal(bad.status, 400);
+});
+
+test("outgoing-answer relays the requester's answer over HTTP and needs protocol 2", async (t) => {
+  const { api, store, admin, repo } = await seeded(t);
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "88888888-8888-4888-8888-888888888888", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  store.accept(admin, sent.json.requestId); // the sender owns the repo too; the same link both sent and works it
+  const { assignments } = (await api("GET", "/api/link/work", { token })).json;
+  const mine = assignments.find((a) => a.requestId === sent.json.requestId);
+  const story = { id: "d1", kind: "story", summary: "범위", options: [{ number: 1, label: "내용 확인 후 승인" }] };
+  assert.equal((await api("POST", "/api/link/snapshot", { token, body: { assignmentId: mine.assignmentId, seq: 1, snapshot: snap({ status: "waiting", decisions: [story] }) } })).status, 200);
+  const body = { requestId: sent.json.requestId, decisionId: "d1", option: 1, note: "승인" };
+  const old = await api("POST", "/api/link/outgoing-answer", { token, protocol: "1", body });
+  assert.equal(old.status, 426);
+  const reject = await api("POST", "/api/link/outgoing-answer", { token, body: { ...body, option: 2, note: "" } });
+  assert.deepEqual([reject.status, reject.json.error], [400, "INVALID"], "an Office never rejects or cancels through the link");
+  const ok = await api("POST", "/api/link/outgoing-answer", { token, body });
+  assert.equal(ok.status, 200);
+  assert.deepEqual(ok.json, { ok: true, already: false });
+  assert.deepEqual((await api("POST", "/api/link/outgoing-answer", { token, body })).json, { ok: true, already: true });
 });

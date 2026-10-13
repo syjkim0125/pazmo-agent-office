@@ -3,7 +3,7 @@ import { DIFF_LIMIT, HUB_ANSWERABLE, HUB_REQUESTER_NOTE, type HubSnapshot } from
 
 export type SnapshotOffice = {
   progress(id: string): { message: string; childTaskIds: string[] } | undefined;
-  decisions(): { id: string; task_id: string; decision_kind: string; summary: string; options: { number: number; label: string }[] }[];
+  decisions(): { id: string; task_id: string | null; decision_kind: string; summary: string; options: { number: number; label: string }[] }[];
   diff(id: string): unknown;
   runnerRuns(id: string): { runs: { role: string; runner: string; version: string; model: string }[] };
 };
@@ -29,7 +29,8 @@ export function hubSnapshot(db: DatabaseSync, office: SnapshotOffice, taskId: st
   const ids = [taskId, ...(progress?.childTaskIds ?? [])];
   const decisions = office
     .decisions()
-    .filter((d) => ids.includes(d.task_id))
+    // Items this Office sent to other repositories (hubout:) are not this request's gates.
+    .filter((d) => !d.id.startsWith("hubout:") && d.task_id !== null && ids.includes(d.task_id))
     .slice(0, 20)
     .map((d) => ({
       id: d.id,

@@ -1,0 +1,255 @@
+{
+  "version": 1,
+  "runId": "b62e74f6-bb5f-4e79-a646-423e224919a0",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "944634c06671071f3b6b978b98fe5800c60c3274e66cec271fa38a9aabd3a702",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team hub phase 2 A·B·C implemented: hub protocol 2 (repos, create-from-link with window key + 30/h, outgoing scoped to (member, origin repo), requester answers option 1 only), Office gateway (pazmo_hub_outgoing, Decisions hubout: items, legacy detection), local /api/hub/* with CSRF, SendToHubModal, card chip, chat button. TDD per task with task reviews (subagent-driven). root 582/582, typecheck exit 0, vendor web 118/120 (2 pre-existing sprite-avatar failures), vendor tsc app/node exit 0, build exit 0 (2026-10-13). Single-Mac two-Office real check passed end to end. Uncommitted pending user review.",
+          "evidence": [
+            "docs/verification/2026-10-13-team-hub-office-send.md",
+            "docs/plans/2026-10-13-1200-feat-team-hub-office-send-plan.md",
+            "docs/understanding/team-hub-office-send-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-team-hub-office-send.md": "309b9446613dd37d2000df7dbc8b94b05297a3e8191b56ca88bd492de8a3abaf",
+          "docs/plans/2026-10-13-1200-feat-team-hub-office-send-plan.md": "0215e0e13a81c4ff18b6dae3c7d048310b7b98152b4081ec090051bc1b47835d",
+          "docs/understanding/team-hub-office-send-decision.md": "619d93a1581044eb19c64bc0da6f718cb6e3af8786547acee2f7ec7ba574193a"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (spec + quality; opus for security-relevant tasks) and one final whole-branch review (opus) incl. token scope, (member, origin repo) scope, window key + rate limit, no token to the browser, hubout delegation not leaking G4/task G1, legacy detection, CSRF: Critical 0; 4 Important fixed and re-reviewed (all addressed); the re-review's new Important (send upsert losing task_id) and hub-boundary option-1 enforcement fixed on user decision. Residual minors parked in docs/verification/2026-10-13-team-hub-office-send.md.",
+          "evidence": [
+            "docs/verification/2026-10-13-team-hub-office-send.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-team-hub-office-send.md": "309b9446613dd37d2000df7dbc8b94b05297a3e8191b56ca88bd492de8a3abaf"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-13 after all fixes: npm test 582/582 (exit 0), npm run typecheck exit 0, vendor vitest 118/120 (2 pre-existing sprite-avatar failures, also failing before this change), vendor tsc app/node exit 0, build:office exit 0, Story/Task checkers exit 0. Single-Mac two-Office real check passed: send from eevee-be card -> hub request with source -> accept -> other PM G1 answered in eevee-be Decisions (hub answer applied) -> task G1/G4 only in assignee Office -> delivered as candidate -> sender record done with 4-line summary; test repo unchanged. Unproven: other PCs, company IT policy, legacy-hub mix in real use, chat send and PM questions/planning retry in real use (automated only).",
+          "evidence": [
+            "docs/verification/2026-10-13-team-hub-office-send.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-team-hub-office-send.md": "309b9446613dd37d2000df7dbc8b94b05297a3e8191b56ca88bd492de8a3abaf"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "9e1f560ce6b27e3f6181c889417f6424f18789c0f7fc5de91ae3c1308aceab1b"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-13T04:02:35.962Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-13T07:38:08.272Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team hub phase 2 A·B·C implemented: hub protocol 2 (repos, create-from-link with window key + 30/h, outgoing scoped to (member, origin repo), requester answers option 1 only), Office gateway (pazmo_hub_outgoing, Decisions hubout: items, legacy detection), local /api/hub/* with CSRF, SendToHubModal, card chip, chat button. TDD per task with task reviews (subagent-driven). root 582/582, typecheck exit 0, vendor web 118/120 (2 pre-existing sprite-avatar failures), vendor tsc app/node exit 0, build exit 0 (2026-10-13). Single-Mac two-Office real check passed end to end. Uncommitted pending user review.",
+          "evidence": [
+            "docs/verification/2026-10-13-team-hub-office-send.md",
+            "docs/plans/2026-10-13-1200-feat-team-hub-office-send-plan.md",
+            "docs/understanding/team-hub-office-send-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-team-hub-office-send.md": "309b9446613dd37d2000df7dbc8b94b05297a3e8191b56ca88bd492de8a3abaf",
+          "docs/plans/2026-10-13-1200-feat-team-hub-office-send-plan.md": "0215e0e13a81c4ff18b6dae3c7d048310b7b98152b4081ec090051bc1b47835d",
+          "docs/understanding/team-hub-office-send-decision.md": "619d93a1581044eb19c64bc0da6f718cb6e3af8786547acee2f7ec7ba574193a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T07:38:19.958Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T07:38:20.091Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (spec + quality; opus for security-relevant tasks) and one final whole-branch review (opus) incl. token scope, (member, origin repo) scope, window key + rate limit, no token to the browser, hubout delegation not leaking G4/task G1, legacy detection, CSRF: Critical 0; 4 Important fixed and re-reviewed (all addressed); the re-review's new Important (send upsert losing task_id) and hub-boundary option-1 enforcement fixed on user decision. Residual minors parked in docs/verification/2026-10-13-team-hub-office-send.md.",
+          "evidence": [
+            "docs/verification/2026-10-13-team-hub-office-send.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-team-hub-office-send.md": "309b9446613dd37d2000df7dbc8b94b05297a3e8191b56ca88bd492de8a3abaf"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-13T07:38:20.228Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-13T07:38:20.367Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-13 after all fixes: npm test 582/582 (exit 0), npm run typecheck exit 0, vendor vitest 118/120 (2 pre-existing sprite-avatar failures, also failing before this change), vendor tsc app/node exit 0, build:office exit 0, Story/Task checkers exit 0. Single-Mac two-Office real check passed: send from eevee-be card -> hub request with source -> accept -> other PM G1 answered in eevee-be Decisions (hub answer applied) -> task G1/G4 only in assignee Office -> delivered as candidate -> sender record done with 4-line summary; test repo unchanged. Unproven: other PCs, company IT policy, legacy-hub mix in real use, chat send and PM questions/planning retry in real use (automated only).",
+          "evidence": [
+            "docs/verification/2026-10-13-team-hub-office-send.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-team-hub-office-send.md": "309b9446613dd37d2000df7dbc8b94b05297a3e8191b56ca88bd492de8a3abaf"
+        }
+      }
+    }
+  ]
+}

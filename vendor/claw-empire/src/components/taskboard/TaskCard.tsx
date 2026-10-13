@@ -4,6 +4,8 @@ import { useI18n } from "../../i18n";
 import AgentAvatar from "../AgentAvatar";
 import AgentSelect from "../AgentSelect";
 import DiffModal from "./DiffModal";
+import SendToHubModal from "./SendToHubModal";
+import type { HubOutgoingItem } from "../../api";
 import {
   getTaskTypeBadge,
   isHideableStatus,
@@ -33,6 +35,11 @@ interface TaskCardProps {
   onDiscardTask?: (id: string) => void;
   onHideTask?: (id: string) => void;
   onUnhideTask?: (id: string) => void;
+  hubLinked?: boolean;
+  /** Linked to a phase-1 hub: the send button stays visible but disabled until the hub is updated. */
+  hubLegacy?: boolean;
+  hubOutgoing?: HubOutgoingItem[];
+  onHubSent?: () => void;
 }
 
 const SUBTASK_STATUS_ICON: Record<string, string> = {
@@ -61,12 +68,17 @@ export default function TaskCard({
   onDiscardTask,
   onHideTask,
   onUnhideTask,
+  hubLinked,
+  hubLegacy,
+  hubOutgoing,
+  onHubSent,
 }: TaskCardProps) {
   void onMergeTask;
   void onDiscardTask;
   const { t, locale: localeTag, language: locale } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
+  const [showHubSend, setShowHubSend] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [agentWarning, setAgentWarning] = useState(false);
 
@@ -85,6 +97,16 @@ export default function TaskCard({
   const canResume = !task.workflow && (task.status === "pending" || task.status === "cancelled") && !!onResumeTask;
   const canDelete = !task.workflow && task.status !== "in_progress";
   const canHideTask = isHideableStatus(task.status);
+  const hubLabel = (x: HubOutgoingItem) =>
+    x.state === "open"
+      ? t({ ko: "맡을 사람 대기", en: "Waiting for owner" })
+      : x.state === "done"
+        ? t({ ko: "완료", en: "Done" })
+        : x.state === "cancelled"
+          ? t({ ko: "취소", en: "Cancelled" })
+          : x.status === "waiting"
+            ? t({ ko: "답변 대기", en: "Waiting for answer" })
+            : t({ ko: "진행 중", en: "In progress" });
 
   return (
     <div
@@ -127,6 +149,18 @@ export default function TaskCard({
             {department.icon} {locale === "ko" ? department.name_ko : department.name}
           </span>
         )}
+        {(hubOutgoing ?? []).map((x) => (
+          <a
+            key={x.requestId}
+            href={x.url}
+            target="_blank"
+            rel="noreferrer"
+            title={x.summary ?? x.source}
+            className="rounded-full bg-indigo-900/60 px-2 py-0.5 text-xs text-indigo-200 hover:bg-indigo-800/70"
+          >
+            ↗ {x.repoName} · {hubLabel(x)}
+          </a>
+        ))}
       </div>
 
       <div className="mb-3">
@@ -264,6 +298,21 @@ export default function TaskCard({
       )}
 
       <div className="flex flex-wrap items-center gap-1.5">
+        {(hubLinked || hubLegacy) && (
+          <button
+            onClick={() => setShowHubSend(true)}
+            disabled={!hubLinked}
+            title={
+              hubLinked
+                ? t({ ko: "팀 허브로 보내기", en: "Send to team hub" })
+                : t({ ko: "허브를 업데이트해야 합니다", en: "The team hub must be updated" })
+            }
+            className="flex items-center justify-center gap-1 rounded-lg bg-slate-700 px-2 py-1.5 text-xs text-slate-300 transition hover:bg-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-slate-700 disabled:hover:text-slate-300"
+          >
+            ↗ {t({ ko: "팀 허브로 보내기", en: "Send to team hub" })}
+            {!hubLinked && <span> · {t({ ko: "허브를 업데이트해야 합니다", en: "The team hub must be updated" })}</span>}
+          </button>
+        )}
         {canRun && (
           <button
             onClick={() => {
@@ -419,6 +468,9 @@ export default function TaskCard({
       </div>
 
       {showDiff && <DiffModal taskId={task.id} onClose={() => setShowDiff(false)} />}
+      {showHubSend && (
+        <SendToHubModal taskId={task.id} taskTitle={task.title} onClose={() => setShowHubSend(false)} onSent={onHubSent} />
+      )}
     </div>
   );
 }

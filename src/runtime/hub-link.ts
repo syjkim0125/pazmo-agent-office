@@ -3,7 +3,7 @@ import { X509Certificate, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { HUB_PROTOCOL } from "../hub/protocol.ts";
+import { HUB_LEGACY_PROTOCOL, HUB_PROTOCOL } from "../hub/protocol.ts";
 import { normalizeRemote } from "../hub/remote.ts";
 import { hubSnapshot, type SnapshotOffice } from "./hub-snapshot.ts";
 
@@ -40,7 +40,7 @@ export function removeLinkConfig(dataDir: string) {
 
 type Target = { hub: string; caPem: string; token?: string };
 /** Trusts only the pinned hub CA: Node's `ca` replaces the system roots. */
-export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?: unknown): Promise<any> {
+export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?: unknown, protocol: string = HUB_PROTOCOL): Promise<any> {
   return new Promise((resolve, reject) => {
     const payload = body === undefined ? undefined : JSON.stringify(body);
     const req = request(new URL(path, cfg.hub), {
@@ -48,7 +48,7 @@ export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?
       ca: [cfg.caPem],
       timeout: 15000,
       headers: {
-        "x-pazmo-hub-protocol": HUB_PROTOCOL,
+        "x-pazmo-hub-protocol": protocol,
         ...(cfg.token ? { authorization: `Bearer ${cfg.token}` } : {}),
         ...(payload ? { "content-type": "application/json", "content-length": String(Buffer.byteLength(payload)) } : {}),
       },
@@ -70,7 +70,11 @@ export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?
           return reject(new Error(`HUB_BAD_RESPONSE_${res.statusCode}`));
         }
         if ((res.statusCode ?? 500) >= 400)
-          return reject(Object.assign(new Error(value?.message ?? `HUB_${res.statusCode}`), { code: value?.error ?? `HUB_${res.statusCode}` }));
+          return reject(Object.assign(new Error(value?.message ?? `HUB_${res.statusCode}`), {
+            code: value?.error ?? `HUB_${res.statusCode}`,
+            status: res.statusCode,
+            expected: value?.expected,
+          }));
         resolve(value);
       });
     });
@@ -160,7 +164,13 @@ export type LinkOffice = SnapshotOffice & {
   }): Promise<unknown>;
   cancel(id: string): Promise<unknown>;
 };
-type Deps = { dataDir: string; db: DatabaseSync; office: LinkOffice; call?: typeof hubCall };
+type Deps = {
+  dataDir: string;
+  db: DatabaseSync;
+  office: LinkOffice;
+  call?: typeof hubCall;
+  outgoing?: { sync(cfg: HubLinkConfig, call: typeof hubCall): Promise<void>; setLegacy(value: boolean): void };
+};
 
 const describe = (error: unknown) =>
   `${(error as { code?: string }).code ?? "FAILED"} ${error instanceof Error ? error.message : String(error)}`;
@@ -173,7 +183,7 @@ const printable = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, " ");
  * One item failing never blocks the others: each is logged once (without
  * secrets) and retried on the next pass. Only a failed work fetch throws. */
 export function createHubSync(deps: Deps) {
-  const call = deps.call ?? hubCall;
+  const baseCall = deps.call ?? hubCall;
   // json is null while the hub has not applied the last snapshot we tried to send.
   const sent = new Map<string, { json: string | null; seq: number }>();
   const summaries = new Map<string, string>();
@@ -183,7 +193,19 @@ export function createHubSync(deps: Deps) {
   async function syncOnce() {
     const cfg = readLinkConfig(deps.dataDir);
     if (!cfg) return;
-    const work = (await call(cfg, "GET", "/api/link/work")) as Work;
+    // Start with protocol 2; a phase-1 hub answers 426 expecting "1" and is then served in its own protocol.
+    let protocol = HUB_PROTOCOL;
+    let work: Work;
+    try {
+      work = (await baseCall(cfg, "GET", "/api/link/work", undefined, protocol)) as Work;
+    } catch (error) {
+      const e = error as { code?: string; expected?: string };
+      if (e.code !== "PROTOCOL_MISMATCH" || e.expected !== HUB_LEGACY_PROTOCOL) throw error;
+      protocol = HUB_LEGACY_PROTOCOL;
+      work = (await baseCall(cfg, "GET", "/api/link/work", undefined, protocol)) as Work;
+    }
+    deps.outgoing?.setLegacy(protocol === HUB_LEGACY_PROTOCOL);
+    const call = (c: HubLinkConfig, method: "GET" | "POST", path: string, body?: unknown) => baseCall(c, method, path, body, protocol);
     const live = new Set(work.assignments.map((a) => a.assignmentId));
     for (const id of [...sent.keys()]) if (!live.has(id)) sent.delete(id);
     for (const id of [...summaries.keys()]) if (!live.has(id)) summaries.delete(id);
@@ -274,6 +296,10 @@ export function createHubSync(deps: Deps) {
           sent.set(assignmentId, { json: null, seq: typeof res.seq === "number" ? Math.max(res.seq, seq) : seq });
         else sent.set(assignmentId, { json, seq });
       });
+    if (deps.outgoing && protocol === HUB_PROTOCOL) {
+      const outgoing = deps.outgoing;
+      await guard("outgoing", () => outgoing.sync(cfg, baseCall));
+    }
     reported = failures;
   }
   return { syncOnce };
