@@ -111,19 +111,59 @@
     "fingerprint": "a0544e54f0a4018aaf09acb64961c19c81b650f71e0fb05b30aae21ef32853b9",
     "nodes": {
       "implement": {
-        "status": "running",
+        "status": "completed",
         "attempts": 1,
-        "revision": 0
+        "revision": 0,
+        "output": {
+          "summary": "Office cancel of sent team hub requests implemented (PR #21, commit d671ffb): hub link route outgoing-cancel scoped to (member, origin repo) calling the existing cancel; gateway cancel + Decisions option 2; local API with CSRF; card ✕ and Decisions in-page confirmation; plus, on user request after the real check found native dialogs suppressed in the in-app browser, all Office UI confirm/alert replaced by a shared DialogProvider. TDD per task (subagent-driven). root 590/590, typecheck 0, build 0, vendor 151/153 (2 pre-existing sprite-avatar), tsc app/node 0.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-office-cancel.md",
+            "docs/plans/2026-10-13-1730-feat-team-hub-office-cancel-plan.md",
+            "docs/understanding/team-hub-office-cancel-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-office-cancel.md": "2a2d42e805395cac37e2c8db074784ea910e685785a53ee2cc23e26c40550650",
+          "docs/plans/2026-10-13-1730-feat-team-hub-office-cancel-plan.md": "c3e810b9326ba02b574ee392f24112b907979204237497c716e9fb295e2b2215",
+          "docs/understanding/team-hub-office-cancel-decision.md": "4ae53e3214c16e23735699f5eb9cae710d8bc0c4c5a4c190f82c51134d2ac231"
+        }
       },
       "workflow-review": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 0
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (opus for hub/gateway/local API and the dialog replacement) and a final whole-branch review (opus) incl. token scope, old-hub 404 vs scope 404, CSRF before hub call, no confirm bypass, record-after-hub-success: Critical 0, Important 0; minors folded. Post-review real-check defect (suppressed confirm) fixed and re-reviewed; Task 4b Important (vacuous cancel assertions) fixed with a mutation check. Parked minors listed in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-office-cancel.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-office-cancel.md": "2a2d42e805395cac37e2c8db074784ea910e685785a53ee2cc23e26c40550650"
+        }
       },
       "workflow-verify": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 0
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-14 on tree 84cca41 (= commit d671ffb): npm test 590/590, typecheck 0, build:office 0, vendor vitest 151/153 (2 pre-existing), tsc app/node 0, native dialog grep 0 outside comments, Story/Task checkers exit 0. Real two-Office check: (a) accepted request cancelled from Decisions (in another browser after the in-app browser suppressed confirm) -> hub cancelled, assignee task cancelled, sender record cancelled; (b) open request cancelled from the card ✕ -> hub and record cancelled. Unproven: other PCs, company IT policy, questions/planning-retry cancel and old-hub cancel in real use, in-page dialogs of other screens in a real browser.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-office-cancel.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-office-cancel.md": "2a2d42e805395cac37e2c8db074784ea910e685785a53ee2cc23e26c40550650"
+        }
       }
     }
   },
@@ -136,6 +176,86 @@
       "event": "start",
       "nodeId": "implement",
       "at": "2026-10-13T08:14:32.429Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-14T06:12:30.617Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Office cancel of sent team hub requests implemented (PR #21, commit d671ffb): hub link route outgoing-cancel scoped to (member, origin repo) calling the existing cancel; gateway cancel + Decisions option 2; local API with CSRF; card ✕ and Decisions in-page confirmation; plus, on user request after the real check found native dialogs suppressed in the in-app browser, all Office UI confirm/alert replaced by a shared DialogProvider. TDD per task (subagent-driven). root 590/590, typecheck 0, build 0, vendor 151/153 (2 pre-existing sprite-avatar), tsc app/node 0.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-office-cancel.md",
+            "docs/plans/2026-10-13-1730-feat-team-hub-office-cancel-plan.md",
+            "docs/understanding/team-hub-office-cancel-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-office-cancel.md": "2a2d42e805395cac37e2c8db074784ea910e685785a53ee2cc23e26c40550650",
+          "docs/plans/2026-10-13-1730-feat-team-hub-office-cancel-plan.md": "c3e810b9326ba02b574ee392f24112b907979204237497c716e9fb295e2b2215",
+          "docs/understanding/team-hub-office-cancel-decision.md": "4ae53e3214c16e23735699f5eb9cae710d8bc0c4c5a4c190f82c51134d2ac231"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-14T06:12:30.966Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-14T06:12:31.158Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (opus for hub/gateway/local API and the dialog replacement) and a final whole-branch review (opus) incl. token scope, old-hub 404 vs scope 404, CSRF before hub call, no confirm bypass, record-after-hub-success: Critical 0, Important 0; minors folded. Post-review real-check defect (suppressed confirm) fixed and re-reviewed; Task 4b Important (vacuous cancel assertions) fixed with a mutation check. Parked minors listed in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-office-cancel.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-office-cancel.md": "2a2d42e805395cac37e2c8db074784ea910e685785a53ee2cc23e26c40550650"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-14T06:12:31.304Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-14T06:12:31.441Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-14 on tree 84cca41 (= commit d671ffb): npm test 590/590, typecheck 0, build:office 0, vendor vitest 151/153 (2 pre-existing), tsc app/node 0, native dialog grep 0 outside comments, Story/Task checkers exit 0. Real two-Office check: (a) accepted request cancelled from Decisions (in another browser after the in-app browser suppressed confirm) -> hub cancelled, assignee task cancelled, sender record cancelled; (b) open request cancelled from the card ✕ -> hub and record cancelled. Unproven: other PCs, company IT policy, questions/planning-retry cancel and old-hub cancel in real use, in-page dialogs of other screens in a real browser.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-office-cancel.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-office-cancel.md": "2a2d42e805395cac37e2c8db074784ea910e685785a53ee2cc23e26c40550650"
+        }
+      }
     }
   ]
 }
