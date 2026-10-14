@@ -215,7 +215,7 @@ function ConfirmDialog({
             ref={cancelRef}
             type="button"
             onClick={() => onSettle(false)}
-            className="rounded-lg border border-slate-600 px-4 py-1.5 text-sm text-slate-300 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
+            className="rounded-lg border border-slate-600 px-4 py-1.5 text-sm text-slate-300 transition hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
           >
             {opts.cancelLabel ?? cancelFallback}
           </button>
@@ -225,8 +225,8 @@ function ConfirmDialog({
             onClick={() => onSettle(true)}
             className={`rounded-lg px-4 py-1.5 text-sm font-medium text-white transition focus:outline-none focus:ring-2 ${
               danger
-                ? "bg-rose-600 hover:bg-rose-500 focus:ring-rose-400/60"
-                : "bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-400/60"
+                ? "bg-red-800 hover:bg-red-700 focus:ring-red-500/40"
+                : "bg-blue-600 hover:bg-blue-500 focus:ring-blue-500/40"
             }`}
           >
             {opts.confirmLabel ?? okFallback}
@@ -243,7 +243,7 @@ function NoticeCard({ notice, closeLabel, onClose }: { notice: Notice; closeLabe
     <div
       role={isError ? "alert" : "status"}
       className={`pointer-events-auto flex items-start gap-2 rounded-xl border px-3 py-2.5 text-sm shadow-lg ${
-        isError ? "border-rose-500/50 bg-rose-950 text-rose-100" : "border-indigo-500/50 bg-slate-900 text-slate-100"
+        isError ? "border-red-500/40 bg-slate-900 text-red-300" : "border-indigo-500/30 bg-slate-900 text-slate-100"
       }`}
     >
       <p className="min-w-0 flex-1 whitespace-pre-line break-words">{notice.message}</p>
@@ -251,7 +251,7 @@ function NoticeCard({ notice, closeLabel, onClose }: { notice: Notice; closeLabe
         type="button"
         onClick={onClose}
         aria-label={closeLabel}
-        className="flex-shrink-0 rounded px-1 text-base leading-none opacity-70 transition hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-indigo-400/60"
+        className="flex-shrink-0 rounded px-1 text-base leading-none opacity-70 transition hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-blue-500/40"
       >
         ×
       </button>

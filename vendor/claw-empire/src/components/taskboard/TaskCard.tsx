@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import type { Agent, Department, SubTask, Task, TaskStatus } from "../../types";
 import { useI18n } from "../../i18n";
 import AgentAvatar from "../AgentAvatar";
@@ -116,6 +116,13 @@ export default function TaskCard({
           : x.status === "waiting"
             ? t({ ko: "답변 대기", en: "Waiting for answer" })
             : t({ ko: "진행 중", en: "In progress" });
+  // Same badge pairs as the task-type badges (all remapped by the light theme).
+  const hubChipTone = (x: HubOutgoingItem) =>
+    x.state === "done"
+      ? "bg-teal-900 text-teal-300"
+      : x.state === "cancelled"
+        ? "bg-slate-700 text-slate-300"
+        : "bg-indigo-900 text-indigo-300";
   const hubCancellable = (x: HubOutgoingItem) => x.state === "open" || x.state === "accepted";
   const cancelSent = async (x: HubOutgoingItem) => {
     if (cancellingHubRequestId === x.requestId) return;
@@ -179,62 +186,66 @@ export default function TaskCard({
           </span>
         )}
         {(hubOutgoing ?? []).map((x) => (
-          <span key={x.requestId} className="inline-flex items-center gap-1">
-            <a
-              href={x.url}
-              target="_blank"
-              rel="noreferrer"
-              title={x.summary ?? x.source}
-              className="rounded-full bg-indigo-900/60 px-2 py-0.5 text-xs text-indigo-200 hover:bg-indigo-800/70"
-            >
-              ↗ {x.repoName} · {hubLabel(x)}
-            </a>
-            {hubLinked && hubCancellable(x) && confirmingHubRequestId !== x.requestId && (
-              <button
-                type="button"
-                onClick={() => {
-                  setHubCancelError(null);
-                  setConfirmingHubRequestId(x.requestId);
-                }}
-                aria-label={t({ ko: "보낸 요청 취소", en: "Cancel sent request" })}
-                title={t({ ko: "보낸 요청 취소", en: "Cancel sent request" })}
-                className="rounded-full px-1.5 py-0.5 text-xs text-indigo-300 hover:bg-rose-900/60 hover:text-rose-200"
+          <Fragment key={x.requestId}>
+            <span className="inline-flex min-w-0 max-w-full items-center gap-1">
+              <a
+                href={x.url}
+                target="_blank"
+                rel="noreferrer"
+                title={`${x.repoName} · ${hubLabel(x)} — ${x.summary ?? x.source}`}
+                className={`min-w-0 max-w-full truncate whitespace-nowrap rounded-full px-2 py-0.5 text-xs transition hover:opacity-80 ${hubChipTone(x)}`}
               >
-                ✕
-              </button>
-            )}
+                ↗ {x.repoName} · {hubLabel(x)}
+              </a>
+              {hubLinked && hubCancellable(x) && confirmingHubRequestId !== x.requestId && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHubCancelError(null);
+                    setConfirmingHubRequestId(x.requestId);
+                  }}
+                  aria-label={t({ ko: "보낸 요청 취소", en: "Cancel sent request" })}
+                  title={t({ ko: "보낸 요청 취소", en: "Cancel sent request" })}
+                  className="flex items-center justify-center rounded-lg px-2 py-1.5 text-xs text-slate-400 transition hover:bg-red-800 hover:text-white"
+                >
+                  ✕
+                </button>
+              )}
+            </span>
             {hubLinked && hubCancellable(x) && confirmingHubRequestId === x.requestId && (
-              <span className="inline-flex flex-wrap items-center gap-1 text-xs text-rose-200">
-                <span>
+              <div className="w-full basis-full rounded-lg border border-amber-500/40 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-200">
+                <p>
                   {t({
                     ko: "요청을 취소하면 되돌릴 수 없어요. 상대 쪽 작업도 멈춥니다.",
                     en: "Cancelling cannot be undone. The other side's work stops too.",
                   })}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void cancelSent(x)}
-                  disabled={cancellingHubRequestId === x.requestId}
-                  className="rounded-md bg-rose-700 px-2 py-0.5 text-xs font-semibold text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {t({ ko: "요청 취소", en: "Cancel request" })}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setConfirmingHubRequestId(null)}
-                  disabled={cancellingHubRequestId === x.requestId}
-                  className="rounded-md border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {t({ ko: "돌아가기", en: "Keep" })}
-                </button>
-              </span>
+                </p>
+                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => void cancelSent(x)}
+                    disabled={cancellingHubRequestId === x.requestId}
+                    className="flex items-center justify-center gap-1 rounded-lg bg-red-800 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {t({ ko: "요청 취소", en: "Cancel request" })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmingHubRequestId(null)}
+                    disabled={cancellingHubRequestId === x.requestId}
+                    className="flex items-center justify-center rounded-lg bg-slate-700 px-2 py-1.5 text-xs text-slate-300 transition hover:bg-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-slate-700 disabled:hover:text-slate-300"
+                  >
+                    {t({ ko: "돌아가기", en: "Keep" })}
+                  </button>
+                </div>
+              </div>
             )}
             {hubCancelError && hubCancelError.requestId === x.requestId && hubCancelError.state === x.state && (
-              <span role="alert" className="text-xs text-rose-300">
+              <p role="alert" className="w-full basis-full text-xs text-red-400">
                 {hubCancelError.text}
-              </span>
+              </p>
             )}
-          </span>
+          </Fragment>
         ))}
       </div>
 
