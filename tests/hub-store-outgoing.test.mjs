@@ -154,15 +154,57 @@ test("each outgoing question summary is capped at 4000 characters while the snap
   assert.equal(store.requestView(requestId, admin.id).snapshot.decisions[0].summary.length, 20000);
 });
 
-test("an Office link only answers; rejecting or cancelling stays on the hub page", () => {
+test("an Office link answers with option 1 only; cancelling has its own call", () => {
   const { store, admin, b, be, feLink, beLink } = setup();
   const { requestId } = send(store, feLink, { repoId: be });
   store.accept(b, requestId);
   const [work] = store.work(beLink).assignments;
   store.snapshot(beLink, work.assignmentId, 1, snap([story]));
   for (const option of [2, 0, 3])
-    assert.throws(() => store.answerOutgoing(feLink, requestId, "d1", option, ""), { code: "INVALID", status: 400, message: "요청 취소나 거절은 팀 허브 요청 화면에서 해주세요." });
+    assert.throws(() => store.answerOutgoing(feLink, requestId, "d1", option, ""), { code: "INVALID", status: 400, message: "요청 취소는 Office의 '요청 취소'나 팀 허브 요청 화면에서 해주세요." });
   assert.deepEqual(store.work(beLink).answers, [], "nothing was queued for the other Office");
   store.answer(admin, requestId, "d1", 2, ""); // the hub page's own requester form still rejects
   assert.equal(store.work(beLink).answers[0].option, 2);
+});
+
+test("an Office link cancels requests it sent, open or accepted, and nothing else", () => {
+  const { store, admin, b, fe, be, feLink, beLink } = setup();
+  const other = store.addRepo(admin, "checkout-admin", "https://g.example.com/t/admin");
+  const otherLink = store.link(store.pair(store.createLinkCode(admin, other), "https://g.example.com/t/admin").token);
+  // Not accepted yet: no assignment to end.
+  const waiting = send(store, feLink, { repoId: be });
+  assert.throws(() => store.cancelOutgoing(otherLink, waiting.requestId), { code: "NOT_FOUND", status: 404, message: "이 Office에서 보낸 요청이 아닙니다." });
+  assert.deepEqual(store.cancelOutgoing(feLink, waiting.requestId), { ok: true });
+  assert.equal(store.outgoing(feLink).find((x) => x.requestId === waiting.requestId).state, "cancelled");
+  assert.throws(() => store.cancelOutgoing(feLink, waiting.requestId), { code: "STATE", status: 409 }, "a second cancel is refused");
+  // Accepted and running: the assignee's link sees it ended (an ended assignment is reported once the Office has bound a task).
+  const running = send(store, feLink, { repoId: be, key: "22222222-2222-4222-8222-222222222222" });
+  store.accept(b, running.requestId);
+  const [live] = store.work(beLink).assignments;
+  store.bind(beLink, live.assignmentId, "33333333-3333-4333-8333-333333333333");
+  assert.deepEqual(store.work(beLink).ended, [], "nothing has ended yet");
+  store.cancelOutgoing(feLink, running.requestId);
+  assert.deepEqual(store.work(beLink).ended, [{ assignmentId: live.assignmentId, officeTaskId: "33333333-3333-4333-8333-333333333333" }]);
+  // A request the same member posted on the hub page, and someone else's request.
+  const fromPage = store.createRequest(admin, be, "허브에서 보냄", "normal");
+  assert.throws(() => store.cancelOutgoing(feLink, fromPage), { code: "NOT_FOUND" });
+  const theirs = store.createRequest(b, fe, "B의 요청", "normal");
+  assert.throws(() => store.cancelOutgoing(feLink, theirs), { code: "NOT_FOUND" });
+  assert.throws(() => store.cancelOutgoing(feLink, "00000000-0000-4000-8000-000000000000"), { code: "NOT_FOUND" });
+});
+
+test("another member linked to the same origin repository can neither cancel nor answer the sender's request", () => {
+  const { store, admin, b, fe, be, feLink, beLink } = setup();
+  const c = store.acceptInvite(store.createInvite(admin, "C"), "c").member;
+  store.addOwner(admin, fe, c.id);
+  const cLink = store.link(store.pair(store.createLinkCode(c, fe), "https://g.example.com/t/fe").token);
+  const { requestId } = send(store, feLink, { repoId: be });
+  assert.throws(() => store.cancelOutgoing(cLink, requestId), { code: "NOT_FOUND", status: 404, message: "이 Office에서 보낸 요청이 아닙니다." });
+  store.accept(b, requestId);
+  const [work] = store.work(beLink).assignments;
+  store.snapshot(beLink, work.assignmentId, 1, snap([story]));
+  assert.throws(() => store.cancelOutgoing(cLink, requestId), { code: "NOT_FOUND", status: 404 });
+  assert.throws(() => store.answerOutgoing(cLink, requestId, "d1", 1, "ok"), { code: "NOT_FOUND" });
+  assert.deepEqual(store.outgoing(cLink), [], "C never sent anything");
+  assert.deepEqual(store.cancelOutgoing(feLink, requestId), { ok: true }, "the sender still can");
 });

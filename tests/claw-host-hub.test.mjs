@@ -13,6 +13,7 @@ async function server(t) {
   const refreshes = [];
   const sent = [];
   const replied = [];
+  const cancelled = [];
   const bridge = {
     status: () => ({ execution: "ready", active: [] }),
     setBroadcast() {},
@@ -35,6 +36,7 @@ async function server(t) {
     hubStatus: () => ({ linked: true, legacy: false, hub: "https://h", member: "관리자" }),
     hubRepos: async () => ({ repos: [{ id: "be", name: "checkout-backend", owners: ["B"] }] }),
     hubOutgoing: () => ({ linked: true, items: [] }),
+    hubCancel: async (id) => (cancelled.push(id), id === "ended" ? Promise.reject(Object.assign(new Error("이미 끝난 요청이에요."), { code: "ALREADY_ENDED" })) : { ok: true, requestId: id }),
     hubSend: async (input) => (sent.push(input), { requestId: "r1", created: true, url: "https://h/requests/r1" }),
     runnerRuns: (id) => ({ runs: [{ taskId: id, role: "pm", runner: "claude", version: "2.1.280", model: "default", reasoning: null }] }),
   };
@@ -59,7 +61,7 @@ async function server(t) {
     });
     return { status: res.status, json: await res.json() };
   };
-  return { call, checked, refreshes, sent, replied, upstream: () => upstream };
+  return { call, checked, refreshes, sent, replied, cancelled, upstream: () => upstream };
 }
 
 test("hub routes, sends and hub-decision replies come from the Office and need the session CSRF token", async (t) => {
@@ -88,4 +90,13 @@ test("hub routes, sends and hub-decision replies come from the Office and need t
   const bad = await s.call("POST", "/api/decision-inbox/%E0%A4%A/reply", answer);
   assert.equal(bad.status, 409);
   assert.equal(bad.json.error, "STALE_APPROVAL");
+
+  const cancelPath = "/api/hub/outgoing/11111111-1111-4111-8111-111111111111/cancel";
+  assert.equal((await s.call("POST", cancelPath, {})).status, 403, "cancelling acts in the member's name: CSRF required");
+  assert.deepEqual(s.cancelled, []);
+  const done = await s.call("POST", cancelPath, {}, { "x-csrf-token": getCsrfToken() });
+  assert.deepEqual([done.status, done.json], [200, { ok: true, requestId: "11111111-1111-4111-8111-111111111111" }]);
+  const ended = await s.call("POST", "/api/hub/outgoing/ended/cancel", {}, { "x-csrf-token": getCsrfToken() });
+  assert.deepEqual([ended.status, ended.json.error], [409, "ALREADY_ENDED"]);
+  assert.equal((await s.call("GET", cancelPath)).status, 404);
 });

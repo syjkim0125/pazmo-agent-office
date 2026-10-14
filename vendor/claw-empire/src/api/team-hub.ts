@@ -25,3 +25,5 @@ export const sendHubRequest = (input: {
   key: string;
   taskId: string | null;
 }) => post<{ requestId: string; created: boolean; url: string }>("/api/hub/requests", input);
+export const cancelHubRequest = (requestId: string) =>
+  post<{ ok: true; requestId: string }>(`/api/hub/outgoing/${encodeURIComponent(requestId)}/cancel`, {});

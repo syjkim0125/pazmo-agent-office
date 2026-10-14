@@ -4,6 +4,7 @@ import { pickLang } from "../i18n";
 import type { Agent } from "../types";
 import AgentAvatar, { buildSpriteMap } from "./AgentAvatar";
 import MessageContent from "./MessageContent";
+import { useDialog } from "./common/DialogProvider";
 import WorkflowDecisionContent from "./WorkflowDecisionContent";
 import type { DecisionInboxItem } from "./chat/decision-inbox";
 import { formatDecisionInboxTime as formatTime, type DecisionInboxModalProps } from "./chat/decision-inbox-modal.meta";
@@ -48,6 +49,7 @@ export default function DecisionInboxModal({
   onReplyOption,
   onOpenChat,
 }: DecisionInboxModalProps) {
+  const { notify } = useDialog();
   const t = (text: { ko: string; en: string; ja?: string; zh?: string }) => pickLang(uiLanguage, text);
   const isKorean = uiLanguage.startsWith("ko");
   const spriteMap = useMemo(() => buildSpriteMap(agents), [agents]);
@@ -61,6 +63,10 @@ export default function DecisionInboxModal({
   const [followupNotice, setFollowupNotice] = useState<FollowupNotice | null>(null);
   const [followupPending, setFollowupPending] = useState(false);
   const [optionStale, setOptionStale] = useState(false);
+  // Sent-request cancellation is confirmed in the page: native dialogs are suppressed in some embedded browsers.
+  const [cancelConfirm, setCancelConfirm] = useState<{ itemId: string; optionNumber: number } | null>(null);
+  const [cancelFailedItemId, setCancelFailedItemId] = useState<string | null>(null);
+  const [cancelPending, setCancelPending] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const hasDeadline = open && items.some((entry) => entry.expiresAt);
 
@@ -81,6 +87,11 @@ export default function DecisionInboxModal({
       setOptionStale(false);
       setReviewPickSelections({});
       setReviewPickDrafts({});
+      // A cancel confirmation or failure left open must not reappear on reopen. cancelPending is
+      // not reset here: it clears when its request settles, and clearing it early would allow a
+      // second in-flight cancel.
+      setCancelConfirm(null);
+      setCancelFailedItemId(null);
       return;
     }
     // While a reply is in flight its outcome decides; a vanished item may be our own success.
@@ -139,6 +150,11 @@ export default function DecisionInboxModal({
   const canSubmitFollowup = !!(followupItem && followupDraft.trim() && !isFollowupSubmitting);
 
   async function handleOptionClick(item: DecisionInboxItem, optionNumber: number, action?: string) {
+    if (item.id.startsWith("hubout:") && action === "workflow_reject") {
+      setCancelFailedItemId(null);
+      setCancelConfirm({ itemId: item.id, optionNumber });
+      return;
+    }
     if (action === "add_followup_request" || action === "workflow_answer") {
       setFollowupTarget({
         itemId: item.id,
@@ -154,6 +170,20 @@ export default function DecisionInboxModal({
     }
     setOptionStale(false);
     if ((await onReplyOption(item, optionNumber)) === "stale") setOptionStale(true);
+  }
+
+  async function handleConfirmHubCancel(item: DecisionInboxItem, optionNumber: number) {
+    if (cancelPending) return;
+    setCancelPending(true);
+    setCancelFailedItemId(null);
+    let outcome: Awaited<ReturnType<typeof onReplyOption>> | undefined;
+    try {
+      outcome = await onReplyOption(item, optionNumber);
+    } finally {
+      setCancelPending(false);
+      setCancelConfirm(null);
+    }
+    if (outcome === "failed") setCancelFailedItemId(item.id);
   }
 
   async function handleSubmitFollowup() {
@@ -267,13 +297,14 @@ export default function DecisionInboxModal({
     const optionNumber = selected[0] ?? pickOptions[0]?.number;
     if (!optionNumber) return;
     if (selected.length <= 0 && !extraNote) {
-      window.alert(
+      notify(
         t({
           ko: "최소 1개 선택하거나 추가 의견을 입력해 주세요.",
           en: "Pick at least one option or enter an extra note.",
           ja: "少なくとも1件を選択するか、追加意見を入力してください。",
           zh: "请至少选择一项或输入补充意见。",
         }),
+        { tone: "error" },
       );
       return;
     }
@@ -526,23 +557,68 @@ export default function DecisionInboxModal({
                         );
                       })()
                     ) : item.options.length > 0 ? (
-                      item.options.map((option) => {
-                        const key = `${item.id}:${option.number}`;
-                        const isBusy = busyKey === key;
-                        return (
-                          <button
-                            key={key}
-                            type="button"
-                            onClick={() => handleOptionClick(item, option.number, option.action)}
-                            disabled={isBusy}
-                            className="decision-inbox-option w-full rounded-md px-2.5 py-1.5 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-60"
+                      <>
+                        {item.options.map((option) => {
+                          const key = `${item.id}:${option.number}`;
+                          const isBusy = busyKey === key;
+                          return (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => handleOptionClick(item, option.number, option.action)}
+                              disabled={isBusy}
+                              className="decision-inbox-option w-full rounded-md px-2.5 py-1.5 text-left text-xs transition disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {isBusy
+                                ? t({ ko: "전송 중...", en: "Sending...", ja: "送信中...", zh: "发送中..." })
+                                : `${option.number}. ${option.label}`}
+                            </button>
+                          );
+                        })}
+                        {cancelConfirm?.itemId === item.id ? (
+                          <div className="rounded-md border border-rose-500/40 bg-rose-500/10 px-2.5 py-2 text-xs text-rose-100">
+                            <p>
+                              {t({
+                                ko: "요청을 취소하면 되돌릴 수 없어요. 상대 쪽 작업도 멈춥니다.",
+                                en: "Cancelling cannot be undone. The other side's work stops too.",
+                                ja: "取り消すと元に戻せません。相手側の作業も止まります。",
+                                zh: "取消后无法恢复，对方的工作也会停止。",
+                              })}
+                            </p>
+                            <div className="mt-2 flex items-center justify-end gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setCancelConfirm(null)}
+                                disabled={cancelPending}
+                                className="rounded-md border border-slate-600 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {t({ ko: "돌아가기", en: "Keep", ja: "戻る", zh: "返回" })}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => void handleConfirmHubCancel(item, cancelConfirm.optionNumber)}
+                                disabled={cancelPending}
+                                className="rounded-md bg-rose-700 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-60"
+                              >
+                                {t({ ko: "요청 취소", en: "Cancel request", ja: "依頼を取り消す", zh: "取消请求" })}
+                              </button>
+                            </div>
+                          </div>
+                        ) : null}
+                        {cancelFailedItemId === item.id ? (
+                          <p
+                            role="alert"
+                            className="rounded-md border border-amber-500/40 bg-amber-500/10 px-2.5 py-2 text-xs text-amber-200"
                           >
-                            {isBusy
-                              ? t({ ko: "전송 중...", en: "Sending...", ja: "送信中...", zh: "发送中..." })
-                              : `${option.number}. ${option.label}`}
-                          </button>
-                        );
-                      })
+                            {t({
+                              ko: "요청을 취소하지 못했어요. 잠시 뒤 다시 시도해 주세요.",
+                              en: "The request was not cancelled. Try again shortly.",
+                              ja: "依頼を取り消せませんでした。しばらくしてからもう一度お試しください。",
+                              zh: "未能取消请求。请稍后重试。",
+                            })}
+                          </p>
+                        ) : null}
+                      </>
                     ) : (
                       <p className="rounded-md border border-slate-700/70 bg-slate-900/50 px-2.5 py-2 text-xs text-slate-400">
                         {item.kind === "project_review_ready"

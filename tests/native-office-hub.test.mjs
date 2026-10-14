@@ -106,6 +106,7 @@ test("ordinary chat never answers a hub task's questions; it explains where they
 
 test("hub gateway items join the Decisions list and their answers go to the gateway", async (t) => {
   const replies = [];
+  const cancels = [];
   const hub = {
     decisions: () => [{ id: "hubout:r1:d1", kind: "workflow_gate", decision_kind: "hub-story", summary: "팀 허브 · be · 범위 승인(G1)\n요약", options: [] }],
     reply: async (...a) => (replies.push(a), { ok: true, action: "hub_answered", already: false }),
@@ -113,6 +114,7 @@ test("hub gateway items join the Decisions list and their answers go to the gate
     repos: async () => ({ repos: [] }),
     send: async (input) => ({ requestId: "r2", created: true, url: "https://h/requests/r2", input }),
     outgoing: () => ({ linked: true, items: [] }),
+    cancel: async (id) => (cancels.push(id), { ok: true, requestId: id }),
   };
   const { o } = await office(t, hub);
   assert.ok(o.decisions().some((d) => d.id === "hubout:r1:d1"));
@@ -120,6 +122,9 @@ test("hub gateway items join the Decisions list and their answers go to the gate
   assert.deepEqual(replies, [["hubout:r1:d1", 1, "승인"]]);
   assert.equal((await o.hubSend({ repoId: "x" })).requestId, "r2");
   assert.equal(o.hubStatus().linked, true);
+  const rid = "11111111-1111-4111-8111-111111111111";
+  assert.deepEqual(await o.hubCancel(rid), { ok: true, requestId: rid });
+  assert.deepEqual(cancels, [rid]);
 });
 
 test("without a gateway the Office reports itself unlinked", async (t) => {
@@ -128,4 +133,5 @@ test("without a gateway the Office reports itself unlinked", async (t) => {
   assert.deepEqual(o.hubOutgoing(), { linked: false, items: [] });
   await assert.rejects(o.hubRepos(), { code: "HUB_NOT_LINKED" });
   await assert.rejects(o.reply("hubout:r1:d1", 1, "x"), { code: "HUB_NOT_LINKED" });
+  await assert.rejects(o.hubCancel("11111111-1111-4111-8111-111111111111"), { code: "HUB_NOT_LINKED" });
 });

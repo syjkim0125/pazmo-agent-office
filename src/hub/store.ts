@@ -749,12 +749,23 @@ export class HubStore {
     );
     return last?.state === "rejected" ? (last.result ?? "") : null;
   }
-  answerOutgoing(l: Link, requestId: string, decisionId: string, option: number, note: string): { ok: true; already: boolean } {
+  /** A request this link's member sent from this link's repository; anything else is NOT_FOUND. */
+  #outgoingRequest(l: Link, requestId: string): RequestRecord {
     const r = this.#get<RequestRecord>("SELECT * FROM hub_requests WHERE id=?", requestId);
     if (!r || r.requester_id !== l.member.id || r.origin_repo_id !== l.repoId)
       fail("NOT_FOUND", 404, "이 Office에서 보낸 요청이 아닙니다.");
-    // The receiving Office turns option 2 into a cancel; only the hub page may reject or cancel.
-    if (option !== 1) fail("INVALID", 400, "요청 취소나 거절은 팀 허브 요청 화면에서 해주세요.");
+    return r;
+  }
+  /** Cancels a request this link's member sent from this link's repository, exactly as the hub page's cancel does. */
+  cancelOutgoing(l: Link, requestId: string): { ok: true } {
+    this.#outgoingRequest(l, requestId);
+    this.cancel(l.member, requestId);
+    return { ok: true };
+  }
+  answerOutgoing(l: Link, requestId: string, decisionId: string, option: number, note: string): { ok: true; already: boolean } {
+    this.#outgoingRequest(l, requestId);
+    // The receiving Office turns option 2 into a cancel; an Office cancels through cancelOutgoing instead.
+    if (option !== 1) fail("INVALID", 400, "요청 취소는 Office의 '요청 취소'나 팀 허브 요청 화면에서 해주세요.");
     try {
       this.answer(l.member, requestId, decisionId, option, note);
       return { ok: true, already: false };

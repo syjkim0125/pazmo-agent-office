@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { Department, WorkflowPackKey } from "../../types";
 import { useI18n } from "../../i18n";
+import { useDialog } from "../common/DialogProvider";
 import * as api from "../../api";
 import { DEPT_BLANK, DEPT_COLORS } from "./constants";
 import EmojiPicker from "./EmojiPicker";
@@ -42,6 +43,7 @@ export default function DepartmentFormModal({
   workflowPackKey?: WorkflowPackKey;
 }) {
   const { t } = useI18n();
+  const { notify } = useDialog();
   const isEdit = !!department;
   const [form, setForm] = useState<DeptForm>(() => {
     if (department) {
@@ -152,13 +154,14 @@ export default function DepartmentFormModal({
     } catch (e: any) {
       console.error("Dept save failed:", e);
       if (api.isApiRequestError(e) && e.code === "department_id_exists") {
-        alert(tr("이미 존재하는 부서 ID입니다.", "Department ID already exists."));
+        notify(tr("이미 존재하는 부서 ID입니다.", "Department ID already exists."), { tone: "error" });
       } else if (api.isApiRequestError(e) && e.code === "sort_order_conflict") {
-        alert(
+        notify(
           tr(
             "부서 정렬 순서가 충돌합니다. 잠시 후 다시 시도해주세요.",
             "Department sort order conflict. Please retry.",
           ),
+          { tone: "error" },
         );
       }
     } finally {
@@ -179,11 +182,15 @@ export default function DepartmentFormModal({
     } catch (e: any) {
       console.error("Dept delete failed:", e);
       if (api.isApiRequestError(e) && e.code === "department_has_agents") {
-        alert(tr("소속 직원이 있어 삭제할 수 없습니다.", "Cannot delete: department has agents."));
+        notify(tr("소속 직원이 있어 삭제할 수 없습니다.", "Cannot delete: department has agents."), { tone: "error" });
       } else if (api.isApiRequestError(e) && e.code === "department_has_tasks") {
-        alert(tr("연결된 업무(Task)가 있어 삭제할 수 없습니다.", "Cannot delete: department has tasks."));
+        notify(tr("연결된 업무(Task)가 있어 삭제할 수 없습니다.", "Cannot delete: department has tasks."), {
+          tone: "error",
+        });
       } else if (api.isApiRequestError(e) && e.code === "department_protected") {
-        alert(tr("기본 시스템 부서는 삭제할 수 없습니다.", "Cannot delete: protected system department."));
+        notify(tr("기본 시스템 부서는 삭제할 수 없습니다.", "Cannot delete: protected system department."), {
+          tone: "error",
+        });
       }
     } finally {
       setSaving(false);

@@ -13,6 +13,7 @@ import {
 } from "../api";
 import { useI18n } from "../i18n";
 import { useSpriteMap } from "./AgentAvatar";
+import { useDialog } from "./common/DialogProvider";
 import GitHubImportPanel from "./GitHubImportPanel";
 import TaskReportPopup from "./TaskReportPopup";
 import ManualAssignmentWarningDialog from "./project-manager/ManualAssignmentWarningDialog";
@@ -36,6 +37,7 @@ const PAGE_SIZE = 5;
 
 export default function ProjectManagerModal({ agents, departments = [], onClose }: ProjectManagerModalProps) {
   const { t, language } = useI18n();
+  const { confirm } = useDialog();
 
   const [projects, setProjects] = useState<Project[]>([]);
   const [page, setPage] = useState(1);
@@ -247,14 +249,15 @@ export default function ProjectManagerModal({ agents, departments = [], onClose 
 
   const handleDelete = useCallback(async () => {
     if (!selectedProject) return;
-    const confirmed = window.confirm(
-      t({
+    const confirmed = await confirm({
+      message: t({
         ko: `프로젝트 '${selectedProject.name}' 을(를) 삭제할까요?`,
         en: `Delete project '${selectedProject.name}'?`,
         ja: `プロジェクト '${selectedProject.name}' を削除しますか？`,
         zh: `要删除项目 '${selectedProject.name}' 吗？`,
       }),
-    );
+      tone: "danger",
+    });
     if (!confirmed) return;
 
     try {
@@ -266,7 +269,7 @@ export default function ProjectManagerModal({ agents, departments = [], onClose 
     } catch (err) {
       console.error("Failed to delete project:", err);
     }
-  }, [loadProjects, search, selectedProject, startCreate, t]);
+  }, [confirm, loadProjects, search, selectedProject, startCreate, t]);
 
   const handleOpenTaskDetail = useCallback(async (taskId: string) => {
     try {

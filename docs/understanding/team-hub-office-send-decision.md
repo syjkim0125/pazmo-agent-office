@@ -4,6 +4,7 @@ Status: Approved
 Understanding gate (G3): user conversation · 2026-10-13 · Check-in: accepted
 Story: pazmo-agent-office-contract.md (M9; V11; D17)
 Builds on: team-hub-decision.md (D16, PR syjkim0125/pazmo-agent-office#17)
+Superseded in part: "Office에서 보낸 요청 취소"에 관한 불변 조건과 승인 범위는 D18(`team-hub-office-cancel-decision.md`, G3 2026-10-13)이 대체한다. 아래 승인 기록은 당시 그대로 둔다.
 
 ## 사용자 요청 (2026-10-13)
 

@@ -1,7 +1,11 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { screen, cleanup } from "@testing-library/react";
+import { renderWithDialogs } from "../../test/renderWithDialogs";
 import { afterEach, expect, it, vi } from "vitest";
 import TaskCard from "./TaskCard";
 import type { Task } from "../../types";
+import { forbidNativeDialogs } from "../../test/forbidNativeDialogs";
+
+forbidNativeDialogs();
 
 vi.mock("../../i18n", () => ({ useI18n: () => ({ t: (m: { en: string }) => m.en, locale: "en", language: "en" }) }));
 vi.mock("../AgentSelect", () => ({ default: () => <button>Assign agent</button> }));
@@ -27,11 +31,11 @@ const props = {
   onResumeTask: vi.fn(),
 };
 it("keeps upstream Run available for an unadopted task", () => {
-  render(<TaskCard {...props} task={task} />);
+  renderWithDialogs(<TaskCard {...props} task={task} />);
   expect(screen.getByRole("button", { name: /Run/ })).toBeEnabled();
 });
 it("managed approval wait explains the child instead of offering a no-op Run or status overwrite", () => {
-  render(
+  renderWithDialogs(
     <TaskCard
       {...props}
       task={{
@@ -50,7 +54,7 @@ it("managed approval wait explains the child instead of offering a no-op Run or 
   expect(screen.getByRole("button", { name: "Assign agent" })).toBeDisabled();
 });
 it("cancelled managed work cannot be resumed through upstream controls", () => {
-  render(
+  renderWithDialogs(
     <TaskCard
       {...props}
       task={{ ...task, status: "cancelled", workflow: { canRun: false, message: "취소됨", childTaskIds: [] } }}

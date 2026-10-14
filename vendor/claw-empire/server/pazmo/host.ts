@@ -39,6 +39,7 @@ export type NativeOfficeBridge = {
   hubRepos?(): Promise<unknown>;
   hubSend?(input: unknown): Promise<unknown>;
   hubOutgoing?(): unknown;
+  hubCancel?(requestId: string): Promise<unknown>;
 };
 export type PazmoHost = {
   project: string;
@@ -125,6 +126,18 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
           // Sending acts in the member's name on the team hub; require the session's CSRF token.
           if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
           return res.json(await office.hubSend!(req.body ?? {}));
+        }
+        const cancel = req.path.match(/^\/hub\/outgoing\/([^/]+)\/cancel$/);
+        if (cancel && req.method === "POST" && office.hubCancel) {
+          // Cancelling acts in the member's name on the team hub; require the session's CSRF token.
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          let id: string;
+          try {
+            id = decodeURIComponent(cancel[1]); // req.path stays percent-encoded
+          } catch {
+            return res.status(409).json({ error: "INVALID_REQUEST", message: "요청 ID 형식이 아닙니다." });
+          }
+          return res.json(await office.hubCancel(id));
         }
         return res.status(404).json({ error: "NOT_FOUND" });
       }

@@ -4,6 +4,7 @@ import * as api from "../api";
 import type { DeviceCodeStart, OAuthConnectProvider, OAuthStatus } from "../api";
 import type { OAuthCallbackResult } from "../App";
 import { LANGUAGE_STORAGE_KEY, normalizeLanguage, useI18n } from "../i18n";
+import { useDialog } from "./common/DialogProvider";
 import ApiSettingsTab from "./settings/ApiSettingsTab";
 import CliSettingsTab from "./settings/CliSettingsTab";
 import GatewaySettingsTab from "./settings/GatewaySettingsTab";
@@ -32,6 +33,7 @@ export default function SettingsPanel({
 }: SettingsPanelProps) {
   const [form, setForm] = useState<LocalSettings>(settings as LocalSettings);
   const { t, locale: localeTag } = useI18n(form.language);
+  const { confirm } = useDialog();
   const [saved, setSaved] = useState(false);
   const [tab, setTab] = useState<SettingsTab>(oauthResult ? "oauth" : "general");
 
@@ -367,14 +369,15 @@ export default function SettingsPanel({
   const handleDeleteAccount = useCallback(
     async (provider: OAuthConnectProvider, accountId: string) => {
       if (
-        !window.confirm(
-          t({
+        !(await confirm({
+          message: t({
             ko: "이 OAuth 계정을 삭제하시겠습니까?",
             en: "Delete this OAuth account?",
             ja: "この OAuth アカウントを削除しますか？",
             zh: "要删除此 OAuth 账号吗？",
           }),
-        )
+          tone: "danger",
+        }))
       ) {
         return;
       }
@@ -389,7 +392,7 @@ export default function SettingsPanel({
         setSavingAccountId(null);
       }
     },
-    [loadOAuthStatus, t],
+    [confirm, loadOAuthStatus, t],
   );
 
   return (

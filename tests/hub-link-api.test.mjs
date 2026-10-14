@@ -269,3 +269,25 @@ test("outgoing-answer relays the requester's answer over HTTP and needs protocol
   assert.deepEqual(ok.json, { ok: true, already: false });
   assert.deepEqual((await api("POST", "/api/link/outgoing-answer", { token, body })).json, { ok: true, already: true });
 });
+
+test("outgoing-cancel cancels this link's sent request over HTTP and needs protocol 2", async (t) => {
+  const { api, store, admin, repo } = await seeded(t);
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "99999999-9999-4999-8999-999999999999", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  const body = { requestId: sent.json.requestId };
+  assert.equal((await api("POST", "/api/link/outgoing-cancel", { token, protocol: "1", body })).status, 426);
+  assert.equal((await api("GET", "/api/link/outgoing-cancel", { token })).status, 405);
+  const bad = await api("POST", "/api/link/outgoing-cancel", { token, body: { requestId: 7 } });
+  assert.equal(bad.status, 400);
+  const ok = await api("POST", "/api/link/outgoing-cancel", { token, body });
+  assert.deepEqual([ok.status, ok.json], [200, { ok: true }]);
+  const again = await api("POST", "/api/link/outgoing-cancel", { token, body });
+  assert.deepEqual([again.status, again.json.error], [409, "STATE"]);
+  const missing = await api("POST", "/api/link/outgoing-cancel", { token, body: { requestId: "00000000-0000-4000-8000-000000000000" } });
+  assert.deepEqual([missing.status, missing.json.error, typeof missing.json.message], [404, "NOT_FOUND", "string"], "scope refusals carry a message; an unknown route does not");
+  const fromPage = store.createRequest(admin, repo, "허브에서 보냄", "normal");
+  const outOfScope = await api("POST", "/api/link/outgoing-cancel", { token, body: { requestId: fromPage } });
+  assert.deepEqual([outOfScope.status, outOfScope.json.error, typeof outOfScope.json.message], [404, "NOT_FOUND", "string"], "a request posted on the hub page is out of scope");
+  const unknown = await api("POST", "/api/link/nope", { token, body: {} });
+  assert.deepEqual([unknown.status, unknown.json.error, unknown.json.message], [404, "NOT_FOUND", undefined], "an unknown route has no message: the Office detects an old hub by this");
+});

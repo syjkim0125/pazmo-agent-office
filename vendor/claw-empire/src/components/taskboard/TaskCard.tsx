@@ -3,9 +3,10 @@ import type { Agent, Department, SubTask, Task, TaskStatus } from "../../types";
 import { useI18n } from "../../i18n";
 import AgentAvatar from "../AgentAvatar";
 import AgentSelect from "../AgentSelect";
+import { useDialog } from "../common/DialogProvider";
 import DiffModal from "./DiffModal";
 import SendToHubModal from "./SendToHubModal";
-import type { HubOutgoingItem } from "../../api";
+import { cancelHubRequest, isApiRequestError, type HubOutgoingItem } from "../../api";
 import {
   getTaskTypeBadge,
   isHideableStatus,
@@ -40,6 +41,8 @@ interface TaskCardProps {
   hubLegacy?: boolean;
   hubOutgoing?: HubOutgoingItem[];
   onHubSent?: () => void;
+  /** Called after a cancel attempt (success or refusal) so the card reloads the hub state. */
+  onHubChanged?: () => void;
 }
 
 const SUBTASK_STATUS_ICON: Record<string, string> = {
@@ -72,15 +75,21 @@ export default function TaskCard({
   hubLegacy,
   hubOutgoing,
   onHubSent,
+  onHubChanged,
 }: TaskCardProps) {
   void onMergeTask;
   void onDiscardTask;
   const { t, locale: localeTag, language: locale } = useI18n();
+  const { confirm } = useDialog();
   const [expanded, setExpanded] = useState(false);
   const [showDiff, setShowDiff] = useState(false);
   const [showHubSend, setShowHubSend] = useState(false);
   const [showSubtasks, setShowSubtasks] = useState(false);
   const [agentWarning, setAgentWarning] = useState(false);
+  const [cancellingHubRequestId, setCancellingHubRequestId] = useState<string | null>(null);
+  // Native dialogs are suppressed in some embedded browsers, so confirmation and errors stay in the page.
+  const [confirmingHubRequestId, setConfirmingHubRequestId] = useState<string | null>(null);
+  const [hubCancelError, setHubCancelError] = useState<{ requestId: string; state: string; text: string } | null>(null);
 
   const assignedAgent = task.assigned_agent ?? agents.find((agent) => agent.id === task.assigned_agent_id);
   const fallbackAssignedName =
@@ -107,6 +116,26 @@ export default function TaskCard({
           : x.status === "waiting"
             ? t({ ko: "답변 대기", en: "Waiting for answer" })
             : t({ ko: "진행 중", en: "In progress" });
+  const hubCancellable = (x: HubOutgoingItem) => x.state === "open" || x.state === "accepted";
+  const cancelSent = async (x: HubOutgoingItem) => {
+    if (cancellingHubRequestId === x.requestId) return;
+    setHubCancelError(null);
+    setCancellingHubRequestId(x.requestId);
+    try {
+      await cancelHubRequest(x.requestId);
+    } catch (e) {
+      const details = isApiRequestError(e) ? (e.details as { message?: unknown } | undefined) : undefined;
+      setHubCancelError({
+        requestId: x.requestId,
+        state: x.state,
+        text: typeof details?.message === "string" ? details.message : (e as Error).message,
+      });
+    } finally {
+      setCancellingHubRequestId((current) => (current === x.requestId ? null : current));
+      setConfirmingHubRequestId((current) => (current === x.requestId ? null : current));
+      onHubChanged?.();
+    }
+  };
 
   return (
     <div
@@ -150,16 +179,62 @@ export default function TaskCard({
           </span>
         )}
         {(hubOutgoing ?? []).map((x) => (
-          <a
-            key={x.requestId}
-            href={x.url}
-            target="_blank"
-            rel="noreferrer"
-            title={x.summary ?? x.source}
-            className="rounded-full bg-indigo-900/60 px-2 py-0.5 text-xs text-indigo-200 hover:bg-indigo-800/70"
-          >
-            ↗ {x.repoName} · {hubLabel(x)}
-          </a>
+          <span key={x.requestId} className="inline-flex items-center gap-1">
+            <a
+              href={x.url}
+              target="_blank"
+              rel="noreferrer"
+              title={x.summary ?? x.source}
+              className="rounded-full bg-indigo-900/60 px-2 py-0.5 text-xs text-indigo-200 hover:bg-indigo-800/70"
+            >
+              ↗ {x.repoName} · {hubLabel(x)}
+            </a>
+            {hubLinked && hubCancellable(x) && confirmingHubRequestId !== x.requestId && (
+              <button
+                type="button"
+                onClick={() => {
+                  setHubCancelError(null);
+                  setConfirmingHubRequestId(x.requestId);
+                }}
+                aria-label={t({ ko: "보낸 요청 취소", en: "Cancel sent request" })}
+                title={t({ ko: "보낸 요청 취소", en: "Cancel sent request" })}
+                className="rounded-full px-1.5 py-0.5 text-xs text-indigo-300 hover:bg-rose-900/60 hover:text-rose-200"
+              >
+                ✕
+              </button>
+            )}
+            {hubLinked && hubCancellable(x) && confirmingHubRequestId === x.requestId && (
+              <span className="inline-flex flex-wrap items-center gap-1 text-xs text-rose-200">
+                <span>
+                  {t({
+                    ko: "요청을 취소하면 되돌릴 수 없어요. 상대 쪽 작업도 멈춥니다.",
+                    en: "Cancelling cannot be undone. The other side's work stops too.",
+                  })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => void cancelSent(x)}
+                  disabled={cancellingHubRequestId === x.requestId}
+                  className="rounded-md bg-rose-700 px-2 py-0.5 text-xs font-semibold text-white hover:bg-rose-600 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t({ ko: "요청 취소", en: "Cancel request" })}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setConfirmingHubRequestId(null)}
+                  disabled={cancellingHubRequestId === x.requestId}
+                  className="rounded-md border border-slate-600 px-2 py-0.5 text-xs text-slate-300 hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t({ ko: "돌아가기", en: "Keep" })}
+                </button>
+              </span>
+            )}
+            {hubCancelError && hubCancelError.requestId === x.requestId && hubCancelError.state === x.state && (
+              <span role="alert" className="text-xs text-rose-300">
+                {hubCancelError.text}
+              </span>
+            )}
+          </span>
         ))}
       </div>
 
@@ -310,7 +385,9 @@ export default function TaskCard({
             className="flex items-center justify-center gap-1 rounded-lg bg-slate-700 px-2 py-1.5 text-xs text-slate-300 transition hover:bg-slate-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-slate-700 disabled:hover:text-slate-300"
           >
             ↗ {t({ ko: "팀 허브로 보내기", en: "Send to team hub" })}
-            {!hubLinked && <span> · {t({ ko: "허브를 업데이트해야 합니다", en: "The team hub must be updated" })}</span>}
+            {!hubLinked && (
+              <span> · {t({ ko: "허브를 업데이트해야 합니다", en: "The team hub must be updated" })}</span>
+            )}
           </button>
         )}
         {canRun && (
@@ -340,19 +417,17 @@ export default function TaskCard({
         )}
         {canStop && (
           <button
-            onClick={() => {
-              if (
-                confirm(
-                  t({
-                    ko: `"${task.title}" 작업을 중지할까요?\n\n경고: Stop 처리 시 해당 프로젝트 변경분은 롤백됩니다.`,
-                    en: `Stop "${task.title}"?\n\nWarning: stopping will roll back project changes.`,
-                    ja: `「${task.title}」を停止しますか？\n\n警告: 停止するとプロジェクトの変更はロールバックされます。`,
-                    zh: `要停止“${task.title}”吗？\n\n警告：停止后将回滚该项目的更改。`,
-                  }),
-                )
-              ) {
-                onStopTask(task.id);
-              }
+            onClick={async () => {
+              const confirmed = await confirm({
+                message: t({
+                  ko: `"${task.title}" 작업을 중지할까요?\n\n경고: Stop 처리 시 해당 프로젝트 변경분은 롤백됩니다.`,
+                  en: `Stop "${task.title}"?\n\nWarning: stopping will roll back project changes.`,
+                  ja: `「${task.title}」を停止しますか？\n\n警告: 停止するとプロジェクトの変更はロールバックされます。`,
+                  zh: `要停止“${task.title}”吗？\n\n警告：停止后将回滚该项目的更改。`,
+                }),
+                tone: "danger",
+              });
+              if (confirmed) onStopTask(task.id);
             }}
             title={t({ ko: "작업 중지", en: "Cancel task", ja: "タスク停止", zh: "取消任务" })}
             className="flex items-center justify-center gap-1 rounded-lg bg-red-800 px-2 py-1.5 text-xs font-medium text-white transition hover:bg-red-700"
@@ -446,18 +521,17 @@ export default function TaskCard({
         )}
         {canDelete && (
           <button
-            onClick={() => {
-              if (
-                confirm(
-                  t({
-                    ko: `"${task.title}" 업무를 삭제할까요?`,
-                    en: `Delete "${task.title}"?`,
-                    ja: `「${task.title}」を削除しますか？`,
-                    zh: `要删除“${task.title}”吗？`,
-                  }),
-                )
-              )
-                onDeleteTask(task.id);
+            onClick={async () => {
+              const confirmed = await confirm({
+                message: t({
+                  ko: `"${task.title}" 업무를 삭제할까요?`,
+                  en: `Delete "${task.title}"?`,
+                  ja: `「${task.title}」を削除しますか？`,
+                  zh: `要删除“${task.title}”吗？`,
+                }),
+                tone: "danger",
+              });
+              if (confirmed) onDeleteTask(task.id);
             }}
             title={t({ ko: "작업 삭제", en: "Delete task", ja: "タスク削除", zh: "删除任务" })}
             className="flex items-center justify-center rounded-lg bg-red-900/60 px-2 py-1.5 text-xs text-red-400 transition hover:bg-red-800 hover:text-red-300"
@@ -469,7 +543,12 @@ export default function TaskCard({
 
       {showDiff && <DiffModal taskId={task.id} onClose={() => setShowDiff(false)} />}
       {showHubSend && (
-        <SendToHubModal taskId={task.id} taskTitle={task.title} onClose={() => setShowHubSend(false)} onSent={onHubSent} />
+        <SendToHubModal
+          taskId={task.id}
+          taskTitle={task.title}
+          onClose={() => setShowHubSend(false)}
+          onSent={onHubSent}
+        />
       )}
     </div>
   );
