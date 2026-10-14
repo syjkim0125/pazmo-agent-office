@@ -140,12 +140,30 @@ export function readManifest(p: Project): Manifest {
   }
   return value;
 }
+// Outside the manifest so earlier installations stay valid.
+const ignoreName = ".gitignore";
+const ignoreText =
+  "# Office metadata: machine-local paths and records. Never commit.\n*\n";
+/** Hides the metadata from Git without editing the user's tracked files or .git. */
+export function ignoreMetadata(p: Project): boolean {
+  const path = join(p.directory, ignoreName);
+  noSymlinks(path);
+  try {
+    writeFileSync(path, ignoreText, { flag: "wx", mode: 0o600 });
+    return true;
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === "EEXIST") return false;
+    throw e;
+  }
+}
 export function init(p: Project, apply: boolean) {
   if (existsSync(p.directory)) {
     readManifest(p);
+    const missing = !existsSync(join(p.directory, ignoreName));
     return {
       applied: apply,
-      changed: false,
+      changed: apply && ignoreMetadata(p),
+      ...(!apply && missing ? { wouldCreate: [ignoreName] } : {}),
       project: p.project,
       dataDir: p.dataDir,
     };
@@ -154,7 +172,7 @@ export function init(p: Project, apply: boolean) {
     return {
       applied: false,
       changed: false,
-      wouldCreate: managedNames,
+      wouldCreate: [...managedNames, ignoreName],
       project: p.project,
       dataDir: p.dataDir,
     };
@@ -176,6 +194,8 @@ export function init(p: Project, apply: boolean) {
   };
   // Reserving the destination prevents concurrent init from replacing user files.
   mkdirSync(p.directory, { mode: 0o700 });
+  // Hidden before any machine-local path is written.
+  ignoreMetadata(p);
   for (const [name, value] of Object.entries(contents))
     writeFileSync(join(p.directory, name), value, { flag: "wx", mode: 0o600 });
   const manifest: Manifest = {
@@ -202,26 +222,31 @@ export function remove(p: Project, apply: boolean) {
   const manifest = readManifest(p);
   const removed: string[] = [],
     preserved: string[] = [];
-  for (const name of managedNames) {
+  // Only bytes Office wrote are removed; edited files are preserved.
+  const take = (name: string, expected: string) => {
     const path = join(p.directory, name);
     let stat;
     try {
       stat = lstatSync(path);
     } catch (e) {
-      if ((e as NodeJS.ErrnoException).code === "ENOENT") continue;
+      if ((e as NodeJS.ErrnoException).code === "ENOENT") return;
       throw e;
     }
     if (
       !stat.isFile() ||
       stat.isSymbolicLink() ||
-      hash(readFileSync(path)) !== manifest.files[name]
-    ) {
-      preserved.push(name);
-      continue;
-    }
+      hash(readFileSync(path)) !== expected
+    )
+      return void preserved.push(name);
     removed.push(name);
     if (apply) unlinkSync(path);
-  }
+  };
+  for (const name of managedNames) take(name, manifest.files[name]);
+  // Records Office leaves behind (and the manifest's local paths) stay hidden.
+  const left = readdirSync(p.directory).filter((n) => !removed.includes(n));
+  if (left.every((name) => name === "manifest.json" || name === ignoreName))
+    take(ignoreName, hash(ignoreText));
+  else if (left.includes(ignoreName)) preserved.push(ignoreName);
   if (
     apply &&
     readdirSync(p.directory).every((name) => name === "manifest.json")

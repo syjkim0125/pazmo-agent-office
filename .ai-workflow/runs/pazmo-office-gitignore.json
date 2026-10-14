@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "runId": "c4758b77-051e-43d8-8c3a-3bd300ae05ba",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "295f326d5df6122be4eeb87dbb91b9ec705ef82d3def3daa7bd6c0fe5f3151de",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review fix: remove keeps .gitignore while Office records remain (only removed when just manifest.json/.gitignore are left), test added and mutation-checked (14/15 -> 15/15); existing-install dry-run shows .gitignore; new install writes ignore file before config.json. Related 47/47, full suite 591/591 exit 0, typecheck 0.",
+          "evidence": [
+            "docs/verification/2026-10-13-pazmo-office-gitignore.md",
+            "tests/cli.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-pazmo-office-gitignore.md": "aa6a53172cd44ba34a0296e1a81134fdf25f5eae79a49bafda59e90ecfa34d7d",
+          "tests/cli.test.mjs": "5fd10bae12dd273f5a1830340b22d6a1df058db55dd3dffd081b80270facebd0"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Re-review of the fix delta: Important 1 and Minors 2/3/6 resolved, dry-run/apply consistent, no new Critical/Important; verdict Ready to merge (G4 still required).",
+          "evidence": [
+            ".ai-workflow/runs/pazmo-office-gitignore-review-2.md",
+            ".ai-workflow/runs/pazmo-office-gitignore-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/pazmo-office-gitignore-review-2.md": "51ae7a1ac06010290b4088d7c29b919e5f01479b53246d328c64ab8940253a6a",
+          ".ai-workflow/runs/pazmo-office-gitignore-review-1.md": "e19d36d0f043ab934a289734b062abb8e601b5ad71cb08fb4a48e2291b483b01"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review fixes: full suite 591/591 exit 0, typecheck 0, story/G1 checks 0; eevee-be local clone stays clean in git status after init, with records, and after remove; root .gitignore unchanged.",
+          "evidence": [
+            ".ai-workflow/runs/pazmo-office-gitignore-verify-1.md",
+            "docs/verification/2026-10-13-pazmo-office-gitignore.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/pazmo-office-gitignore-verify-1.md": "ecbb46eba8c09030417f782687222738319ee0dc914184625769b4b20f414ac7",
+          "docs/verification/2026-10-13-pazmo-office-gitignore.md": "aa6a53172cd44ba34a0296e1a81134fdf25f5eae79a49bafda59e90ecfa34d7d"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-office-gitignore-contract.md",
+    "fingerprint": "4a2e8f28c6f106dcbd7f53e742485888145cf229111e569f511741ba77db6320"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-13T09:32:27.921Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-13T09:36:52.670Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Office writes .pazmo-office/.gitignore ('*') on init (new and existing installs) and start, never overwrites an existing one, refuses symlinks, and remove deletes it only when its bytes match. Manifest format unchanged. RED 5 failing -> GREEN; related 46/46, full suite 590/590 exit 0, typecheck 0; local clone of eevee-be shows clean git status and unchanged root .gitignore. Simplification pass: remove() now iterates one owned-file list (managed + ignore) instead of a second loop.",
+          "evidence": [
+            "docs/verification/2026-10-13-pazmo-office-gitignore.md",
+            "tests/cli.test.mjs",
+            "tests/lifecycle.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-pazmo-office-gitignore.md": "0f273e4a4fd8ca93bc81b034e282247b08feba1941ee034f0514dc204c4b8222",
+          "tests/cli.test.mjs": "2588d058a1fcbca16ba378c2e2d7a30fbe253f21fb77820420ac6742dbd66e2e",
+          "tests/lifecycle.test.mjs": "d81ca753113e8dbc385098f47624e6af98b006d11181ed1635246f812a4dc8e6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T09:36:56.476Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T09:40:44.898Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only review: Critical 0, Important 1 (remove --apply drops .gitignore while runtime records and manifest.json remain, re-exposing them to git), Minor 5.",
+          "evidence": [
+            ".ai-workflow/runs/pazmo-office-gitignore-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: keep .gitignore on remove unless only manifest.json/.gitignore remain; add test with runtime records; show .gitignore in existing-install dry-run; write ignore file right after mkdir on new install."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/pazmo-office-gitignore-review-1.md": "e19d36d0f043ab934a289734b062abb8e601b5ad71cb08fb4a48e2291b483b01"
+        },
+        "error": "implement: keep .gitignore on remove unless only manifest.json/.gitignore remain; add test with runtime records; show .gitignore in existing-install dry-run; write ignore file right after mkdir on new install."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Keep the ignore file while Office records remain after remove; dry-run and ordering fixes from review 1",
+      "at": "2026-10-13T09:40:45.011Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-13T09:40:45.136Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-13T09:43:50.321Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review fix: remove keeps .gitignore while Office records remain (only removed when just manifest.json/.gitignore are left), test added and mutation-checked (14/15 -> 15/15); existing-install dry-run shows .gitignore; new install writes ignore file before config.json. Related 47/47, full suite 591/591 exit 0, typecheck 0.",
+          "evidence": [
+            "docs/verification/2026-10-13-pazmo-office-gitignore.md",
+            "tests/cli.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-13-pazmo-office-gitignore.md": "aa6a53172cd44ba34a0296e1a81134fdf25f5eae79a49bafda59e90ecfa34d7d",
+          "tests/cli.test.mjs": "5fd10bae12dd273f5a1830340b22d6a1df058db55dd3dffd081b80270facebd0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T09:43:50.443Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-13T09:45:22.243Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Re-review of the fix delta: Important 1 and Minors 2/3/6 resolved, dry-run/apply consistent, no new Critical/Important; verdict Ready to merge (G4 still required).",
+          "evidence": [
+            ".ai-workflow/runs/pazmo-office-gitignore-review-2.md",
+            ".ai-workflow/runs/pazmo-office-gitignore-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/pazmo-office-gitignore-review-2.md": "51ae7a1ac06010290b4088d7c29b919e5f01479b53246d328c64ab8940253a6a",
+          ".ai-workflow/runs/pazmo-office-gitignore-review-1.md": "e19d36d0f043ab934a289734b062abb8e601b5ad71cb08fb4a48e2291b483b01"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-13T09:45:22.362Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-13T09:46:54.169Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review fixes: full suite 591/591 exit 0, typecheck 0, story/G1 checks 0; eevee-be local clone stays clean in git status after init, with records, and after remove; root .gitignore unchanged.",
+          "evidence": [
+            ".ai-workflow/runs/pazmo-office-gitignore-verify-1.md",
+            "docs/verification/2026-10-13-pazmo-office-gitignore.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/pazmo-office-gitignore-verify-1.md": "ecbb46eba8c09030417f782687222738319ee0dc914184625769b4b20f414ac7",
+          "docs/verification/2026-10-13-pazmo-office-gitignore.md": "aa6a53172cd44ba34a0296e1a81134fdf25f5eae79a49bafda59e90ecfa34d7d"
+        }
+      }
+    }
+  ]
+}

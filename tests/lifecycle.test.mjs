@@ -384,8 +384,12 @@ test("operator CLI persists intake questions across restart and rejects stale or
 });
 test("start/status/stop use an isolated locked Office and preserve its database", async (t) => {
   const f = setup(t);
+  const ignore = join(f.project, ".pazmo-office", ".gitignore");
+  // An installation from before the ignore file existed gains it on start.
+  rmSync(ignore, { force: true });
   assert.equal(call(f, "status").value.status, "stopped");
   const started = call(f, "start", "--port", "0");
+  assert.ok(existsSync(ignore));
   assert.equal(started.status, 0, JSON.stringify(started.value));
   const { url, dataDir } = started.value;
   assert.equal(new URL(url).hostname, "127.0.0.1");
@@ -432,6 +436,7 @@ test("start/status/stop use an isolated locked Office and preserve its database"
   assert.equal(call(f, "status").value.status, "stopped");
   assert.ok(existsSync(join(dataDir, "office.sqlite")));
   assert.equal(call(f, "remove", "--apply").status, 0);
+  assert.equal(existsSync(join(f.project, ".pazmo-office")), false);
   assert.ok(existsSync(join(dataDir, "office.sqlite")));
 });
 test("port collision fails without claiming running or stopping the unrelated server", async (t) => {
