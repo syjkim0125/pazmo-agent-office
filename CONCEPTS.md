@@ -19,6 +19,8 @@ The one folder Office owns inside each user project for its own records — inst
 
 It is never part of a Candidate or of a planning role's view of the project, and a role result that touches it is rejected, so anything Office generates in a project belongs there rather than beside the user's files. Documents Office relies on there, such as a published Story, are re-read and checked against their approved bytes, so Office does not delete them on its own.
 
+The area also hides itself from the project's version control, because its files hold machine-local paths and records that must never be committed, and Office does this without editing any file the user tracks. Removing Office keeps that hiding in place for as long as any Office record is left behind.
+
 ### Gate
 A point where work stops until a human records an understanding or approval answer bound to an exact subject (a Story, a contract or a verified result). A Gate is passed by recorded evidence, never by a model's claim that it was approved.
 

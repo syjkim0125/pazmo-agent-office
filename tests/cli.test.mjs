@@ -9,12 +9,16 @@ import {
   realpathSync,
   symlinkSync,
   rmSync,
+  existsSync,
+  unlinkSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url);
+const git = (cwd, ...args) =>
+  spawnSync("/usr/bin/git", ["-C", cwd, ...args], { encoding: "utf8" }).stdout;
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "pazmo-cli-"));
   const project = join(root, "project");
@@ -130,4 +134,84 @@ test("codex runtime choice is validated and limited to live startup", (t) => {
   const f = fixture(t);
   assert.match(run(f, ["start", "--codex-runtime", "latest"], false).error, /installed|pinned/);
   assert.match(run(f, ["status", "--codex-runtime", "pinned"], false).error, /start|up/);
+});
+
+const ignoreFile = (f) => join(f.project, ".pazmo-office", ".gitignore");
+function gitProject(f) {
+  git(f.project, "init", "-q");
+  writeFileSync(join(f.project, ".gitignore"), "node_modules/\n");
+  mkdirSync(join(f.project, ".git", "info"), { recursive: true });
+  writeFileSync(join(f.project, ".git", "info", "exclude"), "# local\n");
+  return () => [
+    readFileSync(join(f.project, ".gitignore"), "utf8"),
+    readFileSync(join(f.project, ".git", "info", "exclude"), "utf8"),
+  ];
+}
+
+test("Office metadata hides itself from Git without touching the user's ignore files", (t) => {
+  const f = fixture(t);
+  const userFiles = gitProject(f),
+    before = userFiles();
+  assert.ok(run(f, ["init"]).wouldCreate.includes(".gitignore"));
+  run(f, ["init", "--apply"]);
+  assert.match(readFileSync(ignoreFile(f), "utf8"), /^\*$/m);
+  assert.doesNotMatch(git(f.project, "status", "--porcelain"), /pazmo-office/);
+  assert.deepEqual(userFiles(), before);
+});
+
+test("an existing installation gains the ignore file and keeps its manifest", (t) => {
+  const f = fixture(t);
+  gitProject(f);
+  run(f, ["init", "--apply"]);
+  unlinkSync(ignoreFile(f));
+  assert.match(git(f.project, "status", "--porcelain"), /pazmo-office/);
+  assert.deepEqual(run(f, ["init"]).wouldCreate, [".gitignore"]);
+  assert.equal(existsSync(ignoreFile(f)), false);
+  assert.equal(run(f, ["init", "--apply"]).changed, true);
+  assert.ok(existsSync(ignoreFile(f)));
+  assert.equal(run(f, ["init", "--apply"]).changed, false);
+  assert.equal(run(f, ["doctor"]).initialized, true);
+});
+
+test("a user's ignore file is never replaced and a symlinked one is refused", (t) => {
+  const f = fixture(t);
+  run(f, ["init", "--apply"]);
+  writeFileSync(ignoreFile(f), "config.json\n");
+  run(f, ["init", "--apply"]);
+  assert.equal(readFileSync(ignoreFile(f), "utf8"), "config.json\n");
+  const target = join(f.root, "elsewhere");
+  writeFileSync(target, "outside\n");
+  unlinkSync(ignoreFile(f));
+  symlinkSync(target, ignoreFile(f));
+  assert.equal(run(f, ["init", "--apply"], false).code, "UNSAFE_PATH");
+  assert.equal(readFileSync(target, "utf8"), "outside\n");
+});
+
+test("remove deletes only the ignore file Office wrote", (t) => {
+  const f = fixture(t);
+  const userFiles = gitProject(f),
+    before = userFiles();
+  run(f, ["init", "--apply"]);
+  assert.ok(run(f, ["remove"]).removed.includes(".gitignore"));
+  assert.ok(existsSync(ignoreFile(f)));
+  assert.ok(run(f, ["remove", "--apply"]).removed.includes(".gitignore"));
+  assert.equal(existsSync(join(f.project, ".pazmo-office")), false);
+  assert.deepEqual(userFiles(), before);
+  run(f, ["init", "--apply"]);
+  writeFileSync(ignoreFile(f), "*\n!notes.md\n");
+  assert.ok(run(f, ["remove", "--apply"]).preserved.includes(".gitignore"));
+  assert.equal(readFileSync(ignoreFile(f), "utf8"), "*\n!notes.md\n");
+});
+
+test("remove keeps the ignore file while Office records remain", (t) => {
+  const f = fixture(t);
+  gitProject(f);
+  run(f, ["init", "--apply"]);
+  mkdirSync(join(f.project, ".pazmo-office", "plans"));
+  writeFileSync(join(f.project, ".pazmo-office", "plans", "a.json"), "{}");
+  assert.ok(run(f, ["remove"]).preserved.includes(".gitignore"));
+  const result = run(f, ["remove", "--apply"]);
+  assert.ok(result.preserved.includes(".gitignore"));
+  assert.ok(existsSync(ignoreFile(f)));
+  assert.doesNotMatch(git(f.project, "status", "--porcelain"), /pazmo-office/);
 });

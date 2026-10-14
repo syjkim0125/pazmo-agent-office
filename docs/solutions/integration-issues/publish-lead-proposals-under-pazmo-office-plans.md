@@ -1,6 +1,7 @@
 ---
 title: Publish Lead proposals under .pazmo-office/plans, not the project root
 date: "2026-10-13"
+last_updated: "2026-10-14"
 category: integration-issues
 module: Office proposal publication and contract paths
 problem_type: integration_issue
@@ -19,7 +20,7 @@ tags: [intake, publication, contract-paths, pazmo-office, protected-path, path-t
 
 ## Problem
 
-`IntakeLedger.publish`는 Lead proposal을 게시할 때마다 사용자 project root에 `mkdtempSync(join(project, "office-plan-"))`로 폴더를 만들고 story.md/plan.md/task-N.md/verify-N.json(mode 0600)을 썼다. 이 폴더는 사용자 repo에 untracked로 쌓였고, 이후 planning snapshot과 Engineer baseline에 이전 proposal이 섞여 들어갔다. 수정은 branch `codex/office-plan-placement`에 있으며, 이 문서를 쓰는 시점에는 push/PR/merge 전이다(머지 후 PR 번호로 갱신).
+`IntakeLedger.publish`는 Lead proposal을 게시할 때마다 사용자 project root에 `mkdtempSync(join(project, "office-plan-"))`로 폴더를 만들고 story.md/plan.md/task-N.md/verify-N.json(mode 0600)을 썼다. 이 폴더는 사용자 repo에 untracked로 쌓였고, 이후 planning snapshot과 Engineer baseline에 이전 proposal이 섞여 들어갔다. 수정은 PR #19로 main에 머지됐다(2026-10-13).
 
 ## Symptoms
 
@@ -107,7 +108,7 @@ const directory = `${PLAN_ROOT}/${basename(mkdtempSync(join(plans, "plan-")))}`;
 
 경로 완화는 정확한 prefix 하나에 대한 예외일 뿐이다. 나머지 경로는 기존 규칙을 그대로 통과해야 한다. 그래서 `.pazmo-office/role-runs`나 `.git`으로 빠져나가는 경로는 여전히 `UNSAFE_PATH`다. plans 안에 있는 symlink는 `noSymlinks`가 따로 거부한다.
 
-남은 한계: `.pazmo-office/`를 gitignore하지 않은 repo에서는 그 폴더 하나가 여전히 untracked로 보일 수 있다. 이 부분은 별도 결정 사항으로 남겼다.
+이 수정 뒤에도 `.pazmo-office/` 폴더 자체는 gitignore하지 않은 repo에서 untracked로 보였다. 이 한계는 후속 작업에서 Office가 폴더 안에 스스로 숨기는 `.gitignore`를 두는 방식으로 해결했다([Office metadata hides itself from Git](self-ignore-pazmo-office-metadata-folder.md)).
 
 ## Prevention
 
@@ -142,3 +143,4 @@ const directory = `${PLAN_ROOT}/${basename(mkdtempSync(join(plans, "plan-")))}`;
   - `docs/understanding/office-plan-placement-contract.md` (G1/G4)
   - `docs/verification/2026-10-13-office-plan-placement.md`
 - 이전 동작의 원래 설계 기록: `docs/verification/2026-09-21-intake-publication.md` (역사 기록)
+- [Office metadata hides itself from Git with a self-ignoring .pazmo-office/.gitignore](self-ignore-pazmo-office-metadata-folder.md): `.pazmo-office/` 폴더 자체가 git에 보이던 남은 한계를 닫은 후속 작업이다.

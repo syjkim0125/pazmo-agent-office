@@ -11,7 +11,13 @@ import {
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
-import { fail, noSymlinks, packageRoot, readManifest } from "./project.ts";
+import {
+  fail,
+  ignoreMetadata,
+  noSymlinks,
+  packageRoot,
+  readManifest,
+} from "./project.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { viewerToken } from "../runtime/observation.ts";
@@ -124,6 +130,7 @@ export async function start(
     fail("UNKNOWN", "Resolve the preserved runtime state before restarting.");
   if (!existsSync(join(packageRoot, "vendor/claw-empire/dist/index.html")))
     fail("NOT_BUILT", "Build the Office UI before starting.");
+  ignoreMetadata(p);
   noSymlinks(p.dataDir);
   mkdirSync(p.dataDir, { recursive: true, mode: 0o700 });
   const lock = join(p.dataDir, "start.lock");
