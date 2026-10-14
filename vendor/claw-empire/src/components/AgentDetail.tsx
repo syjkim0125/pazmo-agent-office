@@ -13,6 +13,7 @@ import type {
   WorkflowPackKey,
 } from "../types";
 import AgentAvatar from "./AgentAvatar";
+import { useDialog } from "./common/DialogProvider";
 import AgentDetailTabContent from "./agent-detail/AgentDetailTabContent";
 import { CLI_LABELS, oauthAccountLabel, roleLabel, STATUS_CONFIG, statusLabel } from "./agent-detail/constants";
 
@@ -56,6 +57,7 @@ export default function AgentDetail({
   onAgentUpdated,
 }: AgentDetailProps) {
   const { t, language } = useI18n();
+  const { confirm } = useDialog();
   const [tab, setTab] = useState<"info" | "tasks" | "alba">("info");
   const [editingCli, setEditingCli] = useState(false);
   const [selectedCli, setSelectedCli] = useState(agent.cli_provider);
@@ -342,14 +344,15 @@ export default function AgentDetail({
           ).trim();
           const packKey = details.pack_key ?? activeOfficeWorkflowPack;
           const packLabel = resolvePackLabel(packKey);
-          const confirmed = window.confirm(
-            t({
+          const confirmed = await confirm({
+            message: t({
               ko: `이미 ${existingLeaderName}가 ${packLabel} 오피스팩의 리더입니다. 변경하시겠습니까?`,
               en: `${existingLeaderName} is already the leader for the ${packLabel} office pack. Change leader?`,
               ja: `${existingLeaderName}さんが既に${packLabel}オフィスパックのリーダーです。変更しますか？`,
               zh: `${existingLeaderName} 已是 ${packLabel} 办公包负责人。要变更吗？`,
             }),
-          );
+            tone: "default",
+          });
           if (confirmed) {
             try {
               await api.updateAgent(agent.id, {
@@ -376,6 +379,7 @@ export default function AgentDetail({
       agent.id,
       agent.role,
       actsAsPlanningLead,
+      confirm,
       onAgentUpdated,
       resolvePackLabel,
       savingPlanningLead,

@@ -1,7 +1,11 @@
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, screen } from "@testing-library/react";
+import { renderWithDialogs } from "../test/renderWithDialogs";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import DecisionInboxModal from "./DecisionInboxModal";
 import type { DecisionInboxModalProps } from "./chat/decision-inbox-modal.meta";
+import { forbidNativeDialogs } from "../test/forbidNativeDialogs";
+
+forbidNativeDialogs();
 
 const item: DecisionInboxModalProps["items"][number] = {
   id: "pending-g4",
@@ -35,7 +39,7 @@ describe("decision answer draft", () => {
           finish = resolve;
         }),
     );
-    const view = render(<DecisionInboxModal {...props} onReplyOption={reply} />);
+    const view = renderWithDialogs(<DecisionInboxModal {...props} onReplyOption={reply} />);
     fireEvent.click(screen.getByRole("button", { name: /내용 확인 후 승인/ }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: "사용자가 입력한 답변" } });
     fireEvent.click(screen.getByRole("button", { name: /Submit/ }));
@@ -49,7 +53,7 @@ describe("decision answer draft", () => {
   });
 
   it("explains numbered G4 answers at the input instead of asking for a generic request", () => {
-    render(<DecisionInboxModal {...props} />);
+    renderWithDialogs(<DecisionInboxModal {...props} />);
     fireEvent.click(screen.getByRole("button", { name: /내용 확인 후 승인/ }));
     expect(screen.getByRole("textbox").getAttribute("placeholder")).toContain("1.");
     expect(screen.getByRole("textbox").getAttribute("placeholder")).toContain("3.");
@@ -69,7 +73,7 @@ describe("reissued approval challenge (2026-10-02 eevee-be G1 case)", () => {
   const memo = "범위 확인했습니다. 진행해 주세요.";
 
   function startDraft(reply: DecisionInboxModalProps["onReplyOption"]) {
-    const view = render(<DecisionInboxModal {...props} items={[oldG1]} onReplyOption={reply} />);
+    const view = renderWithDialogs(<DecisionInboxModal {...props} items={[oldG1]} onReplyOption={reply} />);
     fireEvent.click(screen.getByRole("button", { name: /내용 확인 후 승인/ }));
     fireEvent.change(screen.getByRole("textbox"), { target: { value: memo } });
     return view;
@@ -135,7 +139,7 @@ describe("approval deadline", () => {
   it("shows when the approval request is replaced and warns in the last two minutes", () => {
     vi.useFakeTimers();
     const expiresAt = Date.now() + 3 * 60_000;
-    render(<DecisionInboxModal {...props} items={[{ ...item, decisionKind: "G1", expiresAt }]} />);
+    renderWithDialogs(<DecisionInboxModal {...props} items={[{ ...item, decisionKind: "G1", expiresAt }]} />);
     const deadline = screen.getByText(/Valid until \d{1,2}:\d{2}/);
     expect(deadline.textContent).toMatch(/replaced by a new request when it expires/);
     act(() => vi.advanceTimersByTime(90_000));
@@ -143,7 +147,7 @@ describe("approval deadline", () => {
   });
 
   it("shows no deadline for requests without an open approval challenge", () => {
-    render(<DecisionInboxModal {...props} />);
+    renderWithDialogs(<DecisionInboxModal {...props} />);
     expect(screen.queryByText(/Valid until|Expires soon/)).toBeNull();
   });
 });
@@ -155,9 +159,26 @@ it("acknowledges displayed feedback directly without another answer form", async
     requestContent: "최종 결과 승인\n피드백: 실제 실행은 미검증",
     options: [{ number: 3, label: "피드백 확인 후 승인", action: "workflow_acknowledge" }],
   };
-  render(<DecisionInboxModal {...props} items={[feedbackItem]} onReplyOption={reply} />);
+  renderWithDialogs(<DecisionInboxModal {...props} items={[feedbackItem]} onReplyOption={reply} />);
   fireEvent.click(screen.getByRole("button", { name: /피드백 확인 후 승인/ }));
   expect(reply).toHaveBeenCalledTimes(1);
   expect(reply.mock.calls[0].slice(0, 2)).toEqual([feedbackItem, 3]);
   expect(screen.queryByRole("textbox")).toBeNull();
+});
+
+it("tells the human in the page when a review pick has nothing selected, and sends nothing", () => {
+  const reply = vi.fn();
+  const pickItem = {
+    ...item,
+    id: "review-round",
+    kind: "review_round_pick" as const,
+    options: [
+      { number: 1, label: "Fix naming", action: "apply_review_pick" },
+      { number: 2, label: "Skip", action: "skip_to_next_round" },
+    ],
+  };
+  renderWithDialogs(<DecisionInboxModal {...props} items={[pickItem]} onReplyOption={reply} />);
+  fireEvent.click(screen.getByRole("button", { name: "Run Selected" }));
+  expect(screen.getByRole("alert")).toHaveTextContent("Pick at least one option or enter an extra note.");
+  expect(reply).not.toHaveBeenCalled();
 });

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import * as api from "../api";
+import { useDialog } from "../components/common/DialogProvider";
 import { buildDecisionInboxItems } from "../components/chat/decision-inbox";
 import type { DecisionInboxItem } from "../components/chat/decision-inbox";
 import type { DecisionReplyOutcome } from "../components/chat/decision-inbox-modal.meta";
@@ -59,6 +60,7 @@ export function useAppActions({
   setDecisionReplyBusyKey,
   setCliStatus,
 }: UseAppActionsParams) {
+  const { notify } = useDialog();
   const settingsRef = useRef(settings);
   settingsRef.current = settings;
   const settingsSaveRequestSeqRef = useRef(0);
@@ -189,17 +191,17 @@ export function useAppActions({
     async (id: string) => {
       try {
         const result = await api.runTask(id);
-        if (result?.workflow?.message) window.alert(result.workflow.message);
+        if (result?.workflow?.message) notify(result.workflow.message, { tone: "info" });
         await refreshTasksAndAgents();
       } catch (error) {
         console.error("Run task failed:", error);
         const detail = api.isApiRequestError(error)
           ? (error.details as { message?: string } | undefined)?.message
           : undefined;
-        window.alert(detail || "작업 실행에 실패했습니다. 실행 환경과 Decisions를 확인해주세요.");
+        notify(detail || "작업 실행에 실패했습니다. 실행 환경과 Decisions를 확인해주세요.", { tone: "error" });
       }
     },
-    [refreshTasksAndAgents],
+    [refreshTasksAndAgents, notify],
   );
 
   const handleStopTask = useCallback(
@@ -329,20 +331,21 @@ export function useAppActions({
     (agentId: string) => {
       const matchedAgent = agents.find((agent) => agent.id === agentId);
       if (!matchedAgent) {
-        window.alert(
+        notify(
           pickLang(normalizeLanguage(settings.language), {
             ko: "요청 에이전트 정보를 찾지 못했습니다.",
             en: "Could not find the requested agent.",
             ja: "対象エージェント情報が見つかりません。",
             zh: "未找到对应代理信息。",
           }),
+          { tone: "error" },
         );
         return;
       }
       setShowDecisionInbox(false);
       handleOpenChat(matchedAgent);
     },
-    [agents, settings.language, setShowDecisionInbox, handleOpenChat],
+    [agents, settings.language, setShowDecisionInbox, handleOpenChat, notify],
   );
 
   const handleReplyDecisionOption = useCallback(
@@ -379,13 +382,14 @@ export function useAppActions({
           if (selectedAction === "add_followup_request" || selectedAction === "workflow_answer") {
             const note = payloadInput?.note?.trim() ?? "";
             if (!note) {
-              window.alert(
+              notify(
                 pickLang(locale, {
                   ko: "추가요청사항이 비어 있습니다.",
                   en: "Additional request is empty.",
                   ja: "追加要請が空です。",
                   zh: "追加请求内容为空。",
                 }),
+                { tone: "error" },
               );
               return "failed";
             }
@@ -412,13 +416,14 @@ export function useAppActions({
                     ja: "\n\n詳細はタスクログを確認してください。",
                     zh: "\n\n请查看任务日志了解详情。",
                   });
-            window.alert(
+            notify(
               pickLang(locale, {
                 ko: `팀장 회의 시작이 보류되었습니다. 필요한 게이트를 먼저 해소해 주세요.${blockedSummary}`,
                 en: `Team-lead meeting start is on hold. Resolve required gates first.${blockedSummary}`,
                 ja: `チームリーダー会議の開始は保留です。先に必要なゲートを解消してください。${blockedSummary}`,
                 zh: `组长评审会议暂缓启动。请先解决必要门禁。${blockedSummary}`,
               }),
+              { tone: "error" },
             );
           }
           if (replyResult.resolved) {
@@ -433,13 +438,22 @@ export function useAppActions({
         if (item.kind === "workflow_gate" && api.isApiRequestError(error)) {
           const detail = error.details;
           if (
-            ["ANSWER_REQUIRED", "UNDERSTANDING_REQUIRED"].includes(error.code ?? "") &&
+            [
+              "ANSWER_REQUIRED",
+              "UNDERSTANDING_REQUIRED",
+              "ALREADY_ENDED",
+              "HUB_UPGRADE_REQUIRED",
+              "HUB_UNREACHABLE",
+              "NOT_FOUND",
+            ].includes(error.code ?? "") &&
             detail &&
             typeof detail === "object" &&
             "message" in detail &&
             typeof detail.message === "string"
           ) {
-            window.alert(detail.message);
+            notify(detail.message, { tone: "error" });
+            // The host already cleared a hub-sent item whose request had ended; reload so it disappears now.
+            if (item.id.startsWith("hubout:") && error.code === "ALREADY_ENDED") await loadDecisionInbox();
             return "failed";
           }
           if (error.code === "STALE_APPROVAL") {
@@ -449,20 +463,21 @@ export function useAppActions({
             return "stale";
           }
         }
-        window.alert(
+        notify(
           pickLang(locale, {
             ko: "의사결정 회신 전송에 실패했습니다. 잠시 후 다시 시도해 주세요.",
             en: "Failed to send decision reply. Please try again.",
             ja: "意思決定返信の送信に失敗しました。もう一度お試しください。",
             zh: "发送决策回复失败，请稍后重试。",
           }),
+          { tone: "error" },
         );
         return "failed";
       } finally {
         setDecisionReplyBusyKey((prev) => (prev === busyKey ? null : prev));
       }
     },
-    [settings.language, setDecisionReplyBusyKey, setDecisionInboxItems, scheduleLiveSync, loadDecisionInbox],
+    [settings.language, setDecisionReplyBusyKey, setDecisionInboxItems, scheduleLiveSync, loadDecisionInbox, notify],
   );
 
   const handleAgentsChange = useCallback(() => {

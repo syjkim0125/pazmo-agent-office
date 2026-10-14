@@ -1275,6 +1275,7 @@ export async function createNativeOffice(c: Config) {
     hubStatus: () => c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null },
     hubRepos: async () => hubGateway().repos(),
     hubSend: async (input: unknown) => hubGateway().send(input),
+    hubCancel: async (requestId: string) => hubGateway().cancel(requestId),
     hubOutgoing: () => c.hub?.outgoing() ?? { linked: false, items: [] },
     checkTaskMutation(id: string, patch?: unknown) {
       // Hiding a card changes presentation only; no workflow transition.

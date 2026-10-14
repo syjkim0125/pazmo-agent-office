@@ -1,5 +1,6 @@
 import AgentAvatar from "../AgentAvatar";
 import type { Agent } from "../../types";
+import { useDialog } from "../common/DialogProvider";
 
 type Tr = (ko: string, en: string, ja?: string, zh?: string) => string;
 
@@ -32,6 +33,7 @@ export default function ChatPanelHeader({
   onClearMessages,
   onClose,
 }: ChatPanelHeaderProps) {
+  const { confirm } = useDialog();
   return (
     <>
       <div className="chat-header flex flex-shrink-0 items-center gap-3 bg-gray-800 px-4 py-3">
@@ -84,26 +86,24 @@ export default function ChatPanelHeader({
         <div className="flex flex-shrink-0 items-center gap-1">
           {onClearMessages && visibleMessagesLength > 0 && (
             <button
-              onClick={() => {
-                if (
-                  window.confirm(
-                    selectedAgent
-                      ? tr(
-                          `${getAgentName(selectedAgent)}와의 대화를 삭제하시겠습니까?`,
-                          `Delete conversation with ${getAgentName(selectedAgent)}?`,
-                          `${getAgentName(selectedAgent)}との会話を削除しますか？`,
-                          `要删除与 ${getAgentName(selectedAgent)} 的对话吗？`,
-                        )
-                      : tr(
-                          "전사 공지 내역을 삭제하시겠습니까?",
-                          "Delete announcement history?",
-                          "全体告知履歴を削除しますか？",
-                          "要删除全员公告记录吗？",
-                        ),
-                  )
-                ) {
-                  onClearMessages(selectedAgent?.id);
-                }
+              onClick={async () => {
+                const confirmed = await confirm({
+                  message: selectedAgent
+                    ? tr(
+                        `${getAgentName(selectedAgent)}와의 대화를 삭제하시겠습니까?`,
+                        `Delete conversation with ${getAgentName(selectedAgent)}?`,
+                        `${getAgentName(selectedAgent)}との会話を削除しますか？`,
+                        `要删除与 ${getAgentName(selectedAgent)} 的对话吗？`,
+                      )
+                    : tr(
+                        "전사 공지 내역을 삭제하시겠습니까?",
+                        "Delete announcement history?",
+                        "全体告知履歴を削除しますか？",
+                        "要删除全员公告记录吗？",
+                      ),
+                  tone: "danger",
+                });
+                if (confirmed) onClearMessages(selectedAgent?.id);
               }}
               className="flex h-8 w-8 items-center justify-center rounded-full text-gray-500 transition-colors hover:bg-gray-700 hover:text-red-400"
               aria-label={tr("대화 내역 삭제", "Clear message history", "会話履歴を削除", "清除消息记录")}

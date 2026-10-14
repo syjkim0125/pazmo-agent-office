@@ -314,6 +314,7 @@ export function TaskBoard({
                       hubLegacy={hubLegacy}
                       hubOutgoing={hubOutgoing.filter((x) => x.taskId === task.id)}
                       onHubSent={loadHub}
+                      onHubChanged={loadHub}
                     />
                   ))
                 )}

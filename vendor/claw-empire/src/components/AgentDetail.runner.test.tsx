@@ -1,8 +1,12 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { renderWithDialogs } from "../test/renderWithDialogs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { I18nProvider } from "../i18n";
 import AgentDetail from "./AgentDetail";
 import type { Agent } from "../types";
+import { forbidNativeDialogs } from "../test/forbidNativeDialogs";
+
+forbidNativeDialogs();
 
 const apiMocks = vi.hoisted(() => ({
   getCliModels: vi.fn(),
@@ -34,7 +38,7 @@ const agent = {
 } as unknown as Agent;
 
 function renderDetail() {
-  return render(
+  return renderWithDialogs(
     <I18nProvider language="ko">
       <AgentDetail
         agent={agent}

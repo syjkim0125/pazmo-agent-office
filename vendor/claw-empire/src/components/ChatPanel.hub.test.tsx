@@ -1,8 +1,12 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, screen, waitFor } from "@testing-library/react";
+import { renderWithDialogs } from "../test/renderWithDialogs";
 import { I18nProvider } from "../i18n";
 import { ChatPanel } from "./ChatPanel";
 import type { Agent } from "../types";
+import { forbidNativeDialogs } from "../test/forbidNativeDialogs";
+
+forbidNativeDialogs();
 
 const apiMocks = vi.hoisted(() => ({ getHubStatus: vi.fn(), getHubRepos: vi.fn(), sendHubRequest: vi.fn() }));
 vi.mock("../api", async (importOriginal) => ({ ...(await importOriginal<object>()), ...apiMocks }));
@@ -18,7 +22,7 @@ const agent = {
 } as unknown as Agent;
 
 function renderPanel(onClose = vi.fn()) {
-  render(
+  renderWithDialogs(
     <I18nProvider language="ko">
       <ChatPanel
         selectedAgent={agent}

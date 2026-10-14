@@ -8,8 +8,8 @@ type Call = typeof hubCall;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const REQUEST_BYTES = 16384;
 const KIND: Record<string, string> = { questions: "PM 질문", story: "범위 승인(G1)", "planning-retry": "계획 재개" };
-/** The Office only answers; rejecting or cancelling a sent request stays on the hub page. */
-const HUB_ONLY_NOTE = "거절이나 요청 취소는 팀 허브 요청 화면에서 할 수 있습니다.";
+/** Cancelling a sent request from here is the hub page's cancel; the other side's work stops too. */
+const CANCEL_NOTE = "요청 취소를 고르면 상대 쪽 작업도 멈추고 되돌릴 수 없습니다.";
 
 export type OutgoingItem = {
   requestId: string;
@@ -95,6 +95,33 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       return basename(deps.project);
     }
   }
+  /** Cancels a request sent from here on the hub (the other side's work stops too); recorded only once the hub agreed. */
+  async function cancel(requestId: unknown) {
+    if (typeof requestId !== "string" || !UUID.test(requestId)) return fail("INVALID_REQUEST", "요청 ID 형식이 아닙니다.");
+    const cfg = linked();
+    if (legacy) fail("HUB_UPGRADE_REQUIRED", "허브를 업데이트해야 취소할 수 있습니다.");
+    try {
+      await call(cfg, "POST", "/api/link/outgoing-cancel", { requestId }, HUB_PROTOCOL);
+    } catch (error) {
+      const e = error as { code?: string; status?: number; message?: string; expected?: string };
+      // A hub without this route answers its generic 404 with no message; scope refusals carry one.
+      if (e.status === 404 && e.code === "NOT_FOUND" && (!e.message || e.message === "HUB_404"))
+        return fail("HUB_UPGRADE_REQUIRED", "허브를 업데이트해야 취소할 수 있습니다.");
+      if (e.code === "PROTOCOL_MISMATCH" && e.expected === HUB_LEGACY_PROTOCOL) {
+        legacy = true;
+        return fail("HUB_UPGRADE_REQUIRED", "허브를 업데이트해야 취소할 수 있습니다.");
+      }
+      if (e.code === "STATE") {
+        // Already ended on the hub: its questions can no longer be answered. The state itself is left to the next sync.
+        db.prepare("UPDATE pazmo_hub_outgoing SET decisions_json='[]' WHERE request_id=?").run(requestId);
+        return fail("ALREADY_ENDED", "이미 끝난 요청이에요.");
+      }
+      if (typeof e.status === "number") return fail(e.code ?? "HUB_FAILED", e.message ?? "허브가 요청을 거부했습니다.");
+      return fail("HUB_UNREACHABLE", "허브에 연결할 수 없습니다. 허브가 켜져 있고 같은 네트워크인지 확인해주세요.");
+    }
+    db.prepare("UPDATE pazmo_hub_outgoing SET state='cancelled', decisions_json='[]', updated_at=? WHERE request_id=?").run(Date.now(), requestId);
+    return { ok: true as const, requestId };
+  }
   return {
     status() {
       const cfg = config();
@@ -137,6 +164,7 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       if (!cfg) return { linked: false, items: [] as OutgoingItem[] };
       return { linked: true, items: rows().map(({ decisions: _d, ...r }) => ({ ...r, url: `${cfg.hub}/requests/${r.requestId}` })) };
     },
+    cancel,
     /** Decisions-inbox items for the requester gates of requests sent from here. */
     decisions() {
       return rows().flatMap((r) =>
@@ -148,7 +176,7 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
           created_at: r.updatedAt,
           summary:
             (d.rejected != null ? (d.rejected ? `이전 답변이 전달되지 않았어요: ${d.rejected}\n` : "이전 답변이 전달되지 않았어요.\n") : "") +
-            `팀 허브 · ${r.repoName} · ${KIND[d.kind] ?? d.kind}\n${d.summary}\n${HUB_ONLY_NOTE}`,
+            `팀 허브 · ${r.repoName} · ${KIND[d.kind] ?? d.kind}\n${d.summary}\n${CANCEL_NOTE}`,
           agent_id: null,
           agent_name: "팀 허브",
           agent_name_ko: "팀 허브",
@@ -159,7 +187,10 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
           task_title: r.taskId
             ? ((db.prepare("SELECT title FROM tasks WHERE id=?").get(r.taskId) as { title: string } | undefined)?.title ?? null)
             : null,
-          options: [{ number: 1, action: "workflow_answer", label: d.options.find((o) => o.number === 1)?.label ?? "답변 제출" }],
+          options: [
+            { number: 1, action: "workflow_answer", label: d.options.find((o) => o.number === 1)?.label ?? "답변 제출" },
+            { number: 2, action: "workflow_reject", label: "요청 취소" },
+          ],
         })),
       );
     },
@@ -168,7 +199,11 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       const m = /^hubout:([0-9a-f-]{36}):(.+)$/.exec(id);
       const row = m ? rows().find((r) => r.requestId === m[1]) : undefined;
       if (!m || !row || !row.decisions.some((d) => d.id === m[2])) return fail("STALE_APPROVAL", "질문이 바뀌었어요. 새로 고친 뒤 다시 답해주세요.");
-      if (option !== 1) fail("INVALID_REQUEST", HUB_ONLY_NOTE);
+      if (option === 2) {
+        await cancel(m[1]);
+        return { ok: true as const, action: "hub_cancelled" as const, resolved: true as const };
+      }
+      if (option !== 1) fail("INVALID_REQUEST", "승인이나 요청 취소만 고를 수 있습니다.");
       if (!note.trim() || note.length > 16000) fail("ANSWER_REQUIRED", "답변을 적어주세요.");
       const cfg = linked();
       const drop = () =>

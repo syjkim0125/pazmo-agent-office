@@ -25,9 +25,10 @@ const ROUTES: Record<string, "GET" | "POST"> = {
   "/api/link/requests": "POST",
   "/api/link/outgoing": "GET",
   "/api/link/outgoing-answer": "POST",
+  "/api/link/outgoing-cancel": "POST",
 };
 /** Routes that exist only from protocol 2; phase-1 Offices never call them. */
-const V2_ONLY = new Set(["/api/link/repos", "/api/link/requests", "/api/link/outgoing", "/api/link/outgoing-answer"]);
+const V2_ONLY = new Set(["/api/link/repos", "/api/link/requests", "/api/link/outgoing", "/api/link/outgoing-answer", "/api/link/outgoing-cancel"]);
 const nullableStr = (body: Record<string, unknown>, key: string): string | null =>
   body[key] === null ? null : str(body, key);
 const risk = (body: Record<string, unknown>): "normal" | "high" => {
@@ -84,6 +85,7 @@ export function linkApi(store: HubStore) {
         }));
       if (path === "/api/link/outgoing-answer")
         return json(res, 200, store.answerOutgoing(link, str(body, "requestId"), str(body, "decisionId"), num(body, "option"), str(body, "note")));
+      if (path === "/api/link/outgoing-cancel") return json(res, 200, store.cancelOutgoing(link, str(body, "requestId")));
       if (path === "/api/link/bind") return json(res, 200, store.bind(link, str(body, "assignmentId"), str(body, "officeTaskId")));
       if (path === "/api/link/snapshot")
         return json(res, 200, store.snapshot(link, str(body, "assignmentId"), num(body, "seq"), body.snapshot));

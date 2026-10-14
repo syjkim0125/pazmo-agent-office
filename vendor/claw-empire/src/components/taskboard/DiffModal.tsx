@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { useI18n } from "../../i18n";
+import { useDialog } from "../common/DialogProvider";
 import {
   discardTask,
   getTaskDiff,
@@ -16,6 +17,7 @@ interface DiffModalProps {
 
 function DiffModal({ taskId, onClose }: DiffModalProps) {
   const { t } = useI18n();
+  const { confirm } = useDialog();
   const [diffData, setDiffData] = useState<TaskDiffResult | null>(null);
   const [verifyData, setVerifyData] = useState<TaskVerifyCommitResult | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,17 +62,16 @@ function DiffModal({ taskId, onClose }: DiffModalProps) {
   }, [onClose]);
 
   const handleMerge = useCallback(async () => {
-    if (
-      !confirm(
-        t({
-          ko: "이 브랜치를 메인에 병합하시겠습니까?",
-          en: "Merge this branch into main?",
-          ja: "このブランチを main にマージしますか？",
-          zh: "要将此分支合并到 main 吗？",
-        }),
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      message: t({
+        ko: "이 브랜치를 메인에 병합하시겠습니까?",
+        en: "Merge this branch into main?",
+        ja: "このブランチを main にマージしますか？",
+        zh: "要将此分支合并到 main 吗？",
+      }),
+      tone: "default",
+    });
+    if (!confirmed) return;
     setMerging(true);
     try {
       const result = await mergeTask(taskId);
@@ -87,20 +88,19 @@ function DiffModal({ taskId, onClose }: DiffModalProps) {
     } finally {
       setMerging(false);
     }
-  }, [taskId, onClose, t]);
+  }, [taskId, onClose, t, confirm]);
 
   const handleDiscard = useCallback(async () => {
-    if (
-      !confirm(
-        t({
-          ko: "이 브랜치의 변경사항을 모두 폐기하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
-          en: "Discard all changes in this branch? This action cannot be undone.",
-          ja: "このブランチの変更をすべて破棄しますか？この操作は元に戻せません。",
-          zh: "要丢弃此分支的所有更改吗？此操作无法撤销。",
-        }),
-      )
-    )
-      return;
+    const confirmed = await confirm({
+      message: t({
+        ko: "이 브랜치의 변경사항을 모두 폐기하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+        en: "Discard all changes in this branch? This action cannot be undone.",
+        ja: "このブランチの変更をすべて破棄しますか？この操作は元に戻せません。",
+        zh: "要丢弃此分支的所有更改吗？此操作无法撤销。",
+      }),
+      tone: "danger",
+    });
+    if (!confirmed) return;
     setDiscarding(true);
     try {
       const result = await discardTask(taskId);
@@ -122,7 +122,7 @@ function DiffModal({ taskId, onClose }: DiffModalProps) {
     } finally {
       setDiscarding(false);
     }
-  }, [taskId, onClose, t]);
+  }, [taskId, onClose, t, confirm]);
 
   const verifyToneClass =
     verifyData?.verdict === "ok"

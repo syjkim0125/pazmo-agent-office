@@ -75,15 +75,76 @@ test("the other side's questions arrive in this Office's Decisions and answers g
   assert.equal(decision.kind, "workflow_gate");
   assert.equal(decision.decision_kind, "hub-story");
   assert.match(decision.summary, /^팀 허브 · checkout-backend · 범위 승인\(G1\)\n범위 요약/);
-  assert.deepEqual(decision.options.map((o) => o.action), ["workflow_answer"], "rejecting or cancelling happens on the hub page");
-  assert.deepEqual(decision.options.map((o) => o.label), ["내용 확인 후 승인"]);
-  assert.match(decision.summary, /\n거절이나 요청 취소는 팀 허브 요청 화면에서 할 수 있습니다\.$/);
-  await assert.rejects(gateway.reply(decision.id, 2, ""), { code: "INVALID_REQUEST" }, "the Office never rejects or cancels a sent request");
+  assert.deepEqual(decision.options.map((o) => [o.number, o.action, o.label]), [[1, "workflow_answer", "내용 확인 후 승인"], [2, "workflow_reject", "요청 취소"]]);
+  assert.match(decision.summary, /\n요청 취소를 고르면 상대 쪽 작업도 멈추고 되돌릴 수 없습니다\.$/);
+  await assert.rejects(gateway.reply(decision.id, 3, ""), { code: "INVALID_REQUEST" });
   assert.equal(gateway.decisions().length, 1, "a refused option leaves the question in place");
   assert.deepEqual(await gateway.reply(decision.id, 1, "승인합니다"), { ok: true, action: "hub_answered", already: false, resolved: true });
   assert.deepEqual(gateway.decisions(), [], "answered locally until the hub reports a new question");
   assert.equal(store.requestView(requestId, b.id).answers[0].note, "승인합니다");
   await assert.rejects(gateway.reply(`hubout:${requestId}:gone`, 1, "x"), { code: "STALE_APPROVAL" });
+});
+
+test("cancelling from Decisions cancels the whole request on the hub and clears the question", async (t) => {
+  const { gateway, store, b, be, beLink, dataDir, db } = await linkedTeam(t);
+  const { requestId } = await gateway.send({ repoId: be, body: "필드 추가", risk: "normal", key: KEY, taskId: null });
+  store.accept(b, requestId);
+  const [a] = store.work(beLink).assignments;
+  store.snapshot(beLink, a.assignmentId, 1, { status: "waiting", title: "t", message: "m", conversation: [], diff: null, runners: [], summary: null,
+    decisions: [{ id: "d1", kind: "story", summary: "범위", options: [{ number: 1, label: "내용 확인 후 승인" }] }] });
+  const sync = createHubSync({ dataDir, db, office: { progress: () => undefined, decisions: () => [], diff: () => null, runnerRuns: () => ({ runs: [] }), submitFromHub: async () => "", replyFromHub: async () => ({}), cancel: async () => ({}) }, outgoing: gateway });
+  await sync.syncOnce();
+  const [decision] = gateway.decisions();
+  assert.deepEqual(await gateway.reply(decision.id, 2, ""), { ok: true, action: "hub_cancelled", resolved: true });
+  assert.equal(store.requestView(requestId, b.id).state, "cancelled");
+  assert.deepEqual(gateway.decisions(), []);
+  assert.equal(gateway.outgoing().items[0].state, "cancelled", "recorded only after the hub agreed");
+});
+
+test("cancelling from the card works before anyone accepts, and a second cancel says it already ended", async (t) => {
+  const { gateway, store, admin, be } = await linkedTeam(t);
+  const { requestId } = await gateway.send({ repoId: be, body: "필드 추가", risk: "normal", key: KEY, taskId: null });
+  assert.deepEqual(await gateway.cancel(requestId), { ok: true, requestId });
+  assert.equal(store.requestView(requestId, admin.id).state, "cancelled");
+  await assert.rejects(gateway.cancel(requestId), { code: "ALREADY_ENDED", message: "이미 끝난 요청이에요." });
+  await assert.rejects(gateway.cancel("not-a-uuid"), { code: "INVALID_REQUEST" });
+});
+
+test("cancel tells an old hub apart from a request outside this link, and an unreachable hub", async (t) => {
+  const { gateway, be, dataDir, db } = await linkedTeam(t);
+  const { requestId } = await gateway.send({ repoId: be, body: "필드 추가", risk: "normal", key: KEY, taskId: null });
+  const withCall = (call) => createHubGateway({ dataDir, db, project: "/work/checkout-frontend", call });
+  // Old hub: the route is unknown, so the body has no message and hubCall fills in "HUB_404".
+  await assert.rejects(withCall(async () => { throw Object.assign(new Error("HUB_404"), { code: "NOT_FOUND", status: 404 }); }).cancel(requestId),
+    { code: "HUB_UPGRADE_REQUIRED", message: "허브를 업데이트해야 취소할 수 있습니다." });
+  // New hub, request outside this link: the hub's message is kept.
+  await assert.rejects(withCall(async () => { throw Object.assign(new Error("이 Office에서 보낸 요청이 아닙니다."), { code: "NOT_FOUND", status: 404 }); }).cancel(requestId),
+    { code: "NOT_FOUND", message: "이 Office에서 보낸 요청이 아닙니다." });
+  // Hub off: nothing recorded.
+  await assert.rejects(withCall(async () => { throw new Error("ECONNREFUSED"); }).cancel(requestId), { code: "HUB_UNREACHABLE" });
+  assert.equal(gateway.outgoing().items[0].state, "open", "no failed cancel changed the record");
+});
+
+test("picking cancel on a request the hub already ended clears its questions and leaves the state to the next sync", async (t) => {
+  const { gateway, store, admin, requestId, sync } = await withQuestion(t);
+  store.cancel(admin, requestId);
+  const [decision] = gateway.decisions();
+  await assert.rejects(gateway.reply(decision.id, 2, ""), { code: "ALREADY_ENDED", message: "이미 끝난 요청이에요." });
+  assert.deepEqual(gateway.decisions(), [], "no unanswerable question stays behind");
+  assert.equal(gateway.outgoing().items[0].state, "accepted", "the state is the sync's to change");
+  await sync.syncOnce();
+  assert.equal(gateway.outgoing().items[0].state, "cancelled");
+});
+
+test("option 2 goes through the hub's cancel route and never its answer route", async (t) => {
+  const { gateway, dataDir, db, requestId } = await withQuestion(t);
+  const paths = [];
+  const spy = createHubGateway({ dataDir, db, project: "/work/checkout-frontend", call: async (cfg, method, path, body, protocol) => { paths.push(`${method} ${path}`); return hubCall(cfg, method, path, body, protocol); } });
+  const [decision] = spy.decisions();
+  assert.deepEqual(await spy.reply(decision.id, 2, ""), { ok: true, action: "hub_cancelled", resolved: true });
+  assert.ok(paths.includes("POST /api/link/outgoing-cancel"), paths.join());
+  assert.ok(!paths.some((p) => p.includes("/api/link/outgoing-answer")), paths.join());
+  assert.equal(gateway.outgoing().items[0].requestId, requestId);
 });
 
 test("against a phase-1 hub the link keeps syncing work but sending is refused", async (t) => {

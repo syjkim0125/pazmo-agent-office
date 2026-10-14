@@ -1,9 +1,23 @@
+# 2026-10-14 Office에서 보낸 팀 허브 요청 취소
+
+- 연결된 Office의 Decisions `팀 허브 · …` 항목(2번 **요청 취소**)과 Tasks 카드의 ✕로, 사람이 화면 안 확인을 거쳐 이 Office에서 보낸 요청을 취소한다(M10·V12·D18, G3 2026-10-13 승인). "거절"은 요청 취소와 같은 뜻이다. 허브의 기존 취소를 새 연결 API `outgoing-cancel`로 부르며, 토큰 권한은 (팀원, 보낸 곳 레포) 범위의 취소 하나만 넓어진다. D17의 "Office에서 취소 불가" 규칙을 대체한다.
+- 실제 확인 중 앱의 내장 브라우저가 `window.confirm`·`window.alert`를 막는 것을 발견했다. 사용자 요청에 따라 Office 화면의 confirm·alert를 모두 화면 안 확인창·알림으로 바꿨다(`window.prompt` 1곳은 제외).
+- 자동 검사:
+  - root **590/590**, 타입 검사 exit 0, 빌드 exit 0
+  - vendor 화면 **151/153**(실패 2건은 이전부터 실패하던 sprite-avatar 테스트), vendor 타입 검사 exit 0
+  - Task별 리뷰와 최종 전체 리뷰에서 Critical·Important는 0이며, 발견한 항목은 모두 고쳤다.
+- **내 Mac의 Office 두 개로 실제 확인을 했다(2026-10-13~14).**
+  - 수락 뒤 Decisions에서 취소: 허브 취소, 상대 작업 `cancelled`, 보낸 기록 취소를 확인했다.
+  - 수락 전 카드 ✕로 취소: 허브와 보낸 기록 모두 취소됐다.
+  - 노트북 IP가 바뀌어 허브를 두 번 다시 띄웠다. 사용자는 허브를 사내 플랫폼에 올리는 방안을 검토 중이다(별도 Story).
+- PR syjkim0125/pazmo-agent-office#21(커밋 `d671ffb`). G4는 2026-10-14 사용자 답변과 "피드백 확인 후 승인"으로 검증 기록에 남겼다. [사용 안내](LOCAL-PREVIEW.md#office에서-보내기-2단계) · [검증 기록](verification/2026-10-14-team-hub-office-cancel.md) · [G3 결정](understanding/team-hub-office-cancel-decision.md)
+
 # 2026-10-13 팀 허브 2단계 A·B·C (Office에서 보내기)
 
 - 연결된 live Office의 Tasks 카드와 채팅창에서 사람이 다른 레포로 팀 허브 요청을 보내고, 카드에서 상태(`↗ <레포> · <상태>`)를 보며, 상대 PM의 질문·범위 승인(G1)·계획 재개에 **자기 Office Decisions**에서 답한다(M9·V11·D17, G3 2026-10-13 승인). 허브 프로토콜 2가 연결 토큰에 레포 목록·요청 생성·(팀원, 보낸 곳 레포) 범위의 보낸 요청 조회·요청자 답변을 더한다. 허브는 1과 2를 함께 받는다. 토큰은 Office 서버에만 있고, Office에서는 승인만 할 수 있다(거절·취소는 허브).
 - 자동 검사 root **582/582**, 타입 검사 exit 0, vendor 화면 **118/120**(실패 2건은 이전부터 실패하던 sprite-avatar 테스트), vendor 타입 검사 exit 0, 빌드 exit 0. Task별 리뷰와 최종 전체 리뷰(Critical 0)에서 나온 Important를 모두 고쳤다. 예: Office에서 보낸 요청을 취소할 수 있던 문제, 인코딩된 `hubout:` 답변이 전달되지 않던 문제, 재전송 시 작업 연결이 사라지던 문제.
 - **내 Mac 한 대로 Office 두 개를 써서 실제 확인을 통과했다(2026-10-13).** eevee-be 카드에서 보내기 → 시험 레포 담당 수락 → 상대 PM G1을 eevee-be Decisions에서 승인 → 상대 작업 G1·G4(eevee-be에는 안 뜸) → 인도 → eevee-be 보낸 기록 완료와 4줄 요약까지 확인했다. 시험 레포 원본은 바뀌지 않았다. **다른 사람 PC와 회사 IT 정책은 아직 확인하지 않았다.**
-- 변경은 커밋하지 않은 작업 트리 상태(`codex/team-hub-office-send`)다. G4는 2026-10-13 사용자 답변과 "피드백 확인 후 승인"으로 [검증 기록](verification/2026-10-13-team-hub-office-send.md#g4-2026-10-13-사용자-답변)에 남겼다. [사용 안내](LOCAL-PREVIEW.md#office에서-보내기-2단계) · [검증 기록](verification/2026-10-13-team-hub-office-send.md) · [G3 결정](understanding/team-hub-office-send-decision.md)
+- PR syjkim0125/pazmo-agent-office#18로 main에 합쳐졌다. G4는 2026-10-13 사용자 답변과 "피드백 확인 후 승인"으로 [검증 기록](verification/2026-10-13-team-hub-office-send.md#g4-2026-10-13-사용자-답변)에 남겼다. [사용 안내](LOCAL-PREVIEW.md#office에서-보내기-2단계) · [검증 기록](verification/2026-10-13-team-hub-office-send.md) · [G3 결정](understanding/team-hub-office-send-decision.md)
 
 # 2026-10-12 팀 허브 1단계
 

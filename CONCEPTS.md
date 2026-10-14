@@ -80,7 +80,7 @@ A teammate who may accept requests for a registered repo and connect their own O
 An owner's explicit acceptance of one hub request, binding it to that owner's Office, PC and login. There is no automatic assignment. The requester answers the questions and the scope Gate (G1) on the hub; the assignee answers the task Gates and G4 in their own Office. An assignee can release the request and the requester can cancel it.
 
 ### Office link
-The one-owner, one-repo pairing between an Office and the hub, created by a single-use command (hub address, code, certificate fingerprint) run on the owner's PC. The Office trusts only the hub certificate with that fingerprint, and the stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations, plus — from hub protocol 2 — list repos, create requests in the owner's name and read and answer the Outgoing requests sent from this repo's Office.
+The one-owner, one-repo pairing between an Office and the hub, created by a single-use command (hub address, code, certificate fingerprint) run on the owner's PC. The Office trusts only the hub certificate with that fingerprint, and the stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations, plus — from hub protocol 2 — list repos, create requests in the owner's name and read, answer and cancel the Outgoing requests sent from this repo's Office.
 *Avoid:* login, sync account
 
 A link is outbound and polled; the hub never opens a connection into an Office. Re-pairing moves the link to another Office and revokes the first, whose in-flight local work the hub can no longer reach.
@@ -89,7 +89,7 @@ A link is outbound and polled; the hub never opens a connection into an Office. 
 A hub request a person sends from their own linked Office (a Tasks card or the chat) to another repo, recorded in that Office with the hub request ID, the local task if any, the target repo and when it was sent. The Office shows its status on the card and lists the other side's PM questions, scope Gate (G1) and planning retry in its own Decisions; those answers travel through the Office link as the requester's hub answers.
 *Avoid:* handoff, delegation, cross-repo task
 
-Sending is always a person's act; the original task keeps running. The Office can only approve from Decisions — rejecting or cancelling is done on the hub — and it never sees the other repo's diff, task Gates, G4 or delivery. Scope is (member, origin repo): the same person's requests sent from another repo's Office or from the hub page are not listed.
+Sending is always a person's act; the original task keeps running. From Decisions the Office can approve or cancel the request — "rejecting" means cancelling, there is no send-back-for-revision — and a card can cancel it while it is waiting or in progress; cancelling is the hub's own cancel, so the assignee's Office stops. The Office never sees the other repo's diff, task Gates, G4 or delivery. Scope is (member, origin repo): the same person's requests sent from another repo's Office or from the hub page are not listed.
 
 ### Hub snapshot
 The single bounded summary an Office uploads for an accepted request: status, title, pending questions and scope Decisions, role conversation, the candidate diff, a short report and the runners used. The hub keeps only the latest one, so a reconnect simply sends it again.
