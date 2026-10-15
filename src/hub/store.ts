@@ -111,6 +111,7 @@ type RequestRecord = {
   origin_repo_id: string | null;
 };
 type Arg = string | number | null;
+type PairResult = { token: string; member: Member; repoId: string; repoName: string; created: boolean };
 
 const SCHEMA = `
 PRAGMA foreign_keys=ON;
@@ -124,8 +125,16 @@ CREATE TABLE IF NOT EXISTS hub_assignments(id TEXT PRIMARY KEY,request_id TEXT N
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_live_assignment ON hub_assignments(request_id) WHERE ended_at IS NULL;
 CREATE TABLE IF NOT EXISTS hub_answers(id TEXT PRIMARY KEY,assignment_id TEXT NOT NULL REFERENCES hub_assignments(id),decision_id TEXT NOT NULL,choice INTEGER NOT NULL,note TEXT NOT NULL,member_id TEXT NOT NULL REFERENCES hub_members(id),state TEXT NOT NULL CHECK(state IN ('pending','applied','rejected')),result TEXT,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_link_codes(code_hash TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),expires_at INTEGER NOT NULL,used_at INTEGER);
+CREATE TABLE IF NOT EXISTS hub_connect_codes(code_hash TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),expires_at INTEGER NOT NULL,used_at INTEGER);
 CREATE TABLE IF NOT EXISTS hub_links(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,member_id TEXT NOT NULL REFERENCES hub_members(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),created_at INTEGER NOT NULL,last_seen INTEGER,revoked_at INTEGER);
 `;
+
+/** Last path segment of the original remote (case kept, .git stripped); never query or fragment text. */
+function repoNameFrom(remote: string): string {
+  const raw = remote.trim();
+  const path = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? new URL(raw).pathname : raw.slice(raw.indexOf(":") + 1);
+  return path.replace(/\/+$/, "").split("/").pop()!.replace(/\.git$/i, "").slice(0, 80);
+}
 
 /** Every permission rule of the hub lives here so routes cannot drift from it. */
 export class HubStore {
@@ -298,15 +307,19 @@ export class HubStore {
     } catch {
       fail("INVALID", 400, "git 원격 주소를 확인해주세요. 예: https://github.example.com/team/repo.git");
     }
-    const id = randomUUID();
-    transaction(this.#db, () => {
+    return transaction(this.#db, () => {
       if (this.#get("SELECT 1 FROM hub_repos WHERE remote=?", normalized)) fail("CONFLICT", 409, "이미 등록된 레포입니다.");
-      this.#run(
-        "INSERT INTO hub_repos(id,name,remote,created_by,created_at) VALUES (?,?,?,?,?)",
-        id, clean, normalized, by.id, this.#now(),
-      );
-      this.#run("INSERT INTO hub_repo_owners VALUES (?,?)", id, by.id);
+      return this.#insertRepo(by, clean, normalized);
     });
+  }
+  /** Caller owns the transaction and has checked the remote is unregistered. */
+  #insertRepo(by: Member, name: string, normalized: string): string {
+    const id = randomUUID();
+    this.#run(
+      "INSERT INTO hub_repos(id,name,remote,created_by,created_at) VALUES (?,?,?,?,?)",
+      id, name, normalized, by.id, this.#now(),
+    );
+    this.#run("INSERT INTO hub_repo_owners VALUES (?,?)", id, by.id);
     return id;
   }
   repos(viewerId: string): RepoView[] {
@@ -542,6 +555,76 @@ export class HubStore {
       );
       return { token, member: { id: m.id, name: m.name, admin: m.admin === 1 }, repoId: code.repo_id };
     });
+  }
+  /** One code per member; the repo is decided later by the Office's own git origin. */
+  createConnectCode(by: Member): string {
+    if (!this.#get("SELECT 1 FROM hub_members WHERE id=? AND revoked_at IS NULL", by.id))
+      fail("FORBIDDEN", 403, "회수된 팀원은 Office를 연결할 수 없습니다.");
+    const raw = secret();
+    this.#run(
+      "INSERT INTO hub_connect_codes(code_hash,member_id,expires_at) VALUES (?,?,?)",
+      hash(raw), by.id, this.#now() + LINK_CODE_TTL,
+    );
+    return raw;
+  }
+  /** Pairs by git origin: reuses the repo the member owns, or registers it with the member as owner.
+   * Any refusal rolls back, so the code stays usable. */
+  connect(rawCode: string, remote: string): PairResult {
+    return transaction(this.#db, () => {
+      const code =
+        this.#get<{ member_id: string }>(
+          "SELECT member_id FROM hub_connect_codes WHERE code_hash=? AND used_at IS NULL AND expires_at>?",
+          hash(rawCode), this.#now(),
+        ) ?? fail("LINK_CODE_INVALID", 410, "연결 코드가 만료됐거나 이미 사용됐습니다. 허브에서 새 명령을 받아주세요.");
+      let normalized: string;
+      try {
+        normalized = normalizeRemote(remote);
+      } catch {
+        fail("INVALID", 400, "git 원격 주소를 확인해주세요.");
+      }
+      const m =
+        this.#get<{ id: string; name: string; admin: number }>(
+          "SELECT id,name,admin FROM hub_members WHERE id=? AND revoked_at IS NULL", code.member_id,
+        ) ?? fail("FORBIDDEN", 403, "회수된 팀원은 Office를 연결할 수 없습니다.");
+      const member: Member = { id: m.id, name: m.name, admin: m.admin === 1 };
+      let repoId: string, repoName: string, created: boolean;
+      const existing = this.#get<{ id: string; name: string }>("SELECT id,name FROM hub_repos WHERE remote=?", normalized);
+      if (existing) {
+        if (!this.#owner(m.id, existing.id))
+          fail("NOT_OWNER", 403, "이 레포의 담당자나 관리자에게 담당자 추가를 요청하세요.");
+        [repoId, repoName, created] = [existing.id, existing.name, false];
+      } else {
+        const base = repoNameFrom(remote) || normalized.split("/").pop()!;
+        let name = base;
+        for (let n = 2; this.#get("SELECT 1 FROM hub_repos WHERE name=?", name); n++)
+          name = `${base.slice(0, 80 - String(n).length - 1)}-${n}`;
+        [repoId, repoName, created] = [this.#insertRepo(member, name, normalized), name, true];
+      }
+      this.#run("UPDATE hub_connect_codes SET used_at=? WHERE code_hash=?", this.#now(), hash(rawCode));
+      return { token: this.#issueLink(member.id, repoId), member, repoId, repoName, created };
+    });
+  }
+  /** Accepts both repo-level (old) and member-level codes. */
+  pairAny(rawCode: string, remote: string): PairResult {
+    if (this.#get("SELECT 1 FROM hub_link_codes WHERE code_hash=?", hash(rawCode))) {
+      const r = this.pair(rawCode, remote);
+      const repoName = this.#get<{ name: string }>("SELECT name FROM hub_repos WHERE id=?", r.repoId)!.name;
+      return { ...r, repoName, created: false };
+    }
+    return this.connect(rawCode, remote);
+  }
+  /** Revokes the member's earlier link to the repo and returns a fresh token. */
+  #issueLink(memberId: string, repoId: string): string {
+    this.#run(
+      "UPDATE hub_links SET revoked_at=? WHERE member_id=? AND repo_id=? AND revoked_at IS NULL",
+      this.#now(), memberId, repoId,
+    );
+    const token = secret();
+    this.#run(
+      "INSERT INTO hub_links(id,token_hash,member_id,repo_id,created_at) VALUES (?,?,?,?,?)",
+      randomUUID(), hash(token), memberId, repoId, this.#now(),
+    );
+    return token;
   }
   /** Valid only while the member is active and still owns the repository. */
   link(raw: string): Link | null {

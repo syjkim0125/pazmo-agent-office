@@ -68,7 +68,7 @@ export function linkApi(store: HubStore) {
       if (req.method !== method) return json(res, 405, { error: "METHOD", message: `${method} 요청만 받습니다.` });
       if (path === "/api/link/pair") {
         const body = parse(await readBody(req, FORM_LIMIT));
-        return json(res, 200, store.pair(str(body, "code"), str(body, "remote")));
+        return json(res, 200, store.pairAny(str(body, "code"), str(body, "remote")));
       }
       const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? "")?.[1];
       const link = token ? store.link(token) : null;

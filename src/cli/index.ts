@@ -13,7 +13,7 @@ import {
 import { up } from "./launcher.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { bridge, readBridgeInput } from "./bridge.ts";
-import { runHub, linkOffice, unlinkOffice } from "./hub.ts";
+import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hub.ts";
 import { parseListen, parsePublicUrl } from "../hub/run.ts";
 import {
   start,
@@ -93,6 +93,7 @@ export async function main(args: string[]): Promise<void> {
           "--hub",
           "--code",
           "--fingerprint",
+          "--connect",
           "--public-url",
           "--listen",
         ].includes(flag) ||
@@ -172,6 +173,7 @@ export async function main(args: string[]): Promise<void> {
       "--hub": ["hub-link"],
       "--code": ["hub-link"],
       "--fingerprint": ["hub-link"],
+      "--connect": ["hub-link"],
     };
     for (const [flag, commands] of Object.entries(allowed))
       if (options[flag] !== undefined && !commands.includes(command))
@@ -274,7 +276,11 @@ export async function main(args: string[]): Promise<void> {
     let result: unknown;
     if (command === "bridge") result = await bridge(p, await readBridgeInput());
     else if (command === "monitor") result = await monitor(p);
-    else if (command === "hub-link")
+    else if (command === "hub-link" && options["--connect"] !== undefined) {
+      if (options["--hub"] !== undefined || options["--code"] !== undefined || options["--fingerprint"] !== undefined)
+        fail("ARGUMENT", "--connect는 --hub·--code·--fingerprint와 함께 쓸 수 없습니다.");
+      result = await linkOfficeWithConnection(p, required("--connect"));
+    } else if (command === "hub-link")
       result = await linkOffice(p, required("--hub"), required("--code"), (options["--fingerprint"] as string | undefined) ?? null);
     else if (command === "hub-unlink") result = unlinkOffice(p);
     else if (command === "intake-create")

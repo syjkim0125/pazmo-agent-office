@@ -1,3 +1,14 @@
+# 2026-10-15 팀 허브 합류·연결 붙여넣기 한 번 (A)과 Fusion 허브 (U12)
+
+- **Fusion 허브(U12, M11·D19):** 허브를 Fusion 프로젝트에 프록시 뒤 모드로 띄웠다(파드 1개, PVC SQLite, 라우터 TLS). Office는 공인 인증서를 시스템 신뢰로 검증해 지문 없이 연결한다. 레포가 공개라서 배포 파일은 Template이고 클러스터 값은 git이 무시하는 `deploy/fusion/local.env`에 둔다. 실제 배포와 Office 한 대 연결은 확인했다. 두 번째 팀원 확인, 검증 문서, G4는 남아 있다.
+- **합류·연결 단순화(A, M12·D20):** 팀원이 초대 링크로 합류하고, 시작 화면의 연결 문자열을 복사해 Office 상단 **팀 허브**에 붙여넣으면 연결된다. 경로나 터미널은 필요 없다. 레포는 origin으로 찾고, 없으면 그 팀원을 담당자로 자동 등록한다. 터미널 `hub-link --connect`도 있다.
+- 자동 검사:
+  - root 677/677, 타입 검사 exit 0
+  - vendor 169/171(이전부터 실패하던 sprite-avatar 2건), vendor tsc exit 0
+  - 빌드 exit 0
+  - Task별 리뷰와 보안 포함 전체 리뷰: Ready, Critical/Important 0
+- **실제 확인(Fusion에서 테스트 팀원 합류 → 붙여넣기 연결 → 보내기·수락·취소)과 G4는 B(캐릭터 정리) 다음에 한다.** [사용 안내](LOCAL-PREVIEW.md#팀원의-가장-짧은-순서) · [검증 기록](verification/2026-10-15-team-hub-onboarding.md) · [G3 결정](understanding/team-hub-onboarding-decision.md)
+
 # 2026-10-14 Office에서 보낸 팀 허브 요청 취소
 
 - 연결된 Office의 Decisions `팀 허브 · …` 항목(2번 **요청 취소**)과 Tasks 카드의 ✕로, 사람이 화면 안 확인을 거쳐 이 Office에서 보낸 요청을 취소한다(M10·V12·D18, G3 2026-10-13 승인). "거절"은 요청 취소와 같은 뜻이다. 허브의 기존 취소를 새 연결 API `outgoing-cancel`로 부르며, 토큰 권한은 (팀원, 보낸 곳 레포) 범위의 취소 하나만 넓어진다. D17의 "Office에서 취소 불가" 규칙을 대체한다.

@@ -40,6 +40,9 @@ export type NativeOfficeBridge = {
   hubSend?(input: unknown): Promise<unknown>;
   hubOutgoing?(): unknown;
   hubCancel?(requestId: string): Promise<unknown>;
+  /** Pairs this Office with the hub from a pasted connection string / removes that link. */
+  hubLink?(text: string): Promise<unknown>;
+  hubUnlink?(): unknown;
 };
 export type PazmoHost = {
   project: string;
@@ -126,6 +129,15 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
           // Sending acts in the member's name on the team hub; require the session's CSRF token.
           if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
           return res.json(await office.hubSend!(req.body ?? {}));
+        }
+        if (req.method === "POST" && req.path === "/hub/link" && office.hubLink) {
+          // Linking stores a member token for this Office; only the person using this session may do it.
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          return res.json(await office.hubLink(String(req.body?.connection ?? "")));
+        }
+        if (req.method === "POST" && req.path === "/hub/unlink" && office.hubUnlink) {
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          return res.json(await office.hubUnlink());
         }
         const cancel = req.path.match(/^\/hub\/outgoing\/([^/]+)\/cancel$/);
         if (cancel && req.method === "POST" && office.hubCancel) {

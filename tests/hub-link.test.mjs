@@ -57,7 +57,7 @@ test("pairing trusts the hub only when the pasted fingerprint matches, and store
   const { pair, dataDir } = await linked(t);
   await assert.rejects(pair("AA:BB"), /HUB_FINGERPRINT_MISMATCH/);
   assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
-  assert.deepEqual(await pair(), { memberName: "관리자" });
+  assert.deepEqual(await pair(), { memberName: "관리자", repoName: "eevee-be", created: false });
   assert.equal(statSync(join(dataDir, "hub-link.json")).mode & 0o777, 0o600);
   assert.equal(readLinkConfig(dataDir).hub.startsWith("https://127.0.0.1:"), true);
 });
@@ -329,7 +329,7 @@ test("a pasted CA bundle cannot smuggle a second certificate past the fingerprin
   await assert.rejects(attempt(async () => other.tls.caPem + tls.caPem), /HUB_CA_INVALID/);
   await assert.rejects(attempt(async () => "not a certificate"), /HUB_CA_INVALID/);
   assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
-  assert.deepEqual(await attempt(async () => `junk\n${tls.caPem}\ntrailing`), { memberName: "관리자" });
+  assert.equal((await attempt(async () => `junk\n${tls.caPem}\ntrailing`)).memberName, "관리자");
   const stored = readLinkConfig(dataDir).caPem;
   assert.equal(stored.match(/BEGIN CERTIFICATE/g).length, 1);
   assert.equal(stored.includes("junk"), false);

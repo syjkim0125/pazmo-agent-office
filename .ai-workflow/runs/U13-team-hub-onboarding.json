@@ -1,0 +1,226 @@
+{
+  "version": 1,
+  "runId": "2621d7ec-5849-4e2c-9896-f163be7615fc",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "27023f85bb62b07340bf90ec1038cb9064c6028043e363129c73498ce60632da",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "A implemented via subagent-driven Tasks 1-4 plus final-review fixes: hub member connect codes/pairAny/auto-register, /start and /connect pages, Office parseConnection/gateway link-unlink/CLI --connect, local API + top-bar dialog; hub entrypoint signal-order fix. root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-15-team-hub-onboarding.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-team-hub-onboarding.md": "09f4a84d5588de46bc27d47e8e34d597b7a05505909f10c66143b81af577b06f"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Tasks 1-4; Task 3 had 2 Important, fixed) and a whole-branch security review: Ready, Critical/Important 0; 5 minors fixed in one round, scoped re-review Approved. Residuals recorded in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-15-team-hub-onboarding.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-team-hub-onboarding.md": "09f4a84d5588de46bc27d47e8e34d597b7a05505909f10c66143b81af577b06f"
+        }
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "bc2812a950e334925b0ecb91c2f048451256a10fccb69518a8bab5a1530ddf80"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-15T06:04:43.848Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-15T06:56:51.979Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "A implemented via subagent-driven Tasks 1-4 plus final-review fixes: hub member connect codes/pairAny/auto-register, /start and /connect pages, Office parseConnection/gateway link-unlink/CLI --connect, local API + top-bar dialog; hub entrypoint signal-order fix. root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-15-team-hub-onboarding.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-team-hub-onboarding.md": "09f4a84d5588de46bc27d47e8e34d597b7a05505909f10c66143b81af577b06f"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-15T06:56:58.740Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-15T06:56:58.840Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Tasks 1-4; Task 3 had 2 Important, fixed) and a whole-branch security review: Ready, Critical/Important 0; 5 minors fixed in one round, scoped re-review Approved. Residuals recorded in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-15-team-hub-onboarding.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-team-hub-onboarding.md": "09f4a84d5588de46bc27d47e8e34d597b7a05505909f10c66143b81af577b06f"
+        }
+      }
+    }
+  ]
+}

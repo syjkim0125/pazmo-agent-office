@@ -129,9 +129,33 @@ test("hub gateway items join the Decisions list and their answers go to the gate
 
 test("without a gateway the Office reports itself unlinked", async (t) => {
   const { o } = await office(t);
-  assert.deepEqual(o.hubStatus(), { linked: false, legacy: false, hub: null, member: null });
+  assert.deepEqual(o.hubStatus(), { linked: false, legacy: false, hub: null, member: null, repoName: null });
   assert.deepEqual(o.hubOutgoing(), { linked: false, items: [] });
   await assert.rejects(o.hubRepos(), { code: "HUB_NOT_LINKED" });
   await assert.rejects(o.reply("hubout:r1:d1", 1, "x"), { code: "HUB_NOT_LINKED" });
   await assert.rejects(o.hubCancel("11111111-1111-4111-8111-111111111111"), { code: "HUB_NOT_LINKED" });
+});
+
+test("hubLink and hubUnlink fail with HUB_NOT_LIVE without a gateway and delegate with one", async (t) => {
+  const none = (await office(t)).o;
+  await assert.rejects(none.hubLink("x"), { code: "HUB_NOT_LIVE", message: "실행 모드(live)에서만 팀 허브에 연결할 수 있습니다." });
+  assert.throws(() => none.hubUnlink(), { code: "HUB_NOT_LIVE" });
+  assert.equal(none.hubStatus().repoName, null);
+
+  const linked = [];
+  const hub = {
+    decisions: () => [],
+    link: async (text) => (linked.push(text), { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: false }),
+    unlink: () => ({ linked: false }),
+    status: () => ({ linked: false, legacy: false, hub: null, member: null, repoName: null }),
+  };
+  const { o } = await office(t, hub);
+  assert.deepEqual(await o.hubLink("text"), { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: false });
+  assert.deepEqual(linked, ["text"]);
+  assert.deepEqual(o.hubUnlink(), { linked: false });
+});
+
+test("the not-linked error points at the Office's 팀 허브 button, not a CLI command", async (t) => {
+  const { o } = await office(t);
+  await assert.rejects(o.hubRepos(), (e) => e.code === "HUB_NOT_LINKED" && /팀 허브/.test(e.message) && !/pazmo-office/.test(e.message));
 });

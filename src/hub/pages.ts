@@ -33,7 +33,7 @@ function ago(at: number | null) {
 
 export function layout(title: string, me: Member | null, body: string, opts: { trust?: boolean } = {}) {
   const nav = me
-    ? `<nav><a href="/">요청 게시판</a><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}${opts.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span></nav>`
+    ? `<nav><a href="/">요청 게시판</a><a href="/start">내 Office 연결</a><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}${opts.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span></nav>`
     : "";
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main></body></html>`;
 }
@@ -50,6 +50,12 @@ export function invite(name: string | null) {
 }
 export function trust(fingerprint: string) {
   return layout("인증서 신뢰", null, `<section><h1>허브 인증서를 한 번 신뢰해주세요</h1><ol><li><a href="/ca.pem">허브 인증 기관 파일</a>을 받습니다.</li><li>파일을 열어 키체인 접근에 추가하고, 항목을 두 번 눌러 <b>신뢰 → 이 인증서 사용 시: 항상 신뢰</b>로 바꿉니다.</li><li>키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요.</li></ol><pre>${esc(fingerprint)}</pre></section>`);
+}
+export function start(me: Member, csrf: string, trust = true) {
+  return layout("내 Office 연결", me, `<section><h1>내 Office 연결</h1><p class="muted">세 단계면 이 허브로 일을 주고받을 수 있습니다.</p></section><section><h2>1. Office 켜기</h2><p>이 레포를 클론해 둔 내 PC에서 Office를 켭니다. 처음이면 관리자에게 설치 방법을 받으세요.</p></section><section><h2>2. 연결 문자열</h2><p>아래 버튼으로 연결 문자열을 만든 뒤 복사해, Office 상단의 팀 허브 버튼을 누르고 붙여넣어 연결하세요. 10분 안에 한 번만 쓸 수 있습니다.</p><form method="post" action="/start/connect-code">${csrfField(csrf)}<div><button>연결 문자열 만들기</button></div></form></section><section><h2>3. 일 보내기</h2><p>Office의 작업 카드나 채팅에서 '팀 허브로 보내기'로 다른 레포 담당자에게 일을 보냅니다.</p></section>`, { trust });
+}
+export function connectHelp() {
+  return layout("Office에 붙여넣기", null, `<section><h1>Office에 붙여넣기</h1><p>이 주소는 Office에 붙여넣는 연결 문자열입니다. Office 상단의 팀 허브 버튼을 누르고 붙여넣은 뒤 연결을 누르세요.</p><p class="muted">연결 문자열은 허브의 <a href="/start">내 Office 연결</a>에서 만들 수 있습니다.</p></section>`);
 }
 export function created(me: Member, title: string, note: string, value: string, trust = true) {
   return layout(title, me, `<section><h1>${esc(title)}</h1><p>${esc(note)}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, { trust });
@@ -139,7 +145,7 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
             .map((l) => `${esc(l.memberName)} (확인 ${ago(l.lastSeen)})${l.memberId === me.id || me.admin ? button(`/links/${l.id}/revoke`, csrf, "연결 해제", "secondary") : ""}`)
             .join("<br>")
         : '<span class="muted">연결된 Office 없음</span>';
-      const link = r.isOwner ? button(`/repos/${r.id}/link-code`, csrf, "내 Office 연결 명령 만들기") : "";
+      const link = r.isOwner ? '<a href="/start">내 Office 연결</a>' : "";
       return `<tr><td><b>${esc(r.name)}</b><br><span class="muted">${esc(r.remote)}</span></td><td>${owners}${add}</td><td>${links}<br>${link}</td></tr>`;
     })
     .join("");

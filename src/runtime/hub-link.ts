@@ -16,6 +16,8 @@ export type HubLinkConfig = {
   memberId: string;
   memberName: string;
   repoId: string;
+  /** The repository as the hub names it; absent in files written before connection strings. */
+  repoName?: string;
 };
 const FILE = "hub-link.json";
 
@@ -186,15 +188,18 @@ export async function pairOffice(input: {
   const reply = (await hubCall({ hub: hub.origin, caPem, fingerprint }, "POST", "/api/link/pair", {
     code: input.code,
     remote,
-  })) as { token?: unknown; member?: { id?: unknown; name?: unknown }; repoId?: unknown } | null;
+  })) as { token?: unknown; member?: { id?: unknown; name?: unknown }; repoId?: unknown; repoName?: unknown; created?: unknown } | null;
   if (!reply || !isStr(reply.token) || !isStr(reply.member?.id) || !isStr(reply.member?.name) || !isStr(reply.repoId))
     throw new Error("HUB_BAD_RESPONSE");
   const paired = { token: reply.token, member: { id: reply.member.id, name: reply.member.name }, repoId: reply.repoId };
+  const repoName = isStr(reply.repoName) ? reply.repoName : null;
+  // Written only after the hub accepted the code: a failed pair leaves an earlier link as it was.
   writeLinkConfig(input.dataDir, {
     hub: hub.origin, caPem, fingerprint, token: paired.token,
     memberId: paired.member.id, memberName: paired.member.name, repoId: paired.repoId,
+    ...(repoName ? { repoName } : {}),
   });
-  return { memberName: paired.member.name };
+  return { memberName: paired.member.name, repoName, created: reply.created === true };
 }
 
 type Work = {

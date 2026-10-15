@@ -14,6 +14,8 @@ async function server(t) {
   const sent = [];
   const replied = [];
   const cancelled = [];
+  const linked = [];
+  let unlinks = 0;
   const bridge = {
     status: () => ({ execution: "ready", active: [] }),
     setBroadcast() {},
@@ -34,6 +36,13 @@ async function server(t) {
     cliStatus: async (o) => (refreshes.push(!!o?.refresh), { providers: { codex: { installed: true, version: "0.160.0", authenticated: true, authHint: "준비됨" } } }),
     cliModels: () => ({ models: { claude: [{ slug: "haiku" }] } }),
     hubStatus: () => ({ linked: true, legacy: false, hub: "https://h", member: "관리자" }),
+    hubLink: async (text) => {
+      linked.push(text);
+      if (text === "not-live") throw Object.assign(new Error("실행 모드(live)에서만 팀 허브에 연결할 수 있습니다."), { code: "HUB_NOT_LIVE" });
+      if (text === "down") throw Object.assign(new Error("허브에 연결할 수 없습니다."), { code: "HUB_UNREACHABLE" });
+      return { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: true };
+    },
+    hubUnlink: () => (unlinks++, { linked: false }),
     hubRepos: async () => ({ repos: [{ id: "be", name: "checkout-backend", owners: ["B"] }] }),
     hubOutgoing: () => ({ linked: true, items: [] }),
     hubCancel: async (id) => (cancelled.push(id), id === "ended" ? Promise.reject(Object.assign(new Error("이미 끝난 요청이에요."), { code: "ALREADY_ENDED" })) : { ok: true, requestId: id }),
@@ -61,7 +70,7 @@ async function server(t) {
     });
     return { status: res.status, json: await res.json() };
   };
-  return { call, checked, refreshes, sent, replied, cancelled, upstream: () => upstream };
+  return { call, checked, refreshes, sent, replied, cancelled, linked, unlinks: () => unlinks, upstream: () => upstream };
 }
 
 test("hub routes, sends and hub-decision replies come from the Office and need the session CSRF token", async (t) => {
@@ -99,4 +108,32 @@ test("hub routes, sends and hub-decision replies come from the Office and need t
   const ended = await s.call("POST", "/api/hub/outgoing/ended/cancel", {}, { "x-csrf-token": getCsrfToken() });
   assert.deepEqual([ended.status, ended.json.error], [409, "ALREADY_ENDED"]);
   assert.equal((await s.call("GET", cancelPath)).status, 404);
+  await linkChecks(s);
 });
+
+// The host is configured once per process, so this runs inside the first test's server.
+async function linkChecks(s) {
+  const csrf = { "x-csrf-token": getCsrfToken() };
+  const text = "https://pazmo-hub.apps.example.com/connect#c=" + "a".repeat(43);
+  assert.equal((await s.call("POST", "/api/hub/link", { connection: text })).status, 403);
+  assert.equal((await s.call("POST", "/api/hub/unlink", {})).status, 403);
+  assert.deepEqual(s.linked, []);
+  assert.equal(s.unlinks(), 0, "the bridge is not reached without the CSRF token");
+
+  const ok = await s.call("POST", "/api/hub/link", { connection: text }, csrf);
+  assert.deepEqual([ok.status, ok.json], [200, { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: true }]);
+  assert.deepEqual(s.linked, [text]);
+  await s.call("POST", "/api/hub/link", {}, csrf);
+  assert.equal(s.linked.at(-1), "", "a missing connection reaches the bridge as an empty string");
+
+  const off = await s.call("POST", "/api/hub/unlink", {}, csrf);
+  assert.deepEqual([off.status, off.json], [200, { linked: false }]);
+  assert.equal(s.unlinks(), 1);
+
+  // Errors keep the host's mapping and carry {error, message}.
+  const notLive = await s.call("POST", "/api/hub/link", { connection: "not-live" }, csrf);
+  assert.deepEqual([notLive.status, notLive.json.error], [409, "HUB_NOT_LIVE"]);
+  assert.match(notLive.json.message, /live/);
+  const down = await s.call("POST", "/api/hub/link", { connection: "down" }, csrf);
+  assert.deepEqual([down.status, down.json.error], [503, "HUB_UNREACHABLE"]);
+}
