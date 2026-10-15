@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "runId": "d0ae4370-f109-4456-89cf-815259fecc04",
+  "runId": "b2fa4971-f903-45bf-bbaa-3fed97734113",
   "graph": {
     "id": "delivery",
     "nodes": [
@@ -117,14 +117,38 @@
     "fingerprint": "269310517860c242f782d68044914ea308d5b8fa1c33e5aa22cef07c979eeddf",
     "nodes": {
       "implement": {
-        "status": "running",
+        "status": "completed",
         "attempts": 1,
-        "revision": 0
+        "revision": 0,
+        "output": {
+          "summary": "U12 implemented via subagent-driven Tasks 1-4 plus a final fix wave: hub proxy mode, system-trust Office link, hub entrypoint and bundle, OpenShift Template with parameters (public repo). root 640/640, hub-* 149/149, typecheck 0; deployed to the Fusion project (pod 1/1, /healthz 200, one Office linked without fingerprint).",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-fusion.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+        }
       },
       "workflow-review": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 0
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Task 4 Important fixed) and final whole-branch review (Critical 0, 1 Important fixed with minors in one wave, re-review clean). Residuals in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-fusion.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+        }
       },
       "workflow-verify": {
         "status": "pending",
@@ -135,13 +159,62 @@
   },
   "story": {
     "path": "docs/understanding/pazmo-agent-office-contract.md",
-    "fingerprint": "667a3732ac9e164a11ebc503480f0fc30ce767d2f8abcd2aa8fbc1e2310b5a62"
+    "fingerprint": "dd7fa84158ed4fdf08b433e5514782f0d346a98107d1542340735e0c84d8a00d"
   },
   "history": [
     {
       "event": "start",
       "nodeId": "implement",
-      "at": "2026-10-14T08:08:08.570Z"
+      "at": "2026-10-15T07:36:49.302Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-15T07:36:49.394Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "U12 implemented via subagent-driven Tasks 1-4 plus a final fix wave: hub proxy mode, system-trust Office link, hub entrypoint and bundle, OpenShift Template with parameters (public repo). root 640/640, hub-* 149/149, typecheck 0; deployed to the Fusion project (pod 1/1, /healthz 200, one Office linked without fingerprint).",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-fusion.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-15T07:36:49.488Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-15T07:36:49.581Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Task 4 Important fixed) and final whole-branch review (Critical 0, 1 Important fixed with minors in one wave, re-review clean). Residuals in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-14-team-hub-fusion.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+        }
+      }
     }
   ]
 }
