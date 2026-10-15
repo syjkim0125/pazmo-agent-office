@@ -4,3 +4,4 @@ export * from "./api/messaging-runtime-oauth";
 export * from "./api/workflow-skills-subtasks";
 export * from "./api/providers-reports-github";
 export * from "./api/team-hub";
+export * from "./api/office";

@@ -58,6 +58,17 @@ kit 4.1.0이 각 역할의 전이를 소유하고, Office는 원본 Claw DB의 �
 
 옵션 없는 `start`와 기존 `bridge` 쓰기 명령은 이전 runtime 호환용이다. 원본 서버에서는 기존 채팅·작업·Decisions API를 사용하며 private API는 조회만 허용한다. 서로 다른 runtime에서 같은 작업을 독립적으로 완료 처리하지 않는다.
 
+### Office 캐릭터
+
+Office 화면에는 실제로 일을 맡는 역할 캐릭터만 보인다: **PM / 리드 / 개발 / 리뷰**(영어 화면은 PM / Lead / Engineer / Reviewer). 결정은 [office-role-characters-decision.md](understanding/office-role-characters-decision.md)이다.
+
+- 역할 캐릭터는 Office 서버가 그 역할에 실제로 쓰는 캐릭터다(`GET /api/office-roles`). 실제 Office는 PM=Clio, 리드=Sage, 개발=Aria, 리뷰=Hawk이고, 원본 이름은 캐릭터 상세에 작게 남는다. PM 캐릭터가 없는 DB에서는 한 캐릭터가 `PM · 리드`처럼 보인다.
+- 장면, 사이드바, 상세, 채팅, 작업 보드, 보고서, 상태 패널, 대시보드, Decisions가 같은 이름을 쓴다. 남은 캐릭터의 그림은 숨기기 전과 같다.
+- 역할을 맡지 않은 원본 캐릭터(디자인·DevSecOps·운영 등)와 빈 부서 방은 그리지 않는다. 그 캐릭터가 작업 중이면 보인다.
+- 표시만 바뀐다. DB의 캐릭터는 지우거나 이름을 바꾸지 않으므로, 이 기능을 빼면 예전처럼 모두 보인다. 캐릭터 추가·삭제는 지금처럼 막혀 있다.
+- 역할 API가 없는 미리보기(옵션 없는 `start`)나 옛 서버, 역할 id를 하나도 못 찾은 경우에는 모두 보인다.
+- 캐릭터 이름 편집은 지금처럼 막혀 있다. 나중에 이름 편집을 열 때는 역할 이름이 저장되지 않게 해야 한다.
+
 ## 팀 허브 (1단계 시험)
 
 초대받은 팀원이 한 곳에서 레포 목록을 보고 요청을 올리게 하는 사내망 게시판이다. 허브는 AI를 실행하지 않는다. 요청은 레포 담당자가 수락해 **자기 PC의 Office와 자기 로그인**으로 실행한다. 내 구독이나 회사 API 키를 공유하지 않는다. 결정은 [team-hub-decision.md](understanding/team-hub-decision.md), 검증은 [검증 기록](verification/2026-10-12-team-hub.md)이다. **한 Mac 확인만 마쳤고 다른 사람 PC와 회사 IT 정책 확인은 남아 있다.**

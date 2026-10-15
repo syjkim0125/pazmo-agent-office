@@ -1,3 +1,4 @@
+import { localeName } from "../i18n";
 import type { Agent } from "../types";
 
 type ReportAgentSeed = {
@@ -33,4 +34,18 @@ export function resolveReportAgent(agents: Agent[], seed: ReportAgentSeed): Agen
     stats_xp: 0,
     created_at: 0,
   };
+}
+
+/**
+ * The name to show for a report's agent: the visible character's own (possibly role-labelled) name when it
+ * is in the list, otherwise the name the server stored with the report.
+ */
+export function reportAgentName(
+  agents: Agent[],
+  agentId: string | null | undefined,
+  language: string,
+  fallback: string,
+): string {
+  const matched = agentId ? agents.find((agent) => agent.id === agentId) : undefined;
+  return matched ? localeName(language, matched) : fallback;
 }

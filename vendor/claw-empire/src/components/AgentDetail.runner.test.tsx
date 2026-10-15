@@ -37,12 +37,12 @@ const agent = {
   created_at: 0,
 } as unknown as Agent;
 
-function renderDetail() {
+function renderDetail(shown: Agent = agent) {
   return renderWithDialogs(
     <I18nProvider language="ko">
       <AgentDetail
-        agent={agent}
-        agents={[agent]}
+        agent={shown}
+        agents={[shown]}
         department={undefined}
         departments={[]}
         tasks={[]}
@@ -110,5 +110,16 @@ describe("AgentDetail runner selection under Office", () => {
     fireEvent.click(await screen.findByText("저장"));
     expect(await screen.findByText("터미널에서 claude auth login을 실행하세요.")).toBeTruthy();
     expect(screen.getByText("저장")).toBeTruthy();
+  });
+
+  it("shows the original character name under a role-labelled name", () => {
+    renderDetail({ ...agent, name: "Lead", name_ko: "리드", original_name: "세이지" });
+    expect(screen.getByText("리드")).toBeInTheDocument();
+    expect(screen.getByTestId("agent-original-name")).toHaveTextContent("세이지");
+  });
+
+  it("shows no original-name line for an ordinary character", () => {
+    renderDetail();
+    expect(screen.queryByTestId("agent-original-name")).toBeNull();
   });
 });

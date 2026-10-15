@@ -432,6 +432,16 @@ export default function AgentDetail({
                   {statusLabel(statusCfg.label, t)}
                 </span>
               </div>
+              {agent.original_name && (
+                <div data-testid="agent-original-name" className="text-xs text-slate-500 mt-0.5">
+                  {t({
+                    ko: `원래 이름: ${agent.original_name}`,
+                    en: `Original name: ${agent.original_name}`,
+                    ja: `元の名前: ${agent.original_name}`,
+                    zh: `原名: ${agent.original_name}`,
+                  })}
+                </div>
+              )}
               <div className="text-sm text-slate-400 mt-0.5">
                 {department?.icon} {department ? localeName(language, department) : ""} · {roleLabel(agent.role, t)}
               </div>

@@ -293,8 +293,12 @@ export default function AgentStatusPanel({ agents, uiLanguage, onClose }: AgentS
                 <div className="max-h-56 divide-y divide-slate-800 overflow-y-auto rounded-lg border border-slate-800/80 bg-slate-900/50">
                   {visibleCliProcesses.map((proc) => {
                     const isKilling = killingCliPids.has(proc.pid);
-                    const agentName =
-                      uiLanguage === "ko" ? proc.agent_name_ko || proc.agent_name || "-" : proc.agent_name || "-";
+                    const ownerAgent = proc.agent_id ? agents.find((a) => a.id === proc.agent_id) : undefined;
+                    const agentName = ownerAgent
+                      ? localeName(uiLanguage, ownerAgent)
+                      : uiLanguage === "ko"
+                        ? proc.agent_name_ko || proc.agent_name || "-"
+                        : proc.agent_name || "-";
                     const commandText = proc.command || proc.executable;
                     const displayTitle = proc.task_title && proc.task_title !== commandText ? proc.task_title : null;
                     return (
@@ -380,7 +384,7 @@ export default function AgentStatusPanel({ agents, uiLanguage, onClose }: AgentS
             <div className="divide-y divide-slate-700/30">
               {activeAgents.map((ag) => {
                 const fullAgent = agents.find((a) => a.id === ag.id);
-                const agentName = localeName(uiLanguage, ag);
+                const agentName = localeName(uiLanguage, fullAgent ?? ag);
                 const deptName = localeName(uiLanguage, { name: ag.dept_name, name_ko: ag.dept_name_ko });
                 const isKilling = ag.task_id ? killing.has(ag.task_id) : false;
                 const idleText = ag.idle_seconds !== null ? fmtElapsed(ag.idle_seconds) : "-";

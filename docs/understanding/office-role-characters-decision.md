@@ -16,11 +16,11 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
 
 ## 지금 상태 (코드 근거)
 
-- **새 DB**(`src/runtime/service.ts:126-155`)는 Lead·Engineer·Reviewer 3명만 만든다. PM 캐릭터가 없어서, PM 역할도 Lead 캐릭터가 맡는다(`native-office.ts:160-173`의 부서·직급 선택).
-- **옛 DB**에는 원본 Claw-Empire 캐릭터가 14명 있다. 예를 들어 사용자가 쓰는 eevee-be Office가 그렇다.
-  - 역할을 맡는 것은 4명뿐이다: Clio(PM), Sage(Lead), Aria(Engineer), Hawk(Reviewer).
+- **실제 Office(claw 엔진, `start --claw --live`)**는 새로 만들어도 원본 Claw-Empire 캐릭터 14명을 갖는다(`claw/claw.sqlite`). 사용자가 쓰는 eevee-be Office가 그렇다.
+  - 역할을 맡는 것은 4명뿐이다: Clio(PM), Sage(Lead), Aria(Engineer), Hawk(Reviewer). 역할은 `native-office.ts:160-173`의 부서·직급 선택으로 정해진다.
   - 나머지 10명(Bolt, Nova, Pixel, Luna, Atlas, Turbo, Lint, DORO, Vault, Pipe)은 일을 하지 않는다. 디자인·DevSecOps·운영 방도 비어 있는 채로 보인다.
-- 캐릭터를 숨기는 개념은 없다. 화면은 부서마다 방을 그리고, 에이전트 행마다 캐릭터를 그린다(`buildScene-departments.ts:93,102`).
+- **service 엔진(옵션 없는 `start`, 읽기 전용 미리보기)**의 `office.sqlite`는 Lead·Engineer·Reviewer 3명만 만든다(`src/runtime/service.ts:126-155`). 이 엔진은 역할 API를 제공하지 않는다.
+- 캐릭터를 숨기는 개념은 없다. 화면은 부서마다 방을, 에이전트 행마다 캐릭터를 그린다(`buildScene-departments.ts:93,102`).
 - 에이전트·부서 추가·삭제는 호스트가 막는다(`host.ts:205-224`, 423). 실행 경로가 없는 캐릭터에 일이 배정되지 않게 하려는 것이다.
 
 ## 결정
@@ -31,12 +31,12 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
    - 캐릭터가 하나도 없는 부서의 방은 그리지 않는다.
 2. **이름은 역할로 보인다.**
    - 역할 캐릭터는 화면 어디서나 역할 이름으로 보인다: PM / Lead / Engineer / Reviewer(한국어: PM / 리드 / 개발 / 리뷰).
-   - 한 캐릭터가 두 역할을 맡으면 `PM · Lead`처럼 함께 쓴다. 예를 들어 PM이 없는 옛 3인 DB가 그렇다.
+   - 한 캐릭터가 두 역할을 맡으면 `PM · 리드`처럼 함께 쓴다. planning 부서에 senior가 없는 DB에서만 생기는 방어 경로다. 실제 Office는 PM(Clio)과 Lead(Sage)가 이미 다르다.
    - 원래 이름(예: Clio)은 캐릭터 상세에 작게 남긴다.
 3. **DB는 바꾸지 않는다.**
    - 숨김과 역할 이름은 화면 표시만 바꾼다. 에이전트 행을 지우거나 이름을 고치지 않는다.
    - 그래서 되돌리기가 쉽고, 옛 DB 이전도 필요 없다.
-4. **새 DB는 PM 캐릭터를 갖는다.** 새로 만드는 Office DB에 `pazmo-pm`을 더한다(planning, senior, 📋). 이제 PM과 Lead는 서로 다른 캐릭터다. 이미 만들어진 DB에는 더하지 않는다.
+4. **service 엔진의 새 DB에 PM 캐릭터를 더한다.** 새로 만드는 `office.sqlite`에 `pazmo-pm`을 더한다(planning, senior, 📋). 구현 중 확인한 결과, 이 결정은 service 엔진(읽기 전용 미리보기) DB에만 해당한다. 실제 Office(claw 엔진)는 원본 14명이고 PM=Clio, Lead=Sage로 이미 나뉘어 있어 영향이 없다(2026-10-15 구현 판정). 유지 여부는 G4에서 확인한다. 이미 만들어진 DB에는 더하지 않는다.
 5. **"내가 추가한 캐릭터"는 이번에 하지 않는다(ASSUMED).**
    - 에이전트 추가는 실행 경로가 없어 호스트가 막고 있다. 추가를 허용하는 것은 실행 경계를 바꾸는 일이라 별도 결정으로 둔다.
    - 대신 기본으로 쓰는 캐릭터만 보이게 해서 "기본은 다 Off"를 만족한다.
@@ -50,6 +50,7 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
 | 역할 캐릭터가 없는 부서 | 방을 그리지 않는다. |
 | 숨긴 캐릭터에 작업이 배정돼 있음 | 그 작업이 진행 중이면 보인다. |
 | 역할 API 조회 실패 | 마지막으로 받은 값을 유지하고, 처음부터 실패면 숨기지 않는다. |
+| 역할 id가 모두 비었거나 목록에 없음 | 숨기지 않는다. |
 
 ## 범위
 
@@ -58,7 +59,8 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
   - 새 DB 시드에 `pazmo-pm`을 더한다.
   - 화면:
     - 에이전트·부서 목록을 역할로 걸러 낸다.
-    - 역할 이름을 표시한다.
+    - 역할 이름을 표시한다(장면·사이드바·상세·채팅·작업 보드·보고서·상태 패널·대시보드·Decisions).
+    - 캐릭터 그림 번호는 거르기 전 전체 목록 기준으로 고정해, 숨겨도 남은 캐릭터 그림이 바뀌지 않는다.
     - 원래 이름은 상세에 둔다.
 - **제외:**
   - 에이전트 추가 허용
@@ -70,8 +72,8 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
 ## 검증 (V15)
 
 - 자동 테스트로 확인한다.
-  - 역할 API가 서버 `agent(role)`과 같은 id를 돌려준다(새 DB 4인, 옛 DB 14인, 옛 3인 DB).
-  - 새 DB에 `pazmo-pm`이 있고, PM과 Lead가 다르다.
+  - 역할 API가 서버 `agent(role)`과 같은 id를 돌려준다(claw 14인, service 4인, planning에 senior가 없는 3인).
+  - service 엔진 새 DB에 `pazmo-pm`이 있고 PM과 Lead가 다르다. 이 확인은 service DB에 Office 런타임을 붙인 단위 시험이라 실제로는 없는 조합이다.
   - 화면:
     - 14인 데이터에서 캐릭터 4명과 방 3개만 그린다.
     - 역할 이름이 보이고, 두 역할 캐릭터는 이름이 합쳐진다.

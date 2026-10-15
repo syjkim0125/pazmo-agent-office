@@ -1,3 +1,14 @@
+# 2026-10-15 Office 캐릭터 역할 중심 정리 (B)
+
+- Office 화면에는 실제로 역할을 맡는 캐릭터(PM/리드/개발/리뷰)와 작업 중인 캐릭터만 보이고, 역할 이름으로 표시된다(M13·D21). 빈 부서 방은 그리지 않는다. DB의 캐릭터는 바꾸지 않고, 남은 캐릭터의 그림도 그대로다. 실제 Office(claw 엔진)는 원본 14명 중 Clio·Sage·Aria·Hawk만 보인다.
+- 사용자 지시("결정은 안 하고 일단 다 승인으로 넘어가, G4 질문은 마지막에 한 번에")에 따라 결정은 기본값으로 진행했고 G4에서 확인한다.
+- 자동 검사:
+  - root 680/680, 타입 검사 exit 0
+  - vendor 208/210(이전부터 실패하던 sprite-avatar 2건), vendor tsc exit 0
+  - 빌드 exit 0
+  - Task 리뷰와 B 전체 리뷰에서 나온 Important를 모두 고쳤다(재검토 Approved).
+- **eevee-be 실제 화면 확인과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#office-캐릭터) · [검증 기록](verification/2026-10-15-office-role-characters.md) · [G3 결정](understanding/office-role-characters-decision.md)
+
 # 2026-10-15 팀 허브 합류·연결 붙여넣기 한 번 (A)과 Fusion 허브 (U12)
 
 - **Fusion 허브(U12, M11·D19):** 허브를 Fusion 프로젝트에 프록시 뒤 모드로 띄웠다(파드 1개, PVC SQLite, 라우터 TLS). Office는 공인 인증서를 시스템 신뢰로 검증해 지문 없이 연결한다. 레포가 공개라서 배포 파일은 Template이고 클러스터 값은 git이 무시하는 `deploy/fusion/local.env`에 둔다. 실제 배포와 Office 한 대 연결은 확인했다. 두 번째 팀원 확인, 검증 문서, G4는 남아 있다.

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { I18nProvider } from "../i18n";
 import TaskReportPopup from "./TaskReportPopup";
@@ -69,5 +69,91 @@ describe("TaskReportPopup", () => {
     );
 
     expect(screen.getByAltText("Ari")).toBeInTheDocument();
+  });
+
+  describe("role-labelled characters", () => {
+    const roleAgent = {
+      id: "agent-1",
+      name: "PM",
+      name_ko: "PM",
+      original_name: "Ari",
+      avatar_emoji: "A",
+      sprite_number: 1,
+    } as any;
+
+    it("shows the role name, not the upstream name, for the task assignee", () => {
+      render(
+        <I18nProvider language="en">
+          <TaskReportPopup
+            report={baseReport as any}
+            agents={[roleAgent]}
+            departments={[]}
+            uiLanguage="en"
+            onClose={() => {}}
+          />
+        </I18nProvider>,
+      );
+      expect(screen.getByText("PM (team_leader)")).toBeInTheDocument();
+      expect(screen.queryByText(/Ari \(team_leader\)/)).not.toBeInTheDocument();
+    });
+
+    it("keeps the server name when the assignee is not in the visible list", () => {
+      render(
+        <I18nProvider language="en">
+          <TaskReportPopup
+            report={baseReport as any}
+            agents={[{ ...roleAgent, id: "someone-else" }]}
+            departments={[]}
+            uiLanguage="en"
+            onClose={() => {}}
+          />
+        </I18nProvider>,
+      );
+      expect(screen.getByText("Ari (team_leader)")).toBeInTheDocument();
+    });
+
+    it("shows the role name for a team report's agent", () => {
+      const report = {
+        ...baseReport,
+        team_reports: [
+          {
+            id: "team-1",
+            task_id: "task-2",
+            source_task_id: null,
+            title: "Team job",
+            status: "done",
+            department_id: "dev",
+            department_name: "Dev",
+            department_name_ko: "개발팀",
+            agent_id: "agent-1",
+            agent_name: "Ari",
+            agent_name_ko: "아리",
+            agent_role: "senior",
+            created_at: 1,
+            started_at: 1,
+            completed_at: 2,
+            summary: "done",
+            logs: [],
+            meeting_minutes: [],
+            documents: [],
+            linked_subtasks: [],
+          },
+        ],
+      };
+      render(
+        <I18nProvider language="en">
+          <TaskReportPopup
+            report={report as any}
+            agents={[roleAgent]}
+            departments={[]}
+            uiLanguage="en"
+            onClose={() => {}}
+          />
+        </I18nProvider>,
+      );
+      fireEvent.click(screen.getByRole("button", { name: "Dev" }));
+      expect(screen.getByText("Dev · PM")).toBeInTheDocument();
+      expect(screen.queryByText(/Ari/)).not.toBeInTheDocument();
+    });
   });
 });

@@ -681,3 +681,30 @@ test("role runner choices persist across live restarts and only CLI-listed value
   assert.deepEqual(second.runnerRuns("11111111-1111-4111-8111-111111111111").runs.map((r) => r.role), ["pm"]);
   await second.close();
 });
+
+test("officeRoles reports the agent Office actually uses for each role", async (t) => {
+  const { db, office } = await fixture(t);
+  const name = (id) => db.prepare("SELECT name FROM agents WHERE id=?").get(id).name;
+  const { roles } = office.officeRoles();
+  assert.deepEqual(Object.keys(roles), ["pm", "lead", "engineer", "reviewer"]);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(roles).map(([k, id]) => [k, name(id)])),
+    { pm: "Clio", lead: "Sage", engineer: "Aria", reviewer: "Hawk" },
+  );
+});
+
+test("officeRoles maps pm and lead to the same agent when only three exist, and null when missing", async (t) => {
+  const { db, office } = await fixture(t);
+  db.exec("DELETE FROM agents");
+  const insert = db.prepare(
+    "INSERT INTO agents (id,name,name_ko,department_id,role,cli_provider,avatar_emoji) VALUES (?,?,?,?,?,?,?)",
+  );
+  insert.run("pazmo-lead", "Lead", "기획 담당", "planning", "team_leader", "codex", "x");
+  insert.run("pazmo-engineer", "Engineer", "구현 담당", "dev", "senior", "codex", "x");
+  insert.run("pazmo-reviewer", "Reviewer", "검토 담당", "qa", "senior", "codex", "x");
+  assert.deepEqual(office.officeRoles(), {
+    roles: { pm: "pazmo-lead", lead: "pazmo-lead", engineer: "pazmo-engineer", reviewer: "pazmo-reviewer" },
+  });
+  db.exec("DELETE FROM agents WHERE id='pazmo-reviewer'");
+  assert.equal(office.officeRoles().roles.reviewer, null);
+});

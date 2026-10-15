@@ -72,6 +72,8 @@ interface AppMainLayoutProps {
   setView: (view: View) => void;
   departments: Department[];
   agents: Agent[];
+  /** True when `agents` is the role-filtered office list, so server-wide agent counts no longer apply. */
+  officeRolesApplied?: boolean;
   stats: CompanyStats | null;
   tasks: Task[];
   subtasks: SubTask[];
@@ -143,6 +145,7 @@ export default function AppMainLayout({
   setView,
   departments,
   agents,
+  officeRolesApplied,
   stats,
   tasks,
   subtasks,
@@ -502,6 +505,7 @@ export default function AppMainLayout({
                 readOnly={settings.pazmoReadOnly}
                 stats={stats}
                 agents={agents}
+                officeRolesApplied={officeRolesApplied}
                 tasks={tasks}
                 companyName={settings.companyName}
                 onPrimaryCtaClick={() => setView("tasks")}

@@ -17,12 +17,15 @@ import type {
   Task,
   WorkflowPackKey,
 } from "../types";
+import { displayAgent } from "./officeRoles";
 import { mapWorkflowDecisionItemsLocalized } from "./decision-inbox";
 import { mergeSettingsWithDefaults, syncClientLanguage } from "./utils";
 import type { ProjectMetaPayload } from "./types";
 
 interface UseAppActionsParams {
   agents: Agent[];
+  /** Role-labelled display list (see applyOfficeRoles). Only names shown in the decision inbox come from it. */
+  officeAgents?: Agent[];
   settings: CompanySettings;
   scheduleLiveSync: (delayMs?: number) => void;
   setSettings: Dispatch<SetStateAction<CompanySettings>>;
@@ -43,6 +46,7 @@ interface UseAppActionsParams {
 
 export function useAppActions({
   agents,
+  officeAgents,
   settings,
   scheduleLiveSync,
   setSettings,
@@ -309,7 +313,8 @@ export function useAppActions({
         api.getMessages({ limit: 500 }),
         api.getDecisionInbox(),
       ]);
-      const agentDecisionItems = buildDecisionInboxItems(allMessages, agents);
+      const inboxAgents = officeAgents ? agents.map((agent) => displayAgent(agent, officeAgents) ?? agent) : agents;
+      const agentDecisionItems = buildDecisionInboxItems(allMessages, inboxAgents);
       const workflowItems = mapWorkflowDecisionItemsLocalized(workflowDecisionItems, settings.language);
       const merged = [...workflowItems, ...agentDecisionItems];
       const deduped = new Map<string, DecisionInboxItem>();
@@ -320,7 +325,7 @@ export function useAppActions({
     } finally {
       setDecisionInboxLoading(false);
     }
-  }, [agents, settings.language, setDecisionInboxLoading, setDecisionInboxItems]);
+  }, [agents, officeAgents, settings.language, setDecisionInboxLoading, setDecisionInboxItems]);
 
   const handleOpenDecisionInbox = useCallback(() => {
     setShowDecisionInbox(true);

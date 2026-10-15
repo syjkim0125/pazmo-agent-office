@@ -28,6 +28,7 @@ async function server(t) {
     },
     cliStatus: async (o) => (refreshes.push(!!o?.refresh), { providers: { codex: { installed: true, version: "0.160.0", authenticated: true, authHint: "준비됨" } } }),
     cliModels: () => ({ models: { claude: [{ slug: "haiku" }] } }),
+    officeRoles: () => ({ roles: { pm: "a", lead: "b", engineer: "c", reviewer: null } }),
     runnerRuns: (id) => ({ runs: [{ taskId: id, role: "pm", runner: "claude", version: "2.1.280", model: "default", reasoning: null }] }),
   };
   configurePazmoHost({ project: "/p", instance: "i", token: "t".repeat(64), initialize: async () => bridge });
@@ -51,7 +52,7 @@ async function server(t) {
     });
     return { status: res.status, json: await res.json() };
   };
-  return { call, checked, refreshes, upstream: () => upstream };
+  return { call, checked, refreshes, upstream: () => upstream, bridge };
 }
 
 test("managed CLI status, model lists and runner edits go through Office", async (t) => {
@@ -80,4 +81,13 @@ test("managed CLI status, model lists and runner edits go through Office", async
 
   const other = await s.call("POST", "/api/agents", { name: "new" });
   assert.equal(other.status, 423);
+
+  const roles = await s.call("GET", "/api/office-roles");
+  assert.equal(roles.status, 200);
+  assert.deepEqual(roles.json, { roles: { pm: "a", lead: "b", engineer: "c", reviewer: null } });
+  assert.equal((await s.call("POST", "/api/office-roles", {})).status, 423);
+  delete s.bridge.officeRoles;
+  const missing = await s.call("GET", "/api/office-roles");
+  assert.equal(missing.status, 404);
+  assert.deepEqual(missing.json, { error: "NOT_FOUND" });
 });

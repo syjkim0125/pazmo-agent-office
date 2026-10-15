@@ -1272,6 +1272,9 @@ export async function createNativeOffice(c: Config) {
     },
     cliStatus: (o?: { refresh?: boolean }) => runners.settings.cliStatus(o),
     cliModels: () => runners.settings.cliModels(),
+    officeRoles: () => ({
+      roles: { pm: agent("pm"), lead: agent("lead"), engineer: agent("engineer"), reviewer: agent("reviewer") },
+    }),
     runnerRuns: (id: string) => ({ runs: runners.evidence.forRequest(id) }),
     hubStatus: () => c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null, repoName: null },
     hubLink: async (text: string) => (c.hub ? c.hub.link(text) : notLive()),

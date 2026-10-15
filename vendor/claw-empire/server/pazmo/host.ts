@@ -32,6 +32,7 @@ export type NativeOfficeBridge = {
   checkAgentMutation(id: string, patch?: unknown): Promise<void>;
   cliStatus(options?: { refresh?: boolean }): Promise<unknown>;
   cliModels(): unknown;
+  officeRoles?(): unknown;
   /** Which installed CLI served each role of a report's request. */
   runnerRuns(id: string): unknown;
   /** Team hub, for requests this Office sends to other repositories. */
@@ -121,6 +122,9 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
       if (req.method === "GET" && req.path === "/cli-status")
         return res.json(await office.cliStatus({ refresh: Boolean(req.query.refresh) }));
       if (req.method === "GET" && req.path === "/cli-models") return res.json(office.cliModels());
+      // Which agent Office really uses for each role; read-only.
+      if (req.method === "GET" && req.path === "/office-roles")
+        return office.officeRoles ? res.json(office.officeRoles()) : res.status(404).json({ error: "NOT_FOUND" });
       if (req.path.startsWith("/hub/") && office.hubStatus) {
         if (req.method === "GET" && req.path === "/hub/status") return res.json(office.hubStatus());
         if (req.method === "GET" && req.path === "/hub/repos") return res.json(await office.hubRepos!());
