@@ -9,8 +9,9 @@ import { hubSnapshot, type SnapshotOffice } from "./hub-snapshot.ts";
 
 export type HubLinkConfig = {
   hub: string;
-  caPem: string;
-  fingerprint: string;
+  /** null = the hub's certificate is verified with the system roots (no pin). */
+  caPem: string | null;
+  fingerprint: string | null;
   token: string;
   memberId: string;
   memberName: string;
@@ -38,14 +39,37 @@ export function removeLinkConfig(dataDir: string) {
   rmSync(join(dataDir, FILE), { force: true });
 }
 
-type Target = { hub: string; caPem: string; token?: string };
-/** Trusts only the pinned hub CA: Node's `ca` replaces the system roots. */
+type Target = { hub: string; caPem: string | null; fingerprint: string | null; token?: string };
+export const TLS_UNTRUSTED_CODES: ReadonlySet<string> = new Set([
+  "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "SELF_SIGNED_CERT_IN_CHAIN", "DEPTH_ZERO_SELF_SIGNED_CERT",
+  "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "UNABLE_TO_GET_ISSUER_CERT", "CERT_HAS_EXPIRED", "CERT_NOT_YET_VALID",
+  "CERT_UNTRUSTED", "CERT_REJECTED", "HOSTNAME_MISMATCH", "ERR_TLS_CERT_ALTNAME_INVALID",
+]);
+/** The trust mode is chosen explicitly, never inferred from one half of a pin: system
+ * trust only when both caPem and fingerprint are null, a pin only when both are
+ * non-empty strings; anything else is a corrupt link config. */
+function trustMode(cfg: Target): "system" | "pinned" {
+  if (cfg.caPem === null && cfg.fingerprint === null) return "system";
+  if (isStr(cfg.caPem) && isStr(cfg.fingerprint)) return "pinned";
+  throw new Error("HUB_LINK_CONFIG_INVALID");
+}
+/** With a pinned CA, trusts only that CA: Node's `ca` replaces the system roots.
+ * With system trust, passes no `ca`, so Node's default roots (plus NODE_EXTRA_CA_CERTS)
+ * verify the hub. `rejectUnauthorized: true` is explicit so that
+ * NODE_TLS_REJECT_UNAUTHORIZED=0 in the environment cannot disable verification here. */
 export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?: unknown, protocol: string = HUB_PROTOCOL): Promise<any> {
+  let mode: "system" | "pinned";
+  try {
+    mode = trustMode(cfg); // rejected before any request is made
+  } catch (error) {
+    return Promise.reject(error);
+  }
   return new Promise((resolve, reject) => {
     const payload = body === undefined ? undefined : JSON.stringify(body);
     const req = request(new URL(path, cfg.hub), {
       method,
-      ca: [cfg.caPem],
+      rejectUnauthorized: true,
+      ...(mode === "pinned" ? { ca: [cfg.caPem as string] } : {}),
       timeout: 15000,
       headers: {
         "x-pazmo-hub-protocol": protocol,
@@ -81,7 +105,12 @@ export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?
     req.on("timeout", () => req.destroy(new Error("HUB_TIMEOUT")));
     // A hub that refuses an oversized body early may reset the socket mid-write;
     // that is a rejected call for this item, never an unhandled error.
-    req.on("error", reject);
+    req.on("error", (e) =>
+      reject(TLS_UNTRUSTED_CODES.has((e as NodeJS.ErrnoException).code ?? "")
+        ? Object.assign(new Error(mode === "pinned"
+            ? "허브 인증서가 연결할 때와 다릅니다. 허브에서 새 연결 명령을 받아 다시 연결하세요."
+            : "허브 인증서를 확인할 수 없습니다. 사내망 허브라면 --fingerprint를 함께 주세요."), { code: "HUB_TLS_UNTRUSTED" })
+        : e));
     req.end(payload);
   });
 }
@@ -121,7 +150,7 @@ function singleCa(text: string): { pem: string; fingerprint: string } {
 const isStr = (v: unknown): v is string => typeof v === "string" && v.length > 0;
 
 export async function pairOffice(input: {
-  dataDir: string; hub: string; code: string; fingerprint: string; remote: string;
+  dataDir: string; hub: string; code: string; fingerprint?: string | null; remote: string;
   /** Test seam for the unverified CA download. */
   download?: (origin: string) => Promise<string>;
 }) {
@@ -134,11 +163,27 @@ export async function pairOffice(input: {
   } catch {
     throw new Error("HUB_REMOTE_INVALID");
   }
-  const ca = singleCa(await (input.download ?? downloadCa)(hub.origin));
-  const caPem = ca.pem;
-  const fingerprint = ca.fingerprint;
-  if (fingerprint.toUpperCase() !== input.fingerprint.trim().toUpperCase()) throw new Error("HUB_FINGERPRINT_MISMATCH");
-  const reply = (await hubCall({ hub: hub.origin, caPem }, "POST", "/api/link/pair", {
+  // A fingerprint that was given but is blank is a mistake, never a silent switch to system trust.
+  const pinned = input.fingerprint == null ? null : input.fingerprint.trim();
+  if (pinned === "") throw new Error("HUB_FINGERPRINT_MISMATCH");
+  let caPem: string | null = null;
+  let fingerprint: string | null = null;
+  if (pinned) {
+    let downloaded: string;
+    try {
+      downloaded = await (input.download ?? downloadCa)(hub.origin);
+    } catch (error) {
+      // A hub behind a public certificate has no /ca.pem: a pin makes no sense there.
+      if (error instanceof Error && error.message === "HUB_CA_404")
+        throw Object.assign(new Error("이 허브는 공인 인증서를 씁니다. --fingerprint 없이 연결하세요."), { code: "HUB_FINGERPRINT_NOT_USED" });
+      throw error;
+    }
+    const ca = singleCa(downloaded);
+    if (ca.fingerprint.toUpperCase() !== pinned.toUpperCase()) throw new Error("HUB_FINGERPRINT_MISMATCH");
+    caPem = ca.pem;
+    fingerprint = ca.fingerprint;
+  }
+  const reply = (await hubCall({ hub: hub.origin, caPem, fingerprint }, "POST", "/api/link/pair", {
     code: input.code,
     remote,
   })) as { token?: unknown; member?: { id?: unknown; name?: unknown }; repoId?: unknown } | null;

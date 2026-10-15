@@ -162,3 +162,9 @@ test("unauthenticated writes are refused without reading the body", async (t) =>
   const { hub, call } = await startTestHub(t);
   assert.equal((await call("POST", "/requests", { body: "a".repeat(10), headers: { origin: hub.url } })).status, 401);
 });
+
+test("health checks answer in the self-CA mode too, even with a Host the hub does not serve", async (t) => {
+  const { call } = await startTestHub(t);
+  const r = await call("GET", "/healthz", { headers: { host: "10.0.0.1:8443" } });
+  assert.deepEqual([r.status, r.text, r.headers["content-type"]], [200, "ok", "text/plain; charset=utf-8"]);
+});

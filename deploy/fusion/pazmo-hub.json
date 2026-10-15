@@ -1,0 +1,248 @@
+{
+  "apiVersion": "template.openshift.io/v1",
+  "kind": "Template",
+  "metadata": {
+    "name": "pazmo-hub",
+    "annotations": {
+      "description": "Pazmo team hub: one pod, SQLite on a PVC, edge route. Apply with: oc process -f deploy/fusion/pazmo-hub.json --param-file=deploy/fusion/local.env | oc apply -f -"
+    }
+  },
+  "parameters": [
+    {
+      "name": "HUB_HOST",
+      "description": "Route host for the hub, e.g. pazmo-hub-<project>.<apps domain>",
+      "required": true
+    },
+    {
+      "name": "BUILDER_IMAGE",
+      "description": "Node 24 S2I builder image reachable from the cluster",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "apiVersion": "image.openshift.io/v1",
+      "kind": "ImageStream",
+      "metadata": {
+        "name": "pazmo-hub",
+        "labels": {
+          "app": "pazmo-hub"
+        }
+      },
+      "spec": {
+        "lookupPolicy": {
+          "local": true
+        }
+      }
+    },
+    {
+      "apiVersion": "build.openshift.io/v1",
+      "kind": "BuildConfig",
+      "metadata": {
+        "name": "pazmo-hub",
+        "labels": {
+          "app": "pazmo-hub"
+        }
+      },
+      "spec": {
+        "runPolicy": "Serial",
+        "source": {
+          "type": "Binary"
+        },
+        "strategy": {
+          "type": "Source",
+          "sourceStrategy": {
+            "from": {
+              "kind": "DockerImage",
+              "name": "${BUILDER_IMAGE}"
+            },
+            "env": [
+              {
+                "name": "PKG_MANAGER",
+                "value": "npm"
+              },
+              {
+                "name": "SKIP_BUILDING",
+                "value": "true"
+              }
+            ]
+          }
+        },
+        "output": {
+          "to": {
+            "kind": "ImageStreamTag",
+            "name": "pazmo-hub:latest"
+          }
+        },
+        "resources": {
+          "limits": {
+            "cpu": "500m",
+            "memory": "512Mi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "PersistentVolumeClaim",
+      "metadata": {
+        "name": "pazmo-hub-data",
+        "labels": {
+          "app": "pazmo-hub"
+        }
+      },
+      "spec": {
+        "accessModes": [
+          "ReadWriteOnce"
+        ],
+        "resources": {
+          "requests": {
+            "storage": "2Gi"
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "apps/v1",
+      "kind": "Deployment",
+      "metadata": {
+        "name": "pazmo-hub",
+        "labels": {
+          "app": "pazmo-hub"
+        },
+        "annotations": {
+          "image.openshift.io/triggers": "[{\"from\":{\"kind\":\"ImageStreamTag\",\"name\":\"pazmo-hub:latest\"},\"fieldPath\":\"spec.template.spec.containers[?(@.name==\\\"pazmo-hub\\\")].image\"}]"
+        }
+      },
+      "spec": {
+        "replicas": 1,
+        "strategy": {
+          "type": "Recreate"
+        },
+        "selector": {
+          "matchLabels": {
+            "app": "pazmo-hub"
+          }
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "app": "pazmo-hub"
+            },
+            "annotations": {
+              "alpha.image.policy.openshift.io/resolve-names": "*"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "pazmo-hub",
+                "image": "pazmo-hub:latest",
+                "ports": [
+                  {
+                    "name": "http",
+                    "containerPort": 8080
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "PAZMO_HUB_PUBLIC_URL",
+                    "value": "https://${HUB_HOST}"
+                  },
+                  {
+                    "name": "PAZMO_HUB_LISTEN",
+                    "value": "0.0.0.0:8080"
+                  },
+                  {
+                    "name": "PAZMO_HUB_DATA_DIR",
+                    "value": "/data"
+                  }
+                ],
+                "volumeMounts": [
+                  {
+                    "name": "data",
+                    "mountPath": "/data"
+                  }
+                ],
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/healthz",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 5
+                },
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/healthz",
+                    "port": 8080
+                  },
+                  "initialDelaySeconds": 15
+                },
+                "resources": {
+                  "limits": {
+                    "cpu": "200m",
+                    "memory": "256Mi"
+                  }
+                }
+              }
+            ],
+            "volumes": [
+              {
+                "name": "data",
+                "persistentVolumeClaim": {
+                  "claimName": "pazmo-hub-data"
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "apiVersion": "v1",
+      "kind": "Service",
+      "metadata": {
+        "name": "pazmo-hub",
+        "labels": {
+          "app": "pazmo-hub"
+        }
+      },
+      "spec": {
+        "selector": {
+          "app": "pazmo-hub"
+        },
+        "ports": [
+          {
+            "name": "http",
+            "port": 8080,
+            "targetPort": "http"
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "route.openshift.io/v1",
+      "kind": "Route",
+      "metadata": {
+        "name": "pazmo-hub",
+        "labels": {
+          "app": "pazmo-hub"
+        }
+      },
+      "spec": {
+        "host": "${HUB_HOST}",
+        "to": {
+          "kind": "Service",
+          "name": "pazmo-hub"
+        },
+        "port": {
+          "targetPort": "http"
+        },
+        "tls": {
+          "termination": "edge",
+          "insecureEdgeTerminationPolicy": "Redirect"
+        }
+      }
+    }
+  ]
+}

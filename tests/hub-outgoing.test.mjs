@@ -162,6 +162,13 @@ test("against a phase-1 hub the link keeps syncing work but sending is refused",
   await assert.rejects(gateway.send({ repoId: "r", body: "b", risk: "normal", key: KEY, taskId: null }), { code: "HUB_UPGRADE_REQUIRED" });
 });
 
+test("an untrusted hub certificate keeps its own code and message instead of reading as unreachable", async (t) => {
+  const { dataDir, db } = await linkedTeam(t);
+  const message = "허브 인증서를 확인할 수 없습니다. 사내망 허브라면 --fingerprint를 함께 주세요.";
+  const gateway = createHubGateway({ dataDir, db, project: "/work/checkout-frontend", call: async () => { throw Object.assign(new Error(message), { code: "HUB_TLS_UNTRUSTED" }); } });
+  await assert.rejects(gateway.repos(), { code: "HUB_TLS_UNTRUSTED", message });
+});
+
 test("an unreachable hub is reported plainly and nothing is recorded", async (t) => {
   const { dataDir, db, be } = await linkedTeam(t);
   const down = createHubGateway({ dataDir, db, project: "/work/checkout-frontend", call: async () => { throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }); } });

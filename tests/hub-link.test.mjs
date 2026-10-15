@@ -8,7 +8,7 @@ import { randomUUID } from "node:crypto";
 import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { startTestHub } from "./hub-fixture.mjs";
-import { pairOffice, createHubSync, hubCall, readLinkConfig } from "../src/runtime/hub-link.ts";
+import { pairOffice, createHubSync, hubCall, readLinkConfig, writeLinkConfig } from "../src/runtime/hub-link.ts";
 
 const failContents = new Set();
 function fakeOffice(db) {
@@ -60,6 +60,29 @@ test("pairing trusts the hub only when the pasted fingerprint matches, and store
   assert.deepEqual(await pair(), { memberName: "관리자" });
   assert.equal(statSync(join(dataDir, "hub-link.json")).mode & 0o777, 0o600);
   assert.equal(readLinkConfig(dataDir).hub.startsWith("https://127.0.0.1:"), true);
+});
+
+test("a fingerprint that is given but blank is refused, never treated as system trust", async (t) => {
+  const { pair, dataDir } = await linked(t);
+  await assert.rejects(pair("   "), /HUB_FINGERPRINT_MISMATCH/);
+  assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
+});
+
+test("one PC keeps a pinned link for repo A and a system-trust link for repo B, each in its own way", async (t) => {
+  const { pair, dataDir, hub, tls } = await linked(t);
+  await pair(); // repo A: fingerprint-pinned, CA stored as a string
+  const dirB = mkdtempSync(join(tmpdir(), "hub-link-b-"));
+  t.after(() => rmSync(dirB, { recursive: true, force: true }));
+  const a = readLinkConfig(dataDir);
+  writeLinkConfig(dirB, { hub: hub.url, caPem: null, fingerprint: null, token: a.token, memberId: a.memberId, memberName: a.memberName, repoId: a.repoId });
+  const b = readLinkConfig(dirB);
+  assert.equal(typeof a.caPem, "string");
+  assert.equal(a.fingerprint, tls.fingerprint);
+  assert.equal(b.caPem, null);
+  assert.equal(b.fingerprint, null);
+  assert.deepEqual((await hubCall(readLinkConfig(dataDir), "GET", "/api/link/work")).assignments, []);
+  // B verifies with the system roots only, which do not include the test CA.
+  await assert.rejects(hubCall(b, "GET", "/api/link/work"), (e) => e.code === "HUB_TLS_UNTRUSTED");
 });
 
 test("the Office takes accepted work once, relays the requester's answer, and pushes only changes", async (t) => {
@@ -153,7 +176,7 @@ test("a Bearer token goes only to the pinned CA's hub", async (t) => {
   await pair();
   const cfg = readLinkConfig(dataDir);
   const other = await startTestHub(t);
-  await assert.rejects(hubCall({ ...cfg, hub: other.hub.url }, "GET", "/api/link/work"), /certificate|self-signed|unable to verify|issuer/i);
+  await assert.rejects(hubCall({ ...cfg, hub: other.hub.url }, "GET", "/api/link/work"), (e) => e.code === "HUB_TLS_UNTRUSTED" && e.message === "허브 인증서가 연결할 때와 다릅니다. 허브에서 새 연결 명령을 받아 다시 연결하세요.");
   assert.equal(hub.url.startsWith("https://"), true);
 });
 
@@ -404,4 +427,50 @@ test("pairing sends the hub only the normalized remote, never credentials in the
   assert.equal(readLinkConfig(dataDir).repoId, repo);
   await assert.rejects(pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "/local/path" }), /HUB_REMOTE_INVALID/);
   assert.equal(seen.length, 1, "an unusable remote is refused before anything is sent");
+});
+
+test("the trust mode is explicit: a half-set pin is a config error raised before any request", async () => {
+  const dataDir = mkdtempSync(join(tmpdir(), "hub-link-cfg-"));
+  try {
+    // Port 1 would refuse the connection; the config error must win before any request is made.
+    const base = { hub: "https://127.0.0.1:1", token: "t", memberId: "m", memberName: "n", repoId: "r" };
+    for (const [name, half] of [
+      ["fingerprint without CA", { caPem: null, fingerprint: "AA:BB" }],
+      ["fingerprint with empty CA", { caPem: "", fingerprint: "AA:BB" }],
+      ["CA without fingerprint", { caPem: "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n", fingerprint: null }],
+      ["CA with empty fingerprint", { caPem: "-----BEGIN CERTIFICATE-----\nx\n-----END CERTIFICATE-----\n", fingerprint: "" }],
+      ["fingerprint missing from the file", { caPem: null }],
+    ]) {
+      writeFileSync(join(dataDir, "hub-link.json"), JSON.stringify({ ...base, ...half }), { mode: 0o600 });
+      await assert.rejects(hubCall(readLinkConfig(dataDir), "GET", "/api/link/work"), (e) => e.message === "HUB_LINK_CONFIG_INVALID", name);
+    }
+  } finally { rmSync(dataDir, { recursive: true, force: true }); }
+});
+
+test("a hub without /ca.pem (public certificate) answers --fingerprint with a clear refusal", async (t) => {
+  const { store, admin, repo, dataDir, hub } = await linked(t);
+  await assert.rejects(
+    pairOffice({
+      dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: "AA:BB",
+      remote: "git@github.example.com:team/eevee-be.git", download: async () => { throw new Error("HUB_CA_404"); },
+    }),
+    (e) => e.code === "HUB_FINGERPRINT_NOT_USED" && e.message === "이 허브는 공인 인증서를 씁니다. --fingerprint 없이 연결하세요.",
+  );
+  assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
+  // Other download failures keep their own error.
+  await assert.rejects(
+    pairOffice({
+      dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: "AA:BB",
+      remote: "git@github.example.com:team/eevee-be.git", download: async () => { throw new Error("HUB_CA_500"); },
+    }),
+    /HUB_CA_500/,
+  );
+});
+
+test("TLS failures that mean an untrusted hub are all reported as HUB_TLS_UNTRUSTED", async () => {
+  // A server presenting nothing trustworthy is covered by the tests above; here the code list itself.
+  const { TLS_UNTRUSTED_CODES } = await import("../src/runtime/hub-link.ts");
+  for (const code of ["CERT_NOT_YET_VALID", "UNABLE_TO_GET_ISSUER_CERT", "CERT_UNTRUSTED", "CERT_REJECTED", "HOSTNAME_MISMATCH",
+    "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "SELF_SIGNED_CERT_IN_CHAIN", "DEPTH_ZERO_SELF_SIGNED_CERT", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "CERT_HAS_EXPIRED", "ERR_TLS_CERT_ALTNAME_INVALID"])
+    assert.ok(TLS_UNTRUSTED_CODES.has(code), code);
 });

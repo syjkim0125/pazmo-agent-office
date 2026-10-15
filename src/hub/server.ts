@@ -1,5 +1,5 @@
 import { createServer } from "node:https";
-import type { IncomingMessage, ServerResponse } from "node:http";
+import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { timingSafeEqual } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { HubError, type HubStore } from "./store.ts";
@@ -7,8 +7,11 @@ import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
 
-export type HubServerConfig = { store: HubStore; tls: HubTls; host: string; port: number; names: string[] };
-export type HubServer = { url: string; close(): Promise<void> };
+export type HubListen =
+  | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
+  | { kind: "proxy"; publicUrl: string; host: string; port: number };
+export type HubServerConfig = { store: HubStore; listen: HubListen };
+export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;
 const COOKIE = "pazmo_hub";
@@ -74,16 +77,19 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     origins = new Set<string>(),
     base = "";
   const link = linkApi?.(() => base);
+  // Only the self-CA mode has a certificate to show; behind the router the router's certificate is the public one.
+  const tls = c.listen.kind === "tls" ? c.listen.tls : null;
   async function browser(req: IncomingMessage, res: ServerResponse, url: URL) {
     const path = url.pathname,
       post = req.method === "POST";
     if (!post && req.method !== "GET") return html(res, 405, page.error("지원하지 않는 요청입니다."));
-    if (!post && path === "/ca.pem")
-      return send(res, 200, "application/x-pem-file", c.tls.caPem, {
+    if (!post && (path === "/ca.pem" || path === "/trust") && !tls) return html(res, 404, page.error("페이지를 찾을 수 없습니다."));
+    if (!post && path === "/ca.pem" && tls)
+      return send(res, 200, "application/x-pem-file", tls.caPem, {
         "content-disposition": 'attachment; filename="pazmo-team-hub-ca.pem"',
       });
     if (!post && path === "/copy.js") return send(res, 200, "text/javascript; charset=utf-8", COPY_SCRIPT);
-    if (!post && path === "/trust") return html(res, 200, page.trust(c.tls.fingerprint));
+    if (!post && path === "/trust" && tls) return html(res, 200, page.trust(tls.fingerprint));
     if (post && !origins.has(String(req.headers.origin ?? "")))
       throw new HubError("ORIGIN", 403, "다른 사이트에서 보낸 요청은 받지 않습니다.");
     let m = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(path);
@@ -104,16 +110,24 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     const f = (key: string) => form.get(key) ?? "";
     if (post && !same(f("csrf"), s.csrf)) throw new HubError("CSRF", 403, "화면을 새로 고친 뒤 다시 시도해주세요.");
     const me = s.member;
+    const trust = !!tls;
+    const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
+    const fingerprintNote = tls
+      ? ` 링크와 별도로 허브 인증서 지문(${tls.fingerprint})도 함께 전달해 받는 사람이 /trust 화면과 대조하게 하세요.`
+      : "";
+    const deviceNote = tls
+      ? ` 링크와 별도로 허브 인증서 지문(${tls.fingerprint})도 함께 전달해 /trust 화면과 대조하게 하세요.`
+      : "";
     if (!post) {
       if (path === "/") {
         const asked = url.searchParams.get("view");
         const view = asked === "mine" || asked === "repos" ? asked : "all";
-        return html(res, 200, page.board(me, s.csrf, c.store.requests(me.id, view), c.store.repos(me.id), view));
+        return html(res, 200, page.board(me, s.csrf, c.store.requests(me.id, view), c.store.repos(me.id), view, trust));
       }
       if ((m = new RegExp(`^/requests/${ID}$`).exec(path)))
-        return html(res, 200, page.request(me, s.csrf, c.store.requestView(m[1], me.id)));
-      if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members()));
-      if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members()));
+        return html(res, 200, page.request(me, s.csrf, c.store.requestView(m[1], me.id), trust));
+      if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), trust));
+      if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), trust));
       return html(res, 404, page.error("페이지를 찾을 수 없습니다."));
     }
     if (path === "/requests")
@@ -142,15 +156,15 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       const code = c.store.createLinkCode(me, m[1]);
       return html(res, 200, page.created(me, "내 Office 연결",
         "10분 안에, 이 레포를 클론해 둔 내 PC에서 실행하세요. 한 번만 쓸 수 있습니다.",
-        `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code} --fingerprint ${c.tls.fingerprint}`));
+        `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code}${pin}`, trust));
     }
     if (path === "/invites") {
       const raw = c.store.createInvite(me, f("name"));
-      return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요. 72시간 동안 한 번만 쓸 수 있습니다. 링크와 별도로 허브 인증서 지문(${c.tls.fingerprint})도 함께 전달해 받는 사람이 /trust 화면과 대조하게 하세요.`, `${base}/invite/${raw}`));
+      return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요. 72시간 동안 한 번만 쓸 수 있습니다.${fingerprintNote}`, `${base}/invite/${raw}`, trust));
     }
     if ((m = new RegExp(`^/members/${ID}/device-invite$`).exec(path))) {
       const raw = c.store.createDeviceInvite(me, m[1]);
-      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요. 72시간 동안 한 번만 쓸 수 있습니다. 링크와 별도로 허브 인증서 지문(${c.tls.fingerprint})도 함께 전달해 /trust 화면과 대조하게 하세요.`, `${base}/invite/${raw}`));
+      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요. 72시간 동안 한 번만 쓸 수 있습니다.${deviceNote}`, `${base}/invite/${raw}`, trust));
     }
     if ((m = new RegExp(`^/members/${ID}/revoke$`).exec(path))) {
       c.store.revokeMember(me, m[1]);
@@ -167,6 +181,9 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     return html(res, 404, page.error("페이지를 찾을 수 없습니다."));
   }
   async function handle(req: IncomingMessage, res: ServerResponse) {
+    // Pod health checks arrive by pod IP, so this answers before the Host check and needs no session.
+    if (req.method === "GET" && (req.url ?? "").split("?")[0] === "/healthz")
+      return send(res, 200, "text/plain; charset=utf-8", "ok");
     if (!hosts.has(req.headers.host ?? "")) return send(res, 421, "text/plain; charset=utf-8", "Misdirected Request");
     const url = new URL(req.url ?? "/", base);
     if (url.pathname.startsWith("/api/link/")) {
@@ -175,7 +192,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     }
     return browser(req, res, url);
   }
-  const server = createServer({ key: c.tls.keyPem, cert: c.tls.certPem, minVersion: "TLSv1.2" }, (req, res) => {
+  const onRequest = (req: IncomingMessage, res: ServerResponse) => {
     handle(req, res).catch((error: unknown) => {
       if (res.headersSent) return void res.destroy();
       const api = (req.url ?? "").startsWith("/api/link/");
@@ -186,16 +203,34 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       console.error(`Team hub request failed: ${error instanceof Error ? error.message : String(error)}`);
       return api ? json(res, 500, { error: "FAILED" }) : html(res, 500, page.error("허브 내부 오류입니다."));
     });
-  });
+  };
+  const server =
+    c.listen.kind === "tls"
+      ? createServer({ key: c.listen.tls.keyPem, cert: c.listen.tls.certPem, minVersion: "TLSv1.2" }, onRequest)
+      : createHttpServer(onRequest);
+  // Behind the Fusion router: outlast its idle timeout (60 s) so a reused connection is never
+  // closed under an in-flight request. The LAN (TLS) server keeps Node's defaults.
+  if (c.listen.kind === "proxy") {
+    server.keepAliveTimeout = 65_000;
+    server.headersTimeout = 66_000;
+  }
   return new Promise((resolve, reject) => {
     server.once("error", reject);
-    server.listen(c.port, c.host, () => {
+    server.listen(c.listen.port, c.listen.host, () => {
       const port = (server.address() as AddressInfo).port;
-      hosts = new Set(c.names.map((n) => `${n}:${port}`));
-      origins = new Set(c.names.map((n) => `https://${n}:${port}`));
-      base = `https://${c.names[0]}:${port}`;
+      if (c.listen.kind === "tls") {
+        hosts = new Set(c.listen.names.map((n) => `${n}:${port}`));
+        origins = new Set(c.listen.names.map((n) => `https://${n}:${port}`));
+        base = `https://${c.listen.names[0]}:${port}`;
+      } else {
+        const pub = new URL(c.listen.publicUrl);
+        hosts = new Set([pub.hostname, `${pub.hostname}:443`]);
+        origins = new Set([pub.origin]);
+        base = pub.origin;
+      }
       resolve({
         url: base,
+        port,
         close: () =>
           new Promise<void>((done) => {
             server.close(() => done());

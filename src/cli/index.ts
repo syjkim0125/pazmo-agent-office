@@ -14,6 +14,7 @@ import { up } from "./launcher.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { bridge, readBridgeInput } from "./bridge.ts";
 import { runHub, linkOffice, unlinkOffice } from "./hub.ts";
+import { parseListen, parsePublicUrl } from "../hub/run.ts";
 import {
   start,
   status,
@@ -92,6 +93,8 @@ export async function main(args: string[]): Promise<void> {
           "--hub",
           "--code",
           "--fingerprint",
+          "--public-url",
+          "--listen",
         ].includes(flag) ||
         flag in options
       )
@@ -164,6 +167,8 @@ export async function main(args: string[]): Promise<void> {
       "--challenge": ["approval-decide"],
       "--host": ["hub"],
       "--name": ["hub"],
+      "--public-url": ["hub"],
+      "--listen": ["hub"],
       "--hub": ["hub-link"],
       "--code": ["hub-link"],
       "--fingerprint": ["hub-link"],
@@ -213,10 +218,29 @@ export async function main(args: string[]): Promise<void> {
     }
     if (command === "hub") {
       if (options["--project"]) fail("ARGUMENT", "hub serves the whole team; omit --project.");
+      const publicUrl = options["--public-url"];
+      if (publicUrl !== undefined) {
+        if (options["--host"] !== undefined || options["--name"] !== undefined || options["--port"] !== undefined)
+          fail("ARGUMENT", "--public-url은 --host·--name·--port와 함께 쓸 수 없습니다.");
+        if (typeof options["--listen"] !== "string")
+          fail("ARGUMENT", "--public-url에는 --listen <IP>:<포트>가 필요합니다.");
+        const listen = parseListen(options["--listen"]);
+        console.log(JSON.stringify(await runHub({
+          mode: "proxy",
+          publicUrl: parsePublicUrl(publicUrl as string).origin,
+          listenHost: listen.host,
+          listenPort: listen.port,
+          dataDir: options["--data-dir"] as string | undefined,
+        })));
+        return;
+      }
+      if (options["--listen"] !== undefined)
+        fail("ARGUMENT", "--listen은 --public-url과 함께만 쓸 수 있습니다.");
       const rawPort = options["--port"] ?? "8443";
       if (typeof rawPort !== "string" || !/^\d+$/.test(rawPort) || Number(rawPort) > 65535)
         fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
       console.log(JSON.stringify(await runHub({
+        mode: "lan",
         host: required("--host"),
         name: options["--name"] as string | undefined,
         port: Number(rawPort),
@@ -251,7 +275,7 @@ export async function main(args: string[]): Promise<void> {
     if (command === "bridge") result = await bridge(p, await readBridgeInput());
     else if (command === "monitor") result = await monitor(p);
     else if (command === "hub-link")
-      result = await linkOffice(p, required("--hub"), required("--code"), required("--fingerprint"));
+      result = await linkOffice(p, required("--hub"), required("--code"), (options["--fingerprint"] as string | undefined) ?? null);
     else if (command === "hub-unlink") result = unlinkOffice(p);
     else if (command === "intake-create")
       result = await operatorRequest(p, "/api/pazmo/intakes", inputJSON());

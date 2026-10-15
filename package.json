@@ -12,6 +12,7 @@
   },
   "scripts": {
     "test": "node --experimental-vm-modules --test tests/*.test.mjs",
+    "hub:bundle": "node scripts/hub-bundle.mjs",
     "build:office": "npm --prefix vendor/claw-empire run build",
     "typecheck": "node vendor/claw-empire/node_modules/typescript/bin/tsc -p tsconfig.json"
   }
