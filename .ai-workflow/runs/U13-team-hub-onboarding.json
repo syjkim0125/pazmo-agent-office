@@ -157,9 +157,21 @@
         }
       },
       "workflow-verify": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 0
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh evidence: root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0 at commit 119a24f (code unchanged since); Fusion real check 2026-10-15 (invite join, paste connect with repo auto-registration and link replacement, send/accept/cancel); G4 recorded from the user answers and approval.",
+          "evidence": [
+            "docs/verification/2026-10-15-team-hub-onboarding-g4.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-team-hub-onboarding-g4.md": "dace4d8f1a625df988e6f9c74ac58c516a689a01d4826d7df34155357336a19a"
+        }
       }
     }
   },
@@ -219,6 +231,33 @@
         },
         "evidenceHashes": {
           "docs/verification/2026-10-15-team-hub-onboarding.md": "09f4a84d5588de46bc27d47e8e34d597b7a05505909f10c66143b81af577b06f"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-16T00:23:21.528Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-16T00:23:21.684Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh evidence: root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0 at commit 119a24f (code unchanged since); Fusion real check 2026-10-15 (invite join, paste connect with repo auto-registration and link replacement, send/accept/cancel); G4 recorded from the user answers and approval.",
+          "evidence": [
+            "docs/verification/2026-10-15-team-hub-onboarding-g4.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-team-hub-onboarding-g4.md": "dace4d8f1a625df988e6f9c74ac58c516a689a01d4826d7df34155357336a19a"
         }
       }
     }
