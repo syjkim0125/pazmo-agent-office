@@ -7,3 +7,5 @@ node_modules/
 *.db-shm
 *.db-wal
 .pazmo-office/
+dist/
+deploy/fusion/local.env

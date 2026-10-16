@@ -1,49 +1,12 @@
 import { execFileSync } from "node:child_process";
 import { mkdirSync } from "node:fs";
-import { join } from "node:path";
-import { DatabaseSync } from "node:sqlite";
-import { dataRoot, fail, noSymlinks, type Project } from "./project.ts";
-import { ensureHubTls, type HubTls } from "../hub/tls.ts";
-import { HubStore } from "../hub/store.ts";
-import { startHubServer } from "../hub/server.ts";
-import { linkApi } from "../hub/link-api.ts";
+import { fail, type Project } from "./project.ts";
 import { normalizeRemote } from "../hub/remote.ts";
 import { pairOffice, removeLinkConfig } from "../runtime/hub-link.ts";
 
-/** Runs in the foreground until Ctrl-C; the first stdout line is the result. */
-export async function runHub(input: { host: string; name?: string; port: number; dataDir?: string }) {
-  const dir = join(dataRoot(input.dataDir), "team-hub");
-  noSymlinks(dir);
-  mkdirSync(dir, { recursive: true, mode: 0o700 });
-  let tls: HubTls;
-  try {
-    tls = ensureHubTls(join(dir, "tls"), { ip: input.host, dns: input.name });
-  } catch (error) {
-    fail("ARGUMENT", error instanceof Error ? error.message : String(error));
-  }
-  const db = new DatabaseSync(join(dir, "hub.sqlite"));
-  const store = new HubStore(db);
-  const hub = await startHubServer(
-    { store, tls, host: input.host, port: input.port, names: [input.name, input.host].filter((n): n is string => !!n) },
-    linkApi(store),
-  );
-  const admin = store.bootstrapAdmin();
-  console.log(JSON.stringify({
-    url: hub.url,
-    fingerprint: tls.fingerprint,
-    trust: `${hub.url}/trust`,
-    ...(admin ? { adminInvite: `${hub.url}/invite/${admin}` } : {}),
-  }));
-  await new Promise<void>((resolve) => {
-    process.once("SIGINT", resolve);
-    process.once("SIGTERM", resolve);
-  });
-  await hub.close();
-  db.close();
-  return { stopped: true };
-}
+export { runHub } from "../hub/run.ts";
 
-export async function linkOffice(p: Project, hub: string, code: string, fingerprint: string) {
+export async function linkOffice(p: Project, hub: string, code: string, fingerprint: string | null) {
   let remote: string;
   try {
     remote = execFileSync("git", ["-C", p.project, "remote", "get-url", "origin"], { encoding: "utf8" }).trim();
@@ -57,7 +20,14 @@ export async function linkOffice(p: Project, hub: string, code: string, fingerpr
     fail("HUB_REMOTE", "git origin 주소를 해석할 수 없습니다. 예: https://github.example.com/team/repo.git");
   }
   mkdirSync(p.dataDir, { recursive: true, mode: 0o700 });
-  const { memberName } = await pairOffice({ dataDir: p.dataDir, hub, code, fingerprint, remote });
+  let memberName: string;
+  try {
+    ({ memberName } = await pairOffice({ dataDir: p.dataDir, hub, code, fingerprint, remote }));
+  } catch (error) {
+    // The CLI prints only an OfficeError's code; keep the TLS code and its hint.
+    if ((error as { code?: string }).code === "HUB_TLS_UNTRUSTED") fail("HUB_TLS_UNTRUSTED", (error as Error).message);
+    throw error;
+  }
   return { linked: true, member: memberName, note: "실행 중인 live Office는 5초 안에 허브와 연결됩니다." };
 }
 export function unlinkOffice(p: Project) {

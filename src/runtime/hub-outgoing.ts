@@ -55,6 +55,7 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
         legacy = true;
         return fail("HUB_UPGRADE_REQUIRED", "허브를 업데이트해야 이 기능을 쓸 수 있습니다.");
       }
+      if (e.code === "HUB_TLS_UNTRUSTED") return fail("HUB_TLS_UNTRUSTED", e.message ?? "허브 인증서를 확인할 수 없습니다.");
       if (typeof e.status === "number") return fail(e.code ?? "HUB_FAILED", e.message ?? "허브가 요청을 거부했습니다.");
       return fail("HUB_UNREACHABLE", "허브에 연결할 수 없습니다. 허브가 켜져 있고 같은 네트워크인지 확인해주세요.");
     }

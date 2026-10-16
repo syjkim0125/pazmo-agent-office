@@ -31,9 +31,9 @@ function ago(at: number | null) {
   return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분 전` : `${Math.floor(minutes / 60)}시간 전`;
 }
 
-export function layout(title: string, me: Member | null, body: string) {
+export function layout(title: string, me: Member | null, body: string, opts: { trust?: boolean } = {}) {
   const nav = me
-    ? `<nav><a href="/">요청 게시판</a><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/trust">인증서</a><span>${esc(me.name)}</span></nav>`
+    ? `<nav><a href="/">요청 게시판</a><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}${opts.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span></nav>`
     : "";
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main></body></html>`;
 }
@@ -51,10 +51,10 @@ export function invite(name: string | null) {
 export function trust(fingerprint: string) {
   return layout("인증서 신뢰", null, `<section><h1>허브 인증서를 한 번 신뢰해주세요</h1><ol><li><a href="/ca.pem">허브 인증 기관 파일</a>을 받습니다.</li><li>파일을 열어 키체인 접근에 추가하고, 항목을 두 번 눌러 <b>신뢰 → 이 인증서 사용 시: 항상 신뢰</b>로 바꿉니다.</li><li>키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요.</li></ol><pre>${esc(fingerprint)}</pre></section>`);
 }
-export function created(me: Member, title: string, note: string, value: string) {
-  return layout(title, me, `<section><h1>${esc(title)}</h1><p>${esc(note)}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`);
+export function created(me: Member, title: string, note: string, value: string, trust = true) {
+  return layout(title, me, `<section><h1>${esc(title)}</h1><p>${esc(note)}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, { trust });
 }
-export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoView[], view: string) {
+export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoView[], view: string, trust = true) {
   const tabs = [["all", "전체"], ["mine", "내 요청·맡은 일"], ["repos", "내 레포"]]
     .map(([v, label]) => (v === view ? `<b>${label}</b>` : `<a href="/?view=${v}">${label}</a>`))
     .join(" · ");
@@ -69,9 +69,9 @@ export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoV
         })
         .join("")}</tbody></table></div>`
     : `<p class="muted">아직 요청이 없습니다.</p>`;
-  return layout("요청 게시판", me, `<section><h1>새 요청</h1>${form}</section><section><h2>요청 게시판</h2><p>${tabs}</p>${table}</section>`);
+  return layout("요청 게시판", me, `<section><h1>새 요청</h1>${form}</section><section><h2>요청 게시판</h2><p>${tabs}</p>${table}</section>`, { trust });
 }
-export function request(me: Member, csrf: string, v: RequestView) {
+export function request(me: Member, csrf: string, v: RequestView, trust = true) {
   const s = v.snapshot;
   const answerable = new Set<string>(HUB_ANSWERABLE);
   const actions = [
@@ -120,9 +120,9 @@ export function request(me: Member, csrf: string, v: RequestView) {
       ? `<section><h2>역할 대화</h2><div class="scroll"><table><tbody>${s.conversation.map((m) => `<tr><td class="muted">${esc(new Date(m.at).toLocaleString("ko-KR"))}</td><td>${esc(m.who)}</td><td><pre>${esc(m.text)}</pre></td></tr>`).join("")}</tbody></table></div></section>`
       : "",
     s?.runners.length ? `<section><h2>실행기</h2><ul>${s.runners.map((r) => `<li>${esc(r.role)} · ${esc(r.runner)} ${esc(r.version)} · ${esc(r.model)}</li>`).join("")}</ul></section>` : "",
-  ].join(""));
+  ].join(""), { trust });
 }
-export function repos(me: Member, csrf: string, list: RepoView[], members: MemberView[]) {
+export function repos(me: Member, csrf: string, list: RepoView[], members: MemberView[], trust = true) {
   const active = members.filter((m) => !m.revoked);
   const rows = list
     .map((r) => {
@@ -143,9 +143,9 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
       return `<tr><td><b>${esc(r.name)}</b><br><span class="muted">${esc(r.remote)}</span></td><td>${owners}${add}</td><td>${links}<br>${link}</td></tr>`;
     })
     .join("");
-  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="eevee-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/eevee-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`);
+  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="eevee-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/eevee-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, { trust });
 }
-export function members(me: Member, csrf: string, list: MemberView[]) {
+export function members(me: Member, csrf: string, list: MemberView[], trust = true) {
   const rows = list
     .map((m) => {
       const devices = m.devices
@@ -158,5 +158,5 @@ export function members(me: Member, csrf: string, list: MemberView[]) {
       return `<tr><td>${esc(m.name)}${m.admin ? ' <span class="pill">관리자</span>' : ""}${m.revoked ? ' <span class="pill">회수됨</span>' : ""}</td><td>${devices}</td><td>${actions}</td></tr>`;
     })
     .join("");
-  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원</h2><div class="scroll"><table><thead><tr><th>이름</th><th>등록한 브라우저</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`);
+  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원</h2><div class="scroll"><table><thead><tr><th>이름</th><th>등록한 브라우저</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`, { trust });
 }

@@ -13,7 +13,7 @@ export async function startTestHub(t) {
   const dir = mkdtempSync(join(tmpdir(), "hub-server-"));
   const tls = ensureHubTls(join(dir, "tls"), { ip: "127.0.0.1" });
   const store = new HubStore(new DatabaseSync(":memory:"));
-  const hub = await startHubServer({ store, tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] }, linkApi(store));
+  const hub = await startHubServer({ store, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store));
   t.after(async () => {
     await hub.close();
     rmSync(dir, { recursive: true, force: true });
