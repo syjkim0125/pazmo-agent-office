@@ -267,13 +267,22 @@ export function createHubSync(deps: Deps) {
       failures.add(line);
       if (!reported.has(line)) console.error(`Team hub link: ${line}`);
     };
+    // The member may relink to another hub while the network call was in flight; a tick that began
+    // under the old link must not create, answer or end local work for it.
+    class Superseded extends Error {}
+    const current = () => {
+      const now = readLinkConfig(deps.dataDir);
+      if (!now || now.token !== cfg.token || now.hub !== cfg.hub) throw new Superseded();
+    };
     const guard = async (what: string, step: () => Promise<void>) => {
       try {
         await step();
       } catch (error) {
+        if (error instanceof Superseded) throw error;
         note(`${what}: ${describe(error)}`);
       }
     };
+    try {
     const tasks = new Map<string, string>();
     for (const a of work.assignments)
       await guard("submit", async () => {
@@ -283,6 +292,7 @@ export function createHubSync(deps: Deps) {
           !deps.db.prepare("SELECT 1 FROM pazmo_hub_requests WHERE hub_key=? AND task_id=?").get(a.assignmentId, a.officeTaskId)
         )
           return note(`submit: ${a.assignmentId} bound to another Office; release and re-accept to move it`);
+        current();
         const taskId = await deps.office.submitFromHub({
           key: a.assignmentId, content: a.body, risk: a.risk, requester: a.requester.name,
         });
@@ -295,6 +305,7 @@ export function createHubSync(deps: Deps) {
       await guard("answer", async () => {
         let outcome = results.get(x.answerId);
         if (!outcome) {
+          current();
           try {
             await deps.office.replyFromHub({
               taskId, answerId: x.answerId, decisionId: x.decisionId, option: x.option, note: x.note, member: x.member,
@@ -319,7 +330,8 @@ export function createHubSync(deps: Deps) {
           .prepare("SELECT 1 FROM pazmo_hub_requests WHERE hub_key=? AND task_id=?")
           .get(e.assignmentId, e.officeTaskId);
         if (!mine) note("ended: task does not belong to this assignment; acknowledged without cancelling");
-        else
+        else {
+          current();
           try {
             await deps.office.cancel(e.officeTaskId);
           } catch (error) {
@@ -327,6 +339,7 @@ export function createHubSync(deps: Deps) {
             // Already finished or cancelled locally is fine to acknowledge; anything else is retried.
             if (row && row.status !== "done" && row.status !== "cancelled") throw error;
           }
+        }
         await call(cfg, "POST", "/api/link/ended", { assignmentId: e.assignmentId });
       });
     for (const [assignmentId, taskId] of tasks)
@@ -351,6 +364,9 @@ export function createHubSync(deps: Deps) {
       await guard("outgoing", () => outgoing.sync(cfg, baseCall));
     }
     reported = failures;
+    } catch (error) {
+      if (!(error instanceof Superseded)) throw error;
+    }
   }
   return { syncOnce };
 }

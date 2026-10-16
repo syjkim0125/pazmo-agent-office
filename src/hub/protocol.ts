@@ -99,4 +99,18 @@ export type OutgoingView = {
   summary: string | null;
   decisions: OutgoingDecision[];
   updatedAt: number;
+  /** True only when an owner of the target repository declined it; a requester's own cancel is false. */
+  declined: boolean;
+  declineNote: string | null;
+  declinedBy: string | null;
+};
+/** An open request addressed to a link's repository, as its owner's Office sees it. */
+export type IncomingView = {
+  requestId: string;
+  requester: string;
+  originRepoName: string | null;
+  source: string | null;
+  body: string;
+  risk: "normal" | "high";
+  createdAt: number;
 };

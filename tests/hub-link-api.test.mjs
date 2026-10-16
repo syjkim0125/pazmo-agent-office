@@ -306,3 +306,37 @@ test("outgoing-cancel cancels this link's sent request over HTTP and needs proto
   const unknown = await api("POST", "/api/link/nope", { token, body: {} });
   assert.deepEqual([unknown.status, unknown.json.error, unknown.json.message], [404, "NOT_FOUND", undefined], "an unknown route has no message: the Office detects an old hub by this");
 });
+
+test("incoming, incoming-accept and incoming-decline work over HTTP and need protocol 2 and a token", async (t) => {
+  const { api, store, admin, b, repo } = await seeded(t);
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const first = store.createRequest(b, repo, "첫 요청", "normal");
+  const second = store.createRequest(b, repo, "둘째 요청", "high");
+  for (const [method, path] of [["GET", "/api/link/incoming"], ["POST", "/api/link/incoming-accept"], ["POST", "/api/link/incoming-decline"]]) {
+    assert.equal((await api(method, path, { token, protocol: "1", body: method === "POST" ? { requestId: first } : undefined })).status, 426, `${path} needs protocol 2`);
+    assert.equal((await api(method, path, { body: method === "POST" ? { requestId: first } : undefined })).status, 401, `${path} needs a link token`);
+  }
+  assert.equal((await api("POST", "/api/link/incoming", { token, body: {} })).status, 405);
+  assert.equal((await api("GET", "/api/link/incoming-accept", { token })).status, 405);
+  const list = await api("GET", "/api/link/incoming", { token });
+  assert.equal(list.status, 200);
+  assert.deepEqual(list.json.items.map((x) => [x.requestId, x.requester, x.risk]), [[first, "B", "normal"], [second, "B", "high"]]);
+  assert.equal((await api("POST", "/api/link/incoming-accept", { token, body: { requestId: 7 } })).status, 400);
+  const accepted = await api("POST", "/api/link/incoming-accept", { token, body: { requestId: first } });
+  assert.deepEqual([accepted.status, accepted.json], [200, { ok: true, requestId: first }]);
+  const again = await api("POST", "/api/link/incoming-accept", { token, body: { requestId: first } });
+  assert.deepEqual([again.status, again.json], [200, { ok: true, requestId: first }], "the same member accepting again is idempotent");
+  const late = await api("POST", "/api/link/incoming-decline", { token, body: { requestId: first, reason: "x" } });
+  assert.deepEqual([late.status, late.json.error, late.json.message], [409, "STATE", "이미 처리된 요청입니다."]);
+  const long = await api("POST", "/api/link/incoming-decline", { token, body: { requestId: second, reason: "가".repeat(501) } });
+  assert.deepEqual([long.status, long.json.error, long.json.message], [400, "INVALID", "거절 사유는 500자까지입니다."]);
+  assert.equal((await api("POST", "/api/link/incoming-decline", { token, body: { requestId: second, reason: 5 } })).status, 400);
+  const declined = await api("POST", "/api/link/incoming-decline", { token, body: { requestId: second, reason: "범위 밖" } });
+  assert.deepEqual([declined.status, declined.json], [200, { ok: true, requestId: second }]);
+  assert.deepEqual((await api("GET", "/api/link/incoming", { token })).json.items, []);
+  const noReason = store.createRequest(b, repo, "사유 없음", "normal");
+  assert.equal((await api("POST", "/api/link/incoming-decline", { token, body: { requestId: noReason } })).status, 200);
+  const other = store.createRequest(admin, store.addRepo(admin, "other", "https://github.example.com/team/other"), "다른 레포", "normal");
+  const missing = await api("POST", "/api/link/incoming-accept", { token, body: { requestId: other } });
+  assert.deepEqual([missing.status, missing.json.error], [404, "NOT_FOUND"]);
+});

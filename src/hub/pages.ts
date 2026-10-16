@@ -22,6 +22,7 @@ button.secondary{background:transparent;color:var(--accent)}button.danger{border
 const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 const button = (action: string, csrf: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${esc(action)}">${csrfField(csrf)}<button class="${cls}">${esc(label)}</button></form>`;
+const stateLabel = (state: string, declined: boolean) => (declined && state === "cancelled" ? "거절됨" : STATE[state] ?? state);
 const STATE: Record<string, string> = { open: "맡을 사람 대기", accepted: "진행 중", done: "완료", cancelled: "취소됨" };
 const STATUS: Record<string, string> = { running: "실행 중", waiting: "답변·승인 대기", done: "완료", cancelled: "취소됨" };
 const KIND: Record<string, string> = { story: "범위 승인 (G1)", questions: "PM 질문", "planning-retry": "계획 재개", G4: "최종 결과 승인 (G4)" };
@@ -70,7 +71,7 @@ export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoV
   const table = rows.length
     ? `<div class="scroll"><table><thead><tr><th>레포</th><th>요청</th><th>요청자</th><th>맡은 사람</th><th>상태</th><th>갱신</th></tr></thead><tbody>${rows
         .map((r) => {
-          const label = r.state === "accepted" && r.status ? STATUS[r.status] ?? r.status : STATE[r.state] ?? r.state;
+          const label = r.state === "accepted" && r.status ? STATUS[r.status] ?? r.status : stateLabel(r.state, r.declined);
           return `<tr><td>${esc(r.repoName)}</td><td><a href="/requests/${esc(r.id)}">${esc(r.body.slice(0, 80))}</a></td><td>${esc(r.requesterName)}</td><td>${esc(r.assigneeName ?? "-")}</td><td><span class="pill">${esc(label)}</span></td><td>${ago(r.updatedAt)}</td></tr>`;
         })
         .join("")}</tbody></table></div>`
@@ -83,6 +84,9 @@ export function request(me: Member, csrf: string, v: RequestView, trust = true) 
   const actions = [
     v.canAccept ? button(`/requests/${v.id}/accept`, csrf, "내가 맡기") : "",
     v.isAssignee ? button(`/requests/${v.id}/release`, csrf, "반납하기", "secondary") : "",
+    v.canDecline
+      ? `<form method="post" action="/requests/${esc(v.id)}/decline">${csrfField(csrf)}<label>거절 사유 <span class="muted">(선택, 500자까지)</span><textarea name="reason" rows="2" maxlength="500"></textarea></label><div class="row"><button class="danger">거절</button></div></form>`
+      : "",
     (v.isRequester || v.isAssignee) && (v.state === "open" || v.state === "accepted")
       ? button(`/requests/${v.id}/cancel`, csrf, "요청 취소", "danger")
       : "",
@@ -118,7 +122,7 @@ export function request(me: Member, csrf: string, v: RequestView, trust = true) 
       ? `<section><h2>진행</h2><p>맡은 사람의 Office가 아직 작업을 받지 않았습니다. Office 연결 확인 ${ago(v.officeSeen)}.</p></section>`
       : "";
   return layout("요청", me, [
-    `<section><p class="muted">${esc(v.repo.name)} · 요청자 ${esc(v.requester.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p>${v.source ? `<p class="muted">출처: ${esc(v.source)}${v.parentId ? ` · <a href="/requests/${esc(v.parentId)}">상위 요청</a>` : ""}</p>` : ""}<h1>${esc(s?.title ?? v.body.slice(0, 80))}</h1><pre>${esc(v.body)}</pre><p><span class="pill">${esc(STATE[v.state] ?? v.state)}</span> 맡은 사람: ${esc(v.assignee?.name ?? "없음")}</p><div class="row">${actions}</div></section>`,
+    `<section><p class="muted">${esc(v.repo.name)} · 요청자 ${esc(v.requester.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p>${v.source ? `<p class="muted">출처: ${esc(v.source)}${v.parentId ? ` · <a href="/requests/${esc(v.parentId)}">상위 요청</a>` : ""}</p>` : ""}<h1>${esc(s?.title ?? v.body.slice(0, 80))}</h1><pre>${esc(v.body)}</pre><p><span class="pill">${esc(stateLabel(v.state, v.declined))}</span> 맡은 사람: ${esc(v.assignee?.name ?? "없음")}</p>${v.declined ? `${v.declineNote ? `<p>거절 사유: ${esc(v.declineNote)}</p>` : ""}${v.declinedBy ? `<p class="muted">거절한 사람: ${esc(v.declinedBy)}</p>` : ""}` : ""}<div class="row">${actions}</div></section>`,
     progress,
     decisions || answers ? `<section><h2>질문·승인</h2>${decisions}${answers}</section>` : "",
     s?.diff ? `<section><h2>변경 내용</h2>${s.diff.truncated ? '<p class="muted">길어서 앞부분만 보여 줍니다.</p>' : ""}<pre>${esc(s.diff.text)}</pre></section>` : "",

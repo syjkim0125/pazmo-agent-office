@@ -1,7 +1,7 @@
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
-import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot, type OutgoingView } from "./protocol.ts";
+import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot, type IncomingView, type OutgoingView } from "./protocol.ts";
 import { normalizeRemote } from "./remote.ts";
 
 export class HubError extends Error {
@@ -37,6 +37,7 @@ export type RequestRow = {
   assigneeName: string | null;
   status: string | null;
   updatedAt: number;
+  declined: boolean;
 };
 export type RepoView = {
   id: string;
@@ -59,6 +60,10 @@ export type RequestView = {
   requester: { id: string; name: string };
   assignee: { id: string; name: string } | null;
   canAccept: boolean;
+  canDecline: boolean;
+  declined: boolean;
+  declineNote: string | null;
+  declinedBy: string | null;
   isRequester: boolean;
   isAssignee: boolean;
   snapshot: HubSnapshot | null;
@@ -109,6 +114,9 @@ type RequestRecord = {
   source_note: string | null;
   parent_request_id: string | null;
   origin_repo_id: string | null;
+  closed_by: string | null;
+  close_reason: string | null;
+  close_note: string | null;
 };
 type Arg = string | number | null;
 type PairResult = { token: string; member: Member; repoId: string; repoName: string; created: boolean };
@@ -151,7 +159,7 @@ export class HubStore {
     const have = new Set(
       (this.#db.prepare("PRAGMA table_info(hub_requests)").all() as { name: string }[]).map((c) => c.name),
     );
-    for (const [name, type] of [["source_note", "TEXT"], ["create_key", "TEXT"], ["origin_repo_id", "TEXT"]])
+    for (const [name, type] of [["source_note", "TEXT"], ["create_key", "TEXT"], ["origin_repo_id", "TEXT"], ["closed_by", "TEXT"], ["close_reason", "TEXT"], ["close_note", "TEXT"]])
       if (!have.has(name)) this.#db.exec(`ALTER TABLE hub_requests ADD COLUMN ${name} ${type}`);
     this.#db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS hub_request_once ON hub_requests(requester_id,create_key) WHERE create_key IS NOT NULL",
@@ -432,6 +440,7 @@ export class HubStore {
         fail("FORBIDDEN", 403, "요청한 사람이나 맡은 사람만 취소할 수 있습니다.");
       if (a) this.#end(a, "cancelled");
       this.#touch(id, "cancelled");
+      this.#run("UPDATE hub_requests SET closed_by=?,close_reason='cancelled' WHERE id=?", by.id, id);
     });
   }
   answer(by: Member, id: string, decisionId: string, option: number, note: string) {
@@ -478,6 +487,13 @@ export class HubStore {
       requester: person(r.requester_id),
       assignee: a ? person(a.member_id) : null,
       canAccept: r.state === "open" && this.#owner(viewerId, r.repo_id),
+      canDecline: r.state === "open" && this.#owner(viewerId, r.repo_id),
+      declined: r.close_reason === "declined",
+      declineNote: r.close_reason === "declined" ? (r.close_note ?? null) : null,
+      declinedBy:
+        r.close_reason === "declined" && r.closed_by
+          ? (this.#get<{ name: string }>("SELECT name FROM hub_members WHERE id=?", r.closed_by)?.name ?? null)
+          : null,
       isRequester: r.requester_id === viewerId,
       isAssignee: !!a && a.ended_at === null && a.member_id === viewerId,
       snapshot: a?.snapshot ? (JSON.parse(a.snapshot) as HubSnapshot) : null,
@@ -502,15 +518,16 @@ export class HubStore {
           ? "WHERE r.repo_id IN (SELECT repo_id FROM hub_repo_owners WHERE member_id=?)"
           : "";
     const args = view === "mine" ? [viewerId, viewerId] : view === "repos" ? [viewerId] : [];
-    return this.#all<RequestRow>(
+    const rows = this.#all<Omit<RequestRow, "declined"> & { declined: number | null }>(
       `SELECT r.id,p.name repoName,r.body,r.state,rq.name requesterName,am.name assigneeName,
-         json_extract(a.snapshot,'$.status') status,r.updated_at updatedAt
+         json_extract(a.snapshot,'$.status') status,r.updated_at updatedAt,r.close_reason='declined' declined
        FROM hub_requests r JOIN hub_repos p ON p.id=r.repo_id JOIN hub_members rq ON rq.id=r.requester_id
        LEFT JOIN hub_assignments a ON a.id=(SELECT id FROM hub_assignments WHERE request_id=r.id ORDER BY created_at DESC, rowid DESC LIMIT 1)
        LEFT JOIN hub_members am ON am.id=a.member_id
        ${where} ORDER BY r.updated_at DESC LIMIT 200`,
       ...args,
     );
+    return rows.map((r) => ({ ...r, declined: r.declined === 1 }));
   }
 
   createLinkCode(by: Member, repoId: string): string {
@@ -789,8 +806,12 @@ export class HubStore {
   }
   /** Requests this member sent from this link's repository; finished ones fade after 7 days. */
   outgoing(l: Link): OutgoingView[] {
-    const rows = this.#all<{ id: string; repo_name: string; state: OutgoingView["state"]; updated_at: number }>(
-      `SELECT r.id,p.name repo_name,r.state,r.updated_at FROM hub_requests r JOIN hub_repos p ON p.id=r.repo_id
+    const rows = this.#all<{
+      id: string; repo_name: string; state: OutgoingView["state"]; updated_at: number;
+      close_reason: string | null; close_note: string | null; closer_name: string | null;
+    }>(
+      `SELECT r.id,p.name repo_name,r.state,r.updated_at,r.close_reason,r.close_note,m.name closer_name
+       FROM hub_requests r JOIN hub_repos p ON p.id=r.repo_id LEFT JOIN hub_members m ON m.id=r.closed_by
        WHERE r.requester_id=? AND r.origin_repo_id=? AND (r.state IN ('open','accepted') OR r.updated_at>?)
        ORDER BY r.updated_at DESC LIMIT 50`,
       l.member.id, l.repoId, this.#now() - 7 * 86400_000,
@@ -821,7 +842,71 @@ export class HubStore {
                 .map((d) => ({ ...d, summary: d.summary.slice(0, OUTGOING_SUMMARY_LIMIT), rejected: this.#rejected(a.id, d.id) }))
             : [],
         updatedAt: r.updated_at,
+        declined: r.close_reason === "declined",
+        declineNote: r.close_reason === "declined" ? r.close_note : null,
+        declinedBy: r.close_reason === "declined" ? r.closer_name : null,
       };
+    });
+  }
+  /** Open requests addressed to this link's repository, oldest first, for the owner's Office to take or decline. */
+  incoming(l: Link): IncomingView[] {
+    return this.#all<{
+      id: string; requester: string; origin_repo_name: string | null; source_note: string | null;
+      body: string; risk: IncomingView["risk"]; created_at: number;
+    }>(
+      `SELECT r.id,m.name requester,o.name origin_repo_name,r.source_note,r.body,r.risk,r.created_at
+       FROM hub_requests r JOIN hub_members m ON m.id=r.requester_id LEFT JOIN hub_repos o ON o.id=r.origin_repo_id
+       WHERE r.repo_id=? AND r.state='open' ORDER BY r.created_at ASC, r.rowid ASC LIMIT 50`,
+      l.repoId,
+    ).map((r) => ({
+      requestId: r.id,
+      requester: r.requester,
+      originRepoName: r.origin_repo_name,
+      source: r.source_note,
+      body: r.body,
+      risk: r.risk,
+      createdAt: r.created_at,
+    }));
+  }
+  /** A request addressed to this link's repository; anything else is NOT_FOUND. */
+  #incomingRequest(l: Link, requestId: string): RequestRecord {
+    const r = this.#get<RequestRecord>("SELECT * FROM hub_requests WHERE id=?", requestId);
+    if (!r || r.repo_id !== l.repoId) fail("NOT_FOUND", 404, "이 레포로 온 요청이 아닙니다.");
+    return r;
+  }
+  /** Takes the request exactly as the hub page's accept does; the first owner wins. */
+  acceptIncoming(l: Link, requestId: string): { ok: true; requestId: string } {
+    // One transaction: a decline cannot slip between the state check and accept().
+    transaction(this.#db, () => {
+      const r = this.#incomingRequest(l, requestId);
+      // Taken by this same member is a repeated click, not an error.
+      if (r.state === "accepted" && this.#live(requestId)?.member_id === l.member.id) return;
+      // Taken by someone else is ALREADY_ACCEPTED (accept() below judges it); closed by anyone is just handled.
+      if (r.state !== "open" && r.state !== "accepted") fail("STATE", 409, "이미 처리된 요청입니다.");
+      this.accept(l.member, requestId);
+    });
+    return { ok: true, requestId };
+  }
+  /** Closes an open request for every owner; the requester sees it as cancelled-by-decline with the reason. */
+  declineIncoming(l: Link, requestId: string, reason?: string): { ok: true; requestId: string } {
+    this.#incomingRequest(l, requestId);
+    this.decline(l.member, requestId, reason);
+    return { ok: true, requestId };
+  }
+  /** An owner closes an open request for everyone; shared by the hub page and the Office link. */
+  decline(by: Member, id: string, reason?: string) {
+    this.#request(id); // unknown id is 404 before the reason is judged
+    const note = (reason ?? "").trim();
+    if (note.length > 500) fail("INVALID", 400, "거절 사유는 500자까지입니다.");
+    transaction(this.#db, () => {
+      const r = this.#request(id);
+      if (!this.#owner(by.id, r.repo_id)) fail("FORBIDDEN", 403, "이 레포의 담당자만 거절할 수 있습니다.");
+      if (r.state !== "open") fail("STATE", 409, "이미 처리된 요청입니다.");
+      this.#touch(id, "cancelled");
+      this.#run(
+        "UPDATE hub_requests SET closed_by=?,close_reason='declined',close_note=? WHERE id=?",
+        by.id, note || null, id,
+      );
     });
   }
   /** Why the last relayed answer to this question was refused; null when none was, or a later one applied. */

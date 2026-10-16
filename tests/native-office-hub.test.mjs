@@ -19,7 +19,7 @@ async function office(t, hub) {
   const live = { status: () => ({ execution: "ready", active: [] }), startPlanning: (...a) => planned.push(a), assertIdle() {}, close: async () => {}, abort() {} };
   const o = await createNativeOffice({ db, project, dataDir: root, token: "a".repeat(64), createRuntime: async () => live, hub });
   t.after(async () => { await o.close(); db.close(); rmSync(root, { recursive: true, force: true }); });
-  return { o, db, planned, root, project };
+  return { o, db, planned, root, project, live };
 }
 const member = { id: "m-b", name: "B" };
 
@@ -129,7 +129,7 @@ test("hub gateway items join the Decisions list and their answers go to the gate
 
 test("without a gateway the Office reports itself unlinked", async (t) => {
   const { o } = await office(t);
-  assert.deepEqual(o.hubStatus(), { linked: false, legacy: false, hub: null, member: null, repoName: null });
+  assert.deepEqual(o.hubStatus(), { linked: false, legacy: false, hub: null, member: null, repoName: null, activeHubTasks: 0 });
   assert.deepEqual(o.hubOutgoing(), { linked: false, items: [] });
   await assert.rejects(o.hubRepos(), { code: "HUB_NOT_LINKED" });
   await assert.rejects(o.reply("hubout:r1:d1", 1, "x"), { code: "HUB_NOT_LINKED" });
@@ -150,7 +150,7 @@ test("hubLink and hubUnlink fail with HUB_NOT_LIVE without a gateway and delegat
     status: () => ({ linked: false, legacy: false, hub: null, member: null, repoName: null }),
   };
   const { o } = await office(t, hub);
-  assert.deepEqual(await o.hubLink("text"), { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: false });
+  assert.deepEqual(await o.hubLink("text"), { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: false, cancelledTasks: 0 });
   assert.deepEqual(linked, ["text"]);
   assert.deepEqual(o.hubUnlink(), { linked: false });
 });
@@ -158,4 +158,120 @@ test("hubLink and hubUnlink fail with HUB_NOT_LIVE without a gateway and delegat
 test("the not-linked error points at the Office's 팀 허브 button, not a CLI command", async (t) => {
   const { o } = await office(t);
   await assert.rejects(o.hubRepos(), (e) => e.code === "HUB_NOT_LINKED" && /팀 허브/.test(e.message) && !/pazmo-office/.test(e.message));
+});
+
+function linkHub({ before, after, fail, calls = [] }) {
+  let current = before;
+  return {
+    decisions: () => [],
+    status: () => ({ linked: !!current, legacy: false, hub: current, member: current ? "B" : null, repoName: current ? "be" : null }),
+    link: async (text) => {
+      calls.push(text);
+      if (fail) throw Object.assign(new Error("만료된 연결 코드입니다."), { code: "INVALID" });
+      current = after;
+      return { linked: true, member: "B", repoName: "be", hub: current, created: true };
+    },
+  };
+}
+async function twoHubTasks(o, db) {
+  const running = await o.submitFromHub({ key: "k-run", content: "진행 중", risk: "normal", requester: "A" });
+  const finished = await o.submitFromHub({ key: "k-done", content: "끝난 일", risk: "normal", requester: "A" });
+  db.prepare("UPDATE tasks SET status='done' WHERE id=?").run(finished);
+  return { running, finished };
+}
+const statusOf = (db, id) => db.prepare("SELECT status FROM tasks WHERE id=?").get(id).status;
+
+test("relinking to a different hub cancels the unfinished tasks received from the old one", async (t) => {
+  const hub = linkHub({ before: "https://old.example.com", after: "https://new.example.com" });
+  const { o, db } = await office(t, hub);
+  const { running, finished } = await twoHubTasks(o, db);
+  assert.equal(o.hubStatus().activeHubTasks, 1, "the dialog can warn before replacing");
+  const result = await o.hubLink("text");
+  assert.equal(result.cancelledTasks, 1);
+  assert.equal(result.hub, "https://new.example.com");
+  assert.equal(statusOf(db, running), "cancelled");
+  assert.equal(statusOf(db, finished), "done");
+  assert.equal(o.hubStatus().activeHubTasks, 0);
+});
+
+test("relinking to the same hub origin cancels nothing", async (t) => {
+  const hub = linkHub({ before: "https://hub.example.com/", after: "https://hub.example.com" });
+  const { o, db } = await office(t, hub);
+  const { running } = await twoHubTasks(o, db);
+  const result = await o.hubLink("text");
+  assert.equal(result.cancelledTasks, 0);
+  assert.notEqual(statusOf(db, running), "cancelled");
+});
+
+test("a failed link cancels nothing and leaves tasks as they were", async (t) => {
+  const hub = linkHub({ before: "https://old.example.com", after: "https://new.example.com", fail: true });
+  const { o, db } = await office(t, hub);
+  const { running } = await twoHubTasks(o, db);
+  const before = statusOf(db, running);
+  await assert.rejects(o.hubLink("expired"), { code: "INVALID" });
+  assert.equal(statusOf(db, running), before);
+});
+
+test("a first link, with no previous hub, cancels nothing", async (t) => {
+  const hub = linkHub({ before: null, after: "https://new.example.com" });
+  const { o, db } = await office(t, hub);
+  const { running } = await twoHubTasks(o, db);
+  assert.equal((await o.hubLink("text")).cancelledTasks, 0);
+  assert.notEqual(statusOf(db, running), "cancelled");
+});
+
+test("incoming requests go through the gateway; without one the list is empty and actions are not live", async (t) => {
+  const none = (await office(t)).o;
+  assert.deepEqual(none.hubIncoming(), { linked: false, upgradeRequired: false, items: [] });
+  assert.equal(none.hubStatus().activeHubTasks, 0);
+  await assert.rejects(none.hubAcceptIncoming("i1"), { code: "HUB_NOT_LIVE" });
+  await assert.rejects(none.hubDeclineIncoming("i1", "x"), { code: "HUB_NOT_LIVE" });
+
+  const calls = [];
+  const hub = {
+    decisions: () => [],
+    status: () => ({ linked: true, legacy: false, hub: "https://h", member: "B", repoName: "be" }),
+    incoming: () => ({ linked: true, upgradeRequired: false, items: [{ requestId: "i1" }] }),
+    acceptIncoming: async (id) => (calls.push(["accept", id]), { ok: true, requestId: id }),
+    declineIncoming: async (id, reason) => (calls.push(["decline", id, reason]), { ok: true, requestId: id }),
+  };
+  const { o } = await office(t, hub);
+  assert.equal(o.hubIncoming().items[0].requestId, "i1");
+  assert.deepEqual(await o.hubAcceptIncoming("i1"), { ok: true, requestId: "i1" });
+  assert.deepEqual(await o.hubDeclineIncoming("i2", "바빠요"), { ok: true, requestId: "i2" });
+  assert.deepEqual(calls, [["accept", "i1"], ["decline", "i2", "바빠요"]]);
+});
+
+test("one task that cannot be cancelled does not stop the others; only successes are counted", async (t) => {
+  const hub = linkHub({ before: "https://old.example.com", after: "https://new.example.com" });
+  const { o, db, live } = await office(t, hub);
+  const a = await o.submitFromHub({ key: "k-a", content: "A", risk: "normal", requester: "A" });
+  const b = await o.submitFromHub({ key: "k-b", content: "B", risk: "normal", requester: "A" });
+  const c = await o.submitFromHub({ key: "k-c", content: "C", risk: "normal", requester: "A" });
+  live.abort = (id) => { if (id === b) throw new Error("ABORT_FAILED"); };
+  const result = await o.hubLink("text");
+  assert.equal(result.cancelledTasks, 2);
+  assert.equal(statusOf(db, a), "cancelled");
+  assert.equal(statusOf(db, c), "cancelled", "the task after the failing one is still cancelled");
+});
+
+test("a task the old hub delivers while the link is being paired is cancelled too", async (t) => {
+  let office$;
+  const hub = {
+    decisions: () => [],
+    status: () => ({ linked: true, legacy: false, hub: "https://old.example.com", member: "B", repoName: "be" }),
+    link: async () => {
+      // An old-link sync tick lands while pairing is still in flight.
+      await office$.submitFromHub({ key: "k-late", content: "늦게 도착", risk: "normal", requester: "A" });
+      return { linked: true, member: "B", repoName: "be", hub: "https://new.example.com", created: true };
+    },
+  };
+  const { o, db } = await office(t, hub);
+  office$ = o;
+  const early = await o.submitFromHub({ key: "k-early", content: "먼저 도착", risk: "normal", requester: "A" });
+  const result = await o.hubLink("text");
+  const late = db.prepare("SELECT t.id FROM tasks t JOIN pazmo_hub_requests h ON h.task_id=t.id WHERE h.hub_key=?").get("k-late");
+  assert.equal(result.cancelledTasks, 2);
+  assert.equal(statusOf(db, early), "cancelled");
+  assert.equal(statusOf(db, late.id), "cancelled");
 });

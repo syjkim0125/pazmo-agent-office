@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "runId": "08d08a1f-a21b-490e-ba53-3efd993f27e6",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "f2e71197125daac8a7be0b9ee06b2e13c0cd149c4547b9b941c57db4b9d4206f",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Office inbox accept/decline implemented via subagent-driven Tasks 1-5 plus final-review fixes; runHub signal-order flake fixed. root 721/721, typecheck 0, vendor 232/234 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-16-team-hub-office-inbox.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-16-team-hub-office-inbox.md": "0c36fee52f41756a1c9858a13f781fb9247120be566030670f07db13653df1e2"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Task 5 Important fixed) and whole-branch security review: Ready with fixes; Important (relink selection race) and minors fixed in one round; scoped re-review Approved.",
+          "evidence": [
+            "docs/verification/2026-10-16-team-hub-office-inbox.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-16-team-hub-office-inbox.md": "0c36fee52f41756a1c9858a13f781fb9247120be566030670f07db13653df1e2"
+        }
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "50cedb39f4640e20e8c12c4ef3f9d673fcbd8405e62c79a0b3e9510d3db6d2dc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-16T05:57:48.303Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-16T07:00:39.096Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Office inbox accept/decline implemented via subagent-driven Tasks 1-5 plus final-review fixes; runHub signal-order flake fixed. root 721/721, typecheck 0, vendor 232/234 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-16-team-hub-office-inbox.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-16-team-hub-office-inbox.md": "0c36fee52f41756a1c9858a13f781fb9247120be566030670f07db13653df1e2"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-16T07:00:39.203Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-16T07:00:39.338Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Task 5 Important fixed) and whole-branch security review: Ready with fixes; Important (relink selection race) and minors fixed in one round; scoped re-review Approved.",
+          "evidence": [
+            "docs/verification/2026-10-16-team-hub-office-inbox.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-16-team-hub-office-inbox.md": "0c36fee52f41756a1c9858a13f781fb9247120be566030670f07db13653df1e2"
+        }
+      }
+    }
+  ]
+}

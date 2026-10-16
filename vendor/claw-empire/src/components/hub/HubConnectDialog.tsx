@@ -20,14 +20,35 @@ const hostOf = (hub: string | null): string => {
   }
 };
 
-/** The hub host a pasted text points at, for showing before connecting. Host only: the
- * code and fingerprint never reach the screen. The server does the real parsing. */
-const targetHostOf = (text: string): string => {
+/** The https URL a pasted text points at: the connection link itself or the --hub value of the
+ * legacy command. The server does the real parsing; this only drives what the screen previews. */
+const targetUrlOf = (text: string): URL | null => {
   const raw = text.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
   const candidate = /(?:^|\s)--hub\s+(\S+)/.exec(raw)?.[1] ?? (/\s/.test(raw) ? "" : raw);
   try {
     const url = new URL(candidate.replace(/^["'`]+|["'`]+$/g, ""));
-    return url.protocol === "https:" ? url.host : "";
+    return url.protocol === "https:" ? url : null;
+  } catch {
+    return null;
+  }
+};
+
+/** The hub host a pasted text points at, for showing before connecting. Host only: the
+ * code and fingerprint never reach the screen. */
+const targetHostOf = (text: string): string => targetUrlOf(text)?.host ?? "";
+
+/** An invite link is for joining the hub in a browser; it is not a connection string. */
+const isInviteLink = (text: string): boolean => {
+  const raw = text.trim().replace(/^["'`]+|["'`]+$/g, "").trim();
+  if (/\s/.test(raw)) return false;
+  const url = targetUrlOf(raw);
+  return !!url && url.pathname.startsWith("/invite/");
+};
+
+const originOf = (hub: string | null): string => {
+  if (!hub) return "";
+  try {
+    return new URL(hub).origin;
   } catch {
     return "";
   }
@@ -55,18 +76,29 @@ export default function HubConnectDialog({ status, onClose, onChanged }: HubConn
   }, [onClose]);
 
   const host = hostOf(status.hub);
-  const targetHost = targetHostOf(text);
+  const invite = isInviteLink(text);
+  const targetHost = invite ? "" : targetHostOf(text);
   const summary = [host, status.member, status.repoName].filter(Boolean).join(" · ");
 
   async function connect() {
     setError("");
     setDone("");
     if (status.linked) {
+      const targetOrigin = targetUrlOf(text)?.origin ?? "";
+      const otherHub = !!targetOrigin && targetOrigin !== originOf(status.hub);
+      const cancelWarning =
+        otherHub && status.activeHubTasks > 0
+          ? t({
+              ko: ` 이전 허브에서 받은 진행 중 작업 ${status.activeHubTasks}건이 취소됩니다.`,
+              en: ` ${status.activeHubTasks} in-progress task(s) received from the previous hub will be cancelled.`,
+            })
+          : "";
       const replace = await confirm({
-        message: t({
-          ko: `기존 연결(${host || "허브"})을 ${targetHost || "새 허브"} 연결로 바꿉니다. 진행 중인 보낸 요청은 먼저 정리하세요.`,
-          en: `This replaces the existing link (${host || "hub"}) with a link to ${targetHost || "the new hub"}. Clean up any pending outgoing requests first.`,
-        }),
+        message:
+          t({
+            ko: `기존 연결(${host || "허브"})을 ${targetHost || "새 허브"} 연결로 바꿉니다. 진행 중인 보낸 요청은 먼저 정리하세요.`,
+            en: `This replaces the existing link (${host || "hub"}) with a link to ${targetHost || "the new hub"}. Clean up any pending outgoing requests first.`,
+          }) + cancelWarning,
         confirmLabel: t({ ko: "바꾸기", en: "Replace" }),
         cancelLabel: t({ ko: "취소", en: "Cancel" }),
       });
@@ -86,7 +118,14 @@ export default function HubConnectDialog({ status, onClose, onChanged }: HubConn
             en: ` Registered a new repo ${result.repoName} on the hub.`,
           })
         : "";
-      setDone(connected + registered);
+      const cancelled =
+        (result.cancelledTasks ?? 0) > 0
+          ? t({
+              ko: ` 이전 허브 작업 ${result.cancelledTasks}건을 취소했습니다.`,
+              en: ` Cancelled ${result.cancelledTasks} task(s) from the previous hub.`,
+            })
+          : "";
+      setDone(connected + registered + cancelled);
       onChanged();
     } catch (e) {
       setError(errorText(e));
@@ -99,10 +138,17 @@ export default function HubConnectDialog({ status, onClose, onChanged }: HubConn
     setError("");
     setDone("");
     const yes = await confirm({
-      message: t({
-        ko: "팀 허브 연결을 해제합니다. 다시 연결하려면 새 연결 문자열이 필요합니다.",
-        en: "This unlinks the team hub. You need a new connection string to link again.",
-      }),
+      message:
+        t({
+          ko: "팀 허브 연결을 해제합니다. 다시 연결하려면 새 연결 문자열이 필요합니다.",
+          en: "This unlinks the team hub. You need a new connection string to link again.",
+        }) +
+        (status.activeHubTasks > 0
+          ? t({
+              ko: ` 이 Office에는 허브에서 받은 진행 중 작업 ${status.activeHubTasks}건이 남습니다. 필요하면 직접 취소하세요.`,
+              en: ` ${status.activeHubTasks} in-progress task(s) received from the hub will remain in this Office. Cancel them yourself if needed.`,
+            })
+          : ""),
       confirmLabel: t({ ko: "연결 해제", en: "Unlink" }),
       cancelLabel: t({ ko: "취소", en: "Cancel" }),
       tone: "danger",
@@ -171,6 +217,14 @@ export default function HubConnectDialog({ status, onClose, onChanged }: HubConn
             className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-800 px-2 py-1.5 font-mono text-xs text-white"
           />
         </label>
+        {invite && (
+          <p className="mt-1 text-[11px] text-amber-400">
+            {t({
+              ko: "초대 링크입니다. 허브에 합류한 뒤 내 Office 연결에서 연결 문자열을 만드세요.",
+              en: "This is an invite link. Join the hub, then create a connection string in My Office connection.",
+            })}
+          </p>
+        )}
         {targetHost && (
           <p className="mt-1 text-[11px] text-slate-400">
             {t({ ko: `${targetHost}에 연결합니다.`, en: `Connects to ${targetHost}.` })}
@@ -211,7 +265,7 @@ export default function HubConnectDialog({ status, onClose, onChanged }: HubConn
           </div>
           <button
             onClick={() => void connect()}
-            disabled={busy || !text.trim()}
+            disabled={busy || !text.trim() || invite}
             className="rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-500 disabled:cursor-not-allowed disabled:bg-slate-700 disabled:text-slate-400"
           >
             {t({ ko: "연결", en: "Connect" })}

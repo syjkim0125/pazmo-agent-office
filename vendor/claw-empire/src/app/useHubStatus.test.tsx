@@ -6,7 +6,7 @@ import type { HubStatus } from "../api";
 const apiMocks = vi.hoisted(() => ({ getHubStatus: vi.fn() }));
 vi.mock("../api", async (importOriginal) => ({ ...(await importOriginal<object>()), ...apiMocks }));
 
-const linked: HubStatus = { linked: true, legacy: false, hub: "https://pazmo-hub.apps.example.com", member: "B", repoName: "be-service" };
+const linked: HubStatus = { linked: true, legacy: false, hub: "https://pazmo-hub.apps.example.com", member: "B", repoName: "be-service", activeHubTasks: 0 };
 
 describe("useHubStatus", () => {
   beforeEach(() => {

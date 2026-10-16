@@ -1194,6 +1194,22 @@ export async function createNativeOffice(c: Config) {
     db.prepare("UPDATE pazmo_hub_answers SET revision=? WHERE answer_id=?").run(revision, input.answerId);
     return result;
   }
+  const hubOrigin = (hub: string | null) => {
+    try {
+      return hub ? new URL(hub).origin : null;
+    } catch {
+      return null;
+    }
+  };
+  /** Local tasks that came from a hub assignment and are not finished. */
+  const unfinishedHubTasks = () =>
+    (
+      db
+        .prepare(
+          "SELECT r.task_id AS id FROM pazmo_hub_requests r JOIN tasks t ON t.id=r.task_id WHERE t.status NOT IN ('done','cancelled')",
+        )
+        .all() as { id: string }[]
+    ).map((row) => row.id);
   async function cancel(id: string) {
     if (!managed(id)) fail("NOT_FOUND", "Managed task not found.");
     const i = db.prepare("SELECT 1 FROM pazmo_intakes WHERE task_id=?").get(id);
@@ -1276,13 +1292,40 @@ export async function createNativeOffice(c: Config) {
       roles: { pm: agent("pm"), lead: agent("lead"), engineer: agent("engineer"), reviewer: agent("reviewer") },
     }),
     runnerRuns: (id: string) => ({ runs: runners.evidence.forRequest(id) }),
-    hubStatus: () => c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null, repoName: null },
-    hubLink: async (text: string) => (c.hub ? c.hub.link(text) : notLive()),
+    hubStatus: () => ({
+      ...(c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null, repoName: null }),
+      activeHubTasks: unfinishedHubTasks().length,
+    }),
+    hubLink: async (text: string) => {
+      if (!c.hub) return notLive();
+      const before = c.hub.status();
+      const beforeOrigin = before.linked ? hubOrigin(before.hub) : null;
+      const result = await c.hub.link(text);
+      // Only a successful link to a different hub origin ends the old hub's work.
+      let cancelledTasks = 0;
+      if (beforeOrigin && hubOrigin(result.hub) !== beforeOrigin) {
+        // Chosen after link() resolves: an old-link sync tick during pairing may have delivered more tasks.
+        const unfinished = unfinishedHubTasks();
+        for (const taskId of unfinished) {
+          try {
+            await cancel(taskId);
+            cancelledTasks++;
+          } catch {
+            // One task that cannot be cancelled must not keep the others running.
+          }
+        }
+      }
+      return { ...result, cancelledTasks };
+    },
     hubUnlink: () => (c.hub ? c.hub.unlink() : notLive()),
     hubRepos: async () => hubGateway().repos(),
     hubSend: async (input: unknown) => hubGateway().send(input),
     hubCancel: async (requestId: string) => hubGateway().cancel(requestId),
     hubOutgoing: () => c.hub?.outgoing() ?? { linked: false, items: [] },
+    hubIncoming: () => c.hub?.incoming() ?? { linked: false, upgradeRequired: false, items: [] },
+    hubAcceptIncoming: async (requestId: string) => (c.hub ? c.hub.acceptIncoming(requestId) : notLive()),
+    hubDeclineIncoming: async (requestId: string, reason: string) =>
+      c.hub ? c.hub.declineIncoming(requestId, reason) : notLive(),
     checkTaskMutation(id: string, patch?: unknown) {
       // Hiding a card changes presentation only; no workflow transition.
       if (

@@ -13,13 +13,14 @@ vi.mock("../../api", async (importOriginal) => ({ ...(await importOriginal<objec
 forbidNativeDialogs();
 
 const CONNECTION = `https://pazmo-hub.apps.example.com/connect#c=${"a".repeat(43)}`;
-const unlinked: HubStatus = { linked: false, legacy: false, hub: null, member: null, repoName: null };
+const unlinked: HubStatus = { linked: false, legacy: false, hub: null, member: null, repoName: null, activeHubTasks: 0 };
 const linked: HubStatus = {
   linked: true,
   legacy: false,
   hub: "https://pazmo-hub.apps.example.com",
   member: "B",
   repoName: "be-service",
+  activeHubTasks: 0,
 };
 
 const renderDialog = (status: HubStatus, props: { onClose?: () => void; onChanged?: () => void } = {}) =>
@@ -128,6 +129,20 @@ describe("HubConnectDialog", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("연결을 해제했습니다.");
   });
 
+  it("the unlink confirmation warns about in-progress hub tasks only when there are some", async () => {
+    renderDialog({ ...linked, activeHubTasks: 2 });
+    fireEvent.click(screen.getByRole("button", { name: "연결 해제" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(
+      "이 Office에는 허브에서 받은 진행 중 작업 2건이 남습니다. 필요하면 직접 취소하세요.",
+    );
+    fireEvent.click(screen.getByRole("button", { name: "취소" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    cleanup();
+    renderDialog(linked);
+    fireEvent.click(screen.getByRole("button", { name: "연결 해제" }));
+    expect(await screen.findByRole("alertdialog")).not.toHaveTextContent("진행 중 작업");
+  });
+
   it("cancelling the unlink confirmation changes nothing", async () => {
     renderDialog(linked);
     fireEvent.click(screen.getByRole("button", { name: "연결 해제" }));
@@ -157,6 +172,77 @@ describe("HubConnectDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "바꾸기" }));
     await waitFor(() => expect(apiMocks.linkHub).toHaveBeenCalledWith(NEXT));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
+  });
+
+  it("adds the cancelled-work sentence to the replace confirmation only for another hub with active hub tasks", async () => {
+    const SAME = `https://pazmo-hub.apps.example.com/connect#c=${"c".repeat(43)}`;
+    const OTHER = `https://other-hub.example.com/connect#c=${"b".repeat(43)}`;
+    const SENTENCE = "이전 허브에서 받은 진행 중 작업 2건이 취소됩니다.";
+    const busy = { ...linked, activeHubTasks: 2 };
+
+    const first = renderDialog(busy);
+    paste(OTHER);
+    fireEvent.click(screen.getByRole("button", { name: "연결" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(SENTENCE);
+    first.unmount();
+
+    // same origin: the work is kept, so no warning
+    const second = renderDialog(busy);
+    paste(SAME);
+    fireEvent.click(screen.getByRole("button", { name: "연결" }));
+    expect(await screen.findByRole("alertdialog")).not.toHaveTextContent("취소됩니다");
+    second.unmount();
+
+    // another hub but nothing active: no warning
+    const third = renderDialog(linked);
+    paste(OTHER);
+    fireEvent.click(screen.getByRole("button", { name: "연결" }));
+    expect(await screen.findByRole("alertdialog")).not.toHaveTextContent("취소됩니다");
+    third.unmount();
+
+    // legacy command form compares its --hub value
+    renderDialog(busy);
+    paste(`pazmo-office hub-link --project /p --hub https://other-hub.example.com --code ${"a".repeat(43)}`);
+    fireEvent.click(screen.getByRole("button", { name: "연결" }));
+    expect(await screen.findByRole("alertdialog")).toHaveTextContent(SENTENCE);
+  });
+
+  it("reports how many hub tasks a successful replacement cancelled", async () => {
+    apiMocks.linkHub.mockResolvedValueOnce({
+      linked: true,
+      member: "B",
+      repoName: "be-service",
+      hub: "https://other-hub.example.com",
+      created: false,
+      cancelledTasks: 3,
+    });
+    renderDialog({ ...linked, activeHubTasks: 3 });
+    paste(`https://other-hub.example.com/connect#c=${"b".repeat(43)}`);
+    fireEvent.click(screen.getByRole("button", { name: "연결" }));
+    await screen.findByRole("alertdialog");
+    fireEvent.click(screen.getByRole("button", { name: "바꾸기" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("이전 허브 작업 3건을 취소했습니다.");
+  });
+
+  it("says nothing about cancelled work when none was cancelled", async () => {
+    renderDialog(unlinked);
+    paste(CONNECTION);
+    fireEvent.click(screen.getByRole("button", { name: "연결" }));
+    const status = await screen.findByRole("status");
+    expect(status).not.toHaveTextContent("취소했습니다");
+  });
+
+  it("pasting an invite link shows the invite guidance instead of a connect host, and does not connect", async () => {
+    renderDialog(unlinked);
+    paste("https://pazmo-hub.apps.example.com/invite/abc123def");
+    expect(
+      screen.getByText("초대 링크입니다. 허브에 합류한 뒤 내 Office 연결에서 연결 문자열을 만드세요."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/에 연결합니다/)).toBeNull();
+    expect(screen.getByRole("button", { name: "연결" })).toBeDisabled();
+    paste(CONNECTION);
+    expect(screen.queryByText(/초대 링크입니다/)).toBeNull();
+    expect(screen.getByRole("button", { name: "연결" })).toBeEnabled();
   });
 
   it("a first link needs no replacement confirmation", async () => {

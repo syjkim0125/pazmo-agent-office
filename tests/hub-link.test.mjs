@@ -474,3 +474,31 @@ test("TLS failures that mean an untrusted hub are all reported as HUB_TLS_UNTRUS
     "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "SELF_SIGNED_CERT_IN_CHAIN", "DEPTH_ZERO_SELF_SIGNED_CERT", "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "CERT_HAS_EXPIRED", "ERR_TLS_CERT_ALTNAME_INVALID"])
     assert.ok(TLS_UNTRUSTED_CODES.has(code), code);
 });
+
+test("a tick whose link was replaced mid-fetch does not create, answer or end work for the old hub", async (t) => {
+  const { pair, dataDir, db, office } = await linked(t);
+  await pair();
+  const old = readLinkConfig(dataDir);
+  const work = {
+    assignments: [{ assignmentId: "as-old", body: "옛 허브 일", risk: "normal", requester: { name: "A" }, officeTaskId: null }],
+    answers: [{ answerId: "an-old", assignmentId: "as-old", decisionId: "d", option: 1, note: "n", member: { id: "m", name: "M" } }],
+    ended: [{ assignmentId: "as-end", officeTaskId: "t-end" }],
+  };
+  const posted = [];
+  const call = async (_cfg, method, path) => {
+    if (path === "/api/link/work") {
+      // The member relinks to another hub while this response is in flight.
+      writeLinkConfig(dataDir, { ...old, hub: "https://new.example.com", token: "new-token" });
+      return work;
+    }
+    posted.push([method, path]);
+    return {};
+  };
+  const { syncOnce } = createHubSync({ dataDir, db, office, call });
+  await syncOnce();
+  assert.deepEqual(office.calls.submit, [], "no old-hub task is created after the replacement");
+  assert.deepEqual(office.calls.reply, []);
+  assert.deepEqual(office.calls.cancel, []);
+  assert.deepEqual(posted, [], "nothing is reported to either hub from the stale tick");
+  assert.equal(db.prepare("SELECT COUNT(*) n FROM pazmo_hub_requests").get().n, 0);
+});

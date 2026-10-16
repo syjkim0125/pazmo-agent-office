@@ -42,6 +42,7 @@ const status = (over: Partial<HubStatus>): HubStatus => ({
   hub: null,
   member: null,
   repoName: null,
+  activeHubTasks: 0,
   ...over,
 });
 

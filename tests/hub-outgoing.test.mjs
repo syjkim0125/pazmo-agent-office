@@ -470,3 +470,211 @@ test("a legacy flag is cleared by link() and unlink()", async (t) => {
   gateway.unlink();
   assert.equal(gateway.status().legacy, false);
 });
+
+// ---- incoming requests: pulled during sync, accepted or declined through the hub ----
+/** A second Office (own data dir and database) linked to `repoId` as `member`, with its own gateway. */
+async function pairedOffice(t, ctx, member, repoId, remote) {
+  const dir = mkdtempSync(join(tmpdir(), "hub-in-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  await pairOffice({ dataDir: dir, hub: ctx.hub.url, code: ctx.store.createLinkCode(member, repoId), fingerprint: ctx.tls.fingerprint, remote });
+  const db = officeDb();
+  return { dir, db, cfg: () => readLinkConfig(dir), gateway: createHubGateway({ dataDir: dir, db, project: "/work/other" }) };
+}
+const FE_REMOTE = "https://g.example.com/t/fe";
+const pull = (office) => office.gateway.sync(office.cfg(), hubCall);
+
+test("sync pulls the repository's open requests and accepting one removes it and creates work", async (t) => {
+  const ctx = await linkedTeam(t);
+  const { gateway, store, b, fe, dataDir } = ctx;
+  assert.deepEqual(gateway.incoming(), { linked: true, upgradeRequired: false, items: [] });
+  const id = store.createRequest(b, fe, "목차 추가해줘", "high");
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  const { linked, upgradeRequired, items } = gateway.incoming();
+  assert.deepEqual([linked, upgradeRequired, items.length], [true, false, 1]);
+  assert.deepEqual([items[0].requestId, items[0].requester, items[0].body, items[0].risk], [id, "B", "목차 추가해줘", "high"]);
+  assert.deepEqual(await gateway.acceptIncoming(id), { ok: true, requestId: id });
+  assert.deepEqual(gateway.incoming().items, [], "gone as soon as the hub agreed");
+  const feLink = store.link(readLinkConfig(dataDir).token);
+  assert.equal(store.work(feLink).assignments.length, 1);
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  assert.deepEqual(gateway.incoming().items, [], "and the next sync does not bring it back");
+});
+
+test("a second owner accepting a request someone else took is told so and the request disappears", async (t) => {
+  const ctx = await linkedTeam(t);
+  const { gateway, store, admin, b, fe, dataDir } = ctx;
+  const c = store.acceptInvite(store.createInvite(admin, "C"), "c").member;
+  store.addOwner(admin, fe, c.id);
+  const other = await pairedOffice(t, ctx, c, fe, FE_REMOTE);
+  const id = store.createRequest(b, fe, "같이 보는 요청", "normal");
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  await pull(other);
+  assert.equal(other.gateway.incoming().items.length, 1);
+  await gateway.acceptIncoming(id);
+  await assert.rejects(other.gateway.acceptIncoming(id), { code: "ALREADY_ACCEPTED", message: "이미 다른 담당자가 맡았습니다." });
+  assert.deepEqual(other.gateway.incoming().items, []);
+  await pull(other);
+  assert.deepEqual(other.gateway.incoming().items, [], "the next sync agrees");
+});
+
+test("declining carries the reason back to the requester's outgoing list", async (t) => {
+  const ctx = await linkedTeam(t);
+  const { gateway, store, b, be } = ctx;
+  const sent = await gateway.send({ repoId: be, body: "필드 추가", risk: "normal", key: KEY, taskId: null });
+  const backend = await pairedOffice(t, ctx, b, be, "https://g.example.com/t/be");
+  await pull(backend);
+  assert.equal(backend.gateway.incoming().items[0].requestId, sent.requestId);
+  assert.deepEqual(await backend.gateway.declineIncoming(sent.requestId, "중복"), { ok: true, requestId: sent.requestId });
+  assert.deepEqual(backend.gateway.incoming().items, []);
+  await gateway.sync(readLinkConfig(ctx.dataDir), hubCall);
+  const [item] = gateway.outgoing().items;
+  assert.deepEqual([item.state, item.declined, item.declineNote], ["cancelled", true, "중복"]);
+  await assert.rejects(backend.gateway.declineIncoming(sent.requestId, ""), { code: "STATE", message: "이미 처리된 요청입니다." });
+});
+
+test("a requester's own cancel is not shown as declined, and an old outgoing table gains the new columns", async (t) => {
+  const { gateway, be, dataDir } = await linkedTeam(t);
+  const { requestId } = await gateway.send({ repoId: be, body: "x", risk: "normal", key: KEY, taskId: null });
+  await gateway.cancel(requestId);
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  const [item] = gateway.outgoing().items;
+  assert.deepEqual([item.declined, item.declineNote], [false, null]);
+  const old = new DatabaseSync(":memory:");
+  old.exec(`CREATE TABLE pazmo_hub_outgoing (request_id TEXT PRIMARY KEY, task_id TEXT, repo_name TEXT NOT NULL, source TEXT NOT NULL, sent_at INTEGER NOT NULL,
+    state TEXT NOT NULL DEFAULT 'open', status TEXT, assignee TEXT, summary TEXT, decisions_json TEXT NOT NULL DEFAULT '[]', updated_at INTEGER NOT NULL)`);
+  old.prepare("INSERT INTO pazmo_hub_outgoing(request_id,repo_name,source,sent_at,updated_at) VALUES ('r','repo','s',1,1)").run();
+  createHubGateway({ dataDir, db: old, project: "/p" });
+  createHubGateway({ dataDir, db: old, project: "/p" });
+  assert.deepEqual(old.prepare("SELECT declined,decline_note FROM pazmo_hub_outgoing").all().map((r) => ({ ...r })), [{ declined: 0, decline_note: null }]);
+});
+
+test("a hub without the incoming routes sets upgradeRequired and the outgoing sync still runs", async (t) => {
+  const { dataDir, db } = await linkedTeam(t);
+  const paths = [];
+  const oldCall = async (cfg, method, path) => {
+    paths.push(path);
+    if (path === "/api/link/outgoing") return { items: [{ requestId: "11111111-1111-4111-8111-111111111111", repoName: "r", state: "open", status: null, assignee: null, summary: null, decisions: [], updatedAt: 5, declined: false, declineNote: null, declinedBy: null }] };
+    throw Object.assign(new Error("HUB_404"), { code: "NOT_FOUND", status: 404 });
+  };
+  const old = createHubGateway({ dataDir, db, project: "/p", call: oldCall });
+  await old.sync(readLinkConfig(dataDir), oldCall);
+  assert.deepEqual(old.incoming(), { linked: true, upgradeRequired: true, items: [] });
+  assert.equal(old.outgoing().items.length, 1);
+  assert.ok(paths.includes("/api/link/incoming"));
+  await assert.rejects(old.acceptIncoming("11111111-1111-4111-8111-111111111111"), { code: "HUB_UPGRADE_REQUIRED", message: "허브를 업데이트해야 받은 요청을 볼 수 있습니다." });
+});
+
+test("a failing incoming pull never stops sync and keeps the last list; network errors are plain", async (t) => {
+  const ctx = await linkedTeam(t);
+  const { gateway, store, b, fe, dataDir, db } = ctx;
+  const id = store.createRequest(b, fe, "r", "normal");
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  assert.equal(gateway.incoming().items.length, 1);
+  let off = false;
+  const flaky = async (cfg, method, path, body, protocol) => {
+    if (off) throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
+    return hubCall(cfg, method, path, body, protocol);
+  };
+  const live = createHubGateway({ dataDir, db, project: "/p", call: flaky });
+  await live.sync(readLinkConfig(dataDir), flaky);
+  assert.equal(live.incoming().items.length, 1);
+  off = true;
+  await live.sync(readLinkConfig(dataDir), async (cfg, method, path, body, protocol) =>
+    path === "/api/link/incoming" ? flaky(cfg, method, path, body, protocol) : hubCall(cfg, method, path, body, protocol));
+  assert.equal(live.incoming().items.length, 1, "a failed pull keeps the last list");
+  assert.equal(live.incoming().upgradeRequired, false);
+  await assert.rejects(live.acceptIncoming(id), { code: "HUB_UNREACHABLE" });
+  assert.equal(live.incoming().items.length, 1, "an unreachable hub changes nothing");
+  const gone = createHubGateway({ dataDir, db, project: "/p", call: async () => { throw Object.assign(new Error("HUB_404"), { code: "NOT_FOUND", status: 404 }); } });
+  await assert.rejects(gone.acceptIncoming(id), { code: "HUB_UPGRADE_REQUIRED", message: "허브를 업데이트해야 받은 요청을 볼 수 있습니다." });
+  await assert.rejects(gone.declineIncoming(id, "x"), { code: "HUB_UPGRADE_REQUIRED" });
+});
+
+test("accept and decline refuse bad ids and an unlinked Office, and unknown requests read as already handled", async (t) => {
+  const { gateway, dataDir, db } = await linkedTeam(t);
+  await assert.rejects(gateway.acceptIncoming("nope"), { code: "INVALID_REQUEST" });
+  await assert.rejects(gateway.declineIncoming(7, "x"), { code: "INVALID_REQUEST" });
+  const unlinked = createHubGateway({ dataDir: mkdtempSync(join(tmpdir(), "hub-none-")), db: officeDb(), project: "/p" });
+  assert.deepEqual(unlinked.incoming(), { linked: false, upgradeRequired: false, items: [] });
+  await assert.rejects(unlinked.acceptIncoming("00000000-0000-4000-8000-000000000000"), { code: "HUB_NOT_LINKED" });
+  await assert.rejects(gateway.acceptIncoming("00000000-0000-4000-8000-000000000000"), { code: "NOT_FOUND", message: "이미 처리된 요청입니다." });
+  const long = createHubGateway({ dataDir, db, project: "/p", call: async () => { throw Object.assign(new Error("거절 사유는 500자까지입니다."), { code: "INVALID", status: 400 }); } });
+  await assert.rejects(long.declineIncoming("00000000-0000-4000-8000-000000000000", "가".repeat(501)), { code: "INVALID", message: "거절 사유는 500자까지입니다." });
+});
+
+test("a pull that finishes after the link changed never shows the old repository's requests", async (t) => {
+  const { gateway, store, b, fe, dataDir, db } = await linkedTeam(t);
+  store.createRequest(b, fe, "r", "normal");
+  const cfg = readLinkConfig(dataDir);
+  const racing = createHubGateway({ dataDir, db, project: "/p" });
+  await racing.sync(cfg, async (c, method, path, body, protocol) => {
+    const value = await hubCall(c, method, path, body, protocol);
+    // Relinked to another hub while this answer was on its way.
+    if (path === "/api/link/incoming") writeLinkConfig(dataDir, { ...cfg, hub: "https://other-hub.example.com", token: "other-token" });
+    return value;
+  });
+  assert.deepEqual(racing.incoming(), { linked: true, upgradeRequired: false, items: [] });
+  // An older list is hidden too once the config's token no longer matches the one it came from.
+  writeLinkConfig(dataDir, cfg);
+  await gateway.sync(cfg, hubCall);
+  assert.equal(gateway.incoming().items.length, 1);
+  writeLinkConfig(dataDir, { ...cfg, token: "another-token" });
+  assert.deepEqual(gateway.incoming().items, []);
+});
+
+test("a legacy hub shows no incoming list and asks for an upgrade; the list is a copy", async (t) => {
+  const { gateway, store, b, fe, dataDir } = await linkedTeam(t);
+  store.createRequest(b, fe, "r", "normal");
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  const copy = gateway.incoming().items;
+  copy.length = 0;
+  assert.equal(gateway.incoming().items.length, 1, "callers cannot empty the gateway's list");
+  gateway.setLegacy(true);
+  assert.deepEqual(gateway.incoming(), { linked: true, upgradeRequired: true, items: [] });
+  gateway.setLegacy(false);
+  assert.equal(gateway.incoming().items.length, 1);
+});
+
+test("link() and unlink() reset the incoming list and its upgrade flag", async (t) => {
+  const { gateway, text, b, admin, dataDir, store } = await connectFixture(t);
+  await gateway.link(text(b));
+  const repo = readLinkConfig(dataDir).repoId;
+  const asked = store.createRequest(store.acceptInvite(store.createInvite(admin, "X"), "x").member, repo, "r", "normal");
+  const pullIncoming = () => gateway.sync(readLinkConfig(dataDir), hubCall);
+  await pullIncoming();
+  assert.deepEqual(gateway.incoming().items.map((x) => x.requestId), [asked]);
+  await gateway.link(text(b));
+  assert.deepEqual(gateway.incoming().items, [], "relinking drops the earlier list");
+  await pullIncoming();
+  assert.equal(gateway.incoming().items.length, 1);
+  gateway.unlink();
+  assert.deepEqual(gateway.incoming(), { linked: false, upgradeRequired: false, items: [] });
+  await gateway.link(text(b));
+  assert.deepEqual(gateway.incoming().items, [], "and so does unlink then link");
+  // The upgrade flag: set by an old hub's 404, cleared by link() and unlink().
+  const oldHub = (cfg, method, path, body, protocol) =>
+    path === "/api/link/incoming" ? Promise.reject(Object.assign(new Error("HUB_404"), { code: "NOT_FOUND", status: 404 })) : hubCall(cfg, method, path, body, protocol);
+  await gateway.sync(readLinkConfig(dataDir), oldHub);
+  assert.equal(gateway.incoming().upgradeRequired, true);
+  await gateway.link(text(b));
+  assert.equal(gateway.incoming().upgradeRequired, false);
+  await gateway.sync(readLinkConfig(dataDir), oldHub);
+  assert.equal(gateway.incoming().upgradeRequired, true);
+  gateway.unlink();
+  await gateway.link(text(b));
+  assert.equal(gateway.incoming().upgradeRequired, false);
+});
+
+test("accepting a request that was declined reads as already handled, not taken by someone else", async (t) => {
+  const ctx = await linkedTeam(t);
+  const { gateway, store, b, fe, admin, dataDir } = ctx;
+  const c = store.acceptInvite(store.createInvite(admin, "C"), "c").member;
+  store.addOwner(admin, fe, c.id);
+  const other = await pairedOffice(t, ctx, c, fe, FE_REMOTE);
+  const id = store.createRequest(b, fe, "거절될 요청", "normal");
+  await gateway.sync(readLinkConfig(dataDir), hubCall);
+  await pull(other);
+  await gateway.declineIncoming(id, "범위 밖");
+  await assert.rejects(other.gateway.acceptIncoming(id), { code: "STATE", message: "이미 처리된 요청입니다." });
+  assert.deepEqual(other.gateway.incoming().items, []);
+});

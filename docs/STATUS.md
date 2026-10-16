@@ -1,3 +1,14 @@
+# 2026-10-16 받은 팀 허브 요청을 Office Inbox에서 수락·거절
+
+- 담당자는 자기 레포로 들어온 대기 중 요청을 Office **Tasks Inbox 맨 위 "받은 팀 허브 요청"**에서 수락하거나 사유와 함께 거절한다(M14·D22). 거절하면 요청이 닫히고 요청자의 Office 카드와 허브에 "거절됨 · 사유"가 보인다. 허브 웹에도 거절이 생겼다. 다른 허브로 연결을 바꾸면 확인 후 이전 허브 작업을 취소한다(이전 허브에는 알리지 않는다).
+- root 시험 간헐 실패의 원인(CLI 허브가 결과 줄을 찍은 뒤 신호 처리기를 등록)을 찾아 고쳤다.
+- 자동 검사:
+  - root 721/721, 타입 검사 exit 0
+  - vendor 232/234(이전부터 실패하던 sprite-avatar 2건), tsc exit 0
+  - 빌드 exit 0
+  - Task별 리뷰와 보안 포함 전체 리뷰: Important를 모두 고쳤다(재검토 Approved).
+- **허브 재배포 후 Fusion 실제 확인(두 건 수락·거절)과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#받은-요청-office에서-수락거절) · [검증 기록](verification/2026-10-16-team-hub-office-inbox.md) · [G3 결정](understanding/team-hub-office-inbox-decision.md)
+
 # 2026-10-15 Office 캐릭터 역할 중심 정리 (B)
 
 - Office 화면에는 실제로 역할을 맡는 캐릭터(PM/리드/개발/리뷰)와 작업 중인 캐릭터만 보이고, 역할 이름으로 표시된다(M13·D21). 빈 부서 방은 그리지 않는다. DB의 캐릭터는 바꾸지 않고, 남은 캐릭터의 그림도 그대로다. 실제 Office(claw 엔진)는 원본 14명 중 Clio·Sage·Aria·Hawk만 보인다.

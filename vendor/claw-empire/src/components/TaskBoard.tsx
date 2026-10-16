@@ -1,8 +1,16 @@
 // Modified by Pazmo: disable empty-board mutation controls in the locked preview.
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { bulkHideTasks, getHubOutgoing, getHubStatus, type HubOutgoingItem } from "../api";
+import {
+  bulkHideTasks,
+  getHubIncoming,
+  getHubOutgoing,
+  getHubStatus,
+  type HubOutgoingItem,
+  type IncomingItem,
+} from "../api";
 import { useI18n } from "../i18n";
 import type { Agent, Department, SubTask, Task, WorkflowPackKey } from "../types";
+import IncomingRequests from "./hub/IncomingRequests";
 import ProjectManagerModal from "./ProjectManagerModal";
 import BulkHideModal from "./taskboard/BulkHideModal";
 import CreateTaskModal from "./taskboard/CreateTaskModal";
@@ -71,18 +79,28 @@ export function TaskBoard({
   const [hubLinked, setHubLinked] = useState(false);
   const [hubLegacy, setHubLegacy] = useState(false);
   const [hubOutgoing, setHubOutgoing] = useState<HubOutgoingItem[]>([]);
+  const [hubIncoming, setHubIncoming] = useState<{ upgradeRequired: boolean; items: IncomingItem[] } | null>(null);
   const loadHub = useCallback(() => {
     getHubStatus()
-      .then((s) => {
+      .then(async (s) => {
         setHubLinked(s.linked && !s.legacy);
         setHubLegacy(s.linked && s.legacy);
-        return s.linked ? getHubOutgoing() : { linked: false, items: [] };
+        if (!s.linked) return { outgoing: { linked: false, items: [] as HubOutgoingItem[] }, incoming: null };
+        // Received requests are best effort: a failure there must not hide the sent-request chips,
+        // and keeps what is on screen (undefined) instead of unmounting the group.
+        const [outgoing, incoming] = await Promise.all([getHubOutgoing(), getHubIncoming().catch(() => undefined)]);
+        return { outgoing, incoming };
       })
-      .then((o) => setHubOutgoing(o.items))
+      .then(({ outgoing, incoming }) => {
+        setHubOutgoing(outgoing.items);
+        if (incoming === undefined) return;
+        setHubIncoming(incoming?.linked ? { upgradeRequired: incoming.upgradeRequired, items: incoming.items } : null);
+      })
       .catch(() => {
         // An Office without the hub routes (preview) simply hides the feature.
         setHubLinked(false);
         setHubLegacy(false);
+        setHubIncoming(null);
       });
   }, []);
   useEffect(() => {
@@ -284,6 +302,13 @@ export function TaskBoard({
               </div>
 
               <div className="flex flex-col gap-2.5 p-2.5 sm:flex-1 sm:overflow-y-auto">
+                {column.status === "inbox" && hubIncoming && (
+                  <IncomingRequests
+                    items={hubIncoming.items}
+                    upgradeRequired={hubIncoming.upgradeRequired}
+                    onChanged={loadHub}
+                  />
+                )}
                 {columnTasks.length === 0 ? (
                   <div className="flex min-h-24 items-center justify-center py-8 text-xs text-slate-600 sm:flex-1">
                     {t({ ko: "업무 없음", en: "No tasks", ja: "タスクなし", zh: "暂无任务" })}

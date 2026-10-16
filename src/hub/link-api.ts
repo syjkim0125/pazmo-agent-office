@@ -26,9 +26,12 @@ const ROUTES: Record<string, "GET" | "POST"> = {
   "/api/link/outgoing": "GET",
   "/api/link/outgoing-answer": "POST",
   "/api/link/outgoing-cancel": "POST",
+  "/api/link/incoming": "GET",
+  "/api/link/incoming-accept": "POST",
+  "/api/link/incoming-decline": "POST",
 };
 /** Routes that exist only from protocol 2; phase-1 Offices never call them. */
-const V2_ONLY = new Set(["/api/link/repos", "/api/link/requests", "/api/link/outgoing", "/api/link/outgoing-answer", "/api/link/outgoing-cancel"]);
+const V2_ONLY = new Set(["/api/link/repos", "/api/link/requests", "/api/link/outgoing", "/api/link/outgoing-answer", "/api/link/outgoing-cancel", "/api/link/incoming", "/api/link/incoming-accept", "/api/link/incoming-decline"]);
 const nullableStr = (body: Record<string, unknown>, key: string): string | null =>
   body[key] === null ? null : str(body, key);
 const risk = (body: Record<string, unknown>): "normal" | "high" => {
@@ -77,7 +80,11 @@ export function linkApi(store: HubStore) {
       if (path === "/api/link/work") return json(res, 200, store.work(link));
       if (path === "/api/link/repos") return json(res, 200, { repos: store.linkRepos(link) });
       if (path === "/api/link/outgoing") return json(res, 200, { items: store.outgoing(link) });
+      if (path === "/api/link/incoming") return json(res, 200, { items: store.incoming(link) });
       const body = parse(await readBody(req, LINK_LIMIT));
+      if (path === "/api/link/incoming-accept") return json(res, 200, store.acceptIncoming(link, str(body, "requestId")));
+      if (path === "/api/link/incoming-decline")
+        return json(res, 200, store.declineIncoming(link, str(body, "requestId"), body.reason === undefined || body.reason === null ? undefined : str(body, "reason")));
       if (path === "/api/link/requests")
         return json(res, 200, store.createFromLink(link, {
           repoId: str(body, "repoId"), body: str(body, "body"), risk: risk(body), key: str(body, "key"),
