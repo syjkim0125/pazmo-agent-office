@@ -107,23 +107,29 @@ export default function TaskCard({
   const canDelete = !task.workflow && task.status !== "in_progress";
   const canHideTask = isHideableStatus(task.status);
   const hubLabel = (x: HubOutgoingItem) =>
-    x.state === "open"
-      ? t({ ko: "맡을 사람 대기", en: "Waiting for owner" })
-      : x.state === "done"
-        ? t({ ko: "완료", en: "Done" })
-        : x.state === "cancelled"
-          ? t({ ko: "취소", en: "Cancelled" })
-          : x.status === "waiting"
-            ? t({ ko: "답변 대기", en: "Waiting for answer" })
-            : t({ ko: "진행 중", en: "In progress" });
+    x.declined
+      ? x.declineNote
+        ? t({ ko: `거절됨 · ${x.declineNote}`, en: `Declined · ${x.declineNote}` })
+        : t({ ko: "거절됨", en: "Declined" })
+      : x.state === "open"
+        ? t({ ko: "맡을 사람 대기", en: "Waiting for owner" })
+        : x.state === "done"
+          ? t({ ko: "완료", en: "Done" })
+          : x.state === "cancelled"
+            ? t({ ko: "취소", en: "Cancelled" })
+            : x.status === "waiting"
+              ? t({ ko: "답변 대기", en: "Waiting for answer" })
+              : t({ ko: "진행 중", en: "In progress" });
   // Same badge pairs as the task-type badges (all remapped by the light theme).
   const hubChipTone = (x: HubOutgoingItem) =>
-    x.state === "done"
-      ? "bg-teal-900 text-teal-300"
-      : x.state === "cancelled"
-        ? "bg-slate-700 text-slate-300"
-        : "bg-indigo-900 text-indigo-300";
-  const hubCancellable = (x: HubOutgoingItem) => x.state === "open" || x.state === "accepted";
+    x.declined
+      ? "bg-red-900 text-red-300"
+      : x.state === "done"
+        ? "bg-teal-900 text-teal-300"
+        : x.state === "cancelled"
+          ? "bg-slate-700 text-slate-300"
+          : "bg-indigo-900 text-indigo-300";
+  const hubCancellable = (x: HubOutgoingItem) => !x.declined && (x.state === "open" || x.state === "accepted");
   const cancelSent = async (x: HubOutgoingItem) => {
     if (cancellingHubRequestId === x.requestId) return;
     setHubCancelError(null);

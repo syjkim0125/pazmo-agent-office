@@ -103,11 +103,13 @@ export async function startHub(input: RunHubInput) {
 /** Runs in the foreground until SIGINT/SIGTERM; the first stdout line is the result. */
 export async function runHub(input: RunHubInput) {
   const hub = await startHub(input);
-  console.log(JSON.stringify(hub.result));
-  await new Promise<void>((resolve) => {
+  // Install before printing: a supervisor may signal as soon as it reads the first line.
+  const stopped = new Promise<void>((resolve) => {
     process.once("SIGINT", resolve);
     process.once("SIGTERM", resolve);
   });
+  console.log(JSON.stringify(hub.result));
+  await stopped;
   await hub.stop();
   return { stopped: true as const };
 }

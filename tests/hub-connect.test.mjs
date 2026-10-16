@@ -28,3 +28,11 @@ test("anything else is refused with a plain message", () => {
     `pazmo-office hub-link --hub https://h.example --code ${CODE} --fingerprint=${FP}`, `pazmo-office hub-link --hub https://h.example --code ${CODE} --fingerprint AB:CD`, `pazmo-office hub-link --hub https://h.example --code ${CODE} --fingerprint :::`])
     assert.throws(() => parseConnection(bad), { code: "HUB_CONNECT_INVALID", message: "연결 문자열 형식이 아닙니다. 허브의 내 Office 연결에서 복사해 주세요." }, bad);
 });
+
+test("a pasted invite link is recognised and pointed to the connection string", () => {
+  const invite = "초대 링크입니다. 허브에 합류한 뒤 내 Office 연결에서 연결 문자열을 만드세요.";
+  for (const text of [`https://pazmo-hub.apps.example.com/invite/${CODE}`, ` "https://192.168.0.2:8443/invite/${CODE}" `, `https://h.example/invite/${CODE}#x`, "https://h.example/invite/"])
+    assert.throws(() => parseConnection(text), { code: "HUB_CONNECT_INVITE", message: invite }, text);
+  for (const text of [`http://h.example/invite/${CODE}`, `https://h.example/invitex/${CODE}`, `https://h.example/connect/invite/${CODE}`])
+    assert.throws(() => parseConnection(text), { code: "HUB_CONNECT_INVALID" }, text);
+});

@@ -135,11 +135,12 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     }
     if (path === "/requests")
       return redirect(res, `/requests/${c.store.createRequest(me, f("repo"), f("body"), f("risk") as "normal" | "high")}`);
-    if ((m = new RegExp(`^/requests/${ID}/(accept|release|cancel|answer)$`).exec(path))) {
+    if ((m = new RegExp(`^/requests/${ID}/(accept|release|cancel|decline|answer)$`).exec(path))) {
       const [, id, action] = m;
       if (action === "accept") c.store.accept(me, id);
       else if (action === "release") c.store.release(me, id);
       else if (action === "cancel") c.store.cancel(me, id);
+      else if (action === "decline") c.store.decline(me, id, f("reason"));
       else c.store.answer(me, id, f("decision"), Number(f("option")), f("note"));
       return redirect(res, `/requests/${id}`);
     }

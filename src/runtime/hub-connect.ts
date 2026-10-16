@@ -9,6 +9,8 @@ const CODE = /^[A-Za-z0-9_-]{43}$/;
 /** A CA SHA-256 fingerprint as the hub prints it: 32 colon-separated bytes. */
 const FINGERPRINT = /^([0-9A-Fa-f]{2}:){31}[0-9A-Fa-f]{2}$/;
 
+const INVITE = "초대 링크입니다. 허브에 합류한 뒤 내 Office 연결에서 연결 문자열을 만드세요.";
+
 function invalid(): never {
   return fail("HUB_CONNECT_INVALID", INVALID);
 }
@@ -52,6 +54,8 @@ export function parseConnection(text: string): Connection {
   } catch {
     return invalid();
   }
+  // An invite link is a different thing to paste here: say so instead of calling it malformed.
+  if (url.protocol === "https:" && url.pathname.startsWith("/invite/")) return fail("HUB_CONNECT_INVITE", INVITE);
   if (url.protocol !== "https:" || url.username || url.password || url.pathname !== "/connect" || url.search) return invalid();
   // The fragment is exactly `c=<code>` and optionally `fp=<fingerprint>`, each once, nothing else.
   const found = new Map<string, string>();

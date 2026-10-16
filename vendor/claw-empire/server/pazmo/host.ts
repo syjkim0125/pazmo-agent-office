@@ -40,6 +40,10 @@ export type NativeOfficeBridge = {
   hubRepos?(): Promise<unknown>;
   hubSend?(input: unknown): Promise<unknown>;
   hubOutgoing?(): unknown;
+  /** Requests other members sent to this Office's repository, and the answer to each. */
+  hubIncoming?(): unknown;
+  hubAcceptIncoming?(requestId: string): Promise<unknown>;
+  hubDeclineIncoming?(requestId: string, reason: string): Promise<unknown>;
   hubCancel?(requestId: string): Promise<unknown>;
   /** Pairs this Office with the hub from a pasted connection string / removes that link. */
   hubLink?(text: string): Promise<unknown>;
@@ -142,6 +146,23 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
         if (req.method === "POST" && req.path === "/hub/unlink" && office.hubUnlink) {
           if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
           return res.json(await office.hubUnlink());
+        }
+        if (req.method === "GET" && req.path === "/hub/incoming" && office.hubIncoming) return res.json(office.hubIncoming());
+        const incoming = req.path.match(/^\/hub\/incoming\/([^/]+)\/(accept|decline)$/);
+        if (incoming && req.method === "POST" && office.hubAcceptIncoming && office.hubDeclineIncoming) {
+          // Accepting or declining acts in the member's name on the team hub; require the session's CSRF token.
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          let id: string;
+          try {
+            id = decodeURIComponent(incoming[1]); // req.path stays percent-encoded
+          } catch {
+            return res.status(409).json({ error: "INVALID_REQUEST", message: "요청 ID 형식이 아닙니다." });
+          }
+          return res.json(
+            incoming[2] === "accept"
+              ? await office.hubAcceptIncoming(id)
+              : await office.hubDeclineIncoming(id, String(req.body?.reason ?? "")),
+          );
         }
         const cancel = req.path.match(/^\/hub\/outgoing\/([^/]+)\/cancel$/);
         if (cancel && req.method === "POST" && office.hubCancel) {

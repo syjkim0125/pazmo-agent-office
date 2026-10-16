@@ -2,7 +2,7 @@ import { mkdirSync } from "node:fs";
 import { basename } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { fail } from "../cli/project.ts";
-import { HUB_LEGACY_PROTOCOL, HUB_PROTOCOL, type OutgoingDecision, type OutgoingView } from "../hub/protocol.ts";
+import { HUB_LEGACY_PROTOCOL, HUB_PROTOCOL, type IncomingView, type OutgoingDecision, type OutgoingView } from "../hub/protocol.ts";
 import { hubCall, pairOffice, readLinkConfig, removeLinkConfig, type HubLinkConfig } from "./hub-link.ts";
 import { parseConnection, projectRemote } from "./hub-connect.ts";
 
@@ -24,9 +24,14 @@ export type OutgoingItem = {
   assignee: string | null;
   summary: string | null;
   updatedAt: number;
+  /** True only when an owner of the other repository declined it; the requester's own cancel is not. */
+  declined: boolean;
+  declineNote: string | null;
   url: string;
 };
 type Row = Omit<OutgoingItem, "url"> & { decisions: OutgoingDecision[] };
+const UPGRADE_INCOMING = "허브를 업데이트해야 받은 요청을 볼 수 있습니다.";
+const HANDLED = "이미 처리된 요청입니다.";
 export type HubGateway = ReturnType<typeof createHubGateway>;
 
 /** Requests this Office sent to other repositories, and the bridge to the hub
@@ -35,10 +40,19 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
   const { db } = deps;
   const call = deps.call ?? hubCall;
   let legacy = false;
+  /** Open requests other Offices sent to this link's repository, as of the last sync. */
+  let incomingItems: IncomingView[] = [];
+  let incomingUpgrade = false;
+  /** The link token the list above was pulled with: a list from another link is never shown. */
+  let incomingToken: string | null = null;
   db.exec(`CREATE TABLE IF NOT EXISTS pazmo_hub_outgoing (
     request_id TEXT PRIMARY KEY, task_id TEXT, repo_name TEXT NOT NULL, source TEXT NOT NULL, sent_at INTEGER NOT NULL,
     state TEXT NOT NULL DEFAULT 'open', status TEXT, assignee TEXT, summary TEXT, decisions_json TEXT NOT NULL DEFAULT '[]',
-    updated_at INTEGER NOT NULL)`);
+    updated_at INTEGER NOT NULL, declined INTEGER NOT NULL DEFAULT 0, decline_note TEXT)`);
+  // Tables created before decline info existed gain its columns; idempotent.
+  const have = new Set((db.prepare("PRAGMA table_info(pazmo_hub_outgoing)").all() as { name: string }[]).map((c) => c.name));
+  if (!have.has("declined")) db.exec("ALTER TABLE pazmo_hub_outgoing ADD COLUMN declined INTEGER NOT NULL DEFAULT 0");
+  if (!have.has("decline_note")) db.exec("ALTER TABLE pazmo_hub_outgoing ADD COLUMN decline_note TEXT");
   const config = (): HubLinkConfig | null => {
     try {
       return readLinkConfig(deps.dataDir);
@@ -74,6 +88,8 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       assignee: (r.assignee as string | null) ?? null,
       summary: (r.summary as string | null) ?? null,
       updatedAt: r.updated_at as number,
+      declined: r.declined === 1,
+      declineNote: (r.decline_note as string | null) ?? null,
       decisions: JSON.parse(r.decisions_json as string) as OutgoingDecision[],
     }));
   function parseSend(input: unknown) {
@@ -125,6 +141,35 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
     db.prepare("UPDATE pazmo_hub_outgoing SET state='cancelled', decisions_json='[]', updated_at=? WHERE request_id=?").run(Date.now(), requestId);
     return { ok: true as const, requestId };
   }
+  /** Takes or declines an incoming request on the hub. The request leaves the local list whenever the hub
+   * says it is no longer open here (taken, handled, or not this repository's). */
+  async function incomingAction(path: "/api/link/incoming-accept" | "/api/link/incoming-decline", requestId: unknown, extra: Record<string, unknown> = {}) {
+    if (typeof requestId !== "string" || !UUID.test(requestId)) return fail("INVALID_REQUEST", "요청 ID 형식이 아닙니다.");
+    const cfg = linked();
+    if (legacy) fail("HUB_UPGRADE_REQUIRED", UPGRADE_INCOMING);
+    const forget = () => {
+      incomingItems = incomingItems.filter((x) => x.requestId !== requestId);
+    };
+    try {
+      await remote(cfg, "POST", path, { requestId, ...extra });
+    } catch (error) {
+      const e = error as { code?: string; message?: string };
+      // A hub without this route answers its generic 404 with no message; scope refusals carry one.
+      if (e.code === "HUB_UPGRADE_REQUIRED" || (e.code === "NOT_FOUND" && (!e.message || e.message === "HUB_404")))
+        return fail("HUB_UPGRADE_REQUIRED", UPGRADE_INCOMING);
+      if (e.code === "ALREADY_ACCEPTED") {
+        forget();
+        return fail("ALREADY_ACCEPTED", "이미 다른 담당자가 맡았습니다.");
+      }
+      if (e.code === "STATE" || e.code === "NOT_FOUND") {
+        forget();
+        return fail(e.code, HANDLED);
+      }
+      throw error;
+    }
+    forget();
+    return { ok: true as const, requestId };
+  }
   return {
     status() {
       const cfg = config();
@@ -156,6 +201,9 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
         return fail("HUB_UNREACHABLE", "허브에 연결할 수 없습니다. 허브가 켜져 있고 같은 네트워크인지 확인해주세요.");
       }
       legacy = false;
+      incomingItems = [];
+      incomingUpgrade = false;
+      incomingToken = null;
       return {
         linked: true as const,
         member: paired.memberName,
@@ -167,6 +215,9 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
     unlink() {
       removeLinkConfig(deps.dataDir);
       legacy = false;
+      incomingItems = [];
+      incomingUpgrade = false;
+      incomingToken = null;
       return { linked: false as const };
     },
     async repos() {
@@ -207,6 +258,17 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       return { linked: true, items: rows().map(({ decisions: _d, ...r }) => ({ ...r, url: `${cfg.hub}/requests/${r.requestId}` })) };
     },
     cancel,
+    /** Requests other Offices sent to this repository, waiting for someone here to take or decline them. */
+    incoming() {
+      const cfg = config();
+      if (!cfg) return { linked: false, upgradeRequired: false, items: [] as IncomingView[] };
+      // Protocol 1 hubs have no incoming routes; a list fetched with another link's token is stale.
+      const mine = incomingToken === cfg.token;
+      return { linked: true, upgradeRequired: legacy || (mine && incomingUpgrade), items: legacy || !mine ? [] : [...incomingItems] };
+    },
+    acceptIncoming: (requestId: string) => incomingAction("/api/link/incoming-accept", requestId),
+    declineIncoming: (requestId: string, reason: string) =>
+      incomingAction("/api/link/incoming-decline", requestId, { reason: typeof reason === "string" ? reason : "" }),
     /** Decisions-inbox items for the requester gates of requests sent from here. */
     decisions() {
       return rows().flatMap((r) =>
@@ -271,13 +333,31 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       const { items } = (await c(cfg, "GET", "/api/link/outgoing", undefined, HUB_PROTOCOL)) as { items: OutgoingView[] };
       // A request whose send reply was lost is unknown here: record it without a task or source.
       const upsert = db.prepare(
-        `INSERT INTO pazmo_hub_outgoing(request_id,task_id,repo_name,source,sent_at,state,status,assignee,summary,decisions_json,updated_at)
-         VALUES (?,NULL,?,'',?,?,?,?,?,?,?)
+        `INSERT INTO pazmo_hub_outgoing(request_id,task_id,repo_name,source,sent_at,state,status,assignee,summary,decisions_json,updated_at,declined,decline_note)
+         VALUES (?,NULL,?,'',?,?,?,?,?,?,?,?,?)
          ON CONFLICT(request_id) DO UPDATE SET state=excluded.state,status=excluded.status,assignee=excluded.assignee,
-           summary=excluded.summary,decisions_json=excluded.decisions_json,updated_at=excluded.updated_at`,
+           summary=excluded.summary,decisions_json=excluded.decisions_json,updated_at=excluded.updated_at,
+           declined=excluded.declined,decline_note=excluded.decline_note`,
       );
       for (const x of items)
-        upsert.run(x.requestId, x.repoName, x.updatedAt, x.state, x.status, x.assignee, x.summary, JSON.stringify(x.decisions), x.updatedAt);
+        upsert.run(x.requestId, x.repoName, x.updatedAt, x.state, x.status, x.assignee, x.summary, JSON.stringify(x.decisions), x.updatedAt,
+          x.declined ? 1 : 0, x.declined ? (x.declineNote ?? null) : null);
+      // Incoming is best effort: an old hub (404) is flagged, any other failure keeps the last list, and neither stops the sync.
+      try {
+        const got = (await c(cfg, "GET", "/api/link/incoming", undefined, HUB_PROTOCOL)) as { items?: IncomingView[] };
+        // The link may have been replaced or removed while the hub was answering: that answer is for the old one.
+        if (config()?.token === cfg.token) {
+          incomingItems = Array.isArray(got?.items) ? got.items : [];
+          incomingUpgrade = false;
+          incomingToken = cfg.token;
+        }
+      } catch (error) {
+        if ((error as { status?: number }).status === 404 && config()?.token === cfg.token) {
+          incomingItems = [];
+          incomingUpgrade = true;
+          incomingToken = cfg.token;
+        }
+      }
     },
     setLegacy(value: boolean) {
       legacy = value;

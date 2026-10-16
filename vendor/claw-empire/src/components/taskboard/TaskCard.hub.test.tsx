@@ -55,6 +55,8 @@ it("shows the send button only when the Office is linked, and outgoing chips for
           summary: null,
           updatedAt: 1,
           url: "https://h/requests/r1",
+          declined: false,
+          declineNote: null,
         },
       ]}
     />,
@@ -84,6 +86,8 @@ const chip = (over: Partial<api.HubOutgoingItem>): api.HubOutgoingItem => ({
   summary: null,
   updatedAt: 1,
   url: "https://h/requests/r1",
+  declined: false,
+  declineNote: null,
   ...over,
 });
 
@@ -188,4 +192,21 @@ it("disables the confirm button while its request is in flight, so a second clic
   resolveCancel({ ok: true, requestId: REQUEST_ID });
   await waitFor(() => expect(changed).toHaveBeenCalled());
   await waitFor(() => expect(screen.getByRole("button", { name: CANCEL_X })).toBeEnabled());
+});
+
+it("a declined sent request shows 거절됨-style chip with the reason and has no cancel button", () => {
+  const { rerender } = renderWithDialogs(
+    <TaskCard
+      {...props}
+      task={task}
+      hubLinked
+      hubOutgoing={[chip({ state: "cancelled", declined: true, declineNote: "Duplicate" })]}
+    />,
+  );
+  expect(screen.getByText(/checkout-backend · Declined · Duplicate/)).toBeInTheDocument();
+  expect(screen.queryByText(/checkout-backend · Cancelled/)).toBeNull();
+  expect(screen.queryByRole("button", { name: CANCEL_X })).toBeNull();
+  rerender(<TaskCard {...props} task={task} hubLinked hubOutgoing={[chip({ state: "cancelled", declined: true })]} />);
+  expect(screen.getByText(/checkout-backend · Declined$/)).toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: CANCEL_X })).toBeNull();
 });

@@ -15,6 +15,8 @@ async function server(t) {
   const replied = [];
   const cancelled = [];
   const linked = [];
+  const accepted = [];
+  const declined = [];
   let unlinks = 0;
   const bridge = {
     status: () => ({ execution: "ready", active: [] }),
@@ -43,6 +45,14 @@ async function server(t) {
       return { linked: true, member: "B", repoName: "be-service", hub: "https://h", created: true };
     },
     hubUnlink: () => (unlinks++, { linked: false }),
+    hubIncoming: () => ({ linked: true, upgradeRequired: false, items: [{ requestId: "in1", requester: "A", body: "일", risk: "normal" }] }),
+    hubAcceptIncoming: async (id) => {
+      accepted.push(id);
+      if (id === "taken") throw Object.assign(new Error("이미 다른 담당자가 맡았습니다."), { code: "ALREADY_ACCEPTED" });
+      if (id === "off") throw Object.assign(new Error("실행 모드(live)에서만 팀 허브에 연결할 수 있습니다."), { code: "HUB_NOT_LIVE" });
+      return { ok: true, requestId: id };
+    },
+    hubDeclineIncoming: async (id, reason) => (declined.push([id, reason]), { ok: true, requestId: id }),
     hubRepos: async () => ({ repos: [{ id: "be", name: "checkout-backend", owners: ["B"] }] }),
     hubOutgoing: () => ({ linked: true, items: [] }),
     hubCancel: async (id) => (cancelled.push(id), id === "ended" ? Promise.reject(Object.assign(new Error("이미 끝난 요청이에요."), { code: "ALREADY_ENDED" })) : { ok: true, requestId: id }),
@@ -70,7 +80,7 @@ async function server(t) {
     });
     return { status: res.status, json: await res.json() };
   };
-  return { call, checked, refreshes, sent, replied, cancelled, linked, unlinks: () => unlinks, upstream: () => upstream };
+  return { call, accepted, declined, checked, refreshes, sent, replied, cancelled, linked, unlinks: () => unlinks, upstream: () => upstream };
 }
 
 test("hub routes, sends and hub-decision replies come from the Office and need the session CSRF token", async (t) => {
@@ -109,6 +119,7 @@ test("hub routes, sends and hub-decision replies come from the Office and need t
   assert.deepEqual([ended.status, ended.json.error], [409, "ALREADY_ENDED"]);
   assert.equal((await s.call("GET", cancelPath)).status, 404);
   await linkChecks(s);
+  await incomingChecks(s);
 });
 
 // The host is configured once per process, so this runs inside the first test's server.
@@ -136,4 +147,33 @@ async function linkChecks(s) {
   assert.match(notLive.json.message, /live/);
   const down = await s.call("POST", "/api/hub/link", { connection: "down" }, csrf);
   assert.deepEqual([down.status, down.json.error], [503, "HUB_UNREACHABLE"]);
+}
+
+async function incomingChecks(s) {
+  const csrf = { "x-csrf-token": getCsrfToken() };
+  const list = await s.call("GET", "/api/hub/incoming");
+  assert.deepEqual([list.status, list.json.linked, list.json.items[0].requestId], [200, true, "in1"]);
+
+  const id = "a/b c";
+  const enc = encodeURIComponent(id);
+  assert.equal((await s.call("POST", `/api/hub/incoming/${enc}/accept`, {})).status, 403);
+  assert.equal((await s.call("POST", `/api/hub/incoming/${enc}/decline`, { reason: "x" })).status, 403);
+  assert.deepEqual([s.accepted, s.declined], [[], []], "the bridge is not reached without the CSRF token");
+
+  const ok = await s.call("POST", `/api/hub/incoming/${enc}/accept`, {}, csrf);
+  assert.deepEqual([ok.status, ok.json], [200, { ok: true, requestId: id }]);
+  assert.deepEqual(s.accepted, [id], "the id reaches the bridge decoded");
+  const no = await s.call("POST", `/api/hub/incoming/${enc}/decline`, { reason: "바빠요" }, csrf);
+  assert.deepEqual([no.status, no.json.requestId], [200, id]);
+  await s.call("POST", `/api/hub/incoming/${enc}/decline`, {}, csrf);
+  assert.deepEqual(s.declined, [[id, "바빠요"], [id, ""]], "a missing reason reaches the bridge as an empty string");
+
+  const taken = await s.call("POST", "/api/hub/incoming/taken/accept", {}, csrf);
+  assert.deepEqual([taken.status, taken.json.error], [409, "ALREADY_ACCEPTED"]);
+  const off = await s.call("POST", "/api/hub/incoming/off/accept", {}, csrf);
+  assert.deepEqual([off.status, off.json.error], [409, "HUB_NOT_LIVE"]);
+  const bad = await s.call("POST", "/api/hub/incoming/%E0%A4%A/accept", {}, csrf);
+  assert.deepEqual([bad.status, bad.json.error], [409, "INVALID_REQUEST"]);
+  const badDecline = await s.call("POST", "/api/hub/incoming/%E0%A4%A/decline", {}, csrf);
+  assert.deepEqual([badDecline.status, badDecline.json.error], [409, "INVALID_REQUEST"]);
 }
