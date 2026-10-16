@@ -120,6 +120,21 @@ test("a pairing code works once", async (t) => {
   assert.equal(again.json.error, "LINK_CODE_INVALID");
 });
 
+test("a member-level connect code pairs by origin, reports the repo, and works once", async (t) => {
+  const { api, store, b } = await seeded(t);
+  const code = store.createConnectCode(b);
+  const remote = "git@github.example.com:Team/New-Repo.git";
+  const res = await api("POST", "/api/link/pair", { body: { code, remote } });
+  assert.equal(res.status, 200);
+  assert.equal(res.json.repoName, "New-Repo");
+  assert.equal(res.json.created, true);
+  assert.equal(res.json.member.id, b.id);
+  assert.ok(res.json.token && res.json.repoId);
+  const again = await api("POST", "/api/link/pair", { body: { code, remote } });
+  assert.equal(again.status, 410);
+  assert.equal(again.json.error, "LINK_CODE_INVALID");
+});
+
 test("the protocol header is required on authenticated routes too", async (t) => {
   const { api, token } = await linked(t);
   const res = await api("GET", "/api/link/work", { token, protocol: "0" });

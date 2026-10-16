@@ -1,8 +1,10 @@
+import { mkdirSync } from "node:fs";
 import { basename } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { fail } from "../cli/project.ts";
 import { HUB_LEGACY_PROTOCOL, HUB_PROTOCOL, type OutgoingDecision, type OutgoingView } from "../hub/protocol.ts";
-import { hubCall, readLinkConfig, type HubLinkConfig } from "./hub-link.ts";
+import { hubCall, pairOffice, readLinkConfig, removeLinkConfig, type HubLinkConfig } from "./hub-link.ts";
+import { parseConnection, projectRemote } from "./hub-connect.ts";
 
 type Call = typeof hubCall;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
@@ -44,7 +46,7 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
       return null;
     }
   };
-  const linked = () => config() ?? fail("HUB_NOT_LINKED", "팀 허브에 연결되지 않았습니다. `pazmo-office hub-link`로 연결해주세요.");
+  const linked = () => config() ?? fail("HUB_NOT_LINKED", "팀 허브에 연결되지 않았습니다. Office 상단의 \"팀 허브\" 버튼에서 연결해주세요.");
   /** Hub refusals keep their code and message; anything without an HTTP status is the network. */
   async function remote<T>(cfg: HubLinkConfig, method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
     try {
@@ -126,7 +128,46 @@ export function createHubGateway(deps: { dataDir: string; db: DatabaseSync; proj
   return {
     status() {
       const cfg = config();
-      return { linked: !!cfg, legacy, hub: cfg?.hub ?? null, member: cfg?.memberName ?? null };
+      return { linked: !!cfg, legacy, hub: cfg?.hub ?? null, member: cfg?.memberName ?? null, repoName: cfg?.repoName ?? null };
+    },
+    /** Pairs this Office with the hub from a pasted connection string. The earlier link
+     * is replaced only once the hub accepted the code (pairOffice writes last). */
+    async link(text: string) {
+      const { hub, code, fingerprint } = parseConnection(text);
+      const remote = projectRemote(deps.project);
+      mkdirSync(deps.dataDir, { recursive: true, mode: 0o700 });
+      let paired: Awaited<ReturnType<typeof pairOffice>>;
+      try {
+        paired = await pairOffice({ dataDir: deps.dataDir, hub, code, fingerprint, remote });
+      } catch (error) {
+        const e = error as { code?: string; status?: number; message?: string };
+        if (e.code === "LINK_CODE_INVALID")
+          return fail("LINK_CODE_INVALID", "연결 문자열이 만료됐습니다. 허브의 내 Office 연결에서 새로 만드세요.");
+        if (e.code === "HUB_TLS_UNTRUSTED")
+          return fail("HUB_TLS_UNTRUSTED", "허브 인증서를 확인할 수 없습니다. 허브의 내 Office 연결에서 연결 문자열을 새로 복사하세요.");
+        if (typeof e.status === "number") return fail(e.code ?? "HUB_FAILED", e.message ?? "허브가 요청을 거부했습니다.");
+        if (e.message === "HUB_FINGERPRINT_MISMATCH")
+          return fail("HUB_FINGERPRINT_MISMATCH", "허브 인증서 지문이 연결 문자열과 다릅니다. 허브에서 연결 문자열을 새로 복사하세요.");
+        if (e.code === "HUB_FINGERPRINT_NOT_USED") return fail("HUB_FINGERPRINT_NOT_USED", "이 허브는 지문 없이 연결합니다. 허브의 내 Office 연결에서 연결 문자열을 새로 복사하세요.");
+        if (e.message === "HUB_CA_INVALID")
+          return fail("HUB_CA_INVALID", "허브 인증서를 읽을 수 없습니다. 허브에서 연결 문자열을 새로 복사하세요.");
+        if (e.message === "HUB_BAD_RESPONSE") return fail("HUB_BAD_RESPONSE", "허브 응답을 이해할 수 없습니다. 허브를 확인해주세요.");
+        // Raw socket/DNS errors (ECONNREFUSED, ENOTFOUND, timeouts…) never leave as their own codes.
+        return fail("HUB_UNREACHABLE", "허브에 연결할 수 없습니다. 허브가 켜져 있고 같은 네트워크인지 확인해주세요.");
+      }
+      legacy = false;
+      return {
+        linked: true as const,
+        member: paired.memberName,
+        repoName: paired.repoName ?? remote.split("/").pop() ?? basename(deps.project),
+        hub,
+        created: paired.created,
+      };
+    },
+    unlink() {
+      removeLinkConfig(deps.dataDir);
+      legacy = false;
+      return { linked: false as const };
     },
     async repos() {
       const cfg = linked();

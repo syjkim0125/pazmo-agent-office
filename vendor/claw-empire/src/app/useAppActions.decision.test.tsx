@@ -270,3 +270,97 @@ it("replies to a hub-sent cancel directly (the modal owns the confirmation), and
   expect(api.getDecisionInbox).toHaveBeenCalledTimes(2);
   expect(confirm).not.toHaveBeenCalled();
 });
+
+it("names a role character by its role in the decision inbox, from the labelled office list", async () => {
+  const raw = { id: "agent-1", name: "Atlas", name_ko: "아틀라스", avatar_emoji: "A" } as never;
+  const labelled = { id: "agent-1", name: "PM", name_ko: "PM", original_name: "Atlas", avatar_emoji: "A" } as never;
+  vi.spyOn(api, "getMessages").mockResolvedValue([
+    {
+      id: "req-1",
+      sender_type: "agent",
+      sender_id: "agent-1",
+      receiver_type: "agent",
+      receiver_id: null,
+      content: "진행 옵션\n1. A\n2. B",
+      message_type: "chat",
+      task_id: null,
+      created_at: 10,
+    },
+  ] as never);
+  vi.spyOn(api, "getDecisionInbox").mockResolvedValue([]);
+  const setDecisionInboxItems = vi.fn();
+  const { result } = renderHook(
+    () =>
+      useAppActions({
+        agents: [raw],
+        officeAgents: [labelled],
+        settings: { language: "ko" } as CompanySettings,
+        scheduleLiveSync: vi.fn(),
+        setSettings: vi.fn(),
+        setAgents: vi.fn(),
+        setDepartments: vi.fn(),
+        setTasks: vi.fn(),
+        setStats: vi.fn(),
+        setMessages: vi.fn(),
+        setChatAgent: vi.fn(),
+        setShowChat: vi.fn(),
+        setUnreadAgentIds: vi.fn(),
+        setShowDecisionInbox: vi.fn(),
+        setDecisionInboxLoading: vi.fn(),
+        setDecisionInboxItems,
+        setDecisionReplyBusyKey: vi.fn(),
+        setCliStatus: vi.fn(),
+      }),
+    { wrapper: DialogWrapper },
+  );
+  await act(async () => result.current.handleOpenDecisionInbox());
+  const items = setDecisionInboxItems.mock.calls[0][0] as DecisionInboxItem[];
+  expect(items).toHaveLength(1);
+  expect(items[0].agentName).toBe("PM");
+  expect(items[0].agentNameKo).toBe("PM");
+});
+
+it("keeps the upstream name in the decision inbox when no office list is given", async () => {
+  const raw = { id: "agent-1", name: "Atlas", name_ko: "아틀라스", avatar_emoji: "A" } as never;
+  vi.spyOn(api, "getMessages").mockResolvedValue([
+    {
+      id: "req-1",
+      sender_type: "agent",
+      sender_id: "agent-1",
+      receiver_type: "agent",
+      receiver_id: null,
+      content: "진행 옵션\n1. A\n2. B",
+      message_type: "chat",
+      task_id: null,
+      created_at: 10,
+    },
+  ] as never);
+  vi.spyOn(api, "getDecisionInbox").mockResolvedValue([]);
+  const setDecisionInboxItems = vi.fn();
+  const { result } = renderHook(
+    () =>
+      useAppActions({
+        agents: [raw],
+        settings: { language: "ko" } as CompanySettings,
+        scheduleLiveSync: vi.fn(),
+        setSettings: vi.fn(),
+        setAgents: vi.fn(),
+        setDepartments: vi.fn(),
+        setTasks: vi.fn(),
+        setStats: vi.fn(),
+        setMessages: vi.fn(),
+        setChatAgent: vi.fn(),
+        setShowChat: vi.fn(),
+        setUnreadAgentIds: vi.fn(),
+        setShowDecisionInbox: vi.fn(),
+        setDecisionInboxLoading: vi.fn(),
+        setDecisionInboxItems,
+        setDecisionReplyBusyKey: vi.fn(),
+        setCliStatus: vi.fn(),
+      }),
+    { wrapper: DialogWrapper },
+  );
+  await act(async () => result.current.handleOpenDecisionInbox());
+  const items = setDecisionInboxItems.mock.calls[0][0] as DecisionInboxItem[];
+  expect(items[0].agentName).toBe("Atlas");
+});

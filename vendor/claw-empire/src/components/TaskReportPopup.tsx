@@ -26,7 +26,7 @@ function runnerLines(runs: TaskReportRunner[]): string[] {
 import type { UiLanguage } from "../i18n";
 import { pickLang } from "../i18n";
 import AgentAvatar from "./AgentAvatar";
-import { resolveReportAgent } from "./task-report-agent";
+import { reportAgentName, resolveReportAgent } from "./task-report-agent";
 
 interface TaskReportPopupProps {
   report: TaskReportDetail;
@@ -141,10 +141,14 @@ export default function TaskReportPopup({ report, agents, departments, uiLanguag
   const taskDeptFromMap = currentReport.task.department_id
     ? departmentById.get(currentReport.task.department_id)
     : undefined;
-  const taskAgentName =
+  const taskAgentName = reportAgentName(
+    agents,
+    currentReport.task.assigned_agent_id,
+    uiLanguage,
     uiLanguage === "ko"
       ? currentReport.task.agent_name_ko || currentReport.task.agent_name
-      : currentReport.task.agent_name;
+      : currentReport.task.agent_name,
+  );
   const taskDeptName =
     uiLanguage === "ko"
       ? taskDeptFromMap?.name_ko || currentReport.task.dept_name_ko || currentReport.task.dept_name
@@ -322,7 +326,12 @@ export default function TaskReportPopup({ report, agents, departments, uiLanguag
       uiLanguage === "ko"
         ? teamDeptFromMap?.name_ko || team.department_name_ko || team.department_name
         : teamDeptFromMap?.name || team.department_name || team.department_name_ko;
-    const teamAgent = uiLanguage === "ko" ? team.agent_name_ko || team.agent_name : team.agent_name;
+    const teamAgent = reportAgentName(
+      agents,
+      team.agent_id,
+      uiLanguage,
+      uiLanguage === "ko" ? team.agent_name_ko || team.agent_name : team.agent_name,
+    );
     const logs = team.logs ?? [];
     const keyLogs = logs.filter((lg) => lg.kind === "system" || lg.message.includes("Status")).slice(-20);
 

@@ -26,15 +26,16 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> 
       listenPort: listen.port,
       dataDir: env.PAZMO_HUB_DATA_DIR || "/data",
     });
-    console.log(JSON.stringify({ ...hub.result, listening: hub.address() }));
     const shutdown = () => {
       hub.stop().then(
         () => process.exit(0),
         (error) => fail(error),
       );
     };
+    // Install before announcing readiness: a supervisor may signal as soon as it reads the line.
     process.once("SIGINT", shutdown);
     process.once("SIGTERM", shutdown);
+    console.log(JSON.stringify({ ...hub.result, listening: hub.address() }));
   } catch (error) {
     fail(error);
   }

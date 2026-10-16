@@ -127,6 +127,7 @@ process.once("message", async (raw: unknown) => {
         const insert = db.prepare(
           "INSERT INTO agents (id,name,name_ko,department_id,role,cli_provider,avatar_emoji) VALUES (?,?,?,?,?,?,?)",
         );
+        insert.run("pazmo-pm", "PM", "PM", "planning", "senior", "codex", "📋");
         insert.run(
           "pazmo-lead",
           "Lead",

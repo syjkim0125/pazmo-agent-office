@@ -88,6 +88,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       return send(res, 200, "application/x-pem-file", tls.caPem, {
         "content-disposition": 'attachment; filename="pazmo-team-hub-ca.pem"',
       });
+    // Open on purpose: the connection string's #fragment never reaches the server, so this page cannot echo it.
+    if (!post && path === "/connect") return html(res, 200, page.connectHelp());
     if (!post && path === "/copy.js") return send(res, 200, "text/javascript; charset=utf-8", COPY_SCRIPT);
     if (!post && path === "/trust" && tls) return html(res, 200, page.trust(tls.fingerprint));
     if (post && !origins.has(String(req.headers.origin ?? "")))
@@ -97,7 +99,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (!post) return html(res, 200, page.invite(c.store.invite(m[1])?.name ?? null));
       const label = new URLSearchParams(await readBody(req, FORM_LIMIT)).get("label") ?? "";
       const { session } = c.store.acceptInvite(m[1], label);
-      return redirect(res, "/", {
+      return redirect(res, "/start", {
         "set-cookie": `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
       });
     }
@@ -126,6 +128,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       }
       if ((m = new RegExp(`^/requests/${ID}$`).exec(path)))
         return html(res, 200, page.request(me, s.csrf, c.store.requestView(m[1], me.id), trust));
+      if (path === "/start") return html(res, 200, page.start(me, s.csrf, trust));
       if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), trust));
       if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), trust));
       return html(res, 404, page.error("페이지를 찾을 수 없습니다."));
@@ -157,6 +160,12 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       return html(res, 200, page.created(me, "내 Office 연결",
         "10분 안에, 이 레포를 클론해 둔 내 PC에서 실행하세요. 한 번만 쓸 수 있습니다.",
         `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code}${pin}`, trust));
+    }
+    if (path === "/start/connect-code") {
+      const code = c.store.createConnectCode(me);
+      const value = `${base}/connect#c=${code}${tls ? `&fp=${tls.fingerprint}` : ""}`;
+      return html(res, 200, page.created(me, "내 Office 연결",
+        "10분 안에 한 번만 쓸 수 있습니다. Office 상단의 팀 허브 버튼을 누르고 이 문자열을 붙여넣은 뒤 연결을 누르세요.", value, trust));
     }
     if (path === "/invites") {
       const raw = c.store.createInvite(me, f("name"));

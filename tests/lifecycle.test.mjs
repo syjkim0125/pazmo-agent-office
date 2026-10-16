@@ -403,7 +403,7 @@ test("start/status/stop use an isolated locked Office and preserve its database"
   const agents = await (await fetch(url + "/api/agents")).json();
   assert.ok(agents.agents.length >= 3);
   const stats = await (await fetch(url + "/api/stats")).json();
-  assert.equal(stats.stats.agents.total, 3);
+  assert.equal(stats.stats.agents.total, 4);
   assert.equal(stats.stats.tasks.total, 0);
   for (const path of [
     "/api/tasks",
@@ -438,6 +438,39 @@ test("start/status/stop use an isolated locked Office and preserve its database"
   assert.equal(call(f, "remove", "--apply").status, 0);
   assert.equal(existsSync(join(f.project, ".pazmo-office")), false);
   assert.ok(existsSync(join(dataDir, "office.sqlite")));
+});
+test("a new Office database seeds a PM beside lead, engineer and reviewer and reports them by role", async (t) => {
+  const { DatabaseSync } = await import("node:sqlite");
+  const { createNativeOffice } = await import("../src/runtime/native-office.ts");
+  const f = setup(t);
+  const started = call(f, "start", "--port", "0");
+  assert.equal(started.status, 0, JSON.stringify(started.value));
+  assert.equal(call(f, "stop").status, 0);
+  const db = new DatabaseSync(join(started.value.dataDir, "office.sqlite"));
+  // Read the seed before an Office opens the database and normalizes providers.
+  const rows = db.prepare("SELECT id,name,name_ko,department_id,role,cli_provider,avatar_emoji FROM agents ORDER BY id").all();
+  const office = await createNativeOffice({
+    db,
+    project: realpathSync(f.project),
+    dataDir: started.value.dataDir,
+    token: "a".repeat(64),
+    createRuntime: async () => ({ status: () => ({ execution: "ready", active: [] }), assertIdle() {}, close: async () => {}, abort() {} }),
+  });
+  t.after(async () => {
+    await office.close();
+    db.close();
+  });
+  assert.deepEqual(
+    rows.map((r) => r.id),
+    ["pazmo-engineer", "pazmo-lead", "pazmo-pm", "pazmo-reviewer"],
+  );
+  assert.deepEqual(
+    { ...rows.find((r) => r.id === "pazmo-pm") },
+    { id: "pazmo-pm", name: "PM", name_ko: "PM", department_id: "planning", role: "senior", cli_provider: "codex", avatar_emoji: "📋" },
+  );
+  assert.deepEqual(office.officeRoles(), {
+    roles: { pm: "pazmo-pm", lead: "pazmo-lead", engineer: "pazmo-engineer", reviewer: "pazmo-reviewer" },
+  });
 });
 test("port collision fails without claiming running or stopping the unrelated server", async (t) => {
   const f = setup(t);

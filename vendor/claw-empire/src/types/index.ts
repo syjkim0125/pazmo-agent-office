@@ -30,6 +30,8 @@ export interface Agent {
   name_ko: string;
   name_ja?: string | null;
   name_zh?: string | null;
+  /** Display-only: the character's own name when `name` shows its Office role (see app/officeRoles.ts). */
+  original_name?: string;
   department_id: string | null;
   workflow_pack_key?: WorkflowPackKey | null;
   department?: Department;

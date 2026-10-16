@@ -49,4 +49,20 @@ describe("ReportHistory", () => {
       expect(screen.getByAltText("Ari")).toBeInTheDocument();
     });
   });
+
+  it("shows the role name for a row whose assignee is a role character", async () => {
+    render(
+      <I18nProvider language="en">
+        <ReportHistory
+          agents={[{ id: "agent-1", name: "Reviewer", name_ko: "리뷰", original_name: "Ari", sprite_number: 1 } as any]}
+          departments={[]}
+          uiLanguage="en"
+          onClose={() => {}}
+        />
+      </I18nProvider>,
+    );
+
+    expect(await screen.findByText("Reviewer")).toBeInTheDocument();
+    expect(screen.queryByText("Ari")).not.toBeInTheDocument();
+  });
 });

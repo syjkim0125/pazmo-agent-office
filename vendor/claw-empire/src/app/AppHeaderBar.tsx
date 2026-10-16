@@ -1,3 +1,5 @@
+import type { HubStatus } from "../api";
+import { useI18n } from "../i18n";
 import type { WorkflowPackKey } from "../types";
 import type { View } from "./types";
 
@@ -32,6 +34,9 @@ interface AppHeaderBarProps {
   onOpenMobileNav: () => void;
   onOpenTasks: () => void;
   onOpenDecisionInbox: () => void;
+  /** Team hub link state; null/absent hides the button (a preview without the hub bridge). */
+  hubStatus?: HubStatus | null;
+  onOpenHub?: () => void;
   onOpenAgentStatus: () => void;
   onOpenReportHistory: () => void;
   onOpenAnnouncement: () => void;
@@ -59,6 +64,8 @@ export default function AppHeaderBar({
   onOpenMobileNav,
   onOpenTasks,
   onOpenDecisionInbox,
+  hubStatus,
+  onOpenHub,
   onOpenAgentStatus,
   onOpenReportHistory,
   onOpenAnnouncement,
@@ -67,6 +74,17 @@ export default function AppHeaderBar({
   onToggleMobileHeaderMenu,
   onCloseMobileHeaderMenu,
 }: AppHeaderBarProps) {
+  const { t } = useI18n();
+  const hubName = t({ ko: "팀 허브", en: "Team hub" });
+  // Status dots use colours the light theme leaves alone, so they stay visible in both themes.
+  const hubDot = !hubStatus ? null : !hubStatus.linked ? "unlinked" : hubStatus.legacy ? "legacy" : "linked";
+  const hubStateText = {
+    linked: t({ ko: "연결됨", en: "connected" }),
+    legacy: t({ ko: "허브 업데이트 필요", en: "hub update needed" }),
+    unlinked: t({ ko: "연결 안 됨", en: "not connected" }),
+  };
+  const hubLabel = hubDot ? `${hubName} · ${hubStateText[hubDot]}` : hubName;
+  const hubDotClass = { linked: "bg-emerald-500", legacy: "bg-amber-500", unlinked: "bg-zinc-400" };
   return (
     <header
       className="sticky top-0 z-30 flex items-center justify-between px-3 py-2 backdrop-blur-sm sm:px-4 sm:py-3 lg:px-6"
@@ -153,6 +171,22 @@ export default function AppHeaderBar({
           </span>
           {decisionInboxCount > 0 && <span className="header-decision-badge">{decisionInboxCount}</span>}
         </button>
+        {hubStatus && onOpenHub && hubDot && (
+          <button
+            onClick={onOpenHub}
+            className="header-action-btn header-action-btn-secondary"
+            aria-label={hubLabel}
+            title={hubLabel}
+          >
+            <span
+              data-hub-dot={hubDot}
+              aria-hidden="true"
+              className={`inline-block h-2 w-2 rounded-full mr-1.5 ${hubDotClass[hubDot]}`}
+            />
+            <span className="hidden sm:inline">{hubName}</span>
+            <span className="sm:hidden">🤝</span>
+          </button>
+        )}
         <button onClick={onOpenAgentStatus} className="header-action-btn header-action-btn-secondary mobile-hidden">
           &#x1F6E0; {agentStatusLabel}
         </button>

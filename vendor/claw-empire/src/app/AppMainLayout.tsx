@@ -1,5 +1,5 @@
 // Modified by Pazmo Agent Office, 2026-09-18: pass locked preview state to dashboard.
-import { useCallback, useMemo, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import Sidebar from "../components/Sidebar";
 import OfficeView from "../components/OfficeView";
 import Dashboard from "../components/Dashboard";
@@ -25,6 +25,8 @@ import type {
 import type { UpdateStatus } from "../api";
 import type { OAuthCallbackResult, RoomThemeMap, View } from "./types";
 import AppHeaderBar from "./AppHeaderBar";
+import HubConnectDialog from "../components/hub/HubConnectDialog";
+import { useHubStatus } from "./useHubStatus";
 import {
   buildOfficePackStarterAgents,
   buildOfficePackPresentation,
@@ -70,6 +72,8 @@ interface AppMainLayoutProps {
   setView: (view: View) => void;
   departments: Department[];
   agents: Agent[];
+  /** True when `agents` is the role-filtered office list, so server-wide agent counts no longer apply. */
+  officeRolesApplied?: boolean;
   stats: CompanyStats | null;
   tasks: Task[];
   subtasks: SubTask[];
@@ -141,6 +145,7 @@ export default function AppMainLayout({
   setView,
   departments,
   agents,
+  officeRolesApplied,
   stats,
   tasks,
   subtasks,
@@ -195,6 +200,8 @@ export default function AppMainLayout({
   officePackBootstrappingLabel,
   children,
 }: AppMainLayoutProps) {
+  const { status: hubStatus, refresh: refreshHubStatus } = useHubStatus();
+  const [showHubDialog, setShowHubDialog] = useState(false);
   const uiLanguage =
     labels.uiLanguage === "ko" || labels.uiLanguage === "ja" || labels.uiLanguage === "zh" ? labels.uiLanguage : "en";
   const officePackKey = normalizeOfficeWorkflowPack(activeOfficeWorkflowPack);
@@ -391,6 +398,8 @@ export default function AppMainLayout({
             onOpenMobileNav={() => setMobileNavOpen(true)}
             onOpenTasks={() => setView("tasks")}
             onOpenDecisionInbox={onOpenDecisionInbox}
+            hubStatus={hubStatus}
+            onOpenHub={() => setShowHubDialog(true)}
             onOpenAgentStatus={onOpenAgentStatus}
             onOpenReportHistory={onOpenReportHistory}
             onOpenAnnouncement={onOpenAnnouncement}
@@ -496,6 +505,7 @@ export default function AppMainLayout({
                 readOnly={settings.pazmoReadOnly}
                 stats={stats}
                 agents={agents}
+                officeRolesApplied={officeRolesApplied}
                 tasks={tasks}
                 companyName={settings.companyName}
                 onPrimaryCtaClick={() => setView("tasks")}
@@ -560,6 +570,14 @@ export default function AppMainLayout({
             )}
           </div>
         </main>
+
+        {showHubDialog && hubStatus && (
+          <HubConnectDialog
+            status={hubStatus}
+            onClose={() => setShowHubDialog(false)}
+            onChanged={refreshHubStatus}
+          />
+        )}
 
         {children}
       </div>

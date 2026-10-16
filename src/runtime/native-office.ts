@@ -906,7 +906,8 @@ export async function createNativeOffice(c: Config) {
       !!db.prepare("SELECT 1 FROM pazmo_hub_requests WHERE task_id=?").get(d.task_id)
     );
   }
-  const hubGateway = () => c.hub ?? fail("HUB_NOT_LINKED", "팀 허브에 연결되지 않았습니다. `pazmo-office hub-link`로 연결해주세요.");
+  const notLive = () => fail("HUB_NOT_LIVE", "실행 모드(live)에서만 팀 허브에 연결할 수 있습니다.");
+  const hubGateway = () => c.hub ?? fail("HUB_NOT_LINKED", "팀 허브에 연결되지 않았습니다. Office 상단의 \"팀 허브\" 버튼에서 연결해주세요.");
   async function reply(id: string, option: number, note: string, by = "사용자", fromHub = false) {
     if (id.startsWith("hubout:")) return hubGateway().reply(id, option, note);
     const d = db
@@ -1271,8 +1272,13 @@ export async function createNativeOffice(c: Config) {
     },
     cliStatus: (o?: { refresh?: boolean }) => runners.settings.cliStatus(o),
     cliModels: () => runners.settings.cliModels(),
+    officeRoles: () => ({
+      roles: { pm: agent("pm"), lead: agent("lead"), engineer: agent("engineer"), reviewer: agent("reviewer") },
+    }),
     runnerRuns: (id: string) => ({ runs: runners.evidence.forRequest(id) }),
-    hubStatus: () => c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null },
+    hubStatus: () => c.hub?.status() ?? { linked: false, legacy: false, hub: null, member: null, repoName: null },
+    hubLink: async (text: string) => (c.hub ? c.hub.link(text) : notLive()),
+    hubUnlink: () => (c.hub ? c.hub.unlink() : notLive()),
     hubRepos: async () => hubGateway().repos(),
     hubSend: async (input: unknown) => hubGateway().send(input),
     hubCancel: async (requestId: string) => hubGateway().cancel(requestId),

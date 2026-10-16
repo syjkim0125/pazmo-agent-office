@@ -89,3 +89,31 @@ test("hub-link without --fingerprint reports an untrusted certificate with its o
   assert.equal(body.code, "HUB_TLS_UNTRUSTED");
   assert.match(body.error, /--fingerprint/);
 });
+
+test("hub-link --connect pairs from one pasted connection string; mixing it with --hub/--code/--fingerprint is an argument error", async (t) => {
+  const { hub, store, tls } = await startTestHub(t);
+  const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
+  const project = realpathSync(mkdtempSync(join(tmpdir(), "hub-cli-connect-")));
+  const data = realpathSync(mkdtempSync(join(tmpdir(), "hub-cli-connect-data-")));
+  t.after(() => { rmSync(project, { recursive: true, force: true }); rmSync(data, { recursive: true, force: true }); });
+  spawnSync("git", ["init", "-q", project]);
+  spawnSync("git", ["-C", project, "remote", "add", "origin", "https://github.example.com/team/be-service.git"]);
+  const errCode = (r) => JSON.parse(r.stderr.trim().split("\n").at(-1)).code;
+  const text = `${hub.url}/connect#c=${store.createConnectCode(admin)}&fp=${tls.fingerprint}`;
+  for (const extra of [["--hub", hub.url], ["--code", "x"], ["--fingerprint", "AB"]])
+    assert.equal(errCode(run("hub-link", "--project", project, "--data-dir", data, "--connect", text, ...extra)), "ARGUMENT");
+  assert.match(run("start", "--project", project, "--connect", text).stderr, /--connect is not supported by start/);
+  assert.equal(errCode(run("hub-link", "--project", project, "--data-dir", data, "--connect", "hello")), "HUB_CONNECT_INVALID");
+  // The hub lives in this process, so the CLI must run without blocking the event loop.
+  const out = await promisify(execFile)(process.execPath, [bin, "hub-link", "--project", project, "--data-dir", data, "--connect", text], { encoding: "utf8" });
+  const body = JSON.parse(out.stdout.trim().split("\n").at(-1));
+  assert.equal(body.linked, true);
+  assert.equal(body.member, admin.name);
+  assert.equal(body.repoName, "be-service");
+  assert.equal(body.created, true);
+  // A second pairing finds the repo the first one registered.
+  const again = await promisify(execFile)(process.execPath, [bin, "hub-link", "--project", project, "--data-dir", data, "--connect", `${hub.url}/connect#c=${store.createConnectCode(admin)}&fp=${tls.fingerprint}`], { encoding: "utf8" });
+  const body2 = JSON.parse(again.stdout.trim().split("\n").at(-1));
+  assert.equal(body2.created, false);
+  assert.equal(body2.repoName, "be-service");
+});

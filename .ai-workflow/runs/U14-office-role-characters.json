@@ -1,0 +1,336 @@
+{
+  "version": 1,
+  "runId": "f47058e7-6b21-4078-83bc-ea3beaf2fec4",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "7b1c40e080c2eed2887676676025ed0be39886602b6507de330e73f5735f2ef5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "B implemented via subagent-driven Tasks 1-2 plus B-wide review fixes: GET /api/office-roles (agent(role)), service-engine pazmo-pm seed, applyOfficeRoles/displayAgent/useOfficeRoles with role labels on every surface and stable sprites. root 680/680 (one earlier 679/680 unidentified flake, then 5 clean runs), typecheck 0, vendor 208/210 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters.md": "fe589143bcd52b3acd74859510d76a9efa1fb9f46752b9cca46097a58ead0179"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Task reviews (Task 2 had 1 Important, fixed) and a B-wide review: Ready with fixes, 3 Important fixed in one round, scoped re-review Approved. Residuals recorded in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters.md": "fe589143bcd52b3acd74859510d76a9efa1fb9f46752b9cca46097a58ead0179"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh evidence as recorded (code unchanged since commit 0561925); eevee-be real screen 2026-10-15 (4 role characters, 3 rooms, Team hub connected) and the Fusion real check run on this build; G4 recorded from the user answers and approval, including after-the-fact confirmation of D21 defaults.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters-g4.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters-g4.md": "c57ff4a298b3ca2ce3c27a7bfdc809940d2a590b65a475a9d54030f0a0801449"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "e31285ae8a85de89091d9476a650ce31d0d61bcd7269d0de2745242f19152065"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-15T07:35:40.539Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-15T07:35:40.627Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "B implemented via subagent-driven Tasks 1-2 plus B-wide review fixes: GET /api/office-roles (agent(role)), service-engine pazmo-pm seed, applyOfficeRoles/displayAgent/useOfficeRoles with role labels on every surface and stable sprites. root 680/680 (one earlier 679/680 unidentified flake, then 5 clean runs), typecheck 0, vendor 208/210 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters.md": "902e5d089bb56b33deeaae9637f5f0cdd67cfb0c695660ce6a17f70077ffcc03"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-15T07:35:40.718Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-15T07:35:40.808Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Task reviews (Task 2 had 1 Important, fixed) and a B-wide review: Ready with fixes, 3 Important fixed in one round, scoped re-review Approved. Residuals recorded in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters.md": "902e5d089bb56b33deeaae9637f5f0cdd67cfb0c695660ce6a17f70077ffcc03"
+        }
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Verification doc gained the eevee-be real-screen section after recording; re-record with current evidence.",
+      "at": "2026-10-16T00:23:40.464Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-16T00:23:40.594Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-16T00:23:40.759Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "B implemented via subagent-driven Tasks 1-2 plus B-wide review fixes: GET /api/office-roles (agent(role)), service-engine pazmo-pm seed, applyOfficeRoles/displayAgent/useOfficeRoles with role labels on every surface and stable sprites. root 680/680 (one earlier 679/680 unidentified flake, then 5 clean runs), typecheck 0, vendor 208/210 (2 known sprite-avatar), tsc 0, build 0.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters.md": "fe589143bcd52b3acd74859510d76a9efa1fb9f46752b9cca46097a58ead0179"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-16T00:23:40.889Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-16T00:23:41.049Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Task reviews (Task 2 had 1 Important, fixed) and a B-wide review: Ready with fixes, 3 Important fixed in one round, scoped re-review Approved. Residuals recorded in the verification doc.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters.md": "fe589143bcd52b3acd74859510d76a9efa1fb9f46752b9cca46097a58ead0179"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-16T00:23:41.176Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-16T00:23:41.332Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh evidence as recorded (code unchanged since commit 0561925); eevee-be real screen 2026-10-15 (4 role characters, 3 rooms, Team hub connected) and the Fusion real check run on this build; G4 recorded from the user answers and approval, including after-the-fact confirmation of D21 defaults.",
+          "evidence": [
+            "docs/verification/2026-10-15-office-role-characters-g4.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-15-office-role-characters-g4.md": "c57ff4a298b3ca2ce3c27a7bfdc809940d2a590b65a475a9d54030f0a0801449"
+        }
+      }
+    }
+  ]
+}

@@ -15,13 +15,23 @@ import { DEPT_COLORS, useNow } from "./dashboard/model";
 interface DashboardProps {
   stats: CompanyStats | null;
   agents: Agent[];
+  /** `agents` is the role-filtered office list: count and rank only those characters, not the whole company. */
+  officeRolesApplied?: boolean;
   tasks: Task[];
   companyName: string;
   onPrimaryCtaClick: () => void;
   readOnly?: boolean;
 }
 
-export default function Dashboard({ stats, agents, tasks, companyName, onPrimaryCtaClick, readOnly }: DashboardProps) {
+export default function Dashboard({
+  stats,
+  agents,
+  officeRolesApplied,
+  tasks,
+  companyName,
+  onPrimaryCtaClick,
+  readOnly,
+}: DashboardProps) {
   const { t, language, locale: localeTag } = useI18n();
   const { date, time, briefing } = useNow(localeTag, t);
   const agentMap = useMemo(() => new Map(agents.map((agent) => [agent.id, agent])), [agents]);
@@ -33,9 +43,10 @@ export default function Dashboard({ stats, agents, tasks, companyName, onPrimary
   const plannedTasks = stats?.tasks?.planned ?? tasks.filter((task) => task.status === "planned").length;
   const reviewTasks = stats?.tasks?.review ?? tasks.filter((task) => task.status === "review").length;
   const pendingTasks = tasks.filter((task) => task.status === "pending").length;
-  const activeAgents = stats?.agents?.working ?? agents.filter((agent) => agent.status === "working").length;
-  const idleAgents = stats?.agents?.idle ?? agents.filter((agent) => agent.status === "idle").length;
-  const totalAgents = stats?.agents?.total ?? agents.length;
+  const serverAgentStats = officeRolesApplied ? undefined : stats?.agents;
+  const activeAgents = serverAgentStats?.working ?? agents.filter((agent) => agent.status === "working").length;
+  const idleAgents = serverAgentStats?.idle ?? agents.filter((agent) => agent.status === "idle").length;
+  const totalAgents = serverAgentStats?.total ?? agents.length;
   const completionRate =
     stats?.tasks?.completion_rate ?? (totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0);
   const activeRate = totalAgents > 0 ? Math.round((activeAgents / totalAgents) * 100) : 0;
@@ -95,8 +106,11 @@ export default function Dashboard({ stats, agents, tasks, companyName, onPrimary
   }, [stats, agents, tasks, language]);
 
   const topAgents = useMemo<RankedAgent[]>(() => {
-    if (stats?.top_agents && stats.top_agents.length > 0) {
-      return stats.top_agents.slice(0, 5).map((topAgent) => {
+    const serverTop = officeRolesApplied
+      ? (stats?.top_agents ?? []).filter((topAgent) => agentMap.has(topAgent.id))
+      : (stats?.top_agents ?? []);
+    if (serverTop.length > 0) {
+      return serverTop.slice(0, 5).map((topAgent) => {
         const agent = agentMap.get(topAgent.id);
         return {
           id: topAgent.id,
@@ -117,7 +131,7 @@ export default function Dashboard({ stats, agents, tasks, companyName, onPrimary
         tasksDone: agent.stats_tasks_done,
         xp: agent.stats_xp,
       }));
-  }, [stats, agents, agentMap, language]);
+  }, [stats, agents, agentMap, language, officeRolesApplied]);
 
   const maxXp = topAgents.length > 0 ? Math.max(...topAgents.map((agent) => agent.xp), 1) : 1;
   const recentTasks = useMemo(() => [...tasks].sort((a, b) => b.updated_at - a.updated_at).slice(0, 6), [tasks]);

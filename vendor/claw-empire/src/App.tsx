@@ -41,6 +41,8 @@ import { useUpdateStatusPolling } from "./app/useUpdateStatusPolling";
 import { useAppViewEffects } from "./app/useAppViewEffects";
 import { useAppBootstrapData } from "./app/useAppBootstrapData";
 import { useLiveSyncScheduler } from "./app/useLiveSyncScheduler";
+import { applyOfficeRoles, displayAgent } from "./app/officeRoles";
+import { useOfficeRoles } from "./app/useOfficeRoles";
 import { resolvePackAgentViews, resolvePackDepartmentsForDisplay } from "./app/office-pack-display";
 import {
   buildOfficePackPresentation,
@@ -330,26 +332,6 @@ export default function App() {
     setStreamingMessage,
   });
 
-  const actions = useAppActions({
-    agents,
-    settings,
-    scheduleLiveSync,
-    setSettings,
-    setAgents,
-    setDepartments,
-    setTasks,
-    setStats,
-    setMessages,
-    setChatAgent,
-    setShowChat,
-    setUnreadAgentIds,
-    setShowDecisionInbox,
-    setDecisionInboxLoading,
-    setDecisionInboxItems,
-    setDecisionReplyBusyKey,
-    setCliStatus,
-  });
-
   const activeMeetingTaskId = useActiveMeetingTaskId(meetingPresence);
 
   const labels = useAppLabels({
@@ -385,6 +367,47 @@ export default function App() {
     [activePackKey, activePackProfile?.agents, agents],
   );
 
+  // Display only: show role characters (named by role) plus working ones, and only departments that have
+  // someone. The DB rows and `agents`/`departments` state stay untouched; handlers keep using the raw state.
+  const officeRoles = useOfficeRoles();
+  const roleLanguage = normalizeLanguage(settings.language);
+  const { agents: officeAgents, departments: officeDepartments } = useMemo(
+    () =>
+      applyOfficeRoles({
+        agents: overlayAgents,
+        departments: overlayDepartments,
+        roles: officeRoles,
+        language: roleLanguage,
+      }),
+    [overlayAgents, overlayDepartments, officeRoles, roleLanguage],
+  );
+  // AppMainLayout merges the pack profile itself, so it gets the raw lists filtered the same way.
+  const { agents: mainLayoutAgents, departments: mainLayoutDepartments } = useMemo(
+    () => applyOfficeRoles({ agents, departments, roles: officeRoles, language: roleLanguage }),
+    [agents, departments, officeRoles, roleLanguage],
+  );
+
+  const actions = useAppActions({
+    agents,
+    officeAgents,
+    settings,
+    scheduleLiveSync,
+    setSettings,
+    setAgents,
+    setDepartments,
+    setTasks,
+    setStats,
+    setMessages,
+    setChatAgent,
+    setShowChat,
+    setUnreadAgentIds,
+    setShowDecisionInbox,
+    setDecisionInboxLoading,
+    setDecisionInboxItems,
+    setDecisionReplyBusyKey,
+    setCliStatus,
+  });
+
   if (loading) {
     return (
       <AppLoadingScreen language={labels.uiLanguage} title={labels.loadingTitle} subtitle={labels.loadingSubtitle} />
@@ -396,8 +419,9 @@ export default function App() {
       connected={connected}
       view={view}
       setView={setView}
-      departments={departments}
-      agents={agents}
+      departments={mainLayoutDepartments}
+      agents={mainLayoutAgents}
+      officeRolesApplied={mainLayoutAgents !== agents}
       stats={stats}
       tasks={tasks}
       subtasks={subtasks}
@@ -426,6 +450,7 @@ export default function App() {
       onOpenActiveMeetingMinutes={(taskId) => setTaskPanel({ taskId, tab: "minutes" })}
       onSelectAgent={setSelectedAgent}
       onSelectDepartment={(department) => {
+        // Look the leader up among all agents: a visible department whose leader is hidden still opens a chat.
         const candidateAgents = overlayAgents;
         const leader =
           candidateAgents.find((agent) => agent.department_id === department.id && agent.role === "team_leader") ??
@@ -434,7 +459,7 @@ export default function App() {
                 (agent) => agent.role === "team_leader" && Number(agent.acts_as_planning_leader ?? 0) === 1,
               )
             : undefined);
-        if (leader) actions.handleOpenChat(leader);
+        if (leader) actions.handleOpenChat(displayAgent(leader, officeAgents) ?? leader);
       }}
       onCreateTask={actions.handleCreateTask}
       onUpdateTask={actions.handleUpdateTask}
@@ -469,9 +494,9 @@ export default function App() {
     >
       <AppOverlays
         showChat={showChat}
-        chatAgent={chatAgent}
+        chatAgent={displayAgent(chatAgent, officeAgents)}
         messages={messages}
-        agents={overlayAgents}
+        agents={officeAgents}
         streamingMessage={streamingMessage}
         onSendMessage={actions.handleSendMessage}
         onSendAnnouncement={actions.handleSendAnnouncement}
@@ -489,9 +514,9 @@ export default function App() {
         }}
         onReplyDecisionOption={actions.handleReplyDecisionOption}
         onOpenDecisionChat={actions.handleOpenDecisionChat}
-        selectedAgent={selectedAgent}
+        selectedAgent={displayAgent(selectedAgent, officeAgents)}
         activeOfficeWorkflowPack={settings.officeWorkflowPack ?? "development"}
-        departments={overlayDepartments}
+        departments={officeDepartments}
         tasks={tasks}
         subAgents={subAgents}
         subtasks={subtasks}

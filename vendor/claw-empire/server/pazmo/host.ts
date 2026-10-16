@@ -32,6 +32,7 @@ export type NativeOfficeBridge = {
   checkAgentMutation(id: string, patch?: unknown): Promise<void>;
   cliStatus(options?: { refresh?: boolean }): Promise<unknown>;
   cliModels(): unknown;
+  officeRoles?(): unknown;
   /** Which installed CLI served each role of a report's request. */
   runnerRuns(id: string): unknown;
   /** Team hub, for requests this Office sends to other repositories. */
@@ -40,6 +41,9 @@ export type NativeOfficeBridge = {
   hubSend?(input: unknown): Promise<unknown>;
   hubOutgoing?(): unknown;
   hubCancel?(requestId: string): Promise<unknown>;
+  /** Pairs this Office with the hub from a pasted connection string / removes that link. */
+  hubLink?(text: string): Promise<unknown>;
+  hubUnlink?(): unknown;
 };
 export type PazmoHost = {
   project: string;
@@ -118,6 +122,9 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
       if (req.method === "GET" && req.path === "/cli-status")
         return res.json(await office.cliStatus({ refresh: Boolean(req.query.refresh) }));
       if (req.method === "GET" && req.path === "/cli-models") return res.json(office.cliModels());
+      // Which agent Office really uses for each role; read-only.
+      if (req.method === "GET" && req.path === "/office-roles")
+        return office.officeRoles ? res.json(office.officeRoles()) : res.status(404).json({ error: "NOT_FOUND" });
       if (req.path.startsWith("/hub/") && office.hubStatus) {
         if (req.method === "GET" && req.path === "/hub/status") return res.json(office.hubStatus());
         if (req.method === "GET" && req.path === "/hub/repos") return res.json(await office.hubRepos!());
@@ -126,6 +133,15 @@ export async function registerPazmoHost(app: Express, db: DatabaseSync): Promise
           // Sending acts in the member's name on the team hub; require the session's CSRF token.
           if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
           return res.json(await office.hubSend!(req.body ?? {}));
+        }
+        if (req.method === "POST" && req.path === "/hub/link" && office.hubLink) {
+          // Linking stores a member token for this Office; only the person using this session may do it.
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          return res.json(await office.hubLink(String(req.body?.connection ?? "")));
+        }
+        if (req.method === "POST" && req.path === "/hub/unlink" && office.hubUnlink) {
+          if (!hasValidCsrfToken(req)) return res.status(403).json({ error: "csrf_token_invalid" });
+          return res.json(await office.hubUnlink());
         }
         const cancel = req.path.match(/^\/hub\/outgoing\/([^/]+)\/cancel$/);
         if (cancel && req.method === "POST" && office.hubCancel) {

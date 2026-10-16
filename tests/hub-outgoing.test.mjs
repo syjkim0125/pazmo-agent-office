@@ -7,7 +7,7 @@ import { join } from "node:path";
 import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { startTestHub } from "./hub-fixture.mjs";
-import { pairOffice, hubCall, createHubSync, readLinkConfig } from "../src/runtime/hub-link.ts";
+import { pairOffice, hubCall, createHubSync, readLinkConfig, writeLinkConfig } from "../src/runtime/hub-link.ts";
 import { createHubGateway } from "../src/runtime/hub-outgoing.ts";
 
 const KEY = "77777777-7777-4777-8777-777777777777";
@@ -311,4 +311,162 @@ test("a rejection without a reason still shows the notice", async (t) => {
   await sync.syncOnce();
   const [again] = gateway.decisions();
   assert.match(again.summary, /^이전 답변이 전달되지 않았어요\.\n팀 허브 · checkout-backend/);
+});
+
+// ---- connection string: link / unlink / status.repoName ----
+import { spawnSync } from "node:child_process";
+import { createServer } from "node:net";
+import { createServer as httpsServer } from "node:https";
+import { existsSync, readFileSync, statSync } from "node:fs";
+
+function tempRepo(t, origin = "https://github.example.com/team/be-service.git") {
+  const project = mkdtempSync(join(tmpdir(), "hub-connect-repo-"));
+  t.after(() => rmSync(project, { recursive: true, force: true }));
+  spawnSync("git", ["init", "-q", project]);
+  if (origin) spawnSync("git", ["-C", project, "remote", "add", "origin", origin]);
+  return project;
+}
+async function connectFixture(t, origin) {
+  const ctx = await startTestHub(t);
+  const admin = ctx.store.acceptInvite(ctx.store.bootstrapAdmin(), "mac").member;
+  const b = ctx.store.acceptInvite(ctx.store.createInvite(admin, "B"), "b").member;
+  const dataDir = mkdtempSync(join(tmpdir(), "hub-connect-data-"));
+  t.after(() => rmSync(dataDir, { recursive: true, force: true }));
+  const project = tempRepo(t, origin);
+  const gateway = createHubGateway({ dataDir, db: officeDb(), project });
+  const text = (member) => `${ctx.hub.url}/connect#c=${ctx.store.createConnectCode(member)}&fp=${ctx.tls.fingerprint}`;
+  return { ...ctx, admin, b, dataDir, project, gateway, text };
+}
+
+test("link() with a connection string pairs, stores a 0600 config, registers the repo and reports the repo name", async (t) => {
+  const { gateway, text, b, dataDir, store, tls } = await connectFixture(t);
+  const r = await gateway.link(text(b));
+  assert.deepEqual({ ...r, hub: undefined }, { linked: true, member: "B", repoName: "be-service", hub: undefined, created: true });
+  assert.match(r.hub, /^https:\/\/127\.0\.0\.1:\d+$/);
+  assert.deepEqual(gateway.status(), { linked: true, legacy: false, hub: r.hub, member: "B", repoName: "be-service" });
+  assert.equal(statSync(join(dataDir, "hub-link.json")).mode & 0o777, 0o600);
+  assert.equal(readLinkConfig(dataDir).repoName, "be-service");
+  assert.equal(readLinkConfig(dataDir).fingerprint, tls.fingerprint);
+  assert.match(readLinkConfig(dataDir).caPem, /BEGIN CERTIFICATE/);
+  assert.ok(store.repos(b.id).some((x) => x.name === "be-service"));
+});
+
+test("link() over an existing link replaces it", async (t) => {
+  const { gateway, text, b, dataDir } = await connectFixture(t);
+  await gateway.link(text(b));
+  const before = readLinkConfig(dataDir).token;
+  const again = await gateway.link(text(b));
+  assert.equal(again.created, false);
+  assert.equal(again.repoName, "be-service");
+  assert.notEqual(readLinkConfig(dataDir).token, before);
+  assert.equal(gateway.status().linked, true);
+});
+
+test("a failed link() leaves the earlier link untouched", async (t) => {
+  const { gateway, text, b, dataDir } = await connectFixture(t);
+  await gateway.link(text(b));
+  const before = readFileSync(join(dataDir, "hub-link.json"), "utf8");
+  const expired = text(b).replace(/#c=[A-Za-z0-9_-]{43}/, `#c=${"z".repeat(43)}`);
+  await assert.rejects(gateway.link(expired), {
+    code: "LINK_CODE_INVALID",
+    message: "연결 문자열이 만료됐습니다. 허브의 내 Office 연결에서 새로 만드세요.",
+  });
+  assert.equal(gateway.status().linked, true);
+  assert.equal(readFileSync(join(dataDir, "hub-link.json"), "utf8"), before);
+  await assert.rejects(gateway.link("not a connection"), { code: "HUB_CONNECT_INVALID" });
+  assert.equal(readFileSync(join(dataDir, "hub-link.json"), "utf8"), before);
+});
+
+test("link() without a git origin fails with HUB_REMOTE and writes nothing", async (t) => {
+  const { gateway, text, b, dataDir } = await connectFixture(t, null);
+  await assert.rejects(gateway.link(text(b)), { code: "HUB_REMOTE", message: "이 프로젝트에 git origin 원격 주소가 없습니다." });
+  assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
+  assert.equal(gateway.status().linked, false);
+});
+
+test("a member who does not own the repo gets NOT_OWNER with the hub's message, and the code stays usable", async (t) => {
+  const { gateway, text, b, admin, store } = await connectFixture(t);
+  store.addRepo(admin, "be-service", "https://github.example.com/team/be-service");
+  const str = text(b);
+  await assert.rejects(gateway.link(str), { code: "NOT_OWNER", message: "이 레포의 담당자나 관리자에게 담당자 추가를 요청하세요." });
+  assert.equal(gateway.status().linked, false);
+  // The refusal rolled back: after the owner adds B, the very same string works.
+  const repo = store.repos(admin.id).find((r) => r.name === "be-service");
+  store.addOwner(admin, repo.id, b.id);
+  assert.equal((await gateway.link(str)).linked, true);
+});
+
+test("an unreachable hub is HUB_UNREACHABLE, never a raw socket code, and the earlier link stays", async (t) => {
+  const { gateway, text, b, dataDir } = await connectFixture(t);
+  await gateway.link(text(b));
+  const before = readFileSync(join(dataDir, "hub-link.json"), "utf8");
+  const closed = await new Promise((resolve) => {
+    const srv = createServer();
+    srv.listen(0, "127.0.0.1", () => { const { port } = srv.address(); srv.close(() => resolve(port)); });
+  });
+  await assert.rejects(gateway.link(`https://127.0.0.1:${closed}/connect#c=${"a".repeat(43)}`), {
+    code: "HUB_UNREACHABLE", message: "허브에 연결할 수 없습니다. 허브가 켜져 있고 같은 네트워크인지 확인해주세요.",
+  });
+  assert.equal(readFileSync(join(dataDir, "hub-link.json"), "utf8"), before);
+});
+
+test("link() reports an untrusted hub certificate in terms of the hub's connection string, not CLI flags", async (t) => {
+  const { gateway, b, hub, store, dataDir } = await connectFixture(t);
+  // No fingerprint in the string and the hub is self-signed: system trust fails.
+  const str = `${hub.url}/connect#c=${store.createConnectCode(b)}`;
+  await assert.rejects(gateway.link(str), {
+    code: "HUB_TLS_UNTRUSTED",
+    message: "허브 인증서를 확인할 수 없습니다. 허브의 내 Office 연결에서 연결 문자열을 새로 복사하세요.",
+  });
+  assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
+});
+
+test("link() tells a public-certificate hub's member to copy a fresh connection string, not to drop a CLI flag", async (t) => {
+  const { gateway, tls, dataDir } = await connectFixture(t);
+  // A hub without /ca.pem (public certificate) answers 404 while the string still carries fp=.
+  const server = httpsServer({ cert: tls.certPem, key: tls.keyPem }, (_req, res) => { res.statusCode = 404; res.end("no"); });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => server.close());
+  const str = `https://127.0.0.1:${server.address().port}/connect#c=${"a".repeat(43)}&fp=${tls.fingerprint}`;
+  await assert.rejects(gateway.link(str), {
+    code: "HUB_FINGERPRINT_NOT_USED",
+    message: "이 허브는 지문 없이 연결합니다. 허브의 내 Office 연결에서 연결 문자열을 새로 복사하세요.",
+  });
+  assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
+});
+
+test("a replaced link carries nothing over from the earlier one", async (t) => {
+  // The test hub is always self-signed, so a system-trust replacement cannot be produced here:
+  // an earlier link with a stale pin and name must be overwritten field by field instead.
+  const { gateway, text, b, dataDir, tls } = await connectFixture(t);
+  writeLinkConfig(dataDir, { hub: "https://old.example", caPem: "OLD-CA", fingerprint: "OLD-FP", token: "old-token", memberId: "old", memberName: "old", repoId: "old", repoName: "old-name" });
+  await gateway.link(text(b));
+  const cfg = readLinkConfig(dataDir);
+  assert.deepEqual(Object.keys(cfg).sort(), ["caPem", "fingerprint", "hub", "memberId", "memberName", "repoId", "repoName", "token"]);
+  assert.equal(cfg.fingerprint, tls.fingerprint);
+  assert.match(cfg.caPem, /BEGIN CERTIFICATE/);
+  assert.equal(cfg.memberName, "B");
+  assert.equal(cfg.repoName, "be-service");
+  assert.notEqual(cfg.token, "old-token");
+  assert.match(cfg.hub, /^https:\/\/127\.0\.0\.1:/);
+});
+
+test("unlink() removes the config and reports linked:false", async (t) => {
+  const { gateway, text, b, dataDir } = await connectFixture(t);
+  await gateway.link(text(b));
+  assert.deepEqual(gateway.unlink(), { linked: false });
+  assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
+  assert.deepEqual(gateway.status(), { linked: false, legacy: false, hub: null, member: null, repoName: null });
+  assert.deepEqual(gateway.unlink(), { linked: false });
+});
+
+test("a legacy flag is cleared by link() and unlink()", async (t) => {
+  const { gateway, text, b } = await connectFixture(t);
+  gateway.setLegacy(true);
+  assert.equal(gateway.status().legacy, true);
+  await gateway.link(text(b));
+  assert.equal(gateway.status().legacy, false);
+  gateway.setLegacy(true);
+  gateway.unlink();
+  assert.equal(gateway.status().legacy, false);
 });
