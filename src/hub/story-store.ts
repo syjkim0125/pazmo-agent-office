@@ -75,6 +75,38 @@ export type StoryView = {
   tasks: TaskView[];
   createdAt: number;
 };
+/** What an Office gets when it takes a Task. The verification Task has no repo, branch, files or spec of its own. */
+export type ClaimedTask = {
+  taskId: string;
+  claimId: string;
+  kind: "work" | "verify";
+  number: number;
+  title: string;
+  spec: string;
+  files: string[];
+  /** A work Task's own checks; for the verification Task, every Story check flattened. */
+  verify: VerifyCheck[];
+  /** The Story checks by repo (empty for a work Task); `verify` alone cannot say which repo a check belongs to. */
+  storyVerify: { repoId: string; checks: VerifyCheck[] }[];
+  repoId: string | null;
+  branch: string | null;
+  story: {
+    id: string;
+    number: number;
+    title: string;
+    body: string;
+    risk: "normal" | "high";
+    branches: { repoId: string; baseBranch: string; storyBase: string }[];
+  };
+  /** Merged ancestors of this Task in the same Story, by number. */
+  upstream: { number: number; title: string; summary: string | null; assumptions: string[] }[];
+  lastFailure: { reason: string; memo: string | null } | null;
+};
+export type StoryInbox = {
+  mine: { taskId: string; claimId: string; storyId: string; state: "claimed" | "failed" } | null;
+  alerts: { taskId: string; storyId: string; number: number; state: "held" | "failed" }[];
+  verifyReady: string[];
+};
 
 type Arg = string | number | null;
 type ProjectRow = { id: string; name: string; created_by: string; created_at: number };
@@ -101,10 +133,13 @@ type TaskRow = {
   title: string;
   spec: string;
   files: string;
+  verify: string;
   state: TaskState;
   claimed_by: string | null;
+  claim_id: string | null;
   heartbeat_at: number | null;
   stage: string | null;
+  merge_lock: number;
   pr_url: string | null;
   merge_commit: string | null;
   summary: string | null;
@@ -115,6 +150,7 @@ type TaskRow = {
 
 const KEY_MAX = 100;
 const VERIFY_TITLE = "Story 검증";
+const STAGES: readonly string[] = ["build", "review", "verify", "merge"];
 
 /**
  * Tables of the team Story board. `hub_members` and `hub_repos` come from HubStore, so it must run first
@@ -139,6 +175,7 @@ function fail(code: string, status: number, message: string): never {
 }
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const finished = (state: TaskState) => state === "merged" || state === "cancelled";
+const notYours = (): never => fail("NOT_YOURS", 409, "이제 이 Office의 Task가 아닙니다.");
 
 /** The Story graph checks throw their own error type; callers of the hub see a 400. */
 function graphChecked<T>(run: () => T): T {
@@ -487,6 +524,195 @@ export class StoryBoard {
       this.#event(s.id, null, l.member.id, "cancelled");
       return { ok: true as const };
     });
+  }
+
+  #task(id: unknown) {
+    return typeof id === "string" ? this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE id=?", id) : undefined;
+  }
+  /** A work Task exists only for links of its own repo; the verification Task has no repo, so any link shows it. */
+  #visible(l: Link, taskId: unknown): TaskRow {
+    const t = this.#task(taskId);
+    if (!t || (t.kind === "work" && t.repo_id !== l.repoId)) fail("NOT_FOUND", 404, "이 연결로 볼 수 없는 Task입니다.");
+    return t;
+  }
+  /** The one claim check for Task reports: the Task is claimed by this member under exactly this claim id. */
+  #owned(l: Link, taskId: unknown, claimId: unknown): TaskRow {
+    const t = this.#visible(l, taskId);
+    if (t.claimed_by !== l.member.id || t.state !== "claimed" || t.claim_id !== claimId) notYours();
+    return t;
+  }
+  /** The member's open Task: one claimed or failed Task at a time (the unique index enforces the same). */
+  #openTask(memberId: string) {
+    return this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE claimed_by=? AND state IN ('claimed','failed')", memberId);
+  }
+  #claim(taskId: string, memberId: string) {
+    const now = this.#now();
+    this.#run(
+      "UPDATE hub_story_tasks SET state='claimed',claimed_by=?,claim_id=?,claimed_at=?,heartbeat_at=?,stage=NULL,updated_at=? WHERE id=?",
+      memberId, randomUUID(), now, now, now, taskId,
+    );
+  }
+  /** Reads the Task back after it was claimed, so the answer carries the stored claim id, failure and memo. */
+  #claimedTask(taskId: string): ClaimedTask {
+    const t = this.#task(taskId) as TaskRow;
+    const s = this.#story(t.story_id);
+    const storyVerify = JSON.parse(s.story_verify) as { repoId: string; checks: VerifyCheck[] }[];
+    const work = t.kind === "work";
+    const upstream = this.#all<{ number: number; title: string; summary: string | null; assumptions: string | null }>(
+      `WITH RECURSIVE anc(id) AS (
+         SELECT dep_id FROM hub_task_deps WHERE task_id=?
+         UNION SELECT d.dep_id FROM hub_task_deps d JOIN anc ON d.task_id=anc.id)
+       SELECT t.number,t.title,t.summary,t.assumptions FROM hub_story_tasks t JOIN anc ON anc.id=t.id
+       WHERE t.state='merged' ORDER BY t.number`,
+      t.id,
+    );
+    return {
+      taskId: t.id,
+      claimId: t.claim_id as string,
+      kind: t.kind,
+      number: t.number,
+      title: t.title,
+      spec: work ? t.spec : "",
+      files: work ? (JSON.parse(t.files) as string[]) : [],
+      verify: work ? (JSON.parse(t.verify) as VerifyCheck[]) : storyVerify.flatMap((v) => v.checks),
+      storyVerify: work ? [] : storyVerify,
+      repoId: t.repo_id,
+      branch: work ? taskBranch(s.number, t.number) : null,
+      story: {
+        id: s.id,
+        number: s.number,
+        title: s.title,
+        body: s.body,
+        risk: s.risk,
+        branches: this.#branches(s).map(({ repoId, baseBranch, storyBase }) => ({ repoId, baseBranch, storyBase })),
+      },
+      upstream: upstream.map((u) => ({
+        number: u.number,
+        title: u.title,
+        summary: u.summary,
+        assumptions: u.assumptions ? (JSON.parse(u.assumptions) as string[]) : [],
+      })),
+      lastFailure: t.failure === null ? null : { reason: t.failure, memo: t.memo },
+    };
+  }
+
+  /** Oldest ready work Task of the link's repo in an open Story. `null` when the member already has an open Task or nothing is ready. */
+  claimNext(l: Link): ClaimedTask | null {
+    return transaction(this.#db, () => {
+      if (this.#openTask(l.member.id)) return null;
+      const next = this.#get<{ id: string; story_id: string }>(
+        `SELECT t.id,t.story_id FROM hub_story_tasks t JOIN hub_stories s ON s.id=t.story_id
+         WHERE t.kind='work' AND t.state='ready' AND t.repo_id=? AND s.state='open'
+         ORDER BY s.created_at,t.number LIMIT 1`,
+        l.repoId,
+      );
+      if (!next) return null;
+      this.#claim(next.id, l.member.id);
+      this.#event(next.story_id, next.id, l.member.id, "claimed");
+      return this.#claimedTask(next.id);
+    });
+  }
+
+  claimVerify(l: Link, storyId: string): ClaimedTask {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      const verify = this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE story_id=? AND kind='verify'", s.id) as TaskRow;
+      if (s.state !== "open" || verify.state !== "ready")
+        fail("STATE", 409, "모든 작업 Task가 끝나 검증이 준비된 Story만 검증할 수 있습니다.");
+      if (this.#openTask(l.member.id)) fail("BUSY", 409, "진행 중인 Task가 있습니다. 먼저 끝내거나 풀어주세요.");
+      this.#claim(verify.id, l.member.id);
+      this.#run("UPDATE hub_stories SET state='verifying',updated_at=? WHERE id=?", this.#now(), s.id);
+      this.#event(s.id, verify.id, l.member.id, "claimed");
+      return this.#claimedTask(verify.id);
+    });
+  }
+
+  heartbeat(l: Link, taskId: string, claimId: string, stage: "build" | "review" | "verify" | "merge"): { ok: true } {
+    return transaction(this.#db, () => {
+      const t = this.#owned(l, taskId, claimId);
+      if (!STAGES.includes(stage)) fail("INVALID", 400, `단계는 ${STAGES.join(", ")} 중 하나여야 합니다.`);
+      const now = this.#now();
+      this.#run("UPDATE hub_story_tasks SET heartbeat_at=?,stage=?,updated_at=? WHERE id=?", now, stage, now, t.id);
+      return { ok: true as const };
+    });
+  }
+
+  /** The owner takes a failed Task again under a new claim; the hub only stores the memo, the Office counts attempts. */
+  rerun(l: Link, taskId: string, memo: string): ClaimedTask {
+    return transaction(this.#db, () => {
+      const t = this.#visible(l, taskId);
+      if (t.claimed_by !== l.member.id) notYours();
+      if (t.state !== "failed") fail("STATE", 409, "실패한 Task만 다시 실행할 수 있습니다.");
+      const clean = typeof memo === "string" ? memo.trim() : null;
+      if (clean === null || clean.length > LIMITS.memoMax) fail("INVALID", 400, `메모는 ${LIMITS.memoMax}자 이하의 문자열이어야 합니다.`);
+      this.#claim(t.id, l.member.id);
+      this.#run("UPDATE hub_story_tasks SET memo=? WHERE id=?", clean || null, t.id);
+      this.#event(t.story_id, t.id, l.member.id, "rerun", clean || null);
+      return this.#claimedTask(t.id);
+    });
+  }
+
+  /** The PL takes a held or failed Task back from its assignee. A failed verification Task also reopens its Story. */
+  releaseTask(l: Link, taskId: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const t = this.#task(taskId) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
+      const s = this.#story(t.story_id);
+      this.#assertPl(l, s);
+      const shown = this.#viewState(t);
+      if (shown !== "held" && shown !== "failed") fail("STATE", 409, "보류나 실패 상태인 Task만 풀 수 있습니다.");
+      this.#run(
+        `UPDATE hub_story_tasks SET state='ready',claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,
+         stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
+        this.#now(), t.id,
+      );
+      if (t.kind === "verify") this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
+      this.#event(s.id, t.id, l.member.id, "released", shown);
+      return { ok: true as const };
+    });
+  }
+
+  cancelTask(l: Link, taskId: string): { ok: true; ready: number[] } {
+    return transaction(this.#db, () => {
+      const t = this.#task(taskId) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
+      const s = this.#story(t.story_id);
+      this.#assertPl(l, s);
+      if (t.state === "merged" || t.state === "passed" || t.state === "cancelled")
+        fail("STATE", 409, "이미 끝난 Task는 취소할 수 없습니다.");
+      if (t.kind === "verify") fail("STATE", 409, "Story 검증 Task는 취소할 수 없습니다. Story를 취소하세요.");
+      this.#cancel(s.id, t.id, l.member.id);
+      return { ok: true as const, ready: this.#recompute(s.id) };
+    });
+  }
+
+  /**
+   * What a returning Office needs: its own open Task (only one this link can report on, so a work Task of
+   * another repo is not offered), and, for Stories the member leads, held or failed Tasks and Stories ready to verify.
+   */
+  inbox(l: Link): StoryInbox {
+    const mine = this.#get<{ id: string; claim_id: string; story_id: string; state: "claimed" | "failed" }>(
+      `SELECT id,claim_id,story_id,state FROM hub_story_tasks
+       WHERE claimed_by=? AND state IN ('claimed','failed') AND (repo_id IS NULL OR repo_id=?)`,
+      l.member.id, l.repoId,
+    );
+    const alerts = this.#all<{ id: string; story_id: string; number: number; state: TaskState; heartbeat_at: number | null }>(
+      `SELECT t.id,t.story_id,t.number,t.state,t.heartbeat_at FROM hub_story_tasks t JOIN hub_stories s ON s.id=t.story_id
+       WHERE s.pl_member_id=? AND t.state IN ('claimed','failed') ORDER BY t.number`,
+      l.member.id,
+    ).flatMap((t) => {
+      const state = this.#viewState(t);
+      return state === "held" || state === "failed" ? [{ taskId: t.id, storyId: t.story_id, number: t.number, state }] : [];
+    });
+    const verifyReady = this.#all<{ id: string }>(
+      `SELECT s.id FROM hub_stories s JOIN hub_story_tasks t ON t.story_id=s.id AND t.kind='verify'
+       WHERE s.pl_member_id=? AND s.state='open' AND t.state='ready' ORDER BY s.number`,
+      l.member.id,
+    ).map((row) => row.id);
+    return {
+      mine: mine ? { taskId: mine.id, claimId: mine.claim_id, storyId: mine.story_id, state: mine.state } : null,
+      alerts,
+      verifyReady,
+    };
   }
 
   stories(_l: Link, projectId: string): StorySummary[] {
