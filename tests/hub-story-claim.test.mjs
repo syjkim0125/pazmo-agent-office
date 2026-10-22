@@ -57,6 +57,24 @@ test("owner removed: link refused, task held, PL releases, another owner claims,
   assert.notEqual(again.claimId, t.claimId);
   assert.throws(() => board.heartbeat(cl, t.taskId, t.claimId, "build"), (e) => e.code === "NOT_YOURS" && e.status === 409);
 });
+test("a hub admin can release and cancel when the PL is gone; other members cannot; the rest stays PL-only", () => {
+  const { board, admin, b, c, be, fe, linkOf, pub, tick } = opened();
+  const adminBe = linkOf(admin, be), bFe = linkOf(b, fe), forbidden = (e) => e.code === "FORBIDDEN" && e.status === 403;
+  const t = board.claimNext(linkOf(c, be));
+  tick(600_001);
+  assert.throws(() => board.releaseTask(bFe, t.taskId), forbidden);
+  board.releaseTask(adminBe, t.taskId);
+  const copy = pub.tasks.find((x) => x.nodeId === "copy").taskId;
+  assert.throws(() => board.cancelTask(bFe, copy), forbidden);
+  board.cancelTask(adminBe, copy);
+  assert.throws(() => board.openStory(adminBe, pub.storyId), forbidden);
+  assert.throws(() => board.claimVerify(adminBe, pub.storyId), forbidden);
+  assert.throws(() => board.addTasks(adminBe, pub.storyId, "k2", { nodes: [], edges: [] }), forbidden);
+  assert.throws(() => board.completeStory(adminBe, pub.storyId), forbidden);
+  assert.throws(() => board.cancelStory(bFe, pub.storyId), forbidden);
+  board.cancelStory(adminBe, pub.storyId);
+  assert.equal(board.story(bFe, pub.storyId).state, "cancelled");
+});
 test("rerun: only the owner of a failed task, with memo and last failure", () => {
   const { db, board, c, be, linkOf, plBe } = opened();
   const l = linkOf(c, be);

@@ -53,6 +53,8 @@ export type TaskView = {
   assignee: { id: string; name: string } | null;
   heartbeatAt: number | null;
   stage: string | null;
+  /** True while this Task holds its (Story, repo) merge lock, so the PL sees it before releasing. */
+  mergeLock: boolean;
   branch: string | null;
   prUrl: string | null;
   mergeCommit: string | null;
@@ -140,6 +142,9 @@ type TaskRow = {
   heartbeat_at: number | null;
   stage: string | null;
   merge_lock: number;
+  /** Who was last granted the merge lock, under which claim; kept through a release so a late merged report still counts. */
+  lock_member: string | null;
+  lock_claim: string | null;
   pr_url: string | null;
   merge_commit: string | null;
   summary: string | null;
@@ -162,7 +167,7 @@ INSERT OR IGNORE INTO hub_seq(id,next) VALUES (1,1);
 CREATE TABLE IF NOT EXISTS hub_projects(id TEXT PRIMARY KEY,name TEXT NOT NULL,created_by TEXT NOT NULL REFERENCES hub_members(id),created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_project_repos(project_id TEXT NOT NULL REFERENCES hub_projects(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),base_branch TEXT NOT NULL,PRIMARY KEY(project_id,repo_id));
 CREATE TABLE IF NOT EXISTS hub_stories(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES hub_projects(id),number INTEGER NOT NULL UNIQUE,title TEXT NOT NULL,body TEXT NOT NULL,risk TEXT NOT NULL CHECK(risk IN ('normal','high')),pl_member_id TEXT NOT NULL REFERENCES hub_members(id),create_key TEXT NOT NULL,graph TEXT NOT NULL,fingerprint TEXT NOT NULL,story_verify TEXT NOT NULL,published TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('draft','open','verifying','awaiting_g4','done','cancelled')),created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(pl_member_id,create_key));
-CREATE TABLE IF NOT EXISTS hub_story_tasks(id TEXT PRIMARY KEY,story_id TEXT NOT NULL REFERENCES hub_stories(id),node_id TEXT NOT NULL,number INTEGER NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('work','verify')),repo_id TEXT REFERENCES hub_repos(id),title TEXT NOT NULL,spec TEXT NOT NULL,files TEXT NOT NULL,verify TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('waiting','ready','claimed','failed','merged','passed','cancelled')),claimed_by TEXT REFERENCES hub_members(id),claim_id TEXT,claimed_at INTEGER,heartbeat_at INTEGER,stage TEXT,merge_lock INTEGER NOT NULL DEFAULT 0,pr_url TEXT,merge_commit TEXT,summary TEXT,assumptions TEXT,failure TEXT,memo TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(story_id,node_id));
+CREATE TABLE IF NOT EXISTS hub_story_tasks(id TEXT PRIMARY KEY,story_id TEXT NOT NULL REFERENCES hub_stories(id),node_id TEXT NOT NULL,number INTEGER NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('work','verify')),repo_id TEXT REFERENCES hub_repos(id),title TEXT NOT NULL,spec TEXT NOT NULL,files TEXT NOT NULL,verify TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('waiting','ready','claimed','failed','merged','passed','cancelled')),claimed_by TEXT REFERENCES hub_members(id),claim_id TEXT,claimed_at INTEGER,heartbeat_at INTEGER,stage TEXT,merge_lock INTEGER NOT NULL DEFAULT 0,lock_member TEXT REFERENCES hub_members(id),lock_claim TEXT,pr_url TEXT,merge_commit TEXT,summary TEXT,assumptions TEXT,failure TEXT,memo TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(story_id,node_id));
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_open_task ON hub_story_tasks(claimed_by) WHERE state IN ('claimed','failed');
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_merge_lock ON hub_story_tasks(story_id,repo_id) WHERE merge_lock=1;
 CREATE TABLE IF NOT EXISTS hub_task_deps(task_id TEXT NOT NULL REFERENCES hub_story_tasks(id),dep_id TEXT NOT NULL REFERENCES hub_story_tasks(id),PRIMARY KEY(task_id,dep_id));
@@ -259,6 +264,11 @@ export class StoryBoard {
   #assertPl(l: Link, story: StoryRow) {
     if (story.pl_member_id !== l.member.id) fail("FORBIDDEN", 403, "Story를 올린 PL만 할 수 있습니다.");
   }
+  /** Recovery when the PL is gone: a hub admin may also release and cancel, nothing else. */
+  #assertPlOrAdmin(l: Link, story: StoryRow) {
+    if (story.pl_member_id !== l.member.id && !l.member.admin)
+      fail("FORBIDDEN", 403, "Story를 올린 PL이나 허브 관리자만 할 수 있습니다.");
+  }
   #repoExists(id: string) {
     return !!this.#get("SELECT 1 FROM hub_repos WHERE id=?", id);
   }
@@ -330,10 +340,10 @@ export class StoryBoard {
   #addDep(taskId: string, depId: string) {
     this.#run("INSERT OR IGNORE INTO hub_task_deps(task_id,dep_id) VALUES (?,?)", taskId, depId);
   }
-  /** Caller is the PL and has checked the Task is unfinished. Releases the merge lock and the claim. */
+  /** Caller is the PL or a hub admin and has checked the Task is unfinished. Releases the merge lock and the claim. */
   #cancel(storyId: string, taskId: string, memberId: string) {
     this.#run(
-      "UPDATE hub_story_tasks SET state='cancelled',claimed_by=NULL,claim_id=NULL,merge_lock=0,updated_at=? WHERE id=?",
+      "UPDATE hub_story_tasks SET state='cancelled',claimed_by=NULL,claim_id=NULL,merge_lock=0,lock_member=NULL,lock_claim=NULL,updated_at=? WHERE id=?",
       this.#now(), taskId,
     );
     this.#event(storyId, taskId, memberId, "cancelled");
@@ -533,7 +543,7 @@ export class StoryBoard {
   cancelStory(l: Link, storyId: string): { ok: true } {
     return transaction(this.#db, () => {
       const s = this.#story(storyId);
-      this.#assertPl(l, s);
+      this.#assertPlOrAdmin(l, s);
       if (s.state === "cancelled") fail("STATE", 409, "이미 취소된 Story입니다.");
       if (s.state === "done") fail("STATE", 409, "끝난 Story는 취소할 수 없습니다.");
       for (const t of this.#all<{ id: string }>(
@@ -692,12 +702,15 @@ export class StoryBoard {
     });
   }
 
-  /** The PL takes a held or failed Task back from its assignee. A failed verification Task also reopens its Story. */
+  /**
+   * The PL (or a hub admin) takes a held or failed Task back from its assignee. A failed verification Task also
+   * reopens its Story. The last lock holder stays recorded, so its late merged report still counts.
+   */
   releaseTask(l: Link, taskId: string): { ok: true } {
     return transaction(this.#db, () => {
       const t = this.#task(taskId) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
       const s = this.#story(t.story_id);
-      this.#assertPl(l, s);
+      this.#assertPlOrAdmin(l, s);
       const shown = this.#viewState(t);
       if (shown !== "held" && shown !== "failed") fail("STATE", 409, "보류나 실패 상태인 Task만 풀 수 있습니다.");
       this.#run(
@@ -715,7 +728,7 @@ export class StoryBoard {
     return transaction(this.#db, () => {
       const t = this.#task(taskId) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
       const s = this.#story(t.story_id);
-      this.#assertPl(l, s);
+      this.#assertPlOrAdmin(l, s);
       if (t.state === "merged" || t.state === "passed" || t.state === "cancelled")
         fail("STATE", 409, "이미 끝난 Task는 취소할 수 없습니다.");
       if (t.kind === "verify") fail("STATE", 409, "Story 검증 Task는 취소할 수 없습니다. Story를 취소하세요.");
@@ -725,8 +738,9 @@ export class StoryBoard {
   }
 
   /**
-   * Takes the merge lock of this Task's (Story, repo), or says who holds it. Nothing frees the lock but a merged
-   * or failed report, a release or a cancel: a held Task stays locked until its PL decides, never by time.
+   * Takes the merge lock of this Task's (Story, repo), or says who holds it, and records the holder and claim.
+   * Nothing frees the lock but the holder's unlock, a merged or failed report, a release or a cancel: a held
+   * Task stays locked until its PL decides, never by time.
    */
   mergeLock(l: Link, taskId: string, claimId: string): { granted: boolean; holder: number | null } {
     return transaction(this.#db, () => {
@@ -736,7 +750,10 @@ export class StoryBoard {
         "SELECT number FROM hub_story_tasks WHERE story_id=? AND repo_id=? AND merge_lock=1", t.story_id, t.repo_id,
       );
       if (holder) return { granted: false, holder: holder.number };
-      this.#run("UPDATE hub_story_tasks SET merge_lock=1,updated_at=? WHERE id=?", this.#now(), t.id);
+      this.#run(
+        "UPDATE hub_story_tasks SET merge_lock=1,lock_member=?,lock_claim=?,updated_at=? WHERE id=?",
+        l.member.id, t.claim_id, this.#now(), t.id,
+      );
       this.#event(t.story_id, t.id, l.member.id, "merge_lock");
       return { granted: true, holder: null };
     });
@@ -760,6 +777,8 @@ export class StoryBoard {
   /**
    * The merge is done: stores the report, frees the lock and readies dependents. A resend of the same merge
    * commit is answered `already` before any claim check, since the lost reply may have outlived the claim.
+   * A late report from the last lock holder, under the claim it locked with, counts even after the PL released
+   * the Task: the merge already sits in the Story base. It ends any newer claim, whose next call is NOT_YOURS.
    */
   reportMerged(
     l: Link,
@@ -773,19 +792,25 @@ export class StoryBoard {
         if (seen.merge_commit === r?.mergeCommit) return { ok: true as const, already: true, ready: [] };
         fail("STATE", 409, "이미 다른 머지 커밋으로 보고된 Task입니다.");
       }
-      const t = this.#ownedWork(l, taskId, claimId);
-      if (t.merge_lock !== 1) fail("LOCK_REQUIRED", 409, "머지 잠금을 먼저 받아야 합니다.");
+      const holds = seen.claimed_by === l.member.id && seen.claim_id === claimId && seen.state === "claimed";
+      const late =
+        !holds && seen.kind === "work" && seen.state !== "cancelled" &&
+        seen.lock_member === l.member.id && seen.lock_claim === claimId;
+      const t = late ? seen : this.#ownedWork(l, taskId, claimId);
+      if (!late && t.merge_lock !== 1) fail("LOCK_REQUIRED", 409, "머지 잠금을 먼저 받아야 합니다.");
       if (!isHttpsUrl(r?.prUrl)) fail("INVALID", 400, `PR 주소는 https로 시작하는 ${LIMITS.prUrlMax}자 이하의 주소여야 합니다.`);
       if (typeof r.mergeCommit !== "string" || !LIMITS.mergeCommit.test(r.mergeCommit))
         fail("INVALID", 400, "머지 커밋은 40자(또는 64자) 소문자 16진수여야 합니다.");
       if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `3줄 요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
       const assumptions = decisionLinesOf(r.assumptions);
+      // The reporter becomes the assignee again (a no-op on the normal path); a late report also drops the heartbeat.
       this.#run(
-        `UPDATE hub_story_tasks SET state='merged',pr_url=?,merge_commit=?,summary=?,assumptions=?,merge_lock=0,stage=NULL,updated_at=?
-         WHERE id=?`,
-        r.prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions), this.#now(), t.id,
+        `UPDATE hub_story_tasks SET state='merged',claimed_by=?,claim_id=?,heartbeat_at=?,pr_url=?,merge_commit=?,summary=?,
+         assumptions=?,merge_lock=0,lock_member=NULL,lock_claim=NULL,stage=NULL,updated_at=? WHERE id=?`,
+        l.member.id, claimId, late ? null : t.heartbeat_at, r.prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions),
+        this.#now(), t.id,
       );
-      this.#event(t.story_id, t.id, l.member.id, "merged", r.mergeCommit);
+      this.#event(t.story_id, t.id, l.member.id, late ? "late_merged" : "merged", r.mergeCommit);
       return { ok: true as const, already: false, ready: this.#recompute(t.story_id) };
     });
   }
@@ -957,6 +982,7 @@ export class StoryBoard {
         assignee: t.claimed_by ? { id: t.claimed_by, name: t.assignee_name as string } : null,
         heartbeatAt: t.heartbeat_at,
         stage: t.stage,
+        mergeLock: t.merge_lock === 1,
         branch: t.kind === "work" ? taskBranch(s.number, t.number) : null,
         prUrl: t.pr_url,
         mergeCommit: t.merge_commit,

@@ -71,6 +71,45 @@ test("story verify reports are safe to resend; another verdict under the same cl
   assert.throws(() => board.reportVerify(plBe, v.taskId, v.claimId, { passed: false, summary: "x" }), (e) => e.code === "STATE");
   assert.equal(board.story(plBe, pub.storyId).state, "awaiting_g4");
 });
+test("the last lock holder's late merged report counts after the PL released the task", () => {
+  const { board, c, be, linkOf, plBe, pub, tick } = opened();
+  const l = linkOf(c, be);
+  const api = () => board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api");
+  const t = board.claimNext(l);
+  assert.equal(api().mergeLock, false);
+  board.mergeLock(l, t.taskId, t.claimId);
+  board.heartbeat(l, t.taskId, t.claimId, "merge");
+  assert.equal(api().mergeLock, true); // the PL sees the lock before releasing
+  tick(600_001);
+  board.releaseTask(plBe, t.taskId);
+  assert.equal(api().mergeLock, false);
+  assert.deepEqual(board.reportMerged(l, t.taskId, t.claimId, merged()), { ok: true, already: false, ready: [3] });
+  assert.equal(api().state, "merged");
+  assert.equal(api().assignee.id, c.id);
+  assert.equal(states(board, plBe, pub.storyId).ui, "ready");
+  assert.deepEqual(board.reportMerged(l, t.taskId, t.claimId, merged()), { ok: true, already: true, ready: [] });
+});
+test("a late merged report ends the newer claim; a stale claim that never locked stays NOT_YOURS", () => {
+  const ctx = opened();
+  const { store, admin, board, b, c, be, linkOf, plBe, pub, tick } = ctx;
+  store.addOwner(admin, be, b.id);
+  const lc = linkOf(c, be), lb = linkOf(b, be);
+  const t = board.claimNext(lc);
+  board.mergeLock(lc, t.taskId, t.claimId);
+  tick(600_001);
+  board.releaseTask(plBe, t.taskId);
+  const again = board.claimNext(lb);
+  assert.equal(again.taskId, t.taskId);
+  board.reportMerged(lc, t.taskId, t.claimId, merged());
+  assert.throws(() => board.heartbeat(lb, again.taskId, again.claimId, "build"), (e) => e.code === "NOT_YOURS" && e.status === 409);
+  assert.equal(board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api").state, "merged");
+  // b's slot is free again: it takes the next be task. Its old claim on that task never locked.
+  const copy = board.claimNext(lb);
+  assert.equal(copy.number, 4);
+  tick(600_001);
+  board.releaseTask(plBe, copy.taskId);
+  assert.throws(() => board.reportMerged(lb, copy.taskId, copy.claimId, merged({ mergeCommit: SHA2 })), (e) => e.code === "NOT_YOURS");
+});
 test("merged resend is idempotent; a different commit is refused", () => {
   const { board, c, be, linkOf } = opened();
   const l = linkOf(c, be);
