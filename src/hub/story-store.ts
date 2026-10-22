@@ -555,10 +555,15 @@ export class StoryBoard {
     if (!t || (t.kind === "work" && t.repo_id !== l.repoId)) fail("NOT_FOUND", 404, "이 연결로 볼 수 없는 Task입니다.");
     return t;
   }
-  /** The one claim check for Task reports: the Task is claimed by this member under exactly this claim id. */
-  #owned(l: Link, taskId: unknown, claimId: unknown): TaskRow {
+  /**
+   * The one claim check for Task reports: the Task is this member's under exactly this claim id. Another member
+   * or another claim is NOT_YOURS, which tells the Office to stop and drop its run; the claimant's own claim on a
+   * Task that left `states` is STATE instead, so a correct Office keeps its failed or merged run.
+   */
+  #owned(l: Link, taskId: unknown, claimId: unknown, states: readonly TaskState[] = ["claimed"]): TaskRow {
     const t = this.#visible(l, taskId);
-    if (t.claimed_by !== l.member.id || t.state !== "claimed" || t.claim_id !== claimId) notYours();
+    if (t.claimed_by !== l.member.id || t.claim_id !== claimId) notYours();
+    if (!states.includes(t.state)) fail("STATE", 409, "이미 끝난 Task입니다.");
     return t;
   }
   /** Merge reports belong to work Tasks: the verification Task has no repo to lock and never merges. */
@@ -637,6 +642,14 @@ export class StoryBoard {
       this.#event(next.story_id, next.id, l.member.id, "claimed");
       return this.#claimedTask(next.id);
     });
+  }
+
+  /**
+   * The claim's Task again, as the claim returned it: for an Office whose claim reply was lost or that restarted
+   * before saving the content. A failed Task carries its last failure.
+   */
+  taskForClaim(l: Link, taskId: string, claimId: string): ClaimedTask {
+    return transaction(this.#db, () => this.#claimedTask(this.#owned(l, taskId, claimId, ["claimed", "failed"]).id));
   }
 
   claimVerify(l: Link, storyId: string): ClaimedTask {
@@ -730,6 +743,21 @@ export class StoryBoard {
   }
 
   /**
+   * The holder gives the lock back without a report, to retry from implementation after a conflict or a failed
+   * re-verification. Not holding it is fine, so a resend after a lost reply is safe.
+   */
+  mergeUnlock(l: Link, taskId: string, claimId: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const t = this.#ownedWork(l, taskId, claimId);
+      if (t.merge_lock === 1) {
+        this.#run("UPDATE hub_story_tasks SET merge_lock=0,updated_at=? WHERE id=?", this.#now(), t.id);
+        this.#event(t.story_id, t.id, l.member.id, "merge_unlock");
+      }
+      return { ok: true as const };
+    });
+  }
+
+  /**
    * The merge is done: stores the report, frees the lock and readies dependents. A resend of the same merge
    * commit is answered `already` before any claim check, since the lost reply may have outlived the claim.
    */
@@ -778,9 +806,20 @@ export class StoryBoard {
   /**
    * The PL's verdict on the whole Story. Passing waits for the human G4 decision. Failing reopens the Story and
    * clears the assignee, so the PL's one-open slot is free again; the PL releases the failed Task to retry.
+   * The claim id stays with the verdict, so the same verdict resent under it is answered ok.
    */
   reportVerify(l: Link, taskId: string, claimId: string, r: { passed: boolean; summary: string }): { ok: true } {
     return transaction(this.#db, () => {
+      const seen = this.#visible(l, taskId);
+      if (
+        seen.kind === "verify" &&
+        seen.claim_id === claimId &&
+        (seen.state === "passed" || seen.state === "failed") &&
+        this.#story(seen.story_id).pl_member_id === l.member.id
+      ) {
+        if (r?.passed === (seen.state === "passed")) return { ok: true as const };
+        fail("STATE", 409, "이미 다른 결과로 보고된 Story 검증입니다.");
+      }
       const t = this.#owned(l, taskId, claimId);
       this.#assertPl(l, this.#story(t.story_id));
       if (t.kind !== "verify") fail("STATE", 409, "Story 검증 Task만 검증 결과로 보고할 수 있습니다.");
@@ -791,7 +830,7 @@ export class StoryBoard {
         this.#run("UPDATE hub_stories SET state='awaiting_g4',updated_at=? WHERE id=?", this.#now(), t.story_id);
       } else {
         this.#run(
-          `UPDATE hub_story_tasks SET state='failed',failure=?,claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,
+          `UPDATE hub_story_tasks SET state='failed',failure=?,claimed_by=NULL,claimed_at=NULL,heartbeat_at=NULL,
            stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
           r.summary, this.#now(), t.id,
         );

@@ -48,7 +48,9 @@ const ROUTES: Record<string, readonly Method[]> = {
   "/api/link/story/claim": ["POST"],
   "/api/link/story/claim-verify": ["POST"],
   "/api/link/story/heartbeat": ["POST"],
+  "/api/link/story/task": ["GET"],
   "/api/link/story/merge-lock": ["POST"],
+  "/api/link/story/merge-unlock": ["POST"],
   "/api/link/story/merged": ["POST"],
   "/api/link/story/failed": ["POST"],
   "/api/link/story/rerun": ["POST"],
@@ -88,6 +90,7 @@ async function storyRoute(board: StoryBoard, link: Link, req: IncomingMessage, u
     case "GET /api/link/story/stories": return { stories: board.stories(link, query(url, "projectId")) };
     case "GET /api/link/story/story": return board.story(link, query(url, "id"));
     case "GET /api/link/story/inbox": return board.inbox(link);
+    case "GET /api/link/story/task": return { task: board.taskForClaim(link, query(url, "id"), query(url, "claimId")) };
   }
   const body = parse(await readBody(req, LINK_LIMIT));
   switch (route) {
@@ -109,6 +112,7 @@ async function storyRoute(board: StoryBoard, link: Link, req: IncomingMessage, u
       // The board refuses a stage it does not know.
       return board.heartbeat(link, str(body, "taskId"), str(body, "claimId"), str(body, "stage") as Parameters<StoryBoard["heartbeat"]>[3]);
     case "POST /api/link/story/merge-lock": return board.mergeLock(link, str(body, "taskId"), str(body, "claimId"));
+    case "POST /api/link/story/merge-unlock": return board.mergeUnlock(link, str(body, "taskId"), str(body, "claimId"));
     case "POST /api/link/story/merged":
       return board.reportMerged(link, str(body, "taskId"), str(body, "claimId"), {
         prUrl: str(body, "prUrl"), mergeCommit: str(body, "mergeCommit"), summary: str(body, "summary"),

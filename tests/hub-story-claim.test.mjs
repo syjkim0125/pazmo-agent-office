@@ -73,6 +73,25 @@ test("inbox tells a returning Office its own task and claim", () => {
   const t = board.claimNext(l);
   assert.deepEqual(board.inbox(l).mine, { taskId: t.taskId, claimId: t.claimId, storyId: t.story.id, state: "claimed" });
 });
+test("taskForClaim returns the claimed task again, with its last failure once failed; another claim is NOT_YOURS", () => {
+  const { board, b, c, be, fe, linkOf } = opened();
+  const l = linkOf(c, be);
+  const t = board.claimNext(l);
+  assert.deepEqual(board.taskForClaim(l, t.taskId, t.claimId), t);
+  board.reportFailed(l, t.taskId, t.claimId, "재검증 실패");
+  assert.deepEqual(board.taskForClaim(l, t.taskId, t.claimId), { ...t, lastFailure: { reason: "재검증 실패", memo: null } });
+  assert.throws(() => board.taskForClaim(l, t.taskId, "another-claim"), (e) => e.code === "NOT_YOURS" && e.status === 409);
+  assert.throws(() => board.taskForClaim(linkOf(b, fe), t.taskId, t.claimId), (e) => e.code === "NOT_FOUND" && e.status === 404);
+});
+test("the claimant's own finished task answers STATE, not NOT_YOURS; a different claim stays NOT_YOURS", () => {
+  const { board, c, be, linkOf } = opened();
+  const l = linkOf(c, be);
+  const t = board.claimNext(l);
+  board.reportFailed(l, t.taskId, t.claimId, "재시도 한도 초과");
+  assert.throws(() => board.heartbeat(l, t.taskId, t.claimId, "build"), (e) => e.code === "STATE" && e.status === 409);
+  assert.throws(() => board.mergeLock(l, t.taskId, t.claimId), (e) => e.code === "STATE");
+  assert.throws(() => board.heartbeat(l, t.taskId, "another-claim", "build"), (e) => e.code === "NOT_YOURS");
+});
 test("cancelling the story ends a member's claim: heartbeat is NOT_YOURS and the inbox is empty", () => {
   const { board, c, be, linkOf, plBe, pub } = opened();
   const l = linkOf(c, be);

@@ -33,6 +33,13 @@ test("publish → open → claim → lock → merged over HTTP", async (t) => {
   const { json: { task } } = await p("/api/link/story/claim", {}, cTok);
   assert.equal(task.branch, `feature/story-${pub.number}/task-${pub.number + 1}`);
   assert.equal((await p("/api/link/story/heartbeat", { taskId: task.taskId, claimId: task.claimId, stage: "build" }, cTok)).status, 200);
+  // A lost claim reply or a restart: the same claim fetches the task again.
+  const again = await api("GET", `/api/link/story/task?id=${task.taskId}&claimId=${task.claimId}`, { token: cTok, protocol: "3" });
+  assert.equal(again.status, 200);
+  assert.deepEqual(again.json.task, task);
+  assert.equal((await api("GET", `/api/link/story/task?id=${task.taskId}`, { token: cTok, protocol: "3" })).status, 400);
+  assert.equal((await p("/api/link/story/merge-lock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json.granted, true);
+  assert.deepEqual((await p("/api/link/story/merge-unlock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json, { ok: true });
   assert.equal((await p("/api/link/story/merge-lock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json.granted, true);
   const m = await p("/api/link/story/merged", { taskId: task.taskId, claimId: task.claimId, prUrl: "https://github.example.com/team/eevee-be/pull/1", mergeCommit: "c".repeat(40), summary: "s", assumptions: [] }, cTok);
   assert.equal(m.status, 200);
