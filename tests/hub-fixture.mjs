@@ -6,14 +6,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { ensureHubTls } from "../src/hub/tls.ts";
 import { HubStore } from "../src/hub/store.ts";
+import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 
 export async function startTestHub(t) {
   const dir = mkdtempSync(join(tmpdir(), "hub-server-"));
   const tls = ensureHubTls(join(dir, "tls"), { ip: "127.0.0.1" });
-  const store = new HubStore(new DatabaseSync(":memory:"));
-  const hub = await startHubServer({ store, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store));
+  const db = new DatabaseSync(":memory:");
+  const store = new HubStore(db);
+  const board = new StoryBoard(db);
+  const hub = await startHubServer({ store, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store, board));
   t.after(async () => {
     await hub.close();
     rmSync(dir, { recursive: true, force: true });
@@ -56,5 +59,5 @@ export async function startTestHub(t) {
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
     }).then((r) => ({ ...r, json: r.text ? JSON.parse(r.text) : null }));
-  return { store, tls, hub, call, enter, api };
+  return { store, board, tls, hub, call, enter, api };
 }

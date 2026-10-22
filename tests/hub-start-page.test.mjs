@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { request } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { HubStore } from "../src/hub/store.ts";
+import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 import { startTestHub } from "./hub-fixture.mjs";
@@ -12,8 +13,9 @@ const FORM = { "content-type": "application/x-www-form-urlencoded" };
 const ORIGIN = "https://evil.example.com";
 
 async function proxyHub(t) {
-  const store = new HubStore(new DatabaseSync(":memory:"));
-  const hub = await startHubServer({ store, listen: { kind: "proxy", publicUrl: PUBLIC, host: "127.0.0.1", port: 0 } }, linkApi(store));
+  const db = new DatabaseSync(":memory:");
+  const store = new HubStore(db);
+  const hub = await startHubServer({ store, listen: { kind: "proxy", publicUrl: PUBLIC, host: "127.0.0.1", port: 0 } }, linkApi(store, new StoryBoard(db)));
   t.after(() => hub.close());
   const call = (method, path, { headers = {}, body } = {}) =>
     new Promise((resolve, reject) => {
