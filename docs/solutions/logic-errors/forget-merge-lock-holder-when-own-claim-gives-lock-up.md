@@ -117,7 +117,7 @@ The `lock_claim=?` match is what keeps the fix narrow. In `mergeUnlock` the `mer
   - the intended late case still passes after a PL release (`:74`);
   - a newer claimant's unlock, which frees nothing, must not erase the older holder's record (`:92`, the no-op unlock at `:103-104`; the `merge_lock === 1` gate is what skips it);
   - a newer claimant's lock still turns the old holder's late report into `NOT_YOURS` (`:153`).
-- Pin the identity match itself. As of this writing no committed test fails if the `lock_claim=?` CASE is replaced by an unconditional clear; a review mutation run showed all story tests still passing. The missing test: c locks, the PL releases, b re-claims the same task and reports failure, the PL releases again, and c's late merged report must still be accepted.
+- Pin the identity match itself. A review mutation run showed that replacing the `lock_claim=?` CASE with an unconditional clear left every story test passing. PR syjkim0125/pazmo-agent-office#31 added the missing test to `tests/hub-story-report.test.mjs` ("a newer claimant's failure report does not erase the older holder's record: the late merged report still counts"): c locks, the PL releases, b re-claims the same task and reports failure, the PL releases again, and c's late merged report is still accepted. Under the same mutation only that test fails.
 - When a re-review of an exception path says "looks fine", ask for a probe that runs each give-up path. The probe found this bug and the read-through did not.
 
 ## Related Issues
