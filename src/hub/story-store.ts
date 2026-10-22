@@ -208,6 +208,26 @@ function keyOf(key: unknown): string {
   return key;
 }
 
+function isHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string" || value.length < 1 || value.length > LIMITS.prUrlMax) return false;
+  try {
+    return new URL(value).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+const withinText = (value: unknown, max: number): value is string => typeof value === "string" && value.length <= max;
+
+/** Decision lines are trimmed and empty ones dropped before the line count and length limits apply. */
+function decisionLinesOf(value: unknown): string[] {
+  const lines = Array.isArray(value) && value.every((v) => typeof v === "string")
+    ? (value as string[]).map((v) => v.trim()).filter(Boolean)
+    : null;
+  if (!lines || lines.length > LIMITS.decisionLines || lines.some((v) => v.length > LIMITS.decisionLineMax))
+    fail("INVALID", 400, `판단 기록은 문자열 ${LIMITS.decisionLines}줄 이하, 한 줄 ${LIMITS.decisionLineMax}자 이하여야 합니다.`);
+  return lines as string[];
+}
+
 /** Every permission and state rule of the team Story board lives here, next to the tables it guards. */
 export class StoryBoard {
   #db: DatabaseSync;
@@ -541,6 +561,12 @@ export class StoryBoard {
     if (t.claimed_by !== l.member.id || t.state !== "claimed" || t.claim_id !== claimId) notYours();
     return t;
   }
+  /** Merge reports belong to work Tasks: the verification Task has no repo to lock and never merges. */
+  #ownedWork(l: Link, taskId: unknown, claimId: unknown): TaskRow {
+    const t = this.#owned(l, taskId, claimId);
+    if (t.kind !== "work") fail("STATE", 409, "작업 Task만 할 수 있습니다. Story 검증 Task는 검증 결과로 보고하세요.");
+    return t;
+  }
   /** The member's open Task: one claimed or failed Task at a time (the unique index enforces the same). */
   #openTask(memberId: string) {
     return this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE claimed_by=? AND state IN ('claimed','failed')", memberId);
@@ -682,6 +708,109 @@ export class StoryBoard {
       if (t.kind === "verify") fail("STATE", 409, "Story 검증 Task는 취소할 수 없습니다. Story를 취소하세요.");
       this.#cancel(s.id, t.id, l.member.id);
       return { ok: true as const, ready: this.#recompute(s.id) };
+    });
+  }
+
+  /**
+   * Takes the merge lock of this Task's (Story, repo), or says who holds it. Nothing frees the lock but a merged
+   * or failed report, a release or a cancel: a held Task stays locked until its PL decides, never by time.
+   */
+  mergeLock(l: Link, taskId: string, claimId: string): { granted: boolean; holder: number | null } {
+    return transaction(this.#db, () => {
+      const t = this.#ownedWork(l, taskId, claimId);
+      if (t.merge_lock === 1) return { granted: true, holder: null };
+      const holder = this.#get<{ number: number }>(
+        "SELECT number FROM hub_story_tasks WHERE story_id=? AND repo_id=? AND merge_lock=1", t.story_id, t.repo_id,
+      );
+      if (holder) return { granted: false, holder: holder.number };
+      this.#run("UPDATE hub_story_tasks SET merge_lock=1,updated_at=? WHERE id=?", this.#now(), t.id);
+      this.#event(t.story_id, t.id, l.member.id, "merge_lock");
+      return { granted: true, holder: null };
+    });
+  }
+
+  /**
+   * The merge is done: stores the report, frees the lock and readies dependents. A resend of the same merge
+   * commit is answered `already` before any claim check, since the lost reply may have outlived the claim.
+   */
+  reportMerged(
+    l: Link,
+    taskId: string,
+    claimId: string,
+    r: { prUrl: string; mergeCommit: string; summary: string; assumptions: string[] },
+  ): { ok: true; already: boolean; ready: number[] } {
+    return transaction(this.#db, () => {
+      const seen = this.#visible(l, taskId);
+      if (seen.state === "merged") {
+        if (seen.merge_commit === r?.mergeCommit) return { ok: true as const, already: true, ready: [] };
+        fail("STATE", 409, "이미 다른 머지 커밋으로 보고된 Task입니다.");
+      }
+      const t = this.#ownedWork(l, taskId, claimId);
+      if (t.merge_lock !== 1) fail("LOCK_REQUIRED", 409, "머지 잠금을 먼저 받아야 합니다.");
+      if (!isHttpsUrl(r?.prUrl)) fail("INVALID", 400, `PR 주소는 https로 시작하는 ${LIMITS.prUrlMax}자 이하의 주소여야 합니다.`);
+      if (typeof r.mergeCommit !== "string" || !LIMITS.mergeCommit.test(r.mergeCommit))
+        fail("INVALID", 400, "머지 커밋은 40자(또는 64자) 소문자 16진수여야 합니다.");
+      if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `3줄 요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
+      const assumptions = decisionLinesOf(r.assumptions);
+      this.#run(
+        `UPDATE hub_story_tasks SET state='merged',pr_url=?,merge_commit=?,summary=?,assumptions=?,merge_lock=0,stage=NULL,updated_at=?
+         WHERE id=?`,
+        r.prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions), this.#now(), t.id,
+      );
+      this.#event(t.story_id, t.id, l.member.id, "merged", r.mergeCommit);
+      return { ok: true as const, already: false, ready: this.#recompute(t.story_id) };
+    });
+  }
+
+  /** The Office gave up on this Task. The assignee stays, so it still counts as the member's one open Task. */
+  reportFailed(l: Link, taskId: string, claimId: string, reason: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const seen = this.#visible(l, taskId);
+      if (seen.state === "failed" && seen.claimed_by === l.member.id && seen.claim_id === claimId) return { ok: true as const };
+      const t = this.#ownedWork(l, taskId, claimId);
+      if (!withinText(reason, LIMITS.failureReasonMax)) fail("INVALID", 400, `실패 이유는 ${LIMITS.failureReasonMax}자 이하의 문자열이어야 합니다.`);
+      this.#run("UPDATE hub_story_tasks SET state='failed',failure=?,merge_lock=0,stage=NULL,updated_at=? WHERE id=?", reason, this.#now(), t.id);
+      this.#event(t.story_id, t.id, l.member.id, "failed", reason);
+      return { ok: true as const };
+    });
+  }
+
+  /**
+   * The PL's verdict on the whole Story. Passing waits for the human G4 decision. Failing reopens the Story and
+   * clears the assignee, so the PL's one-open slot is free again; the PL releases the failed Task to retry.
+   */
+  reportVerify(l: Link, taskId: string, claimId: string, r: { passed: boolean; summary: string }): { ok: true } {
+    return transaction(this.#db, () => {
+      const t = this.#owned(l, taskId, claimId);
+      this.#assertPl(l, this.#story(t.story_id));
+      if (t.kind !== "verify") fail("STATE", 409, "Story 검증 Task만 검증 결과로 보고할 수 있습니다.");
+      if (typeof r?.passed !== "boolean") fail("INVALID", 400, "passed는 true 또는 false여야 합니다.");
+      if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
+      if (r.passed) {
+        this.#run("UPDATE hub_story_tasks SET state='passed',summary=?,stage=NULL,updated_at=? WHERE id=?", r.summary, this.#now(), t.id);
+        this.#run("UPDATE hub_stories SET state='awaiting_g4',updated_at=? WHERE id=?", this.#now(), t.story_id);
+      } else {
+        this.#run(
+          `UPDATE hub_story_tasks SET state='failed',failure=?,claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,
+           stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
+          r.summary, this.#now(), t.id,
+        );
+        this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), t.story_id);
+      }
+      this.#event(t.story_id, t.id, l.member.id, r.passed ? "verified" : "verify_failed", r.summary);
+      return { ok: true as const };
+    });
+  }
+
+  /** The PL records that the human G4 decision was made; only a Story waiting for it can finish. */
+  completeStory(l: Link, storyId: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      if (s.state !== "awaiting_g4") fail("STATE", 409, "검증을 통과해 G4를 기다리는 Story만 완료할 수 있습니다.");
+      this.#run("UPDATE hub_stories SET state='done',updated_at=? WHERE id=?", this.#now(), s.id);
+      this.#event(s.id, null, l.member.id, "completed");
+      return { ok: true as const };
     });
   }
 
