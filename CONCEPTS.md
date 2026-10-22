@@ -68,7 +68,7 @@ In managed mode Office owns every action the original app would otherwise take b
 ## Team hub
 
 ### Team hub
-The invite-only, intranet-hosted board where teammates see the repo list, post requests and follow progress. It is a bulletin board and post office: it stores people, repos, requests, progress snapshots and answers, but never runs a model and holds no login, repository contents or deliverables.
+The invite-only, intranet-hosted board where teammates see the repo list, post requests and follow progress. It is a bulletin board and post office: it stores people, repos, requests, progress snapshots and answers, and for team Stories the projects, task graphs, Claims and results, but never runs a model and holds no login, repository contents or deliverables.
 *Avoid:* team server, shared Office
 
 The hub is not a second Office. Each person's Office keeps its own `127.0.0.1` boundary and only reaches out to the hub; a compromised hub can forge a requester's answers but cannot deliver anything, because delivery needs the assignee's local G4.
@@ -80,7 +80,7 @@ A teammate who may accept requests for a registered repo and connect their own O
 An owner's explicit acceptance of one hub request, binding it to that owner's Office, PC and login, made on the hub page or from the owner's Office Inbox. There is no automatic assignment. An owner may instead decline an open request with an optional reason; that closes it for every owner and the requester sees the decline and reason. The requester answers the questions and the scope Gate (G1) on the hub; the assignee answers the task Gates and G4 in their own Office. An assignee can release the request and the requester can cancel it.
 
 ### Office link
-The one-owner, one-repo pairing between an Office and the hub. The member copies a single-use, member-level connection string from the hub's start page and pastes it into the Office's top-bar team hub dialog (or `hub-link --connect`); the hub finds the repo by the Office's git origin and, if no repo has that origin, registers it with that member as owner. A repo someone else owns refuses the link and leaves the string usable. With a fingerprint (LAN hub) the Office trusts only that hub CA; without one (Fusion hub) it verifies the public certificate through system trust. The stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations, plus — from hub protocol 2 — list repos, create requests in the owner's name and read, answer and cancel the Outgoing requests sent from this repo's Office, and list, accept and decline the repo's open incoming requests.
+The one-owner, one-repo pairing between an Office and the hub. The member copies a single-use, member-level connection string from the hub's start page and pastes it into the Office's top-bar team hub dialog (or `hub-link --connect`); the hub finds the repo by the Office's git origin and, if no repo has that origin, registers it with that member as owner. A repo someone else owns refuses the link and leaves the string usable. With a fingerprint (LAN hub) the Office trusts only that hub CA; without one (Fusion hub) it verifies the public certificate through system trust. The stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations, plus — from hub protocol 2 — list repos, create requests in the owner's name and read, answer and cancel the Outgoing requests sent from this repo's Office, and list, accept and decline the repo's open incoming requests. From hub protocol 3 it also reads the team Story board, takes Claims on that repo's ready tasks and reports their results; a Story's PL may use any of their links for the Story's own actions.
 *Avoid:* login, sync account
 
 A link is outbound and polled; the hub never opens a connection into an Office. Re-pairing moves the link to another Office and revokes the first, whose in-flight local work the hub can no longer reach.
@@ -96,3 +96,20 @@ The single bounded summary an Office uploads for an accepted request: status, ti
 *Avoid:* event log, sync
 
 A snapshot is what leaves the owner's machine, so it is the unit to reason about for privacy. It never carries login information, the whole repository, delivered files or the raw G4 evidence.
+
+### PL
+The member who publishes a team Story: they split it into a task graph, approve it before it reaches the hub, run its Story-level verification and answer its G4. Only the PL opens, extends or completes a Story; to recover when the PL is gone, a hub admin may also release or cancel its tasks or cancel the Story.
+
+### Claim
+A member's Office's hold on one ready work task of a team Story, taken automatically for a repo the member owns and identified by its own claim ID. The Story's verification task is the exception: only the PL claims it, explicitly. A member has at most one open Claim at a time.
+*Avoid:* assignment (that is the accept-based request flow), lease
+
+Every report about the task must carry the current claim ID. After the PL releases or cancels the task, or after a rerun issues a new ID, the old ID is refused, so a returning Office learns the task is no longer its own. The one exception is a merged report from the Claim that last held the Merge lock (see Merge lock). A failed task stays its member's open Claim until they rerun it or the PL releases or cancels it. When an Office stops sending heartbeats its Claim is shown as held, but it is never released automatically.
+
+### Merge lock
+The per-Story, per-repo turn that one Claim holds while it brings the latest Story base into its task branch, re-verifies and merges the result into the Story base.
+
+It is never released by time. It ends when the task is merged or fails, when its own Claim gives it up to retry, or when the PL releases or cancels the task. The hub remembers which Claim last held it only so that a merge which already landed before a PL release still counts when it is reported late; a Claim that gave the lock up itself, by unlocking or reporting failure, has given that standing up too.
+
+### Story base
+The per-repo integration branch of one team Story, cut from the project's base branch, into which finished task branches merge automatically. A person tests it and merges it into the project's main line; Office never writes the main line.
