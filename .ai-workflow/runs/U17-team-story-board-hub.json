@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "runId": "e75c3774-8f58-443c-b4d3-8276485931b2",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team Story board stage 1 (hub) implemented on codex/team-story-hub (PR #29): src/hub/story-protocol.ts (pure limits, branch names, graph validation: cycles, out-of-project repo, unordered same-repo file overlap, append rules), src/hub/story-store.ts StoryBoard (projects, publish draft->open, add tasks, cancel, claim with one open task per member and link-repo scope, refetch, heartbeat-derived held, PL/admin release and cancel, rerun with memo, per-(story,repo) merge lock with self-unlock, idempotent merged/failed reports, late merged report from the last lock holder after a PL release, story verify and complete), /api/link/story/* routes on protocol 3 with protocols 1/2 unchanged. TDD per task (subagent-driven, 5 tasks), then one final fix wave (F1-F10) and the N1 lock-holder fix (d595316), each test RED before GREEN. root 765/765, typecheck 0, Story checker 0.",
+          "evidence": [
+            "docs/verification/2026-10-22-team-story-board-hub.md",
+            "docs/plans/2026-10-22-1445-feat-team-story-board-hub-plan.md",
+            "docs/understanding/team-story-board-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-22-team-story-board-hub.md": "3934a48966f8c5be9d486b9d44411502b8efdc5254a503defbdf18e84fede624",
+          "docs/plans/2026-10-22-1445-feat-team-story-board-hub-plan.md": "a2b495453a5c9b7277da06f5e2c94e804c6cd5a63e77cca2a5d13353d0fa664d",
+          "docs/understanding/team-story-board-decision.md": "35ad2cd72b58275d8c437aad00d470833ba1676290ef31252b1abdd3aa2bff7b"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Reviewed against the Story (M16/V18/D24) and the G3 decision, including failure paths: 5 task reviews (spec + quality) all Approved with no Critical/Important; whole-branch review (opus) 'With fixes' with I1 refetch, I2 self-unlock, I3 terminal own claim vs NOT_YOURS and verify resend, I4 late merged report after PL release, I5 recovery without the PL, plus 10 minors triaged; one fix wave addressed F1-F10 under a scoped re-review, which found N1 (late path accepted a claim that gave up its own lock); N1 fixed in d595316 and re-reviewed as addressed with no new breakage. Deferred items are assigned to the stage 2/4/5 plans (story-table migration helper, base branch before add-tasks, 1 MiB request limit, list-view data).",
+          "evidence": [
+            "docs/verification/2026-10-22-team-story-board-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-22-team-story-board-hub.md": "3934a48966f8c5be9d486b9d44411502b8efdc5254a503defbdf18e84fede624"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-22 after the last review fix, on d595316 (bcb76df adds only docs/STATUS.md): npm test 765/765 (baseline 721 + 44 new), npm run typecheck exit 0, Story checker exit 0; working tree clean and equal to origin/codex/team-story-hub. Baseline note: 692/721 before npm run build:office in the new worktree (29 'Build the Office UI before starting.'), 721/721 after. Unproven: Offices calling the story routes (stages 2-5), a Fusion redeploy (schema added to the existing PVC SQLite, existing Office links kept), multiple PCs, company IT policy, real GitHub Enterprise branches/PRs.",
+          "evidence": [
+            "docs/verification/2026-10-22-team-story-board-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-22-team-story-board-hub.md": "3934a48966f8c5be9d486b9d44411502b8efdc5254a503defbdf18e84fede624"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0925171f43703f08110bf6e4c791eab7d12e7ab74ffa085087d975bf5e8ce765"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-22T08:20:36.351Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-22T08:20:45.297Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team Story board stage 1 (hub) implemented on codex/team-story-hub (PR #29): src/hub/story-protocol.ts (pure limits, branch names, graph validation: cycles, out-of-project repo, unordered same-repo file overlap, append rules), src/hub/story-store.ts StoryBoard (projects, publish draft->open, add tasks, cancel, claim with one open task per member and link-repo scope, refetch, heartbeat-derived held, PL/admin release and cancel, rerun with memo, per-(story,repo) merge lock with self-unlock, idempotent merged/failed reports, late merged report from the last lock holder after a PL release, story verify and complete), /api/link/story/* routes on protocol 3 with protocols 1/2 unchanged. TDD per task (subagent-driven, 5 tasks), then one final fix wave (F1-F10) and the N1 lock-holder fix (d595316), each test RED before GREEN. root 765/765, typecheck 0, Story checker 0.",
+          "evidence": [
+            "docs/verification/2026-10-22-team-story-board-hub.md",
+            "docs/plans/2026-10-22-1445-feat-team-story-board-hub-plan.md",
+            "docs/understanding/team-story-board-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-22-team-story-board-hub.md": "3934a48966f8c5be9d486b9d44411502b8efdc5254a503defbdf18e84fede624",
+          "docs/plans/2026-10-22-1445-feat-team-story-board-hub-plan.md": "a2b495453a5c9b7277da06f5e2c94e804c6cd5a63e77cca2a5d13353d0fa664d",
+          "docs/understanding/team-story-board-decision.md": "35ad2cd72b58275d8c437aad00d470833ba1676290ef31252b1abdd3aa2bff7b"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-22T08:20:49.443Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-22T08:20:58.767Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Reviewed against the Story (M16/V18/D24) and the G3 decision, including failure paths: 5 task reviews (spec + quality) all Approved with no Critical/Important; whole-branch review (opus) 'With fixes' with I1 refetch, I2 self-unlock, I3 terminal own claim vs NOT_YOURS and verify resend, I4 late merged report after PL release, I5 recovery without the PL, plus 10 minors triaged; one fix wave addressed F1-F10 under a scoped re-review, which found N1 (late path accepted a claim that gave up its own lock); N1 fixed in d595316 and re-reviewed as addressed with no new breakage. Deferred items are assigned to the stage 2/4/5 plans (story-table migration helper, base branch before add-tasks, 1 MiB request limit, list-view data).",
+          "evidence": [
+            "docs/verification/2026-10-22-team-story-board-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-22-team-story-board-hub.md": "3934a48966f8c5be9d486b9d44411502b8efdc5254a503defbdf18e84fede624"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-22T08:21:04.462Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-22T08:21:12.605Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-22 after the last review fix, on d595316 (bcb76df adds only docs/STATUS.md): npm test 765/765 (baseline 721 + 44 new), npm run typecheck exit 0, Story checker exit 0; working tree clean and equal to origin/codex/team-story-hub. Baseline note: 692/721 before npm run build:office in the new worktree (29 'Build the Office UI before starting.'), 721/721 after. Unproven: Offices calling the story routes (stages 2-5), a Fusion redeploy (schema added to the existing PVC SQLite, existing Office links kept), multiple PCs, company IT policy, real GitHub Enterprise branches/PRs.",
+          "evidence": [
+            "docs/verification/2026-10-22-team-story-board-hub.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-22-team-story-board-hub.md": "3934a48966f8c5be9d486b9d44411502b8efdc5254a503defbdf18e84fede624"
+        }
+      }
+    }
+  ]
+}

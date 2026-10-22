@@ -8,7 +8,8 @@
   - Story 검사기 exit 0
   - Task별 리뷰 5건을 통과했다. 최종 리뷰 수정분은 재검토에서 모두 반영됐다.
   - 재검토에서 찾은 잠금 구멍(N1)도 고쳤다. 스스로 잠금을 풀거나 실패를 보고한 claim의 늦은 머지 보고는 이제 거부된다. 재검토를 통과했다.
-- **남은 것: 2단계(Office 여러 repo)·3단계(Story Task 모드)·4단계(PL)·5단계(화면), 실제 확인, G4.** 허브만으로는 팀원이 아직 쓸 수 없다. [G3 결정](understanding/team-story-board-decision.md) · [구현 계획](plans/2026-10-22-1445-feat-team-story-board-hub-plan.md)
+- Fusion 허브에 이 코드를 올렸다(빌드 `pazmo-hub-5`). `/healthz` 200, 새 경로는 프로토콜 3만 받고, 기존 경로·데이터·Office 연결은 그대로이며, 새 표 8개가 생겼다. G4는 2026-10-22 "피드백 확인 후 승인"으로 기록했다.
+- **남은 것: 2단계(Office 여러 repo)·3단계(Story Task 모드)·4단계(PL)·5단계(화면), 실제 허브에서 새 경로로 데이터 쓰기 확인, V18 실제 확인(Office 두 개·시험 repo 두 개).** 허브만으로는 팀원이 아직 쓸 수 없다. [G3 결정](understanding/team-story-board-decision.md) · [구현 계획](plans/2026-10-22-1445-feat-team-story-board-hub-plan.md) · [검증 기록](verification/2026-10-22-team-story-board-hub.md)
 
 # 2026-10-16 받은 팀 허브 요청을 Office Inbox에서 수락·거절
 
