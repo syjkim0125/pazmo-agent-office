@@ -48,6 +48,17 @@ test("appends: edges only into new nodes, overlap checked against unfinished tas
   assert.equal(v([node("a", "be", ["z"])]), "GRAPH_INVALID"); // id 중복
   assert.equal(v(Array.from({ length: 39 }, (_, i) => node(`n${i}`, "fe", [`f${i}`]))), "GRAPH_LIMIT"); // 2 + 39 > 40
 });
+test("a task spec is limited in UTF-8 bytes, counted without Node's Buffer", () => {
+  const saved = Object.getOwnPropertyDescriptor(globalThis, "Buffer");
+  delete globalThis.Buffer; // the module is pure: an Office bundle or a browser has no Buffer
+  try {
+    const spec = (s) => code(() => validateGraph({ nodes: [node("a", "be", ["x"], { spec: s })], edges: [] }, { projectRepoIds: repos }));
+    assert.equal(spec("가".repeat(5461) + "a"), "OK"); // 16384 bytes
+    assert.equal(spec("가".repeat(5461) + "ab"), "GRAPH_INVALID"); // 16385 bytes
+  } finally {
+    Object.defineProperty(globalThis, "Buffer", saved);
+  }
+});
 test("story verify checks are per project repo", () => {
   assert.deepEqual(validateStoryVerify([{ repoId: "be", checks: [check] }], repos), [{ repoId: "be", checks: [check] }]);
   assert.equal(code(() => validateStoryVerify([{ repoId: "ops", checks: [check] }], repos)), "GRAPH_REPO");

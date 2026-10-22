@@ -17,6 +17,25 @@ test("publish numbers story then tasks then verify, as a draft", () => {
   assert.deepEqual(v.tasks.find((t) => t.kind === "verify").deps, [2, 3]);
   assert.equal(board.publishStory(l, { projectId, title: "x", body: "x", risk: "normal", key: "k", graph: { nodes: [node("z", be, ["z"])], edges: [] }, storyVerify: [{ repoId: be, checks: [check] }] }).already, true);
 });
+test("the fingerprint covers the graph and the story verification, whatever order they come in", () => {
+  const { db, board, pl, be, fe, linkOf, node, check } = setup();
+  const l = linkOf(pl, be);
+  const { projectId } = board.createProject(l, "p", [{ repoId: be, baseBranch: "main" }, { repoId: fe, baseBranch: "main" }]);
+  const lint = { id: "V2", argv: ["npm", "run", "lint"], timeoutMs: 60000 };
+  const api = node("api", be, ["a"]), ui = node("ui", fe, ["b"]);
+  const publish = (key, nodes, storyVerify) =>
+    board.publishStory(l, { projectId, title: "t", body: "b", risk: "normal", key, graph: { nodes, edges: [] }, storyVerify }).storyId;
+  const fp = (id) => db.prepare("SELECT fingerprint FROM hub_stories WHERE id=?").get(id).fingerprint;
+  const sv = [{ repoId: be, checks: [check] }, { repoId: fe, checks: [lint] }];
+  const one = publish("one", [api, ui], sv);
+  assert.equal(fp(publish("reordered", [ui, api], [sv[1], sv[0]])), fp(one));
+  assert.notEqual(fp(publish("other-verify", [api, ui], [{ repoId: be, checks: [check] }, { repoId: fe, checks: [check] }])), fp(one));
+  // Tasks added later hash with the same story verification as a Story published whole.
+  const later = publish("later", [api], sv);
+  board.openStory(l, later);
+  board.addTasks(l, later, "add-ui", { nodes: [ui], edges: [] });
+  assert.equal(fp(later), fp(one));
+});
 test("open readies only tasks without dependencies; only the PL opens", () => {
   const ctx = setup();
   const { board, b, fe, linkOf } = ctx;

@@ -200,11 +200,16 @@ function sortedJson(value: unknown): string {
       : v,
   );
 }
-/** sha256 of the graph with nodes and edges in id order: the same graph gives the same fingerprint however it was sent. */
-function fingerprintOf(graph: GraphInput): string {
+type StoryVerify = { repoId: string; checks: VerifyCheck[] }[];
+/**
+ * sha256 of what Story G1 approves: the graph with nodes and edges in id order, and the Story verification in
+ * repo order. The same Story gives the same fingerprint however it was sent; check order within a list counts.
+ */
+function fingerprintOf(graph: GraphInput, storyVerify: StoryVerify): string {
   const nodes = [...graph.nodes].sort((a, b) => compare(a.id, b.id));
   const edges = [...graph.edges].sort((a, b) => compare(a.from, b.from) || compare(a.to, b.to));
-  return createHash("sha256").update(sortedJson({ nodes, edges })).digest("hex");
+  const verify = [...storyVerify].sort((a, b) => compare(a.repoId, b.repoId));
+  return createHash("sha256").update(sortedJson({ nodes, edges, storyVerify: verify })).digest("hex");
 }
 
 function keyOf(key: unknown): string {
@@ -213,12 +218,24 @@ function keyOf(key: unknown): string {
   return key;
 }
 
-function isHttpsUrl(value: unknown): value is string {
-  if (typeof value !== "string" || value.length < 1 || value.length > LIMITS.prUrlMax) return false;
+/**
+ * A PR address as the hub stores it: `https://` with a host and no account part, and nothing a later page or log
+ * line could trip on (whitespace, control characters, `"`, `<`, `>`). Returns the parsed URL's href, or null.
+ */
+function prUrlOf(value: unknown): string | null {
+  if (
+    typeof value !== "string" ||
+    value.length > LIMITS.prUrlMax ||
+    !value.startsWith("https://") ||
+    /[\s\u0000-\u001f\u007f-\u009f"<>]/.test(value)
+  )
+    return null;
   try {
-    return new URL(value).protocol === "https:";
+    const url = new URL(value);
+    const ok = url.protocol === "https:" && url.hostname !== "" && url.username === "" && url.password === "";
+    return ok && url.href.length <= LIMITS.prUrlMax ? url.href : null;
   } catch {
-    return false;
+    return null;
   }
 }
 const withinText = (value: unknown, max: number): value is string => typeof value === "string" && value.length <= max;
@@ -449,7 +466,7 @@ export class StoryBoard {
         `INSERT INTO hub_stories(id,project_id,number,title,body,risk,pl_member_id,create_key,graph,fingerprint,story_verify,published,state,created_at,updated_at)
          VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'draft',?,?)`,
         storyId, project.id, number, title, input.body, input.risk, l.member.id, key,
-        JSON.stringify(graph), fingerprintOf(graph), JSON.stringify(storyVerify), JSON.stringify(published),
+        JSON.stringify(graph), fingerprintOf(graph, storyVerify), JSON.stringify(storyVerify), JSON.stringify(published),
         this.#now(), this.#now(),
       );
       for (const w of work)
@@ -522,7 +539,7 @@ export class StoryBoard {
       const merged: GraphInput = { nodes: [...all.nodes, ...added.nodes], edges: [...all.edges, ...added.edges] };
       this.#run(
         "UPDATE hub_stories SET graph=?,fingerprint=?,state='open',updated_at=? WHERE id=?",
-        JSON.stringify(merged), fingerprintOf(merged), this.#now(), s.id,
+        JSON.stringify(merged), fingerprintOf(merged, JSON.parse(s.story_verify) as StoryVerify), this.#now(), s.id,
       );
       this.#run(
         `UPDATE hub_story_tasks SET state='waiting',claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,
@@ -798,7 +815,9 @@ export class StoryBoard {
         seen.lock_member === l.member.id && seen.lock_claim === claimId;
       const t = late ? seen : this.#ownedWork(l, taskId, claimId);
       if (!late && t.merge_lock !== 1) fail("LOCK_REQUIRED", 409, "머지 잠금을 먼저 받아야 합니다.");
-      if (!isHttpsUrl(r?.prUrl)) fail("INVALID", 400, `PR 주소는 https로 시작하는 ${LIMITS.prUrlMax}자 이하의 주소여야 합니다.`);
+      const prUrl =
+        prUrlOf(r?.prUrl) ??
+        fail("INVALID", 400, `PR 주소는 https://로 시작하고 계정 정보·공백·따옴표·꺾쇠 없는 ${LIMITS.prUrlMax}자 이하의 주소여야 합니다.`);
       if (typeof r.mergeCommit !== "string" || !LIMITS.mergeCommit.test(r.mergeCommit))
         fail("INVALID", 400, "머지 커밋은 40자(또는 64자) 소문자 16진수여야 합니다.");
       if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `3줄 요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
@@ -807,7 +826,7 @@ export class StoryBoard {
       this.#run(
         `UPDATE hub_story_tasks SET state='merged',claimed_by=?,claim_id=?,heartbeat_at=?,pr_url=?,merge_commit=?,summary=?,
          assumptions=?,merge_lock=0,lock_member=NULL,lock_claim=NULL,stage=NULL,updated_at=? WHERE id=?`,
-        l.member.id, claimId, late ? null : t.heartbeat_at, r.prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions),
+        l.member.id, claimId, late ? null : t.heartbeat_at, prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions),
         this.#now(), t.id,
       );
       this.#event(t.story_id, t.id, l.member.id, late ? "late_merged" : "merged", r.mergeCommit);

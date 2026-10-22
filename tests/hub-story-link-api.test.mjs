@@ -23,6 +23,8 @@ test("story routes need protocol 3; old routes still take 2", async (t) => {
   assert.equal((await api("GET", "/api/link/story/inbox", { token: cTok, protocol: "3" })).status, 200);
   assert.equal((await api("GET", "/api/link/work", { token: cTok, protocol: "2" })).status, 200);
   assert.equal((await api("GET", "/api/link/work", { token: cTok, protocol: "3" })).status, 200);
+  // Protocol-2 routes accept 3 as well: a story-capable Office still lists repos and sends requests.
+  assert.equal((await api("GET", "/api/link/repos", { token: cTok, protocol: "3" })).status, 200);
 });
 test("publish → open → claim → lock → merged over HTTP", async (t) => {
   const { api, be, plTok, cTok } = await team(t);

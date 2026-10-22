@@ -122,13 +122,19 @@ test("merged resend is idempotent; a different commit is refused", () => {
   assert.throws(() => board.heartbeat(l, t.taskId, t.claimId, "merge"), (e) => e.code === "STATE" && e.status === 409);
 });
 test("report fields are validated", () => {
-  const { board, c, be, linkOf } = opened();
+  const { board, c, be, linkOf, plBe, pub } = opened();
   const l = linkOf(c, be);
   const t = board.claimNext(l);
   board.mergeLock(l, t.taskId, t.claimId);
   assert.throws(() => board.reportMerged(l, t.taskId, t.claimId, merged({ prUrl: "http://x" })), (e) => e.code === "INVALID");
+  for (const prUrl of ["https:x", "https://u:p@h.example/x", "https://u@h.example/x", "https://h.example/a b", "https://h.example/a\nb",
+    'https://h.example/a"b', "https://h.example/<b>", `https://h.example/${"a".repeat(500)}`])
+    assert.throws(() => board.reportMerged(l, t.taskId, t.claimId, merged({ prUrl })), (e) => e.code === "INVALID", JSON.stringify(prUrl));
   assert.throws(() => board.reportMerged(l, t.taskId, t.claimId, merged({ mergeCommit: "zz" })), (e) => e.code === "INVALID");
   assert.throws(() => board.reportMerged(l, t.taskId, t.claimId, merged({ assumptions: Array(51).fill("x") })), (e) => e.code === "INVALID");
+  // A valid address is stored as the parsed URL's href.
+  board.reportMerged(l, t.taskId, t.claimId, merged({ prUrl: "https://GitHub.Example.com/team/eevee-be/pull/7" }));
+  assert.equal(board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api").prUrl, "https://github.example.com/team/eevee-be/pull/7");
 });
 test("story verify: ready after all work merges, PL only, fail reopens, pass awaits G4, complete finishes", () => {
   const { board, pl, b, c, be, fe, linkOf, plBe, pub } = opened();

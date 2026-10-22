@@ -144,7 +144,7 @@ function nodeOf(value: unknown, where: string, projectRepoIds: ReadonlySet<strin
   const cleanTitle = typeof title === "string" ? title.trim() : "";
   if (cleanTitle.length < 1 || cleanTitle.length > LIMITS.titleMax)
     fail("GRAPH_INVALID", `${where}: 제목은 1–${LIMITS.titleMax}자여야 합니다.`);
-  if (typeof spec !== "string" || Buffer.byteLength(spec, "utf8") > LIMITS.taskSpecBytes)
+  if (typeof spec !== "string" || new TextEncoder().encode(spec).length > LIMITS.taskSpecBytes)
     fail("GRAPH_INVALID", `${where}: 설명은 ${LIMITS.taskSpecBytes}바이트 이하의 문자열이어야 합니다.`);
   if (!Array.isArray(files) || files.length < 1 || files.length > LIMITS.filesPerTask || !files.every(validFilePath))
     fail(
