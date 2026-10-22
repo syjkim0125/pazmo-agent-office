@@ -112,6 +112,26 @@ test("a late merged report ends the newer claim; a stale claim that never locked
   board.releaseTask(plBe, copy.taskId);
   assert.throws(() => board.reportMerged(lb, copy.taskId, copy.claimId, merged({ mergeCommit: SHA2 })), (e) => e.code === "NOT_YOURS");
 });
+test("a newer claimant's failure report does not erase the older holder's record: the late merged report still counts", () => {
+  const ctx = opened();
+  const { store, admin, board, b, c, be, linkOf, plBe, pub, tick } = ctx;
+  store.addOwner(admin, be, b.id);
+  const lc = linkOf(c, be), lb = linkOf(b, be);
+  const api = () => board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api");
+  const t = board.claimNext(lc);
+  board.mergeLock(lc, t.taskId, t.claimId);
+  tick(600_001);
+  board.releaseTask(plBe, t.taskId);
+  const again = board.claimNext(lb);
+  assert.equal(again.taskId, t.taskId);
+  // b gives up under its own claim; only b's record may be forgotten, and b never held the lock.
+  board.reportFailed(lb, again.taskId, again.claimId, "재검증 실패");
+  board.releaseTask(plBe, again.taskId);
+  assert.equal(api().state, "ready");
+  assert.deepEqual(board.reportMerged(lc, t.taskId, t.claimId, merged()), { ok: true, already: false, ready: [3] });
+  assert.equal(api().state, "merged");
+  assert.equal(api().assignee.id, c.id);
+});
 /** c holds api (be, #2) and b holds copy (be, #4) in the same Story: one merge lock between them. */
 const twoBeClaims = () => {
   const ctx = opened();
