@@ -100,6 +100,8 @@ test("a late merged report ends the newer claim; a stale claim that never locked
   board.releaseTask(plBe, t.taskId);
   const again = board.claimNext(lb);
   assert.equal(again.taskId, t.taskId);
+  // The newer claimant's unlock frees nothing and must not erase the older holder's record.
+  board.mergeUnlock(lb, again.taskId, again.claimId);
   board.reportMerged(lc, t.taskId, t.claimId, merged());
   assert.throws(() => board.heartbeat(lb, again.taskId, again.claimId, "build"), (e) => e.code === "NOT_YOURS" && e.status === 409);
   assert.equal(board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api").state, "merged");
@@ -109,6 +111,57 @@ test("a late merged report ends the newer claim; a stale claim that never locked
   tick(600_001);
   board.releaseTask(plBe, copy.taskId);
   assert.throws(() => board.reportMerged(lb, copy.taskId, copy.claimId, merged({ mergeCommit: SHA2 })), (e) => e.code === "NOT_YOURS");
+});
+/** c holds api (be, #2) and b holds copy (be, #4) in the same Story: one merge lock between them. */
+const twoBeClaims = () => {
+  const ctx = opened();
+  ctx.store.addOwner(ctx.admin, ctx.be, ctx.b.id);
+  const lc = ctx.linkOf(ctx.c, ctx.be), lb = ctx.linkOf(ctx.b, ctx.be);
+  const api = ctx.board.claimNext(lc), copy = ctx.board.claimNext(lb);
+  const view = (nodeId) => ctx.board.story(ctx.plBe, ctx.pub.storyId).tasks.find((x) => x.nodeId === nodeId);
+  return { ...ctx, lc, lb, api, copy, view };
+};
+test("a holder that unlocked is not the last lock holder: its merged report after a release is refused", () => {
+  const { board, lc, lb, api, copy, view, plBe, tick } = twoBeClaims();
+  board.mergeLock(lc, api.taskId, api.claimId);
+  board.mergeUnlock(lc, api.taskId, api.claimId);
+  assert.equal(board.mergeLock(lb, copy.taskId, copy.claimId).granted, true);
+  tick(600_001);
+  board.releaseTask(plBe, api.taskId);
+  assert.throws(() => board.reportMerged(lc, api.taskId, api.claimId, merged()), (e) => e.code === "NOT_YOURS");
+  assert.equal(view("api").state, "ready");
+  assert.equal(view("copy").mergeLock, true);
+});
+test("a holder that reported failure is not the last lock holder: its merged report is refused", () => {
+  const { board, lc, lb, api, copy, view } = twoBeClaims();
+  board.mergeLock(lc, api.taskId, api.claimId);
+  board.reportFailed(lc, api.taskId, api.claimId, "재검증 실패");
+  assert.equal(board.mergeLock(lb, copy.taskId, copy.claimId).granted, true);
+  assert.throws(() => board.reportMerged(lc, api.taskId, api.claimId, merged()), (e) => e.code === "STATE" && e.status === 409);
+  assert.equal(view("api").state, "failed");
+  assert.equal(view("copy").mergeLock, true);
+});
+test("after a failure and a rerun, the old claim's merged report is refused and the rerun claim lives on", () => {
+  const { board, lc, api, view } = twoBeClaims();
+  board.mergeLock(lc, api.taskId, api.claimId);
+  board.reportFailed(lc, api.taskId, api.claimId, "재검증 실패");
+  const rerun = board.rerun(lc, api.taskId, "충돌 해결부터");
+  assert.throws(() => board.reportMerged(lc, api.taskId, api.claimId, merged()), (e) => e.code === "NOT_YOURS");
+  assert.deepEqual(board.heartbeat(lc, api.taskId, rerun.claimId, "build"), { ok: true });
+  assert.equal(view("api").state, "claimed");
+});
+test("once a newer claimant takes the lock, the old holder's late merged report is NOT_YOURS", () => {
+  const { store, admin, board, b, c, be, linkOf, plBe, pub, tick } = opened();
+  store.addOwner(admin, be, b.id);
+  const lc = linkOf(c, be), lb = linkOf(b, be);
+  const t = board.claimNext(lc);
+  board.mergeLock(lc, t.taskId, t.claimId);
+  tick(600_001);
+  board.releaseTask(plBe, t.taskId);
+  const again = board.claimNext(lb);
+  assert.equal(board.mergeLock(lb, again.taskId, again.claimId).granted, true);
+  assert.throws(() => board.reportMerged(lc, t.taskId, t.claimId, merged()), (e) => e.code === "NOT_YOURS");
+  assert.equal(board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api").state, "claimed");
 });
 test("merged resend is idempotent; a different commit is refused", () => {
   const { board, c, be, linkOf } = opened();

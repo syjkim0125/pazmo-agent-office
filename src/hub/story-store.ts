@@ -142,7 +142,10 @@ type TaskRow = {
   heartbeat_at: number | null;
   stage: string | null;
   merge_lock: number;
-  /** Who was last granted the merge lock, under which claim; kept through a release so a late merged report still counts. */
+  /**
+   * Who was last granted the merge lock, under which claim. Kept through a PL release so a late merged report still
+   * counts; forgotten when that claim gives the lock up itself (unlock, failed report), on merged and on cancel.
+   */
   lock_member: string | null;
   lock_claim: string | null;
   pr_url: string | null;
@@ -156,6 +159,12 @@ type TaskRow = {
 const KEY_MAX = 100;
 const VERIFY_TITLE = "Story 검증";
 const STAGES: readonly string[] = ["build", "review", "verify", "merge"];
+/**
+ * SET fragment (binds the claim id twice): forgets the recorded lock holder when it is this claim. A claim that
+ * gives its lock up is not the "last lock holder" whose late merged report counts; another claim's record stays.
+ */
+const FORGET_OWN_LOCK =
+  "lock_member=CASE WHEN lock_claim=? THEN NULL ELSE lock_member END,lock_claim=CASE WHEN lock_claim=? THEN NULL ELSE lock_claim END";
 
 /**
  * Tables of the team Story board. `hub_members` and `hub_repos` come from HubStore, so it must run first
@@ -784,7 +793,7 @@ export class StoryBoard {
     return transaction(this.#db, () => {
       const t = this.#ownedWork(l, taskId, claimId);
       if (t.merge_lock === 1) {
-        this.#run("UPDATE hub_story_tasks SET merge_lock=0,updated_at=? WHERE id=?", this.#now(), t.id);
+        this.#run(`UPDATE hub_story_tasks SET merge_lock=0,${FORGET_OWN_LOCK},updated_at=? WHERE id=?`, claimId, claimId, this.#now(), t.id);
         this.#event(t.story_id, t.id, l.member.id, "merge_unlock");
       }
       return { ok: true as const };
@@ -796,6 +805,7 @@ export class StoryBoard {
    * commit is answered `already` before any claim check, since the lost reply may have outlived the claim.
    * A late report from the last lock holder, under the claim it locked with, counts even after the PL released
    * the Task: the merge already sits in the Story base. It ends any newer claim, whose next call is NOT_YOURS.
+   * A claim that gave its lock up itself (unlock, failed report) is forgotten and gets the normal checks.
    */
   reportMerged(
     l: Link,
@@ -841,7 +851,10 @@ export class StoryBoard {
       if (seen.state === "failed" && seen.claimed_by === l.member.id && seen.claim_id === claimId) return { ok: true as const };
       const t = this.#ownedWork(l, taskId, claimId);
       if (!withinText(reason, LIMITS.failureReasonMax)) fail("INVALID", 400, `실패 이유는 ${LIMITS.failureReasonMax}자 이하의 문자열이어야 합니다.`);
-      this.#run("UPDATE hub_story_tasks SET state='failed',failure=?,merge_lock=0,stage=NULL,updated_at=? WHERE id=?", reason, this.#now(), t.id);
+      this.#run(
+        `UPDATE hub_story_tasks SET state='failed',failure=?,merge_lock=0,${FORGET_OWN_LOCK},stage=NULL,updated_at=? WHERE id=?`,
+        reason, claimId, claimId, this.#now(), t.id,
+      );
       this.#event(t.story_id, t.id, l.member.id, "failed", reason);
       return { ok: true as const };
     });
