@@ -10,6 +10,7 @@ import {
   unlinkSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import {
   fail,
@@ -22,9 +23,11 @@ import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { viewerToken } from "../runtime/observation.ts";
 
+export type Engine = "legacy" | "claw" | "lean";
+const ENGINES: readonly string[] = ["legacy", "claw", "lean"];
 type Running = {
   version: 1;
-  engine?: "legacy" | "claw";
+  engine?: Engine;
   project: string;
   pid: number;
   port: number;
@@ -46,7 +49,7 @@ function readState(p: Project): Running | undefined {
   }
   if (
     s.version !== 1 ||
-    (s.engine !== undefined && !["legacy", "claw"].includes(s.engine)) ||
+    (s.engine !== undefined && !ENGINES.includes(s.engine)) ||
     s.project !== p.project ||
     !Number.isInteger(s.pid) ||
     s.pid <= 0 ||
@@ -83,6 +86,24 @@ async function control(s: Running, action: "status" | "stop") {
     throw new Error("Controller identity mismatch.");
   return value;
 }
+/** The service process each engine runs. Only claw needs the tsx loader; lean
+ * runs as plain `node <file>`. Lean still needs the vendor dependencies
+ * installed: the engine it reuses loads vendor `ws` (see vendorInstalled). */
+const SERVICE: Record<Engine, string> = {
+  legacy: "src/runtime/service.ts",
+  claw: "src/runtime/claw-service.ts",
+  lean: "src/runtime/lean-service.ts",
+};
+/** Whether vendor `ws` resolves the way src/runners/exec-relay.ts loads it
+ * when the service starts (both native engines import it). */
+export function vendorInstalled(): boolean {
+  try {
+    createRequire(join(packageRoot, "vendor/claw-empire/package.json")).resolve("ws");
+    return true;
+  } catch {
+    return false;
+  }
+}
 export async function status(p: Project) {
   readManifest(p);
   const s = readState(p);
@@ -113,7 +134,9 @@ export async function start(
   p: Project,
   port: number,
   live?: LiveConfig,
-  engine: "legacy" | "claw" = "legacy",
+  engine: Engine = "legacy",
+  /** Checks before anything starts; tests replace them. */
+  checks: { installed: () => boolean } = { installed: vendorInstalled },
 ) {
   const current = await status(p);
   if (current.status === "running") {
@@ -128,8 +151,18 @@ export async function start(
   }
   if (current.status !== "stopped")
     fail("UNKNOWN", "Resolve the preserved runtime state before restarting.");
-  if (!existsSync(join(packageRoot, "vendor/claw-empire/dist/index.html")))
+  // The lean Office serves its own page and needs no vendor UI build, but its
+  // service loads vendor ws: without the dependencies it would exit at startup.
+  if (
+    engine !== "lean" &&
+    !existsSync(join(packageRoot, "vendor/claw-empire/dist/index.html"))
+  )
     fail("NOT_BUILT", "Build the Office UI before starting.");
+  if (engine === "lean" && !checks.installed())
+    fail(
+      "NOT_INSTALLED",
+      "Office 의존성이 설치되지 않았습니다. ./office --lean 으로 설치하세요.",
+    );
   ignoreMetadata(p);
   noSymlinks(p.dataDir);
   mkdirSync(p.dataDir, { recursive: true, mode: 0o700 });
@@ -165,22 +198,18 @@ export async function start(
               ),
             ]
           : []),
-        join(
-          packageRoot,
-          engine === "claw"
-            ? "src/runtime/claw-service.ts"
-            : "src/runtime/service.ts",
-        ),
+        join(packageRoot, SERVICE[engine]),
       ],
       {
         cwd: p.dataDir,
         detached: true,
         stdio: ["ignore", fd, fd, "ipc"],
         env: {
+          // Claw and lean run the native Office, which reads task diffs with git.
           PATH:
-            engine === "claw"
-              ? `${dirname(process.execPath)}:/usr/bin:/bin`
-              : dirname(process.execPath),
+            engine === "legacy"
+              ? dirname(process.execPath)
+              : `${dirname(process.execPath)}:/usr/bin:/bin`,
           HOME: join(p.dataDir, "home"),
           TMPDIR: join(p.dataDir, "tmp"),
           LANG: "en_US.UTF-8",
@@ -303,6 +332,8 @@ async function operatorSession(p: Project) {
   await control(s, "status");
   if (s.engine === "claw")
     return { port: s.port, token: s.token, engine: "claw" as const };
+  // Lean: a local session only; its runtime token is never handed out.
+  if (s.engine === "lean") return { port: s.port, engine: "lean" as const };
   const file = join(p.dataDir, `operator-${s.instance}.json`);
   noSymlinks(file);
   const operator = JSON.parse(readFileSync(file, "utf8")) as {
@@ -317,9 +348,15 @@ async function operatorSession(p: Project) {
   return { port: s.port, token: operator.token };
 }
 
+const NO_OPERATOR_API = [
+  "UNSUPPORTED",
+  "The lean Office has no operator API. Use monitor to open its local session.",
+] as const;
+
 /** Explicit terminal action only; never included in ordinary status or startup. */
 export async function operatorKey(p: Project) {
   const session = await operatorSession(p);
+  if (session.engine === "lean") return fail(...NO_OPERATOR_API);
   return {
     url: `http://127.0.0.1:${session.port}/operator`,
     token: session.token,
@@ -329,7 +366,7 @@ export async function operatorKey(p: Project) {
 /** Open the native local session or the legacy observation capability. */
 export async function monitor(p: Project) {
   const session = await operatorSession(p);
-  if (session.engine === "claw")
+  if (session.engine === "claw" || session.engine === "lean")
     return {
       url: `http://127.0.0.1:${session.port}/`,
       access: "local-session",
@@ -347,6 +384,7 @@ export async function operatorRequest(
   body?: unknown,
 ): Promise<unknown> {
   const session = await operatorSession(p);
+  if (session.engine === "lean") return fail(...NO_OPERATOR_API);
   const response = await fetch(`http://127.0.0.1:${session.port}${path}`, {
     method: body === undefined ? "GET" : "POST",
     headers: {

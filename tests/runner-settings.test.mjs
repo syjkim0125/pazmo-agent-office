@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { RunnerSettings } from "../src/runtime/runner-settings.ts";
+import { RunnerSettings, validateRunnerChoice, defaultRunnerChoice } from "../src/runtime/runner-settings.ts";
 import { RunnerEvidence } from "../src/core/runner-evidence.ts";
 
 const catalog = () => ({
@@ -189,4 +189,53 @@ test("run evidence for a report covers the request and its published subtasks on
   const rows = evidence.forRequest("root");
   assert.deepEqual(rows.map((r) => [r.taskId, r.role]), [["root", "pm"], ["root", "lead"], ["child", "engineer"], ["child", "reviewer"]]);
   assert.deepEqual(evidence.forRequest("missing"), []);
+});
+
+const codeOf = (fn) => {
+  try {
+    fn();
+    return "OK";
+  } catch (e) {
+    return e.code;
+  }
+};
+
+test("validateRunnerChoice returns the choice and throws the codes agent saves use", () => {
+  const ready = catalog();
+  ready.installs.claude.loggedIn = true;
+  assert.deepEqual(validateRunnerChoice(ready, { runner: "codex", model: "gpt-5.5", effort: "high" }), { runner: "codex", model: "gpt-5.5", reasoning: "high" });
+  assert.deepEqual(validateRunnerChoice(ready, { runner: "claude", model: "haiku", effort: null }), { runner: "claude", model: "haiku", reasoning: null });
+  assert.equal(codeOf(() => validateRunnerChoice(ready, { runner: "gemini", model: "x", effort: null })), "RUNNER_UNSUPPORTED");
+  assert.equal(codeOf(() => validateRunnerChoice(catalog(), { runner: "claude", model: "haiku", effort: null })), "RUNNER_NOT_READY", "not logged in");
+  assert.throws(() => validateRunnerChoice(catalog(), { runner: "claude", model: "haiku", effort: null }), /claude auth login/);
+  const blocked = catalog();
+  blocked.installs.codex.blocked = "~/.codex/AGENTS.md";
+  assert.equal(codeOf(() => validateRunnerChoice(blocked, { runner: "codex", model: "gpt-5.5", effort: null })), "RUNNER_NOT_READY");
+  const missing = catalog();
+  missing.installs.codex = { runner: "codex", status: "missing", loggedIn: false, hint: "install codex" };
+  assert.equal(codeOf(() => validateRunnerChoice(missing, { runner: "codex", model: "gpt-5.5", effort: null })), "RUNNER_NOT_READY");
+  assert.equal(codeOf(() => validateRunnerChoice(ready, { runner: "codex", model: "gpt-unknown", effort: null })), "RUNNER_MODEL_UNKNOWN");
+  assert.equal(codeOf(() => validateRunnerChoice(ready, { runner: "codex", model: "gpt-5.5", effort: "ultra" })), "RUNNER_REASONING_UNKNOWN");
+  assert.equal(codeOf(() => validateRunnerChoice(ready, { runner: "codex", model: "gpt-6-sol", effort: "low" })), "RUNNER_REASONING_UNKNOWN", "a model without levels takes no effort");
+  assert.deepEqual(validateRunnerChoice(ready, { runner: "codex", model: null, effort: "high" }), { runner: "codex", model: "gpt-5.5", reasoning: "high" }, "no model means the CLI's preferred model");
+  assert.equal(codeOf(() => validateRunnerChoice(ready, { runner: "codex", model: null, effort: "ultra" })), "RUNNER_REASONING_UNKNOWN");
+});
+
+test("defaultRunnerChoice picks codex when usable, else a logged-in claude, with the CLI's preferred model", () => {
+  assert.deepEqual(defaultRunnerChoice(catalog()), { runner: "codex", model: "gpt-5.5", reasoning: null });
+  const claudeOnly = catalog();
+  claudeOnly.installs.codex = { runner: "codex", status: "missing", loggedIn: false, hint: "install codex" };
+  claudeOnly.installs.claude.loggedIn = true;
+  assert.deepEqual(defaultRunnerChoice(claudeOnly), { runner: "claude", model: "default", reasoning: null });
+  const blocked = catalog();
+  blocked.installs.codex.blocked = "~/.codex/AGENTS.md";
+  blocked.installs.claude.loggedIn = true;
+  assert.equal(defaultRunnerChoice(blocked).runner, "claude");
+  const neither = catalog();
+  neither.installs.claude.loggedIn = false;
+  neither.installs.codex.loggedIn = false;
+  assert.equal(defaultRunnerChoice(neither).runner, "codex", "nothing usable falls back to codex");
+  const noPreferred = catalog();
+  noPreferred.models.codex = [{ slug: "gpt-x" }, { slug: "gpt-y" }];
+  assert.equal(defaultRunnerChoice(noPreferred).model, "gpt-x", "first listed model when the preferred one is absent");
 });

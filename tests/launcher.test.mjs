@@ -1,6 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { assertRunnerLogin, assertVmConfig, prepareVm } from "../src/cli/launcher.ts";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { basename, join } from "node:path";
+import { assertRunnerLogin, assertVmConfig, canReuse, prepareVendor, prepareVm } from "../src/cli/launcher.ts";
 
 const safe =
   "vmType: vz\nmounts: null\nforwardAgent: false\nsshConfig: false\nportForwarder: none\n";
@@ -80,4 +83,59 @@ test("a blocked codex does not count as a usable runner at startup", () => {
   i.codex.hint = "~/.codex/AGENTS.md를 옮기거나 claude를 고르세요.";
   assert.throws(() => assertRunnerLogin(i, { codexAuth: true }), (e) => e.code === "LOGIN_REQUIRED" && /AGENTS\.md/.test(e.message));
   assert.throws(() => assertRunnerLogin(i, { codexAuth: true, codexRuntime: "pinned" }), /AGENTS\.md/);
+});
+
+test("up reuses a running Office only when it is the same engine and ready", () => {
+  const running = (engine, execution) => ({ status: "running", engine, execution });
+  assert.equal(canReuse(running("lean", "ready"), "lean"), true);
+  assert.equal(canReuse(running("claw", "ready"), "claw"), true);
+  // Another engine on the same data is never reused, in either direction.
+  assert.equal(canReuse(running("claw", "ready"), "lean"), false);
+  assert.equal(canReuse(running("lean", "ready"), "claw"), false);
+  assert.equal(canReuse(running("legacy", "ready"), "lean"), false);
+  // A preview that cannot execute is not what `up` promises.
+  assert.equal(canReuse(running("lean", "locked"), "lean"), false);
+  assert.equal(canReuse({ status: "unknown", execution: "locked" }, "lean"), false);
+  assert.equal(canReuse({ status: "stopped", execution: "locked" }, "lean"), false);
+});
+
+test("up --lean installs the vendor dependencies and skips the UI build; claw still builds when its sources changed", async (t) => {
+  const vendor = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-vendor-")));
+  t.after(() => rmSync(vendor, { recursive: true, force: true }));
+  for (const dir of ["src", "public", "node_modules"]) mkdirSync(join(vendor, dir));
+  writeFileSync(join(vendor, "src", "main.ts"), "export {};\n");
+  writeFileSync(join(vendor, "package.json"), "{}\n");
+  const calls = [];
+  const exec = async (exe, args, cwd) => {
+    calls.push([basename(exe), args.join(" "), cwd]);
+    return "";
+  };
+  const install = ["npx", "--yes pnpm@10.30.1 install --frozen-lockfile", vendor];
+  // The lean engine loads vendor ws (src/runners/exec-relay.ts): install, no build.
+  await prepareVendor(exec, "lean", vendor);
+  assert.deepEqual(calls, [install]);
+  assert.equal(existsSync(join(vendor, "node_modules/.pazmo-build")), false, "no build stamp");
+  // Claw: install, then tsc and vite while there is no build of these sources.
+  calls.length = 0;
+  await prepareVendor(exec, "claw", vendor);
+  assert.deepEqual(
+    calls.map(([exe, args]) => `${exe} ${args}`),
+    [`${install[0]} ${install[1]}`, `${basename(process.execPath)} node_modules/typescript/bin/tsc -b`, `${basename(process.execPath)} node_modules/vite/bin/vite.js build`],
+  );
+  const stamp = readFileSync(join(vendor, "node_modules/.pazmo-build"), "utf8");
+  assert.match(stamp, /^[a-f0-9]{64}$/);
+  // Built and unchanged: install only.
+  mkdirSync(join(vendor, "dist"));
+  writeFileSync(join(vendor, "dist/index.html"), "<!doctype html>");
+  calls.length = 0;
+  await prepareVendor(exec, "claw", vendor);
+  assert.deepEqual(calls, [install]);
+  // A failed install stops before anything else, for either engine.
+  calls.length = 0;
+  const failing = async (exe, args, cwd) => {
+    calls.push([basename(exe), args.join(" "), cwd]);
+    throw Object.assign(new Error("npx install: offline"), { code: "SETUP_FAILED" });
+  };
+  await assert.rejects(prepareVendor(failing, "lean", vendor), { code: "SETUP_FAILED" });
+  assert.deepEqual(calls, [install]);
 });

@@ -57,6 +57,18 @@ The credential-free check a runner must pass, for an exact binary and model, bef
 
 It drives the runner against a scripted local model so that its tool actions provably run in the execution container, never on the host, and that no personal configuration leaks in. Only passing results are remembered, and any change to the runner's binary, the chosen model, the execution container's tool or Office's own boundary code requires qualifying again. Qualification is evidence about the boundary, not about the quality of the model's work, and it is no Gate.
 
+### Agent
+A named worker in the lean Office that a human assigns a task to, carrying a work runner and a review runner.
+*Avoid:* role agent, employee (the Claw Office's per-role characters)
+
+The workflow stages (plan, design, build, review, G4) run inside the agent's task as its progress, not as separate role characters. An agent with an open task, and the last agent, cannot be deleted. A task whose agent was deleted, or that the engine created without one, uses the oldest remaining agent's runners.
+
+### Work runner
+An agent's runner choice (CLI, model, effort) for the plan, design and build stages of its tasks.
+
+### Review runner
+An agent's runner choice for the review stage, including the G4 evaluation, so that a different model can check the work.
+
 ## Hosting
 
 ### Managed mode

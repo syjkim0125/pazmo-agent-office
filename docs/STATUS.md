@@ -1,3 +1,15 @@
+# 2026-10-21 새 최소 Office 1단계 (`--lean`, 시험)
+
+- Claw Empire 없이 **Tasks·작업 상세·Decisions·Agents** 화면 네 개만 있는 새 Office를 옵션으로 더했다(M15·D23). 켜는 명령은 `./office --lean`이다. 기본은 지금처럼 Claw Office이고, 새 Office는 `lean/office.sqlite`에 새로 시작한다. 실행 엔진(결정·격리 실행·검증·인도)은 Claw Office와 같다.
+- **agent:** 작업을 맡는 일꾼이다. 기획·설계·구현은 작업 실행기로, 리뷰와 G4 평가는 리뷰 실행기로 돈다. 사람이 추가하고, 이름과 실행기를 바꾸고, 지운다.
+- **이번 단계에 없는 것:** 팀 허브 화면(2단계), Claw 삭제·기본 전환(3단계), npm 설치(4단계), 채팅.
+- 자동 검사:
+  - root 881/881, 타입 검사 exit 0
+  - vendor 232/234(이전부터 실패하던 sprite-avatar 2건), vendor tsc exit 0
+  - 빌드 exit 0
+  - Task별 리뷰와 보안 포함 브랜치 전체 리뷰를 거쳤다. 전체 리뷰의 Important 4건과 "결과 요약" 누락을 고쳤고, 재검토에서 모두 해결됐다.
+- **eevee-be `up --lean` 실제 확인과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험) · [검증 기록](verification/2026-10-21-lean-office-phase1.md) · [G3 결정](understanding/lean-office-decision.md)
+
 # 2026-10-16 받은 팀 허브 요청을 Office Inbox에서 수락·거절
 
 - 담당자는 자기 레포로 들어온 대기 중 요청을 Office **Tasks Inbox 맨 위 "받은 팀 허브 요청"**에서 수락하거나 사유와 함께 거절한다(M14·D22). 거절하면 요청이 닫히고 요청자의 Office 카드와 허브에 "거절됨 · 사유"가 보인다. 허브 웹에도 거절이 생겼다. 다른 허브로 연결을 바꾸면 확인 후 이전 허브 작업을 취소한다(이전 허브에는 알리지 않는다).

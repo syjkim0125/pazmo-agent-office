@@ -15,7 +15,8 @@ import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
 import { createLiveRuntime, type LiveConfig } from "./live.ts";
 import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
-import type { RunnerCatalog } from "./runner-settings.ts";
+import type { RunnerCatalog, RunnerChoice } from "./runner-settings.ts";
+import type { ExecutingRole } from "../runners/role-profiles.ts";
 import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { changeSummary } from "./decision-summary.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
@@ -54,6 +55,9 @@ type Config = {
   runnerCatalog?: (home?: string, pathEnv?: string) => Promise<RunnerCatalog>;
   /** Team hub bridge for requests this Office sends; absent when not live. */
   hub?: HubGateway;
+  /** Picks the CLI runner per role and task instead of per role; given to the
+   * live runtime as `choose`. Absent: the per-role Claw choice. */
+  chooseRunner?: (role: ExecutingRole, taskId: string) => RunnerChoice;
 };
 
 /** Reuses the qualified kit/VM implementation against Claw's original task DB.
@@ -128,6 +132,7 @@ export async function createNativeOffice(c: Config) {
       (c.runnerCatalog ?? loadRunnerCatalog)(c.live?.userHome, c.live?.searchPath),
     ),
     evidence: new RunnerEvidence(db),
+    ...(c.chooseRunner ? { choose: c.chooseRunner } : {}),
   };
   const live =
     c.live || c.createRuntime
@@ -608,7 +613,8 @@ export async function createNativeOffice(c: Config) {
         "이 Office를 시작할 때 선택한 프로젝트에서 작업해주세요.",
       );
   }
-  async function assign(id: string, agentId?: string) {
+  /** `risk` is the intake's risk for a task entering it now; absent: normal. */
+  async function assign(id: string, agentId?: string, risk?: "normal" | "high") {
     if (!live)
       fail("EXECUTION_LOCKED", "실제 실행 설정으로 Office를 시작해주세요.");
     const t = task(id);
@@ -626,7 +632,7 @@ export async function createNativeOffice(c: Config) {
         intake.create(
           token,
           [t.title, t.description].filter(Boolean).join("\n"),
-          "normal",
+          risk ?? "normal",
           true,
           id,
         );
@@ -1275,6 +1281,24 @@ export async function createNativeOffice(c: Config) {
             ? diff.rawDiff
             : "바이너리 변경입니다. 최종 검증 기록에서 확인해주세요.",
       };
+    },
+    /** The delivery of each contract task under a request: the request itself
+     * when it has a contract, then its subtasks linked through source_task_id. */
+    deliveries(rootId: string) {
+      task(rootId);
+      const linked = db
+        .prepare("SELECT id FROM tasks WHERE source_task_id=? ORDER BY created_at,rowid")
+        .all(rootId) as { id: string }[];
+      return [rootId, ...linked.map((row) => row.id)]
+        .filter((id) => db.prepare("SELECT 1 FROM pazmo_task_contracts WHERE task_id=?").get(id))
+        .map((id) => {
+          const delivery = completion.delivery(id);
+          return {
+            taskId: id,
+            status: delivery.status,
+            directory: "directory" in delivery ? delivery.directory : null,
+          };
+        });
     },
     // Only replyFromHub may answer as the hub.
     reply: (id: string, option: number, note: string, by?: string) => reply(id, option, note, by),

@@ -6,7 +6,7 @@
 
 ## 팀원용 한 명령 실행 (Apple Silicon Mac)
 
-Office 작업 브랜치 `codex/office-kit-role-graphs`를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, 그리고 Mac에 설치된 codex 또는 Claude Code 중 하나 이상의 로그인(`codex login` 또는 `claude auth login`)이다. 둘 다 있어도 되고 하나만 있어도 된다. 상태는 설정 → CLI 도구에서 확인한다. 고정 0.155.1 codex만 쓰려면 `--codex-runtime pinned`를 붙인다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
+Office 저장소의 `main` 브랜치를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, 그리고 Mac에 설치된 codex 또는 Claude Code 중 하나 이상의 로그인(`codex login` 또는 `claude auth login`)이다. 둘 다 있어도 되고 하나만 있어도 된다. 상태는 설정 → CLI 도구에서 확인한다. 고정 0.155.1 codex만 쓰려면 `--codex-runtime pinned`를 붙인다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
 
 ```sh
 # 최초 한 번: Office 설치 폴더와 별도인 기존 Git 프로젝트 선택
@@ -224,6 +224,53 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
 - Lead가 다른 레포 요청을 초안으로 만드는 기능, 에이전트 간 질문, 알림, 자동 배정은 후속이다.
 - 팀원을 회수해도 그 사람이 맡은 열린 요청은 열려 있다. 요청자가 취소하거나 관리자가 정리한다.
 - 요청 본문은 UTF-8 16384바이트(한글 약 5400자)까지다.
+
+## 새 Office (1단계, 시험)
+
+Claw Empire 없이 화면 네 개(Tasks·작업 상세·Decisions·Agents)만 있는 새 Office다. 기본은 지금처럼 Claw Office이고, 새 Office는 `--lean`을 붙일 때만 켜진다. 실행 엔진(결정·격리 실행·검증·인도)은 Claw Office와 같다. 결정은 [lean-office-decision.md](understanding/lean-office-decision.md)다.
+
+```sh
+# Claw Office가 같은 프로젝트에 켜져 있으면 먼저 멈춘다
+node bin/pazmo-office.mjs stop --project /absolute/path/to/project
+
+./office --lean --project /absolute/path/to/project
+```
+
+- **켜기:** `up --lean`은 VM 준비, 로그인 확인, 의존성 설치를 지금과 똑같이 한다. Claw 화면 빌드만 하지 않는다. 실행 엔진이 원본 Claw Empire 폴더의 패키지 하나(`ws`)를 쓰기 때문에 의존성 설치는 필요하다.
+  - 같은 프로젝트에 Claw Office가 켜져 있으면 `ENGINE_MISMATCH`("Stop the current Office before changing its runtime.")로 거부한다. 켜져 있는 Office는 건드리지 않는다.
+  - 화면 미리보기만 하려면 `start --lean`을 쓴다. 이때 모델 호출은 막혀 있다. 의존성이 아직 없으면 `NOT_INSTALLED`로 멈추므로 `./office --lean`을 한 번 먼저 실행한다.
+- **데이터:**
+  - 새 Office는 데이터 디렉터리의 `lean/office.sqlite`를 쓴다.
+  - Claw 데이터(`claw/`)는 읽지도 지우지도 않는다. 기존 작업은 옮기지 않으므로 새 Office는 빈 보드로 시작한다.
+- **접속:** `monitor`가 주는 `http://127.0.0.1:<포트>/`를 연다. 같은 PC의 브라우저면 키 입력 없이 세션이 생긴다.
+- **Agent:** agent는 작업을 맡는 일꾼이다. 기획·설계·구현은 **작업 실행기**로, 리뷰와 G4 평가는 **리뷰 실행기**로 돈다.
+  - live로 처음 켜면 준비된 CLI로 "기본 agent"가 생긴다. codex를 쓸 수 있으면 codex, 아니면 claude다.
+  - Agents 화면에서 추가, 이름 변경, 실행기 두 개의 변경(CLI·모델·effort), 삭제를 한다. CLI 목록은 대화상자를 열 때 새로 확인하며, 방금 로그인한 CLI는 최대 5초 늦게 보인다.
+  - 진행 중인 작업이 있는 agent와 마지막 agent는 지울 수 없다.
+- **작업:** [새 작업]에서 제목, 내용, 맡을 agent, 위험도를 고른다.
+  - 그 agent의 실행기를 지금 쓸 수 없으면 "agent 실행기를 확인하세요."가 나오고 작업은 만들어지지 않는다.
+  - 한 번에 한 작업만 돌고 나머지는 "대기"에 있다. 시작하지 못한 작업은 작업 상세의 진행 기록에 "작업을 시작하지 못했습니다: <코드>"가 남는다.
+- **보드:** 열은 대기·진행·결정 대기·완료·취소다. 카드에는 제목, agent, 단계(기획·설계·구현·리뷰·최종 승인), 높은 위험 표시가 보인다. 작업이나 그 하위 작업에 답할 결정이 있으면 "결정 대기"로 간다.
+  - 엔진이 더 진행하지 않는 작업(실행 오류, 사람 확인이 필요한 검증, 재시작 후 다시 돌리지 않는 단계)에는 **"멈춤"** 표시가 붙는다. 작업 상세 위쪽에 이유가 나온다. 진행 기록을 보고 필요하면 작업을 취소한다.
+- **작업 상세:** 내용, 진행 기록, 이 작업의 결정, 결과 요약(G4의 변경 사항 3줄, 인도 뒤에도 남음), 변경 내용(diff), 단계별 실행기·모델·버전, 인도 위치, [작업 취소]가 있다. Decisions 화면의 작업 링크는 하위 작업이 아니라 처음 만든 작업으로 간다.
+- **결정:** Decisions 화면이나 작업 상세에서 답한다.
+  - 1번은 메모가 필요하다. 2번은 취소다. G4에 피드백이 있으면 3번 "피드백 확인 후 승인"이 나온다.
+  - G1·G3·G4 승인은 10분이 지나면 새로 발급된다. "결정이 갱신되었습니다. 다시 답해 주세요."가 나오면 다시 답한다. 질문과 계획 재개는 만료되지 않는다.
+  - 메모를 쓰는 동안에는 화면을 새로 고치지 않고 아래에 "새 내용이 있습니다"를 보인다.
+- **멈추기:** `stop`. 진행 중인 작업이 있으면 `TASK_ACTIVE`로 거부한다. 멈추는 중의 쓰기 요청은 "Office를 멈추는 중입니다."로 거부한다.
+- **보안:**
+  - `127.0.0.1`에만 열린다. Host·Origin·세션 쿠키(포트별)·CSRF 검사를 거친다.
+  - 세션은 같은 PC의 루프백 연결이면 누구에게나 준다. Claw Office와 같은 수준이며, 결정 문서의 "일회용 주소"는 1단계에서 이 방식으로 대신했다. 같은 Mac을 다른 사용자와 함께 쓰면 그 사용자도 결정에 답할 수 있다.
+  - 화면은 같은 출처의 파일만 불러오고(CSP), 데이터는 글자로만 넣는다.
+  - 실행기 목록에는 CLI 설치 경로를 싣지 않는다.
+- **이번 단계에 없는 것:** 팀 허브 화면, 채팅, 하위 작업 화면, 회의, 대시보드, 픽셀 사무실, 동시 실행, 기존 데이터 옮기기.
+  - 허브 연결 파일은 남아 있지만 새 Office에서는 쓰이지 않는다.
+  - 채팅 연동 명령(`bridge`, `contract`, `intake-*`, `operator-key`)은 새 Office에서 `UNSUPPORTED`다.
+- **알려진 한계:**
+  - Lead의 질문과 하위 작업의 계약 승인은 "설계" 단계로 보인다.
+  - 한 번 시작한 작업은 다음 단계 순서를 기다리는 동안에도 "진행"에 있다.
+  - 하위 작업이 취소되면 요청이 "리뷰"에 머물 수 있다. 이때는 작업 상세에서 직접 취소한다.
+  - 영어 화면에서도 엔진이 쓴 결정 내용은 한국어로 보인다.
 
 ## 검증
 

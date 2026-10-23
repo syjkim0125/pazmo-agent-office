@@ -33,6 +33,7 @@ import {
 } from "../runners/runner-qualification.ts";
 import type { Qualification } from "../runners/runner-qualification.ts";
 import type { RunnerInstall } from "../runners/runner-discovery.ts";
+import type { ExecutingRole } from "../runners/role-profiles.ts";
 import { roleJobFactory } from "./runner-jobs.ts";
 import type { RunnerChoice, RunnerSettings } from "./runner-settings.ts";
 import type { RunnerEvidence } from "../core/runner-evidence.ts";
@@ -59,12 +60,28 @@ export type LiveConfig = {
   userHome?: string;
   searchPath?: string;
 };
-/** Per-role user CLI selection (native Claw mode). Absent: pinned codex only. */
+/** Per-role user CLI selection (native Claw mode). Absent: pinned codex only.
+ * `choose` picks the runner by role and task instead of by role alone; when it
+ * is given it replaces settings.choice for jobs, and per-role prequalification
+ * and status roles are skipped. */
 export type LiveRunners = {
   settings: Pick<RunnerSettings, "choice" | "refresh" | "catalog">;
+  choose?: (role: ExecutingRole, taskId: string) => RunnerChoice;
   evidence: Pick<RunnerEvidence, "record">;
 };
 const roleNames = ["pm", "lead", "engineer", "reviewer"] as const;
+/** How the runner source shapes the runtime: jobs take `choose(role, taskId)`
+ * when given, else the per-role settings choice (taskId ignored). Only the
+ * per-role choice has fixed runners to qualify ahead of time and to report in
+ * status, so `prequalify` and `roles` are false under `choose`. */
+export function liveRunnerWiring(runners: LiveRunners) {
+  return {
+    choice: (role: ExecutingRole, taskId: string): RunnerChoice =>
+      runners.choose ? runners.choose(role, taskId) : runners.settings.choice(role),
+    prequalify: !runners.choose,
+    roles: !runners.choose,
+  };
+}
 type Ledgers = {
   store: OfficeStore;
   intake: IntakeLedger;
@@ -458,8 +475,9 @@ export async function createLiveRuntime(
         prompt,
       );
     const qualifyRunner = qualifier(config, dataDir, client);
+    const wiring = runners && liveRunnerWiring(runners);
     const prequalify = () => {
-      if (!runners) return;
+      if (!runners || !wiring?.prequalify) return;
       const installs = runners.settings.catalog?.installs;
       for (const role of roleNames) {
         const { runner, model } = runners.settings.choice(role);
@@ -472,7 +490,7 @@ export async function createLiveRuntime(
     };
     const roleJob = runners
       ? roleJobFactory({
-          choice: (role) => runners.settings.choice(role),
+          choice: wiring!.choice,
           installs: () => runners.settings.catalog!.installs,
           rediscover: async () => (await runners.settings.refresh()).installs,
           qualify: qualifyRunner,
@@ -534,7 +552,9 @@ export async function createLiveRuntime(
       dispose: client.dispose,
     }, runners
       ? {
-          roles: () => Object.fromEntries(roleNames.map((r) => [r, runners.settings.choice(r)])),
+          ...(wiring!.roles
+            ? { roles: () => Object.fromEntries(roleNames.map((r) => [r, runners.settings.choice(r)])) }
+            : {}),
           prequalify,
         }
       : {});

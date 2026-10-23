@@ -184,13 +184,61 @@ function sourceDigest(root: string) {
       hash.update(entry).update(readFileSync(join(root, entry)));
   return hash.digest("hex");
 }
+/** Step 1 of `up`: the vendor dependencies for either engine (the lean engine
+ * loads vendor `ws` through src/runners/exec-relay.ts), then, for Claw only,
+ * its UI build when the build inputs changed. */
+export async function prepareVendor(
+  exec: Run,
+  engine: "claw" | "lean",
+  vendor = join(packageRoot, "vendor/claw-empire"),
+) {
+  await exec(
+    join(dirname(process.execPath), "npx"),
+    ["--yes", "pnpm@10.30.1", "install", "--frozen-lockfile"],
+    vendor,
+  );
+  if (engine === "lean") return;
+  const digest = sourceDigest(vendor),
+    stamp = join(vendor, "node_modules/.pazmo-build");
+  if (
+    !existsSync(join(vendor, "dist/index.html")) ||
+    !existsSync(stamp) ||
+    readFileSync(stamp, "utf8") !== digest
+  ) {
+    await exec(
+      process.execPath,
+      ["node_modules/typescript/bin/tsc", "-b"],
+      vendor,
+    );
+    await exec(
+      process.execPath,
+      ["node_modules/vite/bin/vite.js", "build"],
+      vendor,
+    );
+    writeFileSync(stamp, digest);
+  }
+}
+/** `up` reuses an Office only when it runs the engine asked for and can execute. */
+export function canReuse(
+  current: { status: string; engine?: string; execution?: string },
+  engine: "claw" | "lean",
+): boolean {
+  return (
+    current.status === "running" &&
+    current.engine === engine &&
+    current.execution === "ready"
+  );
+}
 export async function up(options: {
   project?: string;
   dataDir?: string;
   port?: number;
   open?: boolean;
   codexRuntime?: "installed" | "pinned";
+  /** The engine to run; claw unless the lean Office is asked for. */
+  engine?: "claw" | "lean";
 }) {
+  const engine = options.engine ?? "claw";
   if (process.platform !== "darwin" || process.arch !== "arm64")
     fail("PLATFORM", "현재 live 실행은 Apple Silicon macOS에서 검증됐습니다.");
   const root = dataRoot(options.dataDir),
@@ -209,14 +257,17 @@ export async function up(options: {
   await run("/usr/bin/git", ["-C", p.project, "rev-parse", "--show-toplevel"]);
   init(p, true);
   const current = await status(p);
+  // Another engine's Office is never replaced here: the person stops it first.
   if (
-    current.status !== "stopped" &&
-    !(
-      current.status === "running" &&
-      current.engine === "claw" &&
-      current.execution === "ready"
-    )
+    current.status === "running" &&
+    current.engine !== undefined &&
+    current.engine !== engine
   )
+    fail(
+      "ENGINE_MISMATCH",
+      "Stop the current Office before changing its runtime.",
+    );
+  if (current.status !== "stopped" && !canReuse(current, engine))
     fail(
       "RUNNING",
       "기존 실행을 보존했습니다. status/stop으로 기존 실행 상태를 확인해주세요.",
@@ -235,32 +286,13 @@ export async function up(options: {
         codexRuntime: options.codexRuntime,
       },
     );
-    const vendor = join(packageRoot, "vendor/claw-empire");
-    console.error("[1/4] 설치·빌드 확인 (첫 설치는 시간이 걸릴 수 있습니다)");
-    await run(
-      join(dirname(process.execPath), "npx"),
-      ["--yes", "pnpm@10.30.1", "install", "--frozen-lockfile"],
-      vendor,
+    // Both engines need the vendor dependencies; only Claw builds its UI.
+    console.error(
+      engine === "lean"
+        ? "[1/4] 의존성 설치 확인 (lean Office는 UI 빌드가 없습니다. 첫 설치는 시간이 걸릴 수 있습니다)"
+        : "[1/4] 설치·빌드 확인 (첫 설치는 시간이 걸릴 수 있습니다)",
     );
-    const digest = sourceDigest(vendor),
-      stamp = join(vendor, "node_modules/.pazmo-build");
-    if (
-      !existsSync(join(vendor, "dist/index.html")) ||
-      !existsSync(stamp) ||
-      readFileSync(stamp, "utf8") !== digest
-    ) {
-      await run(
-        process.execPath,
-        ["node_modules/typescript/bin/tsc", "-b"],
-        vendor,
-      );
-      await run(
-        process.execPath,
-        ["node_modules/vite/bin/vite.js", "build"],
-        vendor,
-      );
-      writeFileSync(stamp, digest);
-    }
+    await prepareVendor(run, engine);
     console.error("[2/4] 고정된 Codex 실행 파일 확인");
     await setupRuntime(options.dataDir, true);
     console.error("[3/4] 전용 VM·이미지 준비 및 파일 공유 차단 확인");
@@ -288,7 +320,7 @@ export async function up(options: {
         searchPath: process.env.PATH ?? "",
         ...(options.codexRuntime ? { codexRuntime: options.codexRuntime } : {}),
       },
-      "claw",
+      engine,
     );
   }
   mkdirSync(root, { recursive: true, mode: 0o700 });

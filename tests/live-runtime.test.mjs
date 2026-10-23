@@ -12,6 +12,7 @@ import {
   LiveRuntime,
   planningSnapshot,
   createLiveRuntime,
+  liveRunnerWiring,
 } from "../src/runtime/live.ts";
 import { handleOperator } from "../src/runtime/operator.ts";
 const token = "a".repeat(64);
@@ -315,6 +316,30 @@ test("runner mode refuses startup when no installed CLI is logged in, naming bot
   );
 });
 
+test("runner wiring follows a per-task choose when given, otherwise the per-role settings choice", () => {
+  const seen = [];
+  const settings = {
+    catalog: undefined,
+    refresh: async () => settings.catalog,
+    choice: (role) => (seen.push(["choice", role]), { runner: "codex", model: "gpt-5.5", reasoning: null }),
+  };
+  const evidence = { record() {} };
+  // Claw: per-role choice, taskId ignored, per-role prequalify and status roles.
+  const claw = liveRunnerWiring({ settings, evidence });
+  assert.deepEqual(claw.choice("reviewer", "t1"), { runner: "codex", model: "gpt-5.5", reasoning: null });
+  assert.deepEqual(seen, [["choice", "reviewer"]]);
+  assert.equal(claw.prequalify, true);
+  assert.equal(claw.roles, true);
+  // choose: per role and task; nothing fixed per role to prequalify or report.
+  const asked = [];
+  const choose = (role, taskId) => (asked.push([role, taskId]), { runner: "claude", model: "haiku", reasoning: "low" });
+  const lean = liveRunnerWiring({ settings, evidence, choose });
+  assert.deepEqual(lean.choice("engineer", "t2"), { runner: "claude", model: "haiku", reasoning: "low" });
+  assert.deepEqual(asked, [["engineer", "t2"]]);
+  assert.equal(seen.length, 1, "settings.choice is not consulted when choose is given");
+  assert.equal(lean.prequalify, false);
+  assert.equal(lean.roles, false);
+});
 test("the codex runtime option is not treated as a path", async (t) => {
   const f = await setup(t),
     bad = join(f.root, "unqualified");

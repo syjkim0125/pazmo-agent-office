@@ -15,11 +15,11 @@
 
 ## Global Constraints
 
-- 새 코드(`src/lean/**`, `src/runtime/lean-service.ts`)는 `vendor/`를 import하지 않는다. tsx 로더 없이 `node src/runtime/lean-service.ts`로 돈다.
+- 새 코드(`src/lean/**`, `src/runtime/lean-service.ts`)는 `vendor/`를 import하지 않는다. tsx 로더 없이 `node src/runtime/lean-service.ts`로 돈다. (실행 중 정정: 재사용하는 엔진이 `exec-relay`를 거쳐 vendor의 `ws` 패키지를 불러오므로 vendor 의존성 설치는 필요하다.)
 - 저장 파일은 `<dataDir>/lean/office.sqlite`(0600, 심볼릭 링크 거부)다. `<dataDir>/claw/`는 읽지도 쓰지도 않는다.
 - 서버:
   - `127.0.0.1`에만 연다. Host가 `127.0.0.1:<port>`가 아니면 421, Origin이 있으면 `http://127.0.0.1:<port>`와 같아야 하고 아니면 403이다.
-  - 세션 쿠키는 `pazmo_lean_session`(HttpOnly; SameSite=Strict; Path=/)이고 값은 `hmac(token,"lean:session")`이다.
+  - 세션 쿠키는 `pazmo_lean_session_<포트>`(HttpOnly; SameSite=Strict; Path=/)이고 값은 `hmac(token,"lean:session")`이다. (실행 중 정정: 한 브라우저에서 두 Office가 서로의 세션을 덮지 않도록 포트별 이름으로 바꿨다.)
   - CSRF는 헤더 `x-csrf-token` = `hmac(token,"lean:csrf")`다. 모든 쓰기 요청(POST/PATCH/DELETE)에 요구한다.
   - `GET /api/session`은 소켓 주소가 루프백일 때만 쿠키를 주고 `{csrf}`를 돌려준다.
 - 수명주기 경로 `/__pazmo/status`, `/__pazmo/stop`은 `Authorization: Bearer <token>`이다(지금 엔진과 같음).
@@ -234,7 +234,7 @@
   - lifecycle 엔진 타입은 `"legacy"|"claw"|"lean"`이다. lean은 tsx 로더와 `vendor/claw-empire/dist` 확인(NOT_BUILT) 없이 `node src/runtime/lean-service.ts`를 띄운다. `readState`는 `"lean"`을 받는다. `monitor()`의 lean 결과는 `{url:"http://127.0.0.1:<port>/", access:"local-session"}`이다.
   - CLI:
     - `start --lean [--live …]`이고, `--lean`과 `--claw`는 함께 쓸 수 없다(ARGUMENT).
-    - `up --lean`은 lean 엔진으로 지금 `up` 흐름을 탄다. 다만 vendor pnpm 설치·화면 빌드 단계는 건너뛴다. VM 준비·로그인 확인은 그대로다.
+    - `up --lean`은 lean 엔진으로 지금 `up` 흐름을 탄다. 다만 화면 빌드 단계는 건너뛴다. vendor pnpm 설치, VM 준비, 로그인 확인은 그대로다(실행 중 정정: 위 `ws` 의존).
     - 재사용 조건은 같은 엔진(`lean`)이 ready일 때다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다.** 임시 project(git init)와 dataDir를 쓰고, live 없이 확인한다.
