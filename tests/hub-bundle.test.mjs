@@ -48,6 +48,8 @@ test("the bundle holds only the entrypoint's import graph plus package.json, wit
   assert.ok(files.includes("src/hub/main.ts"));
   assert.ok(files.includes("src/hub/run.ts"));
   assert.ok(files.includes("src/cli/project.ts"));
+  assert.ok(files.includes("src/hub/story-store.ts"));
+  assert.ok(files.includes("src/hub/story-protocol.ts"));
   for (const f of files) {
     assert.match(f, /^(package\.json|bin\/[^/]+\.mjs|src\/.+\.ts)$/, `unexpected bundled file ${f}`);
   }

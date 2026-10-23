@@ -1,3 +1,16 @@
+# 2026-10-22 팀 Story 보드 1단계 (Hub)
+
+- 허브가 팀 Story 보드를 저장하고 규칙을 지킨다(M16·V18·D24, G3 2026-10-22 승인). 프로젝트(repo별 base 브랜치)·Story·Task 그래프를 저장하고 올릴 때 검사한다(순환, 같은 repo 파일 겹침의 순서 없음, 프로젝트 밖 repo, 한도). 담당 repo의 ready Task 가져가기(동시에 가져가면 한 명만, 사람당 하나), 하트비트가 10분 끊긴 Task의 보류 표시와 PL의 풀기·취소, 같은 Story·repo의 머지 잠금, 머지·실패 결과 보고와 다시 실행, Task 추가, Story 검증·완료(G4 대기)를 한다.
+- Office는 새 `/api/link/story/*`를 프로토콜 3으로 부른다. 기존 경로와 프로토콜 1·2는 그대로이고, 프로토콜 2 경로는 3도 받는다. 배포된 허브와 지금 Office는 바뀌지 않는다.
+- 최종 전체 리뷰의 Important 5건을 고쳤다: 가져간 Task 다시 받기, 머지 잠금 스스로 풀기, 자기 claim의 끝난 Task는 "이제 당신 Task가 아님"이 아닌 상태 오류, Story 검증 결과 재전송, PL이 푼 뒤 마지막 잠금 보유자의 늦은 머지 보고 반영(화면에 잠금 표시), PL이 없을 때 허브 관리자의 풀기·취소. PR 주소 검사 강화와 Story 검증까지 덮는 지문도 넣었다.
+- 자동 검사:
+  - root 765/765, 타입 검사 exit 0
+  - Story 검사기 exit 0
+  - Task별 리뷰 5건을 통과했다. 최종 리뷰 수정분은 재검토에서 모두 반영됐다.
+  - 재검토에서 찾은 잠금 구멍(N1)도 고쳤다. 스스로 잠금을 풀거나 실패를 보고한 claim의 늦은 머지 보고는 이제 거부된다. 재검토를 통과했다.
+- Fusion 허브에 이 코드를 올렸다(빌드 `pazmo-hub-5`). `/healthz` 200, 새 경로는 프로토콜 3만 받고, 기존 경로·데이터·Office 연결은 그대로이며, 새 표 8개가 생겼다. G4는 2026-10-22 "피드백 확인 후 승인"으로 기록했다.
+- **남은 것: 2단계(Office 여러 repo)·3단계(Story Task 모드)·4단계(PL)·5단계(화면), 실제 허브에서 새 경로로 데이터 쓰기 확인, V18 실제 확인(Office 두 개·시험 repo 두 개).** 허브만으로는 팀원이 아직 쓸 수 없다. [G3 결정](understanding/team-story-board-decision.md) · [구현 계획](plans/2026-10-22-1445-feat-team-story-board-hub-plan.md) · [검증 기록](verification/2026-10-22-team-story-board-hub.md)
+
 # 2026-10-21 새 최소 Office 1단계 (`--lean`, 시험)
 
 - Claw Empire 없이 **Tasks·작업 상세·Decisions·Agents** 화면 네 개만 있는 새 Office를 옵션으로 더했다(M15·D23). 켜는 명령은 `./office --lean`이다. 기본은 지금처럼 Claw Office이고, 새 Office는 `lean/office.sqlite`에 새로 시작한다. 실행 엔진(결정·격리 실행·검증·인도)은 Claw Office와 같다.

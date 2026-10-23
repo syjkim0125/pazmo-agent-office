@@ -3,13 +3,15 @@ import assert from "node:assert/strict";
 import { request } from "node:http";
 import { DatabaseSync } from "node:sqlite";
 import { HubStore } from "../src/hub/store.ts";
+import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 async function proxyHub(t) {
-  const store = new HubStore(new DatabaseSync(":memory:"));
-  const hub = await startHubServer({ store, listen: { kind: "proxy", publicUrl: PUBLIC, host: "127.0.0.1", port: 0 } }, linkApi(store));
+  const db = new DatabaseSync(":memory:");
+  const store = new HubStore(db);
+  const hub = await startHubServer({ store, listen: { kind: "proxy", publicUrl: PUBLIC, host: "127.0.0.1", port: 0 } }, linkApi(store, new StoryBoard(db)));
   t.after(() => hub.close());
   const port = hub.port; // proxy servers also expose the bound port for tests and logs
   const call = (method, path, { host = "pazmo-hub.apps.example.com", headers = {}, body } = {}) =>
