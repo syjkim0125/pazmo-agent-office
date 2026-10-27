@@ -106,12 +106,15 @@ export function isHookEvent(event: unknown): boolean {
 }
 
 /** Claude commonly fences a JSON-only answer, sometimes after a sentence of its
- * own. A message whose only ```json (or bare ```) block opens its own line and
- * ends the message is unwrapped to that block; anything after it, or a second
- * block, leaves the text as is. Content validation is unchanged. */
+ * own. When the message's first ``` opens a ```json (or bare ```) line and a
+ * fence line ends the message, the text between is the answer; anything else
+ * is left as is. The sentence is discarded, so a report reads the same with or
+ * without it. A second block cannot parse as JSON. Content validation is unchanged. */
 function unfence(text: string): string {
-  const m = /(?:^|\n)\s*```(?:json)?\n([\s\S]*?)\n```\s*$/.exec(text);
-  return m && text.split("```").length === 3 ? m[1] : text;
+  const open = text.indexOf("```");
+  if (open < 0) return text;
+  const m = /^[ \t]*```(?:json)?\n([\s\S]*)\n```\s*$/.exec(text.slice(text.lastIndexOf("\n", open) + 1));
+  return m ? m[1] : text;
 }
 
 /** A successful Office bridge call as inspection evidence. The location comes
