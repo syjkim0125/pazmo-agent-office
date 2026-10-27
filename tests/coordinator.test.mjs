@@ -19,6 +19,7 @@ function runner(
     engineerError,
     kit,
     reviewFailures = 0,
+    reviewRunnerFailures = 0,
     onEngineer,
   } = {},
 ) {
@@ -133,6 +134,10 @@ function runner(
                     : [],
               },
               error: signal.aborted ? "CANCELLED" : null,
+              // ContainerReviewer reads no report from a non-zero exit.
+              ...(engineers <= reviewRunnerFailures
+                ? { exitCode: 1, report: null }
+                : {}),
             },
           };
         } finally {
@@ -262,6 +267,20 @@ test("kit native needs_changes sends Reviewer evidence to the same Developer run
   assert.equal(bypass.state, "human_required");
   assert.equal(bypass.reason, "KIT_REQUIRED");
   assert.equal(legacy.engineers, 0);
+});
+
+test("a kit Reviewer runner failure stops for a person instead of rebuilding the candidate", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, { reviewRunnerFailures: 1, kit });
+  const result = await r.c.run(f.task.id);
+  assert.equal(result.state, "human_required");
+  assert.equal(result.reason, "REVIEW_RUNNER_FAILED");
+  assert.equal(result.round.number, 1);
+  assert.equal(r.engineers, 1);
+  assert.equal((await r.c.run(f.task.id)).state, "human_required");
+  assert.equal(r.engineers, 1);
 });
 
 test("kit role integration cannot reserve a fourth Developer after two failed fixes", async (t) => {

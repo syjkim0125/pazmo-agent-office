@@ -1,0 +1,301 @@
+{
+  "version": 1,
+  "runId": "cc4c44a4-60cb-48e1-adbb-0a52d390c0b3",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D25 (user choice, option 1): a cleanly terminated review whose CLI exits non-zero (API error, safeguard refusal, sign-in; no report, since ContainerReviewer parses a report only after exit 0) is now verdict unknown, and the round stops human_required with reason REVIEW_RUNNER_FAILED instead of fail/fix_required/CHECK_FAILED. No Engineer rebuild, no automatic fix spent, no automatic retry; registered checks with a non-zero exit stay fail; other unknowns keep UNKNOWN_RESULT; kit unchanged (unknown review already routes to action human). Found in the 2026-10-27 eevee-be real check (claude sonnet reviewer blocked by an API safeguard was counted as a defect and rebuilt). src/core/verification.ts adds reviewRunnerFailed(), used by classify() and by record() for the reason. TDD: tests/verification.test.mjs (observed stream) and tests/coordinator.test.mjs (kit Reviewer runner failure, Developer runs once) failed first (actual 'fail' / 'awaiting_g4'); on main 68be1dc with src reverted 56/58, restored 58/58. tests/budgets.test.mjs fixture made its failed round with a review exit 1; it now fails a registered check instead, keeping the one-fix-per-failed-round rule it tests.",
+          "evidence": [
+            "src/core/verification.ts",
+            "tests/verification.test.mjs",
+            "tests/coordinator.test.mjs",
+            "tests/budgets.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/core/verification.ts": "1d8067987a9093df9427fb9331995bbcfd293f26196010223b1284c669e1814a",
+          "tests/verification.test.mjs": "59759b55d9ee424d3207e0fc71d6be272fa74fe94f1b7f6523940f2e1559a410",
+          "tests/coordinator.test.mjs": "f20af34e0af2036d2febb8985670c9388cc2e2914afb658f04311f102c6ed2eb",
+          "tests/budgets.test.mjs": "929a1421891ac8b04ddea2eb1ca64d6f20f12d8d8119ed41bf98cacfc35b9707"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review of the diff (verification.ts, verification/coordinator/budgets tests): Approve, no Critical. Unknown can never reach awaiting_g4 (record() moves there only when every node passes, #subject is null otherwise, requestChanges and delivery require awaiting_g4), so M4 holds. The REVIEW_RUNNER_FAILED reason choice was checked: results are written only through record(), every unknown closes the round, record() checks 'checking' inside BEGIN IMMEDIATE and DatabaseSync is synchronous, so concurrent test/review recording cannot interleave. Important 1 (commit the budgets.test.mjs fixture change together) was already in the change. Minor: redundant coordinator assertion removed; verdict==='unknown' simplification declined (kept nodes.some so a broken invariant still stops); check-fail-then-runner-fail stops with REVIEW_RUNNER_FAILED (documented); pre-existing kit finishReview records needs_changes for an unknown review (left as follow-up). Downstream: lean stopOf and native-office show the reason verbatim, nothing special-cases UNKNOWN_RESULT.",
+          "evidence": [
+            "docs/verification/2026-10-27-review-runner-failure.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-27-review-runner-failure.md": "b8a40862b83f4999008e101ea47c4b1405d4353381ac1a7e2d77f406b4bc647e"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-27 on main 68be1dc plus this change, after the review fixes (worktree codex/review-runner-error): npm test 927/929, exit 1; the 2 failures (tests/claw-lifecycle.test.mjs:17, tests/lean-lifecycle.test.mjs:172) were both 'Office startup timed out' under load average 24-33 (three other sessions running suites) and pass alone 15/15 (exit 0). The same change before review on codex/lean-office 1e7883e: 929/929. Related files on main: src reverted 56/58 (only the two new tests fail), restored 58/58. npm run typecheck exit 0. Story checker (check.mjs story) exit 0. Changed files: src/core/verification.ts, tests/{verification,coordinator,budgets}.test.mjs, Story D25, docs/STATUS.md, docs/verification/2026-10-27-review-runner-failure.md. Unproven: a live runner failure taking this path (a safeguard refusal cannot be reproduced on demand), codex reviewer API-error exit codes, rerun of a stopped task (follow-up). G4 remains human-owned.",
+          "evidence": [
+            "docs/verification/2026-10-27-review-runner-failure.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-27-review-runner-failure.md": "b8a40862b83f4999008e101ea47c4b1405d4353381ac1a7e2d77f406b4bc647e"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "48c6616d90b74a3e932e1be591593e45a45763d62aa37b37eaed4bbbdd1ec9e3"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-27T08:30:59.680Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-27T08:31:12.022Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D25 (user choice, option 1): a cleanly terminated review whose CLI exits non-zero (API error, safeguard refusal, sign-in; no report, since ContainerReviewer parses a report only after exit 0) is now verdict unknown, and the round stops human_required with reason REVIEW_RUNNER_FAILED instead of fail/fix_required/CHECK_FAILED. No Engineer rebuild, no automatic fix spent, no automatic retry; registered checks with a non-zero exit stay fail; other unknowns keep UNKNOWN_RESULT; kit unchanged (unknown review already routes to action human). Found in the 2026-10-27 eevee-be real check (claude sonnet reviewer blocked by an API safeguard was counted as a defect and rebuilt). src/core/verification.ts adds reviewRunnerFailed(), used by classify() and by record() for the reason. TDD: tests/verification.test.mjs (observed stream) and tests/coordinator.test.mjs (kit Reviewer runner failure, Developer runs once) failed first (actual 'fail' / 'awaiting_g4'); on main 68be1dc with src reverted 56/58, restored 58/58. tests/budgets.test.mjs fixture made its failed round with a review exit 1; it now fails a registered check instead, keeping the one-fix-per-failed-round rule it tests.",
+          "evidence": [
+            "src/core/verification.ts",
+            "tests/verification.test.mjs",
+            "tests/coordinator.test.mjs",
+            "tests/budgets.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/core/verification.ts": "1d8067987a9093df9427fb9331995bbcfd293f26196010223b1284c669e1814a",
+          "tests/verification.test.mjs": "59759b55d9ee424d3207e0fc71d6be272fa74fe94f1b7f6523940f2e1559a410",
+          "tests/coordinator.test.mjs": "f20af34e0af2036d2febb8985670c9388cc2e2914afb658f04311f102c6ed2eb",
+          "tests/budgets.test.mjs": "929a1421891ac8b04ddea2eb1ca64d6f20f12d8d8119ed41bf98cacfc35b9707"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-27T08:31:24.978Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-27T08:31:25.181Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review of the diff (verification.ts, verification/coordinator/budgets tests): Approve, no Critical. Unknown can never reach awaiting_g4 (record() moves there only when every node passes, #subject is null otherwise, requestChanges and delivery require awaiting_g4), so M4 holds. The REVIEW_RUNNER_FAILED reason choice was checked: results are written only through record(), every unknown closes the round, record() checks 'checking' inside BEGIN IMMEDIATE and DatabaseSync is synchronous, so concurrent test/review recording cannot interleave. Important 1 (commit the budgets.test.mjs fixture change together) was already in the change. Minor: redundant coordinator assertion removed; verdict==='unknown' simplification declined (kept nodes.some so a broken invariant still stops); check-fail-then-runner-fail stops with REVIEW_RUNNER_FAILED (documented); pre-existing kit finishReview records needs_changes for an unknown review (left as follow-up). Downstream: lean stopOf and native-office show the reason verbatim, nothing special-cases UNKNOWN_RESULT.",
+          "evidence": [
+            "docs/verification/2026-10-27-review-runner-failure.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-27-review-runner-failure.md": "b8a40862b83f4999008e101ea47c4b1405d4353381ac1a7e2d77f406b4bc647e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-27T08:31:36.684Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-27T08:31:37.060Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-27 on main 68be1dc plus this change, after the review fixes (worktree codex/review-runner-error): npm test 927/929, exit 1; the 2 failures (tests/claw-lifecycle.test.mjs:17, tests/lean-lifecycle.test.mjs:172) were both 'Office startup timed out' under load average 24-33 (three other sessions running suites) and pass alone 15/15 (exit 0). The same change before review on codex/lean-office 1e7883e: 929/929. Related files on main: src reverted 56/58 (only the two new tests fail), restored 58/58. npm run typecheck exit 0. Story checker (check.mjs story) exit 0. Changed files: src/core/verification.ts, tests/{verification,coordinator,budgets}.test.mjs, Story D25, docs/STATUS.md, docs/verification/2026-10-27-review-runner-failure.md. Unproven: a live runner failure taking this path (a safeguard refusal cannot be reproduced on demand), codex reviewer API-error exit codes, rerun of a stopped task (follow-up). G4 remains human-owned.",
+          "evidence": [
+            "docs/verification/2026-10-27-review-runner-failure.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-27-review-runner-failure.md": "b8a40862b83f4999008e101ea47c4b1405d4353381ac1a7e2d77f406b4bc647e"
+        }
+      }
+    }
+  ]
+}
