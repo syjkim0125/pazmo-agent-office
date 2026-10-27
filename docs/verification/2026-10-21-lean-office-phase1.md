@@ -116,7 +116,7 @@ Story: M15 · V17 · D23. 결정: [lean-office-decision.md](../understanding/lea
    - 근거: 각 수정마다 시험을 먼저 바꿔 실패를 본 뒤 고쳤다(8/9 → 9/9, 9/10 → 10/10). 멈춘 리뷰 메시지를 그대로 다시 넣으면 `verdict=pass findings=0`. **실제 실행에서는 아직 이 경로를 거치지 않았다.** 재시작 뒤 통과한 리뷰는 JSON만 보냈다.
 2. **sonnet 리뷰 요청이 API 안전장치에 한 번 막혔다.** 리뷰어 출력은 사이버보안 안전장치 안내 하나였고 exit 1로 끝났다. Office는 이를 리뷰 fail로 기록하고 구현부터 다시 돌렸으며, 두 번째 리뷰가 통과했다. 실행기·API 오류가 "고칠 결함(fail)"으로 분류되어 재시도 횟수를 쓴다(`src/core/verification.ts`, exit≠0 → fail). 후속 작업 후보다.
 3. **멈춘 작업을 다시 돌릴 방법이 없다.** 상세에는 "작업 취소"만 있다. 두 번 취소하고 새로 만들었다. 후속 작업 후보다.
-4. **계획 단계가 OAuth 갱신 실패로 두 번 멈췄다(10-23).** `~/.claude/.oauth_refresh.lock`이 남아 있었다. 잠금이 풀린 뒤 "계획 재개" 결정에 사용자 답("응 재개해")을 넣어 이어갔다. 실행기 모델 목록을 읽는 claude 프로세스를 SIGKILL로 끝낼 때 갱신 도중이면 잠금이 남는다고 의심하지만 확인하지 않았다. 후속 작업 후보다.
+4. **계획 단계가 OAuth 갱신 실패로 두 번 멈췄다(10-23).** `~/.claude/.oauth_refresh.lock`이 남아 있었다. 잠금이 풀린 뒤 "계획 재개" 결정에 사용자 답("응 재개해")을 넣어 이어갔다. 원인은 10-27에 확인했고 수정했다. 실행기 모델 목록을 읽는 claude를 SIGKILL로 끝내면, 그 claude가 토큰을 갱신하던 중일 때 잠금이 남는다. 근거와 수정은 [stop-claude-model-discovery-without-sigkill.md](../solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md)에 있다.
 5. **작업 내용에 리뷰어가 확인할 수 없는 요구를 넣으면 판정이 진짜 unknown이 된다(10-23, 결함 아님).** 컨트롤러가 "실행기가 서로 다른지 확인"을 작업 내용에 넣어 PM이 이를 MUST로 만들었고, 리뷰어는 근거가 없어 unknown을 냈다. 실행기 분리는 Office 실행 기록으로 확인한다.
 
 ## 자동 검증 (실제 확인 수정 뒤)
