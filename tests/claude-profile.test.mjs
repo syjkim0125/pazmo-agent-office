@@ -128,14 +128,17 @@ test("errors, missing results and garbage never produce a completed turn", () =>
     assert.equal(terminalReport(normalizeClaudeStream(stdout), ["report"]), null);
 });
 
-test("a final message that is exactly one fenced JSON block is unwrapped; anything else is not", () => {
+test("a final message whose only fenced JSON block ends it is unwrapped; anything else is not", () => {
   const result = { type: "result", subtype: "success", is_error: false };
   const read = (text) => terminalReport(normalizeClaudeStream(lines(goodInit, assistant({ type: "text", text }), result)), ["report"]);
   assert.deepEqual(read('```json\n{"report":{"firstLine":"M"}}\n```'), { report: { firstLine: "M" } });
   assert.deepEqual(read('```\n{"report":1}\n```'), { report: 1 });
-  assert.equal(read('Here it is:\n```json\n{"report":1}\n```'), null);
+  // A sentence before the block, as sonnet writes a review: the block is still the answer.
+  assert.deepEqual(read('All checks verified.\n\n```json\n{"report":1}\n```'), { report: 1 });
   assert.equal(read('```json\n{"report":1}\n```\nDone.'), null);
   assert.equal(read('```js\n{"report":1}\n```'), null);
+  assert.equal(read('Here it is: ```json\n{"report":1}\n```'), null, "the fence opens its own line");
+  assert.equal(read('```json\n{"report":0}\n```\nor\n```json\n{"report":1}\n```'), null, "two blocks are ambiguous");
 });
 
 test("successful Office bridge tool calls become inspection evidence; failed ones do not", () => {
