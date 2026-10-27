@@ -105,10 +105,15 @@ export function isHookEvent(event: unknown): boolean {
   );
 }
 
-/** Claude commonly fences a JSON-only answer; only a message that is exactly
- * one ```json (or bare ```) block is unwrapped. Content validation is unchanged. */
+/** Claude commonly fences a JSON-only answer, sometimes after a sentence of its
+ * own. When the message's first ``` opens a ```json (or bare ```) line and a
+ * fence line ends the message, the text between is the answer; anything else
+ * is left as is. The sentence is discarded, so a report reads the same with or
+ * without it. A second block cannot parse as JSON. Content validation is unchanged. */
 function unfence(text: string): string {
-  const m = /^\s*```(?:json)?\n([\s\S]*?)\n```\s*$/.exec(text);
+  const open = text.indexOf("```");
+  if (open < 0) return text;
+  const m = /^[ \t]*```(?:json)?\n([\s\S]*)\n```\s*$/.exec(text.slice(text.lastIndexOf("\n", open) + 1));
   return m ? m[1] : text;
 }
 

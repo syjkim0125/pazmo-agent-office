@@ -38,6 +38,53 @@ export async function loadRunnerCatalog(
   return { installs, models };
 }
 
+const usable = (i: RunnerInstall) => i.status === "ready" && i.loggedIn && !i.blocked;
+function runnerName(runner: unknown): RunnerName {
+  if (!runners.includes(runner as RunnerName))
+    fail("RUNNER_UNSUPPORTED", "codex 또는 claude만 선택할 수 있습니다.");
+  return runner as RunnerName;
+}
+function preferredModel(catalog: RunnerCatalog | undefined, runner: RunnerName) {
+  const list = catalog?.models[runner] ?? [];
+  return list.some((m) => m.slug === preferred[runner]) ? preferred[runner] : (list[0]?.slug ?? preferred[runner]);
+}
+
+/** A logged-in runner, codex first, so either CLI alone is enough, with that
+ * CLI's stable model and no reasoning level. Before the first discovery there
+ * is no catalog: codex and its preferred model. */
+export function defaultRunnerChoice(catalog: RunnerCatalog | undefined): RunnerChoice {
+  const ready = (r: RunnerName) => {
+    const i = catalog?.installs[r];
+    return !!i && usable(i);
+  };
+  const runner: RunnerName = ready("codex") ? "codex" : ready("claude") ? "claude" : "codex";
+  return { runner, model: preferredModel(catalog, runner), reasoning: null };
+}
+
+/** The checks every runner choice passes: a known CLI that is installed,
+ * logged in and not blocked, a model that CLI lists, and a reasoning level that
+ * model lists. A null model means the CLI's preferred model. It reads the given
+ * catalog as is: a caller that wants fresh installs refreshes it first. */
+export function validateRunnerChoice(
+  catalog: RunnerCatalog,
+  choice: { runner: string; model: string | null; effort: string | null },
+): RunnerChoice {
+  const runner = runnerName(choice.runner);
+  const install = catalog.installs[runner];
+  if (!usable(install)) fail("RUNNER_NOT_READY", install.hint);
+  const listed = catalog.models[runner] ?? [];
+  const entry = choice.model === null ? null : listed.find((m) => m.slug === choice.model);
+  if (choice.model !== null && !entry)
+    fail("RUNNER_MODEL_UNKNOWN", `${runner}가 지원하지 않는 모델입니다: ${choice.model}`);
+  const model = choice.model ?? preferredModel(catalog, runner);
+  if (
+    choice.effort != null &&
+    !(entry ?? listed.find((m) => m.slug === model))?.reasoningLevels?.some((l) => l.effort === choice.effort)
+  )
+    fail("RUNNER_REASONING_UNKNOWN", `이 모델이 지원하지 않는 추론 단계입니다: ${String(choice.effort)}`);
+  return { runner, model, reasoning: choice.effort };
+}
+
 /** Per-role runner choice, persisted on the role's existing claw agent row. */
 export class RunnerSettings {
   #db: DatabaseSync;
@@ -65,23 +112,9 @@ export class RunnerSettings {
   #roleAgents() {
     return new Set(roles.map((r) => this.#agentFor(r)).filter((id): id is string => !!id));
   }
-  #defaultModel(runner: RunnerName) {
-    const list = this.#catalog?.models[runner] ?? [];
-    return list.some((m) => m.slug === preferred[runner])
-      ? preferred[runner]
-      : (list[0]?.slug ?? preferred[runner]);
-  }
-  /** A logged-in runner, codex first, so either CLI alone is enough. */
-  #defaultRunner(): RunnerName {
-    const usable = (r: RunnerName) => {
-      const i = this.#catalog?.installs[r];
-      return i?.status === "ready" && i.loggedIn && !i.blocked;
-    };
-    return usable("codex") ? "codex" : usable("claude") ? "claude" : "codex";
-  }
   /** User choices persist; seeded or unsupported values get the default. */
   normalize() {
-    const runner = this.#defaultRunner();
+    const { runner } = defaultRunnerChoice(this.#catalog);
     for (const id of this.#roleAgents())
       this.#db
         .prepare(
@@ -99,7 +132,7 @@ export class RunnerSettings {
     const same = row?.cli_provider === runner;
     return {
       runner,
-      model: (same && row?.cli_model) || this.#defaultModel(runner),
+      model: (same && row?.cli_model) || preferredModel(this.#catalog, runner),
       reasoning: (same && row?.cli_reasoning_level) || null,
     };
   }
@@ -110,32 +143,16 @@ export class RunnerSettings {
     for (const [key, value] of Object.entries(body))
       if (!writable.has(key) && !(clearedByEditor.has(key) && value == null))
         fail("RUNNER_FIELD_UNSUPPORTED", `Office 관리 모드에서는 '${key}'를 바꿀 수 없습니다.`);
-    const runner = body.cli_provider;
-    if (!runners.includes(runner as RunnerName))
-      fail("RUNNER_UNSUPPORTED", "codex 또는 claude만 선택할 수 있습니다.");
+    const runner = runnerName(body.cli_provider);
     let catalog = this.#catalog;
     if (!catalog) fail("RUNNER_CATALOG_LOADING", "설치된 CLI를 확인하는 중입니다. 잠시 후 다시 저장하세요.");
-    let install = catalog.installs[runner as RunnerName];
     // The user may have installed or logged in after startup: look once more.
-    const usable = (i: RunnerInstall) => i.status === "ready" && i.loggedIn && !i.blocked;
-    if (!usable(install)) {
-      catalog = await this.refresh();
-      install = catalog.installs[runner as RunnerName];
-    }
-    if (!usable(install)) fail("RUNNER_NOT_READY", install.hint);
-    const model = body.cli_model == null ? null : String(body.cli_model);
-    const listed = catalog.models[runner as RunnerName] ?? [];
-    const entry = model === null ? null : listed.find((m) => m.slug === model);
-    if (model !== null && !entry)
-      fail("RUNNER_MODEL_UNKNOWN", `${runner}가 지원하지 않는 모델입니다: ${model}`);
-    const reasoning = body.cli_reasoning_level;
-    if (
-      reasoning != null &&
-      !(entry ?? listed.find((m) => m.slug === this.#defaultModel(runner as RunnerName)))?.reasoningLevels?.some(
-        (l) => l.effort === reasoning,
-      )
-    )
-      fail("RUNNER_REASONING_UNKNOWN", `이 모델이 지원하지 않는 추론 단계입니다: ${String(reasoning)}`);
+    if (!usable(catalog.installs[runner])) catalog = await this.refresh();
+    validateRunnerChoice(catalog, {
+      runner,
+      model: body.cli_model == null ? null : String(body.cli_model),
+      effort: (body.cli_reasoning_level ?? null) as string | null,
+    });
     this.#db
       .prepare("INSERT OR REPLACE INTO pazmo_runner_choices (agent_id, at) VALUES (?, ?)")
       .run(agentId, Date.now());

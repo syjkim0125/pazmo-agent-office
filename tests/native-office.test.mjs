@@ -672,6 +672,7 @@ test("role runner choices persist across live restarts and only CLI-listed value
   assert.deepEqual(Object.keys((await first.cliStatus()).providers).sort(), ["claude", "codex"]);
   assert.deepEqual(first.cliModels().models.claude, [{ slug: "haiku" }]);
   assert.equal(typeof received[0]?.settings?.choice, "function");
+  assert.equal(received[0].choose, undefined, "without chooseRunner the Claw per-role choice stays in force");
   assert.deepEqual(catalogCalls[0], ["/Users/u", "/opt/bin:/usr/bin"], "discovery uses the user's home, not the isolated service HOME");
   await first.close();
   const second = await open();
@@ -680,6 +681,53 @@ test("role runner choices persist across live restarts and only CLI-listed value
   received[1].evidence.record({ taskId: "11111111-1111-4111-8111-111111111111", role: "pm", runner: "claude", version: "2.1.280", sha256: "b".repeat(64), model: "haiku", reasoning: null });
   assert.deepEqual(second.runnerRuns("11111111-1111-4111-8111-111111111111").runs.map((r) => r.role), ["pm"]);
   await second.close();
+});
+
+test("a chooseRunner given to createNativeOffice reaches the runtime as the runners' choose", async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "native-choose-"))),
+    project = join(root, "project");
+  mkdirSync(project);
+  const db = new DatabaseSync(":memory:");
+  applyBaseSchema(db);
+  applyDefaultSeeds(db);
+  t.after(() => {
+    db.close();
+    rmSync(root, { recursive: true, force: true });
+  });
+  const catalog = async () => ({
+    installs: {
+      codex: { runner: "codex", status: "ready", version: "0.160.0", sha256: "a".repeat(64), path: "/c", loggedIn: true, hint: "준비됨" },
+      claude: { runner: "claude", status: "ready", version: "2.1.280", sha256: "b".repeat(64), path: "/k", loggedIn: true, hint: "준비됨" },
+    },
+    models: { codex: [{ slug: "gpt-5.5" }], claude: [{ slug: "haiku" }] },
+  });
+  const asked = [];
+  const chooseRunner = (role, taskId) => {
+    asked.push([role, taskId]);
+    return role === "reviewer"
+      ? { runner: "claude", model: "haiku", reasoning: null }
+      : { runner: "codex", model: "gpt-5.5", reasoning: "high" };
+  };
+  let received;
+  const office = await createNativeOffice({
+    db,
+    project,
+    dataDir: root,
+    token: "a".repeat(64),
+    runnerCatalog: catalog,
+    chooseRunner,
+    live: { controller: "/c", binary: "/b", authHome: "/Users/u/.codex", socket: "/s", userHome: "/Users/u", searchPath: "/usr/bin" },
+    createRuntime: async (...args) => {
+      received = args[5];
+      return { status: () => ({ execution: "ready", active: [] }), assertIdle() {}, close: async () => {}, abort() {} };
+    },
+  });
+  assert.equal(typeof received.choose, "function");
+  assert.equal(typeof received.settings.choice, "function", "the Claw settings stay available alongside");
+  assert.deepEqual(received.choose("reviewer", "t1"), { runner: "claude", model: "haiku", reasoning: null });
+  assert.deepEqual(received.choose("engineer", "t2"), { runner: "codex", model: "gpt-5.5", reasoning: "high" });
+  assert.deepEqual(asked, [["reviewer", "t1"], ["engineer", "t2"]]);
+  await office.close();
 });
 
 test("officeRoles reports the agent Office actually uses for each role", async (t) => {
@@ -707,4 +755,38 @@ test("officeRoles maps pm and lead to the same agent when only three exist, and 
   });
   db.exec("DELETE FROM agents WHERE id='pazmo-reviewer'");
   assert.equal(office.officeRoles().roles.reviewer, null);
+});
+
+test("assign passes a given risk to the intake and keeps normal otherwise", async (t) => {
+  const f = await fixture(t);
+  const other = "22222222-2222-4222-8222-222222222222";
+  f.db.prepare("INSERT INTO tasks(id,title,status) VALUES (?,?,'inbox'),(?,?,'inbox')").run(taskId, "High", other, "Plain");
+  await f.office.assign(taskId, undefined, "high");
+  await f.office.assign(other);
+  assert.equal(f.office.ledgers.intake.get(taskId).risk, "high");
+  assert.equal(f.office.ledgers.intake.get(other).risk, "normal");
+});
+
+test("deliveries lists the delivery of each contract task under a request", async (t) => {
+  const { officeFixture } = await import("./coordinator-fixture.mjs");
+  const f = await officeFixture(t);
+  applyDefaultSeeds(f.db);
+  // Subtask links come from a later Claw migration (and the lean schema).
+  f.db.exec("ALTER TABLE tasks ADD COLUMN source_task_id TEXT");
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token: "a".repeat(64),
+  });
+  t.after(() => office.close());
+  const parent = office.ledgers.intake.create("a".repeat(64), "README request", "normal");
+  f.db.prepare("UPDATE tasks SET source_task_id=? WHERE id=?").run(parent.taskId, f.task.id);
+  assert.deepEqual(office.deliveries(parent.taskId), [
+    { taskId: f.task.id, status: "not_delivered", directory: null },
+  ]);
+  assert.deepEqual(office.deliveries(f.task.id), [
+    { taskId: f.task.id, status: "not_delivered", directory: null },
+  ], "a contract task is its own delivery");
+  assert.throws(() => office.deliveries("no-such-task"), { code: "NOT_FOUND" });
 });

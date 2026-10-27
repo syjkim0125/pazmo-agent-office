@@ -10,7 +10,8 @@ import type { RunnerRun } from "../core/runner-evidence.ts";
 import type { RunnerChoice } from "./runner-settings.ts";
 
 export type RoleJobDependencies = {
-  choice: (role: ExecutingRole) => RunnerChoice;
+  /** The runner for this role's job on this task (see LiveRunners.choose). */
+  choice: (role: ExecutingRole, taskId: string) => RunnerChoice;
   installs: () => Record<RunnerName, RunnerInstall>;
   /** Re-runs discovery, e.g. after the CLI updated itself. */
   rediscover?: () => Promise<Record<RunnerName, RunnerInstall>>;
@@ -35,12 +36,12 @@ const refused = (error: string) => ({
   result: { exitCode: null, signal: null, stdout: "", stderr: "", timedOut: false, error },
 });
 
-/** Role → saved runner choice → qualified user CLI job. Refusals happen before
+/** Role and task → runner choice → qualified user CLI job. Refusals happen before
  * any process starts and never fall back to another runner or an API key. */
 export function roleJobFactory(d: RoleJobDependencies) {
   const jobs = d.jobs ?? { codex: codexJob, claude: claudeJob };
   return (role: ExecutingRole, taskId: string, prompt: string): RemoteJob => {
-    const choice = d.choice(role);
+    const choice = d.choice(role, taskId);
     const base = { binary: d.executor, timeoutMs: d.timeoutMs, openExecutor: d.openExecutor };
     if (choice.runner === "codex" && d.codexRuntime === "pinned")
       return jobs.codex({ ...base, controller: d.pinnedController, authHome: d.authHome }, prompt);

@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "runId": "e0205e62-5348-438b-a186-8f87e0337c88",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lean Office phase 1 (M15/V17/D23) re-checked in a new run because merging main changed the Story (M16 added) after U16. Implementation as in U16 (5f72724: runner seam, lean DB/agents, facade, localhost server, service/CLI, no-build UI, final-review fixes), merged with origin/main (301a07c). The eevee-be real check found a stall: a claude sonnet reviewer wrote a sentence and then its fenced JSON pass report, and unfence (main code in src/runners/claude-profile.ts) only unwrapped a whole-message fence, so the report read as null and the task stopped with UNKNOWN_RESULT. Fixed TDD in dc6d213 (RED 8/9 -> GREEN 9/9) and, after independent review, 70d3d8a (quoted ``` inside JSON kept, linear time; RED 9/10 -> GREEN 10/10). Replaying the stalled reviewer message gives verdict=pass. root 927/927, typecheck 0.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md",
+            "docs/plans/2026-10-20-1500-feat-lean-office-phase1-plan.md",
+            "docs/understanding/lean-office-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "df1dee111117b6bef300cc734e519e41d755a8e19cc52eb09d9b9fb2440ef112",
+          "docs/plans/2026-10-20-1500-feat-lean-office-phase1-plan.md": "b47cce395980e77460778a5fcf4a49f00fff9edf6831a00246f76c043f3b6180",
+          "docs/understanding/lean-office-decision.md": "8fd625ea15d374696ba1f7e0feb97943d49660e20bff1578b379e72aafdd007e"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Phase 1 reviews as in U16: per-task reviews and a whole-branch security review on the strongest model (With fixes; Important 4 and the result-summary gap fixed and re-reviewed). The real-check fix dc6d213 got an independent report-only review: Changes needed, Important 1 (counting ``` across the whole message rejected a fenced-only report whose JSON string quoted ```, which the old code read) and Minor quadratic regex on long blank runs (100K newlines 7.5 s); both fixed in 70d3d8a with RED first. Accepted and documented: the sentence before the block is discarded, and an earlier sentence-and-block draft voids the turn (pinned by test). Boundary unchanged: a report still comes only from the assistant's last text block, never tool output; a review report must carry the runtime candidate digest. Follow-ups found, not fixed here: runner/API error (turn.failed, exit 1) is classified as review fail and reruns build; a stopped lean task has no rerun; OAuth refresh lock left after the model-list probe (suspected).",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "df1dee111117b6bef300cc734e519e41d755a8e19cc52eb09d9b9fb2440ef112"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-27 after the last review fix, on 70d3d8a (src/tests clean against HEAD; only docs and run files pending): npm test 927/927, npm run typecheck exit 0, tests/claude-profile.test.mjs 10/10, Story checker exit 0. eevee-be real check on the restarted lean Office (12:57, after the fix commit dc6d213): task 'LICENSE unchanged check' with agent work claude default / review claude sonnet went story G1 -> plan G1 -> build -> 3 registered checks pass -> review (first attempt blocked by an API safeguard, exit 1, recorded fail and rebuilt; second sonnet review pass) -> G4 with the user's answers -> delivered, no changed files, eevee-be unchanged. Agent add/rename/runner change/delete, busy and last-agent delete refusals, and the Decisions task link checked. Unproven: codex as review runner (blocked by ~/.codex/AGENTS.md), the sentence-plus-block report path in a live run (the passing review sent bare JSON), other PCs, multi-day use.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "df1dee111117b6bef300cc734e519e41d755a8e19cc52eb09d9b9fb2440ef112"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0925171f43703f08110bf6e4c791eab7d12e7ab74ffa085087d975bf5e8ce765"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-27T04:35:47.544Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-27T04:36:36.980Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lean Office phase 1 (M15/V17/D23) re-checked in a new run because merging main changed the Story (M16 added) after U16. Implementation as in U16 (5f72724: runner seam, lean DB/agents, facade, localhost server, service/CLI, no-build UI, final-review fixes), merged with origin/main (301a07c). The eevee-be real check found a stall: a claude sonnet reviewer wrote a sentence and then its fenced JSON pass report, and unfence (main code in src/runners/claude-profile.ts) only unwrapped a whole-message fence, so the report read as null and the task stopped with UNKNOWN_RESULT. Fixed TDD in dc6d213 (RED 8/9 -> GREEN 9/9) and, after independent review, 70d3d8a (quoted ``` inside JSON kept, linear time; RED 9/10 -> GREEN 10/10). Replaying the stalled reviewer message gives verdict=pass. root 927/927, typecheck 0.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md",
+            "docs/plans/2026-10-20-1500-feat-lean-office-phase1-plan.md",
+            "docs/understanding/lean-office-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "df1dee111117b6bef300cc734e519e41d755a8e19cc52eb09d9b9fb2440ef112",
+          "docs/plans/2026-10-20-1500-feat-lean-office-phase1-plan.md": "b47cce395980e77460778a5fcf4a49f00fff9edf6831a00246f76c043f3b6180",
+          "docs/understanding/lean-office-decision.md": "8fd625ea15d374696ba1f7e0feb97943d49660e20bff1578b379e72aafdd007e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-27T04:36:48.817Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-27T04:36:48.965Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Phase 1 reviews as in U16: per-task reviews and a whole-branch security review on the strongest model (With fixes; Important 4 and the result-summary gap fixed and re-reviewed). The real-check fix dc6d213 got an independent report-only review: Changes needed, Important 1 (counting ``` across the whole message rejected a fenced-only report whose JSON string quoted ```, which the old code read) and Minor quadratic regex on long blank runs (100K newlines 7.5 s); both fixed in 70d3d8a with RED first. Accepted and documented: the sentence before the block is discarded, and an earlier sentence-and-block draft voids the turn (pinned by test). Boundary unchanged: a report still comes only from the assistant's last text block, never tool output; a review report must carry the runtime candidate digest. Follow-ups found, not fixed here: runner/API error (turn.failed, exit 1) is classified as review fail and reruns build; a stopped lean task has no rerun; OAuth refresh lock left after the model-list probe (suspected).",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "df1dee111117b6bef300cc734e519e41d755a8e19cc52eb09d9b9fb2440ef112"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-27T04:37:06.658Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-27T04:37:06.816Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-27 after the last review fix, on 70d3d8a (src/tests clean against HEAD; only docs and run files pending): npm test 927/927, npm run typecheck exit 0, tests/claude-profile.test.mjs 10/10, Story checker exit 0. eevee-be real check on the restarted lean Office (12:57, after the fix commit dc6d213): task 'LICENSE unchanged check' with agent work claude default / review claude sonnet went story G1 -> plan G1 -> build -> 3 registered checks pass -> review (first attempt blocked by an API safeguard, exit 1, recorded fail and rebuilt; second sonnet review pass) -> G4 with the user's answers -> delivered, no changed files, eevee-be unchanged. Agent add/rename/runner change/delete, busy and last-agent delete refusals, and the Decisions task link checked. Unproven: codex as review runner (blocked by ~/.codex/AGENTS.md), the sentence-plus-block report path in a live run (the passing review sent bare JSON), other PCs, multi-day use.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "df1dee111117b6bef300cc734e519e41d755a8e19cc52eb09d9b9fb2440ef112"
+        }
+      }
+    }
+  ]
+}

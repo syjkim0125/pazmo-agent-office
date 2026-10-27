@@ -6,7 +6,7 @@ import { roleJobFactory } from "../src/runtime/runner-jobs.ts";
 import { digest } from "../src/core/candidates.ts";
 import { tempRoot } from "./runner-fixture.mjs";
 
-function harness({ choice, loggedIn = true, passed = true, codexRuntime, qualify, rediscover } = {}) {
+function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime, qualify, rediscover } = {}) {
   const root = tempRoot();
   const bins = {};
   for (const name of ["codex", "claude"]) {
@@ -24,7 +24,7 @@ function harness({ choice, loggedIn = true, passed = true, codexRuntime, qualify
   };
   let current = choice ?? { runner: "claude", model: "haiku", reasoning: "low" };
   const factory = roleJobFactory({
-    choice: () => current,
+    choice: (role, taskId) => (choose ? choose(role, taskId) : current),
     installs: () => ({ codex: install("codex"), claude: install("claude") }),
     rediscover: rediscover?.(install, bins),
     qualify: qualify ?? (async (inst, model) => {
@@ -44,6 +44,31 @@ function harness({ choice, loggedIn = true, passed = true, codexRuntime, qualify
   return { factory, calls, bins, setChoice: (c) => (current = c) };
 }
 const supervise = (job) => job.supervise("a".repeat(64), 1000, new AbortController().signal);
+
+test("the runner is chosen by role and task, so one task can run two different CLIs", async () => {
+  const seen = [];
+  const h = harness({
+    choose: (role, taskId) => {
+      seen.push([role, taskId]);
+      return role === "reviewer"
+        ? { runner: "claude", model: "haiku", reasoning: null }
+        : { runner: "codex", model: "gpt-5.5", reasoning: "high" };
+    },
+  });
+  const review = h.factory("reviewer", "t1", "Review this");
+  const build = h.factory("engineer", "t1", "Build this");
+  assert.deepEqual(seen, [["reviewer", "t1"], ["engineer", "t1"]], "choice receives the role and the task id");
+  await supervise(review);
+  await supervise(build);
+  assert.equal(h.calls.claude.length, 1);
+  assert.equal(h.calls.codex.length, 1);
+  assert.equal(h.calls.claude[0].prompt, "Review this");
+  assert.equal(h.calls.codex[0].prompt, "Build this");
+  assert.deepEqual(
+    h.calls.evidence.map((e) => [e.taskId, e.role, e.runner, e.model]),
+    [["t1", "reviewer", "claude", "haiku"], ["t1", "engineer", "codex", "gpt-5.5"]],
+  );
+});
 
 test("a claude choice runs the qualified claude job and records its identity", async () => {
   const h = harness();

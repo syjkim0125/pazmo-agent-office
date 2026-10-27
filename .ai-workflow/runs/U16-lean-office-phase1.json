@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "runId": "5c9f7547-333e-4aee-b633-8540f4b30577",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "74ed3b8708f5272e74f2c5834faa53346ee0b47ab66350593e3c65e795a718b7",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lean Office phase 1 implemented via subagent-driven Tasks 1-6 (runner seam, lean DB/agents, facade, localhost server, service/CLI, no-build UI) plus final-review fixes. root 881/881, typecheck 0, vendor 232/234 (2 known sprite-avatar), vendor tsc 0/0, build:office 0.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "5660a59e34e5a85195e5725508d0fb7c827e4d52c1f85b42302d71d3b30364fe"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Tasks 3, 4, 6 needed fix rounds; Tasks 1, 2, 5 approved with minor fix rounds) and whole-branch security review on the strongest model: With fixes. Important 4 (stale engine runner catalog, decision links to child ids, fresh-clone ws dependency, stopped tasks shown active) and spec gap (result summary) fixed in one round; scoped re-review found one same-class residual (runner change mid-task), fixed and checked. Security core, Claw unchanged and unbypassable runner choice confirmed.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "5660a59e34e5a85195e5725508d0fb7c827e4d52c1f85b42302d71d3b30364fe"
+        }
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0f2d9d1058918faa52156e0f628059c22b66c3ce8ce4ac133118d82ac852e8bc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-20T07:49:16.999Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-21T00:29:19.504Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lean Office phase 1 implemented via subagent-driven Tasks 1-6 (runner seam, lean DB/agents, facade, localhost server, service/CLI, no-build UI) plus final-review fixes. root 881/881, typecheck 0, vendor 232/234 (2 known sprite-avatar), vendor tsc 0/0, build:office 0.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "5660a59e34e5a85195e5725508d0fb7c827e4d52c1f85b42302d71d3b30364fe"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-21T00:29:25.824Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-21T00:29:33.649Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Per-task reviews (Tasks 3, 4, 6 needed fix rounds; Tasks 1, 2, 5 approved with minor fix rounds) and whole-branch security review on the strongest model: With fixes. Important 4 (stale engine runner catalog, decision links to child ids, fresh-clone ws dependency, stopped tasks shown active) and spec gap (result summary) fixed in one round; scoped re-review found one same-class residual (runner change mid-task), fixed and checked. Security core, Claw unchanged and unbypassable runner choice confirmed.",
+          "evidence": [
+            "docs/verification/2026-10-21-lean-office-phase1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-21-lean-office-phase1.md": "5660a59e34e5a85195e5725508d0fb7c827e4d52c1f85b42302d71d3b30364fe"
+        }
+      }
+    }
+  ]
+}

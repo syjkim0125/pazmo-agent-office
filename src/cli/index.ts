@@ -29,7 +29,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)",
+        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)",
       );
       return;
     }
@@ -85,6 +85,7 @@ export async function main(args: string[]): Promise<void> {
           "--challenge",
           "--live",
           "--claw",
+          "--lean",
           "--controller",
           "--executor",
           "--codex-runtime",
@@ -105,7 +106,8 @@ export async function main(args: string[]): Promise<void> {
         flag === "--apply" ||
         flag === "--dry-run" ||
         flag === "--live" ||
-        flag === "--claw"
+        flag === "--claw" ||
+        flag === "--lean"
       )
         options[flag] = true;
       else {
@@ -132,6 +134,10 @@ export async function main(args: string[]): Promise<void> {
       fail("ARGUMENT", "--codex-runtime is only supported by start and up.");
     if (codexRuntime !== undefined && !["installed", "pinned"].includes(codexRuntime))
       fail("ARGUMENT", "--codex-runtime must be installed or pinned.");
+    if (options["--lean"] && options["--claw"])
+      fail("ARGUMENT", "Choose either --lean or --claw.");
+    if (options["--lean"] && !["start", "up"].includes(command))
+      fail("ARGUMENT", "--lean is only supported by start and up.");
     if (
       ["--claw", "--live", "--controller", "--executor"].some(
         (key) => options[key] !== undefined,
@@ -212,6 +218,7 @@ export async function main(args: string[]): Promise<void> {
             dataDir: options["--data-dir"] as string | undefined,
             port: rawPort === undefined ? undefined : Number(rawPort),
             open: !options["--no-open"],
+            ...(options["--lean"] ? { engine: "lean" as const } : {}),
             ...(codexRuntime ? { codexRuntime } : {}),
           }),
         ),
@@ -382,7 +389,7 @@ export async function main(args: string[]): Promise<void> {
               ...(codexRuntime ? { codexRuntime } : {}),
             }
           : undefined,
-        options["--claw"] ? "claw" : "legacy",
+        options["--lean"] ? "lean" : options["--claw"] ? "claw" : "legacy",
       );
     }
     console.log(JSON.stringify(result));

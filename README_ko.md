@@ -17,18 +17,18 @@
 
 </div>
 
-> **Apple Silicon Mac용 로컬 알파입니다.** 원본 Claw Tasks·Decisions와 kit 4.1.0 역할 그래프를 신뢰된 Mac controller·전용 VM으로 연결했습니다. README 파일럿은 실제 PM·팀장·Developer·Reviewer와 검사 6개를 마쳤으며 최종 사용자 G4·인도는 대기 중입니다. npm 배포와 일반 프로젝트 전체 인수 검증은 미완료입니다. [검증 기록](docs/verification/2026-09-29-native-claw-preview.md)을 확인하세요.
+> **Apple Silicon Mac용 로컬 알파입니다.** Office는 kit 역할 그래프(PM·팀장·Developer·Reviewer)를 신뢰된 Mac controller와 전용 VM에서 돌리고, 사용자가 설치·로그인한 codex 또는 claude CLI를 씁니다. 기본 화면은 아직 Claw Office입니다. Claw Empire 없이 도는 새 최소 Office(`--lean`, 1단계)를 같은 엔진 위에 옵션으로 더했고, Claw Empire는 이후 단계에서 걷어냅니다. 실제 작업을 Mac 한 대에서 사용자 G4와 인도까지 마쳤습니다. 다른 사람 PC, 회사 IT 정책, npm 배포는 아직 확인하지 않았습니다. [현재 상태](docs/STATUS.md)를 확인하세요.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/GreenSheep01201/claw-empire/5c928b24ffa55b403fe7c5521d4ac3ac49516137/Sample_Img/Office.png" alt="Claw-Empire 원본 사무실 화면. 완성된 Pazmo 기능 화면이 아닌 출처가 표시된 참고 이미지" width="100%" />
-  <br /><sub>Claw-Empire 원본 화면입니다. 아직 구현하지 않은 Pazmo 기능의 증거로 사용하지 않습니다.</sub>
+  <br /><sub>Claw-Empire 원본 화면입니다. 지금 기본 Office 화면의 바탕이며, 새 최소 Office로 바꾸는 중입니다. 아직 구현하지 않은 Pazmo 기능의 증거로 사용하지 않습니다.</sub>
 </p>
 
 ## 왜 Pazmo인가
 
 AI Office는 바쁘게 움직이는 화면을 넘어, 맡긴 일을 검증 가능한 결과로 돌려줘야 합니다.
 
-Pazmo는 [Claw-Empire](https://github.com/GreenSheep01201/claw-empire)의 사무실·작업 실행 기반에 [AI Workflow Kit](https://github.com/syjkim0125/ai-workflow-kit)의 합의서·템플릿·사람 승인·검증 원칙을 결합하는 독립 프로젝트입니다. 기존 키트는 변경하지 않습니다.
+Pazmo는 [Claw-Empire](https://github.com/GreenSheep01201/claw-empire)의 사무실 화면에서 출발해 [AI Workflow Kit](https://github.com/syjkim0125/ai-workflow-kit)의 합의서·템플릿·사람 승인·검증 원칙을 결합하는 독립 프로젝트입니다. 실행 엔진(결정·격리 실행·검증·인도)은 Pazmo가 직접 만들었고, Claw-Empire가 필요 없는 최소 Office를 단계별로 만들고 있습니다. 기존 키트는 변경하지 않습니다.
 
 | 원칙 | 만들고 있는 동작 |
 |---|---|
@@ -48,7 +48,7 @@ Pazmo는 [Claw-Empire](https://github.com/GreenSheep01201/claw-empire)의 사무
 | Product Designer | 사용자 흐름·화면 상태·디자인 품질 | UI 작업 |
 | DevOps / Release Engineer | 빌드·미리보기·배포 준비·복구 확인 | 환경·반영 변경 |
 
-직원은 책임 단위이며 모두가 항상 실행되는 것은 아닙니다. 각 역할은 사용자의 공식 Codex CLI 로그인으로 실행하는 방향입니다. 구독 사용량에는 한도가 있고 API 키 과금은 별도입니다. 다른 유료 경로로 몰래 전환하지 않습니다.
+직원은 책임 단위이며 모두가 항상 실행되는 것은 아닙니다. 각 역할은 사용자가 설치·로그인한 codex 또는 claude CLI로 실행하며, Office는 로그인 정보를 읽거나 옮기지 않습니다. 구독 사용량에는 한도가 있고 API 키 과금은 별도입니다. 다른 유료 경로로 몰래 전환하지 않습니다.
 
 ## 작업 흐름
 
@@ -72,6 +72,8 @@ CE는 제한된 구현·리뷰 절차를, Superpowers는 테스트·디버깅·�
 
 Apple Silicon Mac에서 최초 로그인과 필수 도구 준비 후, Office 저장소에서 `./office --project /절대/프로젝트/경로`를 실행하세요. 다음부터는 `./office`로 같은 프로젝트를 열 수 있습니다. 설치 확인·VM 준비·Office 시작을 연결하며 자세한 조건과 한계는 [실행 안내](docs/LOCAL-PREVIEW.md)를 따릅니다.
 
+Claw-Empire 없는 새 최소 Office를 써 보려면 `--lean`을 붙입니다: `./office --lean --project /절대/프로젝트/경로`. 화면은 Tasks·작업 상세·Decisions·Agents 네 개이고, 저장은 따로 하며, agent마다 리뷰 실행기를 다르게 고를 수 있습니다. 같은 프로젝트에 Claw Office가 켜져 있으면 먼저 멈춥니다. [새 Office 안내](docs/LOCAL-PREVIEW.md#새-office-1단계-시험)를 참고하세요.
+
 ## 현재 상태
 
 | 항목 | 상태 |
@@ -80,8 +82,11 @@ Apple Silicon Mac에서 최초 로그인과 필수 도구 준비 후, Office 저
 | 고정 commit | `5c928b24ffa55b403fe7c5521d4ac3ac49516137` |
 | 새 저장소 source import | **원본 로컬 검증·게시본 자격증명 제거** — [검증 기록](docs/verification/2026-09-18-publication.md) |
 | Story·Task | kit 4.1.0 역할 그래프 연결; 배정·승인은 Office가 관리 |
-| Jira 없는 팀 실행 | 실제 README 작업 리뷰까지 완료; 최종 사용자 G4·인도 대기 |
-| 로컬 실행기·원본 Office UI | `./office` 구현; 현재 Mac의 별도 소스 설치 시험 통과, [실행 안내](docs/LOCAL-PREVIEW.md) |
+| Jira 없는 팀 실행 | 기존 프로젝트의 실제 작업을 Mac 한 대에서 사용자 G4·인도까지 완료 — [검증 기록](docs/verification/2026-10-06-cli-runner-selection.md) |
+| CLI 실행기 | 설치된 codex 또는 claude를 역할마다 선택; 구독 로그인, API 키 없음 |
+| 로컬 실행기·Claw Office UI(기본) | `./office` 구현; 현재 Mac의 별도 소스 설치 시험 통과, [실행 안내](docs/LOCAL-PREVIEW.md) |
+| Claw-Empire 없는 최소 Office | 1단계 옵션(`--lean`): 같은 엔진 위의 Tasks·작업 상세·Decisions·Agents; 2026-10-27 실제 확인 통과. 팀 허브 화면, 기본 전환, Claw-Empire 삭제는 이후 단계 — [검증 기록](docs/verification/2026-10-21-lean-office-phase1.md) |
+| 팀 허브 | 팀원이 각자의 Office 사이에서 작업을 보내고 수락·취소; Mac 한 대의 Office 두 개로 확인, 여러 PC는 미확인 — [실행 안내](docs/LOCAL-PREVIEW.md#팀-허브-1단계-시험) |
 | 계약 등록·G1/G3 승인 CLI | 실제 HTTP/SQLite 시험 통과; live에서는 원본 Decisions 사용 — [검증 기록](docs/verification/2026-09-19-contract-approvals.md) |
 | 실행 격리·완료 guard | 전용 VM 검사·완료 guard 구현; 호스트 직접 실행은 계속 차단 |
 | npm `@pazmo/agent-office` | 예정 이름; 게시·설치 시험 전 |
