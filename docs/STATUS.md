@@ -23,7 +23,7 @@
   - Task별 리뷰와 보안 포함 브랜치 전체 리뷰를 거쳤다. 전체 리뷰의 Important 4건과 "결과 요약" 누락을 고쳤고, 재검토에서 모두 해결됐다.
 - **eevee-be 실제 확인을 통과했다(2026-10-27).** 작업 하나를 다른 실행기 리뷰(작업 `claude · default`, 리뷰 `claude · sonnet`)로 G1 → 구현 → 리뷰 → G4 → 인도까지 돌렸고, agent 추가·이름·실행기 변경·삭제와 거부(작업 중, 마지막 agent), Decisions 작업 링크를 확인했다. codex를 리뷰 실행기로 고르는 확인은 개인 지침 파일 때문에 하지 못했다.
 - 실제 확인에서 sonnet 리뷰어가 설명 뒤에 붙인 JSON 보고서를 읽지 못해 작업이 멈추는 문제를 찾아 고쳤다(`dc6d213`·`70d3d8a`, main에 있던 claude 출력 변환, 독립 리뷰 지적 반영). root 927/927, 타입 검사 exit 0. 실행기 오류를 fail로 분류하는 문제, 멈춘 작업 재실행 없음, OAuth 갱신 잠금은 후속 작업 후보다.
-- **G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험) · [검증 기록](verification/2026-10-21-lean-office-phase1.md) · [G3 결정](understanding/lean-office-decision.md)
+- G4는 2026-10-27 "피드백 확인 후 승인"(컨트롤러 답 초안 그대로)으로 [G4 기록](verification/2026-10-21-lean-office-phase1-g4.md)에 남겼다. 같은 PR에서 README(영·한)를 지금 상태(기본은 Claw Office, `--lean`은 옵션, codex·claude 실행기, 팀 허브)에 맞췄다. [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험) · [검증 기록](verification/2026-10-21-lean-office-phase1.md) · [G3 결정](understanding/lean-office-decision.md)
 
 # 2026-10-16 받은 팀 허브 요청을 Office Inbox에서 수락·거절
 

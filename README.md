@@ -17,18 +17,18 @@
 
 </div>
 
-> **Local alpha on Apple Silicon macOS.** Original Claw Tasks and Decisions connect to kit 4.1.0 roles through a trusted Mac controller and a dedicated VM. The README pilot completed real PM, Lead, Developer, Reviewer and six checks; its final human G4 and delivery are pending. npm distribution and general project acceptance remain unverified. See [evidence](docs/verification/2026-09-29-native-claw-preview.md).
+> **Local alpha on Apple Silicon macOS.** Office runs kit role graphs (PM, Lead, Developer, Reviewer) through a trusted Mac controller and a dedicated VM, with the codex or claude CLI you installed and logged in to. The default screen is still the Claw Office UI. A new minimal Office without Claw Empire (`--lean`, phase 1) runs on the same engine as an opt-in; Claw Empire is removed in a later phase. Real tasks have gone through human G4 and delivery on one Mac. Other people's PCs, company IT policy and npm distribution remain unverified. See [current status](docs/STATUS.md).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/GreenSheep01201/claw-empire/5c928b24ffa55b403fe7c5521d4ac3ac49516137/Sample_Img/Office.png" alt="Upstream Claw-Empire office interface, shown as a credited reference rather than completed Pazmo features" width="100%" />
-  <br /><sub>Upstream Claw-Empire interface. This reference image does not demonstrate implemented Pazmo features.</sub>
+  <br /><sub>Upstream Claw-Empire interface, the base of today's default Office screen that the minimal Office is replacing. This reference image does not demonstrate implemented Pazmo features.</sub>
 </p>
 
 ## Why Pazmo
 
 An AI office should do more than look busy. Our goal is a team that turns approved intent into small, reviewable changes — and stops honestly when it cannot prove the result.
 
-Pazmo combines the office experience and task runtime of [Claw-Empire](https://github.com/GreenSheep01201/claw-empire) with the contracts, templates and verification principles developed in [AI Workflow Kit](https://github.com/syjkim0125/ai-workflow-kit). It is an independent project; the original kit stays unchanged.
+Pazmo started from the office interface of [Claw-Empire](https://github.com/GreenSheep01201/claw-empire) and combines it with the contracts, templates and verification principles developed in [AI Workflow Kit](https://github.com/syjkim0125/ai-workflow-kit). The execution engine (decisions, isolated runs, verification and delivery) is Pazmo's own, and a minimal Office that no longer needs Claw-Empire is being built in phases. It is an independent project; the original kit stays unchanged.
 
 | Principle | What we are building |
 |---|---|
@@ -48,7 +48,7 @@ Pazmo combines the office experience and task runtime of [Claw-Empire](https://g
 | Product Designer | User flows, interface states and design quality | UI work |
 | DevOps / Release Engineer | Builds, previews and release preparation | Runtime or delivery changes |
 
-Roles are responsibility boundaries, not five permanently running conversations. All are intended to use your own officially authenticated Codex CLI. Subscription usage limits still apply; API-key billing is separate. No silent paid-provider fallback is part of the design.
+Roles are responsibility boundaries, not five permanently running conversations. Each role runs with the codex or claude CLI you installed and logged in to; Office does not read or copy the login. Subscription usage limits still apply; API-key billing is separate. No silent paid-provider fallback is part of the design.
 
 ## From goal to result
 
@@ -72,6 +72,8 @@ Compound Engineering supplies bounded implementation and review procedures. Sele
 
 On Apple Silicon macOS, complete the initial login and prerequisites, then run `./office --project /absolute/path/to/project` from this repository. Later, run `./office` to reopen the selected project. See [startup instructions and limits](docs/LOCAL-PREVIEW.md).
 
+To try the minimal Office without Claw-Empire, add `--lean`: `./office --lean --project /absolute/path/to/project`. It has four screens (Tasks, task detail, Decisions, Agents), keeps its own data, and lets each agent use a different runner for review. Stop a running Claw Office for the same project first. See [the minimal Office guide](docs/LOCAL-PREVIEW.md#새-office-1단계-시험).
+
 ## Current status
 
 | Area | Status |
@@ -80,8 +82,11 @@ On Apple Silicon macOS, complete the initial login and prerequisites, then run `
 | Required commit | `5c928b24ffa55b403fe7c5521d4ac3ac49516137` |
 | Destination source import | **Original verified locally; publication sanitized** — [evidence](docs/verification/2026-09-18-publication.md) |
 | Story and Task templates | Installed kit 4.1.0 role graphs; Office owns assignments and approvals |
-| Jira-independent team execution | Real README pilot through review; final human G4/delivery pending |
-| Local launcher and original Office UI | `./office`; clean source installation checked on this Mac; [local preview guide](docs/LOCAL-PREVIEW.md) |
+| Jira-independent team execution | Real tasks in an existing project through human G4 and delivery on one Mac — [evidence](docs/verification/2026-10-06-cli-runner-selection.md) |
+| CLI runners | Your installed codex or claude, chosen per role; subscription login, no API key |
+| Local launcher and Claw Office UI (default) | `./office`; clean source installation checked on this Mac; [local preview guide](docs/LOCAL-PREVIEW.md) |
+| Minimal Office without Claw-Empire | Phase 1 opt-in (`--lean`): Tasks, task detail, Decisions, Agents on the same engine; real check passed 2026-10-27. Team hub screen, making it the default and removing Claw-Empire come in later phases — [evidence](docs/verification/2026-10-21-lean-office-phase1.md) |
+| Team hub | Teammates send, accept and cancel work between their own Offices; checked with two Offices on one Mac, not yet across PCs — [guide](docs/LOCAL-PREVIEW.md#팀-허브-1단계-시험) |
 | Operator contract and G1/G3 CLI | Implemented with real HTTP/SQLite tests; native Decisions used for live work — [evidence](docs/verification/2026-09-19-contract-approvals.md) |
 | Execution isolation and completion guards | Dedicated VM checks and guarded completion implemented; native host-only execution stays disabled |
 | npm `@pazmo/agent-office` | Target package name; not published or installation-tested |
@@ -92,7 +97,7 @@ There is no Pazmo `npx` quickstart yet. Do not infer a working installer from th
 
 Keep changes small and connect them to an observable requirement and fresh evidence. Preserve the pinned upstream baseline and attribution. Prefer tests of real behavior over assertions that a source file contains a particular word. Report source import, build, mock workflow, live Codex, browser and package verification separately.
 
-Current work is organized in the [v3 milestones](docs/HANDOFF-v3.md#10-구현-순서와-끝내야-할-증거). Existing user files, the original AI Workflow Kit and operator credentials are not development scratch space.
+Current work and the next step are in [STATUS](docs/STATUS.md). Existing user files, the original AI Workflow Kit and operator credentials are not development scratch space.
 
 ## License
 
