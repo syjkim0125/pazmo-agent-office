@@ -21,6 +21,11 @@ It is never part of a Candidate or of a planning role's view of the project, and
 
 The area also hides itself from the project's version control, because its files hold machine-local paths and records that must never be committed, and Office does this without editing any file the user tracks. Removing Office keeps that hiding in place for as long as any Office record is left behind.
 
+### Verification round
+One attempt to verify a Candidate: every registered check and one independent review each give a verdict on that exact candidate, and only a round whose verdicts are all pass reaches the G4 Gate.
+
+A verdict is pass, fail or unknown. Fail means a defect was found (a check failed, or the review reported findings) and sends the work back to the implementer for one of a small fixed number of automatic fixes, each producing a new candidate and a new round. Unknown means there is no verdict: the process timed out or was interrupted, the review report was missing or unreadable, or the review runner ended without giving one. An unknown verdict stops the round for a person at once and spends no fix. A round also stops for a person when its contract or candidate changes or its deadline passes. A stopped round is never retried automatically: its request becomes a Stopped request.
+
 ### Gate
 A point where work stops until a human records an understanding or approval answer bound to an exact subject (a Story, a contract or a verified result). A Gate is passed by recorded evidence, never by a model's claim that it was approved.
 
@@ -80,6 +85,8 @@ An agent's runner choice (CLI, model, effort) for the plan, design and build sta
 
 ### Review runner
 An agent's runner choice for the review stage, including the G4 evaluation, so that a different model can check the work.
+
+A review runner that ends without a report (an API error or refusal, for example) gives the review an unknown verdict in its Verification round, never a fail.
 
 ## Hosting
 

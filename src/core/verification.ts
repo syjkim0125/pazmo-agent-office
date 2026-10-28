@@ -63,6 +63,20 @@ const queueStatus: Record<State, string> = {
   cancelled: "cancelled",
 };
 
+/** A review's verdict is only in its report, read only after exit 0. A cleanly
+ * terminated non-zero exit is its CLI ending without one (API error, safeguard
+ * refusal, sign-in): nothing was found about the candidate, so no fix is due. */
+function reviewRunnerFailed(value: Observation): boolean {
+  return (
+    value.kind === "review" &&
+    !value.timedOut &&
+    value.signal === null &&
+    value.error === null &&
+    value.exitCode !== null &&
+    value.exitCode !== 0
+  );
+}
+
 function classify(kind: Definition["kind"], value: Observation): Verdict {
   if (
     !value ||
@@ -89,6 +103,7 @@ function classify(kind: Definition["kind"], value: Observation): Verdict {
     value.exitCode === null
   )
     return "unknown";
+  if (reviewRunnerFailed(value)) return "unknown";
   if (value.exitCode !== 0) return "fail";
   if (value.kind === "test") return "pass";
   const report = value.report;
@@ -412,7 +427,14 @@ export class VerificationLedger {
         .run(JSON.stringify(result), row.id, node.id);
       const nodes = this.#nodes(row.id);
       if (nodes.some((n) => n.result?.verdict === "unknown"))
-        this.#state(row, "human_required", "UNKNOWN_RESULT");
+        this.#state(
+          row,
+          "human_required",
+          // Only this result can be the first unknown: an unknown closes the round.
+          reviewRunnerFailed(receipt.observation)
+            ? "REVIEW_RUNNER_FAILED"
+            : "UNKNOWN_RESULT",
+        );
       else if (nodes.every((n) => n.result !== null)) {
         if (nodes.some((n) => n.result!.verdict === "fail"))
           this.#state(

@@ -225,6 +225,31 @@ test("timeout, signal, malformed review and review findings never count as pass"
   }
 });
 
+test("a review runner that exits non-zero has no verdict and stops without spending a fix", async (t) => {
+  // 2026-10-27 eevee-be: the claude reviewer was refused by an API safeguard.
+  const f = await setup(t),
+    round = f.ledger.begin(f.item.id, f.candidate);
+  const review = round.nodes.find((n) => n.kind === "review");
+  const stopped = finish(f, round, review, "pass", {
+    exitCode: 1,
+    output: [
+      '{"type":"turn.started"}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"API Error: Our safeguards flagged this message. [cyber]"}}',
+      '{"type":"turn.failed"}',
+    ].join("\n"),
+    report: null,
+  });
+  assert.equal(
+    stopped.nodes.find((n) => n.id === review.id).result.verdict,
+    "unknown",
+  );
+  assert.equal(stopped.state, "human_required");
+  assert.equal(stopped.reason, "REVIEW_RUNNER_FAILED");
+  assert.throws(() => f.ledger.begin(f.item.id, f.candidate), {
+    code: "HUMAN_REQUIRED",
+  });
+});
+
 test("candidate and contract changes invalidate even completed evidence permanently", async (t) => {
   for (const target of ["candidate", "contract"])
     await t.test(target, async (t) => {

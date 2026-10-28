@@ -182,7 +182,11 @@ test("one initial implementation and at most one fix per failed round survive re
         nodeId: node.id,
         candidateDigest: f.candidate.digest,
         contractDigest: round.contractDigest,
-        observation: { ...result(node.kind), exitCode: 1 },
+        // A failed check; a review runner's non-zero exit stops for a person.
+        observation: {
+          ...result(node.kind),
+          ...(node.kind === "test" ? { exitCode: 1 } : {}),
+        },
       });
     const reopened = new ExecutionLedger(f.db, f.store, f.verification);
     if (i === 2)
