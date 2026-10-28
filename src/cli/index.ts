@@ -30,7 +30,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)",
+        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)",
       );
       return;
     }
@@ -70,10 +70,18 @@ export async function main(args: string[]): Promise<void> {
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
-    // `team` takes its action before the flags: team add|remove|list.
+    // `team` takes its action before the flags: team add|remove|list|pause|resume|cap|status.
     const teamAction = command === "team" ? args.shift() : undefined;
     if (command === "team" && !TEAM_ACTIONS.includes(teamAction ?? ""))
-      fail("ARGUMENT", "team needs an action: add, remove or list.");
+      fail(
+        "ARGUMENT",
+        "team needs an action: add, remove, list, pause, resume, cap or status.",
+      );
+    // `team cap` also takes its value, N or off, before the flags.
+    const teamValue =
+      teamAction === "cap" && args[0] !== undefined && !args[0].startsWith("--")
+        ? args.shift()
+        : undefined;
     const options: Record<string, string | boolean> = {};
     while (args.length) {
       const flag = args.shift()!;
@@ -237,6 +245,7 @@ export async function main(args: string[]): Promise<void> {
           await teamCommand(teamAction!, {
             project: options["--project"] as string | undefined,
             dataDir: options["--data-dir"] as string | undefined,
+            value: teamValue,
           }),
         ),
       );
