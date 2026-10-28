@@ -1,0 +1,297 @@
+{
+  "version": 1,
+  "runId": "1c6f391c-ce07-42fd-8081-95000e123c67",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lean Office rerun of a stopped task (M15/V17/D25, G3 2026-10-27, option A). POST /api/tasks/:id/rerun and a [다시 실행] dialog on a stopped task's detail: the new task is created exactly like a new task, its rerun link (task_reruns, created on open for old lean DBs) is stored in the same transaction with ALREADY_RERUN and NOT_STOPPED re-checked there, and only then the stopped task is cancelled through the engine's own cancel; a cancel failure keeps the new task (previousCancelled=false, logged). Detail gains risk/rerunOf/rerunBy. Engine, Claw Office, decisions and queue unchanged. TDD: RED office 7/7 (rerun missing), schema 1/1, server 2, web 4, office risk 1, then GREEN; after review a race test went RED before the in-transaction re-check. Moved onto main 187431a (PR #32 and #34 merged). Simplification: note() and riskOf() helpers replace duplicated code; no other change.",
+          "evidence": [
+            "docs/verification/2026-10-27-lean-rerun.md",
+            "docs/understanding/lean-rerun-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-27-lean-rerun.md": "b0abac799f355cee05ed8d5185f754b987e28ad8386b66bf0b7215f77f27dc4a",
+          "docs/understanding/lean-rerun-decision.md": "276cc6a40b2620d229b1b863f830ca78cab5961ed2dee71ce5f1e98d314ab10d"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only review in two rounds. Round 1: Critical 0, Important 0, Minor 6; five fixed (in-transaction NOT_STOPPED re-check with a RED-first test, start-failure test, filled verification note, validated title for the log, schema comment, aria-describedby) and one declined (app.js source-regex tests). Round 2 on the fixes after moving onto main: no Critical/Important, no regression; one nit declined.",
+          "evidence": [
+            ".ai-workflow/runs/U19-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U19-review-1.md": "5f4a6322f53da84846171b94fa217a5b446bb77429a1a50f9d0202588a97bb01"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification on main 187431a plus the working tree after all review fixes: npm test 943/943 exit 0 (OpenSSL 3.6.3 on PATH; with LibreSSL first one unrelated hub-link TLS test fails, recorded), typecheck 0, story check 0, diff check 0, lean 4 files 135/135, UI checked in a browser on a fake-runtime lean Office. eevee-be real check and G4 remain.",
+          "evidence": [
+            ".ai-workflow/runs/U19-verify-1.md",
+            "docs/verification/2026-10-27-lean-rerun.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U19-verify-1.md": "278aea44b73e3a62e5ba98617fea75a6f34bd2f7b3482a7ac93f66adcab4622f",
+          "docs/verification/2026-10-27-lean-rerun.md": "b0abac799f355cee05ed8d5185f754b987e28ad8386b66bf0b7215f77f27dc4a"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "9a12c51c188090388bd301bd064b5360fc3063f87611ed8a8d31570c3a5dbe78"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-27T08:03:31.918Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-28T02:16:27.876Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Lean Office rerun of a stopped task (M15/V17/D25, G3 2026-10-27, option A). POST /api/tasks/:id/rerun and a [다시 실행] dialog on a stopped task's detail: the new task is created exactly like a new task, its rerun link (task_reruns, created on open for old lean DBs) is stored in the same transaction with ALREADY_RERUN and NOT_STOPPED re-checked there, and only then the stopped task is cancelled through the engine's own cancel; a cancel failure keeps the new task (previousCancelled=false, logged). Detail gains risk/rerunOf/rerunBy. Engine, Claw Office, decisions and queue unchanged. TDD: RED office 7/7 (rerun missing), schema 1/1, server 2, web 4, office risk 1, then GREEN; after review a race test went RED before the in-transaction re-check. Moved onto main 187431a (PR #32 and #34 merged). Simplification: note() and riskOf() helpers replace duplicated code; no other change.",
+          "evidence": [
+            "docs/verification/2026-10-27-lean-rerun.md",
+            "docs/understanding/lean-rerun-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-27-lean-rerun.md": "b0abac799f355cee05ed8d5185f754b987e28ad8386b66bf0b7215f77f27dc4a",
+          "docs/understanding/lean-rerun-decision.md": "276cc6a40b2620d229b1b863f830ca78cab5961ed2dee71ce5f1e98d314ab10d"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-28T02:16:33.123Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-28T02:16:51.450Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only review in two rounds. Round 1: Critical 0, Important 0, Minor 6; five fixed (in-transaction NOT_STOPPED re-check with a RED-first test, start-failure test, filled verification note, validated title for the log, schema comment, aria-describedby) and one declined (app.js source-regex tests). Round 2 on the fixes after moving onto main: no Critical/Important, no regression; one nit declined.",
+          "evidence": [
+            ".ai-workflow/runs/U19-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U19-review-1.md": "5f4a6322f53da84846171b94fa217a5b446bb77429a1a50f9d0202588a97bb01"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-28T02:16:58.533Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-28T02:17:16.839Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification on main 187431a plus the working tree after all review fixes: npm test 943/943 exit 0 (OpenSSL 3.6.3 on PATH; with LibreSSL first one unrelated hub-link TLS test fails, recorded), typecheck 0, story check 0, diff check 0, lean 4 files 135/135, UI checked in a browser on a fake-runtime lean Office. eevee-be real check and G4 remain.",
+          "evidence": [
+            ".ai-workflow/runs/U19-verify-1.md",
+            "docs/verification/2026-10-27-lean-rerun.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U19-verify-1.md": "278aea44b73e3a62e5ba98617fea75a6f34bd2f7b3482a7ac93f66adcab4622f",
+          "docs/verification/2026-10-27-lean-rerun.md": "b0abac799f355cee05ed8d5185f754b987e28ad8386b66bf0b7215f77f27dc4a"
+        }
+      }
+    }
+  ]
+}

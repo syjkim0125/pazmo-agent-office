@@ -140,6 +140,32 @@ test("tables carry exactly the columns the engine reads or writes plus the lean 
   assert.deepEqual(columns(db, "projects"), ["id", "project_path"]);
 });
 
+test("a database made before reruns gains their links when it opens; a task reruns once and its link goes with it", (t) => {
+  const w = workspace(t);
+  const before = openLeanDb(w.root, w.project);
+  // The phase 1 file had no links table.
+  before.exec("DROP TABLE IF EXISTS task_reruns");
+  before.prepare("INSERT INTO tasks(id,title) VALUES ('old','Old'),('new','New'),('newer','Newer')").run();
+  before.close();
+  const db = openLeanDb(w.root, w.project);
+  try {
+    assert.deepEqual(columns(db, "task_reruns"), ["previous_id", "task_id"]);
+    const link = db.prepare("INSERT INTO task_reruns(task_id,previous_id) VALUES (?,?)");
+    link.run("new", "old");
+    assert.throws(() => link.run("newer", "old"), /UNIQUE/, "a task is rerun once");
+    assert.throws(() => link.run("newer", "missing"), /FOREIGN KEY/);
+    db.prepare("DELETE FROM tasks WHERE id='new'").run();
+    assert.equal(db.prepare("SELECT COUNT(*) n FROM task_reruns").get().n, 0, "removing the new task removes its link");
+    link.run("newer", "old");
+  } finally {
+    db.close();
+  }
+  // Opening again keeps what is there.
+  const again = openLeanDb(w.root, w.project);
+  t.after(() => again.close());
+  assert.equal(again.prepare("SELECT previous_id FROM task_reruns WHERE task_id='newer'").get().previous_id, "old");
+});
+
 test("task status accepts only the values the engine writes, and risk only normal or high", (t) => {
   const w = workspace(t);
   const db = openLeanDb(w.root, w.project);

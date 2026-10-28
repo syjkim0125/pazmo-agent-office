@@ -284,6 +284,18 @@ a:hover {
   min-width: 0;
 }
 
+.head-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* The other task of a rerun, under the title. */
+.rerun-link {
+  color: var(--muted);
+}
+
 .state {
   padding: 48px 0;
   color: var(--muted);

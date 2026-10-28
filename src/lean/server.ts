@@ -56,6 +56,8 @@ const CONFLICTS = new Set([
   "LAST_AGENT",
   "AGENT_NAME_TAKEN",
   "AGENT_RUNNER_NOT_READY",
+  "NOT_STOPPED",
+  "ALREADY_RERUN",
 ]);
 const ID = "([A-Za-z0-9_-]{1,64})";
 
@@ -219,6 +221,14 @@ export function leanRequestListener(o: Omit<LeanServerOptions, "port">, listenin
         await office.cancel(id);
         return ok;
       },
+    },
+    {
+      method: "POST",
+      pattern: new RegExp(`^/api/tasks/${ID}/rerun$`),
+      run: async ({ id, body }) => [
+        201,
+        await office.rerun(id, pick(await body(), ["title", "body", "agentId", "risk"]) as TaskInput),
+      ],
     },
     {
       method: "POST",
