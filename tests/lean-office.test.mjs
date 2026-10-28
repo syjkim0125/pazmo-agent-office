@@ -54,12 +54,14 @@ async function fixture(t, { catalog = readyCatalog() } = {}) {
   // count: discoveries run; failure: thrown by the next discoveries until cleared.
   const discoveries = { count: 0, failure: null };
   // statusFailure: the next live.status() call throws it once; lastError: the
-  // run failure live.status() reports (as LiveRuntime does after a failed run).
+  // run failure live.status() reports (as LiveRuntime does after a failed run);
+  // planningFailure: starting a planning run throws it while set.
   const state = {
     current: typeof catalog === "function" ? catalog(c.root) : catalog,
     active: [],
     statusFailure: null,
     lastError: null,
+    planningFailure: null,
     get catalog() {
       return this.current;
     },
@@ -77,7 +79,10 @@ async function fixture(t, { catalog = readyCatalog() } = {}) {
       if (failure) throw failure;
       return { execution: "ready", active: state.active, lastError: state.lastError };
     },
-    startPlanning: (...args) => calls.planning.push(args),
+    startPlanning: (...args) => {
+      if (state.planningFailure) throw state.planningFailure;
+      calls.planning.push(args);
+    },
     startImplementation: (...args) => calls.implementation.push(args),
     startUnderstanding: (...args) => calls.understanding.push(args),
     cancelImplementation: (...args) => calls.cancelled.push(args),
@@ -1235,4 +1240,188 @@ test("saving an agent's runner checks it against a fresh discovery the engine al
   const after = f.office.agents.list().find((a) => a.id === alice.id);
   assert.deepEqual([after.name, after.review.model], ["Alicia", "haiku"], "nothing changed");
   assert.equal(f.office.agents.list().some((a) => a.name === "Carol"), false);
+});
+
+// --- Rerun a stopped request (D25) --------------------------------------------
+
+/** A request whose planning run ended refused: the engine stopped it and will
+ * not run it again by itself (the board shows it stopped). */
+async function stoppedTask(f, agentId) {
+  const { id } = await f.office.createTask({ title: "Improve README", body: "Explain start", agentId, risk: "normal" });
+  const i = f.ledgers.intake.get(id);
+  f.ledgers.intake.interrupt(id, i.revision, i.inputDigest, "RUNNER_EXITED");
+  await f.office.refresh();
+  assert.equal(locate(f.office.board(), id).stopped, true, "the fixture is stopped");
+  return id;
+}
+const RERUN = { title: "Rewrite the start guide", body: "Explain start and stop", risk: "normal" };
+
+test("a stopped request reruns as a new task with the person's content; then the stopped one is cancelled, and each links the other", async (t) => {
+  const f = await fixture(t);
+  const { fallback, alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  const result = await f.office.rerun(old, { ...RERUN, agentId: fallback.id, risk: "high" });
+  assert.notEqual(result.id, old);
+  assert.equal(result.previousCancelled, true);
+  const created = f.office.detail(result.id);
+  assert.deepEqual(
+    [created.title, created.body, created.agent.id, created.risk, locate(f.office.board(), result.id).risk],
+    ["Rewrite the start guide", "Explain start and stop", fallback.id, "high", "high"],
+    "what the person sent, not a copy of the stopped task",
+  );
+  assert.equal(f.office.detail(old).risk, "normal", "the detail gives the risk a rerun starts from");
+  assert.deepEqual(created.rerunOf, { id: old, title: "Improve README" });
+  assert.equal(created.rerunBy, null);
+  assert.ok(f.calls.planning.some(([taskId]) => taskId === result.id), "the new task entered planning");
+  assert.ok(created.events.some((e) => e.text.includes("Improve README")), "its log names the stopped task");
+  const stopped = f.office.detail(old);
+  assert.equal(stopped.status, "cancelled");
+  assert.equal(locate(f.office.board(), old).column, "cancelled");
+  assert.deepEqual(f.calls.aborted, [old], "cancelled through the engine");
+  assert.deepEqual(stopped.rerunBy, { id: result.id, title: "Rewrite the start guide" });
+  assert.equal(stopped.rerunOf, null);
+  assert.ok(stopped.events.some((e) => e.text.includes("Rewrite the start guide")), "its log names the new task");
+});
+
+test("a request whose subtask verification stopped (UNKNOWN_RESULT) reruns, and its subtask is cancelled with it", async (t) => {
+  const f = await fixture(t);
+  const { id, child } = await verifiedChild(f, "unknown");
+  assert.equal(locate(f.office.board(), id).stopped, true);
+  const alice = f.office.agents.list().find((a) => a.name === "Alice");
+  const result = await f.office.rerun(id, { ...RERUN, agentId: alice.id });
+  assert.equal(result.previousCancelled, true);
+  assert.equal(locate(f.office.board(), id).column, "cancelled");
+  assert.deepEqual(f.calls.cancelled.map(([taskId]) => taskId), [child]);
+  assert.equal(locate(f.office.board(), result.id).stopped, false);
+});
+
+test("only a stopped request reruns: one that runs, waits, has a decision, is closed, a subtask or unknown is refused and nothing is stored", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const input = { ...RERUN, agentId: alice.id };
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: alice.id, risk: "normal" });
+  const notStopped = { code: "NOT_STOPPED" };
+  await assert.rejects(f.office.rerun(id, input), notStopped, "dispatched, nothing went wrong");
+  f.state.active = [{ taskId: id, kind: "planning" }];
+  await assert.rejects(f.office.rerun(id, input), notStopped, "running");
+  f.state.active = [];
+  await storyReady(f, id);
+  await assert.rejects(f.office.rerun(id, input), notStopped, "an open decision");
+  await f.office.cancel(id);
+  await assert.rejects(f.office.rerun(id, input), notStopped, "cancelled");
+  f.db.prepare("INSERT INTO tasks(id,title,status) VALUES ('t-done','Done','done')").run();
+  await assert.rejects(f.office.rerun("t-done", input), notStopped, "done");
+  engineChild(f, "child-1", id, "pending");
+  for (const missing of ["child-1", "no-such-task"])
+    await assert.rejects(f.office.rerun(missing, input), { code: "NOT_FOUND" }, missing);
+  assert.equal(count(f, "tasks"), 3, "no new task");
+  assert.equal(count(f, "task_reruns"), 0);
+});
+
+test("a rerun whose new task is refused leaves the stopped request as it was, and it can rerun afterwards", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  const tasks = count(f, "tasks");
+  const input = { ...RERUN, agentId: alice.id };
+  await assert.rejects(f.office.rerun(old, { ...input, title: " " }), { code: "INVALID" });
+  await assert.rejects(f.office.rerun(old, { ...input, agentId: "no-such-agent" }), { code: "NOT_FOUND" });
+  f.state.catalog = loggedOut("codex");
+  await assert.rejects(f.office.rerun(old, input), { code: "AGENT_RUNNER_NOT_READY" });
+  f.state.catalog = readyCatalog();
+  // Refused after the new task row was stored: the intake would not take it.
+  const create = t.mock.method(f.ledgers.intake, "create", () => {
+    throw new OfficeError("INTAKE_REFUSED", "refused");
+  });
+  await assert.rejects(f.office.rerun(old, input), { code: "INTAKE_REFUSED" });
+  create.mock.restore();
+  assert.equal(count(f, "tasks"), tasks, "no new task is left behind");
+  assert.equal(count(f, "task_reruns"), 0, "nor a link to one");
+  assert.deepEqual(f.calls.aborted, [], "the stopped task was never cancelled");
+  const card = locate(f.office.board(), old);
+  assert.deepEqual([card.column, card.stopped], ["active", true]);
+  const result = await f.office.rerun(old, input);
+  assert.equal(result.previousCancelled, true);
+  assert.equal(locate(f.office.board(), old).column, "cancelled");
+});
+
+test("a stopped request reruns once: a second rerun, even one sent at the same time, is refused and makes no task", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  const input = { ...RERUN, agentId: alice.id };
+  const tasks = count(f, "tasks");
+  const results = await Promise.allSettled([f.office.rerun(old, input), f.office.rerun(old, input)]);
+  assert.deepEqual(results.map((r) => r.status).sort(), ["fulfilled", "rejected"]);
+  assert.equal(results.find((r) => r.status === "rejected").reason.code, "ALREADY_RERUN");
+  assert.equal(count(f, "tasks"), tasks + 1);
+  await assert.rejects(f.office.rerun(old, input), { code: "ALREADY_RERUN" }, "afterwards too");
+});
+
+test("when the stopped request cannot be cancelled, the new task stays and says so, and the stopped one is not rerun twice", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  const input = { ...RERUN, agentId: alice.id };
+  t.mock.method(console, "error", () => {});
+  const cancel = t.mock.method(f.ledgers.intake, "cancel", () => {
+    throw new OfficeError("INTAKE_STATE", "cannot cancel now");
+  });
+  const result = await f.office.rerun(old, input);
+  assert.equal(result.previousCancelled, false);
+  const created = f.office.detail(result.id);
+  assert.ok(created.events.some((e) => e.text === "이전 작업을 취소하지 못했습니다: INTAKE_STATE"), "the new task says why");
+  assert.deepEqual(created.rerunOf, { id: old, title: "Improve README" });
+  const card = locate(f.office.board(), old);
+  assert.deepEqual([card.column, card.stopped], ["active", true], "left for the person to cancel");
+  assert.deepEqual(f.office.detail(old).rerunBy, { id: result.id, title: "Rewrite the start guide" });
+  await assert.rejects(f.office.rerun(old, input), { code: "ALREADY_RERUN" });
+  cancel.mock.restore();
+  await f.office.cancel(old);
+  assert.equal(locate(f.office.board(), old).column, "cancelled");
+});
+
+test("a stopped request cancelled while its rerun's runner check runs is not rerun", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  const tasks = count(f, "tasks");
+  // A later clock: the next load discovers again, and that discovery is slow.
+  f.state.catalog = readyCatalog();
+  let release;
+  f.discoveries.gate = new Promise((resolve) => (release = resolve));
+  const started = f.discoveries.count;
+  const pending = f.office.rerun(old, { ...RERUN, agentId: alice.id });
+  while (f.discoveries.count === started) await new Promise((resolve) => setTimeout(resolve, 5));
+  await f.office.cancel(old);
+  f.discoveries.gate = null;
+  release();
+  await assert.rejects(pending, { code: "NOT_STOPPED" });
+  assert.equal(count(f, "tasks"), tasks, "no new task");
+  assert.equal(count(f, "task_reruns"), 0);
+});
+
+test("a rerun the engine accepted but could not start still cancels the stopped request; the new one stops instead", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  f.state.planningFailure = new Error("spawn failed");
+  const result = await f.office.rerun(old, { ...RERUN, agentId: alice.id });
+  f.state.planningFailure = null;
+  assert.equal(result.previousCancelled, true);
+  assert.equal(locate(f.office.board(), old).column, "cancelled");
+  const card = locate(f.office.board(), result.id);
+  assert.deepEqual([card.stopped, card.stopReason], [true, "실행을 멈췄습니다: spawn failed"], "kept, and stopped, as any accepted task");
+  assert.deepEqual(f.office.detail(result.id).rerunOf, { id: old, title: "Improve README" });
+});
+
+test("no rerun starts once a stop was accepted", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const old = await stoppedTask(f, alice.id);
+  const tasks = count(f, "tasks");
+  f.office.beginStop();
+  await assert.rejects(f.office.rerun(old, { ...RERUN, agentId: alice.id }), { code: "STOPPING" });
+  assert.equal(count(f, "tasks"), tasks);
+  assert.equal(locate(f.office.board(), old).stopped, true);
 });

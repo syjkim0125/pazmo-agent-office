@@ -34,6 +34,8 @@ export type BoardCard = {
  * is open, and the engine stopped it (see stopOf). `stopReason` is the
  * engine's words for why; null when not stopped. */
 type Stop = { stopped: boolean; stopReason: string | null };
+/** Another request, as the screen links it. */
+type TaskLink = { id: string; title: string };
 type NativeDecision = ReturnType<NativeOffice["decisions"]>[number];
 /** The engine's decision, with the request it belongs to: G1/G3 and G4 open
  * on subtasks, and the request is the task the screen can open. */
@@ -45,6 +47,7 @@ export type TaskDetail = {
   agent: LeanAgent | null;
   stage: Stage;
   status: string;
+  risk: "normal" | "high";
   events: Array<{ at: number; text: string }>;
   decisions: DecisionItem[];
   /** The change summary of the latest final approval (G4) of each subtask, in
@@ -55,6 +58,9 @@ export type TaskDetail = {
   diffs: Array<{ taskId: string; title: string; stat: string; diff: string; error?: string }>;
   runs: ReturnType<NativeOffice["runnerRuns"]>["runs"];
   deliveries: ReturnType<NativeOffice["deliveries"]>;
+  /** The stopped request this one reruns, and the request that reran this one. */
+  rerunOf: TaskLink | null;
+  rerunBy: TaskLink | null;
 } & Stop;
 /** What the screen needs to pick a runner: install and login state, and the
  * models with their reasoning levels. Never an install path or file location. */
@@ -81,6 +87,13 @@ export type LeanOffice = {
   decisions(): Promise<DecisionItem[]>;
   reply(id: string, option: number, note: string): Promise<void>;
   cancel(id: string): Promise<void>;
+  /** A stopped request again, as a new task with this content; then the
+   * stopped one is cancelled. `previousCancelled` is false when that failed
+   * (the new task stays and its log says why). */
+  rerun(
+    id: string,
+    input: { title: string; body?: string | null; agentId: string; risk: "normal" | "high" },
+  ): Promise<{ id: string; previousCancelled: boolean }>;
   /** The installed CLIs (a discovery at most a few seconds old), for choosing an agent's runners. */
   runners(): Promise<RunnersView>;
   /** The runner a kit role's job uses for a task (the live runtime asks this). */
@@ -115,6 +128,8 @@ const REQUEST_BYTES = 16384;
 const CATALOG_TTL_MS = 5000;
 const RENEWED = "결정이 갱신되었습니다. 다시 답해 주세요.";
 const STOPPING_MESSAGE = "Office를 멈추는 중입니다.";
+const ALREADY_RERUN = "이미 다시 실행한 작업입니다.";
+const NOT_STOPPED = "멈춘 작업만 다시 실행할 수 있습니다.";
 const BUILDING = ["planned", "in_progress", "pending"];
 const CLOSED = ["done", "cancelled"];
 /** The engine's notices that it stopped a task's run and will not start it
@@ -402,6 +417,8 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     return null;
   }
   const stop = (reason: string | null): Stop => ({ stopped: reason !== null, stopReason: reason });
+  // The intake's risk is authoritative; lean tasks store the same value.
+  const riskOf = (row: TaskRow) => (hasIntake(row.id) ? intake.get(row.id).risk : row.risk);
   const running = () => new Set(native.status().active.map((a: { taskId: string }) => a.taskId));
 
   /** Each task's latest G4 change summary, from the engine's message that
@@ -452,8 +469,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
         agentId: row.agent_id,
         agentName: (row.agent_id && names.get(row.agent_id)) || null,
         stage: stageOf(row, kids, g4Open),
-        // The intake's risk is authoritative; lean tasks store the same value.
-        risk: hasIntake(row.id) ? intake.get(row.id).risk : row.risk,
+        risk: riskOf(row),
         updatedAt: row.updated_at,
         ...stop(stopOf(row, kids, open, active)),
       });
@@ -477,6 +493,15 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     return [...messages, ...logs].map(({ at, text }) => ({ at, text })).sort((a, b) => a.at - b.at);
   }
 
+  /** The other end of a rerun link (`side` names the column `id` is in). */
+  function rerunLink(side: "task_id" | "previous_id", id: string): TaskLink | null {
+    const other = side === "task_id" ? "previous_id" : "task_id";
+    const row = db
+      .prepare(`SELECT t.id,t.title FROM task_reruns r JOIN tasks t ON t.id=r.${other} WHERE r.${side}=?`)
+      .get(id) as TaskLink | undefined;
+    return row ? { id: row.id, title: row.title } : null;
+  }
+
   function detail(id: string): TaskDetail {
     const row = rootRow(id);
     const kids = children(id);
@@ -493,20 +518,44 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
       agent: agents.list().find((a) => a.id === row.agent_id) ?? null,
       stage: stageOf(row, kids, g4Open),
       status: row.status,
+      risk: riskOf(row),
       events: events(ids),
       decisions: decisions.map(withRoot),
       summary: summaryOf(ids),
       diffs,
       runs: native.runnerRuns(id).runs,
       deliveries: native.deliveries(id),
+      rerunOf: rerunLink("task_id", id),
+      rerunBy: rerunLink("previous_id", id),
       ...stop(stopOf(row, kids, open, running())),
     };
+  }
+
+  /** A line in a task's progress log, as the engine logs its events. A log
+   * that cannot be written does not undo what it reports. */
+  function note(taskId: string, text: string) {
+    try {
+      db.prepare("INSERT INTO task_logs(task_id,kind,message) VALUES (?,'system',?)").run(taskId, text);
+    } catch (error) {
+      console.error("Lean task log could not be written:", message(error));
+    }
   }
 
   // Set once a stop was accepted. Checked again after the awaits that precede
   // the insert, so a request that was already waiting cannot store a task.
   let stopping = false;
-  async function createTask(input: unknown) {
+  /** Why a request is stopped now (stopOf), or null. */
+  const stoppedNow = (id: string) => stopOf(rootRow(id), children(id), decided(native.decisions()), running());
+  /** A rerun of `id` may be stored now: once only, and while it is stopped. */
+  function checkRerun(id: string) {
+    if (rerunLink("previous_id", id)) fail("ALREADY_RERUN", ALREADY_RERUN);
+    if (stoppedNow(id) === null) fail("NOT_STOPPED", NOT_STOPPED);
+  }
+
+  /** `previous`: the stopped request this task reruns. Its link is stored with
+   * the task, after checking again that it may be rerun, so of two reruns of
+   * one request only one stores a task, and none once it was cancelled. */
+  async function createTask(input: unknown, previous?: string) {
     if (stopping) fail("STOPPING", STOPPING_MESSAGE);
     const { title, body, agentId, risk } = taskInput(input);
     // Unknown agent: NOT_FOUND. Checked before anything is stored.
@@ -522,14 +571,18 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     transaction(db, () => {
       // Removed while discovery ran.
       if (!db.prepare("SELECT 1 FROM agents WHERE id=?").get(agentId)) fail("NOT_FOUND", "Agent not found.");
+      // Rerun or cancelled meanwhile (another request, another tab).
+      if (previous) checkRerun(previous);
       db.prepare(
         "INSERT INTO tasks(id,title,description,project_path,status,agent_id,risk,created_at,updated_at) VALUES (?,?,?,?,'inbox',?,?,?,?)",
       ).run(id, title, body, project, agentId, risk, now, now);
+      if (previous) db.prepare("INSERT INTO task_reruns(task_id,previous_id) VALUES (?,?)").run(id, previous);
     });
     try {
       await native.assign(id, undefined, risk);
     } catch (error) {
-      // Refused before it entered the intake (e.g. the body's size): no task.
+      // Refused before it entered the intake (e.g. the body's size): no task,
+      // and no rerun link (it goes with the task).
       if (!hasIntake(id)) {
         db.prepare("DELETE FROM tasks WHERE id=?").run(id);
         throw error;
@@ -538,16 +591,33 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
       // stopped afterwards. Recorded on the task as the engine logs its events.
       const code = error instanceof OfficeError ? error.code : "INTERNAL";
       console.error("Lean task accepted but its continuation stopped:", error);
+      note(id, `작업을 시작하지 못했습니다: ${code}`);
+    }
+    return { id, title };
+  }
+
+  /** Only a request that is stopped now, and was not rerun before. The new
+   * task is checked and stored as createTask does; only once the engine took
+   * it is the stopped request cancelled, through the engine's own cancel. */
+  async function rerun(id: string, input: unknown) {
+    if (stopping) fail("STOPPING", STOPPING_MESSAGE);
+    const row = rootRow(id);
+    checkRerun(id);
+    const created = await createTask(input, id);
+    note(id, `다시 실행했습니다. 새 작업: ${created.title}`);
+    note(created.id, `멈춘 작업을 다시 실행했습니다. 이전 작업: ${row.title}`);
+    let previousCancelled = true;
+    // Cancelled while the engine took the new task: it needs nothing more.
+    if (!CLOSED.includes(rootRow(id).status)) {
       try {
-        db.prepare("INSERT INTO task_logs(task_id,kind,message) VALUES (?,'system',?)").run(
-          id,
-          `작업을 시작하지 못했습니다: ${code}`,
-        );
-      } catch (logError) {
-        console.error("Lean task start failure could not be recorded:", message(logError));
+        await native.cancel(id);
+      } catch (error) {
+        previousCancelled = false;
+        console.error("Lean rerun could not cancel the stopped task:", error);
+        note(created.id, `이전 작업을 취소하지 못했습니다: ${error instanceof OfficeError ? error.code : "INTERNAL"}`);
       }
     }
-    return { id };
+    return { id: created.id, previousCancelled };
   }
 
   /** Copies only the fields the screen shows, so nothing else a discovery
@@ -584,7 +654,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
 
   return {
     agents,
-    createTask,
+    createTask: async (input) => ({ id: (await createTask(input)).id }),
     board,
     detail,
     decisions: async () => (await native.currentDecisions()).map(withRoot),
@@ -593,6 +663,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
       rootRow(id);
       await native.cancel(id);
     },
+    rerun,
     runners,
     chooseRunner,
     refresh: () => native.refresh(),

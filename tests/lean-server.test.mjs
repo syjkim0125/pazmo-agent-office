@@ -51,6 +51,7 @@ function fakeOffice(handlers = {}) {
     decisions: wrap("decisions", async () => []),
     reply: wrap("reply", async () => undefined),
     cancel: wrap("cancel", async () => undefined),
+    rerun: wrap("rerun", async () => ({ id: "t2", previousCancelled: true })),
     runners: wrap("runners", async () => ({ runners: [] })),
     chooseRunner: wrap("chooseRunner", () => AGENT.work),
     refresh: wrap("refresh", async () => undefined),
@@ -148,6 +149,7 @@ const API = [
   ["GET", "/api/runners"],
   ["POST", "/api/tasks", { title: "T", body: "", agentId: "a1", risk: "normal" }],
   ["POST", "/api/tasks/t1/cancel", {}],
+  ["POST", "/api/tasks/t1/rerun", { title: "T", body: "", agentId: "a1", risk: "normal" }],
   ["POST", "/api/decisions/d1/reply", { option: 1, note: "ok" }],
   ["POST", "/api/agents", { name: "Bob", work: RUNNER, review: RUNNER }],
   ["PATCH", "/api/agents/a1", { name: "Carol" }],
@@ -559,6 +561,9 @@ test("writes call the office with the named fields and answer with the result", 
   const cancelled = await call(s, auth, "POST", "/api/tasks/9f1c0e2a-77b1-4f3e-9d0a-0123456789ab/cancel");
   assert.equal(cancelled.status, 200);
   assert.deepEqual(cancelled.json, { ok: true });
+  const rerun = await call(s, auth, "POST", "/api/tasks/t-1/rerun", { ...task, extra: "dropped" });
+  assert.equal(rerun.status, 201);
+  assert.deepEqual(rerun.json, { id: "t2", previousCancelled: true });
   const replied = await call(s, auth, "POST", "/api/decisions/d-1/reply", { option: 1, note: "범위를 승인합니다." });
   assert.equal(replied.status, 200);
   assert.deepEqual(replied.json, { ok: true });
@@ -576,6 +581,7 @@ test("writes call the office with the named fields and answer with the result", 
   assert.deepEqual(office.calls, [
     ["createTask", task],
     ["cancel", "9f1c0e2a-77b1-4f3e-9d0a-0123456789ab"],
+    ["rerun", "t-1", task],
     ["reply", "d-1", 1, "범위를 승인합니다."],
     ["reply", "d-2", 2, ""],
     ["agents.create", { name: "Bob", work: RUNNER, review: RUNNER }],
@@ -587,7 +593,7 @@ test("writes call the office with the named fields and answer with the result", 
   await call(s, auth, "PATCH", "/api/agents/a1", { review: RUNNER });
   assert.deepEqual(office.calls, [["agents.update", "a1", { review: RUNNER }]]);
   // Wrong method on a known route.
-  for (const [method, path] of [["GET", "/api/tasks/t1/cancel"], ["POST", "/api/board"], ["PUT", "/api/agents/a1"], ["DELETE", "/api/tasks/t1"], ["GET", "/api/decisions/d1/reply"]])
+  for (const [method, path] of [["GET", "/api/tasks/t1/cancel"], ["GET", "/api/tasks/t1/rerun"], ["POST", "/api/board"], ["PUT", "/api/agents/a1"], ["DELETE", "/api/tasks/t1"], ["GET", "/api/decisions/d1/reply"]])
     assert.equal((await call(s, auth, method, path, method === "GET" ? undefined : {})).status, 405, `${method} ${path}`);
 });
 
@@ -697,6 +703,8 @@ test("office errors map to statuses; other errors are a 500 that says nothing", 
     ["LAST_AGENT", 409],
     ["AGENT_NAME_TAKEN", 409],
     ["AGENT_RUNNER_NOT_READY", 409],
+    ["NOT_STOPPED", 409],
+    ["ALREADY_RERUN", 409],
     ["EXECUTION_LOCKED", 423],
     ["STOPPING", 503],
     ["BODY_LIMIT", 413],
@@ -725,6 +733,9 @@ test("office errors map to statuses; other errors are a 500 that says nothing", 
     createTask: async () => {
       throw fault;
     },
+    rerun: async () => {
+      throw fault;
+    },
   });
   const s = await server(t, { office });
   const auth = await login(s);
@@ -735,6 +746,7 @@ test("office errors map to statuses; other errors are a 500 that says nothing", 
       ["GET", "/api/board"],
       ["GET", "/api/decisions"],
       ["POST", "/api/tasks", { title: "T" }],
+      ["POST", "/api/tasks/t1/rerun", { title: "T" }],
     ]) {
       const r = await call(s, auth, method, path, body);
       assert.equal(r.status, status, `${code} ${path}`);
