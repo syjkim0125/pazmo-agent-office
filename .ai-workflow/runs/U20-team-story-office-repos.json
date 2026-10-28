@@ -1,0 +1,171 @@
+{
+  "version": 1,
+  "runId": "36ec878b-917e-4e20-a242-2ced8bbb7e7b",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      },
+      "workflow-review": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0925171f43703f08110bf6e4c791eab7d12e7ab74ffa085087d975bf5e8ce765"
+  },
+  "history": []
+}

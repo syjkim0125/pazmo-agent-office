@@ -25,8 +25,8 @@
 
 ## Global Constraints
 
-- **작업 위치:** worktree `.claude/worktrees/team-story-office`, 브랜치 `codex/team-story-office`(origin/main `68be1dc`에서 시작). 푸시는 사용자 요청 시에만 한다.
-- **Node 24:** `export PATH="$HOME/.nvm/versions/node/v24.19.0/bin:$PATH"`. 새 worktree의 테스트는 `(cd vendor/claw-empire && corepack pnpm install --frozen-lockfile)`와 `npm run build:office`를 먼저 해야 한다.
+- **작업 위치:** worktree `.claude/worktrees/team-story-office`, 브랜치 `codex/team-story-office`(origin/main `187431a` 위). 푸시는 사용자 요청 시에만 한다.
+- **Node 24와 OpenSSL 3:** `export PATH="$HOME/.nvm/versions/node/v24.19.0/bin:/opt/homebrew/bin:$PATH"`. LibreSSL이 앞에 있으면 Hub TLS 시험 하나가 실패한다. 전체 `npm test`를 동시에 두 개 돌리지 않는다(시간 초과). 새 worktree의 테스트는 `(cd vendor/claw-empire && corepack pnpm install --frozen-lockfile)`와 `npm run build:office`를 먼저 해야 한다.
 - **Hub 쪽 코드는 바꾸지 않는다:**
   - Office는 `src/hub/story-protocol.ts`(import 없는 순수 코드)의 상수와 `src/hub/remote.ts`의 `normalizeRemote`만 값으로 import한다.
   - `ClaimedTask`·`StoryInbox` 타입은 `import type`으로만 가져온다(`src/hub/story-store.ts:81,107`).
@@ -41,7 +41,7 @@
   | `gh auth status` 시간 제한 | 10000 ms |
   | 실패한 repo의 `gh` 다시 확인 | 300000 ms마다 |
   | 등록 repo 수 | 1–20 |
-  | 하루 상한 | `null`(제한 없음) 또는 1–100 정수. 기본은 `null` |
+  | 하루 상한 | 1–100 정수 또는 `null`(제한 없음, `team cap off`). 기본은 `5`(사용자 결정 2026-10-28) |
   | 하트비트 단계 | 2단계는 항상 `"build"`. 3단계가 실제 단계로 바꾼다 |
 
 - **오류:** `OfficeError(code, 영어 메시지)`를 쓰고 CLI 출력 형식은 지금과 같다. 새 코드는 다음과 같다.
@@ -61,8 +61,8 @@
 | **Hub 연결은 repo마다**(기존 `hub-link.json`, 기존 `hub-link --project` 명령) | Hub 토큰이 (팀원, repo) 단위이고, 같은 (팀원, repo)를 다시 연결하면 앞 토큰이 취소된다(`store.ts:634-645`) |
 | **repo 엔진은 그 repo의 기존 lean 데이터를 쓴다**(`<repo dataDir>/lean/`) | 새 경로가 필요 없고, repo를 단일 lean과 팀 Office 사이에서 옮겨도 agent·기록이 이어진다. 동시 사용은 등록 규칙(`IN_TEAM_OFFICE`/`RUNNING`)으로 막는다 |
 | **같은 origin을 가진 clone 두 개는 등록하지 않는다**(`DUPLICATE_REMOTE`) | 두 번째 clone을 연결하면 첫 clone의 토큰이 취소된다 |
-| **repo 사이의 가져가기 순서는 등록 순서다.** 한 repo 안에서는 Hub가 오래된 Story부터 번호 순으로 고른다 | 결정 문서 4장의 "오래된 Story부터"를 repo 사이에서까지 지키려면 매번 Story 목록을 읽어야 한다. 1단계 Hub는 repo별로만 고른다. **사용자 확인 필요** |
-| **하루 상한 기본값은 제한 없음(`null`)이다** | 결정 문서는 상한의 존재만 정했다. 예시 "오늘 3/5"는 값을 정한 것이 아니다. **사용자 확인 필요** |
+| **repo 사이의 가져가기 순서는 등록 순서다.** 한 repo 안에서는 Hub가 오래된 Story부터 번호 순으로 고른다 | 결정 문서 4장의 "오래된 Story부터"를 repo 사이에서까지 지키려면 매번 Story 목록을 읽어야 한다. 1단계 Hub는 repo별로만 고른다. **사용자 결정 2026-10-28: 등록 순서** |
+| **하루 상한 기본값은 5개다.** `team cap off`로 끄고 `team cap N`으로 바꾼다 | 결정 문서는 상한의 존재만 정했다. **사용자 결정 2026-10-28: 기본 5** |
 | **실행 중인 일이 없는지**는 모든 repo 엔진의 실행 중 작업과 팀 Office의 열린 가져온 기록을 함께 본다 | Hub도 사람당 열린 Task를 하나로 막지만(`hub_one_open_task`), 로컬 판단이 먼저다 |
 | **가져온 기록을 잃었을 때**는 매 가져가기 전에 repo마다 `inbox`를 보고 `mine`이 있으면 `task`로 다시 받는다 | 응답을 잃은 `claim`은 다시 하면 `null`이 된다(사람당 하나) |
 | 2단계에서 가져온 Task는 실행하지 않고 기록과 하트비트만 한다 | Story Task 모드는 3단계다. 2단계 Office를 실제 팀에 쓰지는 않는다 |
@@ -137,7 +137,7 @@
     - 열린 기록은 하나만 있다: `CREATE UNIQUE INDEX team_one_open ON team_claims((1)) WHERE state='open'`.
 
 - [ ] **Step 1: 실패하는 시험을 쓴다.**
-  - 기본 설정은 `{paused:false, dailyCap:null}`이다.
+  - 기본 설정은 `{paused:false, dailyCap:5}`이다. `setDailyCap(null)` 뒤에는 `null`이다.
   - `setDailyCap(0)`·`101`·`2.5`는 `INVALID`이다.
   - `claim` 두 건과 `recovered` 한 건, `rerun` 한 건을 기록하면 `claimedToday() === 2`이다. 다시 가져온 것과 이어 받은 것은 세지 않는다.
   - **현지 날짜 경계(Review Focus 1):** `process.env.TZ`를 바꾸지 않고, 시험이 같은 `localDay`로 기대값을 만든다. 23:59에 한 건을 기록한 뒤 시계를 2분 옮기면 `claimedToday() === 0`이다.
