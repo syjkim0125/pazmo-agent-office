@@ -10,12 +10,13 @@ import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 
-export async function startTestHub(t) {
+/** `now` is the Story board's clock (default Date.now), for tests that age a claim without waiting. */
+export async function startTestHub(t, { now } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "hub-server-"));
   const tls = ensureHubTls(join(dir, "tls"), { ip: "127.0.0.1" });
   const db = new DatabaseSync(":memory:");
   const store = new HubStore(db);
-  const board = new StoryBoard(db);
+  const board = new StoryBoard(db, now);
   const hub = await startHubServer({ store, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store, board));
   t.after(async () => {
     await hub.close();
