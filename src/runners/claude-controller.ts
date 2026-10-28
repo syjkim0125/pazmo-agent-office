@@ -59,13 +59,27 @@ function runClaude(
       pending = "",
       error: string | null = null,
       sawInit = false,
-      timedOut = false;
-    const stop = (reason: string) => {
-      error ??= reason;
+      timedOut = false,
+      stopping: NodeJS.Timeout | undefined;
+    const kill = (signal: NodeJS.Signals) => {
       try {
-        if (child.pid) process.kill(-child.pid, "SIGKILL");
+        if (child.pid) process.kill(-child.pid, signal);
       } catch {}
     };
+    // A login refresh the CLI started holds ~/.claude/.oauth_refresh.lock until
+    // it ends; the CLI's exit handler releases it on SIGTERM, SIGKILL does not,
+    // and every claude after that fails to sign in until the lock is a minute
+    // old. SIGKILL is left for a CLI still running after SIGTERM, and for
+    // whatever it started that is still running once it has gone.
+    const stop = (reason: string) => {
+      error ??= reason;
+      if (stopping) return;
+      kill("SIGTERM");
+      stopping = setTimeout(() => kill("SIGKILL"), 2000);
+    };
+    child.once("exit", () => {
+      if (stopping) kill("SIGKILL");
+    });
     const timer = setTimeout(() => {
       timedOut = true;
       stop("TIMEOUT");
@@ -105,6 +119,7 @@ function runClaude(
     child.on("error", () => stop("CLAUDE_SPAWN_FAILED"));
     child.on("close", (exitCode, signal) => {
       clearTimeout(timer);
+      clearTimeout(stopping);
       o.signal.removeEventListener("abort", abort);
       const stdout = error ? normalizeClaudeStream("") : normalizeClaudeStream(raw);
       if (!error && exitCode === 0 && !stdout.includes('"turn.completed"'))
