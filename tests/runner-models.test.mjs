@@ -128,6 +128,61 @@ test("claude without a models response yields an error", async () => {
   await assert.rejects(claudeModels(fx.binary, fx.root), /MODEL_CATALOG_INVALID/);
 });
 
+/** A claude whose login is being refreshed when it answers: like CLI 2.1.280
+ * it holds ~/.claude/.oauth_refresh.lock meanwhile and its exit handler
+ * releases the lock on SIGTERM. `rest` runs after the answer. */
+function refreshingClaude(rest) {
+  const root = tempRoot();
+  const lock = join(root, ".claude", ".oauth_refresh.lock");
+  const response = {
+    type: "control_response",
+    response: { subtype: "success", request_id: "pazmo-models", response: { models: [{ value: "default" }] } },
+  };
+  const binary = fakeNative(
+    join(root, "claude"),
+    `lock="$HOME/.claude/.oauth_refresh.lock"
+mkdir -p "$HOME/.claude" && mkdir "$lock"
+echo $$ > "$HOME/pid"
+trap 'rmdir "$lock"; exit 143' TERM
+read line
+echo '${JSON.stringify(response)}'
+${rest}\n`,
+  );
+  return { root, binary, lock };
+}
+
+// A killed claude leaves the lock, and every claude after it fails to sign in
+// ("Failed to refresh OAuth token") until the lock is a minute old.
+test("a claude refreshing its login when the models arrive finishes and releases the lock", async () => {
+  const fx = refreshingClaude(`cat >/dev/null
+sleep 1
+touch "$HOME/refreshed"
+rmdir "$lock"
+exit 0`);
+  assert.deepEqual(await claudeModels(fx.binary, fx.root), [{ slug: "default" }]);
+  assert.ok(existsSync(join(fx.root, "refreshed")), "the refresh under way was let finish");
+  assert.equal(existsSync(fx.lock), false);
+});
+
+test("a claude that ignores the end of its input is stopped so it still releases the lock", async () => {
+  const fx = refreshingClaude("while :; do sleep 1; done");
+  assert.deepEqual(await claudeModels(fx.binary, fx.root), [{ slug: "default" }]);
+  assert.equal(existsSync(fx.lock), false);
+});
+
+test("a claude that ignores SIGTERM too is killed rather than left running", async (t) => {
+  const fx = refreshingClaude(`trap '' TERM
+while :; do sleep 1; done`);
+  const pid = () => Number(readFileSync(join(fx.root, "pid"), "utf8"));
+  t.after(() => {
+    try {
+      process.kill(-pid(), "SIGKILL");
+    } catch {}
+  });
+  assert.deepEqual(await claudeModels(fx.binary, fx.root), [{ slug: "default" }]);
+  assert.throws(() => process.kill(pid(), 0), { code: "ESRCH" });
+});
+
 test("a single-model codex catalog is written once and identified by digest", () => {
   const dir = tempRoot();
   const entry = catalog.models[0];

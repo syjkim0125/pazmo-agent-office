@@ -708,15 +708,56 @@ test("a stopped card says so, and the detail's stop note gives the reason and wh
   assert.deepEqual(active.cards.map((c) => c.stopped), [true, false]);
   assert.equal(view.t("ko", "stopped"), "멈춤");
   assert.equal(view.t("en", "stopped"), "Stopped");
-  assert.deepEqual(view.stopView({ stopped: true, stopReason: "실행이 멈췄습니다: X." }, "ko"), {
+  assert.deepEqual(view.stopView({ stopped: true, stopReason: "실행이 멈췄습니다: X.", rerunBy: null }, "ko"), {
     label: "멈춤",
     reason: "실행이 멈췄습니다: X.",
-    hint: "진행 기록을 확인하고, 필요하면 작업을 취소하세요.",
+    hint: "진행 기록을 확인하고, 다시 실행하거나 작업을 취소하세요.",
+    rerun: true,
   });
-  assert.equal(view.stopView({ stopped: true, stopReason: null }, "en").hint, "Check the progress log, and cancel the task if needed.");
+  assert.equal(view.stopView({ stopped: true, stopReason: null }, "en").hint, "Check the progress log, then rerun or cancel the task.");
   assert.equal(view.stopView({ stopped: true, stopReason: null }, "en").reason, "");
   assert.equal(view.stopView({ stopped: false, stopReason: null }, "ko"), null);
   assert.equal(view.stopView(undefined, "ko"), null);
+  // Rerun already, but this one could not be cancelled: cancel is what is left.
+  const left = view.stopView({ stopped: true, stopReason: "X", rerunBy: { id: "n", title: "New" } }, "ko");
+  assert.equal(left.rerun, false);
+  assert.equal(left.hint, "이미 다시 실행한 작업입니다. 이 작업은 취소하세요.");
+  assert.equal(view.stopView({ stopped: true, rerunBy: { id: "n", title: "New" } }, "en").hint, "This task was rerun already. Cancel it.");
+});
+
+test("rerunDraft fills the dialog from the stopped task: its content, and its agent while it exists, else the oldest", () => {
+  const agents = [
+    { id: "b", name: "Bob", createdAt: 20 },
+    { id: "d", name: "Default", createdAt: 10 },
+  ];
+  const task = { title: "Improve README", body: "Explain start", risk: "high", agent: { id: "b", name: "Bob" } };
+  assert.deepEqual(view.rerunDraft(task, agents), { title: "Improve README", body: "Explain start", risk: "high", agentId: "b" });
+  assert.equal(view.rerunDraft({ ...task, agent: { id: "gone", name: "Gone" } }, agents).agentId, "d", "its agent was removed");
+  assert.equal(view.rerunDraft({ ...task, agent: null }, agents).agentId, "d", "it never had a lean owner");
+  assert.equal(view.rerunDraft(task, []).agentId, null, "no agent left");
+  assert.deepEqual(view.rerunDraft({ title: "T" }, agents), { title: "T", body: "", risk: "normal", agentId: "d" }, "a sparse detail");
+});
+
+test("afterRerun opens the new task and says whether the stopped one was cancelled", () => {
+  assert.deepEqual(view.afterRerun({ id: "n1", previousCancelled: true }, "ko"), {
+    href: "#/tasks/n1",
+    text: "다시 실행했습니다.",
+    kind: "ok",
+  });
+  assert.deepEqual(view.afterRerun({ id: "n1", previousCancelled: false }, "en"), {
+    href: "#/tasks/n1",
+    text: "The new task was created, but the stopped task could not be cancelled. Cancel it from its page.",
+    kind: "error",
+  });
+});
+
+test("rerun refusals read in English too; Korean keeps the server's words", () => {
+  const notStopped = { status: 409, body: { error: "NOT_STOPPED", message: "멈춘 작업만 다시 실행할 수 있습니다." } };
+  assert.equal(view.errorText(notStopped, "ko"), "멈춘 작업만 다시 실행할 수 있습니다.");
+  assert.equal(view.errorText(notStopped, "en"), "Only a stopped task can be rerun.");
+  const twice = { status: 409, body: { error: "ALREADY_RERUN", message: "이미 다시 실행한 작업입니다." } };
+  assert.equal(view.errorText(twice, "ko"), "이미 다시 실행한 작업입니다.");
+  assert.equal(view.errorText(twice, "en"), "This task was rerun already.");
 });
 
 test("taskBodyError allows the title and details together up to the intake's 16384 bytes", () => {

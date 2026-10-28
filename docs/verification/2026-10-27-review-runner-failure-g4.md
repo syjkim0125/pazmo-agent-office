@@ -1,10 +1,12 @@
 # 2026-10-28 리뷰 실행기 오류를 리뷰 fail로 세지 않기 G4
 
-Story: M4 · D25. 검증 기록: [2026-10-27-review-runner-failure.md](2026-10-27-review-runner-failure.md). PR syjkim0125/pazmo-agent-office#35. kit graph: `.ai-workflow/runs/U19-review-runner-failure.json`(상태 `g4`).
+Story: M4 · D26. 검증 기록: [2026-10-27-review-runner-failure.md](2026-10-27-review-runner-failure.md). PR syjkim0125/pazmo-agent-office#35. kit graph: `.ai-workflow/runs/U20-review-runner-failure.json`(상태 `g4`).
+
+번호 메모: 머지 때 #37이 먼저 D25와 U19를 써서, 이 변경의 결정은 D26, 그래프 실행은 U20(`U20-review-runner-failure.json`)으로 바꿨다. U20 안의 기록 문장은 바꾸기 전 이름(D25, U19)을 그대로 담고 있다.
 
 ## 질문과 답 (2026-10-28)
 
-컨트롤러가 G4 설명 페이지("리뷰 실행기 오류 분류", G4판)와 대화로 증거를 먼저 보였다. 증거는 U19 상태, main 대비 diff 통계, 제품 코드 diff 전문, 시험·리뷰 결과, 확인하지 못한 것이다. 그다음 세 질문과 선택지(① 승인 후 머지, ② 고친 뒤 다시 G4, ③ 머지하지 않음)를 냈다. 사용자가 "답 초안 너가 써줘 보고 고칠게"라고 해서 컨트롤러가 초안을 냈다. 사용자는 초안을 고치지 않고 이렇게 답했다.
+컨트롤러가 G4 설명 페이지("리뷰 실행기 오류 분류", G4판)와 대화로 증거를 먼저 보였다. 증거는 그래프 실행 상태(당시 이름 U19), main 대비 diff 통계, 제품 코드 diff 전문, 시험·리뷰 결과, 확인하지 못한 것이다. 그다음 세 질문과 선택지(① 승인 후 머지, ② 고친 뒤 다시 G4, ③ 머지하지 않음)를 냈다. 사용자가 "답 초안 너가 써줘 보고 고칠게"라고 해서 컨트롤러가 초안을 냈다. 사용자는 초안을 고치지 않고 이렇게 답했다.
 
 > 피드백 확인 후 승인
 

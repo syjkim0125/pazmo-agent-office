@@ -102,10 +102,32 @@ export async function claudeModels(
     ],
     { cwd, env: runnerEnv(home), detached: true, stdio: ["pipe", "pipe", "ignore"] },
   );
-  const stop = () => {
+  const exited = new Promise<void>((resolve) => child.once("exit", () => resolve()));
+  const exitWithin = (ms: number) => {
+    let timer: NodeJS.Timeout | undefined;
+    return Promise.race([
+      exited.then(() => true),
+      new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), ms))),
+    ]).finally(() => clearTimeout(timer));
+  };
+  const signal = (name: NodeJS.Signals) => {
     try {
-      if (child.pid) process.kill(-child.pid, "SIGKILL");
+      if (child.pid) process.kill(-child.pid, name);
     } catch {}
+  };
+  // A login refresh the CLI started holds ~/.claude/.oauth_refresh.lock until
+  // it ends; the CLI's exit handler releases it, SIGKILL does not, and every
+  // claude after that fails to sign in until the lock is a minute old. Closing
+  // the input lets the refresh finish; SIGTERM still runs the exit handler;
+  // SIGKILL is left for a CLI that ignores both.
+  const stop = async () => {
+    if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
+    child.stdin.end();
+    if (await exitWithin(3000)) return;
+    signal("SIGTERM");
+    if (await exitWithin(2000)) return;
+    signal("SIGKILL");
+    await exitWithin(2000);
   };
   try {
     return await new Promise<RunnerModel[]>((resolve, reject) => {
@@ -168,7 +190,7 @@ export async function claudeModels(
       );
     });
   } finally {
-    stop();
+    await stop();
     rmSync(cwd, { recursive: true, force: true });
   }
 }

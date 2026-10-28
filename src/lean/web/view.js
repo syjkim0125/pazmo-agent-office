@@ -26,7 +26,8 @@ export const STRINGS = {
     deletedAgent: "(삭제된 agent)",
     highRisk: "높은 위험",
     stopped: "멈춤",
-    stoppedHint: "진행 기록을 확인하고, 필요하면 작업을 취소하세요.",
+    stoppedHint: "진행 기록을 확인하고, 다시 실행하거나 작업을 취소하세요.",
+    stoppedRerunHint: "이미 다시 실행한 작업입니다. 이 작업은 취소하세요.",
     emptyColumn: "없음",
     boardEmpty: "아직 작업이 없습니다. [새 작업]으로 시작하세요.",
     loading: "불러오는 중…",
@@ -45,6 +46,8 @@ export const STRINGS = {
     errNameInvalid: "이름은 공백을 뺀 1–40자여야 합니다.",
     errAnswerRequired: "사용자의 답변을 적어주세요.",
     errNotFound: "찾을 수 없습니다.",
+    errNotStopped: "멈춘 작업만 다시 실행할 수 있습니다.",
+    errAlreadyRerun: "이미 다시 실행한 작업입니다.",
     title: "제목",
     body: "내용",
     agent: "맡을 agent",
@@ -83,6 +86,13 @@ export const STRINGS = {
     cancelTaskAsk: "이 작업을 취소할까요? 되돌릴 수 없습니다.",
     keep: "그대로 두기",
     taskCancelled: "작업을 취소했습니다.",
+    rerun: "다시 실행",
+    rerunning: "다시 실행하는 중…",
+    rerunNote: "새 작업을 만든 뒤 이 작업을 취소합니다. 취소는 되돌릴 수 없습니다.",
+    rerunDone: "다시 실행했습니다.",
+    rerunPreviousLeft: "새 작업을 만들었지만 이전 작업을 취소하지 못했습니다. 이전 작업 화면에서 취소하세요.",
+    rerunOf: "이전 작업:",
+    rerunBy: "다시 실행한 작업:",
     role_pm: "PM",
     role_lead: "팀장",
     role_engineer: "엔지니어",
@@ -164,7 +174,8 @@ export const STRINGS = {
     deletedAgent: "(deleted agent)",
     highRisk: "High risk",
     stopped: "Stopped",
-    stoppedHint: "Check the progress log, and cancel the task if needed.",
+    stoppedHint: "Check the progress log, then rerun or cancel the task.",
+    stoppedRerunHint: "This task was rerun already. Cancel it.",
     emptyColumn: "Nothing here",
     boardEmpty: "No tasks yet. Start one with New task.",
     loading: "Loading…",
@@ -183,6 +194,8 @@ export const STRINGS = {
     errNameInvalid: "Names are 1–40 characters, not counting surrounding spaces.",
     errAnswerRequired: "Write your answer (numbered, when there are several questions).",
     errNotFound: "Not found.",
+    errNotStopped: "Only a stopped task can be rerun.",
+    errAlreadyRerun: "This task was rerun already.",
     title: "Title",
     body: "Details",
     agent: "Agent",
@@ -221,6 +234,13 @@ export const STRINGS = {
     cancelTaskAsk: "Cancel this task? This can't be undone.",
     keep: "Keep it",
     taskCancelled: "Task cancelled.",
+    rerun: "Rerun",
+    rerunning: "Rerunning…",
+    rerunNote: "This creates a new task and then cancels this one. The cancel can't be undone.",
+    rerunDone: "Rerun started.",
+    rerunPreviousLeft: "The new task was created, but the stopped task could not be cancelled. Cancel it from its page.",
+    rerunOf: "Rerun of:",
+    rerunBy: "Rerun as:",
     role_pm: "PM",
     role_lead: "Lead",
     role_engineer: "Engineer",
@@ -326,13 +346,39 @@ export function columnsView(board, lang) {
 }
 
 /** What a stopped task's detail says at its top: the engine's reason and what
- * the person can do; null when it is not stopped. */
+ * the person can do; null when it is not stopped. `rerun`: it may be rerun
+ * (not once it was, when only its cancel failed). */
 export function stopView(task, lang) {
   if (task?.stopped !== true) return null;
+  const rerun = !task.rerunBy;
   return {
     label: t(lang, "stopped"),
     reason: typeof task.stopReason === "string" ? task.stopReason : "",
-    hint: t(lang, "stoppedHint"),
+    hint: t(lang, rerun ? "stoppedHint" : "stoppedRerunHint"),
+    rerun,
+  };
+}
+
+/** What the rerun dialog starts with: the stopped task's content, and its
+ * agent while that still exists, else the oldest (the default) agent. */
+export function rerunDraft(task, agents) {
+  const oldest = [...agents].sort((a, b) => a.createdAt - b.createdAt)[0];
+  const own = agents.find((a) => a.id === task?.agent?.id);
+  return {
+    title: typeof task?.title === "string" ? task.title : "",
+    body: typeof task?.body === "string" ? task.body : "",
+    risk: task?.risk === "high" ? "high" : "normal",
+    agentId: (own ?? oldest)?.id ?? null,
+  };
+}
+
+/** After a rerun: open the new task, and say whether the stopped one was
+ * cancelled (when not, the person cancels it). */
+export function afterRerun(result, lang) {
+  return {
+    href: `#/tasks/${result.id}`,
+    text: t(lang, result.previousCancelled ? "rerunDone" : "rerunPreviousLeft"),
+    kind: result.previousCancelled ? "ok" : "error",
   };
 }
 
@@ -507,6 +553,8 @@ const KNOWN = {
   ANSWER_REQUIRED: "errAnswerRequired",
   STOPPING: "errStopping",
   NOT_FOUND: "errNotFound",
+  NOT_STOPPED: "errNotStopped",
+  ALREADY_RERUN: "errAlreadyRerun",
 };
 // Protocol refusals: the session is gone (the server words these in English).
 const SESSION = new Set(["UNAUTHORIZED", "CSRF", "ORIGIN"]);
