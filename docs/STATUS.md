@@ -4,7 +4,8 @@
 - 새 작업을 만들지 못하면 멈춘 작업은 그대로다. 한 작업은 한 번만 다시 실행된다(동시 요청 포함). 취소만 실패하면 새 작업은 남고 "이전 작업 화면에서 취소하세요"가 나온다.
 - 엔진 복구 결정(B, 승인된 Story·계획을 살린 재개)은 고르지 않았다. 멈춤이 계속 자주 나오면 별도 G3로 다룬다.
 - 자동 검사와 독립 리뷰 결과는 검증 기록에 있다. 가짜 실행기 Office로 화면을 확인했다.
-- **남은 것: 커밋·PR, eevee-be 실제 확인(사용자 Office 재시작 필요), G4.** [결정](understanding/lean-rerun-decision.md) · [검증 기록](verification/2026-10-27-lean-rerun.md) · [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험)
+- PR syjkim0125/pazmo-agent-office#37. G4는 2026-10-28 "피드백 확인 후 승인"(컨트롤러 답 초안 그대로)으로 [G4 기록](verification/2026-10-27-lean-rerun-g4.md)에 남겼다.
+- **남은 것: eevee-be 실제 확인(사용자 Office 재시작 필요).** [결정](understanding/lean-rerun-decision.md) · [검증 기록](verification/2026-10-27-lean-rerun.md) · [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험)
 
 # 2026-10-22 팀 Story 보드 1단계 (Hub)
 
