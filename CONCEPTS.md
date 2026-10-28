@@ -44,6 +44,18 @@ A human-requested resumption of a planning role (PM or Lead) after its closed re
 
 Recovery is not an approval of scope or results, and it does not reset the failed attempt: the rejected run and its failure record are preserved, and a successor run is linked to it. Each request has small fixed recovery budgets, kept separately for rejected responses and for Runner failures, so a transient Runner problem does not use up the recoveries meant for fixing a response; successor runs do not refill either budget, and a recovery is meant to follow a recorded failure cause rather than a guess. It is only offered once the planning process is confirmed closed.
 
+### Stopped request
+A request that no longer moves by itself: none of its work is running, no Decision is open for it, and Office has recorded that it will not start the step again without a human. A failed run, a result verification could not judge, a step held after a restart, and planning that stopped with no Planning recovery on offer all leave a request stopped. It is shown as stopped, together with the reason Office recorded.
+*Avoid:* stuck, failed
+
+A stopped request never resumes on its own; the human cancels it or makes a Rerun of it. A request waiting on an open Decision, including a Planning recovery, is not stopped.
+
+### Rerun
+Replacing a Stopped request with a new request whose content the human confirms (by default the same), after which the stopped request is cancelled and the two stay linked.
+*Avoid:* retry, restart, resume
+
+A rerun starts over from planning, so G1 is asked again; it is not a Planning recovery and carries nothing over from the stopped work. A request is rerun at most once and only while it is still stopped. The stopped request is cancelled only after the new request was accepted, so a refused rerun changes nothing.
+
 ## Runners
 
 ### Runner
