@@ -6,7 +6,8 @@
   - root 927/929. 실패 2건은 높은 부하에서 난 Office 시작 시간 초과이고, 따로 돌리면 15/15 통과한다. 리뷰 전 전체 실행은 929/929였다.
   - 타입 검사 exit 0, Story 검사기 exit 0
   - 독립 리뷰 Approve
-- **실제 실행기 오류로 이 경로를 거친 확인과 G4는 남아 있다.** 멈춘 작업 다시 돌리기는 후속이다. [검증 기록](verification/2026-10-27-review-runner-failure.md)
+- G4는 2026-10-28 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 승인 후 머지). [G4 기록](verification/2026-10-27-review-runner-failure-g4.md)
+- **실제 실행기 오류로 이 경로를 거친 확인은 남아 있다.** 멈춘 작업 다시 돌리기는 후속이다. [검증 기록](verification/2026-10-27-review-runner-failure.md)
 
 # 2026-10-22 팀 Story 보드 1단계 (Hub)
 
