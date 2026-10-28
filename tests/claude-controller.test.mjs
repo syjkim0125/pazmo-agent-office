@@ -211,3 +211,90 @@ function gone(pid) {
     return error.code === "ESRCH";
   }
 }
+
+// On SIGTERM the CLI runs its shutdown, SessionEnd hooks included, so a stop
+// for something Office refuses must not give it that chance.
+test("a claude stopped for an unexpected hook or init gets no SIGTERM to shut down on", async (t) => {
+  for (const [line, code] of [
+    ['{"type":"system","subtype":"hook_started","hook_name":"SessionStart"}', "CLAUDE_HOOK_UNEXPECTED"],
+    ['{"type":"system","subtype":"init","tools":["Bash"],"mcp_servers":[],"plugins":[]}', "CLAUDE_TOOLS_UNEXPECTED"],
+    ['{"type":"assistant"}', "CLAUDE_INIT_MISSING"],
+  ])
+    await t.test(code, async () => {
+      const fx = refreshingClaude(`touch "$HOME/term-ran"; exit 143`, `echo '${line}'`);
+      const { closed, result } = await run(claudeJob(fx.options, "Bounded task"));
+      assert.equal(result.error, code);
+      assert.equal(closed, true);
+      assert.equal(existsSync(join(fx.root, "term-ran")), false, "no shutdown handler ran");
+    });
+});
+
+test("a cancel after the claude itself exited still kills what it left running", async (t) => {
+  const root = tempRoot();
+  const binary = fakeNative(
+    join(root, "claude"),
+    `(trap '' TERM; while :; do sleep 1; done) </dev/null >/dev/null 2>&1 &
+echo $! > "$HOME/helper"
+(while :; do sleep 1; done) &
+echo $$ > "$HOME/pid"
+exit 0\n`,
+  );
+  const helper = () => Number(readFileSync(join(root, "helper"), "utf8"));
+  t.after(() => {
+    try {
+      process.kill(helper(), "SIGKILL");
+    } catch {}
+  });
+  const options = {
+    selection: { binary, sha256: digest(readFileSync(binary)), model: "haiku" },
+    binary: "/qualified/executor",
+    home: root,
+    timeoutMs: 20000,
+    openExecutor: () => assert.fail("no tool call was made"),
+  };
+  const abort = new AbortController();
+  const job = claudeJob(options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
+  // The claude has exited; a child keeps its output open, so the run goes on.
+  while (!existsSync(join(root, "pid"))) await new Promise((r) => setTimeout(r, 20));
+  const pid = Number(readFileSync(join(root, "pid"), "utf8"));
+  while (!gone(pid)) await new Promise((r) => setTimeout(r, 20));
+  abort.abort();
+  const { result } = await job;
+  assert.equal(result.error, "CANCELLED");
+  const deadline = Date.now() + 1000;
+  while (Date.now() < deadline && !gone(helper())) await new Promise((r) => setTimeout(r, 20));
+  assert.ok(gone(helper()), "the helper that ignores SIGTERM was killed too");
+});
+
+test("a hook the claude starts while shutting down after a cancel is killed at once", async () => {
+  const fx = refreshingClaude(
+    `cat "$HOME/hook.json"; sleep 1.5; touch "$HOME/hook-ran"; exit 143`,
+    `echo '{"type":"system","subtype":"hook_started","hook_name":"SessionEnd"}' > "$HOME/hook.json"`,
+  );
+  const abort = new AbortController();
+  const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
+  await fx.holding();
+  abort.abort();
+  const { closed, result } = await job;
+  assert.equal(result.error, "CANCELLED");
+  assert.equal(closed, true);
+  assert.equal(existsSync(join(fx.root, "hook-ran")), false, "the hook did not finish");
+});
+
+// A cancel can land before init, while a startup login refresh holds the lock;
+// what the CLI prints on its way out is no init problem and must not cut the
+// shutdown short.
+test("a line the claude prints while shutting down after a cancel does not cut its shutdown short", async () => {
+  const fx = refreshingClaude(
+    `cat "$HOME/result.json"; sleep 0.3; rmdir "$lock"; exit 143`,
+    `echo '{"type":"result","subtype":"error_during_execution","is_error":true}' > "$HOME/result.json"`,
+  );
+  const abort = new AbortController();
+  const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
+  await fx.holding();
+  abort.abort();
+  const { closed, result } = await job;
+  assert.equal(result.error, "CANCELLED");
+  assert.equal(closed, true);
+  assert.equal(existsSync(fx.lock), false, "the lock was released");
+});

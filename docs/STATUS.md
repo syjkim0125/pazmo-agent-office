@@ -1,3 +1,10 @@
+# 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
+
+- #36은 claude 역할을 멈출 때 SIGTERM을 먼저 보내 토큰 갱신 잠금이 남지 않게 했다. 머지 뒤 독립 리뷰에서 그게 보안 검사 멈춤(예상 밖 hook, 잘못된 init, init 없음, 출력 한도)에도 적용된 것을 찾았다. claude는 SIGTERM 종료 때 SessionEnd hook을 실행하므로, 이 멈춤들은 다시 바로 SIGKILL한다. 취소·시간 초과만 SIGTERM 먼저다.
+- claude가 이미 끝난 뒤 들어온 멈춤도 바로 SIGKILL한다(SIGTERM을 무시하는 자식이 살아남던 문제). 정상 종료 중에 나오는 줄은 hook 이벤트가 아니면 종료를 끊지 않는다.
+- 자동 검사: root 957/957, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰의 Important 1건을 고쳤다.
+- **2초 유예를 늘릴지는 사용자 결정 대기다.** [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
+
 # 2026-10-27 리뷰 실행기 오류를 리뷰 fail로 세지 않기
 
 - 리뷰 실행기(codex·claude CLI)가 보고서 없이 0이 아닌 코드로 끝나면(API 오류·안전장치 거절 등) 이제 리뷰 fail이 아니라 unknown이다. 검증은 `REVIEW_RUNNER_FAILED`로 멈추고 사람에게 넘어간다. 엔지니어를 다시 돌리지 않고 자동 수정 횟수도 쓰지 않는다(D26, 사용자 선택 1안). 등록 검사의 실패는 그대로 fail이다. Claw Office와 lean Office에 같이 적용된다.
