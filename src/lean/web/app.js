@@ -2,6 +2,7 @@
 // Every node is built with `el` (text only); the display rules live in view.js.
 import {
   afterCreate,
+  afterRerun,
   agentName,
   agentPatch,
   columnsView,
@@ -17,6 +18,7 @@ import {
   modelChoices,
   pollStep,
   regionHeld,
+  rerunDraft,
   roleLabel,
   routeOf,
   runnerLabel,
@@ -632,8 +634,12 @@ function taskScreen(task) {
           el("span", { className: `chip stage-${task.stage}` }, stageLabel(task.stage, lang)),
           stop ? el("span", { className: "chip stopped" }, stop.label) : null,
         ]),
+        rerunLink("rerunOf", task.rerunOf),
+        rerunLink("rerunBy", task.rerunBy),
       ]),
-      closed ? null : cancelControl(task),
+      closed
+        ? null
+        : el("div", { className: "head-actions" }, [stop?.rerun ? rerunControl(task) : null, cancelControl(task)]),
     ]),
     stop
       ? el("div", { className: "stop-note", role: "status" }, [
@@ -679,6 +685,22 @@ function cancelControl(task) {
     asking.focus();
   }
   return slot;
+}
+
+/** The other task of a rerun, as a link under the title; null without one. */
+function rerunLink(key, link) {
+  if (!link) return null;
+  return el("p", { className: "rerun-link" }, [`${L(key)} `, el("a", { href: `#/tasks/${link.id}` }, link.title)]);
+}
+
+/** Opens the rerun dialog: the new-task dialog, filled from this task. */
+function rerunControl(task) {
+  const trigger = el(
+    "button",
+    { type: "button", className: "btn primary", dataset: { key: "rerun-task" }, onClick: () => openTaskDialog(trigger, task) },
+    L("rerun"),
+  );
+  return trigger;
 }
 
 const timeOf = (at) =>
@@ -878,19 +900,25 @@ function openDialog(trigger, build) {
   first?.focus();
 }
 
-function openTaskDialog(trigger) {
+/** The new-task dialog. With `from` (a stopped task's detail) it reruns that
+ * task: it starts from its content, and creating the new task cancels it. */
+function openTaskDialog(trigger, from = null) {
   openDialog(trigger, (dialog, close, send) => {
     const headId = uid("head"),
+      noteId = uid("note"),
       titleId = uid("title"),
       bodyId = uid("body"),
       riskName = uid("risk");
-    const title = el("input", { type: "text", id: titleId, autocomplete: "off" });
-    const body = el("textarea", { id: bodyId, rows: 6 });
-    const normal = el("input", { type: "radio", name: riskName, value: "normal", checked: true });
-    const high = el("input", { type: "radio", name: riskName, value: "high" });
+    // The agent is picked once the list arrives.
+    const draft = from ? rerunDraft(from, []) : null;
+    const label = from ? L("rerun") : L("create");
+    const title = el("input", { type: "text", id: titleId, autocomplete: "off", value: draft?.title });
+    const body = el("textarea", { id: bodyId, rows: 6, value: draft?.body });
+    const normal = el("input", { type: "radio", name: riskName, value: "normal", checked: draft?.risk !== "high" });
+    const high = el("input", { type: "radio", name: riskName, value: "high", checked: draft?.risk === "high" });
     const agentSlot = el("div", null, el("p", { className: "hint" }, L("loading")));
     const error = el("p", { className: "inline-error", role: "alert" });
-    const create = el("button", { type: "submit", className: "btn primary", disabled: true }, L("create"));
+    const create = el("button", { type: "submit", className: "btn primary", disabled: true }, label);
     const shut = el("button", { type: "button", className: "btn", onClick: close }, L("close"));
     let agentSelect = null;
 
@@ -910,23 +938,32 @@ function openTaskDialog(trigger) {
         return;
       }
       error.textContent = "";
-      create.textContent = L("creating");
+      create.textContent = from ? L("rerunning") : L("creating");
+      const input = {
+        title: title.value.trim(),
+        body: body.value,
+        agentId: agentSelect.value,
+        risk: high.checked ? "high" : "normal",
+      };
+      let result;
       const ok = await send(
         [create, shut],
-        () =>
-          api("POST", "/api/tasks", {
-            title: title.value.trim(),
-            body: body.value,
-            agentId: agentSelect.value,
-            risk: high.checked ? "high" : "normal",
-          }),
+        async () => {
+          result = await api("POST", from ? `/api/tasks/${encodeURIComponent(from.id)}/rerun` : "/api/tasks", input);
+        },
         (text) => {
           error.textContent = text;
         },
       );
-      create.textContent = L("create");
+      create.textContent = label;
       if (!ok) return;
       close();
+      if (from) {
+        const next = afterRerun(result, lang);
+        say(next.text, next.kind);
+        location.hash = next.href;
+        return;
+      }
       say(L("taskCreated"));
       // Leaving would drop a typed note or an open confirm: then stay, and let
       // the board show the new task when the person goes there.
@@ -935,9 +972,12 @@ function openTaskDialog(trigger) {
     }
 
     dialog.setAttribute("aria-labelledby", headId);
+    // A rerun's cancel cannot be undone: read out when the dialog opens.
+    if (from) dialog.setAttribute("aria-describedby", noteId);
     dialog.append(
       el("form", { className: "dialog-form", novalidate: true, onSubmit: submit }, [
-        el("h2", { id: headId }, L("newTask")),
+        el("h2", { id: headId }, from ? L("rerun") : L("newTask")),
+        from ? el("p", { className: "hint", id: noteId }, L("rerunNote")) : null,
         field(titleId, L("title"), title),
         field(bodyId, L("body"), body),
         agentSlot,
@@ -970,8 +1010,8 @@ function openTaskDialog(trigger) {
           { id },
           agents.map((a) => el("option", { value: a.id }, a.busy ? `${a.name} (${L("busy")})` : a.name)),
         );
-        // The oldest agent is the default one.
-        agentSelect.value = agents[0].id;
+        // The oldest agent is the default one; a rerun keeps its own while it exists.
+        agentSelect.value = from ? rerunDraft(from, agents).agentId : agents[0].id;
         agentSlot.replaceChildren(field(id, L("agent"), agentSelect));
         create.disabled = false;
       },

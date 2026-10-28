@@ -80,6 +80,17 @@ CREATE TABLE task_logs (
 );
 `;
 
+/** Added after phase 1, so a file made before it gains it on open. `task_id`
+ * reruns the stopped `previous_id`; a task is rerun once, and a new task that
+ * is refused (and removed) takes its link with it. A rerun task itself is
+ * never removed (it is cancelled), so `previous_id` needs no ON DELETE. */
+const RERUNS = `
+CREATE TABLE IF NOT EXISTS task_reruns (
+  task_id TEXT PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
+  previous_id TEXT NOT NULL UNIQUE REFERENCES tasks(id)
+);
+`;
+
 const SIDECARS = ["-wal", "-shm", "-journal"];
 
 /** Creates or opens `<dataDir>/lean/office.sqlite` for one project. The file is
@@ -119,6 +130,7 @@ export function openLeanDb(dataDir: string, project: string): DatabaseSync {
         throw error;
       }
     }
+    db.exec(RERUNS);
     return db;
   } catch (error) {
     db.close();

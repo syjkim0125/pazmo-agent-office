@@ -96,3 +96,118 @@ test("executor loss overrides a successful exit", async () => {
   assert.equal(result.error, "EXECUTOR_CLOSED");
   assert.equal(terminalReport(result.stdout, ["report"]), null);
 });
+
+/** A claude refreshing the user's login when Office stops it: like CLI 2.1.280
+ * it holds ~/.claude/.oauth_refresh.lock meanwhile and its exit handler
+ * releases the lock on SIGTERM. `onTerm` replaces that handler; `started`
+ * runs while it holds the lock. */
+function refreshingClaude(onTerm = `rmdir "$lock"; exit 143`, started = "") {
+  const root = tempRoot();
+  const lock = join(root, ".claude", ".oauth_refresh.lock");
+  const binary = fakeNative(
+    join(root, "claude"),
+    `lock="$HOME/.claude/.oauth_refresh.lock"
+trap '${onTerm}' TERM
+mkdir -p "$HOME/.claude" && mkdir "$lock"
+${started}
+echo $$ > "$HOME/pid"
+while :; do sleep 1; done\n`,
+  );
+  const pidFile = join(root, "pid");
+  return {
+    root,
+    lock,
+    options: {
+      selection: { binary, sha256: digest(readFileSync(binary)), model: "haiku" },
+      binary: "/qualified/executor",
+      home: root,
+      timeoutMs: 20000,
+      openExecutor: () => assert.fail("no tool call was made"),
+    },
+    pid: () => Number(readFileSync(pidFile, "utf8")),
+    async holding() {
+      while (!existsSync(pidFile)) await new Promise((r) => setTimeout(r, 20));
+    },
+  };
+}
+
+// A killed claude leaves the lock, and every claude after it fails to sign in
+// ("Failed to refresh OAuth token") until the lock is a minute old.
+test("a claude cancelled while it refreshes the login releases the lock", async () => {
+  const fx = refreshingClaude();
+  const abort = new AbortController();
+  const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
+  await fx.holding();
+  abort.abort();
+  const { closed, result } = await job;
+  assert.equal(result.error, "CANCELLED");
+  assert.equal(closed, true);
+  assert.equal(existsSync(fx.lock), false);
+});
+
+test("a claude timed out while it refreshes the login releases the lock", async () => {
+  const fx = refreshingClaude();
+  const { closed, result } = await claudeJob(fx.options, "Bounded task").supervise(
+    "a".repeat(64),
+    1500,
+    new AbortController().signal,
+  );
+  assert.equal(result.error, "TIMEOUT");
+  assert.equal(result.timedOut, true);
+  assert.equal(closed, true);
+  assert.ok(fx.pid() > 0, "the claude held the lock before it timed out");
+  assert.equal(existsSync(fx.lock), false);
+});
+
+test("a claude that ignores SIGTERM is still killed soon after a cancel", { timeout: 15000 }, async (t) => {
+  const fx = refreshingClaude("");
+  t.after(() => {
+    try {
+      process.kill(-fx.pid(), "SIGKILL");
+    } catch {}
+  });
+  const abort = new AbortController();
+  const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
+  await fx.holding();
+  const begun = Date.now();
+  abort.abort();
+  const { closed, result } = await job;
+  assert.ok(Date.now() - begun < 4000, "the cancel still ends promptly");
+  assert.equal(result.error, "CANCELLED");
+  assert.equal(closed, true);
+  assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });
+});
+
+test("a process the claude started does not outlive a cancel even if it ignores SIGTERM", async (t) => {
+  const fx = refreshingClaude(
+    undefined,
+    `(trap '' TERM; while :; do sleep 1; done) </dev/null >/dev/null 2>&1 &
+echo $! > "$HOME/helper"`,
+  );
+  const helper = () => Number(readFileSync(join(fx.root, "helper"), "utf8"));
+  t.after(() => {
+    try {
+      process.kill(helper(), "SIGKILL");
+    } catch {}
+  });
+  const abort = new AbortController();
+  const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
+  await fx.holding();
+  abort.abort();
+  const { result } = await job;
+  assert.equal(result.error, "CANCELLED");
+  assert.equal(existsSync(fx.lock), false);
+  // The orphan is reaped by launchd once killed.
+  const deadline = Date.now() + 1000;
+  while (Date.now() < deadline && !gone(helper())) await new Promise((r) => setTimeout(r, 20));
+  assert.ok(gone(helper()), "the helper was killed with the claude's process group");
+});
+
+function gone(pid) {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return error.code === "ESRCH";
+  }
+}
