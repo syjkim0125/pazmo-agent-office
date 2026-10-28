@@ -19,6 +19,7 @@ import {
 } from "./project.ts";
 import { monitor, start, status } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
+import { assertNotInTeam } from "../team/registry.ts";
 import { runCommand } from "../runners/command.ts";
 import { IMAGE } from "../runners/container-verifier.ts";
 import { discoverRunners } from "../runners/runner-discovery.ts";
@@ -254,6 +255,7 @@ export async function up(options: {
       "첫 실행: ./office --project /절대/프로젝트/경로 (Office와 별도인 기존 Git 프로젝트)",
     );
   const p = locate(project, options.dataDir);
+  assertNotInTeam(p);
   await run("/usr/bin/git", ["-C", p.project, "rev-parse", "--show-toplevel"]);
   init(p, true);
   const current = await status(p);

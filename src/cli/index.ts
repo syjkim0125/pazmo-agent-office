@@ -11,6 +11,7 @@ import {
   readManifest,
 } from "./project.ts";
 import { up } from "./launcher.ts";
+import { TEAM_ACTIONS, teamCommand } from "./team.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { bridge, readBridgeInput } from "./bridge.ts";
 import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hub.ts";
@@ -29,7 +30,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)",
+        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)",
       );
       return;
     }
@@ -46,6 +47,7 @@ export async function main(args: string[]): Promise<void> {
         "hub",
         "hub-link",
         "hub-unlink",
+        "team",
         "operator-key",
         "init",
         "doctor",
@@ -68,6 +70,10 @@ export async function main(args: string[]): Promise<void> {
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
+    // `team` takes its action before the flags: team add|remove|list.
+    const teamAction = command === "team" ? args.shift() : undefined;
+    if (command === "team" && !TEAM_ACTIONS.includes(teamAction ?? ""))
+      fail("ARGUMENT", "team needs an action: add, remove or list.");
     const options: Record<string, string | boolean> = {};
     while (args.length) {
       const flag = args.shift()!;
@@ -220,6 +226,17 @@ export async function main(args: string[]): Promise<void> {
             open: !options["--no-open"],
             ...(options["--lean"] ? { engine: "lean" as const } : {}),
             ...(codexRuntime ? { codexRuntime } : {}),
+          }),
+        ),
+      );
+      return;
+    }
+    if (command === "team") {
+      console.log(
+        JSON.stringify(
+          await teamCommand(teamAction!, {
+            project: options["--project"] as string | undefined,
+            dataDir: options["--data-dir"] as string | undefined,
           }),
         ),
       );

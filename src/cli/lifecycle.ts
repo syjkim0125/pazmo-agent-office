@@ -19,6 +19,7 @@ import {
   packageRoot,
   readManifest,
 } from "./project.ts";
+import { assertNotInTeam } from "../team/registry.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { viewerToken } from "../runtime/observation.ts";
@@ -138,6 +139,7 @@ export async function start(
   /** Checks before anything starts; tests replace them. */
   checks: { installed: () => boolean } = { installed: vendorInstalled },
 ) {
+  assertNotInTeam(p);
   const current = await status(p);
   if (current.status === "running") {
     if (current.engine !== engine)
