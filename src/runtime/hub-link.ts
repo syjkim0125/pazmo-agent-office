@@ -46,6 +46,8 @@ export const TLS_UNTRUSTED_CODES: ReadonlySet<string> = new Set([
   "UNABLE_TO_VERIFY_LEAF_SIGNATURE", "SELF_SIGNED_CERT_IN_CHAIN", "DEPTH_ZERO_SELF_SIGNED_CERT",
   "UNABLE_TO_GET_ISSUER_CERT_LOCALLY", "UNABLE_TO_GET_ISSUER_CERT", "CERT_HAS_EXPIRED", "CERT_NOT_YET_VALID",
   "CERT_UNTRUSTED", "CERT_REJECTED", "HOSTNAME_MISMATCH", "ERR_TLS_CERT_ALTNAME_INVALID",
+  // Another hub whose CA has the pinned CA's name but no key identifiers (as LibreSSL makes them).
+  "CERT_SIGNATURE_FAILURE",
 ]);
 /** The trust mode is chosen explicitly, never inferred from one half of a pin: system
  * trust only when both caPem and fingerprint are null, a pin only when both are

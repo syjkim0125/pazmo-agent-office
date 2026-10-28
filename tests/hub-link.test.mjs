@@ -4,7 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, rmSync, statSync, existsSync, chmodSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { randomUUID } from "node:crypto";
+import { randomUUID, X509Certificate } from "node:crypto";
+import { createServer } from "node:https";
 import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
 import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
 import { startTestHub } from "./hub-fixture.mjs";
@@ -178,6 +179,21 @@ test("a Bearer token goes only to the pinned CA's hub", async (t) => {
   const other = await startTestHub(t);
   await assert.rejects(hubCall({ ...cfg, hub: other.hub.url }, "GET", "/api/link/work"), (e) => e.code === "HUB_TLS_UNTRUSTED" && e.message === "허브 인증서가 연결할 때와 다릅니다. 허브에서 새 연결 명령을 받아 다시 연결하세요.");
   assert.equal(hub.url.startsWith("https://"), true);
+});
+
+test("a hub certificate that names the pinned CA but fails its signature is reported as a changed certificate", async (t) => {
+  // A hub CA without key identifiers (macOS LibreSSL makes those) is matched by name alone,
+  // so another hub's certificate fails the signature check instead of finding no issuer.
+  const { pair, dataDir, tls } = await linked(t);
+  await pair();
+  const der = Buffer.from(new X509Certificate(tls.certPem).raw);
+  der[der.length - 1] ^= 1; // the last byte of the signature
+  const cert = `-----BEGIN CERTIFICATE-----\n${der.toString("base64").match(/.{1,64}/g).join("\n")}\n-----END CERTIFICATE-----\n`;
+  const forged = createServer({ cert, key: tls.keyPem }, (_req, res) => res.end("{}"));
+  await new Promise((resolve) => forged.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise((resolve) => forged.close(resolve)));
+  const cfg = { ...readLinkConfig(dataDir), hub: `https://127.0.0.1:${forged.address().port}` };
+  await assert.rejects(hubCall(cfg, "GET", "/api/link/work"), (e) => e.code === "HUB_TLS_UNTRUSTED" && e.message === "허브 인증서가 연결할 때와 다릅니다. 허브에서 새 연결 명령을 받아 다시 연결하세요.");
 });
 
 /** Walks a request to the point where the requester has an open question answered. */
