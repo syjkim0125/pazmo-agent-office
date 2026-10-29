@@ -276,6 +276,49 @@ node bin/pazmo-office.mjs stop --project /absolute/path/to/project
   - 하위 작업이 취소되면 요청이 "리뷰"에 머물 수 있다. 이때는 작업 상세에서 직접 취소한다.
   - 영어 화면에서도 엔진이 쓴 결정 내용은 한국어로 보인다.
 
+## 팀 Office (2단계, 시험)
+
+팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜는 단계다. 팀 Office는 repo마다 lean 엔진을 하나씩 두고, 모든 repo를 통틀어 한 번에 하나만 실행한다. 실행 중인 일이 없고 가져가기 멈춤·하루 상한에 걸리지 않으면, repo마다 Hub 연결과 `gh` 로그인을 확인한 뒤 담당 repo의 ready Task 하나를 가져와 기록하고 하트비트를 보낸다. **가져온 Task를 아직 실행하지 않는다(3단계).** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
+
+```sh
+# `pazmo-office`는 `node bin/pazmo-office.mjs`와 같다
+# 1. repo 등록 (repo마다; 그 repo의 단일 Office가 켜져 있으면 먼저 멈춘다)
+pazmo-office team add --project <repo 로컬 경로>
+
+# 2. repo마다 Hub 연결 (연결 문자열은 Hub의 "내 Office 연결"에서 만든다)
+pazmo-office hub-link --project <repo 로컬 경로> --connect "<연결 문자열>"
+
+# 3. repo의 Git 호스트마다 gh 로그인 (예: github.com과 회사 GitHub Enterprise)
+gh auth login --hostname <Git 호스트>
+
+# 4. 팀 Office 켜기 (VM·실행기·의존성 준비는 ./office --lean과 같다)
+./office --team
+
+# 5. 상태 보기
+pazmo-office status --team
+```
+
+- **상태(`status --team`):** repo마다 `state`와 `gh` 결과가 나온다.
+  - `state`는 `ready`, `no-link`(Hub 연결 없음), `gh`(로그인 안 됨), `relink`(Hub가 연결을 거절함, 다시 연결), `hub-too-old`(Hub가 Story 경로를 모름) 중 하나다.
+  - 그 밖에 `paused`, `dailyCap`, `today`(오늘 새로 가져온 수), `claim`(지금 가진 Task의 Story·Task 번호와 제목, repo), `busy`(실행 중인 엔진이 있는지)가 나온다.
+  - ready가 아닌 repo는 5분마다 다시 확인한다. 연결하거나 로그인한 뒤 재시작할 필요는 없다.
+- **가져가기 설정**(팀 Office가 꺼져 있어도 된다):
+
+```sh
+pazmo-office team pause      # 새 Task를 가져가지 않는다 (가진 Task의 하트비트는 계속)
+pazmo-office team resume
+pazmo-office team cap 3      # 하루 상한 1–100 (기본 5, 그 PC의 자정에 풀린다)
+pazmo-office team cap off    # 상한 없음
+pazmo-office team status     # 설정과 열린 기록 (Office가 꺼져 있어도 된다)
+```
+
+- **멈추기:** `pazmo-office stop --team`. repo 엔진 중 하나라도 실행 중이면 `TASK_ACTIVE`로 거부한다.
+- **가진 Task:** 2단계는 가져온 Task를 끝내지 않는다. 그래서 한 번 가져오면 그 기록이 닫힐 때까지 새 Task를 가져가지 않는다. PL이 Hub에서 그 Task를 풀거나 취소하면, 켜져 있는 팀 Office가 다음 하트비트에서 기록을 닫는다.
+- **repo 바꾸기:** `team add`·`team remove`는 팀 Office를 멈춘 뒤에 한다(`TEAM_RUNNING`). 지금 가진 Task의 repo는 그 기록이 닫힐 때까지 뺄 수 없다(`OPEN_CLAIM`).
+- **데이터:** 팀 Office 자신의 데이터는 데이터 디렉터리의 `team/`이다. repo 엔진은 그 repo의 기존 lean 데이터를 그대로 쓴다. 등록된 repo는 단일 Office(`--lean`·`--claw`)로 켤 수 없다(`IN_TEAM_OFFICE`).
+- **실행 잠금으로 켜기:** `start --team`은 모델 실행이 잠긴 채 켠다. 가져가기와 하트비트는 그래도 돈다.
+- **없는 것:** 가져온 Task 실행(3단계), PL의 Story 올리기(4단계), 화면(`monitor --team`은 `UNSUPPORTED`, 5단계)
+
 ## 검증
 
 [원본 서버 연결 기록](verification/2026-09-29-native-claw-preview.md)에 실제 HTTP/DB/WebSocket·브라우저 검사와 미검증 모델 흐름을 구분했다. 기존 [실행 환경 기록](verification/2026-09-28-runtime-setup.md)과 README pilot 증거는 보존한다.
