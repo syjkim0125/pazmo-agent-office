@@ -1,0 +1,401 @@
+{
+  "version": 1,
+  "runId": "41726711-709c-4460-baff-021068cdfc8d",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Follow-up to merged PR #36. src/runners/claude-controller.ts runClaude stop(): only CANCELLED and TIMEOUT get SIGTERM, then SIGKILL after 6 s (was 2 s; user choice 2026-10-28, because on SIGTERM CLI 2.1.280 cleans up and waits for a refresh in flight, up to 2 s each, before releasing the lock, per the review's binary reading); Office's own stops (hook event, checkClaudeInit codes, CLAUDE_INIT_MISSING, OUTPUT_LIMIT) and any stop after the child exited SIGKILL at once; during a graceful stop only a hook event escalates, other lines are ignored. src/runners/remote-job.ts superviseRemote grace after a stop 5500 -> 12000 ms (6 s + relay 5 s reap). TDD: 5 new controller tests and 1 remote-job test failed first; the existing 'ignores SIGTERM' test limit 4 s -> 8 s for the new contract. claude-controller + remote-job 25/25 twice. Learning doc corrected.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "docs/solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "3dc25380b287b5965c9445fb3ffbf85f7fb3482f88735b96eab6ffad7375ed3f",
+          "src/runners/remote-job.ts": "e1d532dd8f192d014e9e8257f6f297df690b6826e79b0570b89f1464b364150b",
+          "tests/claude-controller.test.mjs": "8549f7b278a1bcd3205db85493ffacf65c0d2631ed9cfb82202739e0ebe98acb",
+          "tests/remote-job.test.mjs": "a9c38f3e6b059c40091c4d24d610f876927ca48595cff8d69f62b094e8ff29ff",
+          "docs/solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md": "1ceb263c5fb90d6b99310f8e17eaf4bfa18edfcbdd9cb2ab6a3fed8be6b082c4"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Two independent report-only reviews. (a) Post-merge review of #36: Changes needed; Important: integrity stops got SIGTERM (SessionEnd hooks), a stop between exit and close never escalated (reproduced 5/5), 2 s may be shorter than a refreshing CLI's shutdown (binary reading; suggested escalating at 6 s or more and raising remote-job's 5500 ms grace to at least escalation + the relay's 5000 ms reap). (b) Review of the integrity fix: Changes needed; Important: during a graceful stop a non-hook line escalated via CLAUDE_INIT_MISSING and stranded the lock again (reproduced) - fixed with a regression test; minors fixed (test margin, doc wording). The 6 s / 12 s change implements review (a)'s suggested values exactly after the user chose it; it was not re-reviewed separately. Boundary checked by the orchestrator: finish() runs expire() first, so a run past its lease deadline is quarantined DEADLINE_EXCEEDED; TIMEOUT stops already end past the deadline, and the window for a cancel near the deadline grows from 5.5 s to at most 12 s.",
+          "evidence": [
+            "docs/verification/2026-10-28-claude-stop-integrity.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-28-claude-stop-integrity.md": "8e6e2ff2e6d2fa37b48119d7727a6b4f6e95a61fb2c4ef3312d83db30582d456"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification on main 8b9d23b plus this change after the 6 s / 12 s change (worktree codex/claude-stop-integrity): npm test 959/959 exit 0 (one other suite running, load 6-19); before the 6 s change 957/957; earlier 955/956 with one claw-lifecycle startup timeout at load 29 (alone 1/1). claude-controller + remote-job 25/25 twice. npm run typecheck exit 0. Story checker exit 0. Changed files: src/runners/claude-controller.ts, src/runners/remote-job.ts, tests/claude-controller.test.mjs, tests/remote-job.test.mjs, the OAuth-lock learning doc, docs/STATUS.md, docs/verification/2026-10-28-claude-stop-integrity.md. Unproven: whether 6 s covers a real refreshing CLI's shutdown; what the real CLI prints or streams on SIGTERM and with managed hooks. G4 remains human-owned.",
+          "evidence": [
+            "docs/verification/2026-10-28-claude-stop-integrity.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-28-claude-stop-integrity.md": "8e6e2ff2e6d2fa37b48119d7727a6b4f6e95a61fb2c4ef3312d83db30582d456"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "58fa97b0712faef7d6cf35592e11d7f52bdaa6f3ef4553b782a465fdfff204d3"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-28T09:49:38.110Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-28T09:49:38.218Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Follow-up to merged PR #36 (claude role stop: SIGTERM, SIGKILL after 2 s). src/runners/claude-controller.ts runClaude stop(): only CANCELLED and TIMEOUT get SIGTERM-then-SIGKILL; Office's own stops (CLAUDE_HOOK_UNEXPECTED, checkClaudeInit codes, CLAUDE_INIT_MISSING, OUTPUT_LIMIT) SIGKILL the group at once again, because the CLI's SIGTERM shutdown runs SessionEnd hooks (per the post-merge review's reading of the 2.1.280 binary); any stop after the child exited SIGKILLs at once (close used to clear the escalation timer and spare a member ignoring SIGTERM). While a graceful stop is under way only a hook event escalates; other lines are ignored so they cannot strand the refresh lock. TDD: 4 new tests in tests/claude-controller.test.mjs failed first (shutdown handler ran / helper survived / hook finished / lock stranded), now 19/19 x3. Docs: learning stop-claude-model-discovery-without-sigkill.md corrected. The 2 s grace length is left for a user decision.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "tests/claude-controller.test.mjs",
+            "docs/solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "d2062f2b02df75d27997d362aec6fc8526dd7b9e104c4953cd039cb526caf3ab",
+          "tests/claude-controller.test.mjs": "b006c2d7d893bbb02efbbb501f1bec859f2dbac2bd206bf0a40c1b3ff4a0c9a1",
+          "docs/solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md": "49bd3fe8364e7a5e34b178b4f1d4528112af6cce6975a2756adf25b35df7e84a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-28T09:49:47.184Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-28T09:49:47.394Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Two independent report-only reviews. (a) Post-merge review of #36: Changes needed; Important: integrity stops got SIGTERM (SessionEnd hooks), a stop between exit and close never escalated (reproduced 5/5), 2 s may be shorter than a refreshing CLI's shutdown (binary reading, unobserved; left for the user). (b) Review of this change: Changes needed; Important: during a graceful stop a non-hook line (e.g. a result line before init) escalated via CLAUDE_INIT_MISSING and stranded the lock again (reproduced); fixed with 'if (error) continue' after the hook check and a regression test (failed first). Minors fixed: test 3 margin 1 s -> 1.5 s, three doc inaccuracies. Agreed OUTPUT_LIMIT should kill at once. Against main's controller the new tests fail 0/6 on their expected assertions. Declined: stop parsing output after a stop (it would hide a hook started during shutdown).",
+          "evidence": [
+            "docs/verification/2026-10-28-claude-stop-integrity.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-28-claude-stop-integrity.md": "4c30bd19585ba2e78c529a431266768059de525c66468633e547930b36ac4405"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-28T09:49:56.979Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-28T09:49:57.632Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification 2026-10-28 on main 8b9d23b plus this change after both review fixes (worktree codex/claude-stop-integrity): npm test 957/957 exit 0 (no other suite running); before the last review fix 955/956 with one claw-lifecycle 'Office startup timed out' at load 29, alone 1/1. tests/claude-controller.test.mjs 19/19 three times. npm run typecheck exit 0. Story checker exit 0. Changed files: src/runners/claude-controller.ts, tests/claude-controller.test.mjs, the OAuth-lock learning doc, docs/STATUS.md, docs/verification/2026-10-28-claude-stop-integrity.md. Unproven: what the real CLI prints or streams on SIGTERM mid-refresh and with managed hooks; the 2 s grace length (user decision pending). G4 remains human-owned.",
+          "evidence": [
+            "docs/verification/2026-10-28-claude-stop-integrity.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-28-claude-stop-integrity.md": "4c30bd19585ba2e78c529a431266768059de525c66468633e547930b36ac4405"
+        }
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "User chose 6 s grace + 12 s supervisor grace (2026-10-28); code, tests and the verification doc changed after recording.",
+      "at": "2026-10-29T06:10:04.595Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-29T06:10:15.155Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-29T06:10:15.263Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Follow-up to merged PR #36. src/runners/claude-controller.ts runClaude stop(): only CANCELLED and TIMEOUT get SIGTERM, then SIGKILL after 6 s (was 2 s; user choice 2026-10-28, because on SIGTERM CLI 2.1.280 cleans up and waits for a refresh in flight, up to 2 s each, before releasing the lock, per the review's binary reading); Office's own stops (hook event, checkClaudeInit codes, CLAUDE_INIT_MISSING, OUTPUT_LIMIT) and any stop after the child exited SIGKILL at once; during a graceful stop only a hook event escalates, other lines are ignored. src/runners/remote-job.ts superviseRemote grace after a stop 5500 -> 12000 ms (6 s + relay 5 s reap). TDD: 5 new controller tests and 1 remote-job test failed first; the existing 'ignores SIGTERM' test limit 4 s -> 8 s for the new contract. claude-controller + remote-job 25/25 twice. Learning doc corrected.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "docs/solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "3dc25380b287b5965c9445fb3ffbf85f7fb3482f88735b96eab6ffad7375ed3f",
+          "src/runners/remote-job.ts": "e1d532dd8f192d014e9e8257f6f297df690b6826e79b0570b89f1464b364150b",
+          "tests/claude-controller.test.mjs": "8549f7b278a1bcd3205db85493ffacf65c0d2631ed9cfb82202739e0ebe98acb",
+          "tests/remote-job.test.mjs": "a9c38f3e6b059c40091c4d24d610f876927ca48595cff8d69f62b094e8ff29ff",
+          "docs/solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md": "1ceb263c5fb90d6b99310f8e17eaf4bfa18edfcbdd9cb2ab6a3fed8be6b082c4"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T06:10:25.527Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T06:10:25.629Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Two independent report-only reviews. (a) Post-merge review of #36: Changes needed; Important: integrity stops got SIGTERM (SessionEnd hooks), a stop between exit and close never escalated (reproduced 5/5), 2 s may be shorter than a refreshing CLI's shutdown (binary reading; suggested escalating at 6 s or more and raising remote-job's 5500 ms grace to at least escalation + the relay's 5000 ms reap). (b) Review of the integrity fix: Changes needed; Important: during a graceful stop a non-hook line escalated via CLAUDE_INIT_MISSING and stranded the lock again (reproduced) - fixed with a regression test; minors fixed (test margin, doc wording). The 6 s / 12 s change implements review (a)'s suggested values exactly after the user chose it; it was not re-reviewed separately. Boundary checked by the orchestrator: finish() runs expire() first, so a run past its lease deadline is quarantined DEADLINE_EXCEEDED; TIMEOUT stops already end past the deadline, and the window for a cancel near the deadline grows from 5.5 s to at most 12 s.",
+          "evidence": [
+            "docs/verification/2026-10-28-claude-stop-integrity.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-28-claude-stop-integrity.md": "8e6e2ff2e6d2fa37b48119d7727a6b4f6e95a61fb2c4ef3312d83db30582d456"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-29T06:10:35.123Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-29T06:10:35.209Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification on main 8b9d23b plus this change after the 6 s / 12 s change (worktree codex/claude-stop-integrity): npm test 959/959 exit 0 (one other suite running, load 6-19); before the 6 s change 957/957; earlier 955/956 with one claw-lifecycle startup timeout at load 29 (alone 1/1). claude-controller + remote-job 25/25 twice. npm run typecheck exit 0. Story checker exit 0. Changed files: src/runners/claude-controller.ts, src/runners/remote-job.ts, tests/claude-controller.test.mjs, tests/remote-job.test.mjs, the OAuth-lock learning doc, docs/STATUS.md, docs/verification/2026-10-28-claude-stop-integrity.md. Unproven: whether 6 s covers a real refreshing CLI's shutdown; what the real CLI prints or streams on SIGTERM and with managed hooks. G4 remains human-owned.",
+          "evidence": [
+            "docs/verification/2026-10-28-claude-stop-integrity.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-28-claude-stop-integrity.md": "8e6e2ff2e6d2fa37b48119d7727a6b4f6e95a61fb2c4ef3312d83db30582d456"
+        }
+      }
+    }
+  ]
+}

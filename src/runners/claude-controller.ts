@@ -70,12 +70,23 @@ function runClaude(
     // it ends; the CLI's exit handler releases it on SIGTERM, SIGKILL does not,
     // and every claude after that fails to sign in until the lock is a minute
     // old. SIGKILL is left for a CLI still running after SIGTERM, and for
-    // whatever it started that is still running once it has gone.
+    // whatever it started that is still running once it has gone. On SIGTERM
+    // CLI 2.1.280 cleans up and waits for a refresh in flight (up to 2 s each)
+    // before it exits, hence 6 s; superviseRemote's grace covers it.
+    // Only a cancel or a timeout gets SIGTERM: the CLI's shutdown also runs
+    // SessionEnd hooks, so a stop for something Office refuses (a hook, a wrong
+    // init) kills at once, as does any stop once the CLI has already exited.
     const stop = (reason: string) => {
       error ??= reason;
+      if (
+        (reason !== "CANCELLED" && reason !== "TIMEOUT") ||
+        child.exitCode !== null ||
+        child.signalCode !== null
+      )
+        return kill("SIGKILL");
       if (stopping) return;
       kill("SIGTERM");
-      stopping = setTimeout(() => kill("SIGKILL"), 2000);
+      stopping = setTimeout(() => kill("SIGKILL"), 6000);
     };
     child.once("exit", () => {
       if (stopping) kill("SIGKILL");
@@ -104,6 +115,9 @@ function runClaude(
           continue;
         }
         if (isHookEvent(event)) return stop("CLAUDE_HOOK_UNEXPECTED");
+        // A CLI shutting down after a cancel may print anything on its way out;
+        // only a hook it starts then cuts that shutdown short.
+        if (error) continue;
         if (!sawInit && event?.type === "system" && event.subtype === "init") {
           sawInit = true;
           const problem = checkClaudeInit(event, o.mode);

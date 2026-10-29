@@ -55,11 +55,12 @@ export async function superviseRemote(
   try {
     const first = await Promise.race([running, aborted]);
     if (first && !abort.signal.aborted) return first;
-    // The trusted supervisor has time to reap its local process group after abort.
+    // The trusted supervisor has time to reap its local process group after abort:
+    // a claude role's 6 s to exit on SIGTERM plus the relay's 5 s executor reap.
     const terminal = await Promise.race([
       running,
       new Promise<null>((resolve) => {
-        grace = setTimeout(() => resolve(null), 5500);
+        grace = setTimeout(() => resolve(null), 12000);
       }),
     ]);
     return { closed: terminal?.closed === true, result: failure(reason) };
