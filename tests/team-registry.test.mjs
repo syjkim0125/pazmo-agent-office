@@ -16,6 +16,7 @@ import {
 import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { status } from "../src/cli/lifecycle.ts";
 import { init, locate } from "../src/cli/project.ts";
@@ -290,12 +291,68 @@ test("a repo that holds the open claim cannot be removed (OPEN_CLAIM) until the 
   const cli = team(f, "remove", a.project);
   assert.equal(cli.status, 1);
   assert.equal(cli.value.code, "OPEN_CLAIM");
+  // A running team Office heartbeats every 60 s, so the Task never goes held and the PL cannot release it: only a cancel frees it.
+  assert.match(cli.value.error, /cancel/);
+  assert.doesNotMatch(cli.value.error, /release/);
   assert.deepEqual(readTeam(f.data).repos, [a, b], "a refused remove leaves the registry as it was");
   // Another repo is not held up by it.
   await removeTeamRepo(f.data, b.project);
   store.dropClaim("t1", "test");
   await removeTeamRepo(f.data, a.project);
   assert.deepEqual(readTeam(f.data).repos, []);
+});
+
+test("a repo whose folder is gone is removed even while it holds the open claim: the record is dropped as REPO_REMOVED", async (t) => {
+  const f = fixture(t);
+  const a = await addTeamRepo(f.data, f.repo("alpha"));
+  const b = await addTeamRepo(f.data, f.repo("beta"));
+  const store = openTeamStore(teamDir(f.data));
+  t.after(() => store.close());
+  store.recordClaim(a.project, { taskId: "t1", claimId: "c1", number: 1, title: "T", story: { number: 1 } }, "claim");
+  rmSync(a.project, { recursive: true });
+
+  // The registered path as the person gives it: the folder is gone, so it cannot be resolved any further.
+  await removeTeamRepo(f.data, a.project);
+  assert.deepEqual(readTeam(f.data).repos, [b]);
+  assert.equal(store.openClaim(), null, "nothing is left to heartbeat it or to block the next claim");
+  const db = new DatabaseSync(join(teamDir(f.data), "team.sqlite"), { readOnly: true });
+  try {
+    assert.deepEqual(
+      { ...db.prepare("SELECT state, reason FROM team_claims WHERE task_id = 't1'").get() },
+      { state: "dropped", reason: "REPO_REMOVED" },
+    );
+  } finally {
+    db.close();
+  }
+});
+
+test("a gone repo that does not hold the open claim leaves another repo's record alone", async (t) => {
+  const f = fixture(t);
+  const a = await addTeamRepo(f.data, f.repo("alpha"));
+  const b = await addTeamRepo(f.data, f.repo("beta"));
+  const store = openTeamStore(teamDir(f.data));
+  t.after(() => store.close());
+  store.recordClaim(b.project, { taskId: "t1", claimId: "c1", number: 1, title: "T", story: { number: 1 } }, "claim");
+  rmSync(a.project, { recursive: true });
+  await removeTeamRepo(f.data, a.project);
+  assert.deepEqual(readTeam(f.data).repos, [b]);
+  assert.equal(store.openClaim().taskId, "t1");
+});
+
+test("a team Office still starting (start.lock) counts as running: add and remove are TEAM_RUNNING", async (t) => {
+  const f = fixture(t);
+  const a = f.repo("alpha"),
+    b = f.repo("beta");
+  const entry = await addTeamRepo(f.data, a);
+  const lock = join(teamDir(f.data), "start.lock");
+  mkdirSync(lock);
+  assert.equal(teamRunning(f.data), true);
+  await assert.rejects(addTeamRepo(f.data, b), { code: "TEAM_RUNNING" });
+  await assert.rejects(removeTeamRepo(f.data, a), { code: "TEAM_RUNNING" });
+  assert.deepEqual(readTeam(f.data).repos, [entry]);
+  rmSync(lock, { recursive: true });
+  assert.equal(teamRunning(f.data), false);
+  await addTeamRepo(f.data, b);
 });
 
 test("remove opens no team database when there is none", async (t) => {

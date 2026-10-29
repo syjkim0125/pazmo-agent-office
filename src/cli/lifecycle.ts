@@ -22,7 +22,7 @@ import {
   readManifest,
   teamProject,
 } from "./project.ts";
-import { assertNotInTeam, readTeam } from "../team/registry.ts";
+import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { viewerToken } from "../runtime/observation.ts";
@@ -322,11 +322,13 @@ export async function startTeam(
   live?: LiveConfig,
   checks?: { installed: () => boolean },
 ) {
-  if (readTeam(root).repos.length === 0)
+  const { repos } = readTeam(root);
+  if (repos.length === 0)
     fail(
       "NO_REPOS",
       "No repo is registered in the team Office. Add one with `team add --project PATH` first.",
     );
+  assertReposPresent(repos);
   return start(initTeam(root), port, live, "team", checks);
 }
 /** Never set up: neither its metadata nor any runtime state exists. */

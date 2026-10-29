@@ -110,11 +110,13 @@ process.once("message", async (raw: unknown) => {
     // The team Office is its own project (teamProject); nothing else is accepted.
     if (project !== dataDir) throw new Error("INVALID_HOST_CONFIG");
     const { pathEnv, home } = value.gh;
+    // Only the lifecycle's `execution` follows --live (what `up --team` and a
+    // later `start --team --live` compare against). The repo engines never get
+    // it: stage 2 opens every one locked (see createTeamOffice).
     const live = value.live;
     office = await createTeamOffice({
       root: dirname(dataDir),
       token: value.token,
-      live,
       ghOf: (host) => ghStatus(host, { pathEnv, home }),
     });
     if (shuttingDown) return finish();

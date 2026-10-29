@@ -13,6 +13,7 @@ const hubError = (status, code, expected) => Object.assign(new Error(code), { st
 const NOT_YOURS = () => hubError(409, "NOT_YOURS");
 const STATE = () => hubError(409, "STATE");
 const UNAUTHORIZED = () => hubError(401, "UNAUTHORIZED");
+const NOT_FOUND = () => hubError(404, "NOT_FOUND");
 const NETWORK = () => Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
 
 /** A ClaimedTask-shaped value; the scheduler only needs the two ids. */
@@ -362,6 +363,47 @@ test("a NOT_YOURS for an older claim never drops a newer record of the same Task
   });
   await f.scheduler([laneOf("be", be)]).beat();
   assert.equal(f.store.openClaim().claimId, "claim-1b");
+});
+
+test("a heartbeat answered 404 NOT_FOUND drops the record; a tick whose inbox still reports the claim records it again as recovered", async (t) => {
+  const f = fixture(t);
+  // The Hub was wiped or re-created, or the repo re-linked: it no longer knows this Task under this link.
+  const be = fakeLink({ heartbeat: NOT_FOUND(), inbox: { ...emptyInbox, mine: mineOf(1) }, task: taskOf(1) });
+  const scheduler = f.scheduler([laneOf("be", be)]);
+  f.store.recordClaim("be", taskOf(1), "claim");
+  await scheduler.beat();
+  assert.equal(f.store.openClaim(), null, "the record is not kept forever: every tick would be skipped as open");
+  assert.deepEqual({ ...f.rowOf("task-1") }, { state: "dropped", reason: "NOT_FOUND", source: "claim" });
+  assert.ok(f.logs.some((line) => line.includes("be") && line.includes("task-1") && line.includes("NOT_FOUND")), `log was: ${f.logs}`);
+
+  // If the Hub does still hold the claim for this member, the next tick takes it back rather than claiming afresh.
+  const result = await scheduler.tick();
+  assert.deepEqual(result, { recovered: { taskId: "task-1", claimId: "claim-1", project: "be", task: taskOf(1) } });
+  assert.deepEqual(be.named("claim"), []);
+  assert.equal(f.rowOf("task-1").source, "recovered");
+  assert.equal(f.store.openClaim().claimId, "claim-1");
+});
+
+test("a NOT_FOUND for an older claim never drops a newer record of the same Task", async (t) => {
+  const f = fixture(t);
+  f.store.recordClaim("be", taskOf(1), "claim");
+  const be = fakeLink({
+    heartbeat: () => {
+      f.store.dropClaim("task-1", "operator");
+      f.store.recordClaim("be", taskOf(1, { claimId: "claim-1b" }), "rerun");
+      return NOT_FOUND();
+    },
+  });
+  await f.scheduler([laneOf("be", be)]).beat();
+  assert.equal(f.store.openClaim().claimId, "claim-1b");
+});
+
+test("other 404s on a heartbeat (no NOT_FOUND code) keep the record and are retried", async (t) => {
+  const f = fixture(t);
+  const be = fakeLink({ heartbeat: hubError(404, "HUB_ERROR") });
+  f.store.recordClaim("be", taskOf(1), "claim");
+  await f.scheduler([laneOf("be", be)]).beat();
+  assert.equal(f.store.openClaim().taskId, "task-1");
 });
 
 test("a 401 on claim marks that lane relink and the next lane is claimed", async (t) => {

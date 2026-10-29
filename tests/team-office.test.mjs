@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { chmodSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { OfficeError, locate } from "../src/cli/project.ts";
 import { createLeanOffice } from "../src/lean/office.ts";
@@ -347,6 +348,57 @@ test("a claim tick that rejects is logged, and the timers keep running", async (
   assert.deepEqual(f.calls, [["a", "heartbeat", "other", "claim-other", "build"]], "the heartbeat still runs");
 });
 
+/** A repo's lean data as stored: its tasks' statuses and how many agents it has. */
+function leanRows(f, dir) {
+  const db = new DatabaseSync(join(f.dataDirOf(dir), "lean", "office.sqlite"), { readOnly: true });
+  try {
+    return {
+      tasks: db.prepare("SELECT id, status FROM tasks ORDER BY id").all().map((row) => ({ ...row })),
+      agents: db.prepare("SELECT COUNT(*) AS n FROM agents").get().n,
+    };
+  } finally {
+    db.close();
+  }
+}
+
+test("stage 2 opens every repo engine locked, even when given a live config: leftover lean work waits untouched and the Office still claims", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const b = await f.repo("beta");
+  f.link(a, "a").claimReply = claimed("t1");
+  await waitingTask(f, a, "Waiting in alpha");
+  // beta's lean data exists but has no agent: a live engine would make the default one.
+  openLeanDb(f.dataDirOf(b), b).close();
+  const before = { a: leanRows(f, a), b: leanRows(f, b) };
+  assert.equal(before.b.agents, 0);
+  // What `start --team --live` / `up --team` hand the service. No path exists, so a live
+  // runtime built from it would fail the start: the engines must never be given it.
+  const live = {
+    controller: join(f.root, "no-controller"),
+    binary: join(f.root, "no-binary"),
+    authHome: join(f.root, "no-auth"),
+    socket: join(f.root, "no-docker.sock"),
+    userHome: f.root,
+    searchPath: "",
+  };
+  const office = await f.open({ live, runnerCatalog: async () => readyCatalog() });
+  await flush();
+  assert.equal(office.status().busy, false, "no engine has a run");
+  assert.doesNotThrow(() => office.assertIdle());
+  assert.deepEqual(leanRows(f, a), before.a, "alpha's waiting task did not start");
+  assert.equal(leanRows(f, b).agents, 0, "no default agent is made");
+
+  // The claim scheduler, gh checks and heartbeats still run.
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.equal(office.status().claim.project, a);
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.deepEqual(f.calls.at(-1), ["a", "heartbeat", "t1", "claim-t1", "build"]);
+  assert.deepEqual(leanRows(f, a), before.a, "a claimed Task does not start the waiting lean task either");
+});
+
 test("while a repo engine has a run the Office is busy and does not claim; once the run settles it claims", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const f = fixture(t);
@@ -357,9 +409,10 @@ test("while a repo engine has a run the Office is busy and does not claim; once 
   lb.claimReply = claimed("t1");
   await waitingTask(f, a, "Waiting in alpha");
   const world = runtimes();
+  // Only the test-only runtime seam can give an engine a run (production opens every engine locked).
   const office = await f.open({ createRuntime: world.create, runnerCatalog: async () => readyCatalog() });
   await flush();
-  assert.deepEqual(world.starts, [{ project: a, runningBefore: 0 }], "alpha's waiting task started on start-up");
+  assert.deepEqual(world.starts, [{ project: a, runningBefore: 0 }], "with the injected runtime, alpha's waiting task runs");
   assert.equal(office.status().busy, true);
   assert.throws(() => office.assertIdle(), { code: "TASK_ACTIVE" });
 
@@ -486,6 +539,20 @@ test("beginStop stops the timers; close closes every engine and is idempotent", 
 test("no registered repo is NO_REPOS", async (t) => {
   const f = fixture(t);
   await assert.rejects(f.open(), { code: "NO_REPOS" });
+});
+
+test("a registered repo whose folder is gone fails the start with REPO_MISSING, naming the path and team remove, before anything opens", async (t) => {
+  const f = fixture(t);
+  await f.repo("alpha");
+  const b = await f.repo("beta");
+  rmSync(b, { recursive: true });
+  await assert.rejects(f.open(), (error) => {
+    assert.equal(error.code, "REPO_MISSING");
+    assert.ok(error.message.includes(b), error.message);
+    assert.ok(error.message.includes(`pazmo-office team remove --project ${b}`), error.message);
+    return true;
+  });
+  assert.equal(existsSync(join(teamDir(f.data), "team.sqlite")), false, "the team store was not opened");
 });
 
 test("a repo engine that cannot open fails the start and closes the engines opened before it", async (t) => {

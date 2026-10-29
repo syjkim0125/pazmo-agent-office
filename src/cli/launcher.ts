@@ -20,7 +20,7 @@ import {
 } from "./project.ts";
 import { monitor, start, startTeam, status } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
-import { assertNotInTeam, readTeam } from "../team/registry.ts";
+import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { runCommand } from "../runners/command.ts";
 import { IMAGE } from "../runners/container-verifier.ts";
@@ -304,6 +304,8 @@ async function upTeam(options: UpOptions) {
       "NO_REPOS",
       "No repo is registered in the team Office. Add one with `team add --project PATH` first.",
     );
+  // Before any repo is located, checked with git or given its metadata.
+  assertReposPresent(repos);
   for (const repo of repos) {
     const p = locate(repo.project, options.dataDir);
     await run("/usr/bin/git", ["-C", p.project, "rev-parse", "--show-toplevel"]);

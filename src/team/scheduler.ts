@@ -44,6 +44,13 @@ function describeError(error: unknown): string {
   return typeof message === "string" && message ? message.slice(0, 80) : "unknown error";
 }
 
+/** The Hub's own 404 for a route that found no such Task or claim. */
+function isNotFound(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  const { status, code } = error as Record<string, unknown>;
+  return status === 404 && code === "NOT_FOUND";
+}
+
 const hasIds = (task: ClaimedTask | null | undefined): task is ClaimedTask =>
   typeof task?.taskId === "string" && typeof task?.claimId === "string";
 
@@ -159,12 +166,24 @@ export function createClaimScheduler(d: {
       await lane.link.heartbeat(open.taskId, open.claimId, "build");
     } catch (error) {
       const kind = classifyLinkError(error);
-      if (kind === "not-yours") {
+      // The Hub does not know this Task under this link any more (wiped or
+      // re-created, the repo linked to another Hub or re-created under a new id).
+      // Kept, the record would hold every tick at `open` and `team remove` at
+      // OPEN_CLAIM for good; dropped, the next tick takes the claim back if the
+      // Hub still reports it. Only the heartbeat is read this way: elsewhere a
+      // 404 is retried (classifyLinkError).
+      const gone = isNotFound(error);
+      if (kind === "not-yours" || gone) {
+        const reason = gone ? "NOT_FOUND" : "NOT_YOURS";
         // Dropped only if it is still the claim that was sent: an operator may have replaced the record meanwhile.
         const now = store.openClaim();
         if (now && now.taskId === open.taskId && now.claimId === open.claimId) {
-          store.dropClaim(open.taskId, "NOT_YOURS");
-          log(`team: ${open.project}: ${open.taskId} is no longer this Office's claim (NOT_YOURS); the record was dropped`);
+          store.dropClaim(open.taskId, reason);
+          log(
+            gone
+              ? `team: ${open.project}: the Hub no longer knows ${open.taskId} (NOT_FOUND); the record was dropped`
+              : `team: ${open.project}: ${open.taskId} is no longer this Office's claim (NOT_YOURS); the record was dropped`,
+          );
         }
       } else if (kind === "state") {
         log(`team: ${open.project}: the heartbeat for ${open.taskId} was refused (STATE); the record is kept`);

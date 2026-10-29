@@ -93,8 +93,13 @@ export function assertNotInTeam(p: Project): void {
 }
 
 /** Whether a team Office process is up: its running.json names a live pid. A
- * pid owned by someone else (EPERM) is still a live process. */
+ * pid owned by someone else (EPERM) is still a live process. A start still
+ * under way (its `start.lock`, for up to 15 s before running.json is written)
+ * counts too: that Office has already read the registry. */
 export function teamRunning(root: string): boolean {
+  const lock = join(teamDir(root), "start.lock");
+  noSymlinks(lock);
+  if (existsSync(lock)) return true;
   const file = join(teamDir(root), "running.json");
   noSymlinks(file);
   if (!existsSync(file)) return false;
@@ -121,8 +126,19 @@ function assertTeamStopped(root: string) {
   if (teamRunning(root))
     fail(
       "TEAM_RUNNING",
-      "Stop the team Office before changing which repos it runs.",
+      "Stop the team Office (or let its start finish, then stop it) before changing which repos it runs.",
     );
+}
+
+/** Every registered repo's folder must still be there before a team Office
+ * starts: a moved or deleted one would otherwise fail deep inside the start. */
+export function assertReposPresent(repos: readonly TeamRepo[]): void {
+  for (const repo of repos)
+    if (!existsSync(repo.project))
+      fail(
+        "REPO_MISSING",
+        `The registered repo folder ${repo.project} no longer exists. Put it back there, or take it out of the team Office with \`pazmo-office team remove --project ${repo.project}\`.`,
+      );
 }
 
 function gitRoot(project: string): string | undefined {
@@ -214,23 +230,31 @@ export async function removeTeamRepo(
   const repos = team.repos.filter((repo) => repo.project !== project);
   if (repos.length === team.repos.length)
     fail("INVALID", "That repo is not registered in the team Office.");
-  // An open record of a repo that is no longer registered has no lane to send
-  // its heartbeat or to finish it, and it would keep every claim waiting.
-  if (openClaimProject(root) === project)
-    fail(
-      "OPEN_CLAIM",
-      "The team Office holds an open Story Task of this repo. Remove the repo once that claim is closed: when the PL releases or cancels the Task, the running team Office drops it at its next heartbeat.",
-    );
+  // Before the registry is written: an open record of a repo that is no longer
+  // registered would have no lane to heartbeat or finish it, and it would keep
+  // every claim waiting.
+  settleOpenClaim(root, project, !existsSync(project));
   writeTeam(root, { version: 1, repos });
 }
 
-/** The repo of the team Office's open claim, if any. No database yet means no
- * claim, and none is created just to look. */
-function openClaimProject(root: string): string | null {
-  if (!existsSync(join(teamDir(root), "team.sqlite"))) return null;
+/** The team Office's open claim, if it is `project`'s: a repo whose folder is
+ * still there keeps it (OPEN_CLAIM) until the claim closes. A repo whose folder
+ * is gone can never run or finish it, so the local record is dropped
+ * (`REPO_REMOVED`); without heartbeats the Hub Task is held after 10 minutes
+ * and the PL decides what happens to it. No database yet means no claim, and
+ * none is created just to look. */
+function settleOpenClaim(root: string, project: string, folderGone: boolean): void {
+  if (!existsSync(join(teamDir(root), "team.sqlite"))) return;
   const store = openTeamStore(teamDir(root));
   try {
-    return store.openClaim()?.project ?? null;
+    const open = store.openClaim();
+    if (open?.project !== project) return;
+    if (!folderGone)
+      fail(
+        "OPEN_CLAIM",
+        "The team Office holds an open Story Task of this repo. Remove the repo once that claim is closed: with the team Office running, ask the PL to cancel the Task on the Hub (while the team Office runs, a cancel is the only way to free it); the next heartbeat, within 60 s, drops the record. Then stop the team Office and remove the repo.",
+      );
+    store.dropClaim(open.taskId, "REPO_REMOVED");
   } finally {
     store.close();
   }

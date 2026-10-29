@@ -139,6 +139,28 @@ test("with no registered repo, start --team and up --team are NO_REPOS and start
   assert.equal(existsSync(join(teamDir(f.data), "office.log")), false);
 });
 
+test("a registered repo whose folder is gone stops start --team and up --team with REPO_MISSING and its remedy", (t) => {
+  const f = fixture(t);
+  const a = f.repo("alpha");
+  const b = f.repo("beta");
+  for (const dir of [a, b]) assert.equal(call(f, "team", "add", "--project", dir).status, 0);
+  rmSync(b, { recursive: true });
+  const start = call(f, "start", "--team", "--port", "0");
+  assert.equal(start.status, 1, JSON.stringify(start.value));
+  assert.equal(start.value.code, "REPO_MISSING");
+  assert.ok(start.value.error.includes(`pazmo-office team remove --project ${b}`), start.value.error);
+  assert.equal(existsSync(f.running), false, "nothing was started");
+  assert.equal(existsSync(join(teamDir(f.data), "office.log")), false, "no service was spawned");
+  const up = call(f, "up", "--team", "--no-open");
+  assert.equal(up.status, 1, JSON.stringify(up.value));
+  assert.equal(up.value.code, appleSilicon ? "REPO_MISSING" : "PLATFORM");
+  if (appleSilicon) assert.ok(up.value.error.includes(`pazmo-office team remove --project ${b}`), up.value.error);
+  assert.equal(existsSync(join(a, ".pazmo-office")), false, "checked before any repo is prepared");
+  assert.equal(existsSync(f.running), false);
+  // The remedy the error names works.
+  assert.equal(call(f, "team", "remove", "--project", b).status, 0);
+});
+
 test("--team cannot be combined with --project, --lean or --claw and is for start, up, status, stop and monitor only", (t) => {
   const f = fixture(t);
   const dir = f.repo("alpha");

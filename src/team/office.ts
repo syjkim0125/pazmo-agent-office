@@ -6,10 +6,9 @@ import { createLeanOffice } from "../lean/office.ts";
 import type { LeanConfig, LeanOffice } from "../lean/office.ts";
 import { openLeanDb } from "../lean/schema.ts";
 import { readLinkConfig } from "../runtime/hub-link.ts";
-import type { LiveConfig } from "../runtime/live.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
 import type { GhResult } from "./gh.ts";
-import { readTeam, teamDir } from "./registry.ts";
+import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
 import { openTeamStore } from "./store.ts";
@@ -47,7 +46,10 @@ export type TeamConfig = {
   /** The canonical data root (`dataRoot`): the registry and `<root>/team` live there. */
   root: string;
   token: string;
-  live?: LiveConfig;
+  /** Tests only: a runtime for the repo engines, so the shared gate can be
+   * exercised. There is no live configuration here: stage 2 opens every repo
+   * engine locked, even under `start --team --live` / `up --team`; stage 3
+   * turns execution on together with the Story Task mode. */
   createRuntime?: LeanConfig["createRuntime"];
   runnerCatalog?: LeanConfig["runnerCatalog"];
   now?: () => number;
@@ -152,7 +154,8 @@ const stateOf = (lane: RepoLane): RepoLane["state"] => (!lane.link ? "no-link" :
  * lean data, tied to one run at a time; and the claim scheduler over one lane
  * per repo. Claims every `claimMs`, sends the open claim's heartbeat every
  * `beatMs`, and checks the repos that are not ready again every `recheckMs`.
- * Stage 2 records a claimed Task and keeps it alive; it does not run it.
+ * Stage 2 records a claimed Task and keeps it alive; it does not run it, and
+ * every repo engine opens locked (no live runtime, no default agent).
  */
 export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   const sink = c.log ?? ((line: string) => console.error(line));
@@ -167,6 +170,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   const { repos } = readTeam(c.root);
   if (repos.length === 0)
     fail("NO_REPOS", "No repo is registered in the team Office. Add one with `team add --project PATH` first.");
+  // Before anything opens: `locate` would fail on a missing folder with a bare ENOENT.
+  assertReposPresent(repos);
   const linkOf = c.linkOf ?? defaultLinkOf;
   const ghOf =
     c.ghOf ?? ((host: string) => ghStatus(host, { pathEnv: process.env.PATH ?? "", home: homedir() }));
@@ -263,7 +268,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
         // The repo's own lean data, as its single lean Office uses it.
         dataDir: join(p.dataDir, "lean"),
         token: c.token,
-        live: c.live,
+        // No live runtime and no default agent: stage 2 opens every engine
+        // locked, so lean work left in a registered repo waits untouched
+        // instead of running where nobody can see, cancel or answer it.
         createRuntime: c.createRuntime,
         runnerCatalog: c.runnerCatalog,
         now: c.now,
@@ -271,8 +278,6 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
         onSettled: () => void member.onSettled(),
       });
       member.attach(engine.office);
-      // Only a live Office can run a task, and a task needs an agent.
-      if (c.live) await engine.office.agents.ensureDefault();
     }
 
     const gh = new Map<string, GhResult | null>();
