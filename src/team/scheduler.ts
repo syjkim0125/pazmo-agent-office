@@ -64,42 +64,44 @@ export function createClaimScheduler(d: {
   const { lanes, store } = d;
   const log = d.log ?? (() => {});
 
-  /** What a failed call of `lane` means for this cycle: `next` goes on to the
-   * next lane (the lane itself cannot be used until the member fixes it), `end`
-   * leaves everything as it is and tries again on the next cycle. */
-  function onFailure(lane: RepoLane, what: string, error: unknown): "next" | "end" {
+  /** A failed call of `lane` never stops the other lanes. `relink` and
+   * `hub-too-old` also take the lane out of use until the member fixes it. Any
+   * other failure (`retry`, and the answers that cannot be a normal outcome of
+   * these calls: NOT_YOURS or STATE on an inbox, claim or task read) leaves the
+   * lane as it is and is asked again next cycle. A permanent cause (a 404 for
+   * this repo, a bad config) looks the same as a passing network error, so every
+   * failure is logged with its project and status/code. */
+  function onFailure(lane: RepoLane, what: string, error: unknown): void {
     const kind = classifyLinkError(error);
     if (kind === "relink" || kind === "hub-too-old") {
       lane.state = kind;
       log(`team: ${lane.project}: ${what} was refused (${describeError(error)}); the repo link needs attention`);
-      return "next";
+      return;
     }
-    // `retry`, and the two answers that cannot be a normal outcome of these
-    // calls (NOT_YOURS or STATE on an inbox, claim or task read). A permanent
-    // cause (a 404, a bad config) also looks like this, so it is always logged.
-    log(`team: ${lane.project}: ${what} failed (${describeError(error)}); trying again next cycle`);
-    return "end";
+    log(`team: ${lane.project}: ${what} failed (${describeError(error)}); skipping this repo for now`);
   }
 
   /** The Task of a repo is stored only with both ids as strings: Story-link
-   * checks the shape of a reply, not its fields. */
+   * checks the shape of a reply, not its fields. A Task without them is logged
+   * and not stored, like any other failure of that lane. */
   function record(lane: RepoLane, task: ClaimedTask | null | undefined, source: "claim" | "recovered", what: string): OpenClaim | null {
     if (!hasIds(task)) {
-      log(`team: ${lane.project}: ${what} returned a Task without ids (HUB_BAD_RESPONSE); trying again next cycle`);
+      log(`team: ${lane.project}: ${what} returned a Task without ids (HUB_BAD_RESPONSE); skipping this repo for now`);
       return null;
     }
     store.recordClaim(lane.project, task, source);
     return { taskId: task.taskId, claimId: task.claimId, project: lane.project, task };
   }
 
-  /** Runs one Hub call of `lane`: its value, or what to do about its failure.
-   * Only the call is inside the `try`, so a store error is never mistaken for a
-   * Hub error. */
-  async function attempt<T>(lane: RepoLane, what: string, call: () => Promise<T>): Promise<{ value: T } | "next" | "end"> {
+  /** Runs one Hub call of `lane`: `{ value }`, or `null` after its failure was
+   * handled and logged. Only the call is inside the `try`, so a store error is
+   * never mistaken for a Hub error. */
+  async function attempt<T>(lane: RepoLane, what: string, call: () => Promise<T>): Promise<{ value: T } | null> {
     try {
       return { value: await call() };
     } catch (error) {
-      return onFailure(lane, what, error);
+      onFailure(lane, what, error);
+      return null;
     }
   }
 
@@ -107,18 +109,16 @@ export function createClaimScheduler(d: {
    * reply that never arrived, or a restart before the write. Each repo's link
    * is asked, since the inbox only shows the Task of its own repo, and the Task
    * is read through the link that reported it. */
-  async function recover(): Promise<OpenClaim | "end" | null> {
+  async function recover(): Promise<OpenClaim | null> {
     for (const lane of lanes) {
       if (!isReady(lane)) continue;
       const inbox = await attempt(lane, "reading the inbox", () => lane.link.inbox());
-      if (inbox === "end") return "end";
-      if (inbox === "next") continue;
-      const { mine } = inbox.value;
-      if (!mine) continue;
-      const read = await attempt(lane, "reading the open claim", () => lane.link.task(mine.taskId, mine.claimId));
-      if (read === "end") return "end";
-      if (read === "next") continue;
-      return record(lane, read.value, "recovered", "reading the open claim") ?? "end";
+      if (!inbox?.value.mine) continue;
+      const { taskId, claimId } = inbox.value.mine;
+      const read = await attempt(lane, "reading the open claim", () => lane.link.task(taskId, claimId));
+      if (!read) continue;
+      const claim = record(lane, read.value, "recovered", "reading the open claim");
+      if (claim) return claim;
     }
     return null;
   }
@@ -127,7 +127,6 @@ export function createClaimScheduler(d: {
     if (store.openClaim()) return { skipped: "open" };
 
     const recovered = await recover();
-    if (recovered === "end") return { claimed: null };
     if (recovered) return { recovered };
 
     const { paused, dailyCap } = store.settings();
@@ -140,10 +139,9 @@ export function createClaimScheduler(d: {
       // Looked at again for each lane: a lane can stop being ready while an earlier one is asked.
       if (!isReady(lane)) continue;
       const taken = await attempt(lane, "the claim", () => lane.link.claim());
-      if (taken === "end") return { claimed: null };
-      if (taken === "next" || taken.value === null) continue;
+      if (!taken || taken.value === null) continue;
       const claim = record(lane, taken.value, "claim", "the claim");
-      return claim ? { claimed: claim } : { claimed: null };
+      if (claim) return { claimed: claim };
     }
     return { claimed: null };
   }

@@ -399,62 +399,120 @@ test("relink and hub-too-old found while recovering also move on to the next lan
   assert.deepEqual(lanes.map((lane) => lane.state), ["relink", "hub-too-old", "ready"]);
 });
 
-test("a retry on claim ends the cycle without touching the lane state, and is logged with project and code", async (t) => {
+test("a 404 on one lane's claim is logged and the next lane is still claimed; the lane stays ready", async (t) => {
+  const f = fixture(t);
+  const be = fakeLink({ claim: hubError(404, "NOT_FOUND") });
+  const fe = fakeLink({ claim: taskOf(2) });
+  const lanes = [laneOf("be", be), laneOf("fe", fe)];
+  const result = await f.scheduler(lanes).tick();
+  assert.equal(result.claimed.project, "fe", "a permanent failure of an early repo must not starve a later one");
+  assert.equal(result.claimed.taskId, "task-2");
+  assert.equal(be.named("claim").length, 1);
+  assert.equal(fe.named("claim").length, 1);
+  assert.equal(lanes[0].state, "ready", "a retry-class failure never changes the lane state");
+  assert.equal(f.store.openClaim().project, "fe");
+  assert.equal(f.logs.length, 1);
+  assert.ok(f.logs[0].includes("be") && f.logs[0].includes("404 NOT_FOUND"), `log was: ${f.logs}`);
+});
+
+test("a network failure on claim is logged with project and code, the next lane is claimed, and the lane stays ready", async (t) => {
   const f = fixture(t);
   const be = fakeLink({ claim: NETWORK() });
   const fe = fakeLink({ claim: taskOf(2) });
   const lanes = [laneOf("be", be), laneOf("fe", fe)];
-  assert.deepEqual(await f.scheduler(lanes).tick(), { claimed: null });
-  assert.deepEqual(fe.named("claim"), [], "the cycle ends: later lanes wait for the next one");
+  assert.equal((await f.scheduler(lanes).tick()).claimed.project, "fe");
   assert.equal(lanes[0].state, "ready");
-  assert.equal(f.store.openClaim(), null);
   assert.ok(f.logs.some((line) => line.includes("be") && line.includes("ECONNREFUSED")), `log was: ${f.logs}`);
 });
 
-test("a 404 is logged with its status and code so a permanent cause shows", async (t) => {
+test("when every lane fails with retry the tick is {claimed:null}, nothing is stored and each lane is logged", async (t) => {
   const f = fixture(t);
   const be = fakeLink({ claim: hubError(404, "NOT_FOUND") });
-  assert.deepEqual(await f.scheduler([laneOf("be", be)]).tick(), { claimed: null });
-  assert.ok(f.logs.some((line) => line.includes("be") && line.includes("404") && line.includes("NOT_FOUND")), `log was: ${f.logs}`);
+  const fe = fakeLink({ claim: hubError(503, "HUB_503") });
+  const lanes = [laneOf("be", be), laneOf("fe", fe)];
+  assert.deepEqual(await f.scheduler(lanes).tick(), { claimed: null });
+  assert.equal(f.store.openClaim(), null);
+  assert.deepEqual(lanes.map((lane) => lane.state), ["ready", "ready"]);
+  assert.equal(f.logs.length, 2);
+  assert.ok(f.logs[0].includes("be") && f.logs[0].includes("404 NOT_FOUND"));
+  assert.ok(f.logs[1].includes("fe") && f.logs[1].includes("503 HUB_503"));
 });
 
-test("a retry while reading the inbox ends the cycle before any claim", async (t) => {
+test("a 404 on one lane's inbox is logged and a later lane's open claim is still recovered, never claimed again", async (t) => {
   const f = fixture(t);
-  const be = fakeLink({ inbox: NETWORK(), claim: taskOf(1) });
-  const fe = fakeLink({ claim: taskOf(2) });
-  assert.deepEqual(await f.scheduler([laneOf("be", be), laneOf("fe", fe)]).tick(), { claimed: null });
-  assert.deepEqual(be.named("claim"), []);
-  assert.deepEqual(fe.calls, []);
-  assert.ok(f.logs.some((line) => line.includes("be")));
+  const be = fakeLink({ inbox: hubError(404, "NOT_FOUND"), claim: taskOf(8) });
+  const fe = fakeLink({ inbox: { ...emptyInbox, mine: mineOf(5) }, task: taskOf(5), claim: taskOf(9) });
+  const lanes = [laneOf("be", be), laneOf("fe", fe)];
+  const result = await f.scheduler(lanes).tick();
+  assert.equal(result.recovered.project, "fe");
+  assert.equal(result.recovered.taskId, "task-5");
+  assert.deepEqual(fe.named("task"), [["task", "task-5", "claim-5"]]);
+  assert.deepEqual(be.named("claim"), [], "recovery must not call claim()");
+  assert.deepEqual(fe.named("claim"), [], "recovery must not call claim()");
+  assert.deepEqual(be.named("task"), []);
+  assert.equal(lanes[0].state, "ready");
+  assert.equal(f.rowOf("task-5").source, "recovered");
+  assert.equal(f.logs.length, 1);
+  assert.ok(f.logs[0].includes("be") && f.logs[0].includes("404 NOT_FOUND"), `log was: ${f.logs}`);
 });
 
-test("a recovery race where the Hub no longer knows the claim ends the cycle instead of claiming", async (t) => {
+test("a failing inbox read does not stop the claim pass: the lane is still asked for a claim and the next lane too", async (t) => {
+  const f = fixture(t);
+  const be = fakeLink({ inbox: NETWORK(), claim: null });
+  const fe = fakeLink({ claim: taskOf(2) });
+  const result = await f.scheduler([laneOf("be", be), laneOf("fe", fe)]).tick();
+  assert.equal(result.claimed.project, "fe");
+  assert.equal(be.named("claim").length, 1);
+  assert.ok(f.logs.some((line) => line.includes("be") && line.includes("ECONNREFUSED")), `log was: ${f.logs}`);
+});
+
+test("a failing task() read in recovery is logged and recovery goes on to the later lanes", async (t) => {
+  const f = fixture(t);
+  const be = fakeLink({ inbox: { ...emptyInbox, mine: mineOf(4) }, task: hubError(404, "NOT_FOUND"), claim: taskOf(8) });
+  const fe = fakeLink({ inbox: { ...emptyInbox, mine: mineOf(5) }, task: taskOf(5) });
+  const result = await f.scheduler([laneOf("be", be), laneOf("fe", fe)]).tick();
+  assert.equal(result.recovered.project, "fe");
+  assert.deepEqual(be.named("claim"), []);
+  assert.ok(f.logs.some((line) => line.includes("be") && line.includes("404 NOT_FOUND")), `log was: ${f.logs}`);
+});
+
+test("a recovery race where the Hub no longer knows the claim is logged and the claim pass goes on", async (t) => {
   const f = fixture(t);
   const be = fakeLink({ inbox: { ...emptyInbox, mine: mineOf(5) }, task: NOT_YOURS(), claim: taskOf(6) });
-  assert.deepEqual(await f.scheduler([laneOf("be", be)]).tick(), { claimed: null });
-  assert.deepEqual(be.named("claim"), []);
-  assert.equal(f.store.openClaim(), null);
-  // The next cycle sees the Hub's new answer: nothing held any more, so a fresh claim goes out.
-  be.inbox = async () => emptyInbox;
-  assert.equal((await f.scheduler([laneOf("be", be)]).tick()).claimed.taskId, "task-6");
+  const result = await f.scheduler([laneOf("be", be)]).tick();
+  // The PL released it between inbox and task: the Hub now gives out a fresh claim (one open Task per person still holds there).
+  assert.equal(result.claimed.taskId, "task-6");
+  assert.equal(f.store.openClaim().taskId, "task-6");
+  assert.ok(f.logs.some((line) => line.includes("be") && line.includes("409 NOT_YOURS")), `log was: ${f.logs}`);
 });
 
-test("a Task without string ids is never recorded: it is logged and ends the cycle", async (t) => {
-  const f = fixture(t);
+test("a Task without string ids is never recorded: it is logged and the next lane is tried", async (t) => {
   for (const bad of [{ ...taskOf(1), claimId: 5 }, { ...taskOf(1), taskId: undefined }, {}]) {
+    const f = fixture(t);
     const fe = fakeLink({ claim: taskOf(2) });
     const be = fakeLink({ claim: bad });
-    assert.deepEqual(await f.scheduler([laneOf("be", be), laneOf("fe", fe)]).tick(), { claimed: null });
-    assert.equal(f.store.openClaim(), null);
-    assert.deepEqual(fe.named("claim"), []);
+    const result = await f.scheduler([laneOf("be", be), laneOf("fe", fe)]).tick();
+    assert.equal(result.claimed.project, "fe");
+    assert.deepEqual(f.store.openClaim(), { taskId: "task-2", claimId: "claim-2", project: "fe", task: taskOf(2) });
+    assert.equal(f.logs.length, 1);
+    assert.ok(f.logs[0].includes("be"), `log was: ${f.logs}`);
   }
-  assert.equal(f.logs.length, 3);
-  assert.ok(f.logs.every((line) => line.includes("be")));
 
-  const recovering = fakeLink({ inbox: { ...emptyInbox, mine: mineOf(5) }, task: { ...taskOf(5), claimId: null } });
-  assert.deepEqual(await f.scheduler([laneOf("be", recovering)]).tick(), { claimed: null });
-  assert.equal(f.store.openClaim(), null);
-  assert.equal(f.logs.length, 4);
+  // With no other lane to try nothing is stored and the tick is {claimed:null}.
+  const alone = fixture(t);
+  assert.deepEqual(await alone.scheduler([laneOf("be", fakeLink({ claim: { ...taskOf(1), claimId: 5 } }))]).tick(), { claimed: null });
+  assert.equal(alone.store.openClaim(), null);
+  assert.equal(alone.logs.length, 1);
+
+  // A recovered Task without ids is not stored either; recovery and then the claim pass go on.
+  const recovering = fixture(t);
+  const bad = fakeLink({ inbox: { ...emptyInbox, mine: mineOf(5) }, task: { ...taskOf(5), claimId: null }, claim: null });
+  const fe = fakeLink({ claim: taskOf(2) });
+  const result = await recovering.scheduler([laneOf("be", bad), laneOf("fe", fe)]).tick();
+  assert.equal(result.claimed.project, "fe");
+  assert.equal(recovering.store.openClaim().taskId, "task-2");
+  assert.equal(recovering.logs.length, 1);
+  assert.ok(recovering.logs[0].includes("be"));
 });
 
 test("an overlapping tick() shares the running one: one Hub claim, one result", async (t) => {
