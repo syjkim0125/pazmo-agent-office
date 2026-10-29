@@ -1,0 +1,363 @@
+{
+  "version": 1,
+  "runId": "9003d652-a306-4c4e-b9e0-c2274fb5ec6b",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after review Minor 1 and 3. finishReview: an unknown review result records only summary \"No review verdict for the submitted snapshot.\" and observation (no reviewedRevision, no verdict), passed false / action human; feedback names REVIEW_RUNNER_FAILED when that is the round reason, else the earlier text. pass/fail records unchanged. Test now covers both unknown reasons (runner failure: REVIEW_RUNNER_FAILED; timed-out review: UNKNOWN_RESULT, new fixture option reviewTimeouts). RED: actual reviewedRevision digest, expected undefined. GREEN: coordinator+kit-role-runs+verification 49/49; product reverted 48/49; typecheck exit 0. Minor 2 (key feedback on observation) not adopted: round.reason is the reason the user sees and the reviewer confirmed it is reliable.",
+          "evidence": [
+            "src/runners/kit-delivery.ts",
+            "tests/coordinator.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/kit-delivery.ts": "e58663238aeffe2c53eda673ae849e71b006d8862fd05a2bb26015f94d289c95",
+          "tests/coordinator.test.mjs": "6874a6ffb6ea5442ba7e9516813dfe8d3a6d32d77b3531301151c23c66686a96"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Two independent report-only reviews. (1) Approve, no Critical/Important; real kit status/reset probed on recorded runs for runner failure, invalid report, timeout, pass; Minor 1 (summary/reviewedRevision read as reviewed) and Minor 3 (no UNKNOWN_RESULT test) applied in implement attempt 2, Minor 2 (key feedback on observation) not adopted with reason. (2) Re-review of the applied delta: Approve; kit status on both recorded runs gives human with no throw; dropping reviewedRevision is safe for Office KitRoleRun.record and kit record/taskInput; one Minor (fixture timeout leaves error null, real runContainer sets TIMEOUT) recorded, not applied, outcome identical.",
+          "evidence": [
+            "docs/verification/2026-10-29-kit-review-without-verdict.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-kit-review-without-verdict.md": "f9df76c8374939317a80bc5b3ef053180a75d4194abd819341a4346ca8665562"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification on origin/main b84d62d plus this change after review fixes (worktree codex/kit-review-runner-record): npm test 960/960 exit 0 (load average 24 at the end, no other suite running at start); before review also 960/960. coordinator+kit-role-runs+verification with product code reverted 48/49 (only the new test fails), applied 49/49. npm run typecheck exit 0. Story checker exit 0. Changed scope: src/runners/kit-delivery.ts finishReview, tests/coordinator.test.mjs (new test + reviewTimeouts fixture option), Story D27 (ASSUMED), STATUS, verification doc, solutions doc leftover line, this run. Kit files under .ai-workflow/graph unchanged. Not proven: a live runner failure through this path. G4 is human-owned and pending.",
+          "evidence": [
+            "docs/verification/2026-10-29-kit-review-without-verdict.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-kit-review-without-verdict.md": "f9df76c8374939317a80bc5b3ef053180a75d4194abd819341a4346ca8665562"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "ce0c52bc561a75ad227e8184bab0438d96a034c08ba03c28e8bdb1f9d979712c"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-29T09:12:24.583Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-29T09:16:51.420Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Follow-up to merged PR #35 (Story D27, ASSUMED). src/runners/kit-delivery.ts finishReview: an Office review result of unknown is recorded to the kit Reviewer run with no verdict field (was verdict needs_changes), still passed false / action human; when the round reason is REVIEW_RUNNER_FAILED the feedback names it. pass and fail mappings unchanged; kit files unchanged (kit runs assertRoleOutput only on passing records, cli.mjs:104). RED: new tests/coordinator.test.mjs test failed with actual needs_changes, expected undefined (1/2 by name pattern); GREEN: coordinator+kit-role-runs+verification 49/49, product reverted 48/49; typecheck exit 0.",
+          "evidence": [
+            "src/runners/kit-delivery.ts",
+            "tests/coordinator.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/kit-delivery.ts": "d02ee562b71af8568895fc6ec32ee51d5316e73ce232243c3251b83e79a64d87",
+          "tests/coordinator.test.mjs": "8e44a20572394bd23a7c24d847e2c5bbb1e9aead344a45e21cb526a6b1701840"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T09:16:56.290Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T09:20:29.284Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review (attempt 1): Approve, no Critical/Important. Verified by running: coordinator 21/21, typecheck 0, fix reverted in a scratch copy gives the expected needs_changes failure, real kit status on recorded runs for runner failure / invalid report / timeout / pass (human, human, human, role-complete; no throw). Minor 1: for an unknown result the summary and reviewedRevision still read as if the snapshot was reviewed. Minor 2: feedback keyed on round.reason rather than the observation (not adopted: same value the user sees; reviewer confirmed it is reliable). Minor 3: no test for the UNKNOWN_RESULT branch. Minor 1 and 3 are applied in a second implement attempt.",
+          "evidence": [
+            "docs/verification/2026-10-29-kit-review-without-verdict.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Apply review Minor 1 (unknown review records no reviewed claims: summary/reviewedRevision) and Minor 3 (cover the UNKNOWN_RESULT branch with a timed-out review)."
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-kit-review-without-verdict.md": "49dfd88d5a4c97c1e7e9b9b02c18f510df4f0fb7dbe4928492c7a675823f88d3"
+        },
+        "error": "Apply review Minor 1 (unknown review records no reviewed claims: summary/reviewedRevision) and Minor 3 (cover the UNKNOWN_RESULT branch with a timed-out review)."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Apply independent review Minor 1 and 3 before re-review",
+      "at": "2026-10-29T09:20:29.370Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-29T09:20:33.665Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-29T09:22:39.242Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after review Minor 1 and 3. finishReview: an unknown review result records only summary \"No review verdict for the submitted snapshot.\" and observation (no reviewedRevision, no verdict), passed false / action human; feedback names REVIEW_RUNNER_FAILED when that is the round reason, else the earlier text. pass/fail records unchanged. Test now covers both unknown reasons (runner failure: REVIEW_RUNNER_FAILED; timed-out review: UNKNOWN_RESULT, new fixture option reviewTimeouts). RED: actual reviewedRevision digest, expected undefined. GREEN: coordinator+kit-role-runs+verification 49/49; product reverted 48/49; typecheck exit 0. Minor 2 (key feedback on observation) not adopted: round.reason is the reason the user sees and the reviewer confirmed it is reliable.",
+          "evidence": [
+            "src/runners/kit-delivery.ts",
+            "tests/coordinator.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/kit-delivery.ts": "e58663238aeffe2c53eda673ae849e71b006d8862fd05a2bb26015f94d289c95",
+          "tests/coordinator.test.mjs": "6874a6ffb6ea5442ba7e9516813dfe8d3a6d32d77b3531301151c23c66686a96"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T09:22:44.210Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T09:25:21.726Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Two independent report-only reviews. (1) Approve, no Critical/Important; real kit status/reset probed on recorded runs for runner failure, invalid report, timeout, pass; Minor 1 (summary/reviewedRevision read as reviewed) and Minor 3 (no UNKNOWN_RESULT test) applied in implement attempt 2, Minor 2 (key feedback on observation) not adopted with reason. (2) Re-review of the applied delta: Approve; kit status on both recorded runs gives human with no throw; dropping reviewedRevision is safe for Office KitRoleRun.record and kit record/taskInput; one Minor (fixture timeout leaves error null, real runContainer sets TIMEOUT) recorded, not applied, outcome identical.",
+          "evidence": [
+            "docs/verification/2026-10-29-kit-review-without-verdict.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-kit-review-without-verdict.md": "f9df76c8374939317a80bc5b3ef053180a75d4194abd819341a4346ca8665562"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-29T09:25:26.286Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-29T09:25:35.850Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification on origin/main b84d62d plus this change after review fixes (worktree codex/kit-review-runner-record): npm test 960/960 exit 0 (load average 24 at the end, no other suite running at start); before review also 960/960. coordinator+kit-role-runs+verification with product code reverted 48/49 (only the new test fails), applied 49/49. npm run typecheck exit 0. Story checker exit 0. Changed scope: src/runners/kit-delivery.ts finishReview, tests/coordinator.test.mjs (new test + reviewTimeouts fixture option), Story D27 (ASSUMED), STATUS, verification doc, solutions doc leftover line, this run. Kit files under .ai-workflow/graph unchanged. Not proven: a live runner failure through this path. G4 is human-owned and pending.",
+          "evidence": [
+            "docs/verification/2026-10-29-kit-review-without-verdict.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-kit-review-without-verdict.md": "f9df76c8374939317a80bc5b3ef053180a75d4194abd819341a4346ca8665562"
+        }
+      }
+    }
+  ]
+}

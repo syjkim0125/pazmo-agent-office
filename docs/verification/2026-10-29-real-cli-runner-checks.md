@@ -51,9 +51,11 @@ Office 인자에서 MCP bridge만 빼고 직접 돌렸다. 결과는 exit 1, 4.3
 | 2 | 6.7초 | 4.6초 | 같음 | 같음 | 1회 |
 | 3 | 7.5초 | 5.4초 | 같음 | 같음 | 1회 |
 | 4 (커밋한 스크립트) | 6.5초 | 4.2초 | 같음 | 같음 | 1회 |
+| 5 (#42를 합친 코드, load average 130) | 38.9초 | 17.5초 | 같음 | 같음 | 1회 |
 
 - 리뷰 관찰값은 `exitCode: 1`, `signal: null`, `timedOut: false`, `error: null`, `report: null`이었다. 검사 노드는 `pass`, 리뷰 노드는 `unknown`이었다.
-- kit 리뷰 노드는 `status: "failed"`, `output.verdict: "needs_changes"`, `evaluation: { passed: false, action: "human", feedback: "Reviewer did not produce a valid closed observation." }`로 남았다. #35 기록의 "바꾸지 않은 기존 동작"과 같다. 실행되지 않은 리뷰를 `needs_changes`로 남기는 문제는 별도 작업(kit-needs-changes 세션)에서 다룬다.
+- kit 리뷰 노드(main `d7a0af2`)는 `status: "failed"`, `output.verdict: "needs_changes"`, `evaluation: { passed: false, action: "human", feedback: "Reviewer did not produce a valid closed observation." }`로 남았다. #35 기록의 "바꾸지 않은 기존 동작"과 같다.
+- 이 문제를 고친 PR syjkim0125/pazmo-agent-office#42가 그사이 머지됐다. 그것을 합친 코드로 2026-10-30에 한 번 더 돌렸다(5번 실행, load average 130, 전체 38.9초, 리뷰 17.5초). 라운드는 그대로 `REVIEW_RUNNER_FAILED`였다. kit 리뷰 노드는 `verdict` 없이 `status: "failed"`로 남았고, 평가는 `{ passed: false, action: "human", feedback: "The review runner ended without a report (REVIEW_RUNNER_FAILED); no review was performed." }`였다.
 - 부하 메모: 다른 세션이 CPU 부하 시험(load average 125)을 돌릴 때 커밋한 스크립트를 한 번 돌렸다. 이때는 리뷰 전에 `DIFF_FAILED`로 멈췄다. 리뷰어가 돌지 않았으므로(`reviews: []`) 위 표에는 넣지 않았다. 부하가 15 아래로 내려간 뒤 다시 돌린 것이 4번이다.
 
 ## 2. codex exec의 API 오류 종료 코드

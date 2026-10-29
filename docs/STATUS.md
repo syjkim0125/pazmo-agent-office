@@ -1,7 +1,7 @@
 # 2026-10-29 실제 claude·codex CLI로 실행기 오류와 SIGTERM 종료 확인
 
 - 제품 코드는 바꾸지 않았다. #35·#40의 자동 시험이 흉내만 내던 동작을 이 Mac의 실제 CLI로 봤다. [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
-- 리뷰 실행기 오류: 없는 모델을 고른 실제 claude·codex 리뷰어는 exit 1로 끝났다. 실제 coordinator·kit·VM 리뷰어를 거쳐 `REVIEW_RUNNER_FAILED`로 멈췄고, 엔지니어는 다시 돌지 않았다. claude 4/4, codex 2/2. codex 0.163.0도 API 오류에 exit 1이다.
+- 리뷰 실행기 오류: 없는 모델을 고른 실제 claude·codex 리뷰어는 exit 1로 끝났다. 실제 coordinator·kit·VM 리뷰어를 거쳐 `REVIEW_RUNNER_FAILED`로 멈췄고, 엔지니어는 다시 돌지 않았다. claude 5/5, codex 2/2. codex 0.163.0도 API 오류에 exit 1이다.
 - claude SIGTERM: 갱신이 없을 때 0.3–1.7초, SessionEnd hook이 있으면 최대 1.9초(CLI 기본 한도 1.5초) 걸렸다. **SessionEnd hook은 SIGTERM 때도 정상 종료 때도 stream 이벤트로 나오지 않아 Office의 hook 감시에 보이지 않는다**(제안 P1, 결정 필요).
 - 갱신 중 SIGTERM은 사용자 확인 뒤 가짜 토큰·격리 config·답하지 않는 프록시로 쟀다.
   - CLI는 진행 중인 갱신을 최대 2초 기다리고 나갔고, 스스로 나가면 잠금은 풀렸다.
@@ -9,6 +9,14 @@
   - **부하가 높으면 6초를 넘었다(최대 9.1초). Office와 같은 6초 SIGKILL을 걸자 load average 90–102에서 3회 중 2회 잠금이 남았다**(제안 P2, 결정 필요, 추천은 유예 늘리기).
   - Keychain 항목은 생기지 않았다.
 - **남은 것:** P1·P2 결정, 관리형 SessionEnd hook, 평소 부하에서의 갱신 중 SIGTERM, 실제 토큰 서버가 느리게 답하는 갱신, 안전장치 거절 자체.
+
+# 2026-10-29 판정 없는 리뷰를 kit에 needs_changes로 남기지 않기
+
+- #35의 후속이다. 리뷰 실행기가 보고서 없이 끝나 Office 결과가 unknown(`REVIEW_RUNNER_FAILED`)이어도, kit 리뷰어 run에는 `verdict: "needs_changes"`가 적혀 리뷰어가 수정을 요청한 것처럼 보였다. 이제 판정이 없는 리뷰(실행기 실패·시간 초과 등)는 `verdict`와 `reviewedRevision` 없이 "No review verdict" 실패(`action: "human"`)로 남고, 실행기 실패면 피드백에 `REVIEW_RUNNER_FAILED`가 들어간다(D27, ASSUMED).
+- kit 파일은 바꾸지 않았다. kit는 리뷰어 판정(pass·needs_changes) 검사를 통과한 기록에만 한다. Office 흐름(멈춤·이유·수정 횟수)도 그대로다.
+- 자동 검사: root 1093/1093(#41을 합친 `3ebcff8`, 합치기 전 `b84d62d` 기준 960/960), 타입 검사 exit 0, Story 검사기 exit 0. 새 시험은 고치기 전 `needs_changes`로 실패했다. 독립 리뷰 두 번 Approve.
+- PR syjkim0125/pazmo-agent-office#42. G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 확인, ① 승인 후 머지). [G4 기록](verification/2026-10-29-kit-review-without-verdict-g4.md)
+- 2026-10-30 실제 실행기 오류(없는 모델의 claude 리뷰어)로 확인했다. kit 리뷰 노드에 `verdict`가 없고 피드백에 `REVIEW_RUNNER_FAILED`가 들어갔다. 안전장치 거절 자체는 거치지 않았다. [검증 기록](verification/2026-10-29-kit-review-without-verdict.md) · [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
 
 # 2026-10-29 팀 Story 보드 2단계 (팀 Office 여러 repo, 시험)
 
