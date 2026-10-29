@@ -99,6 +99,21 @@ const SERVICE: Record<Engine, string> = {
   lean: "src/runtime/lean-service.ts",
   team: "src/runtime/team-service.ts",
 };
+/** How long `start` waits for the service's ready message. Claw is the only
+ * engine whose start is CPU-bound: tsx transpiles about 220 vendor TypeScript
+ * modules on every start, from an empty transform cache in a new data
+ * directory (its TMPDIR is the Office's own). That is 1–2 s on an idle 12-core
+ * Mac, but up to 33 s with the CPU oversubscribed (two test suites at once, or
+ * a stress loop at load 40–140; 5 of 8 starts took over 15 s), while legacy
+ * and lean stayed under 3 s and keep their 15 s. A crash or an error reply
+ * ends the wait at once, so only a service that neither replies nor exits
+ * waits this long. */
+const STARTUP_MS: Record<Engine, number> = {
+  legacy: 15000,
+  claw: 60000,
+  lean: 15000,
+  team: 15000,
+};
 /** What `status` shows of a running team Office: its TeamStatus. */
 const TEAM_FIELDS = ["repos", "paused", "dailyCap", "today", "claim", "busy"] as const;
 /** Whether vendor `ws` resolves the way src/runners/exec-relay.ts loads it
@@ -244,7 +259,7 @@ export async function start(
       readyPort = await new Promise<number>((resolve, reject) => {
         const timer = setTimeout(
           () => reject(new Error("Office startup timed out.")),
-          15000,
+          STARTUP_MS[engine],
         );
         const finish = (error?: Error, value?: number) => {
           clearTimeout(timer);

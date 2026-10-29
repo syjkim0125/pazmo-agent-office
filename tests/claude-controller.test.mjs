@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { claudeJob } from "../src/runners/claude-controller.ts";
@@ -12,12 +12,24 @@ import { fakeNative, tempRoot } from "./runner-fixture.mjs";
 const fakeClaude = fileURLToPath(new URL("./fixtures/fake-claude.mjs", import.meta.url));
 const fakeExec = fileURLToPath(new URL("./fixtures/fake-exec-server.mjs", import.meta.url));
 
+// Some tests of a stop mock setTimeout, the controller's clock: its timeout and
+// its 6 s grace then run out exactly when the test ticks them, however slowly a
+// loaded machine runs the fake claude. Waiting for the fake's own progress
+// keeps the real clock.
+const realSetTimeout = globalThis.setTimeout;
+const pause = (ms) => new Promise((r) => realSetTimeout(r, ms));
+/** Resolves once a fake claude has created `path`: it got that far. A fake
+ * that never does fails the test after 30 s instead of hanging it. */
+async function reached(path) {
+  for (const deadline = Date.now() + 30000; !existsSync(path); await pause(20))
+    if (Date.now() > deadline) throw new Error(`never reached: ${path}`);
+}
+
 function setup(mode = "ok", executorMode = "ok") {
   const root = tempRoot();
-  const marker = join(root, "marker");
   const binary = fakeNative(
     join(root, "claude"),
-    `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(fakeClaude)} ${mode} ${JSON.stringify(marker)} "$@"\n`,
+    `exec ${JSON.stringify(process.execPath)} ${JSON.stringify(fakeClaude)} ${mode} "$@"\n`,
   );
   let executors = 0;
   const options = {
@@ -33,7 +45,7 @@ function setup(mode = "ok", executorMode = "ok") {
       });
     },
   };
-  return { root, marker, options, executors: () => executors };
+  return { root, options, executors: () => executors };
 }
 const run = (job) => job.supervise("a".repeat(64), 20000, new AbortController().signal);
 
@@ -75,10 +87,11 @@ for (const [mode, code] of [
 ]) {
   test(`a failed boundary check (${mode}) stops claude before it continues`, async () => {
     const fx = setup(mode);
-    const { result } = await run(claudeJob(fx.options, "Bounded task"));
+    const { closed, result } = await run(claudeJob(fx.options, "Bounded task"));
     assert.equal(result.error, code);
-    await new Promise((r) => setTimeout(r, 2000));
-    assert.equal(existsSync(fx.marker), false);
+    // The fake waits where it would go on; only Office's SIGKILL ends it there.
+    assert.equal(result.signal, "SIGKILL");
+    assert.equal(closed, true);
     assert.equal(terminalReport(result.stdout, ["report"]), null);
   });
 }
@@ -100,8 +113,8 @@ test("executor loss overrides a successful exit", async () => {
 /** A claude refreshing the user's login when Office stops it: like CLI 2.1.280
  * it holds ~/.claude/.oauth_refresh.lock meanwhile and its exit handler
  * releases the lock on SIGTERM. `onTerm` replaces that handler; `started`
- * runs while it holds the lock. */
-function refreshingClaude(onTerm = `rmdir "$lock"; exit 143`, started = "") {
+ * runs while it holds the lock; `idle` is what it then does over and over. */
+function refreshingClaude(onTerm = `rmdir "$lock"; exit 143`, started = "", idle = "sleep 1") {
   const root = tempRoot();
   const lock = join(root, ".claude", ".oauth_refresh.lock");
   const binary = fakeNative(
@@ -111,7 +124,7 @@ trap '${onTerm}' TERM
 mkdir -p "$HOME/.claude" && mkdir "$lock"
 ${started}
 echo $$ > "$HOME/pid"
-while :; do sleep 1; done\n`,
+while :; do ${idle}; done\n`,
   );
   const pidFile = join(root, "pid");
   return {
@@ -125,9 +138,9 @@ while :; do sleep 1; done\n`,
       openExecutor: () => assert.fail("no tool call was made"),
     },
     pid: () => Number(readFileSync(pidFile, "utf8")),
-    async holding() {
-      while (!existsSync(pidFile)) await new Promise((r) => setTimeout(r, 20));
-    },
+    holding: () => reached(pidFile),
+    /** Resolves once the fake has created `name` in its home. */
+    reached: (name) => reached(join(root, name)),
   };
 }
 
@@ -145,13 +158,15 @@ test("a claude cancelled while it refreshes the login releases the lock", async 
   assert.equal(existsSync(fx.lock), false);
 });
 
-test("a claude timed out while it refreshes the login releases the lock", async () => {
+test("a claude timed out while it refreshes the login releases the lock", async (t) => {
   const fx = refreshingClaude();
-  const { closed, result } = await claudeJob(fx.options, "Bounded task").supervise(
-    "a".repeat(64),
-    1500,
-    new AbortController().signal,
-  );
+  // Its 1.5 s timeout runs out only once it holds the lock, however long it
+  // took to start.
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 1500, new AbortController().signal);
+  await fx.holding();
+  t.mock.timers.tick(1500);
+  const { closed, result } = await job;
   assert.equal(result.error, "TIMEOUT");
   assert.equal(result.timedOut, true);
   assert.equal(closed, true);
@@ -161,34 +176,46 @@ test("a claude timed out while it refreshes the login releases the lock", async 
 
 // CLI 2.1.280 cleans up and waits for a refresh in flight (up to 2 s each)
 // before it exits and the lock goes, so 2 s of grace could still strand it.
-test("a claude that takes over 2 s to release the lock after SIGTERM still releases it", async () => {
-  const fx = refreshingClaude(`sleep 2.5; rmdir "$lock"; exit 143`);
+test("a claude that takes over 2 s to release the lock after SIGTERM still releases it", async (t) => {
+  // It releases the lock only when the test says so: 5.999 s into the grace.
+  const fx = refreshingClaude(`touch "$HOME/term"; until [ -e "$HOME/go" ]; do sleep 0.05; done; rmdir "$lock"; exit 143`);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
   await fx.holding();
   abort.abort();
+  await fx.reached("term");
+  t.mock.timers.tick(5999);
+  writeFileSync(join(fx.root, "go"), "");
   const { closed, result } = await job;
   assert.equal(result.error, "CANCELLED");
   assert.equal(closed, true);
+  assert.equal(result.signal, null, "it exited on its own, not by SIGKILL");
   assert.equal(existsSync(fx.lock), false, "the lock was released");
 });
 
-test("a claude that ignores SIGTERM is still killed soon after a cancel", { timeout: 15000 }, async (t) => {
-  const fx = refreshingClaude("");
+test("a claude that ignores SIGTERM is killed once its 6 s grace runs out", { timeout: 15000 }, async (t) => {
+  // It notes the SIGTERM and carries on, answering a ping while it lives.
+  const fx = refreshingClaude(`touch "$HOME/term"`, "", `[ -e "$HOME/ping" ] && touch "$HOME/pong"; sleep 0.05`);
   t.after(() => {
     try {
       process.kill(-fx.pid(), "SIGKILL");
     } catch {}
   });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
   await fx.holding();
-  const begun = Date.now();
   abort.abort();
+  await fx.reached("term");
+  t.mock.timers.tick(5999);
+  writeFileSync(join(fx.root, "ping"), "");
+  const first = await Promise.race([job.then(() => "ended"), fx.reached("pong").then(() => "answered")]);
+  assert.equal(first, "answered", "it still runs 1 ms before the grace runs out");
+  t.mock.timers.tick(1);
   const { closed, result } = await job;
-  // 6 s of grace, then SIGKILL.
-  assert.ok(Date.now() - begun < 8000, "the cancel still ends promptly");
   assert.equal(result.error, "CANCELLED");
+  assert.equal(result.signal, "SIGKILL");
   assert.equal(closed, true);
   assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });
 });
@@ -212,8 +239,9 @@ echo $! > "$HOME/helper"`,
   const { result } = await job;
   assert.equal(result.error, "CANCELLED");
   assert.equal(existsSync(fx.lock), false);
-  // The orphan is reaped by launchd once killed.
-  const deadline = Date.now() + 1000;
+  // The orphan is reaped by launchd once killed, which a loaded machine may
+  // take a while to do; one that was not killed never goes.
+  const deadline = Date.now() + 10000;
   while (Date.now() < deadline && !gone(helper())) await new Promise((r) => setTimeout(r, 20));
   assert.ok(gone(helper()), "the helper was killed with the claude's process group");
 });
@@ -276,24 +304,33 @@ exit 0\n`,
   abort.abort();
   const { result } = await job;
   assert.equal(result.error, "CANCELLED");
-  const deadline = Date.now() + 1000;
+  // As above: once killed, it is gone when launchd has reaped it.
+  const deadline = Date.now() + 10000;
   while (Date.now() < deadline && !gone(helper())) await new Promise((r) => setTimeout(r, 20));
   assert.ok(gone(helper()), "the helper that ignores SIGTERM was killed too");
 });
 
-test("a hook the claude starts while shutting down after a cancel is killed at once", async () => {
+test("a hook the claude starts while shutting down after a cancel is killed at once", { timeout: 15000 }, async (t) => {
+  // Its hook runs until it is killed, and Office's clock stands still, so the
+  // grace never runs out: only the hook line can end this claude.
   const fx = refreshingClaude(
-    `cat "$HOME/hook.json"; sleep 1.5; touch "$HOME/hook-ran"; exit 143`,
+    `cat "$HOME/hook.json"; while :; do sleep 1; done`,
     `echo '{"type":"system","subtype":"hook_started","hook_name":"SessionEnd"}' > "$HOME/hook.json"`,
   );
+  t.after(() => {
+    try {
+      process.kill(-fx.pid(), "SIGKILL");
+    } catch {}
+  });
+  t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
   await fx.holding();
   abort.abort();
   const { closed, result } = await job;
   assert.equal(result.error, "CANCELLED");
+  assert.equal(result.signal, "SIGKILL", "killed while its hook ran");
   assert.equal(closed, true);
-  assert.equal(existsSync(join(fx.root, "hook-ran")), false, "the hook did not finish");
 });
 
 // A cancel can land before init, while a startup login refresh holds the lock;
