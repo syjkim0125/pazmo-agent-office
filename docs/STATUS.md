@@ -7,8 +7,10 @@
 - 자동 검사:
   - 전체 시험 **1083/1083** exit 0: main(`8b9d23b`)을 합친 `678389f`에서 2026-10-29에 돌렸다(OpenSSL 3.6.3이 PATH 앞). 같은 커밋에서 타입 검사 exit 0, Story 검사기 exit 0
   - 수정 커밋 `5434f30`에서 팀·lean 관련 시험 176/176, 타입 검사 exit 0, Story 검사기 exit 0
-- **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다. 머지는 G4 질문 관문 뒤에 정한다.
-- **남은 것:** G4, 로컬 Hub(`pazmo-office hub`)에 시험 Story를 올려 eevee-be와 시험 repo 두 개로 하는 실제 확인(사용자 확인 뒤), `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
+  - main(#40)을 합친 `45df698`에서 다시 돌린 전체 시험 **1092/1092** exit 0, 타입 검사 exit 0, Story 검사기 exit 0
+- G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 푸시·PR, 머지는 사용자가 정함). [G4 기록](verification/2026-10-29-team-story-office-repos-g4.md)
+- **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다.
+- **남은 것:** 로컬 Hub(`pazmo-office hub`)에 시험 Story를 올려 eevee-be와 시험 repo 두 개로 하는 실제 확인(사용자 확인 뒤), `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
 
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
 
