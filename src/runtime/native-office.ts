@@ -58,6 +58,13 @@ type Config = {
   /** Picks the CLI runner per role and task instead of per role; given to the
    * live runtime as `choose`. Absent: the per-role Claw choice. */
   chooseRunner?: (role: ExecutingRole, taskId: string) => RunnerChoice;
+  /** True while another engine of the same host has a run; this engine then
+   * starts none (task creation and decisions are not affected). The host ties
+   * several engines to one run at a time with this and `onSettled`. */
+  othersActive?: () => boolean;
+  /** Called after this engine's own continuation ran for a settled run, so the
+   * host can let the other engines continue. A failure is logged here. */
+  onSettled?: () => void;
 };
 
 /** Reuses the qualified kit/VM implementation against Claw's original task DB.
@@ -246,7 +253,7 @@ export async function createNativeOffice(c: Config) {
     broadcast("task_update", task(id));
   }
   function dispatch(id: string, identity: string, run: () => unknown) {
-    if (!live || closing || live.status().active.length >= 1) return;
+    if (!live || closing || live.status().active.length >= 1 || c.othersActive?.()) return;
     if (
       db
         .prepare("INSERT OR IGNORE INTO pazmo_native_dispatches VALUES (?,?)")
@@ -595,6 +602,7 @@ export async function createNativeOffice(c: Config) {
     live.onSettled = async () => {
       try {
         await pump();
+        c.onSettled?.();
       } catch (error) {
         console.error(
           "Native Office continuation stopped:",
