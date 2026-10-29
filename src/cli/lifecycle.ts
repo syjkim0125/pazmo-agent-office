@@ -11,20 +11,24 @@ import {
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
   fail,
   ignoreMetadata,
+  initTeam,
   noSymlinks,
   packageRoot,
   readManifest,
+  teamProject,
 } from "./project.ts";
+import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { viewerToken } from "../runtime/observation.ts";
 
-export type Engine = "legacy" | "claw" | "lean";
-const ENGINES: readonly string[] = ["legacy", "claw", "lean"];
+export type Engine = "legacy" | "claw" | "lean" | "team";
+const ENGINES: readonly string[] = ["legacy", "claw", "lean", "team"];
 type Running = {
   version: 1;
   engine?: Engine;
@@ -81,19 +85,22 @@ async function control(s: Running, action: "status" | "stop") {
     project: string;
     status: string;
     execution?: string;
-  };
+  } & Record<string, unknown>;
   if (value.instance !== s.instance || value.project !== s.project)
     throw new Error("Controller identity mismatch.");
   return value;
 }
 /** The service process each engine runs. Only claw needs the tsx loader; lean
- * runs as plain `node <file>`. Lean still needs the vendor dependencies
- * installed: the engine it reuses loads vendor `ws` (see vendorInstalled). */
+ * and team run as plain `node <file>`. Both still need the vendor dependencies
+ * installed: the engine they reuse loads vendor `ws` (see vendorInstalled). */
 const SERVICE: Record<Engine, string> = {
   legacy: "src/runtime/service.ts",
   claw: "src/runtime/claw-service.ts",
   lean: "src/runtime/lean-service.ts",
+  team: "src/runtime/team-service.ts",
 };
+/** What `status` shows of a running team Office: its TeamStatus. */
+const TEAM_FIELDS = ["repos", "paused", "dailyCap", "today", "claim", "busy"] as const;
 /** Whether vendor `ws` resolves the way src/runners/exec-relay.ts loads it
  * when the service starts (both native engines import it). */
 export function vendorInstalled(): boolean {
@@ -104,7 +111,17 @@ export function vendorInstalled(): boolean {
     return false;
   }
 }
-export async function status(p: Project) {
+/** What `status` reports; a running team Office adds its TeamStatus fields. */
+export type OfficeStatus = {
+  status: string;
+  execution: string;
+  engine?: Engine;
+  url?: string;
+  dataDir?: string;
+  reason?: string;
+  [key: string]: unknown;
+};
+export async function status(p: Project): Promise<OfficeStatus> {
   readManifest(p);
   const s = readState(p);
   if (!s)
@@ -118,7 +135,10 @@ export async function status(p: Project) {
       status: "running",
       execution: current.execution ?? "locked",
       engine: s.engine ?? "legacy",
-      url: `http://127.0.0.1:${s.port}`,
+      // The team Office has no page in stage 2: its repos instead of a URL.
+      ...(s.engine === "team"
+        ? Object.fromEntries(TEAM_FIELDS.map((key) => [key, current[key]]))
+        : { url: `http://127.0.0.1:${s.port}` }),
       dataDir: p.dataDir,
     };
   } catch {
@@ -138,6 +158,7 @@ export async function start(
   /** Checks before anything starts; tests replace them. */
   checks: { installed: () => boolean } = { installed: vendorInstalled },
 ) {
+  assertNotInTeam(p);
   const current = await status(p);
   if (current.status === "running") {
     if (current.engine !== engine)
@@ -151,17 +172,18 @@ export async function start(
   }
   if (current.status !== "stopped")
     fail("UNKNOWN", "Resolve the preserved runtime state before restarting.");
-  // The lean Office serves its own page and needs no vendor UI build, but its
-  // service loads vendor ws: without the dependencies it would exit at startup.
+  // The lean and team Offices need no vendor UI build, but their service loads
+  // vendor ws: without the dependencies it would exit at startup.
+  const native = engine === "lean" || engine === "team";
   if (
-    engine !== "lean" &&
+    !native &&
     !existsSync(join(packageRoot, "vendor/claw-empire/dist/index.html"))
   )
     fail("NOT_BUILT", "Build the Office UI before starting.");
-  if (engine === "lean" && !checks.installed())
+  if (native && !checks.installed())
     fail(
       "NOT_INSTALLED",
-      "Office 의존성이 설치되지 않았습니다. ./office --lean 으로 설치하세요.",
+      `Office 의존성이 설치되지 않았습니다. ./office --${engine} 으로 설치하세요.`,
     );
   ignoreMetadata(p);
   noSymlinks(p.dataDir);
@@ -249,6 +271,11 @@ export async function start(
           instance,
           operatorToken,
           ...(live ? { live } : {}),
+          // The team Office checks the person's own `gh` login: their PATH and
+          // HOME, as live passes them for the runner CLIs.
+          ...(engine === "team"
+            ? { gh: { pathEnv: process.env.PATH ?? "", home: homedir() } }
+            : {}),
         });
       });
       const state: Running = {
@@ -279,12 +306,47 @@ export async function start(
       status: "running",
       execution: live ? "ready" : "locked",
       engine,
-      url: `http://127.0.0.1:${readyPort}`,
+      ...(engine === "team" ? {} : { url: `http://127.0.0.1:${readyPort}` }),
       dataDir: p.dataDir,
     };
   } finally {
     rmdirSync(lock);
   }
+}
+
+/** The team Office of a data root: every registered repo, one engine each.
+ * `NO_REPOS` until `team add` registered one. */
+export async function startTeam(
+  root: string,
+  port: number,
+  live?: LiveConfig,
+  checks?: { installed: () => boolean },
+) {
+  const { repos } = readTeam(root);
+  if (repos.length === 0)
+    fail(
+      "NO_REPOS",
+      "No repo is registered in the team Office. Add one with `team add --project PATH` first.",
+    );
+  assertReposPresent(repos);
+  return start(initTeam(root), port, live, "team", checks);
+}
+/** Never set up: neither its metadata nor any runtime state exists. */
+function teamUnset(root: string): boolean {
+  const p = teamProject(root);
+  return (
+    !existsSync(join(p.directory, "manifest.json")) &&
+    !existsSync(join(p.dataDir, "running.json")) &&
+    !existsSync(join(p.dataDir, "start.lock"))
+  );
+}
+export async function statusTeam(root: string) {
+  if (teamUnset(root)) return { status: "stopped", execution: "locked" };
+  return status(teamProject(root));
+}
+export async function stopTeam(root: string) {
+  if (teamUnset(root)) return { status: "stopped", execution: "locked" };
+  return stop(teamProject(root));
 }
 export async function stop(p: Project) {
   readManifest(p);
@@ -330,6 +392,7 @@ async function operatorSession(p: Project) {
       "Start the Office before submitting a contract or approval.",
     );
   await control(s, "status");
+  if (s.engine === "team") return fail(...NO_TEAM_SCREEN);
   if (s.engine === "claw")
     return { port: s.port, token: s.token, engine: "claw" as const };
   // Lean: a local session only; its runtime token is never handed out.
@@ -348,6 +411,11 @@ async function operatorSession(p: Project) {
   return { port: s.port, token: operator.token };
 }
 
+/** monitor --team: stage 2 has no team screen (stage 5 adds one). */
+export const NO_TEAM_SCREEN = [
+  "UNSUPPORTED",
+  "The team Office has no screen yet. Use status --team to see its repos.",
+] as const;
 const NO_OPERATOR_API = [
   "UNSUPPORTED",
   "The lean Office has no operator API. Use monitor to open its local session.",

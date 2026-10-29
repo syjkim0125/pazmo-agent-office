@@ -218,6 +218,23 @@ export function init(p: Project, apply: boolean) {
     dataDir: p.dataDir,
   };
 }
+/** The team Office of a data root, as a Project: one per person, in a fixed
+ * folder (`<root>/team`) rather than a project hash. It is never a repository,
+ * so its metadata lives in its own data, under `meta/`. `root` is canonical
+ * (`dataRoot`). */
+export function teamProject(root: string): Project {
+  const dataDir = join(root, "team");
+  return { project: dataDir, directory: join(dataDir, "meta"), dataDir };
+}
+/** Writes the team Office's metadata once (later calls only check it), so
+ * status and stop read its manifest the way they read a project's. */
+export function initTeam(root: string): Project {
+  const p = teamProject(root);
+  noSymlinks(p.directory);
+  mkdirSync(p.dataDir, { recursive: true, mode: 0o700 });
+  init(p, true);
+  return p;
+}
 export function remove(p: Project, apply: boolean) {
   const manifest = readManifest(p);
   const removed: string[] = [],

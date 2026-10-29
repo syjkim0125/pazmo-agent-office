@@ -5,6 +5,20 @@
 - 자동 검사: root 960/960, 타입 검사 exit 0, Story 검사기 exit 0. 새 시험은 고치기 전 `needs_changes`로 실패했다.
 - **G4는 남아 있다.** [검증 기록](verification/2026-10-29-kit-review-without-verdict.md)
 
+# 2026-10-29 팀 Story 보드 2단계 (팀 Office 여러 repo, 시험)
+
+- 한 사람이 **팀 Office** 하나에 repo 여러 개를 등록해 켠다(`team add --project` 후 `./office --team`, M16·V18·D24). repo마다 그 repo의 lean 데이터로 엔진을 하나씩 둔다. **2단계 팀 Office는 repo 엔진을 실행하지 않는다(3단계에서 Story Task 모드와 함께 켬).** `start --team --live`나 `./office --team`으로 켜도 같다. repo에 남은 lean 작업은 손대지 않고 그대로 기다린다.
+- repo마다 Hub 연결(기존 `hub-link --project`)과 Git 호스트별 `gh` 로그인을 확인한다. 가져가기 멈춤·하루 상한(기본 5)에 걸리지 않으면, 등록 순서로 담당 repo의 ready Task 하나를 가져와 기록하고 하트비트를 보낸다. 응답을 잃었거나 재시작한 경우에는 같은 claim을 이어 받는다. 하트비트에 Hub가 `404 NOT_FOUND`로 답하면(Hub를 새로 만들었거나 repo를 다시 연결함) 기록을 버리고, Hub가 아직 이 사람의 claim이라고 하면 다음 가져가기에서 다시 받는다. 상태는 `status --team`으로 본다. 화면은 없다(`monitor --team`은 `UNSUPPORTED`).
+- 같은 origin의 clone 두 개(`DUPLICATE_REMOTE`), 켜져 있거나 켜지는 중의 등록 변경(`TEAM_RUNNING`), 등록된 repo의 단일 Office(`IN_TEAM_OFFICE`), 폴더가 남아 있는 repo 중 가진 Task의 repo 빼기(`OPEN_CLAIM`)는 거부한다. 등록된 repo 폴더가 없으면 `start --team`·`up --team`이 `REPO_MISSING`으로 멈추고 `team remove --project <경로>`를 안내한다. 폴더가 없는 repo를 빼면 그 repo의 로컬 기록도 버린다(`REPO_REMOVED`).
+- 리뷰: Task 1–7 모두 Task별 독립 리뷰를 마쳤다(5·6은 수정 1회 뒤 재리뷰 통과). 최종 전체 브랜치 리뷰도 마쳤고, 그 지적을 한 번에 고쳤다: 하트비트 404, 사라진 repo 폴더, repo 엔진 잠금, 켜지는 중의 등록 변경, `OPEN_CLAIM` 안내 문구, 문서의 이른 머지 표현, 공개 저장소에 남은 사내 호스트 이름.
+- 자동 검사:
+  - 전체 시험 **1083/1083** exit 0: main(`8b9d23b`)을 합친 `678389f`에서 2026-10-29에 돌렸다(OpenSSL 3.6.3이 PATH 앞). 같은 커밋에서 타입 검사 exit 0, Story 검사기 exit 0
+  - 수정 커밋 `5434f30`에서 팀·lean 관련 시험 176/176, 타입 검사 exit 0, Story 검사기 exit 0
+  - main(#40)을 합친 `45df698`에서 다시 돌린 전체 시험 **1092/1092** exit 0, 타입 검사 exit 0, Story 검사기 exit 0
+- G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 푸시·PR, 머지는 사용자가 정함). [G4 기록](verification/2026-10-29-team-story-office-repos-g4.md)
+- **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다.
+- **남은 것:** 로컬 Hub(`pazmo-office hub`)에 시험 Story를 올려 eevee-be와 시험 repo 두 개로 하는 실제 확인(사용자 확인 뒤), `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
+
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
 
 - #36은 claude 역할을 멈출 때 SIGTERM을 먼저 보내 토큰 갱신 잠금이 남지 않게 했다. 머지 뒤 독립 리뷰에서 그게 보안 검사 멈춤(예상 밖 hook, 잘못된 init, init 없음, 출력 한도)에도 적용된 것을 찾았다. claude는 SIGTERM 종료 때 SessionEnd hook을 실행하므로, 이 멈춤들은 다시 바로 SIGKILL한다. 취소·시간 초과만 SIGTERM 먼저다.

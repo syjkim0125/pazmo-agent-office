@@ -13,7 +13,15 @@ import type { LeanAgent } from "./agents.ts";
 type NativeConfig = Parameters<typeof createNativeOffice>[0];
 export type LeanConfig = Pick<
   NativeConfig,
-  "db" | "project" | "dataDir" | "token" | "live" | "createRuntime" | "runnerCatalog"
+  | "db"
+  | "project"
+  | "dataDir"
+  | "token"
+  | "live"
+  | "createRuntime"
+  | "runnerCatalog"
+  | "othersActive"
+  | "onSettled"
 > & {
   /** The clock the discovery cache reads (ms); tests inject one. */
   now?: () => number;
@@ -101,6 +109,8 @@ export type LeanOffice = {
   /** Runs the engine's continuation once, as a finished job does. */
   refresh(): Promise<void>;
   status(): ReturnType<NativeOffice["status"]>;
+  /** This engine has at least one run now (what another engine's `othersActive` asks). */
+  busy(): boolean;
   close(): Promise<void>;
   assertIdle(): void;
   /** A stop was accepted (or the process is closing): from here on no task is
@@ -265,6 +275,8 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     createRuntime: c.createRuntime,
     runnerCatalog: () => discoverNow(),
     chooseRunner,
+    othersActive: c.othersActive,
+    onSettled: c.onSettled,
   });
   const { intake, verification } = native.ledgers;
 
@@ -668,6 +680,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     chooseRunner,
     refresh: () => native.refresh(),
     status: () => native.status(),
+    busy: () => native.status().active.length > 0,
     close: () => native.close(),
     assertIdle: () => native.assertIdle(),
     beginStop() {

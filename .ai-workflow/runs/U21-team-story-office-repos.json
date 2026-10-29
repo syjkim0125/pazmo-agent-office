@@ -1,0 +1,370 @@
+{
+  "version": 1,
+  "runId": "c81b412f-6fd6-4dd4-81fe-9e34c21ffc79",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Team Story board stage 2, one Office with several repos (M16/V18/D24, G3 2026-10-22, plan approved 2026-10-28 with registration order and default daily cap 5). Engine kind team at <dataRoot>/team: team.json registry (DUPLICATE_REMOTE, TEAM_RUNNING incl. start.lock, IN_TEAM_OFFICE, OPEN_CLAIM, REPO_MISSING/REPO_REMOVED), team.sqlite settings and claims (one open claim by partial unique index, cap counts claims only), gh auth status per host with env HOME/PATH/LANG=C, Story link per repo hub-link.json with classifyLinkError, claim scheduler (30 s claim tick in registration order, 60 s heartbeat, inbox recovery before pause/cap/busy, retry skips the lane, NOT_YOURS or heartbeat 404 NOT_FOUND drops the record by claimId), shared one-run gate (othersActive/onSettled in separate try/catch, round-robin refresh), 300 s lane recheck, CLI team add|remove|list|pause|resume|cap|status, lifecycle start/stop/status/up --team, monitor --team UNSUPPORTED. Stage 2 opens every repo engine locked (no live runtime, no ensureDefault). Subagent-driven: 7 tasks with TDD, 2 task fix rounds, one final fix wave.",
+          "evidence": [
+            "docs/verification/2026-10-29-team-story-office-repos.md",
+            "docs/plans/2026-10-27-1730-feat-team-story-office-repos-plan.md",
+            "docs/understanding/team-story-board-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-team-story-office-repos.md": "8861edb9dfa3746beea74678efd0d2686e5206263d695d455d7dcb461c59ff42",
+          "docs/plans/2026-10-27-1730-feat-team-story-office-repos-plan.md": "a12b83a1bd82cb7640392766487262b614d1635b24fc44711b3a8250a20dc636",
+          "docs/understanding/team-story-board-decision.md": "bf102d10fb6f132a812aebf14a6479c0c4b3e16abd91bb4eac2c14c689e497a6"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Independent read-only reviews: 7 per-task reviews (Tasks 1-4 and 7 approved with no Critical/Important; Tasks 5 and 6 each had one Important fixed in one round: retry no longer starves later lanes, onSettled runs even when pump throws). Final whole-branch review (opus) With fixes, Important 4 (heartbeat 404 dead end, missing repo folder dead end, early merge-readiness claims in docs, leftover lean work resuming unseen under a live team Office) plus minors, all fixed in one wave and re-reviewed: 7/7 addressed, no new Critical/Important. Three findings parked with rulings (stale start.lock, execution ready under --live, no local escape for a permanently unreachable Hub).",
+          "evidence": [
+            ".ai-workflow/runs/U21-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U21-review-1.md": "28fc7cb08f49a5d324a632e61e5d210ac310f5e7a8c46520a0171a3373741304"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification on 678389f (stage 2 branch after merging main 8b9d23b), OpenSSL 3.6.3 first on PATH, no concurrent full run: npm test 1083/1083 exit 0, typecheck 0, story check 0, diff check clean. Earlier focused evidence: team and lean tests 176/176 on the final fix commit, Task 7 83/83 including a real CLI start/status/stop --team with two repos and a fake gh, mutation checks on the gate and the busy check. Not verified: a real team Office against a Hub with test Stories, up --team for real, a second PC, execution of claimed Tasks (stage 3).",
+          "evidence": [
+            ".ai-workflow/runs/U21-verify-1.md",
+            "docs/verification/2026-10-29-team-story-office-repos.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U21-verify-1.md": "2283ae5374c414867770e4f76a15128cb8a349dd57a2ee242850fdaa6f6a7735",
+          "docs/verification/2026-10-29-team-story-office-repos.md": "8861edb9dfa3746beea74678efd0d2686e5206263d695d455d7dcb461c59ff42"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "58fa97b0712faef7d6cf35592e11d7f52bdaa6f3ef4553b782a465fdfff204d3"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-28T09:16:15.596Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-29T08:46:58.655Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team Story board stage 2, one Office with several repos (M16/V18/D24, G3 2026-10-22, plan approved 2026-10-28 with registration order and default daily cap 5). Engine kind team at <dataRoot>/team: team.json registry (DUPLICATE_REMOTE, TEAM_RUNNING incl. start.lock, IN_TEAM_OFFICE, OPEN_CLAIM, REPO_MISSING/REPO_REMOVED), team.sqlite settings and claims (one open claim by partial unique index, cap counts claims only), gh auth status per host with env HOME/PATH/LANG=C, Story link per repo hub-link.json with classifyLinkError, claim scheduler (30 s claim tick in registration order, 60 s heartbeat, inbox recovery before pause/cap/busy, retry skips the lane, NOT_YOURS or heartbeat 404 NOT_FOUND drops the record by claimId), shared one-run gate (othersActive/onSettled in separate try/catch, round-robin refresh), 300 s lane recheck, CLI team add|remove|list|pause|resume|cap|status, lifecycle start/stop/status/up --team, monitor --team UNSUPPORTED. Stage 2 opens every repo engine locked (no live runtime, no ensureDefault). Subagent-driven: 7 tasks with TDD, 2 task fix rounds, one final fix wave.",
+          "evidence": [
+            "docs/verification/2026-10-29-team-story-office-repos.md",
+            "docs/plans/2026-10-27-1730-feat-team-story-office-repos-plan.md",
+            "docs/understanding/team-story-board-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-team-story-office-repos.md": "2c043e9c23972c832c2e85afe765a3774091166c677605da837f3bb0d8a13d40",
+          "docs/plans/2026-10-27-1730-feat-team-story-office-repos-plan.md": "a12b83a1bd82cb7640392766487262b614d1635b24fc44711b3a8250a20dc636",
+          "docs/understanding/team-story-board-decision.md": "bf102d10fb6f132a812aebf14a6479c0c4b3e16abd91bb4eac2c14c689e497a6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T08:47:05.801Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T08:47:05.933Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only reviews: 7 per-task reviews (Tasks 1-4 and 7 approved with no Critical/Important; Tasks 5 and 6 each had one Important fixed in one round: retry no longer starves later lanes, onSettled runs even when pump throws). Final whole-branch review (opus) With fixes, Important 4 (heartbeat 404 dead end, missing repo folder dead end, early merge-readiness claims in docs, leftover lean work resuming unseen under a live team Office) plus minors, all fixed in one wave and re-reviewed: 7/7 addressed, no new Critical/Important. Three findings parked with rulings (stale start.lock, execution ready under --live, no local escape for a permanently unreachable Hub).",
+          "evidence": [
+            ".ai-workflow/runs/U21-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U21-review-1.md": "28fc7cb08f49a5d324a632e61e5d210ac310f5e7a8c46520a0171a3373741304"
+        }
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "verification doc gained the fresh full-suite result (1083/1083 on 678389f) after implement was recorded",
+      "at": "2026-10-29T08:48:03.963Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-29T08:48:19.202Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-29T08:48:19.317Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Team Story board stage 2, one Office with several repos (M16/V18/D24, G3 2026-10-22, plan approved 2026-10-28 with registration order and default daily cap 5). Engine kind team at <dataRoot>/team: team.json registry (DUPLICATE_REMOTE, TEAM_RUNNING incl. start.lock, IN_TEAM_OFFICE, OPEN_CLAIM, REPO_MISSING/REPO_REMOVED), team.sqlite settings and claims (one open claim by partial unique index, cap counts claims only), gh auth status per host with env HOME/PATH/LANG=C, Story link per repo hub-link.json with classifyLinkError, claim scheduler (30 s claim tick in registration order, 60 s heartbeat, inbox recovery before pause/cap/busy, retry skips the lane, NOT_YOURS or heartbeat 404 NOT_FOUND drops the record by claimId), shared one-run gate (othersActive/onSettled in separate try/catch, round-robin refresh), 300 s lane recheck, CLI team add|remove|list|pause|resume|cap|status, lifecycle start/stop/status/up --team, monitor --team UNSUPPORTED. Stage 2 opens every repo engine locked (no live runtime, no ensureDefault). Subagent-driven: 7 tasks with TDD, 2 task fix rounds, one final fix wave.",
+          "evidence": [
+            "docs/verification/2026-10-29-team-story-office-repos.md",
+            "docs/plans/2026-10-27-1730-feat-team-story-office-repos-plan.md",
+            "docs/understanding/team-story-board-decision.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-team-story-office-repos.md": "8861edb9dfa3746beea74678efd0d2686e5206263d695d455d7dcb461c59ff42",
+          "docs/plans/2026-10-27-1730-feat-team-story-office-repos-plan.md": "a12b83a1bd82cb7640392766487262b614d1635b24fc44711b3a8250a20dc636",
+          "docs/understanding/team-story-board-decision.md": "bf102d10fb6f132a812aebf14a6479c0c4b3e16abd91bb4eac2c14c689e497a6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T08:48:25.700Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-29T08:48:25.822Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Independent read-only reviews: 7 per-task reviews (Tasks 1-4 and 7 approved with no Critical/Important; Tasks 5 and 6 each had one Important fixed in one round: retry no longer starves later lanes, onSettled runs even when pump throws). Final whole-branch review (opus) With fixes, Important 4 (heartbeat 404 dead end, missing repo folder dead end, early merge-readiness claims in docs, leftover lean work resuming unseen under a live team Office) plus minors, all fixed in one wave and re-reviewed: 7/7 addressed, no new Critical/Important. Three findings parked with rulings (stale start.lock, execution ready under --live, no local escape for a permanently unreachable Hub).",
+          "evidence": [
+            ".ai-workflow/runs/U21-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U21-review-1.md": "28fc7cb08f49a5d324a632e61e5d210ac310f5e7a8c46520a0171a3373741304"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-29T08:48:34.143Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-29T08:48:34.254Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification on 678389f (stage 2 branch after merging main 8b9d23b), OpenSSL 3.6.3 first on PATH, no concurrent full run: npm test 1083/1083 exit 0, typecheck 0, story check 0, diff check clean. Earlier focused evidence: team and lean tests 176/176 on the final fix commit, Task 7 83/83 including a real CLI start/status/stop --team with two repos and a fake gh, mutation checks on the gate and the busy check. Not verified: a real team Office against a Hub with test Stories, up --team for real, a second PC, execution of claimed Tasks (stage 3).",
+          "evidence": [
+            ".ai-workflow/runs/U21-verify-1.md",
+            "docs/verification/2026-10-29-team-story-office-repos.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U21-verify-1.md": "2283ae5374c414867770e4f76a15128cb8a349dd57a2ee242850fdaa6f6a7735",
+          "docs/verification/2026-10-29-team-story-office-repos.md": "8861edb9dfa3746beea74678efd0d2686e5206263d695d455d7dcb461c59ff42"
+        }
+      }
+    }
+  ]
+}
