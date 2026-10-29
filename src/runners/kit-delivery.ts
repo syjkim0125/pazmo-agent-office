@@ -199,9 +199,14 @@ export class KitDelivery {
     await stage.run.record(
       stage.node,
       {
-        summary: "Independent readonly review of the submitted snapshot.",
-        reviewedRevision: round.candidate.digest,
-        verdict: result.verdict === "pass" ? "pass" : "needs_changes",
+        // reviewedRevision and verdict are a Reviewer's claims; an unknown result makes none.
+        ...(performed
+          ? {
+              summary: "Independent readonly review of the submitted snapshot.",
+              reviewedRevision: round.candidate.digest,
+              verdict: result.verdict === "pass" ? "pass" : "needs_changes",
+            }
+          : { summary: "No review verdict for the submitted snapshot." }),
         observation: result.observation,
       },
       performed
@@ -209,7 +214,10 @@ export class KitDelivery {
         : {
             passed: false,
             action: "human",
-            feedback: "Reviewer did not produce a valid closed observation.",
+            feedback:
+              round.reason === "REVIEW_RUNNER_FAILED"
+                ? "The review runner ended without a report (REVIEW_RUNNER_FAILED); no review was performed."
+                : "Reviewer did not produce a valid closed observation.",
           },
       JSON.stringify(result),
       round.candidate,

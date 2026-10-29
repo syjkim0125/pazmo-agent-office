@@ -1,3 +1,10 @@
+# 2026-10-29 판정 없는 리뷰를 kit에 needs_changes로 남기지 않기
+
+- #35의 후속이다. 리뷰 실행기가 보고서 없이 끝나 Office 결과가 unknown(`REVIEW_RUNNER_FAILED`)이어도, kit 리뷰어 run에는 `verdict: "needs_changes"`가 적혀 리뷰어가 수정을 요청한 것처럼 보였다. 이제 판정이 없는 리뷰(실행기 실패·시간 초과 등)는 `verdict`와 `reviewedRevision` 없이 "No review verdict" 실패(`action: "human"`)로 남고, 실행기 실패면 피드백에 `REVIEW_RUNNER_FAILED`가 들어간다(D27, ASSUMED).
+- kit 파일은 바꾸지 않았다. kit는 리뷰어 판정(pass·needs_changes) 검사를 통과한 기록에만 한다. Office 흐름(멈춤·이유·수정 횟수)도 그대로다.
+- 자동 검사: root 960/960, 타입 검사 exit 0, Story 검사기 exit 0. 새 시험은 고치기 전 `needs_changes`로 실패했다.
+- **G4는 남아 있다.** [검증 기록](verification/2026-10-29-kit-review-without-verdict.md)
+
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
 
 - #36은 claude 역할을 멈출 때 SIGTERM을 먼저 보내 토큰 갱신 잠금이 남지 않게 했다. 머지 뒤 독립 리뷰에서 그게 보안 검사 멈춤(예상 밖 hook, 잘못된 init, init 없음, 출력 한도)에도 적용된 것을 찾았다. claude는 SIGTERM 종료 때 SessionEnd hook을 실행하므로, 이 멈춤들은 다시 바로 SIGKILL한다. 취소·시간 초과만 SIGTERM 먼저다.

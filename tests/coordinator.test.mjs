@@ -20,6 +20,7 @@ function runner(
     kit,
     reviewFailures = 0,
     reviewRunnerFailures = 0,
+    reviewTimeouts = 0,
     onEngineer,
   } = {},
 ) {
@@ -137,6 +138,9 @@ function runner(
               // ContainerReviewer reads no report from a non-zero exit.
               ...(engineers <= reviewRunnerFailures
                 ? { exitCode: 1, report: null }
+                : {}),
+              ...(engineers <= reviewTimeouts
+                ? { timedOut: true, exitCode: null, report: null }
                 : {}),
             },
           };
@@ -281,6 +285,35 @@ test("a kit Reviewer runner failure stops for a person instead of rebuilding the
   assert.equal(r.engineers, 1);
   assert.equal((await r.c.run(f.task.id)).state, "human_required");
   assert.equal(r.engineers, 1);
+});
+
+test("a kit Reviewer result without a verdict is recorded to kit as no review", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  for (const [option, reason] of [
+    ["reviewRunnerFailures", "REVIEW_RUNNER_FAILED"],
+    ["reviewTimeouts", "UNKNOWN_RESULT"],
+  ]) {
+    const f = await officeFixture(t, true, true);
+    const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+    const result = await runner(f, { [option]: 1, kit }).c.run(f.task.id);
+    assert.equal(result.reason, reason);
+    const [review] = f.store
+      .kitAssignments(f.task.id)
+      .filter((a) => a.role === "reviewer");
+    const node = JSON.parse(
+      readFileSync(join(f.project, review.run_file), "utf8"),
+    ).state.nodes.review;
+    assert.equal(node.status, "failed", reason);
+    assert.equal(node.evaluation.action, "human", reason);
+    assert.equal(node.output.verdict, undefined, reason);
+    assert.equal(node.output.reviewedRevision, undefined, reason);
+    assert.match(node.output.summary, /^No review verdict/, reason);
+    assert.equal(
+      node.error.includes("REVIEW_RUNNER_FAILED"),
+      reason === "REVIEW_RUNNER_FAILED",
+      reason,
+    );
+  }
 });
 
 test("kit role integration cannot reserve a fourth Developer after two failed fixes", async (t) => {
