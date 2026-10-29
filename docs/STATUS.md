@@ -5,7 +5,7 @@
 - 같은 origin의 clone 두 개(`DUPLICATE_REMOTE`), 켜져 있거나 켜지는 중의 등록 변경(`TEAM_RUNNING`), 등록된 repo의 단일 Office(`IN_TEAM_OFFICE`), 폴더가 남아 있는 repo 중 가진 Task의 repo 빼기(`OPEN_CLAIM`)는 거부한다. 등록된 repo 폴더가 없으면 `start --team`·`up --team`이 `REPO_MISSING`으로 멈추고 `team remove --project <경로>`를 안내한다. 폴더가 없는 repo를 빼면 그 repo의 로컬 기록도 버린다(`REPO_REMOVED`).
 - 리뷰: Task 1–7 모두 Task별 독립 리뷰를 마쳤다(5·6은 수정 1회 뒤 재리뷰 통과). 최종 전체 브랜치 리뷰도 마쳤고, 그 지적을 한 번에 고쳤다: 하트비트 404, 사라진 repo 폴더, repo 엔진 잠금, 켜지는 중의 등록 변경, `OPEN_CLAIM` 안내 문구, 문서의 이른 머지 표현, 공개 저장소에 남은 사내 호스트 이름.
 - 자동 검사:
-  - 전체 시험: (main 합친 뒤 마지막 커밋에서 다시 돌려 채움)
+  - 전체 시험 **1083/1083** exit 0: main(`8b9d23b`)을 합친 `678389f`에서 2026-10-29에 돌렸다(OpenSSL 3.6.3이 PATH 앞). 같은 커밋에서 타입 검사 exit 0, Story 검사기 exit 0
   - 수정 커밋 `5434f30`에서 팀·lean 관련 시험 176/176, 타입 검사 exit 0, Story 검사기 exit 0
 - **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다. 머지는 G4 질문 관문 뒤에 정한다.
 - **남은 것:** G4, 로컬 Hub(`pazmo-office hub`)에 시험 Story를 올려 eevee-be와 시험 repo 두 개로 하는 실제 확인(사용자 확인 뒤), `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
