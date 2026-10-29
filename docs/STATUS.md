@@ -2,8 +2,9 @@
 
 - #36은 claude 역할을 멈출 때 SIGTERM을 먼저 보내 토큰 갱신 잠금이 남지 않게 했다. 머지 뒤 독립 리뷰에서 그게 보안 검사 멈춤(예상 밖 hook, 잘못된 init, init 없음, 출력 한도)에도 적용된 것을 찾았다. claude는 SIGTERM 종료 때 SessionEnd hook을 실행하므로, 이 멈춤들은 다시 바로 SIGKILL한다. 취소·시간 초과만 SIGTERM 먼저다.
 - claude가 이미 끝난 뒤 들어온 멈춤도 바로 SIGKILL한다(SIGTERM을 무시하는 자식이 살아남던 문제). 정상 종료 중에 나오는 줄은 hook 이벤트가 아니면 종료를 끊지 않는다.
-- 자동 검사: root 957/957, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰의 Important 1건을 고쳤다.
-- **2초 유예를 늘릴지는 사용자 결정 대기다.** [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
+- 자동 검사: root 959/959, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰 두 번(#36 머지 뒤, 이 변경)의 지적을 반영했다.
+- 취소·시간 초과 때의 유예는 2초에서 6초로, 바깥 감독 유예는 5.5초에서 12초로 늘렸다(사용자 선택). 갱신 중인 claude가 종료 처리와 갱신 대기를 마치고 잠금을 풀 시간이다.
+- **6초가 실제로 충분한지는 재 보지 못했다. G4는 남아 있다.** [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
 
 # 2026-10-27 리뷰 실행기 오류를 리뷰 fail로 세지 않기
 
