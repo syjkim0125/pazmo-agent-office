@@ -25,10 +25,17 @@ const claude = { runner: "claude", model: "default", effort: null };
 async function engine(t, world, name, gate = {}) {
   const c = contractFixture(t);
   const db = openLeanDb(c.root, c.project);
-  const state = { active: [] };
+  // statusFailure: thrown once by the next live.status() call (it makes the
+  // engine's own continuation reject, as a failing completion step would).
+  const state = { active: [], statusFailure: null };
   const calls = { planning: [] };
   const live = {
-    status: () => ({ execution: "ready", active: state.active, lastError: null }),
+    status: () => {
+      const failure = state.statusFailure;
+      state.statusFailure = null;
+      if (failure) throw failure;
+      return { execution: "ready", active: state.active, lastError: null };
+    },
     startPlanning: (taskId, ...rest) => {
       world.starts.push({ engine: name, runningBefore: world.running() });
       calls.planning.push([taskId, ...rest]);
@@ -64,6 +71,12 @@ async function engine(t, world, name, gate = {}) {
     /** The engine's run ends: the runtime clears it and reports it settled. */
     async settle() {
       state.active = [];
+      await live.onSettled();
+    },
+    /** The run ends but the engine's own continuation fails (its first status read throws). */
+    async settleFailing(error) {
+      state.active = [];
+      state.statusFailure = error;
       await live.onSettled();
     },
     task: (title) => office.createTask({ title, body: "", agentId: agent.id, risk: "normal" }),
@@ -201,4 +214,38 @@ test("an onSettled that throws is logged and never reaches the runtime", async (
     logged.some((line) => line.includes("Native Office continuation stopped") && line.includes("host callback failed")),
     logged.join("\n"),
   );
+});
+
+test("the host is told an engine settled even when its own continuation fails", async (t) => {
+  const { a, b, settled } = await pair(t);
+  const logged = [];
+  t.mock.method(console, "error", (...args) => logged.push(args.join(" ")));
+  await a.task("First repo");
+  const second = await b.task("Second repo");
+  assert.equal(b.calls.planning.length, 0, "B waits while A runs");
+  await assert.doesNotReject(a.settleFailing(new Error("completion failed")));
+  await settled();
+  assert.ok(
+    logged.some((line) => line.includes("Native Office continuation stopped") && line.includes("completion failed")),
+    "A's own failure is still logged:\n" + logged.join("\n"),
+  );
+  assert.equal(b.calls.planning.length, 1, "the host callback ran, so B's waiting task started");
+  assert.equal(b.column(second.id), "active");
+});
+
+test("a failing continuation and a failing host callback are each logged and neither escapes", async (t) => {
+  const world = newWorld();
+  const logged = [];
+  t.mock.method(console, "error", (...args) => logged.push(args.join(" ")));
+  const a = await engine(t, world, "a", {
+    onSettled: () => {
+      throw new Error("host callback failed");
+    },
+  });
+  await a.task("One");
+  await assert.doesNotReject(a.settleFailing(new Error("completion failed")));
+  const stopped = logged.filter((line) => line.includes("Native Office continuation stopped"));
+  assert.equal(stopped.length, 2, logged.join("\n"));
+  assert.ok(stopped.some((line) => line.includes("completion failed")));
+  assert.ok(stopped.some((line) => line.includes("host callback failed")));
 });

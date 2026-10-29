@@ -62,8 +62,12 @@ type Config = {
    * starts none (task creation and decisions are not affected). The host ties
    * several engines to one run at a time with this and `onSettled`. */
   othersActive?: () => boolean;
-  /** Called after this engine's own continuation ran for a settled run, so the
-   * host can let the other engines continue. A failure is logged here. */
+  /** Called once each settled run, after this engine's own pump attempt: the
+   * continuation may have failed (it is logged) or, when another pump was
+   * already in progress, only been queued behind it. Either way the host is
+   * told, so it can let the other engines continue. Synchronous: a returned
+   * promise is not awaited. A throw is logged here and never reaches the
+   * runtime. */
   onSettled?: () => void;
 };
 
@@ -600,14 +604,24 @@ export async function createNativeOffice(c: Config) {
   }
   if (live)
     live.onSettled = async () => {
-      try {
-        await pump();
-        c.onSettled?.();
-      } catch (error) {
+      // Each step is contained on its own: a failing continuation must not
+      // keep the host from letting its other engines continue (their waiting
+      // task would stay stranded), and a failing host callback never reaches
+      // the runtime.
+      const stopped = (error: unknown) =>
         console.error(
           "Native Office continuation stopped:",
           error instanceof Error ? error.message : String(error),
         );
+      try {
+        await pump();
+      } catch (error) {
+        stopped(error);
+      }
+      try {
+        c.onSettled?.();
+      } catch (error) {
+        stopped(error);
       }
     };
   const timer = setInterval(() => {
