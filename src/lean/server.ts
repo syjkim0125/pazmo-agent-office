@@ -90,6 +90,23 @@ function cookies(header: string | undefined, name: string): string[] {
 }
 /** The request target without its query: raw, nothing decoded or normalized. */
 const pathOf = (url: string | undefined) => (url ?? "").split("?")[0];
+/** Answers (and returns true for) a request that is not for this server: a
+ * Host or Origin other than its own 127.0.0.1 port, or an unknown method. */
+function refusedAsForeign(req: IncomingMessage, res: ServerResponse, port: number): boolean {
+  if (req.headers.host !== `127.0.0.1:${port}`) {
+    problem(res, 421, "MISDIRECTED", "Unexpected Host header.");
+    return true;
+  }
+  if (req.headers.origin !== undefined && req.headers.origin !== `http://127.0.0.1:${port}`) {
+    problem(res, 403, "ORIGIN", "Unexpected Origin.");
+    return true;
+  }
+  if (!METHODS.has(req.method ?? "")) {
+    problem(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed.");
+    return true;
+  }
+  return false;
+}
 /** Where the socket's peer is; only these count as this machine. */
 export function isLoopback(address: string | undefined): boolean {
   return address === "127.0.0.1" || address === "::1" || address === "::ffff:127.0.0.1";
@@ -181,6 +198,63 @@ function pick(body: Record<string, unknown>, keys: string[]): Record<string, unk
 type Context = { id: string; body: () => Promise<Record<string, unknown>> };
 type Route = { method: string; pattern: RegExp; run: (c: Context) => Promise<[number, unknown]> | [number, unknown] };
 
+export type LifecycleOptions = {
+  /** The Bearer the lifecycle client sends. */
+  token: string;
+  instance: string;
+  project: string;
+  engine: "lean" | "team";
+  /** Merged into the status answer (instance, project, status and engine win). */
+  status: () => object;
+  /** Throws while work is active: the stop is then refused with TASK_ACTIVE. */
+  assertIdle: () => void;
+  /** A stop was accepted: called before the answer, in the same turn. */
+  beginStop: () => void;
+  /** Called (from a later turn of the event loop) after a stop was accepted. */
+  onStop?: () => void;
+};
+
+/** Lifecycle control, for the CLI only: Bearer, as the Claw host does. The
+ * lean and team servers answer `/__pazmo/status` and `/__pazmo/stop` with it. */
+export function lifecycleRoutes(o: LifecycleOptions) {
+  const bearer = `Bearer ${o.token}`;
+  const label = o.engine === "lean" ? "Lean" : "Team";
+  return (req: IncomingMessage, res: ServerResponse, path: string, method: string): void => {
+    const received = Buffer.from(req.headers.authorization ?? ""),
+      expected = Buffer.from(bearer);
+    if (received.length !== expected.length || !timingSafeEqual(received, expected))
+      return json(res, 401, { error: "unauthorized" });
+    if (path === "/__pazmo/status") {
+      if (method !== "GET") return problem(res, 405, "METHOD_NOT_ALLOWED", "Use GET.", { Allow: "GET" });
+      return json(res, 200, { ...o.status(), instance: o.instance, project: o.project, status: "running", engine: o.engine });
+    }
+    if (path === "/__pazmo/stop") {
+      if (method !== "POST") return problem(res, 405, "METHOD_NOT_ALLOWED", "Use POST.", { Allow: "POST" });
+      try {
+        o.assertIdle();
+      } catch {
+        return json(res, 409, {
+          error: "TASK_ACTIVE",
+          message: "Cancel active tasks and wait for cleanup before stopping Office.",
+        });
+      }
+      // Before the answer, in the same turn: no write starts between the idle
+      // check and the shutdown.
+      o.beginStop();
+      json(res, 200, { instance: o.instance, project: o.project, status: "stopping" });
+      setImmediate(() => {
+        try {
+          o.onStop?.();
+        } catch (error) {
+          console.error(`${label} stop failed:`, error);
+        }
+      });
+      return;
+    }
+    return problem(res, 404, "NOT_FOUND", "Not found.");
+  };
+}
+
 /** The request handler. `listening` is the port the server really has, which
  * Host and Origin must name. Exported so a test can stand in for a peer; the
  * server itself only ever listens on 127.0.0.1. */
@@ -188,7 +262,6 @@ export function leanRequestListener(o: Omit<LeanServerOptions, "port">, listenin
   const { office } = o;
   const session = sign(o.token, "lean:session");
   const csrf = sign(o.token, "lean:csrf");
-  const bearer = `Bearer ${o.token}`;
   const ok: [number, unknown] = [200, { ok: true }];
   // Set, synchronously, by the stop that was accepted: the Office is going away,
   // so no write may begin (the office is told too, for those already waiting).
@@ -261,42 +334,19 @@ export function leanRequestListener(o: Omit<LeanServerOptions, "port">, listenin
     },
   ];
 
-  /** Lifecycle control, for the CLI only: Bearer, as the Claw host does. */
-  function lifecycle(req: IncomingMessage, res: ServerResponse, path: string, method: string) {
-    const received = Buffer.from(req.headers.authorization ?? ""),
-      expected = Buffer.from(bearer);
-    if (received.length !== expected.length || !timingSafeEqual(received, expected))
-      return json(res, 401, { error: "unauthorized" });
-    if (path === "/__pazmo/status") {
-      if (method !== "GET") return problem(res, 405, "METHOD_NOT_ALLOWED", "Use GET.", { Allow: "GET" });
-      return json(res, 200, { ...office.status(), instance: o.instance, project: o.project, status: "running", engine: "lean" });
-    }
-    if (path === "/__pazmo/stop") {
-      if (method !== "POST") return problem(res, 405, "METHOD_NOT_ALLOWED", "Use POST.", { Allow: "POST" });
-      try {
-        office.assertIdle();
-      } catch {
-        return json(res, 409, {
-          error: "TASK_ACTIVE",
-          message: "Cancel active tasks and wait for cleanup before stopping Office.",
-        });
-      }
-      // Before the answer, in the same turn: no write starts between the idle
-      // check and the shutdown.
+  const lifecycle = lifecycleRoutes({
+    token: o.token,
+    instance: o.instance,
+    project: o.project,
+    engine: "lean",
+    status: () => office.status(),
+    assertIdle: () => office.assertIdle(),
+    beginStop() {
       stopping = true;
       office.beginStop();
-      json(res, 200, { instance: o.instance, project: o.project, status: "stopping" });
-      setImmediate(() => {
-        try {
-          o.onStop?.();
-        } catch (error) {
-          console.error("Lean stop failed:", error);
-        }
-      });
-      return;
-    }
-    return problem(res, 404, "NOT_FOUND", "Not found.");
-  }
+    },
+    onStop: () => o.onStop?.(),
+  });
 
   async function api(req: IncomingMessage, res: ServerResponse, path: string, method: string, port: number) {
     // Nothing below runs, and the office is not touched, without a session.
@@ -327,11 +377,8 @@ export function leanRequestListener(o: Omit<LeanServerOptions, "port">, listenin
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
     const port = listening();
-    if (req.headers.host !== `127.0.0.1:${port}`) return problem(res, 421, "MISDIRECTED", "Unexpected Host header.");
-    if (req.headers.origin !== undefined && req.headers.origin !== `http://127.0.0.1:${port}`)
-      return problem(res, 403, "ORIGIN", "Unexpected Origin.");
+    if (refusedAsForeign(req, res, port)) return;
     const method = req.method ?? "";
-    if (!METHODS.has(method)) return problem(res, 405, "METHOD_NOT_ALLOWED", "Method not allowed.");
     const path = pathOf(req.url);
     if (path.startsWith("/__pazmo/")) return lifecycle(req, res, path, method);
     // A browser says who is asking: only the page itself (or no page at all) may
@@ -389,12 +436,60 @@ export function createLeanHttpServer(o: Omit<LeanServerOptions, "port">, listeni
  * office belongs to the caller. */
 export async function startLeanServer(o: LeanServerOptions): Promise<{ port: number; close(): Promise<void> }> {
   let actual = 0;
-  const server = createLeanHttpServer(o, () => actual);
+  return listenLocal(createLeanHttpServer(o, () => actual), o.port, (port) => (actual = port));
+}
+
+/** A server with the lifecycle routes and nothing else, for an Office without
+ * a page (the team Office in stage 2): the same Host, Origin and timeout rules
+ * as the lean server. Exported so a test can stand in for a peer. */
+export function lifecycleRequestListener(o: LifecycleOptions, listening: () => number): RequestListener {
+  const lifecycle = lifecycleRoutes(o);
+  const label = o.engine === "lean" ? "Lean" : "Team";
+  return (req, res) => {
+    try {
+      if (refusedAsForeign(req, res, listening())) return;
+      const path = pathOf(req.url);
+      if (path.startsWith("/__pazmo/")) return lifecycle(req, res, path, req.method ?? "");
+      return problem(res, 404, "NOT_FOUND", "Not found.");
+    } catch (error) {
+      try {
+        if (res.headersSent) return void res.destroy();
+        // Nothing of the failure reaches the client; the operator sees it once.
+        console.error(`${label} ${req.method} ${pathOf(req.url)} failed:`, error);
+        problem(res, 500, "INTERNAL", "Request failed.");
+      } catch (replyError) {
+        res.destroy();
+        console.error(`${label} reply failed:`, replyError);
+      }
+    }
+  };
+}
+
+/** The lifecycle-only server, on 127.0.0.1 only. */
+export async function startLifecycleServer(
+  o: LifecycleOptions & { port: number },
+): Promise<{ port: number; close(): Promise<void> }> {
+  let actual = 0;
+  const server = createServer(lifecycleRequestListener(o, () => actual));
+  server.headersTimeout = 10_000;
+  server.requestTimeout = 30_000;
+  return listenLocal(server, o.port, (port) => (actual = port));
+}
+
+/** Listens on 127.0.0.1 only; `onListening` gets the port it really has.
+ * `close()` stops listening and drops open connections. */
+async function listenLocal(
+  server: Server,
+  port: number,
+  onListening: (port: number) => void,
+): Promise<{ port: number; close(): Promise<void> }> {
+  let actual = 0;
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(o.port, "127.0.0.1", () => {
+    server.listen(port, "127.0.0.1", () => {
       server.off("error", reject);
       actual = (server.address() as AddressInfo).port;
+      onListening(actual);
       resolve();
     });
   });

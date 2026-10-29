@@ -2,6 +2,7 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
 import {
+  dataRoot,
   init,
   locate,
   remove,
@@ -10,7 +11,9 @@ import {
   packageRoot,
   readManifest,
 } from "./project.ts";
+import type { LiveConfig } from "../runtime/live.ts";
 import { up } from "./launcher.ts";
+import { TEAM_ACTIONS, teamCommand } from "./team.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { bridge, readBridgeInput } from "./bridge.ts";
 import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hub.ts";
@@ -22,6 +25,10 @@ import {
   operatorRequest,
   operatorKey,
   monitor,
+  startTeam,
+  statusTeam,
+  stopTeam,
+  NO_TEAM_SCREEN,
 } from "./lifecycle.ts";
 
 export async function main(args: string[]): Promise<void> {
@@ -29,7 +36,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)",
+        "pazmo-office <up|setup-runtime|bridge|monitor|hub|hub-link|hub-unlink|init|doctor|start|status|stop|remove|contracts|contract|verification|delivery|deliver|intake-create|intake|intake-answer|intake-cancel|intake-publish|approval-request|approval-decide> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N] [--file JSON] [--task-id ID] [--gate G1|G3|G4] [--challenge ID]\nSetup: setup-runtime [--data-dir PATH] [--apply]\nNative UI preview: start --claw --project PATH (execution locked)\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nLean Office: start --lean --project PATH [--live] or up --lean [--project PATH] (own local-session UI; no Claw build; not combinable with --claw)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean or --claw); status --team; stop --team (no screen yet: monitor --team is unsupported)",
       );
       return;
     }
@@ -46,6 +53,7 @@ export async function main(args: string[]): Promise<void> {
         "hub",
         "hub-link",
         "hub-unlink",
+        "team",
         "operator-key",
         "init",
         "doctor",
@@ -68,6 +76,18 @@ export async function main(args: string[]): Promise<void> {
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
+    // `team` takes its action before the flags: team add|remove|list|pause|resume|cap|status.
+    const teamAction = command === "team" ? args.shift() : undefined;
+    if (command === "team" && !TEAM_ACTIONS.includes(teamAction ?? ""))
+      fail(
+        "ARGUMENT",
+        "team needs an action: add, remove, list, pause, resume, cap or status.",
+      );
+    // `team cap` also takes its value, N or off, before the flags.
+    const teamValue =
+      teamAction === "cap" && args[0] !== undefined && !args[0].startsWith("--")
+        ? args.shift()
+        : undefined;
     const options: Record<string, string | boolean> = {};
     while (args.length) {
       const flag = args.shift()!;
@@ -86,6 +106,7 @@ export async function main(args: string[]): Promise<void> {
           "--live",
           "--claw",
           "--lean",
+          "--team",
           "--controller",
           "--executor",
           "--codex-runtime",
@@ -107,7 +128,8 @@ export async function main(args: string[]): Promise<void> {
         flag === "--dry-run" ||
         flag === "--live" ||
         flag === "--claw" ||
-        flag === "--lean"
+        flag === "--lean" ||
+        flag === "--team"
       )
         options[flag] = true;
       else {
@@ -138,6 +160,16 @@ export async function main(args: string[]): Promise<void> {
       fail("ARGUMENT", "Choose either --lean or --claw.");
     if (options["--lean"] && !["start", "up"].includes(command))
       fail("ARGUMENT", "--lean is only supported by start and up.");
+    // The team Office runs every registered repo: it names no project and has
+    // its own engine.
+    if (options["--team"]) {
+      if (!["start", "up", "status", "stop", "monitor"].includes(command))
+        fail("ARGUMENT", "--team is only supported by start, up, status, stop and monitor.");
+      if (options["--project"] !== undefined)
+        fail("ARGUMENT", "--team runs every registered repo; omit --project (see team add).");
+      if (options["--lean"] || options["--claw"])
+        fail("ARGUMENT", "--team cannot be combined with --lean or --claw.");
+    }
     if (
       ["--claw", "--live", "--controller", "--executor"].some(
         (key) => options[key] !== undefined,
@@ -219,7 +251,20 @@ export async function main(args: string[]): Promise<void> {
             port: rawPort === undefined ? undefined : Number(rawPort),
             open: !options["--no-open"],
             ...(options["--lean"] ? { engine: "lean" as const } : {}),
+            ...(options["--team"] ? { engine: "team" as const } : {}),
             ...(codexRuntime ? { codexRuntime } : {}),
+          }),
+        ),
+      );
+      return;
+    }
+    if (command === "team") {
+      console.log(
+        JSON.stringify(
+          await teamCommand(teamAction!, {
+            project: options["--project"] as string | undefined,
+            dataDir: options["--data-dir"] as string | undefined,
+            value: teamValue,
           }),
         ),
       );
@@ -269,6 +314,53 @@ export async function main(args: string[]): Promise<void> {
             options["--data-dir"] as string | undefined,
             options["--apply"] === true,
           ),
+        ),
+      );
+      return;
+    }
+    /** start's port; `fallback` when none is given. */
+    const startPort = (fallback: string): number => {
+      const rawPort = options["--port"] ?? fallback;
+      if (
+        typeof rawPort !== "string" ||
+        !/^\d+$/.test(rawPort) ||
+        Number(rawPort) > 65535
+      )
+        fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
+      return Number(rawPort);
+    };
+    /** start --live's runtime: the paired overrides, or the installed one. */
+    const startLive = (): LiveConfig | undefined => {
+      if (!options["--live"]) return undefined;
+      const binaries =
+        options["--controller"] || options["--executor"]
+          ? {
+              controller: required("--controller"),
+              binary: required("--executor"),
+            }
+          : installedRuntime(options["--data-dir"] as string | undefined);
+      return {
+        controller: binaries.controller,
+        binary: binaries.binary,
+        authHome: join(homedir(), ".codex"),
+        socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
+        userHome: homedir(),
+        searchPath: process.env.PATH ?? "",
+        ...(codexRuntime ? { codexRuntime } : {}),
+      };
+    };
+    if (options["--team"]) {
+      // monitor needs nothing else: there is no team screen to open.
+      if (command === "monitor") fail(...NO_TEAM_SCREEN);
+      const root = dataRoot(options["--data-dir"] as string | undefined);
+      console.log(
+        JSON.stringify(
+          command === "status"
+            ? await statusTeam(root)
+            : command === "stop"
+              ? await stopTeam(root)
+              : // No page to bookmark: any free port unless one is given.
+                await startTeam(root, startPort("0"), startLive()),
         ),
       );
       return;
@@ -359,39 +451,13 @@ export async function main(args: string[]): Promise<void> {
       };
     } else if (command === "status") result = await status(p);
     else if (command === "stop") result = await stop(p);
-    else {
-      const rawPort = options["--port"] ?? "8790";
-      if (
-        typeof rawPort !== "string" ||
-        !/^\d+$/.test(rawPort) ||
-        Number(rawPort) > 65535
-      )
-        fail("ARGUMENT", "Port must be an integer from 0 to 65535.");
-      const binaries = options["--live"]
-        ? options["--controller"] || options["--executor"]
-          ? {
-              controller: required("--controller"),
-              binary: required("--executor"),
-            }
-          : installedRuntime(options["--data-dir"] as string | undefined)
-        : undefined;
+    else
       result = await start(
         p,
-        Number(rawPort),
-        options["--live"]
-          ? {
-              controller: binaries!.controller,
-              binary: binaries!.binary,
-              authHome: join(homedir(), ".codex"),
-              socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
-              userHome: homedir(),
-              searchPath: process.env.PATH ?? "",
-              ...(codexRuntime ? { codexRuntime } : {}),
-            }
-          : undefined,
+        startPort("8790"),
+        startLive(),
         options["--lean"] ? "lean" : options["--claw"] ? "claw" : "legacy",
       );
-    }
     console.log(JSON.stringify(result));
   } catch (error) {
     console.error(

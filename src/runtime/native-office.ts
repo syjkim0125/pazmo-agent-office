@@ -58,6 +58,17 @@ type Config = {
   /** Picks the CLI runner per role and task instead of per role; given to the
    * live runtime as `choose`. Absent: the per-role Claw choice. */
   chooseRunner?: (role: ExecutingRole, taskId: string) => RunnerChoice;
+  /** True while another engine of the same host has a run; this engine then
+   * starts none (task creation and decisions are not affected). The host ties
+   * several engines to one run at a time with this and `onSettled`. */
+  othersActive?: () => boolean;
+  /** Called once each settled run, after this engine's own pump attempt: the
+   * continuation may have failed (it is logged) or, when another pump was
+   * already in progress, only been queued behind it. Either way the host is
+   * told, so it can let the other engines continue. Synchronous: a returned
+   * promise is not awaited. A throw is logged here and never reaches the
+   * runtime. */
+  onSettled?: () => void;
 };
 
 /** Reuses the qualified kit/VM implementation against Claw's original task DB.
@@ -246,7 +257,7 @@ export async function createNativeOffice(c: Config) {
     broadcast("task_update", task(id));
   }
   function dispatch(id: string, identity: string, run: () => unknown) {
-    if (!live || closing || live.status().active.length >= 1) return;
+    if (!live || closing || live.status().active.length >= 1 || c.othersActive?.()) return;
     if (
       db
         .prepare("INSERT OR IGNORE INTO pazmo_native_dispatches VALUES (?,?)")
@@ -593,13 +604,24 @@ export async function createNativeOffice(c: Config) {
   }
   if (live)
     live.onSettled = async () => {
-      try {
-        await pump();
-      } catch (error) {
+      // Each step is contained on its own: a failing continuation must not
+      // keep the host from letting its other engines continue (their waiting
+      // task would stay stranded), and a failing host callback never reaches
+      // the runtime.
+      const stopped = (error: unknown) =>
         console.error(
           "Native Office continuation stopped:",
           error instanceof Error ? error.message : String(error),
         );
+      try {
+        await pump();
+      } catch (error) {
+        stopped(error);
+      }
+      try {
+        c.onSettled?.();
+      } catch (error) {
+        stopped(error);
       }
     };
   const timer = setInterval(() => {
