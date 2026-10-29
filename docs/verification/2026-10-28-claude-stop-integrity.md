@@ -55,6 +55,6 @@ Story: M3 · M4 · D15. 앞선 변경: PR syjkim0125/pazmo-agent-office#36(머�
 
 - 실제 claude가 갱신 중에 SIGTERM을 받을 때 무엇을 출력하는지, SessionEnd hook을 이벤트로 흘리는지(만료 토큰과 관리형 hook이 있어야 볼 수 있다).
 - 6초가 실제로 충분한지(갱신 중 실제 claude의 종료 시간)는 재 보지 못했다.
-- 2026-10-29 갱신 없는 경우를 쟀다([실제 CLI 확인](2026-10-29-real-cli-runner-checks.md)). SIGTERM 뒤 0.3–1.7초에 끝났고, SessionEnd hook이 있으면 최대 1.9초였다. 실제 CLI는 SessionEnd hook을 SIGTERM 때도 정상 종료 때도 stream 이벤트로 내지 않는다. 갱신 중의 시간과 관리형 hook은 아직이다.
+- 2026-10-29 갱신 없는 경우를 쟀다([실제 CLI 확인](2026-10-29-real-cli-runner-checks.md)). SIGTERM 뒤 0.3–1.7초에 끝났고, SessionEnd hook이 있으면 최대 1.9초였다. 실제 CLI는 SessionEnd hook을 SIGTERM 때도 정상 종료 때도 stream 이벤트로 내지 않는다. 갱신이 걸린 claude(가짜 토큰, 답하지 않는 프록시)는 갱신을 최대 2초 기다리고 나갔다. 한가할 때는 2.5초 안에 끝났다. 부하가 높으면 6초를 넘었고(최대 9.1초), 6초 SIGKILL로 잠금이 남았다(load average 90–102에서 3회 중 2회). 관리형 hook은 아직이다.
 - `tests/claude-controller.test.mjs`의 기존 시험 10이 부하에서 흔들릴 수 있는 점(#36 리뷰 Minor).
 - **G4:** 사용자 답변으로만 기록한다.

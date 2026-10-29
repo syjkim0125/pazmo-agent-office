@@ -1,6 +1,6 @@
 # 2026-10-29 실제 claude·codex CLI로 리뷰 실행기 오류와 SIGTERM 종료 확인
 
-앞선 변경: PR syjkim0125/pazmo-agent-office#35([리뷰 실행기 오류](2026-10-27-review-runner-failure.md)), PR syjkim0125/pazmo-agent-office#40([claude 멈춤](2026-10-28-claude-stop-integrity.md)). 두 변경의 자동 시험은 가짜 CLI로 흉내만 냈다. 이 기록은 그중 세 가지를 이 Mac의 실제 CLI로 본 결과다. **제품 코드는 바꾸지 않았다.** 제안은 맨 아래에 있다.
+앞선 변경: PR syjkim0125/pazmo-agent-office#35([리뷰 실행기 오류](2026-10-27-review-runner-failure.md)), PR syjkim0125/pazmo-agent-office#40([claude 멈춤](2026-10-28-claude-stop-integrity.md)). 두 변경의 자동 시험은 가짜 CLI로 흉내만 냈다. 이 기록은 그중 세 가지와, 사용자 확인 뒤 한 갱신 중 SIGTERM(4번)을 이 Mac의 실제 CLI로 본 결과다. **제품 코드는 바꾸지 않았다.** 제안은 맨 아래에 있다.
 
 ## 환경
 
@@ -110,7 +110,7 @@ stdout은 A와 같은 `error`·`turn.failed`로 끝난다. 첫 error 항목만 �
 
 ## 3. claude가 SIGTERM에 끝나는 데 걸리는 시간
 
-**결론: 갱신이 없을 때 0.3–1.7초다.** SessionEnd hook이 있으면 기본 1.5초 한도까지 기다려 최대 1.9초다. hook에 timeout을 주면 그만큼(최대 60초) 늘어난다. SessionEnd hook은 stream-json 이벤트로 나오지 않는다. 갱신 중인 claude는 재 보지 않았다(4번).
+**결론: 갱신이 없을 때 0.3–1.7초다.** SessionEnd hook이 있으면 기본 1.5초 한도까지 기다려 최대 1.9초다. hook에 timeout을 주면 그만큼(최대 60초) 늘어난다. SessionEnd hook은 stream-json 이벤트로 나오지 않는다. 갱신 중인 claude는 4번에 있다.
 
 [`claude-sigterm.mjs`](real-cli-checks/claude-sigterm.mjs)의 방식:
 
@@ -158,24 +158,89 @@ HOOK_SLEEP=8 HOOK_TIMEOUT=4 node docs/verification/real-cli-checks/claude-sigter
     - 관리형 hook으로는 시험하지 않았다(시스템 폴더 쓰기가 필요하다).
 - 실제 로그인 실행은 Office가 취소할 때와 같은 일을 한다: 정상 실행 중에 SIGTERM을 받는다. 자격 증명을 고치거나 복사하거나 갱신을 일으키지 않았다.
 
-## 4. 갱신 중인 claude의 SIGTERM — 하지 않음
+## 4. 갱신 중인 claude의 SIGTERM
 
-갱신을 일으키려면 만료된 자격 증명이 필요하다. 사용자의 실제 자격 증명(`~/.claude`, Keychain `Claude Code-credentials`)은 건드리지 않기로 했으므로 **사용자 확인 전에는 돌리지 않았다.**
+**결론: 한가할 때는 2.5초 안에 끝나지만, 부하가 높으면 6초를 넘는다.** Office와 같이 6초 뒤 SIGKILL하면 **잠금이 남았다**(load average 90–102에서 3회 중 2회).
+
+- CLI는 SIGTERM 뒤 진행 중인 갱신을 **최대 2초만** 기다리고, 끝나지 않았으면 기다리지 않고 나간다.
+- 스스로 나가면 잠금은 언제나 풀렸다.
+- 늦어지는 것은 2초 대기 뒤 실제로 나가기까지의 시간이다. `--debug-file` 실행에서 이 시간은 0.6초에서 6.0초까지였고, 부하가 높을수록 길었다.
+
+사용자 확인(2026-10-29 "진행", 2026-10-30 "다시 시도해 주세요") 뒤 가짜 자격 증명으로 했다. 사용자의 실제 자격 증명(`~/.claude`, Keychain `Claude Code-credentials`)은 쓰지도 읽지도 않았다.
+
+### 방법
+
+[`claude-sigterm.mjs`](real-cli-checks/claude-sigterm.mjs)의 `refresh` 시나리오:
+
+- 격리 `CLAUDE_CONFIG_DIR`의 `.credentials.json`에 **가짜** OAuth 토큰을 넣는다. 만료 시각은 한 시간 전이다.
+- `HTTPS_PROXY`(대소문자 둘 다)를 받기만 하고 답하지 않는 로컬 프록시로 준다. 갱신 요청(`CONNECT platform.claude.com:443`)이 그 자리에 걸린다. 가짜 토큰은 이 Mac 밖으로 나가지 않는다.
+- `<config>/.oauth_refresh.lock`이 생기면 정한 시간 뒤 프로세스 그룹에 SIGTERM을 보낸다.
+- 끝난 뒤 다음을 본다: 종료 시간, 잠금, 그룹에 남은 프로세스, 가짜 토큰 파일, 격리 config용 Keychain 항목. Keychain은 `security find-generic-password -s`로 이름만 확인한다.
+- `SIGTERM_DEBUG=1`이면 `--debug-file`을 더해 종료·갱신 줄을 모은다.
+- `KILL_AFTER_MS=6000`이면 `runClaude`처럼 SIGTERM 6초 뒤 그룹에 SIGKILL을 보낸다. 격리 시나리오에만 쓴다. 사용자 로그인 시나리오(`real`)에는 SIGKILL을 보내지 않는다.
+
+```bash
+node docs/verification/real-cli-checks/claude-sigterm.mjs refresh 3 1000
+SIGTERM_DEBUG=1 node docs/verification/real-cli-checks/claude-sigterm.mjs refresh 3 0
+KILL_AFTER_MS=6000 node docs/verification/real-cli-checks/claude-sigterm.mjs refresh 3 0
+```
+
+부하: 측정하는 동안 다른 세션이 CPU 16스레드 부하 시험과 전체 시험을 돌렸다(이 Mac은 12코어). load average는 각 배치의 시작·끝 값이다. 부하를 일부러 만들지는 않았다.
 
 claude 2.1.280 바이너리에서 확인한 것:
 
 - `CLAUDE_CONFIG_DIR`를 주면 Keychain 서비스 이름은 `Claude Code-credentials-<config 경로 sha256 앞 8자리>`가 된다. 사용자의 항목과 다른 이름이다.
 - 평문 저장은 `<config>/.credentials.json`, 잠금은 `<config>/.oauth_refresh.lock`이다.
-- `CLAUDE_CODE_CUSTOM_OAUTH_URL`은 승인된 주소만 받는다. 그래서 로컬 가짜 토큰 서버로는 바꿀 수 없다.
+- 갱신은 `https://platform.claude.com/v1/oauth/token`으로 가는 POST이고 timeout은 30초다.
+- `CLAUDE_CODE_CUSTOM_OAUTH_URL`은 승인된 주소만 받는다. 그래서 로컬 가짜 토큰 서버 대신 답하지 않는 프록시를 썼다.
 
-안전한 방법(제안, 사용자 확인 필요):
+### 결과
 
-- 격리 `CLAUDE_CONFIG_DIR`의 `.credentials.json`에 **가짜** 토큰을 넣는다. 만료 시각은 과거로 한다.
-- 받기만 하고 답하지 않는 로컬 프록시를 `HTTPS_PROXY`로 준다. 갱신 요청이 걸린 채 남는다.
-- 그 상태에서 SIGTERM을 보내고 다음을 잰다: 종료 시간, 잠금이 풀리는지, 출력.
-- 가짜 토큰은 프록시가 전달하지 않으므로 Anthropic에 닿지 않는다.
-- 남는 위험: CLI가 격리 config용 Keychain 항목(`Claude Code-credentials-<hash>`)을 읽거나 만들 수 있다. 사용자의 실제 항목은 아니다. 생겼다면 시험 뒤 지울지 사용자에게 묻는다.
-- 쓰지 않을 방법: 실제 로그인이 만료되기를 기다려 관찰하는 것. 시점을 정할 수 없고, 갱신 도중 끊기면 로그아웃될 수 있다.
+SIGKILL 없이(CLI가 스스로 나갈 때까지 기다림):
+
+| 잠금이 생기고 SIGTERM까지 | load average | 횟수 | SIGTERM→종료 | 6초 넘음 |
+|---|---|---|---|---|
+| 1.0초 (첫 시험) | 기록 안 함(직후 129) | 1 | 4267ms | 0 |
+| 1.0초 | 103–134 | 3 | 4167–4898ms | 0 |
+| 8.0초 | 103–134 | 3 | 2552–3010ms | 0 |
+| 1.0초, `--debug-file` | 117 | 1 | 4184ms | 0 |
+| 0초, `--debug-file` | 75–130 | 3 | 5726, 6832, **9119**ms | 2 |
+| 1.0초, `--debug-file` | 135–172 | 3 | 4236, 5261, **7823**ms | 1 |
+| 8.0초, `--debug-file` | 171 | 3 | 2978–4302ms | 0 |
+
+Office와 같이 SIGTERM 6초 뒤 그룹 SIGKILL(`KILL_AFTER_MS=6000`):
+
+| 잠금이 생기고 SIGTERM까지 | load average | 횟수 | SIGTERM→종료 | SIGKILL됨 | 잠금 남음 |
+|---|---|---|---|---|---|
+| 0초 | 부하 시험이 막 끝남(1분 평균 165–174, 잠금이 0.3–1.1초에 생김) | 5 | 546–706ms | 0 | 0 |
+| 1.0초 | 같음(1분 평균 124–165) | 5 | 2517–2528ms | 0 | 0 |
+| 0초 | 90–102 | 3 | 2912ms, 6010ms, 6027ms | **2** | **2** |
+| 1.0초 | 102–103 | 3 | 2747–4354ms | 0 | 0 |
+| 8.0초 | 103–116 | 3 | 2924–4991ms | 0 | 0 |
+
+모든 실행에서 다음을 확인했다.
+
+- CLI가 스스로 나간 실행은 모두 exit code 143이었고, 끝난 뒤 `.oauth_refresh.lock`이 남지 않았다. 잠금이 남은 것은 SIGKILL된 2회뿐이다.
+- 8초 실행에서는 잠금 mtime이 2번 바뀌었다(보유자가 살아 있을 때 5초마다 갱신된다).
+- 가짜 토큰 파일은 그대로였다. 격리 config용 Keychain 항목은 실행 전후 모두 없었다.
+- stdout은 비어 있었다. 갱신은 `init`보다 먼저 일어난다. stderr도 비어 있었다.
+- 사용자의 `~/.claude/.oauth_refresh.lock`은 측정 전후 모두 없었다.
+- 부하가 높을 때 CLI가 띄운 `xcodebuild -license check`가 CLI 종료 직후에도 그룹에 남아 있는 일이 자주 있었다. Office는 CLI가 끝나면 그룹을 SIGKILL하므로(#40의 2번) 이 경우를 처리한다.
+- 프록시에는 `CONNECT platform.claude.com:443`이 먼저 오고, 4–5초 뒤 `CONNECT api.anthropic.com:443`이 몇 번 왔다. 둘 다 답하지 않았다.
+
+`--debug-file` 로그 한 예(SIGTERM 기준 시각, load average 117):
+
+```
+3248ms  [DEBUG] OAuth refresh still in flight after 2000ms; exiting without waiting further
+4012ms  [DEBUG] Graceful shutdown initiated, skipping further initialization
+4019ms  [DEBUG] GrowthBook: pre-init OAuth refresh failed (timeout)
+(4184ms에 exit 143)
+```
+
+- "최대 2초 기다린 뒤 나간다"는 #40 리뷰어의 바이너리 읽기와 맞는다.
+- `--debug-file` 실행 10회에서 "still in flight after 2000ms" 줄은 SIGTERM 뒤 2.1–4.6초에 찍혔다. 실제 종료는 그 뒤 0.6–6.0초가 더 걸렸다. 가장 느린 것은 9.1초였다.
+- SIGTERM이 잠금이 생긴 직후(0초)에 오면 가장 오래 걸렸다. CLI가 아직 시작 중이기 때문으로 보인다("skipping further initialization").
+- 갱신이 끝나지 않은 채 나가므로, 서버가 이미 토큰을 바꿨는데 응답을 받기 전이었다면 새 토큰은 저장되지 않는다. 이것은 CLI의 동작이고 Office의 유예 시간으로는 바뀌지 않는다.
 
 ## 제안 (제품 코드는 바꾸지 않았다)
 
@@ -191,15 +256,25 @@ claude 2.1.280 바이너리에서 확인한 것:
     - (a) claude 실행 전에 관리형 설정 파일에 `hooks`가 있으면 claude 실행기를 막는 사전 검사를 둔다.
     - (b) 한계로 문서에만 적는다.
   - `src/runners/claude-controller.ts`의 주석과 [solutions 문서](../solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md)의 "종료 중 hook 이벤트" 설명은 이 측정에 맞게 고쳐야 한다. 이 PR에서는 solutions 문서만 고쳤다.
-- **P2. 6초는 갱신이 없는 경우에는 넉넉하다(최대 1.9초).**
-  - 갱신 중의 시간은 4번을 해야 안다.
+- **P2. 부하가 높으면 6초 유예로는 갱신 잠금이 남는다(결정 필요).**
+  - 갱신이 걸린 claude는 한가할 때 2.5초 안에 끝났다.
+  - load average 75–172에서는 16회 중 3회가 6초를 넘었다(SIGKILL 없음, 최대 9.1초).
+  - Office와 같은 6초 SIGKILL을 걸면 load average 90–102에서 3회 중 2회 잠금이 남았다.
+  - 잠금이 남으면 2026-10-23 사고와 같다. 뒤에 오는 claude가 로그인 갱신에 실패한다. 잠금은 다른 claude가 60초 지난 잠금을 넘겨받을 때까지 남는다.
+  - 선택지:
+    - (a) 유예를 늘린다. 예: `runClaude` 12초, `superviseRemote` 18초. 측정 최대 9.1초에 여유를 둔 값이다. 비용은 SIGTERM을 무시하는 CLI가 그만큼 늦게 죽는 것뿐이다. 한가할 때 정상 claude는 지금처럼 0.3–2.5초에 끝난다.
+    - (b) 6초를 두고, SIGKILL 뒤 잠금을 지우는 정리를 넣는다. 그 잠금이 이 프로세스의 것인지 Office가 알 수 없어서, 다른 살아 있는 claude의 잠금을 지울 수 있다. 권하지 않는다.
+    - (c) 그대로 둔다. 이 측정의 부하(다른 세션의 CPU 부하 시험)는 평소보다 훨씬 높다. 평소의 동시 시험 부하(load average 24–33)는 재지 않았다.
+  - 추천: (a). 바꾸려면 #40과 같은 범위의 제품 변경이다(시험 2개의 시간 한도도 같이 바뀐다).
   - 관리형 SessionEnd hook이 timeout을 길게 잡으면, 6초 뒤 SIGKILL이 hook을 끊는다. 그때 CLI가 갱신 잠금을 잡고 있었다면 잠금은 남는다. 잠금 해제와 SessionEnd hook 중 무엇이 먼저인지는 확인하지 않았다.
 - **P3. codex 0.163.0의 `shell_zsh_fork` 경고.** 버전에 따라 이 설정을 넣지 않거나 그대로 둔다. stream에 error 항목이 하나 늘 뿐이고 결과는 같으므로 우선순위는 낮다.
 - **P4. codex 네트워크 실패.** 실행기 실패(`REVIEW_RUNNER_FAILED`)가 아니라 240초 뒤 `UNKNOWN_RESULT`로 사람에게 넘어간다. 둘 다 사람 확인이므로 바꿀 필요는 없다고 본다.
 
 ## 확인하지 못한 것
 
-- 갱신 중인 claude의 SIGTERM 종료 시간과 잠금 해제(4번, 사용자 확인 대기).
+- 갱신 중 SIGTERM은 가짜 토큰과 답하지 않는 프록시로만 했다. 실제 토큰 서버가 느리게 답하는 경우, 갱신이 서버에서 끝났지만 응답을 받기 전인 경우는 보지 않았다.
+- 평소 부하(load average 24–33)와 완전히 한가한 상태에서의 갱신 중 SIGTERM. 측정 내내 다른 세션의 부하 시험이 돌았다.
+- 갱신과 SessionEnd hook이 함께 있을 때의 종료 시간과 순서.
 - 관리형 SessionEnd hook. 시스템 폴더 `/Library/Application Support/ClaudeCode/`에 써야 한다.
 - 취소 시간을 Office bridge·exec relay가 붙은 `claudeJob` 경로로 재지 않았다. 측정은 빈 MCP 설정으로 했다. relay 정리(최대 5초)는 `superviseRemote`의 12초 유예에 따로 들어 있다.
 - 10-27의 원래 증상인 안전장치 거절. 같은 exit 1 경로라고 보지만 재현하지 않았다.
