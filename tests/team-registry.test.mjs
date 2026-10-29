@@ -27,6 +27,7 @@ import {
   teamDir,
   teamRunning,
 } from "../src/team/registry.ts";
+import { openTeamStore } from "../src/team/store.ts";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
@@ -274,6 +275,34 @@ test("a repo whose folder is gone can still be removed", async (t) => {
   rmSync(dir, { recursive: true });
   await removeTeamRepo(f.data, entry.project);
   assert.deepEqual(readTeam(f.data).repos, []);
+});
+
+test("a repo that holds the open claim cannot be removed (OPEN_CLAIM) until the claim is dropped", async (t) => {
+  const f = fixture(t);
+  const a = await addTeamRepo(f.data, f.repo("alpha"));
+  const b = await addTeamRepo(f.data, f.repo("beta"));
+  const task = { taskId: "t1", claimId: "c1", number: 1, title: "T", story: { number: 1 } };
+  const store = openTeamStore(teamDir(f.data));
+  t.after(() => store.close());
+  store.recordClaim(a.project, task, "claim");
+
+  await assert.rejects(removeTeamRepo(f.data, a.project), { code: "OPEN_CLAIM" });
+  const cli = team(f, "remove", a.project);
+  assert.equal(cli.status, 1);
+  assert.equal(cli.value.code, "OPEN_CLAIM");
+  assert.deepEqual(readTeam(f.data).repos, [a, b], "a refused remove leaves the registry as it was");
+  // Another repo is not held up by it.
+  await removeTeamRepo(f.data, b.project);
+  store.dropClaim("t1", "test");
+  await removeTeamRepo(f.data, a.project);
+  assert.deepEqual(readTeam(f.data).repos, []);
+});
+
+test("remove opens no team database when there is none", async (t) => {
+  const f = fixture(t);
+  const a = await addTeamRepo(f.data, f.repo("alpha"));
+  await removeTeamRepo(f.data, a.project);
+  assert.deepEqual(readdirSync(teamDir(f.data)), ["team.json"]);
 });
 
 test("a registry that is not valid is INVALID rather than read as empty", async (t) => {

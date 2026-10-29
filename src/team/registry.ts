@@ -13,6 +13,7 @@ import { fail, locate, noSymlinks, OfficeError } from "../cli/project.ts";
 import type { Project } from "../cli/project.ts";
 import { status } from "../cli/lifecycle.ts";
 import { projectRemote } from "../runtime/hub-connect.ts";
+import { openTeamStore } from "./store.ts";
 
 /** One repo of the team Office. `remote` is `normalizeRemote(origin)`:
  * host/path with no scheme, credentials or `.git`. */
@@ -213,5 +214,24 @@ export async function removeTeamRepo(
   const repos = team.repos.filter((repo) => repo.project !== project);
   if (repos.length === team.repos.length)
     fail("INVALID", "That repo is not registered in the team Office.");
+  // An open record of a repo that is no longer registered has no lane to send
+  // its heartbeat or to finish it, and it would keep every claim waiting.
+  if (openClaimProject(root) === project)
+    fail(
+      "OPEN_CLAIM",
+      "The team Office holds an open Story Task of this repo. Remove the repo once that claim is closed: when the PL releases or cancels the Task, the running team Office drops it at its next heartbeat.",
+    );
   writeTeam(root, { version: 1, repos });
+}
+
+/** The repo of the team Office's open claim, if any. No database yet means no
+ * claim, and none is created just to look. */
+function openClaimProject(root: string): string | null {
+  if (!existsSync(join(teamDir(root), "team.sqlite"))) return null;
+  const store = openTeamStore(teamDir(root));
+  try {
+    return store.openClaim()?.project ?? null;
+  } finally {
+    store.close();
+  }
 }

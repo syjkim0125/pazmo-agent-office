@@ -13,13 +13,15 @@ import {
   dataRoot,
   fail,
   init,
+  initTeam,
   locate,
   noSymlinks,
   packageRoot,
 } from "./project.ts";
-import { monitor, start, status } from "./lifecycle.ts";
+import { monitor, start, startTeam, status } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
-import { assertNotInTeam } from "../team/registry.ts";
+import { assertNotInTeam, readTeam } from "../team/registry.ts";
+import type { LiveConfig } from "../runtime/live.ts";
 import { runCommand } from "../runners/command.ts";
 import { IMAGE } from "../runners/container-verifier.ts";
 import { discoverRunners } from "../runners/runner-discovery.ts";
@@ -222,7 +224,7 @@ export async function prepareVendor(
 /** `up` reuses an Office only when it runs the engine asked for and can execute. */
 export function canReuse(
   current: { status: string; engine?: string; execution?: string },
-  engine: "claw" | "lean",
+  engine: "claw" | "lean" | "team",
 ): boolean {
   return (
     current.status === "running" &&
@@ -230,18 +232,100 @@ export function canReuse(
     current.execution === "ready"
   );
 }
-export async function up(options: {
+type UpOptions = {
   project?: string;
   dataDir?: string;
   port?: number;
   open?: boolean;
   codexRuntime?: "installed" | "pinned";
-  /** The engine to run; claw unless the lean Office is asked for. */
-  engine?: "claw" | "lean";
-}) {
+  /** The engine to run; claw unless the lean or team Office is asked for. */
+  engine?: "claw" | "lean" | "team";
+};
+
+/** Steps 1–3 of `up`, the same for every engine: the prerequisites and a
+ * logged-in runner, the vendor dependencies (and Claw's UI build), the pinned
+ * Codex runtime, the dedicated VM and its isolation probe. Returns the live
+ * configuration step 4 starts the Office with. */
+async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptions): Promise<LiveConfig> {
+  for (const name of ["colima", "docker"])
+    if (!existsSync(`/opt/homebrew/bin/${name}`))
+      fail(
+        "PREREQUISITE",
+        "최초 준비: Homebrew에서 brew install colima docker 후 다시 실행해주세요.",
+      );
+  assertRunnerLogin(
+    await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() }),
+    {
+      codexAuth: existsSync(join(homedir(), ".codex/auth.json")),
+      codexRuntime: options.codexRuntime,
+    },
+  );
+  // Every engine needs the vendor dependencies; only Claw builds its UI.
+  console.error(
+    engine === "claw"
+      ? "[1/4] 설치·빌드 확인 (첫 설치는 시간이 걸릴 수 있습니다)"
+      : `[1/4] 의존성 설치 확인 (${engine === "lean" ? "lean" : "팀"} Office는 UI 빌드가 없습니다. 첫 설치는 시간이 걸릴 수 있습니다)`,
+  );
+  await prepareVendor(run, engine === "claw" ? "claw" : "lean");
+  console.error("[2/4] 고정된 Codex 실행 파일 확인");
+  await setupRuntime(options.dataDir, true);
+  console.error("[3/4] 전용 VM·이미지 준비 및 파일 공유 차단 확인");
+  const config = join(homedir(), ".colima/pazmo-office/colima.yaml");
+  await prepareVm(run, () =>
+    existsSync(config) ? readFileSync(config, "utf8") : undefined,
+  );
+  // Existing diagnostic does not use credentials or call a model.
+  const report = JSON.parse(
+    await run("/usr/bin/python3", ["scripts/probe-vm-isolation.py"]),
+  );
+  if (report.exitCode !== 0) fail("VM_PROBE", "VM 경계 검증이 실패했습니다.");
+  console.error(`VM 검사 기록: ${report.report}`);
+  console.error("[4/4] Office 실행");
+  const binaries = installedRuntime(options.dataDir);
+  return {
+    controller: binaries.controller,
+    binary: binaries.binary,
+    authHome: join(homedir(), ".codex"),
+    socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
+    userHome: homedir(),
+    searchPath: process.env.PATH ?? "",
+    ...(options.codexRuntime ? { codexRuntime: options.codexRuntime } : {}),
+  };
+}
+
+/** `up --team`: every registered repo is prepared as `up` prepares one (its
+ * git root, its Office metadata), then the machine as for lean, then one team
+ * Office runs them all. There is no page to open yet; the result is its status. */
+async function upTeam(options: UpOptions) {
+  const root = dataRoot(options.dataDir);
+  const { repos } = readTeam(root);
+  if (repos.length === 0)
+    fail(
+      "NO_REPOS",
+      "No repo is registered in the team Office. Add one with `team add --project PATH` first.",
+    );
+  for (const repo of repos) {
+    const p = locate(repo.project, options.dataDir);
+    await run("/usr/bin/git", ["-C", p.project, "rev-parse", "--show-toplevel"]);
+    init(p, true);
+  }
+  const p = initTeam(root);
+  const current = await status(p);
+  if (current.status !== "stopped" && !canReuse(current, "team"))
+    fail(
+      "RUNNING",
+      "기존 실행을 보존했습니다. status --team/stop --team으로 기존 실행 상태를 확인해주세요.",
+    );
+  if (current.status === "stopped")
+    await startTeam(root, options.port ?? 0, await prepareMachine("team", options));
+  return { ...(await status(p)), reused: current.status === "running" };
+}
+
+export async function up(options: UpOptions) {
   const engine = options.engine ?? "claw";
   if (process.platform !== "darwin" || process.arch !== "arm64")
     fail("PLATFORM", "현재 live 실행은 Apple Silicon macOS에서 검증됐습니다.");
+  if (engine === "team") return upTeam(options);
   const root = dataRoot(options.dataDir),
     preference = join(root, "launcher.json");
   noSymlinks(preference);
@@ -274,57 +358,8 @@ export async function up(options: {
       "RUNNING",
       "기존 실행을 보존했습니다. status/stop으로 기존 실행 상태를 확인해주세요.",
     );
-  if (current.status === "stopped") {
-    for (const name of ["colima", "docker"])
-      if (!existsSync(`/opt/homebrew/bin/${name}`))
-        fail(
-          "PREREQUISITE",
-          "최초 준비: Homebrew에서 brew install colima docker 후 다시 실행해주세요.",
-        );
-    assertRunnerLogin(
-      await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() }),
-      {
-        codexAuth: existsSync(join(homedir(), ".codex/auth.json")),
-        codexRuntime: options.codexRuntime,
-      },
-    );
-    // Both engines need the vendor dependencies; only Claw builds its UI.
-    console.error(
-      engine === "lean"
-        ? "[1/4] 의존성 설치 확인 (lean Office는 UI 빌드가 없습니다. 첫 설치는 시간이 걸릴 수 있습니다)"
-        : "[1/4] 설치·빌드 확인 (첫 설치는 시간이 걸릴 수 있습니다)",
-    );
-    await prepareVendor(run, engine);
-    console.error("[2/4] 고정된 Codex 실행 파일 확인");
-    await setupRuntime(options.dataDir, true);
-    console.error("[3/4] 전용 VM·이미지 준비 및 파일 공유 차단 확인");
-    const config = join(homedir(), ".colima/pazmo-office/colima.yaml");
-    await prepareVm(run, () =>
-      existsSync(config) ? readFileSync(config, "utf8") : undefined,
-    );
-    // Existing diagnostic does not use credentials or call a model.
-    const report = JSON.parse(
-      await run("/usr/bin/python3", ["scripts/probe-vm-isolation.py"]),
-    );
-    if (report.exitCode !== 0) fail("VM_PROBE", "VM 경계 검증이 실패했습니다.");
-    console.error(`VM 검사 기록: ${report.report}`);
-    console.error("[4/4] Office 실행");
-    const binaries = installedRuntime(options.dataDir);
-    await start(
-      p,
-      options.port ?? 0,
-      {
-        controller: binaries.controller,
-        binary: binaries.binary,
-        authHome: join(homedir(), ".codex"),
-        socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
-        userHome: homedir(),
-        searchPath: process.env.PATH ?? "",
-        ...(options.codexRuntime ? { codexRuntime: options.codexRuntime } : {}),
-      },
-      engine,
-    );
-  }
+  if (current.status === "stopped")
+    await start(p, options.port ?? 0, await prepareMachine(engine, options), engine);
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const temp = `${preference}.${process.pid}.tmp`;
   writeFileSync(temp, JSON.stringify({ version: 1, project: p.project }), {
