@@ -278,7 +278,7 @@ node bin/pazmo-office.mjs stop --project /absolute/path/to/project
 
 ## 팀 Office (2단계, 시험)
 
-팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜는 단계다. 팀 Office는 repo마다 lean 엔진을 하나씩 두고, 모든 repo를 통틀어 한 번에 하나만 실행한다. 실행 중인 일이 없고 가져가기 멈춤·하루 상한에 걸리지 않으면, repo마다 Hub 연결과 `gh` 로그인을 확인한 뒤 담당 repo의 ready Task 하나를 가져와 기록하고 하트비트를 보낸다. **가져온 Task를 아직 실행하지 않는다(3단계).** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
+팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜는 단계다. 팀 Office는 repo마다 lean 엔진을 하나씩 두지만, **2단계 팀 Office는 repo 엔진을 실행하지 않는다(3단계에서 Story Task 모드와 함께 켬).** 가져가기 멈춤·하루 상한에 걸리지 않으면, repo마다 Hub 연결과 `gh` 로그인을 확인한 뒤 담당 repo의 ready Task 하나를 가져와 기록하고 하트비트를 보낸다. **가져온 Task를 아직 실행하지 않는다(3단계).** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
 
 ```sh
 # `pazmo-office`는 `node bin/pazmo-office.mjs`와 같다
@@ -300,7 +300,8 @@ pazmo-office status --team
 
 - **상태(`status --team`):** repo마다 `state`와 `gh` 결과가 나온다.
   - `state`는 `ready`, `no-link`(Hub 연결 없음), `gh`(로그인 안 됨), `relink`(Hub가 연결을 거절함, 다시 연결), `hub-too-old`(Hub가 Story 경로를 모름) 중 하나다.
-  - 그 밖에 `paused`, `dailyCap`, `today`(오늘 새로 가져온 수), `claim`(지금 가진 Task의 Story·Task 번호와 제목, repo), `busy`(실행 중인 엔진이 있는지)가 나온다.
+  - 그 밖에 `paused`, `dailyCap`, `today`(오늘 새로 가져온 수), `claim`(지금 가진 Task의 Story·Task 번호와 제목, repo), `busy`(실행 중인 엔진이 있는지. 2단계는 엔진을 실행하지 않으므로 늘 `false`)가 나온다.
+  - `execution`은 `--live`(또는 `./office --team`)로 켰는지만 나타낸다. 2단계에서는 어느 쪽이든 repo 엔진이 잠겨 있다.
   - ready가 아닌 repo는 5분마다 다시 확인한다. 연결하거나 로그인한 뒤 재시작할 필요는 없다.
 - **가져가기 설정**(팀 Office가 꺼져 있어도 된다):
 
@@ -312,11 +313,13 @@ pazmo-office team cap off    # 상한 없음
 pazmo-office team status     # 설정과 열린 기록 (Office가 꺼져 있어도 된다)
 ```
 
-- **멈추기:** `pazmo-office stop --team`. repo 엔진 중 하나라도 실행 중이면 `TASK_ACTIVE`로 거부한다.
-- **가진 Task:** 2단계는 가져온 Task를 끝내지 않는다. 그래서 한 번 가져오면 그 기록이 닫힐 때까지 새 Task를 가져가지 않는다. PL이 Hub에서 그 Task를 풀거나 취소하면, 켜져 있는 팀 Office가 다음 하트비트에서 기록을 닫는다.
-- **repo 바꾸기:** `team add`·`team remove`는 팀 Office를 멈춘 뒤에 한다(`TEAM_RUNNING`). 지금 가진 Task의 repo는 그 기록이 닫힐 때까지 뺄 수 없다(`OPEN_CLAIM`).
+- **멈추기:** `pazmo-office stop --team`.
+- **가진 Task:** 2단계는 가져온 Task를 끝내지 않는다. 그래서 한 번 가져오면 그 기록이 닫힐 때까지 새 Task를 가져가지 않는다. 켜져 있는 팀 Office는 60초마다 하트비트를 보내 그 Task가 보류되지 않으므로, PL은 풀 수 없고 취소만 할 수 있다. PL이 Hub에서 그 Task를 취소하면 켜져 있는 팀 Office가 다음 하트비트에서 기록을 닫는다. Hub가 그 Task를 모른다고 답하면(`NOT_FOUND`, Hub를 새로 만들었거나 repo를 다른 Hub에 다시 연결함) 기록을 닫고, Hub가 아직 이 사람의 claim이라고 하면 다음 가져가기에서 다시 받는다.
+- **repo 바꾸기:** `team add`·`team remove`는 팀 Office를 멈춘 뒤에 한다. 켜지는 중에도 거부한다(`TEAM_RUNNING`). 지금 가진 Task의 repo는 폴더가 남아 있는 한 그 기록이 닫힐 때까지 뺄 수 없다(`OPEN_CLAIM`).
+- **repo 폴더를 옮기거나 지웠을 때:** `start --team`·`./office --team`이 `REPO_MISSING`으로 멈추고 그 경로와 `pazmo-office team remove --project <경로>`를 알려 준다. 폴더를 제자리에 돌려놓거나, 그 명령으로 뺀다. 폴더가 없는 repo는 가진 Task가 있어도 빠지고, 그 로컬 기록은 버린다(`REPO_REMOVED`). Hub의 그 Task는 하트비트가 끊겨 10분 뒤 보류되고, 그다음은 PL이 정한다.
+- **repo에 남은 lean 작업:** 등록 전에 그 repo의 단일 lean Office에서 하던 작업은 손대지 않고 그대로 기다린다. 팀 Office는 그것을 시작하지도 보여 주지도 않는다. 그 repo를 `team remove`하고 단일 Office로 켜면 다시 보인다.
 - **데이터:** 팀 Office 자신의 데이터는 데이터 디렉터리의 `team/`이다. repo 엔진은 그 repo의 기존 lean 데이터를 그대로 쓴다. 등록된 repo는 단일 Office(`--lean`·`--claw`)로 켤 수 없다(`IN_TEAM_OFFICE`).
-- **실행 잠금으로 켜기:** `start --team`은 모델 실행이 잠긴 채 켠다. 가져가기와 하트비트는 그래도 돈다.
+- **실행 잠금:** 2단계 팀 Office는 `start --team`, `start --team --live`, `./office --team` 어느 것으로 켜도 repo 엔진을 잠근 채 연다. 가져가기·`gh` 확인·하트비트는 그래도 돈다.
 - **없는 것:** 가져온 Task 실행(3단계), PL의 Story 올리기(4단계), 화면(`monitor --team`은 `UNSUPPORTED`, 5단계)
 
 ## 검증
