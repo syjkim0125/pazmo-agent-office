@@ -2,8 +2,8 @@
 
 - #35의 후속이다. 리뷰 실행기가 보고서 없이 끝나 Office 결과가 unknown(`REVIEW_RUNNER_FAILED`)이어도, kit 리뷰어 run에는 `verdict: "needs_changes"`가 적혀 리뷰어가 수정을 요청한 것처럼 보였다. 이제 판정이 없는 리뷰(실행기 실패·시간 초과 등)는 `verdict`와 `reviewedRevision` 없이 "No review verdict" 실패(`action: "human"`)로 남고, 실행기 실패면 피드백에 `REVIEW_RUNNER_FAILED`가 들어간다(D27, ASSUMED).
 - kit 파일은 바꾸지 않았다. kit는 리뷰어 판정(pass·needs_changes) 검사를 통과한 기록에만 한다. Office 흐름(멈춤·이유·수정 횟수)도 그대로다.
-- 자동 검사: root 960/960, 타입 검사 exit 0, Story 검사기 exit 0. 새 시험은 고치기 전 `needs_changes`로 실패했다.
-- **G4는 남아 있다.** [검증 기록](verification/2026-10-29-kit-review-without-verdict.md)
+- 자동 검사: root 1093/1093(#41을 합친 `3ebcff8`, 합치기 전 `b84d62d` 기준 960/960), 타입 검사 exit 0, Story 검사기 exit 0. 새 시험은 고치기 전 `needs_changes`로 실패했다. 독립 리뷰 두 번 Approve.
+- PR syjkim0125/pazmo-agent-office#42. **G4는 남아 있다.** [검증 기록](verification/2026-10-29-kit-review-without-verdict.md)
 
 # 2026-10-29 팀 Story 보드 2단계 (팀 Office 여러 repo, 시험)
 
