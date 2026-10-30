@@ -17,6 +17,7 @@
 | `948afc7` | 단순화 리뷰 반영: `ws` static import, `Engine` 타입 재사용, 의존성 설치를 거부 판단 뒤로(새로 켤 때는 준비물·로그인 확인 뒤), 읽지 않는 `operatorToken` 칸 삭제 |
 | `91d9a27` | origin/main(#48 내부 이름 별칭, #49) 병합. 이 브랜치의 새 문서도 별칭으로 |
 | `3bfb30a` | 독립 리뷰 반영(아래 "독립 리뷰") |
+| `73b15ed` | origin/main(#51, D31: live lean 시작 대기 30초) 병합. `STARTUP_MS`는 lean 30초·team 15초만 남김 |
 
 남긴 것(결정 2): `native-office.ts`의 Claw용 API, `operator.ts`, `runner-settings.ts`의 역할별 경로, `hub-link.ts`·`hub-outgoing.ts`의 옛 요청 흐름과 그 시험. D24 3단계 뒤 별도로 정리한다.
 
@@ -30,6 +31,7 @@
 | 단순화 뒤(`948afc7`) 관련 시험 15개 파일 | **244/244** exit 0 |
 | main 병합 뒤(`91d9a27`) 전체 시험 | **1070/1070** exit 0, 112.2초. 파일별 시험 수는 병합 전과 같음(#48이 바꾼 파일 이름 2개만 다름) |
 | 리뷰 반영 뒤(`3bfb30a`) 전체 시험 | **1072/1072** exit 0, 117.6초(다른 세션의 전체 시험과 같이 돎). 새 시험 2개: lockfile 없는 설치(`launcher`), 켜진 Office 재사용 전 의존성 단계(`lifecycle`) |
+| #51 병합 뒤(`73b15ed`) 전체 시험 | **1074/1074** exit 0, 73.5초. #51의 시험 2개가 더해짐. main(`610169e`, 1106) 대비 −32 = Claw·legacy·bridge 전용 37개 삭제 + 새 시험 5개. 타입 검사 exit 0, Story 검사기 exit 0 |
 | 타입 검사(루트 `tsc`) | exit 0 (이 worktree, 새 사본, 병합 뒤) |
 | Story 검사기 | exit 0 |
 | `git ls-files vendor` | 0개, `.gitmodules` 없음 |
