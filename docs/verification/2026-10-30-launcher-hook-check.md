@@ -80,9 +80,10 @@ Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-sto
 |---|---|
 | root `npm test`, 구현 1회차 `2d1fbba` (2026-10-30 10:42–10:44, load average 9–17) | 1109/1109, exit 0 |
 | root `npm test`, 구현 2회차 `2e8a816` (10:59–11:02, load average 27–34) | 1114/1114, exit 0 |
+| root `npm test`, 최종 `44f478c` (2차 리뷰 문서 반영 뒤, 11:04–11:06, load average 13–25) | 1114/1114, exit 0 |
 | 영향 파일 `launcher`·`runner-settings`·`runner-models` + `live-runtime`의 "runner mode" 시험(2회차) | 49/49, 3/3 |
-| `npm run typecheck` | exit 0 |
-| `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0 |
+| `npm run typecheck` (`44f478c`) | exit 0 |
+| `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` (`44f478c`) | exit 0 |
 
 - `2e8a816` 뒤 커밋은 문서·kit 기록만 바꿨다. 시험은 문서를 읽지 않는다(`tests/`에서 `docs/` 참조 없음).
 
