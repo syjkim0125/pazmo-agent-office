@@ -117,7 +117,7 @@
         "attempts": 1,
         "revision": 1,
         "output": {
-          "summary": "Fresh verification after review fixes: full suite 591/591 exit 0, typecheck 0, story/G1 checks 0; eevee-be local clone stays clean in git status after init, with records, and after remove; root .gitignore unchanged.",
+          "summary": "Fresh verification after review fixes: full suite 591/591 exit 0, typecheck 0, story/G1 checks 0; app-be local clone stays clean in git status after init, with records, and after remove; root .gitignore unchanged.",
           "evidence": [
             ".ai-workflow/runs/pazmo-office-gitignore-verify-1.md",
             "docs/verification/2026-10-13-pazmo-office-gitignore.md"
@@ -152,7 +152,7 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Office writes .pazmo-office/.gitignore ('*') on init (new and existing installs) and start, never overwrites an existing one, refuses symlinks, and remove deletes it only when its bytes match. Manifest format unchanged. RED 5 failing -> GREEN; related 46/46, full suite 590/590 exit 0, typecheck 0; local clone of eevee-be shows clean git status and unchanged root .gitignore. Simplification pass: remove() now iterates one owned-file list (managed + ignore) instead of a second loop.",
+          "summary": "Office writes .pazmo-office/.gitignore ('*') on init (new and existing installs) and start, never overwrites an existing one, refuses symlinks, and remove deletes it only when its bytes match. Manifest format unchanged. RED 5 failing -> GREEN; related 46/46, full suite 590/590 exit 0, typecheck 0; local clone of app-be shows clean git status and unchanged root .gitignore. Simplification pass: remove() now iterates one owned-file list (managed + ignore) instead of a second loop.",
           "evidence": [
             "docs/verification/2026-10-13-pazmo-office-gitignore.md",
             "tests/cli.test.mjs",
@@ -282,7 +282,7 @@
         "attempts": 1,
         "revision": 1,
         "output": {
-          "summary": "Fresh verification after review fixes: full suite 591/591 exit 0, typecheck 0, story/G1 checks 0; eevee-be local clone stays clean in git status after init, with records, and after remove; root .gitignore unchanged.",
+          "summary": "Fresh verification after review fixes: full suite 591/591 exit 0, typecheck 0, story/G1 checks 0; app-be local clone stays clean in git status after init, with records, and after remove; root .gitignore unchanged.",
           "evidence": [
             ".ai-workflow/runs/pazmo-office-gitignore-verify-1.md",
             "docs/verification/2026-10-13-pazmo-office-gitignore.md"

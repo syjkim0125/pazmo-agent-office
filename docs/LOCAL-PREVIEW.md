@@ -36,7 +36,7 @@ Office에서 허브 요청을 보내고 받던 화면(상단 팀 허브 버튼, 
 
 ### 팀원의 가장 짧은 순서
 
-1. 관리자에게 받은 **초대 링크**를 연다. 사내망 허브라면 먼저 아래 "인증서를 한 번 신뢰하기"를 한다(Fusion 허브는 필요 없다).
+1. 관리자에게 받은 **초대 링크**를 연다. 사내망 허브라면 먼저 아래 "인증서를 한 번 신뢰하기"를 한다(OpenShift 허브는 필요 없다).
 2. 합류하면 허브의 **내 Office 연결** 화면이 열린다. **연결 문자열 만들기 → 복사**를 누른다.
 3. 그 레포를 클론해 둔 자기 PC에서 `pazmo-office hub-link --project <레포 경로> --connect "<연결 문자열>"`을 실행한다.
    - 허브는 Office의 git origin으로 레포를 찾는다. 허브에 없는 레포면 내 이름을 담당자로 해서 자동 등록한다. 다른 사람이 담당자인 레포면 거부되고, 그 사람이나 관리자가 나를 담당자로 추가하면 같은 문자열로 다시 연결할 수 있다(10분 안).
@@ -44,17 +44,17 @@ Office에서 허브 요청을 보내고 받던 화면(상단 팀 허브 버튼, 
 
 결정은 [team-hub-onboarding-decision.md](understanding/team-hub-onboarding-decision.md)이다.
 
-### Fusion(OpenShift)에 허브 띄우기
+### OpenShift에 허브 띄우기
 
-노트북 IP가 바뀌어도 끊기지 않게 허브를 Fusion 프로젝트에 상시로 띄울 수 있다. 라우터가 공인 인증서로 TLS를 처리하므로 **CA 신뢰와 지문이 필요 없다.** 결정은 [team-hub-fusion-decision.md](understanding/team-hub-fusion-decision.md)이다.
+노트북 IP가 바뀌어도 끊기지 않게 허브를 OpenShift 프로젝트에 상시로 띄울 수 있다. 라우터가 공인 인증서로 TLS를 처리하므로 **CA 신뢰와 지문이 필요 없다.** 결정은 [team-hub-openshift-decision.md](understanding/team-hub-openshift-decision.md)이다.
 
-- 매니페스트는 OpenShift Template `deploy/fusion/pazmo-hub.json`이다. 이 레포가 공개라서 클러스터 호스트와 빌더 이미지는 매개변수이고, 실제 값은 git이 무시하는 `deploy/fusion/local.env`에 둔다.
+- 매니페스트는 OpenShift Template `deploy/openshift/pazmo-hub.json`이다. 이 레포가 공개라서 클러스터 호스트와 빌더 이미지는 매개변수이고, 실제 값은 git이 무시하는 `deploy/openshift/local.env`에 둔다.
 
 ```sh
 # local.env 예: HUB_HOST=pazmo-hub-<프로젝트>.<apps 도메인>, BUILDER_IMAGE=<Node 24 S2I 빌더 이미지>
 oc login …                      # 사용자가 직접
 oc project <프로젝트>
-oc process -f deploy/fusion/pazmo-hub.json --param-file=deploy/fusion/local.env | oc apply -f -
+oc process -f deploy/openshift/pazmo-hub.json --param-file=deploy/openshift/local.env | oc apply -f -
 npm run hub:bundle              # dist/hub-bundle 생성
 oc start-build pazmo-hub --from-dir dist/hub-bundle --follow
 oc logs deploy/pazmo-hub | head -1   # 첫 줄 JSON의 adminInvite가 관리자 입장 링크
@@ -118,14 +118,14 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
 - 레포는 Office 프로젝트의 `git origin`으로 정해진다. 허브에 없으면 origin 끝 이름(겹치면 `-2`)으로 등록되고 내가 담당자가 된다.
   - **origin을 확인하고 붙인다.** ssh 별칭(`git@github-work:…`)이나 포크·미러 origin은 다른 레포로 보여 `-2` 같은 새 레포가 생긴다.
   - **잘못 등록됐을 때:** 지금은 허브에서 레포를 지울 수 없다. 관리자가 레포 화면에서 맞는 담당자를 더하고 잘못 붙은 담당자를 뺀다. 남은 레포는 쓰지 않으면 된다.
-- 지문이 있으면 그 지문의 인증서 한 개만 신뢰하고, 없으면(Fusion) 공인 인증서를 시스템 신뢰로 검증한다. 토큰은 Office 데이터 디렉터리에 0600으로 저장되고 브라우저로 가지 않는다.
+- 지문이 있으면 그 지문의 인증서 한 개만 신뢰하고, 없으면(OpenShift) 공인 인증서를 시스템 신뢰로 검증한다. 토큰은 Office 데이터 디렉터리에 0600으로 저장되고 브라우저로 가지 않는다.
 - 이 연결은 [팀 Office](#팀-office-2단계-시험)가 repo마다 쓴다. 단일 Office는 허브에 연결하지 않는다.
 - `hub-unlink`는 이 Office의 설정만 지운다. 허브 쪽 연결 기록까지 끊으려면 허브의 레포 화면에서 연결 해제를 한다.
 - Office는 계속 `127.0.0.1`에만 열린다. 허브가 Office로 들어오지 않고, 연결은 사람이 명령을 실행할 때만 일어난다.
 
 ### 알려진 한계
 
-- 사내망 허브는 고정 사설 IPv4에서만 연다. 호스트 이름이나 IP 변경 자동 대응은 없다. IP가 자주 바뀌면 Fusion 허브를 쓴다.
+- 사내망 허브는 고정 사설 IPv4에서만 연다. 호스트 이름이나 IP 변경 자동 대응은 없다. IP가 자주 바뀌면 OpenShift 허브를 쓴다.
 - 허브 CA는 회전하지 않는다. 만료 30일 전이면 `HUB_CA_EXPIRING`으로 멈추며, TLS 디렉터리를 지우고 모두 다시 신뢰한다.
 
 ## 새 Office

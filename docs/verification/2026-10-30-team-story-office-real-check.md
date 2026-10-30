@@ -4,7 +4,7 @@ Story: M16 · V18 · D24. 2단계 검증 기록: [2026-10-29-team-story-office-r
 
 ## 어떻게 했나
 
-- **Hub:** 이 PC에서 `pazmo-office hub --host 127.0.0.1 --port 18443`(LAN 모드, 자체 CA)으로 새로 띄웠다. 공유 Fusion Hub는 쓰지 않았다.
+- **Hub:** 이 PC에서 `pazmo-office hub --host 127.0.0.1 --port 18443`(LAN 모드, 자체 CA)으로 새로 띄웠다. 공유 OpenShift Hub는 쓰지 않았다.
 - **Hub 준비:** 관리자·팀원 A(팀 Office 주인)·PL, repo 세 개와 소유자, A의 연결 문자열(1회용), PL의 링크 토큰은 Hub의 저장소 코드(`HubStore`)로 Hub DB에 바로 만들었다. Hub 웹 화면으로 하지는 않았다.
 - **팀 Office:** 실제 CLI로 했다(`team add`, `hub-link --connect`, `start --team`, `status --team`, `stop --team`, `team pause|resume|cap|status|remove`). 데이터는 시험용 `--data-dir`에만 썼다. 실행 잠금 상태(`start --team`, `--live` 없음)다.
 - **PL:** 실제 Hub Story API(프로토콜 3, PL의 링크 토큰)로 했다. 프로젝트 만들기, Story 올리기·열기, Task 추가, Task 취소, 보류된 Task 풀기다.
@@ -13,7 +13,7 @@ Story: M16 · V18 · D24. 2단계 검증 기록: [2026-10-29-team-story-office-r
   - b: origin 회사 GitHub Enterprise 호스트, gh 로그인됨
   - c: origin `gitlab.example.com`, gh 로그인 안 됨
   - a2: a와 origin이 같은 clone
-- **eevee-be는 쓰지 않았다.** eevee-be에는 실제 데이터 폴더와 Fusion Hub 연결이 있다. 시험용 데이터 폴더로 등록하면 그 repo의 Office 메타데이터와 어긋나거나 연결을 덮을 수 있다. 회사 GHE 호스트의 `gh` 확인은 repo b가 대신했다.
+- **app-be는 쓰지 않았다.** app-be에는 실제 데이터 폴더와 OpenShift Hub 연결이 있다. 시험용 데이터 폴더로 등록하면 그 repo의 Office 메타데이터와 어긋나거나 연결을 덮을 수 있다. 회사 GHE 호스트의 `gh` 확인은 repo b가 대신했다.
 
 ## 결과
 
@@ -51,7 +51,7 @@ Story 1: a-1(#2), a-2(#3, a-1 다음), b-1(#4), c-1(#5), 검증(#6). 나중에 a
 ## 확인하지 않은 것
 
 - `up --team`과 `./office --team`(VM·실행기 준비), `--live`
-- 공유 Fusion Hub, 다른 PC, eevee-be 자체
+- 공유 OpenShift Hub, 다른 PC, app-be 자체
 - Hub 웹 화면에서 하는 팀원·PL 동작(PL은 API로 했다)
 - 보류 전 풀기 거절
 - 가져온 Task 실행(3단계)

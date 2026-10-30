@@ -221,7 +221,7 @@ test("a signalled or unspawnable gh counts as logged-out; a missing gh never rea
 });
 
 test("remoteHost is the first piece of a normalized remote", () => {
-  assert.equal(remoteHost("github.example.com/team/eevee-be"), "github.example.com");
+  assert.equal(remoteHost("github.example.com/team/app-be"), "github.example.com");
   assert.equal(remoteHost("github.com/owner/repo"), "github.com");
   assert.equal(remoteHost("ghe.example.com:8443/team/x"), "ghe.example.com:8443");
 });

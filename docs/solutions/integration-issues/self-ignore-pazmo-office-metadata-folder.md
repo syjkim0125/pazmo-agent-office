@@ -19,7 +19,7 @@ tags: [pazmo-office, gitignore, init, remove, manifest, user-repo, untracked-fil
 
 ## Problem
 
-PR #19([Publish Lead proposals under .pazmo-office/plans](publish-lead-proposals-under-pazmo-office-plans.md))로 Office가 만드는 파일은 모두 `.pazmo-office/` 아래로 모였지만, 그 폴더 자체는 `.pazmo-office/`를 gitignore하지 않은 사용자 repo(예: eevee-be)에서 여전히 `?? .pazmo-office/`로 보였다. 이 폴더에는 machine-local 절대경로(`project`, `dataDir`)가 든 `config.json`/`manifest.json`(`src/cli/project.ts:180-185`, `src/cli/project.ts:201-213`), STORY.md/TASK.md 템플릿, 그리고 runtime 기록(`plans/`, `approved-contracts/`, `role-runs/`, `planning/`)이 쌓인다. 수정은 branch `codex/pazmo-office-gitignore`에 있으며, 이 문서를 쓰는 시점에는 commit/push/PR/merge 전이다(머지 후 PR 번호로 갱신).
+PR #19([Publish Lead proposals under .pazmo-office/plans](publish-lead-proposals-under-pazmo-office-plans.md))로 Office가 만드는 파일은 모두 `.pazmo-office/` 아래로 모였지만, 그 폴더 자체는 `.pazmo-office/`를 gitignore하지 않은 사용자 repo(예: app-be)에서 여전히 `?? .pazmo-office/`로 보였다. 이 폴더에는 machine-local 절대경로(`project`, `dataDir`)가 든 `config.json`/`manifest.json`(`src/cli/project.ts:180-185`, `src/cli/project.ts:201-213`), STORY.md/TASK.md 템플릿, 그리고 runtime 기록(`plans/`, `approved-contracts/`, `role-runs/`, `planning/`)이 쌓인다. 수정은 branch `codex/pazmo-office-gitignore`에 있으며, 이 문서를 쓰는 시점에는 commit/push/PR/merge 전이다(머지 후 PR 번호로 갱신).
 
 ## Symptoms
 
@@ -91,7 +91,7 @@ else if (left.includes(ignoreName)) preserved.push(ignoreName);
 
 manifest 밖에 둔 덕분에 `readManifest()`의 정확한 집합 비교가 그대로 유지되고, 기존 설치는 `CONFLICT` 없이 init/start에서 파일을 얻는다. `remove()`는 "지킬 대상이 남아 있는 동안에는 가드를 치우지 않는다"는 규칙으로, 기록이 남은 설치에서도 manifest의 절대경로와 기록이 다시 드러나지 않는다.
 
-검증: 전체 suite 591/591, typecheck exit 0. eevee-be를 `git clone --local`한 사본에서 init 직후, 기록 생성 후, remove 후 모두 `git status`가 깨끗했고 root `.gitignore` hash는 변하지 않았다(`docs/verification/2026-10-13-pazmo-office-gitignore.md`).
+검증: 전체 suite 591/591, typecheck exit 0. app-be를 `git clone --local`한 사본에서 init 직후, 기록 생성 후, remove 후 모두 `git status`가 깨끗했고 root `.gitignore` hash는 변하지 않았다(`docs/verification/2026-10-13-pazmo-office-gitignore.md`).
 
 남은 한계:
 - 이미 실행 중인 설치는 다음 `./office` 실행이나 stop+start 때 파일을 얻는다.

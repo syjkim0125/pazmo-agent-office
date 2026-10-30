@@ -187,7 +187,7 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh verification on main 187431a plus the working tree after all review fixes: npm test 943/943 exit 0 (OpenSSL 3.6.3 on PATH; with LibreSSL first one unrelated hub-link TLS test fails, recorded), typecheck 0, story check 0, diff check 0, lean 4 files 135/135, UI checked in a browser on a fake-runtime lean Office. eevee-be real check and G4 remain.",
+          "summary": "Fresh verification on main 187431a plus the working tree after all review fixes: npm test 943/943 exit 0 (OpenSSL 3.6.3 on PATH; with LibreSSL first one unrelated hub-link TLS test fails, recorded), typecheck 0, story check 0, diff check 0, lean 4 files 135/135, UI checked in a browser on a fake-runtime lean Office. app-be real check and G4 remain.",
           "evidence": [
             ".ai-workflow/runs/U19-verify-1.md",
             "docs/verification/2026-10-27-lean-rerun.md"
@@ -278,7 +278,7 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh verification on main 187431a plus the working tree after all review fixes: npm test 943/943 exit 0 (OpenSSL 3.6.3 on PATH; with LibreSSL first one unrelated hub-link TLS test fails, recorded), typecheck 0, story check 0, diff check 0, lean 4 files 135/135, UI checked in a browser on a fake-runtime lean Office. eevee-be real check and G4 remain.",
+          "summary": "Fresh verification on main 187431a plus the working tree after all review fixes: npm test 943/943 exit 0 (OpenSSL 3.6.3 on PATH; with LibreSSL first one unrelated hub-link TLS test fails, recorded), typecheck 0, story check 0, diff check 0, lean 4 files 135/135, UI checked in a browser on a fake-runtime lean Office. app-be real check and G4 remain.",
           "evidence": [
             ".ai-workflow/runs/U19-verify-1.md",
             "docs/verification/2026-10-27-lean-rerun.md"

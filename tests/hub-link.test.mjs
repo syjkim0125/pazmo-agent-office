@@ -42,7 +42,7 @@ async function linked(t) {
   const { store, hub, tls } = ctx;
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const b = store.acceptInvite(store.createInvite(admin, "B"), "b").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
   const dataDir = mkdtempSync(join(tmpdir(), "hub-link-"));
   t.after(() => rmSync(dataDir, { recursive: true, force: true }));
   const db = new DatabaseSync(":memory:");
@@ -51,14 +51,14 @@ async function linked(t) {
   db.exec("CREATE TABLE pazmo_hub_requests(hub_key TEXT PRIMARY KEY, task_id TEXT NOT NULL, requester TEXT NOT NULL)");
   const office = fakeOffice(db);
   return { ...ctx, admin, b, repo, dataDir, db, office, pair: (fingerprint = tls.fingerprint) =>
-    pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint, remote: "git@github.example.com:team/eevee-be.git" }) };
+    pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint, remote: "git@github.example.com:team/app-be.git" }) };
 }
 
 test("pairing trusts the hub only when the pasted fingerprint matches, and stores the link privately", async (t) => {
   const { pair, dataDir } = await linked(t);
   await assert.rejects(pair("AA:BB"), /HUB_FINGERPRINT_MISMATCH/);
   assert.equal(existsSync(join(dataDir, "hub-link.json")), false);
-  assert.deepEqual(await pair(), { memberName: "관리자", repoName: "eevee-be", created: false });
+  assert.deepEqual(await pair(), { memberName: "관리자", repoName: "app-be", created: false });
   assert.equal(statSync(join(dataDir, "hub-link.json")).mode & 0o777, 0o600);
   assert.equal(readLinkConfig(dataDir).hub.startsWith("https://127.0.0.1:"), true);
 });
@@ -340,7 +340,7 @@ test("a pasted CA bundle cannot smuggle a second certificate past the fingerprin
   const { dataDir, tls, hub, store, admin, repo } = ctx;
   const other = await startTestHub(t);
   const attempt = (download) =>
-    pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "git@github.example.com:team/eevee-be.git", download });
+    pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "git@github.example.com:team/app-be.git", download });
   await assert.rejects(attempt(async () => tls.caPem + other.tls.caPem), /HUB_CA_INVALID/);
   await assert.rejects(attempt(async () => other.tls.caPem + tls.caPem), /HUB_CA_INVALID/);
   await assert.rejects(attempt(async () => "not a certificate"), /HUB_CA_INVALID/);
@@ -386,7 +386,7 @@ test("a second Office paired as the same member and repo leaves work bound to th
   addRoleAgents(db);
   db.exec("CREATE TABLE pazmo_hub_requests(hub_key TEXT PRIMARY KEY, task_id TEXT NOT NULL, requester TEXT NOT NULL)");
   const office = fakeOffice(db);
-  await pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "git@github.example.com:team/eevee-be.git" });
+  await pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "git@github.example.com:team/app-be.git" });
   const posts = [];
   const call = (cfg, method, path, body) => { if (method === "POST") posts.push(path); return hubCall(cfg, method, path, body); };
   const lines = [];
@@ -437,7 +437,7 @@ test("pairing sends the hub only the normalized remote, never credentials in the
   const seen = [];
   const pair = store.pair;
   store.pair = (code, remote) => { seen.push(remote); return pair.call(store, code, remote); };
-  await pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "https://user:secret@github.example.com/team/eevee-be.git" });
+  await pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "https://user:secret@github.example.com/team/app-be.git" });
   assert.equal(seen.length, 1);
   assert.equal(seen[0].includes("secret") || seen[0].includes("user"), false, seen[0]);
   assert.equal(readLinkConfig(dataDir).repoId, repo);
@@ -468,7 +468,7 @@ test("a hub without /ca.pem (public certificate) answers --fingerprint with a cl
   await assert.rejects(
     pairOffice({
       dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: "AA:BB",
-      remote: "git@github.example.com:team/eevee-be.git", download: async () => { throw new Error("HUB_CA_404"); },
+      remote: "git@github.example.com:team/app-be.git", download: async () => { throw new Error("HUB_CA_404"); },
     }),
     (e) => e.code === "HUB_FINGERPRINT_NOT_USED" && e.message === "이 허브는 공인 인증서를 씁니다. --fingerprint 없이 연결하세요.",
   );
@@ -477,7 +477,7 @@ test("a hub without /ca.pem (public certificate) answers --fingerprint with a cl
   await assert.rejects(
     pairOffice({
       dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: "AA:BB",
-      remote: "git@github.example.com:team/eevee-be.git", download: async () => { throw new Error("HUB_CA_500"); },
+      remote: "git@github.example.com:team/app-be.git", download: async () => { throw new Error("HUB_CA_500"); },
     }),
     /HUB_CA_500/,
   );

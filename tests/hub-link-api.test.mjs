@@ -9,7 +9,7 @@ async function seeded(t) {
   const { store } = ctx;
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const b = store.acceptInvite(store.createInvite(admin, "B"), "b").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const req = store.createRequest(b, repo, "README 목차", "normal");
   store.accept(admin, req);
   return { ...ctx, admin, b, repo, req };
@@ -30,7 +30,7 @@ test("pairing with the right origin returns a token that sees exactly the accept
   const wrong = await api("POST", "/api/link/pair", { body: { code: store.createLinkCode(admin, repo), remote: "https://github.example.com/team/other" } });
   assert.equal(wrong.status, 409);
   assert.equal(wrong.json.error, "REMOTE_MISMATCH");
-  const paired = await api("POST", "/api/link/pair", { body: { code: store.createLinkCode(admin, repo), remote: "git@github.example.com:team/eevee-be.git" } });
+  const paired = await api("POST", "/api/link/pair", { body: { code: store.createLinkCode(admin, repo), remote: "git@github.example.com:team/app-be.git" } });
   assert.equal(paired.status, 200);
   const work = (await api("GET", "/api/link/work", { token: paired.json.token })).json;
   assert.deepEqual(work.assignments.map((a) => a.requestId), [req]);
@@ -43,7 +43,7 @@ test("pairing with the right origin returns a token that sees exactly the accept
   assert.equal(store.requestView(req, admin.id).snapshot.message, "PM 실행 중");
 });
 
-const REMOTE = "https://github.example.com/team/eevee-be";
+const REMOTE = "https://github.example.com/team/app-be";
 const TASK = "11111111-1111-4111-8111-111111111111";
 const snap = (extra = {}) => ({ status: "running", title: "t", message: "m", decisions: [], conversation: [], diff: null, runners: [], summary: null, ...extra });
 
@@ -249,14 +249,14 @@ test("body limits are per route: pair 64 KiB, link calls 1 MiB", async (t) => {
 
 test("protocol 1 Offices keep working; the new routes need protocol 2", async (t) => {
   const { api, store, admin, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
   assert.equal((await api("GET", "/api/link/work", { token, protocol: "1" })).status, 200);
   const old = await api("GET", "/api/link/repos", { token, protocol: "1" });
   assert.equal(old.status, 426);
   assert.equal(old.json.expected, "2");
   const repos = await api("GET", "/api/link/repos", { token, protocol: "2" });
-  assert.equal(repos.json.repos[0].name, "eevee-be");
-  const sent = await api("POST", "/api/link/requests", { token, protocol: "2", body: { repoId: repo, body: "일", risk: "normal", key: "66666666-6666-4666-8666-666666666666", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  assert.equal(repos.json.repos[0].name, "app-be");
+  const sent = await api("POST", "/api/link/requests", { token, protocol: "2", body: { repoId: repo, body: "일", risk: "normal", key: "66666666-6666-4666-8666-666666666666", source: "app-be Office 채팅", parentAssignmentId: null } });
   assert.equal(sent.status, 200);
   assert.equal(sent.json.created, true);
   const out = await api("GET", "/api/link/outgoing", { token, protocol: "2" });
@@ -267,8 +267,8 @@ test("protocol 1 Offices keep working; the new routes need protocol 2", async (t
 
 test("outgoing-answer relays the requester's answer over HTTP and needs protocol 2", async (t) => {
   const { api, store, admin, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
-  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "88888888-8888-4888-8888-888888888888", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
+  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "88888888-8888-4888-8888-888888888888", source: "app-be Office 채팅", parentAssignmentId: null } });
   store.accept(admin, sent.json.requestId); // the sender owns the repo too; the same link both sent and works it
   const { assignments } = (await api("GET", "/api/link/work", { token })).json;
   const mine = assignments.find((a) => a.requestId === sent.json.requestId);
@@ -287,8 +287,8 @@ test("outgoing-answer relays the requester's answer over HTTP and needs protocol
 
 test("outgoing-cancel cancels this link's sent request over HTTP and needs protocol 2", async (t) => {
   const { api, store, admin, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
-  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "99999999-9999-4999-8999-999999999999", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
+  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "99999999-9999-4999-8999-999999999999", source: "app-be Office 채팅", parentAssignmentId: null } });
   const body = { requestId: sent.json.requestId };
   assert.equal((await api("POST", "/api/link/outgoing-cancel", { token, protocol: "1", body })).status, 426);
   assert.equal((await api("GET", "/api/link/outgoing-cancel", { token })).status, 405);
@@ -309,7 +309,7 @@ test("outgoing-cancel cancels this link's sent request over HTTP and needs proto
 
 test("incoming, incoming-accept and incoming-decline work over HTTP and need protocol 2 and a token", async (t) => {
   const { api, store, admin, b, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
   const first = store.createRequest(b, repo, "첫 요청", "normal");
   const second = store.createRequest(b, repo, "둘째 요청", "high");
   for (const [method, path] of [["GET", "/api/link/incoming"], ["POST", "/api/link/incoming-accept"], ["POST", "/api/link/incoming-decline"]]) {

@@ -83,7 +83,7 @@ The Office has four screens (Tasks, task detail, Decisions, Agents), and each ag
 | Story and Task templates | Installed kit 4.1.0 role graphs; Office owns assignments and approvals |
 | Jira-independent team execution | Real tasks in an existing project through human G4 and delivery on one Mac — [evidence](docs/verification/2026-10-06-cli-runner-selection.md) |
 | CLI runners | Your installed codex or claude, chosen per role; subscription login, no API key |
-| Local launcher and Office screen | `./office` starts the minimal Office (Tasks, task detail, Decisions, Agents); made the default and Claw removed on 2026-10-30 (D30); the eevee-be real check is still to do — [guide](docs/LOCAL-PREVIEW.md#새-office) · [evidence](docs/verification/2026-10-30-lean-office-default.md) |
+| Local launcher and Office screen | `./office` starts the minimal Office (Tasks, task detail, Decisions, Agents); made the default and Claw removed on 2026-10-30 (D30); the app-be real check is still to do — [guide](docs/LOCAL-PREVIEW.md#새-office) · [evidence](docs/verification/2026-10-30-lean-office-default.md) |
 | Team hub and team Story board | Hub server (invites, repos, owners) and team Story board stages 1–2 (Hub, team Office with several repos, trial). The Office screens for sending and receiving hub requests went with Claw; the Story board replaces them. Not yet checked across PCs — [guide](docs/LOCAL-PREVIEW.md#팀-office-2단계-시험) |
 | Decisions and approvals | Answer G1, questions and G4 in the Office's Decisions. The terminal contract and approval commands and the chat bridge went with the legacy engine (D30) |
 | Execution isolation and completion guards | Dedicated VM checks and guarded completion implemented; native host-only execution stays disabled |

@@ -35,7 +35,7 @@ async function lan(t) {
   const h = await startTestHub(t);
   return { store: h.store, origin: h.hub.url, fingerprint: h.tls.fingerprint, call: (m, p, o = {}) => h.call(m, p, { ...o, headers: { ...FORM, origin: h.hub.url, ...(o.headers ?? {}) } }) };
 }
-async function fusion(t) {
+async function openshift(t) {
   const h = await proxyHub(t);
   return { store: h.store, origin: PUBLIC, fingerprint: null, call: (m, p, o = {}) => h.call(m, p, { ...o, headers: { ...FORM, origin: PUBLIC, ...(o.cookie ? { cookie: o.cookie } : {}), ...(o.headers ?? {}) } }) };
 }
@@ -47,7 +47,7 @@ async function member(h) {
   return { admin: admin.member, cookie, csrf };
 }
 
-for (const [mode, make] of [["LAN (self CA)", lan], ["Fusion (proxy)", fusion]]) {
+for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", openshift]]) {
   test(`${mode}: joining by invite or device invite lands on /start`, async (t) => {
     const h = await make(t);
     const admin = h.store.acceptInvite(h.store.bootstrapAdmin(), "mac").member;
@@ -111,7 +111,7 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["Fusion (proxy)", fusion]])
   test(`${mode}: the repos page points to /start and the per-repo link-code route still works`, async (t) => {
     const h = await make(t);
     const { cookie, csrf, admin } = await member(h);
-    const id = h.store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+    const id = h.store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
     const page = await h.call("GET", "/repos", { cookie });
     assert.doesNotMatch(page.text, /내 Office 연결 명령 만들기/);
     assert.match(page.text, /연결된 Office 없음<\/span><br><a href="\/start">내 Office 연결<\/a>/, "in the repo row, not only the menu");

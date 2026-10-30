@@ -19,7 +19,7 @@ Office 화면에는 PM·Lead·Engineer·Reviewer를 맡는 캐릭터와 지금 �
 
 ## Verify
 - 역할 API·시드·화면 필터 자동 테스트 X/X, 전체 회귀 X/X(root·vendor), 타입 검사, 빌드, B 범위 리뷰 1회.
-- eevee-be Office 실제 화면 확인은 A 실제 확인과 함께 한다.
+- app-be Office 실제 화면 확인은 A 실제 확인과 함께 한다.
 
 ## Risk / Dependency
 - 사용자가 결정을 G4로 미뤘다(D21). G4에서 결정 1–6이 뜻과 다르면 화면 필터만 바꾸면 된다.

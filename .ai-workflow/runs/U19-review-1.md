@@ -13,7 +13,7 @@ Reviewer: an independent read-only subagent (superpowers requesting-code-review 
   4. Log title re-read the task row: now uses the validated title returned by createTask.
   5. `previous_id` without ON DELETE: comment added (a rerun task is never removed).
   6. Irreversible-cancel note not announced: `aria-describedby` on the rerun dialog.
-- Declined-to-judge items (engine scope or user choice): replanning instead of resume (option A), unknown leases and slots after cancel, orphan process after a held dispatch, partial cancel of subtasks, same-title cards, second-resolution log timestamps, eevee-be real check.
+- Declined-to-judge items (engine scope or user choice): replanning instead of resume (option A), unknown leases and slots after cancel, orphan process after a held dispatch, partial cancel of subtasks, same-title cards, second-resolution log timestamps, app-be real check.
 
 ## Round 2 (base `187431a` after moving onto main, the fixes only)
 
@@ -23,4 +23,4 @@ Reviewer: an independent read-only subagent (superpowers requesting-code-review 
 
 ## Limits
 
-The review did not run the eevee-be Office and did not judge the engine's recovery (option B).
+The review did not run the app-be Office and did not judge the engine's recovery (option B).

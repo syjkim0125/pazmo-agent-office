@@ -218,7 +218,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     c.listen.kind === "tls"
       ? createServer({ key: c.listen.tls.keyPem, cert: c.listen.tls.certPem, minVersion: "TLSv1.2" }, onRequest)
       : createHttpServer(onRequest);
-  // Behind the Fusion router: outlast its idle timeout (60 s) so a reused connection is never
+  // Behind the OpenShift router: outlast its idle timeout (60 s) so a reused connection is never
   // closed under an in-flight request. The LAN (TLS) server keeps Node's defaults.
   if (c.listen.kind === "proxy") {
     server.keepAliveTimeout = 65_000;

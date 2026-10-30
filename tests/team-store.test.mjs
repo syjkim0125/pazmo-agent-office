@@ -282,10 +282,10 @@ test("CLI: cap rejects 0, 101, 2.5, words and a missing value, and keeps the old
 
 test("CLI: status shows today's claims, the open claim and the registered repos", (t) => {
   const f = fixture(t);
-  const repo = join(f.root, "eevee-be");
+  const repo = join(f.root, "app-be");
   mkdirSync(repo);
   execFileSync("git", ["init", "-q", repo]);
-  execFileSync("git", ["-C", repo, "remote", "add", "origin", "https://github.example.com/team/eevee-be.git"]);
+  execFileSync("git", ["-C", repo, "remote", "add", "origin", "https://github.example.com/team/app-be.git"]);
   const added = call(f, "add", "--project", repo);
   assert.equal(added.status, 0);
 
@@ -298,7 +298,7 @@ test("CLI: status shows today's claims, the open claim and the registered repos"
     dailyCap: 5,
     today: 1,
     claim: { taskId: "task-1", claimId: "claim-1", project: repo, title: "Task 1" },
-    repos: [{ project: realpathSync(repo), remote: "github.example.com/team/eevee-be" }],
+    repos: [{ project: realpathSync(repo), remote: "github.example.com/team/app-be" }],
   });
   assert.equal(JSON.stringify(status.value).includes("Add the endpoint."), false, "the Task spec is not printed");
 });

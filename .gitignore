@@ -8,5 +8,5 @@ node_modules/
 *.db-wal
 .pazmo-office/
 dist/
-deploy/fusion/local.env
+deploy/*/local.env
 /vendor/

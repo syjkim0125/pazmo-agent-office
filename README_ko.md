@@ -83,7 +83,7 @@ Apple Silicon Mac에서 최초 로그인과 필수 도구 준비 후, Office 저
 | Story·Task | kit 4.1.0 역할 그래프 연결; 배정·승인은 Office가 관리 |
 | Jira 없는 팀 실행 | 기존 프로젝트의 실제 작업을 Mac 한 대에서 사용자 G4·인도까지 완료 — [검증 기록](docs/verification/2026-10-06-cli-runner-selection.md) |
 | CLI 실행기 | 설치된 codex 또는 claude를 역할마다 선택; 구독 로그인, API 키 없음 |
-| 로컬 실행기·Office 화면 | `./office`가 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켬; 2026-10-30 기본 전환·Claw 삭제(D30), eevee-be 실제 확인은 남음 — [실행 안내](docs/LOCAL-PREVIEW.md#새-office) · [검증 기록](docs/verification/2026-10-30-lean-office-default.md) |
+| 로컬 실행기·Office 화면 | `./office`가 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켬; 2026-10-30 기본 전환·Claw 삭제(D30), app-be 실제 확인은 남음 — [실행 안내](docs/LOCAL-PREVIEW.md#새-office) · [검증 기록](docs/verification/2026-10-30-lean-office-default.md) |
 | 팀 허브·팀 Story 보드 | 허브 서버(초대·레포·담당자)와 팀 Story 보드 1·2단계(Hub, 팀 Office 여러 repo, 시험). Office에서 허브 요청을 보내고 받던 화면은 Claw와 함께 지웠고 팀 Story 보드가 대신함. 여러 PC는 미확인 — [실행 안내](docs/LOCAL-PREVIEW.md#팀-office-2단계-시험) |
 | 결정·승인 | Office의 Decisions에서 G1·질문·G4에 답함. 터미널 계약·승인 명령과 채팅 bridge는 legacy 엔진과 함께 지움(D30) |
 | 실행 격리·완료 guard | 전용 VM 검사·완료 guard 구현; 호스트 직접 실행은 계속 차단 |

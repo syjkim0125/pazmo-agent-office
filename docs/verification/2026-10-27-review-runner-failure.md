@@ -4,7 +4,7 @@ Story: M4 · D26. 발견: [lean Office 1단계 실제 확인](2026-10-21-lean-of
 
 번호 메모: 머지 때 #37이 먼저 D25와 U19를 써서, 이 변경의 결정은 D26, 그래프 실행은 U20(`U20-review-runner-failure.json`)으로 바꿨다. U20 안의 기록 문장은 바꾸기 전 이름(D25, U19)을 그대로 담고 있다.
 
-## 증상 (2026-10-27 eevee-be)
+## 증상 (2026-10-27 app-be)
 
 `claude · sonnet` 리뷰어의 출력은 agent 메시지 하나("API Error: … safeguards flagged this message … [cyber]")와 `turn.failed`였고, exit 1로 끝났으며 보고서는 없었다. Office는 이것을 리뷰 fail로 기록했다. 그래서 구현부터 다시 돌렸고 자동 수정 2회 중 1회를 썼다. 두 번째 리뷰는 통과했다.
 

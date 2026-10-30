@@ -415,7 +415,7 @@ test("reading Decisions replaces an expired approval with a new challenge for th
     .prepare("SELECT expires_at FROM pazmo_approval_challenges WHERE consumed_at IS NULL")
     .get();
   assert.equal(first.expires_at, issued.expires_at, "the open window can show the deadline");
-  // Nothing is answered, so no human event refreshes the list (2026-10-02 eevee-be case).
+  // Nothing is answered, so no human event refreshes the list (2026-10-02 app-be case).
   assert.deepEqual(
     (await office.currentDecisions()).map((d) => d.id),
     [first.id],
