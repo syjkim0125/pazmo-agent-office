@@ -18,7 +18,8 @@
 | `91d9a27` | origin/main(#48 내부 이름 별칭, #49) 병합. 이 브랜치의 새 문서도 별칭으로 |
 | `3bfb30a` | 독립 리뷰 반영(아래 "독립 리뷰") |
 | `73b15ed` | origin/main(#51, D31: live lean 시작 대기 30초) 병합. `STARTUP_MS`는 lean 30초·team 15초만 남김 |
-| (#52·#54 병합 커밋) | origin/main(#52 `claude auth status` 잠금 기록, #54 Pazmo 원본 라이선스 PolyForm Shield 1.0.0) 병합. LICENSING·README(영·한)는 #54의 새 라이선스와 이 브랜치의 Claw 삭제 문구를 둘 다 살림, `package-lock.json`의 license도 `SEE LICENSE IN LICENSING.md`로 |
+| `491c668` | origin/main(#52 `claude auth status` 잠금 기록, #54 Pazmo 원본 라이선스 PolyForm Shield 1.0.0) 병합. LICENSING·README(영·한)는 #54의 새 라이선스와 이 브랜치의 Claw 삭제 문구를 둘 다 살림, `package-lock.json`의 license도 `SEE LICENSE IN LICENSING.md`로 |
+| (#55 병합 커밋) | origin/main(#55 README를 팀 Story 보드 중심으로 다시 씀) 병합. #55의 구조를 그대로 두고 Claw 삭제 내용(상태 표의 기본 전환·허브 화면 삭제, `./office` 실행, "Claw 버전에서 업데이트" 절차, 라이선스 문단)을 다시 넣음 |
 
 남긴 것(결정 2): `native-office.ts`의 Claw용 API, `operator.ts`, `runner-settings.ts`의 역할별 경로, `hub-link.ts`·`hub-outgoing.ts`의 옛 요청 흐름과 그 시험. D24 3단계 뒤 별도로 정리한다.
 
@@ -34,6 +35,7 @@
 | 리뷰 반영 뒤(`3bfb30a`) 전체 시험 | **1072/1072** exit 0, 117.6초(다른 세션의 전체 시험과 같이 돎). 새 시험 2개: lockfile 없는 설치(`launcher`), 켜진 Office 재사용 전 의존성 단계(`lifecycle`) |
 | #51 병합 뒤(`73b15ed`) 전체 시험 | **1074/1074** exit 0, 73.5초. #51의 시험 2개가 더해짐. main(`610169e`, 1106) 대비 −32 = Claw·legacy·bridge 전용 37개 삭제 + 새 시험 5개. 타입 검사 exit 0, Story 검사기 exit 0 |
 | #52·#54 병합 뒤 전체 시험 | **1074/1074** exit 0, 96.2초. #52는 문서·실측 스크립트만, #54는 `role-profiles` 시험 내용만 바꿔 시험 수가 같음. 타입 검사 exit 0, Story 검사기 exit 0(Story 변경 없음, kit 그래프 run은 그대로 `g4`) |
+| #55 병합 뒤 전체 시험 | **1074/1074** exit 0, 123.1초. #55는 README만 바꿈. 타입 검사 exit 0, Story 검사기 exit 0 |
 | 타입 검사(루트 `tsc`) | exit 0 (이 worktree, 새 사본, 병합 뒤) |
 | Story 검사기 | exit 0 |
 | `git ls-files vendor` | 0개, `.gitmodules` 없음 |
