@@ -48,13 +48,14 @@ flowchart LR
 | 판정 | 이유 |
 |---|---|
 | 루트 의존성은 정확한 버전: `ws` 8.19.0, `typescript` 5.9.3, `@types/node` 24.10.13, `@types/ws` 8.18.1. `package-lock.json`을 커밋한다 | 지금 vendor가 시험을 통과시킨 버전과 같다. 범위 지정은 lock이 있어도 다음 설치에서 바뀔 수 있다 |
-| `up` 1단계는 루트 `ws`가 lock과 같은 버전으로 풀릴 때 설치를 건너뛰고, 아니면 `npm ci --omit=dev`를 한다 | 매번 `npm ci`를 하면 개발 checkout의 TypeScript가 지워진다. 버전 비교로 오래된 설치는 다시 설치한다 |
+| `up`·`up --team`은 **켜진 Office를 다시 쓸지 정하기 전에** 루트 의존성을 확인한다. 루트 `ws`가 lock과 같은 버전으로 풀리면 건너뛰고, 아니면 `npm ci --omit=dev --prefer-offline`을 한다 | 켜진 Office도 claude 작업마다 `claude-tool-bridge.mjs`를 디스크에서 새로 띄우므로, 업데이트 직후 재사용되는 Office도 루트 `ws`가 있어야 한다(리뷰 지적). 매번 `npm ci`를 하면 개발 checkout의 TypeScript가 지워진다. 업데이트 뒤 첫 실행은 레지스트리 접속이 한 번 필요하다 |
+| 옛 버전이 켠 Office의 상태 파일(`engine: "claw"`, `"legacy"`, 엔진 칸 없음)은 계속 읽는다. `status`는 보이고, `stop`은 지금의 인증된 제어 호출로 멈춘다. `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부하고 `stop` 명령을 안내한다 | 그 프로세스는 메모리의 코드로 `/__pazmo/stop`에 답하므로 vendor 없이도 멈출 수 있다. 읽지 못하면 사용자가 빠져나갈 길이 없다(리뷰 지적) |
 | 시험용 스키마는 `src/lean/schema.ts`가 내보내는 함수(`openLeanDb`가 쓰는 같은 SCHEMA)다 | 실제로 도는 스키마와 시험 스키마가 하나가 된다 |
 | 남은 엔진 코드가 Claw 전용 칸(`agents.cli_provider`, 부서 등)을 읽는 시험은, `runner-settings.test.mjs`처럼 시험 안에서 필요한 칸만 더한다 | vendor 없이 남은 코드를 계속 시험한다. 엔진 정리 때 같이 지운다 |
 | `scripts/`의 vendor 스키마 import 6개는 lean 스키마로 바꾸고 `node --check`만 한다 | 수동 탐침(VM·실제 CLI 필요)이라 이 PR에서 돌리지 않는다. 지우면 옛 검증 기록의 재현 경로가 끊긴다 |
 | `--claw`는 `CLAW_REMOVED` 오류: "The Claw Office was removed. Start the Office with ./office (or start)." | 이유와 새 명령을 한 줄로 준다 |
-| `--lean`은 받아들이고 무시한다 | 문서·습관 호환. 도움말에는 "기본값"으로 적는다 |
-| 지우는 CLI 명령: `bridge`, `contracts`, `contract`, `verification`, `delivery`, `deliver`, `intake-create`, `intake`, `intake-answer`, `intake-cancel`, `intake-publish`, `approval-request`, `approval-decide`. 남는 것: `up`, `setup-runtime`, `monitor`, `hub`, `hub-link`, `hub-unlink`, `init`, `doctor`, `start`, `status`, `stop`, `remove`, `team` | 지우는 명령은 operator API(legacy·claw)에만 있었다. lean에서는 이미 `UNSUPPORTED`다 |
+| `--lean`은 `start`·`up`에서 받아들이고 아무 일도 하지 않는다. 다른 명령과 `--team`과의 조합 거부는 지금처럼 둔다 | 문서·습관 호환. 도움말에는 "기본값"으로 적는다 |
+| 지우는 CLI 명령: `bridge`, `operator-key`, `contracts`, `contract`, `verification`, `delivery`, `deliver`, `intake-create`, `intake`, `intake-answer`, `intake-cancel`, `intake-publish`, `approval-request`, `approval-decide`. 그 명령들만 받던 옵션 `--file`, `--task-id`, `--gate`, `--challenge`도 지운다. 남는 것: `up`, `setup-runtime`, `monitor`, `hub`, `hub-link`, `hub-unlink`, `init`, `doctor`, `start`, `status`, `stop`, `remove`, `team` | 지우는 명령은 operator API(legacy·claw)에만 있었다. lean에서는 이미 `UNSUPPORTED`다 |
 | `doctor`는 `uiBuilt` 대신 루트 의존성 설치 여부를 보인다 | 화면 빌드 단계가 없어진다 |
 | `upstream/claw-empire.lock.json`·`CHANGES.md`는 남기고 "삭제" 항목을 더한다. `package.json` license는 `MIT AND Apache-2.0` 그대로 | 출처 기록. `assets/codex`가 Apache-2.0이다 |
 
@@ -83,6 +84,7 @@ flowchart LR
 **Approach:**
 - `exec-relay.ts`와 `claude-tool-bridge.mjs`는 `ws`를 패키지 이름으로 import한다. `claude-tool-bridge.mjs`는 claude CLI가 원래 자리에서 띄우므로(`src/runners/claude-controller.ts`의 `new URL("./claude-tool-bridge.mjs", …)`) 루트 `node_modules`에서 풀린다.
 - `typecheck`는 루트 `tsc`를 쓴다.
+- 두 파일은 `BOUNDARY_DIGEST`(`src/runners/runner-qualification.ts`)에 들어가므로, 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다. 예상된 동작이다.
 
 **Test scenarios:**
 - 기존 `claude-tool-bridge` 시험이 루트 `ws`로 통과한다(vendor 경로 대신).
@@ -137,12 +139,16 @@ flowchart LR
 - 지움: `src/runtime/claw-service.ts`, `src/runtime/service.ts`, `src/runtime/operator-page.ts`, `src/runtime/observation.ts`, `src/cli/bridge.ts`
 - 시험 고침: `tests/launcher.test.mjs`, `tests/lean-lifecycle.test.mjs`, `tests/team-lifecycle.test.mjs`, `tests/team-registry.test.mjs`, `tests/lean-schema.test.mjs`, `tests/live-runtime.test.mjs`
 - 시험 다시 씀: `tests/lifecycle.test.mjs`(엔진과 무관한 경계만 lean으로)
-- 시험 지움: `tests/chat-bridge.test.mjs`
+- 시험 지움: `tests/chat-bridge.test.mjs`, `tests/delivery.test.mjs`의 "real operator CLI delivers once…"(operator CLI·legacy 전용)
+- 시험 새로: lean 재시작 복구(아래)
+- 새로: `docs/verification/2026-10-30-lean-office-default.md`(지운 시험 표부터 쓴다)
+- 주석만 고침: `src/runtime/lean-service.ts`, `src/runtime/team-service.ts`의 "vendor `ws`" 문구
 
 **Approach:**
 - `monitor`는 lean 로컬 세션 주소만 준다. team은 지금처럼 `UNSUPPORTED`.
-- `start`의 상태 파일에 옛 `engine: "claw"`나 `"legacy"`가 남아 있으면(옛 버전이 켠 Office) `status`·`stop`은 지금처럼 동작해야 한다. 켜진 옛 Office를 이 버전이 멈출 수 있는지 확인하고, 안 되면 "옛 버전으로 멈추세요" 안내로 거부한다.
-- 의존성 설치는 판정 표대로. 설치 실패면 엔진을 켜지 않고 `NOT_INSTALLED`와 `npm ci` 안내를 준다.
+- 옛 상태 파일은 판정 표대로 읽고 멈춘다.
+- 의존성 설치는 판정 표대로, 재사용 판단 전에 한다. 설치 실패면 엔진을 켜지 않고 `NOT_INSTALLED`와 "업데이트 뒤 첫 실행은 레지스트리 접속이 필요합니다, `npm ci --omit=dev`" 안내를 준다.
+- legacy로만 돌던 재시작 복구 시험(계획 lease 격리, 검증 round 격리, 깨진 인도 무효화)은 lean으로 하나 옮긴다. 엔진의 `recoverInterrupted`·`reconcileDeliveries` 호출이 빠지면 실패해야 한다(리뷰 지적).
 
 **Execution note:** `--claw`·기본 엔진·옛 상태 파일 처리는 시험을 먼저 쓴다.
 
@@ -153,7 +159,9 @@ flowchart LR
 - 지운 명령(`bridge`, `contract` 등)은 알 수 없는 명령 오류를 낸다. 도움말에 지운 명령과 `--claw`가 없다.
 - `up`: 루트 `ws`가 lock 버전이면 설치를 건너뛰고, 없거나 다르면 `npm ci --omit=dev`를 한 번 부른다. 설치 실패면 Office를 켜지 않는다. 화면 빌드를 부르지 않는다.
 - `up`(옵션 없음)은 켜진 lean Office를 다시 쓴다. 켜진 team Office가 있는 데이터 루트에서는 지금 규칙대로 거부한다.
-- 옛 버전 상태 파일(`engine: "claw"`): `status`가 그 상태를 보이고, `start`는 덮어쓰지 않는다.
+- 옛 버전 상태 파일(`engine: "claw"`, `"legacy"`, 엔진 칸 없음)과 `/__pazmo/status`·`/__pazmo/stop`에 답하는 가짜 제어 서버: `status`는 running, `start`·`up`은 `ENGINE_MISMATCH`, `stop`은 stopped이고 `running.json`이 지워진다.
+- `up`: 켜진 lean Office가 있고 루트 `ws`가 없으면 설치한 뒤 다시 쓴다.
+- lean 재시작 복구: lean DB에 돌던 계획 lease, 열린 검증 round, 출력 폴더가 사라진 인도 기록을 두고 Office를 다시 열면 lease는 `unknown`, 요청은 `CONTROLLER_RESTARTED`로 사람 확인, 인도는 `invalid`다.
 - 옮긴 경계 시험(lean): 포트 충돌은 남의 서버를 멈추지 않는다, 남의 SQLite는 거부·보존한다, 시작 중 `stop`은 unknown이고 `remove`되지 않는다, 인증 안 된 상태 파일이 남의 프로세스를 멈추지 않는다, 재시작은 같은 데이터를 다시 쓴다.
 - `doctor`가 루트 의존성 설치 여부를 보인다.
 
@@ -171,7 +179,7 @@ flowchart LR
 
 **Files:**
 - 지움: `vendor/claw-empire/`(gitlink 2개 포함), `.gitmodules`
-- 고침: `package.json`(`build:office` 삭제)
+- 고침: `package.json`(`build:office` 삭제), `.gitignore`(`/vendor/`: 업데이트한 checkout에 남는 설치물·빌드물이 다시 추적되지 않게)
 - 시험 지움: `tests/claw-lifecycle.test.mjs`, `tests/claw-host.test.mjs`, `tests/claw-host-hub.test.mjs`, `tests/claw-host-runners.test.mjs`, `tests/claw-cli-usage.test.mjs`, `tests/agent-runner-patch.test.mjs`, `tests/oauth-client-defaults.test.mjs`
 
 **Approach:** 지우기 전 `git grep`으로 `vendor/claw-empire` 참조가 문서 밖에 없음을 확인한다.
@@ -194,7 +202,7 @@ flowchart LR
 - 고침: `README.md`, `README_ko.md`(Claw 원본 그림 삭제, 기본 Office, 표의 "Claw-Empire 없는 최소 Office" 줄), `docs/LOCAL-PREVIEW.md`, `AGENTS.md`("Chat-controlled Office" 절 삭제), `docs/CHAT-CONTROL.md`(폐기 안내만), `CONCEPTS.md`, `LICENSING.md`, `THIRD_PARTY_NOTICES.md`, `upstream/CHANGES.md`, `upstream/claw-empire.lock.json`(삭제 커밋 기록), `docs/STATUS.md`
 - 새로: `docs/verification/2026-10-30-lean-office-default.md`
 
-**Approach:** 옛 검증 기록(`docs/verification/*`)과 결정 문서는 이력이라 고치지 않는다. `AGENTS.md`의 kit 관리 블록(`<!-- BEGIN ai-workflow-kit -->`)은 건드리지 않는다.
+**Approach:** 옛 검증 기록(`docs/verification/*`)과 결정 문서는 이력이라 고치지 않는다. `AGENTS.md`의 kit 관리 블록(`<!-- BEGIN ai-workflow-kit -->`)은 건드리지 않는다. Story(D30과 M/V 변경)는 G3 기록 커밋(`25e358e`)에서 이미 고쳤다. README(영·한)에 "Claw 버전에서 업데이트" 안내를 넣는다: 받기 전에 Claw 작업과 수락한 허브 요청을 끝내거나 취소하고 옛 Office를 멈춘다, 받은 뒤 `./office`(또는 `--team`)를 한 번 실행한다(첫 실행은 레지스트리 접속 필요, 실행기 자격 검사 한 번), `vendor/claw-empire` 폴더는 지워도 된다.
 
 **Test scenarios:** `Test expectation: none -- 문서. U6의 grep과 Story 검사기가 증거다.`
 
@@ -213,11 +221,13 @@ flowchart LR
 **Files:** `docs/verification/2026-10-30-lean-office-default.md`, `.ai-workflow/runs/U25-lean-office-default*.{json,md}`
 
 **Approach:**
-- 새 worktree(vendor 없음)에서 루트 `npm ci`만으로 전체 시험·타입 검사·Story 검사기.
-- `git grep -i claw -- src tests bin scripts package.json tsconfig.json`에 `CLAW_REMOVED` 안내와 남긴 엔진 코드의 이름만 남는다.
+- 메인 checkout 밖(상위 폴더의 `node_modules`를 찾지 않는 곳)에 새로 받은 사본에서 루트 `npm ci`만으로 전체 시험·타입 검사·Story 검사기.
+- vendor를 설치·빌드했던 checkout을 이 커밋으로 옮겼을 때 `git status --porcelain`이 깨끗하다.
+- `git grep -i claw -- src tests bin scripts package.json tsconfig.json`의 남은 줄은 모두 검증 기록에 분류한다: `CLAW_REMOVED` 안내와 그 시험, 옛 상태 파일·`claw/` 데이터 보존 코드와 시험, 남긴 엔진 코드(결정 2), 이 PR이 고치지 않는 파일의 기존 주석. vendor 경로나 import는 하나도 없어야 한다.
 - `npm pack --dry-run` 목록에 vendor가 없다.
+- `git branch --list codex/local-original-claw-v2.0.4`가 남아 있다.
 - 시험 수 대조표: 기준선 → 지운 시험(이유) → 옮긴 시험 → 새 시험 → 결과.
-- 가짜 실행기로 `start` 기본 lean을 한 번 켜서 `claw/` 해시가 그대로임을 본다.
+- 데이터 폴더의 `claw/`에 `claw.sqlite`와 로그 파일을 두고 해시·수정 시각을 적은 뒤, 기본 `start`와 `stop`을 하고 다시 대조한다.
 
 **Verification:** 위 결과를 검증 기록에 X/X로 적는다. eevee-be 실제 확인(V17)과 사전 확인 두 개는 사용자 몫으로 G4에서 묻는다.
 
@@ -237,5 +247,13 @@ flowchart LR
 |---|---|
 | Claw 스키마로만 통과하던 엔진 시험이 lean 스키마에서 깨져 실제 lean 버그가 드러남 | 이 PR에서 엔진 동작은 고치지 않는다. 드러난 것은 기록하고 사용자에게 묻는다(범위 변경) |
 | 사용자가 옛 버전으로 켠 Claw Office가 켜진 채 업데이트 | 옛 상태 파일 처리 시험(U3). 사전 확인 1 |
-| `npm ci`가 네트워크 없는 PC에서 실패 | 설치 실패 시 엔진을 켜지 않고 안내. vendor 때도 같은 제약이었다 |
+| 업데이트 뒤 첫 실행에 레지스트리 접속이 없음 | 설치 실패 시 엔진을 켜지 않고 이유와 명령을 안내한다. 버전이 다를 때 `npm ci`는 설치 전에 `node_modules`를 지우므로, 같은 checkout을 쓰는 다른 Office의 claude 작업이 그 사이 잠깐 실패할 수 있다(README 안내) |
+| 메인 checkout 아래 worktree는 상위 `node_modules`를 찾는다 | U6 새 사본 시험은 메인 checkout 밖에서 한다 |
 | 허브에서 수락돼 진행 중인 요청이 멈춤 | 사전 확인 2(G4에서 사용자) |
+
+## 문서 리뷰 반영 (2026-10-30, coherence·feasibility·adversarial, 보고만)
+
+- **반영:** 옛 claw·legacy 상태 파일을 읽고 멈추기(P1), `up`이 재사용 전에 루트 의존성 설치(P1), legacy로만 돌던 재시작 복구 시험을 lean으로(P1), `delivery.test.mjs`의 operator CLI 시험 처리(P1), `operator-key`와 그 명령 전용 옵션 삭제, `scripts/probe-codex-remote.mjs`의 `ws`(U2 커밋에서 고침), `/vendor/` 무시와 README 업데이트 안내, `--prefer-offline`과 첫 실행 레지스트리 안내, `claw/` 대조에 실제 파일 사용, U6의 원본 브랜치 확인과 grep 분류, 메인 checkout 밖의 새 사본 시험, `--lean` 문구, 검증 기록을 U3에서 시작.
+- **반영(기록만):** `exec-relay.ts`·`claude-tool-bridge.mjs`를 바꾸면 `BOUNDARY_DIGEST`가 바뀌어 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다. 회귀가 아니며 U6 검증 기록과 README 안내에 적는다.
+- **확인 뒤 해당 없음:** 시험 스키마의 외래 키. `node:sqlite`의 `DatabaseSync`는 기본으로 `foreign_keys=1`이다(U2의 새 스키마 시험이 확인).
+- **U2 결과:** `coordinator-fixture.mjs`를 쓰는 파일을 포함해 `tests/`의 모든 파일이 기준선과 같은 시험 수로 통과했다.
