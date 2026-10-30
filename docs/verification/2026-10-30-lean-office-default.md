@@ -16,6 +16,7 @@
 | `45078a1` | README(영·한), LOCAL-PREVIEW, CHAT-CONTROL(폐기 안내), AGENTS.md, CONCEPTS, LICENSING, THIRD_PARTY_NOTICES, `upstream/` |
 | `948afc7` | 단순화 리뷰 반영: `ws` static import, `Engine` 타입 재사용, 의존성 설치를 거부 판단 뒤로(새로 켤 때는 준비물·로그인 확인 뒤), 읽지 않는 `operatorToken` 칸 삭제 |
 | `91d9a27` | origin/main(#48 내부 이름 별칭, #49) 병합. 이 브랜치의 새 문서도 별칭으로 |
+| `3bfb30a` | 독립 리뷰 반영(아래 "독립 리뷰") |
 
 남긴 것(결정 2): `native-office.ts`의 Claw용 API, `operator.ts`, `runner-settings.ts`의 역할별 경로, `hub-link.ts`·`hub-outgoing.ts`의 옛 요청 흐름과 그 시험. D24 3단계 뒤 별도로 정리한다.
 
@@ -28,6 +29,7 @@
 | 메인 checkout 밖 새 사본(`45078a1`, `npm ci`만, vendor 없음) 전체 시험 | **1070/1070** exit 0, 77.1초. 다른 세션의 시험 프로세스가 같이 돌던 부하 상태 |
 | 단순화 뒤(`948afc7`) 관련 시험 15개 파일 | **244/244** exit 0 |
 | main 병합 뒤(`91d9a27`) 전체 시험 | **1070/1070** exit 0, 112.2초. 파일별 시험 수는 병합 전과 같음(#48이 바꾼 파일 이름 2개만 다름) |
+| 리뷰 반영 뒤(`3bfb30a`) 전체 시험 | **1072/1072** exit 0, 117.6초(다른 세션의 전체 시험과 같이 돎). 새 시험 2개: lockfile 없는 설치(`launcher`), 켜진 Office 재사용 전 의존성 단계(`lifecycle`) |
 | 타입 검사(루트 `tsc`) | exit 0 (이 worktree, 새 사본, 병합 뒤) |
 | Story 검사기 | exit 0 |
 | `git ls-files vendor` | 0개, `.gitmodules` 없음 |
@@ -105,3 +107,29 @@ node 기준 1104 → 1070, junit 기준 1086 → 1052로 둘 다 34개 줄었다
 - `up`의 VM·실행기 준비 단계 전체는 이번에 돌리지 않았다(위 확인은 재사용 판단에서 멈춤).
 - 사전 확인 두 개(app-be Claw Office의 진행 중 작업, OpenShift 허브의 진행 중 요청)는 사용자에게 묻는다.
 - 다른 사람 PC, 네트워크가 없는 PC에서의 첫 실행.
+
+## 독립 리뷰 (2026-10-30, `ce-code-review mode:agent`, 보고만)
+
+리뷰어: correctness, security, adversarial(세션 모델), testing, maintainability, project-standards, reliability, agent-native, learnings. Codex 교차 모델 adversarial: 지적 0건. security: 지적 0건.
+
+| # | 지적 | 처리 |
+|---|---|---|
+| 1 | P2 · 켜진 Office를 다시 쓰기 전 의존성 단계에 자동 시험이 없음(testing·adversarial 75, 다른 리뷰어 넷의 testing gap) | `up(options, prepare)` 주입점과 `reuseOrStart` 하나로 묶음. 새 시험: 다시 쓰면 한 번, 거부·실패면 안 쓰고 안 멈춤. 돌연변이 2개(단계 삭제, 두 번 실행) 모두 실패로 잡음 |
+| 2 | P2 · 재시작 시험이 "정상 인도는 그대로"를 확인하지 않음(adversarial 75) | 같은 시험에서 온전한 인도로 엔진을 한 번 열어 delivered·done을 확인한 뒤 출력 폴더를 지우고 다시 연다 |
+| 3 | P2 · kit 그래프 run이 최종 Story와 다름(project-standards 75) | 기록이 없던 run을 지우고 새로 만든다(아래 그래프) |
+
+낮은 우선순위로 같이 고친 것: `npm ci --ignore-scripts`, lockfile 없는 설치의 가드, 설치할 때만 `[1/4]` 안내, 지운 명령의 `COMMAND_REMOVED`, `NOT_INSTALLED`의 `npm ci --omit=dev` 안내, `doctor`·옛 operator 파일 정리 단언, `ws` static import(시험·탐침), lean 주석의 Claw 언급, AGENTS.md "Agents and Office"(agent는 사람 대신 Decisions에 답하지 않는다), README의 한 checkout 여러 Office 안내, 이력 문서 안내, `upstream/`의 마지막 소스 커밋.
+
+기록만 한 위험:
+
+- `npm ci`는 받기 전에 `node_modules`를 지운다. 나중에 `ws` lock을 올릴 때 레지스트리 접속이 없으면 다시 쓰는 Office가 `ws` 없이 남는다(이번 업데이트는 루트에 원래 `node_modules`가 없어 해당 없음).
+- 한 checkout에서 `up` 두 개가 동시에 설치하면 경쟁한다(잠금 없음).
+- `dependenciesInstalled()`는 CJS 해석(상위 폴더·`NODE_PATH`)이라 서비스의 ESM import와 드물게 어긋날 수 있다.
+- "3초 안에 켜짐"은 lean만 잰 값이고 team(repo 수만큼 엔진)은 재지 않았다.
+- 허브 웹은 아직 요청 "내가 맡기"를 보인다. 수락해도 실행하는 Office가 없다(후속).
+- 채팅 조작 재개(새 Office의 operator API)는 별도 G3이며, 그때 사람만 답하는 게이트를 API 호출자와 구분할 방법을 정해야 한다.
+
+### 정리할 오래된 해결 문서 (머지 뒤 `/ce-compound-refresh`)
+
+`test-failures/fresh-worktree-tests-fail-without-office-ui-build.md`(이제 `npm ci`와 `NOT_INSTALLED`), `test-failures/claw-startup-wait-is-cpu-bound-under-load.md`(측정 방법은 남김), `test-failures/node-test-after-hook-order-orphans-detached-office.md`(`pgrep` 패턴), `security-issues/claw-cli-usage-panel-reads-cli-login-credentials-under-office.md`, `integration-issues/decode-route-ids-before-prefix-dispatch.md`, `integration-issues/report-changed-hub-certificate-on-cert-signature-failure.md`, `integration-issues/report-planning-runner-failure-separately.md`, `integration-issues/classify-review-runner-failure-as-unknown.md`, `ui-bugs/match-light-theme-remapped-classes.md`, `ui-bugs/use-in-page-dialogs-not-native-confirm.md`(검사 대상을 `src/lean/web`으로), `ui-bugs/preserve-intake-drafts-and-server-state.md`(채팅 부분만), `architecture-patterns/pin-bounded-role-instructions.md`, 그리고 이 문서들을 가리키는 `workflow-issues/redeploy-team-hub-to-openshift-from-fresh-bundle.md`, `test-failures/mock-the-controller-clock-in-stop-tests.md`의 링크.
+
