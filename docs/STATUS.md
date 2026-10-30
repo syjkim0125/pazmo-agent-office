@@ -7,7 +7,7 @@
 - 이제 `pinnedCodexProblem(~/.codex)` 하나로 1단계와 Office 시작이 판단한다. `auth.json`이 있고 두 파일이 없어야 시작하며, 설치된 CLI는 보지 않는다. 문구는 고정 codex의 로그인이나 로그인 폴더의 파일을 말한다. 예전의 "codex 또는 claude 중 하나를 … claude: 준비됨"은 나오지 않는다.
 - 로그아웃된 막힌 CLI(codex 개인 지침, claude hook)의 안내 뒤에 "그 CLI를 쓰려면 로그인도 하라"는 말이 붙는다. 막힘만 고친 사용자가 다음 실행에서 로그인 오류를 또 만나지 않게 하려는 것이다.
 - 실제 `up --codex-runtime pinned`(Claw·lean, 임시 HOME, 설치된 codex 없음)는 1단계에서 `RUNNER_BLOCKED`/`LOGIN_REQUIRED`로 멈췄다(`[1/4]` 없음, VM·런타임 흔적 없음). 이 Mac의 실제 `~/.codex`에는 `AGENTS.md`가 있어 pinned는 그 파일을 옮기기 전까지 시작하지 않는다.
-- 자동 검사: root 1119/1119 exit 0(최종 `9216ed4`, 구현 1회차 `5e480ae`는 1118/1118), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 7개 모두 잡음(리뷰어 따로 6개도 모두). 독립 리뷰 두 번 모두 Approve(1회차 Minor 1–4 반영).
+- 자동 검사: root 1119/1119 exit 0(최종 `9216ed4`, 구현 1회차 `5e480ae`는 1118/1118), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 7개 모두 잡음(리뷰어 따로 6개도 모두). 독립 리뷰 두 번 모두 Approve(1회차 Minor 1–4 반영). PR syjkim0125/pazmo-agent-office#53(#50 위에 쌓음).
 - **G4 대기.** `office start --codex-runtime pinned`의 실제 실행과 `prepareMachine` 연결 한 줄의 자동 시험은 없다. [변경 기록](verification/2026-10-30-pinned-codex-gate.md)
 
 # 2026-10-30 `./office` 시작 1단계에서 hook이 있는 claude 막기
