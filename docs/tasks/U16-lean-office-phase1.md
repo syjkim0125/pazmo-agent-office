@@ -19,7 +19,7 @@ Plan source: docs/plans/2026-10-20-1500-feat-lean-office-phase1-plan.md (Task 1�
 
 ## Verify
 - 엔진·저장·파사드·서버·수명주기·화면 자동 시험 X/X, 전체 회귀 X/X(root·vendor), 타입 검사, 보안 포함 브랜치 리뷰 1회.
-- eevee-be `up --lean` 실제 확인: 작업 하나를 G1→구현→다른 실행기 리뷰→G4→인도까지, agent 추가·변경·삭제.
+- app-be `up --lean` 실제 확인: 작업 하나를 G1→구현→다른 실행기 리뷰→G4→인도까지, agent 추가·변경·삭제.
 
 ## Risk / Dependency
 - 엔진의 실행기 연결점 변경이 Claw 엔진 동작을 바꾸지 않아야 한다(기존 시험으로 확인).

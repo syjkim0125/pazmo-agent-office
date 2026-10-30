@@ -3,7 +3,7 @@
 - `npm test` 전체: 591/591, exit 0
 - `npm run typecheck`: exit 0
 - `check.mjs story` exit 0, `check.mjs gate G1` exit 0
-- eevee-be 로컬 clone(scratchpad, 사용자 repo 미접촉)
+- app-be 로컬 clone(scratchpad, 사용자 repo 미접촉)
   - `init --apply` 후 Office 기록(plans/plan-x/verify-1.json)을 추가: `git status --porcelain` 비어 있음
   - `remove --apply`: removed [config.json, STORY.md, TASK.md], preserved [".gitignore"]. 이후에도 `git status` 비어 있음
   - 루트 .gitignore는 shasum 동일

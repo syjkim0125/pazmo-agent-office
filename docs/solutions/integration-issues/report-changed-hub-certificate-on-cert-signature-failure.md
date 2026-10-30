@@ -22,7 +22,7 @@ tags: [hub-tls, certificate-pinning, openssl, libressl, cert-signature-failure, 
 ## Problem
 Every hub CA has the same subject, `/CN=Pazmo Team Hub CA` (`src/hub/tls.ts:55-59`). The CA and server certificates are made by whatever `openssl` is first on PATH (`ensureHubTls(dir, names, openssl = "openssl")`, `src/hub/tls.ts:25`, called from `src/hub/run.ts:60`). On a Mac without Homebrew that is `/usr/bin/openssl`, LibreSSL 3.3.6, which writes no key identifiers into these certificates. So when a member pinned to one such CA reached a hub with a different CA, Node failed the handshake with `CERT_SIGNATURE_FAILURE`. That code was not in `TLS_UNTRUSTED_CODES` (`src/runtime/hub-link.ts:45`), so the member saw OpenSSL's raw text instead of the reconnect guidance.
 
-This applies only to a LAN hub that makes its own CA. A hub behind a proxy (Fusion mode) makes no CA and members verify it through system trust (`docs/understanding/team-hub-fusion-decision.md`).
+This applies only to a LAN hub that makes its own CA. A hub behind a proxy (OpenShift mode) makes no CA and members verify it through system trust (`docs/understanding/team-hub-openshift-decision.md`).
 
 The real-world trigger is a hub on a Mac without Homebrew whose CA gets regenerated. `ensureHubTls` tells the admin to delete the tls directory when the CA expires within 30 days (`HUB_CA_EXPIRING`, `src/hub/tls.ts:72`) or its DNS name changed (`HUB_CA_NAME_CHANGED`, `src/hub/tls.ts:67`). Members still pinned to the old CA then got the raw error.
 

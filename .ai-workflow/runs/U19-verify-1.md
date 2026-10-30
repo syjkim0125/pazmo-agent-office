@@ -14,4 +14,4 @@ The run before it, with macOS LibreSSL 3.3.6 first on PATH, was 942/943: `tests/
 
 UI: a real lean Office with a fake live runtime on a temporary project, in the built-in browser. Checked: the rerun button and hint on a stopped task, the prefilled dialog with `aria-describedby`, submit → new task with "이전 작업" link and log, old task cancelled with "다시 실행한 작업" link, and the plain new-task dialog unchanged.
 
-Not verified: the eevee-be real Office (needs the user's Office restarted), English screens beyond tests, G4.
+Not verified: the app-be real Office (needs the user's Office restarted), English screens beyond tests, G4.

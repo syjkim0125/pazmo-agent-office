@@ -1,8 +1,8 @@
-# 팀 허브 Fusion 이전 Implementation Plan
+# 팀 허브 OpenShift 이전 Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** 팀 허브를 Fusion(OpenShift) eevee 프로젝트에 프록시 뒤 모드로 상시 띄운다. 각 Office는 공인 인증서를 시스템 신뢰로 검증해 지문 없이 연결한다. 사내망 허브 모드는 그대로 둔다.
+**Goal:** 팀 허브를 OpenShift team-project 프로젝트에 프록시 뒤 모드로 상시 띄운다. 각 Office는 공인 인증서를 시스템 신뢰로 검증해 지문 없이 연결한다. 사내망 허브 모드는 그대로 둔다.
 
 **Architecture:**
 - `startHubServer`는 두 수신 방식을 받는다.
@@ -10,25 +10,25 @@
   - 새 HTTP 수신(`proxy`): 공개 주소로 Host·Origin을 검사한다.
 - `runHub`는 `src/hub/run.ts`로 옮긴다. 허브 전용 진입점 `bin/pazmo-hub.mjs`와 묶음 스크립트로, Office 런타임 없이 허브 파일만 담은 S2I 빌드 입력을 만든다.
 - Office 쪽 `pairOffice`/`hubCall`은 CA PEM이 없으면 Node 기본 신뢰 저장소를 쓴다.
-- 배포 리소스는 `deploy/fusion/pazmo-hub.json`(OpenShift List)에 둔다.
+- 배포 리소스는 `deploy/openshift/pazmo-hub.json`(OpenShift List)에 둔다.
 
 **Tech Stack:** Node 24.19(타입 제거 실행, `node:test`, `node:sqlite`, `node:http`/`node:https`), OpenShift(BuildConfig Source 바이너리 빌드, Deployment, Route edge, PVC), 빌더 `${BUILDER_IMAGE}`.
 
-**Spec:** `docs/understanding/team-hub-fusion-decision.md` (G3 2026-10-14), Story `docs/understanding/pazmo-agent-office-contract.md` M11 / D19 / V13. 앞 결정: `team-hub-decision.md`(D16), `team-hub-office-send-decision.md`(D17), `team-hub-office-cancel-decision.md`(D18).
+**Spec:** `docs/understanding/team-hub-openshift-decision.md` (G3 2026-10-14), Story `docs/understanding/pazmo-agent-office-contract.md` M11 / D19 / V13. 앞 결정: `team-hub-decision.md`(D16), `team-hub-office-send-decision.md`(D17), `team-hub-office-cancel-decision.md`(D18).
 
 ## Global Constraints
 
 - 사내망 허브 모드(`hub --host <사설 IPv4> [--name] [--port]`, 자체 CA, `--fingerprint` 연결)는 동작·출력·테스트 모두 그대로다.
 - 시작 인자는 다음과 같다.
-  - Fusion 모드 시작: `pazmo-office hub --public-url https://<호스트> --listen <IP>:<포트> [--data-dir <경로>]`.
+  - OpenShift 모드 시작: `pazmo-office hub --public-url https://<호스트> --listen <IP>:<포트> [--data-dir <경로>]`.
   - 허브 전용 진입점: `node bin/pazmo-hub.mjs`. 환경 변수 `PAZMO_HUB_PUBLIC_URL`, `PAZMO_HUB_LISTEN`(기본 `0.0.0.0:8080`), `PAZMO_HUB_DATA_DIR`(기본 `/data`)를 쓴다.
 - `--public-url`은 `https://`이고 경로가 `/`이며 포트·쿼리·사용자 정보가 없어야 한다. 아니면 `ARGUMENT` 오류로 시작하지 않는다. `--host`/`--name`과 `--public-url`은 함께 쓸 수 없다.
-- Fusion 모드 요청 검사는 다음과 같다.
+- OpenShift 모드 요청 검사는 다음과 같다.
   - Host는 `<공개 호스트>` 또는 `<공개 호스트>:443`만 받는다. 그 밖은 421 `Misdirected Request`.
   - POST의 Origin은 `https://<공개 호스트>`만 받는다. 그 밖은 403.
   - 쿠키는 `HttpOnly; Secure; SameSite=Strict; Path=/`, 보안 헤더는 기존 `HEADERS`와 같다.
 - `GET /healthz`는 두 모드 모두 Host 검사 **전에** 200을 준다. `text/plain`, 본문 `ok`, 인증이 없다. 파드 검사가 파드 IP로 들어오기 때문이다.
-- Fusion 모드에서는 자체 CA를 만들지 않고 `tls/` 디렉터리도 만들지 않는다. `/trust`와 `/ca.pem`은 404, 화면 메뉴의 "인증서" 링크는 숨긴다. 연결 명령에는 `--fingerprint`가 없다.
+- OpenShift 모드에서는 자체 CA를 만들지 않고 `tls/` 디렉터리도 만들지 않는다. `/trust`와 `/ca.pem`은 404, 화면 메뉴의 "인증서" 링크는 숨긴다. 연결 명령에는 `--fingerprint`가 없다.
 - SQLite 대기 시간: `runHub`가 DB를 열자마자 `PRAGMA busy_timeout = 5000`을 실행한다(두 모드).
 - Office 연결은 다음과 같다.
   - `hub-link --hub https://<호스트> --code <코드>`에서 `--fingerprint`는 생략할 수 있다. 생략하면 시스템 신뢰로 검증하고, 설정에는 `caPem: null`, `fingerprint: null`을 기록한다.
@@ -36,7 +36,7 @@
   - 기존 설정 파일(문자열 `caPem`)은 그대로 동작한다.
 - 배포 리소스 이름:
   - ImageStream·BuildConfig·Deployment·Service·Route: `pazmo-hub`
-  - PVC: `pazmo-hub-data`(2Gi, RWO — eevee 최소 2Gi)
+  - PVC: `pazmo-hub-data`(2Gi, RWO — team-project 최소 2Gi)
   - Route 호스트: `pazmo-hub.apps.example.com`(edge, `insecureEdgeTerminationPolicy: Redirect`)
   - Deployment: `replicas: 1`, `strategy.type: Recreate`, 컨테이너 포트 8080, `/data` 마운트, 준비·생존 검사 `GET /healthz`
 - 각 Office는 계속 `127.0.0.1`에만 열린다. 허브는 Office로 접속하지 않는다. 로그인 정보와 토큰은 다루지 않고, `oc` 명령은 사용자가 실행한다.
@@ -57,17 +57,17 @@
 
 | 파일 | 책임 | Task |
 |---|---|---|
-| `src/hub/server.ts` | `HubServerConfig`에 `listen` 두 방식(`tls`/`proxy`), `/healthz`, Fusion 모드 Host·Origin, `/trust`·`/ca.pem` 숨김, 연결·초대 문구 | 1 |
+| `src/hub/server.ts` | `HubServerConfig`에 `listen` 두 방식(`tls`/`proxy`), `/healthz`, OpenShift 모드 Host·Origin, `/trust`·`/ca.pem` 숨김, 연결·초대 문구 | 1 |
 | `src/hub/pages.ts` | `layout`의 "인증서" 메뉴를 조건부로 | 1 |
-| `src/hub/run.ts` (새) | `runHub`(옮김) + Fusion 모드 분기 + `busy_timeout` | 2 |
+| `src/hub/run.ts` (새) | `runHub`(옮김) + OpenShift 모드 분기 + `busy_timeout` | 2 |
 | `src/cli/hub.ts` | `runHub` 재노출, `linkOffice`의 `fingerprint` 선택 | 2, 3 |
 | `src/cli/index.ts` | `hub`의 `--public-url`/`--listen`, `hub-link`의 `--fingerprint` 선택 | 2, 3 |
 | `src/hub/main.ts` (새), `bin/pazmo-hub.mjs` (새) | 컨테이너용 진입점(환경 변수) | 4 |
 | `src/runtime/hub-link.ts` | `HubLinkConfig.caPem/fingerprint: string \| null`, `pairOffice` 시스템 신뢰, `hubCall` ca 생략, 오류 매핑 | 3 |
 | `scripts/hub-bundle.mjs` (새), `package.json` | `npm run hub:bundle`: 진입점에서 import 그래프를 따라 묶음 생성 | 4 |
-| `deploy/fusion/pazmo-hub.json` (새) | OpenShift List: ImageStream, BuildConfig, PVC, Deployment, Service, Route | 4 |
-| 테스트 | `tests/hub-fusion-server.test.mjs`, `tests/hub-fusion-run.test.mjs`, `tests/hub-link-system-trust.test.mjs`, `tests/hub-bundle.test.mjs`(새), 기존 `tests/hub-server.test.mjs`·`tests/hub-cli.test.mjs`·`tests/hub-link.test.mjs` 회귀 | 1–4 |
-| 문서 | `docs/LOCAL-PREVIEW.md` "팀 허브 (Fusion)" 절, `docs/verification/<날짜>-team-hub-fusion.md`, `docs/STATUS.md`, `CONCEPTS.md`("Team hub"·"Office link" 갱신) | 5 |
+| `deploy/openshift/pazmo-hub.json` (새) | OpenShift List: ImageStream, BuildConfig, PVC, Deployment, Service, Route | 4 |
+| 테스트 | `tests/hub-openshift-server.test.mjs`, `tests/hub-openshift-run.test.mjs`, `tests/hub-link-system-trust.test.mjs`, `tests/hub-bundle.test.mjs`(새), 기존 `tests/hub-server.test.mjs`·`tests/hub-cli.test.mjs`·`tests/hub-link.test.mjs` 회귀 | 1–4 |
+| 문서 | `docs/LOCAL-PREVIEW.md` "팀 허브 (OpenShift)" 절, `docs/verification/<날짜>-team-hub-openshift.md`, `docs/STATUS.md`, `CONCEPTS.md`("Team hub"·"Office link" 갱신) | 5 |
 
 ---
 
@@ -76,7 +76,7 @@
 **Files:**
 - Modify: `src/hub/server.ts` (전체, 특히 10행 타입, 81–86·143–154행 문구, 169–206행 수신)
 - Modify: `src/hub/pages.ts:34-38` (`layout`)
-- Test: `tests/hub-fusion-server.test.mjs` (새), `tests/hub-server.test.mjs`·`tests/hub-fixture.mjs`는 회귀만
+- Test: `tests/hub-openshift-server.test.mjs` (새), `tests/hub-server.test.mjs`·`tests/hub-fixture.mjs`는 회귀만
 
 **Interfaces:**
 - Produces:
@@ -95,7 +95,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
   - `proxy`는 `node:http`로 `host:port`에서 수신한다.
 - `tests/hub-fixture.mjs`의 `startHubServer` 호출은 `{ store, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }`로 바꾼다. 다른 호출부(`src/cli/hub.ts`)는 Task 2에서 옮기되, 이 Task에서도 타입이 깨지지 않게 같은 형태로 고친다.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다.** `tests/hub-fusion-server.test.mjs`를 만든다.
+- [ ] **Step 1: 실패하는 테스트를 쓴다.** `tests/hub-openshift-server.test.mjs`를 만든다.
 
 ```js
 import test from "node:test";
@@ -126,7 +126,7 @@ async function proxyHub(t) {
   return { store, hub, call };
 }
 
-test("behind the Fusion router the hub answers its public host only, and its URL is the public origin", async (t) => {
+test("behind the OpenShift router the hub answers its public host only, and its URL is the public origin", async (t) => {
   const { hub, call } = await proxyHub(t);
   assert.equal(hub.url, PUBLIC);
   assert.equal((await call("GET", "/")).status, 401, "signed-out page for the public host");
@@ -160,7 +160,7 @@ test("writes need the public origin; invites set a Secure cookie; there is no ce
 test("the link command and invite text carry no fingerprint behind the router", async (t) => {
   const { store, call } = await proxyHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac");
-  const repo = store.addRepo(admin.member, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin.member, "app-be", "https://github.example.com/team/app-be.git");
   const cookie = `pazmo_hub=${admin.session}`;
   const page = await call("GET", "/repos", { headers: { cookie } });
   const csrf = /name="csrf" value="([^"]+)"/.exec(page.text)[1];
@@ -175,7 +175,7 @@ test("the link command and invite text carry no fingerprint behind the router", 
 
   `acceptInvite`의 반환 형태(`{ member, session }`)와 쿠키 이름은 `src/hub/store.ts`와 `server.ts`의 `COOKIE`를 따른다. `/repos` 화면의 HTML 이스케이프 방식은 `pages.ts`의 `esc`를 확인하고 정규식을 맞춘다.
 
-- [ ] **Step 2: 실패를 확인한다.** Run: `node --test tests/hub-fusion-server.test.mjs`. Expected: FAIL. `startHubServer`가 `listen`을 모른다.
+- [ ] **Step 2: 실패를 확인한다.** Run: `node --test tests/hub-openshift-server.test.mjs`. Expected: FAIL. `startHubServer`가 `listen`을 모른다.
 
 - [ ] **Step 3: 서버를 구현한다.** `src/hub/server.ts`:
   - import에 `createServer as createHttpServer` from `node:http`를 추가한다. `HubServer`에 `port: number`를 추가한다(테스트와 로그용).
@@ -232,17 +232,17 @@ test("the link command and invite text carry no fingerprint behind the router", 
 - [ ] **Step 4: 통과와 회귀를 확인한다.**
   - `tests/hub-fixture.mjs`의 호출을 Interfaces대로 바꾼다.
   - `src/cli/hub.ts`의 `startHubServer` 호출을 `{ store, listen: { kind: "tls", tls, host: input.host, port: input.port, names: [...] } }`로 바꾼다.
-  - Run: `node --test tests/hub-fusion-server.test.mjs tests/hub-server.test.mjs tests/hub-link-api.test.mjs tests/hub-cli.test.mjs`, 그리고 `npm run typecheck`. Expected: 모두 PASS, exit 0.
+  - Run: `node --test tests/hub-openshift-server.test.mjs tests/hub-server.test.mjs tests/hub-link-api.test.mjs tests/hub-cli.test.mjs`, 그리고 `npm run typecheck`. Expected: 모두 PASS, exit 0.
 
 ---
 
-### Task 2: `runHub` Fusion 모드와 CLI 인자, DB 대기 시간
+### Task 2: `runHub` OpenShift 모드와 CLI 인자, DB 대기 시간
 
 **Files:**
 - Create: `src/hub/run.ts` (`src/cli/hub.ts`의 `runHub`를 옮겨 확장)
 - Modify: `src/cli/hub.ts` (`export { runHub } from "../hub/run.ts";`만 남기고 `linkOffice`/`unlinkOffice`는 그대로)
 - Modify: `src/cli/index.ts` (옵션 목록 80–95행, 허용 명령 표 160–170행, `hub` 분기 214–225행)
-- Test: `tests/hub-fusion-run.test.mjs` (새), `tests/hub-cli.test.mjs` 회귀
+- Test: `tests/hub-openshift-run.test.mjs` (새), `tests/hub-cli.test.mjs` 회귀
 
 **Interfaces:**
 - Consumes: Task 1 `startHubServer({ store, listen })`.
@@ -263,7 +263,7 @@ export function parseListen(raw: string): { host: string; port: number }; // "IP
     - `lan`: 지금과 같다(`url`, `fingerprint`, `trust`, `adminInvite?`).
     - `proxy`: `{ url, adminInvite? }`.
 
-- [ ] **Step 1: 실패하는 테스트를 쓴다.** `tests/hub-fusion-run.test.mjs`:
+- [ ] **Step 1: 실패하는 테스트를 쓴다.** `tests/hub-openshift-run.test.mjs`:
 
 ```js
 import test from "node:test";
@@ -322,7 +322,7 @@ test("an unwritable data directory stops the hub before it listens", async (t) =
   - `hub --public-url http://h.example --listen 127.0.0.1:0` → `ARGUMENT`
   - `hub --listen 127.0.0.1:0`(public-url 없음) → `ARGUMENT`
 
-- [ ] **Step 2: 실패를 확인한다.** Run: `node --test tests/hub-fusion-run.test.mjs tests/hub-cli.test.mjs`. Expected: FAIL. `../src/hub/run.ts`가 없다.
+- [ ] **Step 2: 실패를 확인한다.** Run: `node --test tests/hub-openshift-run.test.mjs tests/hub-cli.test.mjs`. Expected: FAIL. `../src/hub/run.ts`가 없다.
 
 - [ ] **Step 3: 구현한다.**
   - `src/hub/run.ts`: `src/cli/hub.ts`의 `runHub` 본문을 옮겨 `startHub`로 나눈다.
@@ -339,7 +339,7 @@ test("an unwritable data directory stops the hub before it listens", async (t) =
       - 통과하면 `runHub({ mode: "proxy", publicUrl, listenHost, listenPort, dataDir })`를 부른다.
     - `--public-url`이 없으면 지금처럼 `runHub({ mode: "lan", host: required("--host"), ... })`를 부른다. `--listen`만 있으면 위 ARGUMENT 오류다.
 
-- [ ] **Step 4: 통과와 회귀를 확인한다.** Run: `node --test tests/hub-fusion-run.test.mjs tests/hub-cli.test.mjs tests/hub-server.test.mjs tests/hub-fusion-server.test.mjs`, `npm run typecheck`. Expected: PASS, exit 0.
+- [ ] **Step 4: 통과와 회귀를 확인한다.** Run: `node --test tests/hub-openshift-run.test.mjs tests/hub-cli.test.mjs tests/hub-server.test.mjs tests/hub-openshift-server.test.mjs`, `npm run typecheck`. Expected: PASS, exit 0.
 
 ---
 
@@ -386,7 +386,7 @@ function pairInChild({ hub, code, dataDir, extraCa }) {
   const script = `
     import { pairOffice, readLinkConfig, hubCall } from ${JSON.stringify(ROOT + "src/runtime/hub-link.ts")};
     try {
-      await pairOffice({ dataDir: ${JSON.stringify(dataDir)}, hub: ${JSON.stringify(hub)}, code: ${JSON.stringify(code)}, remote: "https://github.example.com/team/eevee-be" });
+      await pairOffice({ dataDir: ${JSON.stringify(dataDir)}, hub: ${JSON.stringify(hub)}, code: ${JSON.stringify(code)}, remote: "https://github.example.com/team/app-be" });
       const cfg = readLinkConfig(${JSON.stringify(dataDir)});
       const work = await hubCall(cfg, "GET", "/api/link/work");
       console.log(JSON.stringify({ ok: true, caPem: cfg.caPem, fingerprint: cfg.fingerprint, assignments: work.assignments.length }));
@@ -399,7 +399,7 @@ function pairInChild({ hub, code, dataDir, extraCa }) {
 test("without a fingerprint the Office trusts the system roots, stores no CA, and keeps working", async (t) => {
   const { store, tls, hub } = await startTestHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const d = mkdtempSync(join(tmpdir(), "link-sys-"));
   t.after(() => rmSync(d, { recursive: true, force: true }));
   const ca = join(d, "ca.pem");
@@ -411,7 +411,7 @@ test("without a fingerprint the Office trusts the system roots, stores no CA, an
 test("a certificate the system does not trust is refused with a hint to pass the fingerprint", async (t) => {
   const { store, hub } = await startTestHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const d = mkdtempSync(join(tmpdir(), "link-sys-"));
   t.after(() => rmSync(d, { recursive: true, force: true }));
   const r = pairInChild({ hub: hub.url, code: store.createLinkCode(admin, repo), dataDir: join(d, "office") });
@@ -466,17 +466,17 @@ const TLS_UNTRUSTED = new Set(["UNABLE_TO_VERIFY_LEAF_SIGNATURE", "SELF_SIGNED_C
 
 ---
 
-### Task 4: 컨테이너 진입점, 묶음, Fusion 매니페스트
+### Task 4: 컨테이너 진입점, 묶음, OpenShift 매니페스트
 
 **Files:**
-- Create: `src/hub/main.ts`, `bin/pazmo-hub.mjs`, `scripts/hub-bundle.mjs`, `deploy/fusion/pazmo-hub.json`
+- Create: `src/hub/main.ts`, `bin/pazmo-hub.mjs`, `scripts/hub-bundle.mjs`, `deploy/openshift/pazmo-hub.json`
 - Modify: `package.json` (`"hub:bundle": "node scripts/hub-bundle.mjs"`)
 - Test: `tests/hub-bundle.test.mjs` (새)
 
 **Interfaces:**
 - Consumes: Task 2 `runHub({ mode: "proxy", publicUrl, listenHost, listenPort, dataDir })`, `parsePublicUrl`, `parseListen`.
 - Produces:
-  - `node bin/pazmo-hub.mjs`: 환경 변수 `PAZMO_HUB_PUBLIC_URL`(필수), `PAZMO_HUB_LISTEN`(기본 `0.0.0.0:8080`), `PAZMO_HUB_DATA_DIR`(기본 `/data`)로 Fusion 모드 허브를 띄운다.
+  - `node bin/pazmo-hub.mjs`: 환경 변수 `PAZMO_HUB_PUBLIC_URL`(필수), `PAZMO_HUB_LISTEN`(기본 `0.0.0.0:8080`), `PAZMO_HUB_DATA_DIR`(기본 `/data`)로 OpenShift 모드 허브를 띄운다.
   - `npm run hub:bundle -- --out <dir>`: `<dir>`에 다음을 만든다.
     - `bin/pazmo-hub.mjs`
     - 진입점이 상대 import로 닿는 모든 `.ts`/`.mjs`
@@ -520,8 +520,8 @@ test("the bundle alone starts the hub behind a router and answers its health che
   assert.equal(status, 200);
 });
 
-test("the Fusion manifests pin one pod on the volume, an edge route and the health check", () => {
-  const list = JSON.parse(readFileSync(join(ROOT, "deploy/fusion/pazmo-hub.json"), "utf8"));
+test("the OpenShift manifests pin one pod on the volume, an edge route and the health check", () => {
+  const list = JSON.parse(readFileSync(join(ROOT, "deploy/openshift/pazmo-hub.json"), "utf8"));
   const by = (kind) => list.items.find((i) => i.kind === kind);
   assert.equal(list.kind, "List");
   assert.deepEqual(list.items.map((i) => i.kind).sort(), ["BuildConfig", "Deployment", "ImageStream", "PersistentVolumeClaim", "Route", "Service"]);
@@ -562,7 +562,7 @@ test("the Fusion manifests pin one pod on the volume, an edge route and the heal
     - 모은 파일을 같은 상대 경로로 `--out`에 복사하고 `package.json`을 쓴다.
     - 출력 디렉터리가 있으면 비우고 다시 만든다.
     - 묶인 파일 수를 출력한다.
-  - `deploy/fusion/pazmo-hub.json`: OpenShift List. 각 항목 `metadata`에 `{ name, labels: { app: "pazmo-hub" } }`를 둔다.
+  - `deploy/openshift/pazmo-hub.json`: OpenShift List. 각 항목 `metadata`에 `{ name, labels: { app: "pazmo-hub" } }`를 둔다.
     - **ImageStream** `pazmo-hub`
     - **BuildConfig** `pazmo-hub`:
       - `source: { type: "Binary" }`
@@ -570,7 +570,7 @@ test("the Fusion manifests pin one pod on the volume, an edge route and the heal
       - `output: { to: { kind: "ImageStreamTag", name: "pazmo-hub:latest" } }`
       - `resources.limits: { cpu: "500m", memory: "512Mi" }`
       - `runPolicy: "Serial"`
-    - **PersistentVolumeClaim** `pazmo-hub-data`: RWO, 2Gi (eevee 최소 2Gi)
+    - **PersistentVolumeClaim** `pazmo-hub-data`: RWO, 2Gi (team-project 최소 2Gi)
     - **Deployment** `pazmo-hub`:
       - `metadata.annotations["image.openshift.io/triggers"] = '[{"from":{"kind":"ImageStreamTag","name":"pazmo-hub:latest"},"fieldPath":"spec.template.spec.containers[?(@.name==\"pazmo-hub\")].image"}]'`
       - `replicas: 1`, `strategy: { type: "Recreate" }`
@@ -597,9 +597,9 @@ test("the Fusion manifests pin one pod on the volume, an edge route and the heal
 ### Task 5: 전체 검증, 리뷰, 실제 배포, 문서
 
 **Files:**
-- Create: `docs/verification/<실제 확인 날짜>-team-hub-fusion.md`
+- Create: `docs/verification/<실제 확인 날짜>-team-hub-openshift.md`
 - Modify:
-  - `docs/LOCAL-PREVIEW.md`: "팀 허브" 아래 "Fusion에서 운영" 절. 배포 절차, 관리자 링크 받기, 지문 없는 연결, 업데이트, 내보내기를 적는다.
+  - `docs/LOCAL-PREVIEW.md`: "팀 허브" 아래 "OpenShift에서 운영" 절. 배포 절차, 관리자 링크 받기, 지문 없는 연결, 업데이트, 내보내기를 적는다.
   - `docs/STATUS.md`
   - `CONCEPTS.md`: "Team hub"와 "Office link"의 신뢰 방식 두 가지
 
@@ -615,10 +615,10 @@ test("the Fusion manifests pin one pod on the volume, an edge route and the heal
   - Critical/Important는 고치고 Step 1을 다시 돈다.
 - [ ] **Step 3: 실제 배포.** 사용자와 함께 한다. `oc` 명령과 로그인은 사용자가 실행한다.
   1. `npm run hub:bundle`
-  2. 사용자: `oc login …`(Fusion), `oc project eevee`, `oc process -f deploy/fusion/pazmo-hub.json --param-file=deploy/fusion/local.env | oc apply -f -`(2026-10-15 공개 레포 정리로 Template + 매개변수로 바뀜), `oc start-build pazmo-hub --from-dir dist/hub-bundle --follow`
+  2. 사용자: `oc login …`(OpenShift), `oc project team-project`, `oc process -f deploy/openshift/pazmo-hub.json --param-file=deploy/openshift/local.env | oc apply -f -`(2026-10-15 공개 레포 정리로 Template + 매개변수로 바뀜), `oc start-build pazmo-hub --from-dir dist/hub-bundle --follow`
   3. `oc logs deploy/pazmo-hub`의 첫 줄에서 관리자 링크를 받아 브라우저로 입장한다. 인증서 경고가 없어야 한다.
-  4. 레포를 등록한다(eevee-be, hub-test-backend). 사용자 확인 후 두 Office를 `hub-link`(지문 없음)로 다시 연결한다.
-  5. eevee-be 카드에서 보내기 → 테스트로 수락(허브 화면) → 상대 PM G1 → 취소를 한 바퀴 돈다.
+  4. 레포를 등록한다(app-be, hub-test-backend). 사용자 확인 후 두 Office를 `hub-link`(지문 없음)로 다시 연결한다.
+  5. app-be 카드에서 보내기 → 테스트로 수락(허브 화면) → 상대 PM G1 → 취소를 한 바퀴 돈다.
   6. `oc rollout restart deploy/pazmo-hub` 뒤 브라우저 세션, Office 연결, 요청이 이어지는지 본다.
   7. 노트북 IP가 바뀌어도 연결이 유지되는지 본다(가능할 때).
   8. 단계별 결과를 검증 문서에 기록한다.
@@ -633,7 +633,7 @@ test("the Fusion manifests pin one pod on the volume, an edge route and the heal
 
 | 결정 문서 항목 | 구현 Task |
 |---|---|
-| 결정 1 (Fusion 모드: HTTP 수신, Host·Origin, `/trust` 없음, 관리자 링크, `/healthz`) | Task 1 서버, Task 2 `runHub`·CLI, Task 4 진입점 |
+| 결정 1 (OpenShift 모드: HTTP 수신, Host·Origin, `/trust` 없음, 관리자 링크, `/healthz`) | Task 1 서버, Task 2 `runHub`·CLI, Task 4 진입점 |
 | 결정 2 (지문 없는 연결, 시스템 신뢰, 화면 연결 명령) | Task 3, Task 1 연결 명령 문구 |
 | 결정 3 (SQLite on PVC, 파드 1개·Recreate, 대기 시간) | Task 2 `busy_timeout`, Task 4 매니페스트 |
 | 결정 4 (매니페스트, `hub:bundle`, 절차) | Task 4, Task 5 문서 |

@@ -44,7 +44,7 @@ execution: code
 - **편집 주의:** `native-office.ts`, `host.ts`, `TaskCard.tsx`, `ChatPanel.tsx`는 편집 직전에 다시 읽고 최소 줄만 바꾼다. `src/runners/*.mjs`, `*.cjs`는 건드리지 않는다.
 - **커밋:** 커밋·푸시는 사용자 요청 시에만 한다. 각 Task의 "Commit" 단계는 `git diff --stat` 확인으로 대체한다.
 - **보고:** 테스트 결과는 X/X로 보고한다. Node 경로는 `export PATH=$HOME/.nvm/versions/node/v24.19.0/bin:$PATH`. 화면 테스트는 `vendor/claw-empire`에서 `npx vitest --config vitest.config.ts <file>`로 돌린다.
-- **실행 중인 Office·허브:** eevee-be Office와 허브(이 worktree에서 실행 중)는 사용자 확인 없이 재시작하지 않는다.
+- **실행 중인 Office·허브:** app-be Office와 허브(이 worktree에서 실행 중)는 사용자 확인 없이 재시작하지 않는다.
 
 ## Review Focus
 
@@ -221,14 +221,14 @@ test("an existing hub database gains the new columns without losing requests", (
 ```js
 test("protocol 1 Offices keep working; the new routes need protocol 2", async (t) => {
   const { api, store, admin, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
   assert.equal((await api("GET", "/api/link/work", { token, protocol: "1" })).status, 200);
   const old = await api("GET", "/api/link/repos", { token, protocol: "1" });
   assert.equal(old.status, 426);
   assert.equal(old.json.expected, "2");
   const repos = await api("GET", "/api/link/repos", { token, protocol: "2" });
-  assert.equal(repos.json.repos[0].name, "eevee-be");
-  const sent = await api("POST", "/api/link/requests", { token, protocol: "2", body: { repoId: repo, body: "일", risk: "normal", key: "66666666-6666-4666-8666-666666666666", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  assert.equal(repos.json.repos[0].name, "app-be");
+  const sent = await api("POST", "/api/link/requests", { token, protocol: "2", body: { repoId: repo, body: "일", risk: "normal", key: "66666666-6666-4666-8666-666666666666", source: "app-be Office 채팅", parentAssignmentId: null } });
   assert.equal(sent.status, 200);
   assert.equal(sent.json.created, true);
   const out = await api("GET", "/api/link/outgoing", { token, protocol: "2" });
@@ -1597,11 +1597,11 @@ Expected: PASS
   - CSRF
   - Critical/Important는 고치고 Step 1을 다시 돈다.
 - [ ] **Step 3: 실제 확인** (사용자와 함께, Office와 허브 재시작 전에 사용자에게 묻는다)
-  1. 허브와 eevee-be Office를 새 코드로 재시작한다.
+  1. 허브와 app-be Office를 새 코드로 재시작한다.
   2. 시험용 작은 레포를 정한다(사용자 선택). 그 레포의 Office를 띄우고, "테스트" 팀원 담당으로 허브에 등록·연결한다.
-  3. eevee-be Office의 Tasks 카드에서 **팀 허브로 보내기** → 시험 레포를 고른다.
+  3. app-be Office의 Tasks 카드에서 **팀 허브로 보내기** → 시험 레포를 고른다.
   4. 허브 게시판에 출처와 함께 요청이 생기는지 확인한다.
-  5. "테스트"로 맡는다. 상대 PM의 질문이나 G1이 **eevee-be Office Decisions**에 뜨면 사용자가 답한다.
+  5. "테스트"로 맡는다. 상대 PM의 질문이나 G1이 **app-be Office Decisions**에 뜨면 사용자가 답한다.
   6. 카드 표시가 바뀌는지 확인한다. 상대 G4와 인도는 상대 Office에서 사용자가 직접 한다.
   7. 단계별 결과를 검증 문서에 기록한다.
 - [ ] **Step 4:** 문서를 쓰고 Story·Task 검사를 돌린다(exit 0). 그래프의 `implement` → `workflow-review` → `workflow-verify` 노드에 증거를 기록한다.

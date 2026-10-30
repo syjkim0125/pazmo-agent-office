@@ -10,10 +10,10 @@ export function setup() {
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const join = (name) => store.acceptInvite(store.createInvite(admin, name), name).member;
   const pl = join("PL"), b = join("B"), c = join("C");
-  const be = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
-  const fe = store.addRepo(admin, "eevee-fe", "git@github.example.com:team/eevee-fe.git");
+  const be = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
+  const fe = store.addRepo(admin, "app-fe", "git@github.example.com:team/app-fe.git");
   for (const [m, r] of [[pl, be], [pl, fe], [b, fe], [c, be]]) store.addOwner(admin, r, m.id);
-  const remote = { [be]: "https://github.example.com/team/eevee-be", [fe]: "https://github.example.com/team/eevee-fe" };
+  const remote = { [be]: "https://github.example.com/team/app-be", [fe]: "https://github.example.com/team/app-fe" };
   // A new pair for the same (member, repo) revokes the previous token, so tests keep the Link objects they got.
   const tokenOf = (m, r) => store.pair(store.createLinkCode(m, r), remote[r]).token;
   const linkOf = (m, r) => store.link(tokenOf(m, r));

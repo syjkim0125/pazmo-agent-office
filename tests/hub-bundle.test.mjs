@@ -270,8 +270,8 @@ test("the entrypoint exits 0 on SIGTERM after stopping the hub", async () => {
   } finally { rmSync(data, { recursive: true, force: true }); }
 });
 
-test("the Fusion manifests pin one pod on the volume, an edge route and the health check", () => {
-  const raw = readFileSync(join(ROOT, "deploy/fusion/pazmo-hub.json"), "utf8");
+test("the OpenShift manifests pin one pod on the volume, an edge route and the health check", () => {
+  const raw = readFileSync(join(ROOT, "deploy/openshift/pazmo-hub.json"), "utf8");
   const list = JSON.parse(raw);
   const by = (kind) => list.objects.find((i) => i.kind === kind);
   assert.deepEqual([list.apiVersion, list.kind], ["template.openshift.io/v1", "Template"]);

@@ -53,7 +53,7 @@
   - main(#40)을 합친 `45df698`에서 다시 돌린 전체 시험 **1092/1092** exit 0, 타입 검사 exit 0, Story 검사기 exit 0
 - G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 푸시·PR, 머지는 사용자가 정함). [G4 기록](verification/2026-10-29-team-story-office-repos-g4.md)
 - **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다.
-- 실제 확인(2026-10-30, main `ebef236`): 로컬 Hub와 시험 repo 세 개(github.com, 회사 GHE, gh 로그인 없는 호스트)로 16개를 확인했고, 모두 기대대로 동작했다. 등록·중복 거절, 상태, 가져가기 순서, 하트비트, 재시작과 응답을 잃은 경우의 이어 받기, PL 취소, 멈춤, 하루 상한, 켜진 동안의 연결과 5분 재확인, `REPO_MISSING`·`REPO_REMOVED`, 보류 뒤 PL 풀기, 하트비트 404다. **찾은 것:** repo 빼기(`REPO_REMOVED`)나 하트비트 404는 로컬 기록만 버리고 Hub에는 그 Task가 이 사람의 claim으로 남는다. 그래서 PL이 풀거나 취소할 때까지(풀기는 10분 보류 뒤) 팀 Office가 다른 Task도 가져가지 않는다. 그동안 `status --team`과 로그에 이유가 나오지 않는다. eevee-be는 실제 데이터와 Fusion 연결을 건드리지 않으려고 쓰지 않았다. [실제 확인 기록](verification/2026-10-30-team-story-office-real-check.md)
+- 실제 확인(2026-10-30, main `ebef236`): 로컬 Hub와 시험 repo 세 개(github.com, 회사 GHE, gh 로그인 없는 호스트)로 16개를 확인했고, 모두 기대대로 동작했다. 등록·중복 거절, 상태, 가져가기 순서, 하트비트, 재시작과 응답을 잃은 경우의 이어 받기, PL 취소, 멈춤, 하루 상한, 켜진 동안의 연결과 5분 재확인, `REPO_MISSING`·`REPO_REMOVED`, 보류 뒤 PL 풀기, 하트비트 404다. **찾은 것:** repo 빼기(`REPO_REMOVED`)나 하트비트 404는 로컬 기록만 버리고 Hub에는 그 Task가 이 사람의 claim으로 남는다. 그래서 PL이 풀거나 취소할 때까지(풀기는 10분 보류 뒤) 팀 Office가 다른 Task도 가져가지 않는다. 그동안 `status --team`과 로그에 이유가 나오지 않는다. app-be는 실제 데이터와 OpenShift 연결을 건드리지 않으려고 쓰지 않았다. [실제 확인 기록](verification/2026-10-30-team-story-office-real-check.md)
 - **남은 것:** 위 찾은 것을 어떻게 다룰지 결정, `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
 
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
@@ -69,7 +69,7 @@
 # 2026-10-27 리뷰 실행기 오류를 리뷰 fail로 세지 않기
 
 - 리뷰 실행기(codex·claude CLI)가 보고서 없이 0이 아닌 코드로 끝나면(API 오류·안전장치 거절 등) 이제 리뷰 fail이 아니라 unknown이다. 검증은 `REVIEW_RUNNER_FAILED`로 멈추고 사람에게 넘어간다. 엔지니어를 다시 돌리지 않고 자동 수정 횟수도 쓰지 않는다(D26, 사용자 선택 1안). 등록 검사의 실패는 그대로 fail이다. Claw Office와 lean Office에 같이 적용된다.
-- eevee-be 실제 확인(10-27)에서 sonnet 리뷰어가 안전장치에 막혔을 때, Office가 이것을 고칠 결함으로 기록하고 구현부터 다시 돌린 문제다.
+- app-be 실제 확인(10-27)에서 sonnet 리뷰어가 안전장치에 막혔을 때, Office가 이것을 고칠 결함으로 기록하고 구현부터 다시 돌린 문제다.
 - 자동 검사:
   - root 927/929. 실패 2건은 높은 부하에서 난 Office 시작 시간 초과이고, 따로 돌리면 15/15 통과한다. 리뷰 전 전체 실행은 929/929였다.
   - 타입 검사 exit 0, Story 검사기 exit 0
@@ -85,7 +85,7 @@
 - 엔진 복구 결정(B, 승인된 Story·계획을 살린 재개)은 고르지 않았다. 멈춤이 계속 자주 나오면 별도 G3로 다룬다.
 - 자동 검사와 독립 리뷰 결과는 검증 기록에 있다. 가짜 실행기 Office로 화면을 확인했다.
 - PR syjkim0125/pazmo-agent-office#37. G4는 2026-10-28 "피드백 확인 후 승인"(컨트롤러 답 초안 그대로)으로 [G4 기록](verification/2026-10-27-lean-rerun-g4.md)에 남겼다.
-- **남은 것: eevee-be 실제 확인(사용자 Office 재시작 필요).** [결정](understanding/lean-rerun-decision.md) · [검증 기록](verification/2026-10-27-lean-rerun.md) · [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험)
+- **남은 것: app-be 실제 확인(사용자 Office 재시작 필요).** [결정](understanding/lean-rerun-decision.md) · [검증 기록](verification/2026-10-27-lean-rerun.md) · [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험)
 
 # 2026-10-22 팀 Story 보드 1단계 (Hub)
 
@@ -97,7 +97,7 @@
   - Story 검사기 exit 0
   - Task별 리뷰 5건을 통과했다. 최종 리뷰 수정분은 재검토에서 모두 반영됐다.
   - 재검토에서 찾은 잠금 구멍(N1)도 고쳤다. 스스로 잠금을 풀거나 실패를 보고한 claim의 늦은 머지 보고는 이제 거부된다. 재검토를 통과했다.
-- Fusion 허브에 이 코드를 올렸다(빌드 `pazmo-hub-5`). `/healthz` 200, 새 경로는 프로토콜 3만 받고, 기존 경로·데이터·Office 연결은 그대로이며, 새 표 8개가 생겼다. G4는 2026-10-22 "피드백 확인 후 승인"으로 기록했다.
+- OpenShift 허브에 이 코드를 올렸다(빌드 `pazmo-hub-5`). `/healthz` 200, 새 경로는 프로토콜 3만 받고, 기존 경로·데이터·Office 연결은 그대로이며, 새 표 8개가 생겼다. G4는 2026-10-22 "피드백 확인 후 승인"으로 기록했다.
 - **남은 것: 2단계(Office 여러 repo)·3단계(Story Task 모드)·4단계(PL)·5단계(화면), 실제 허브에서 새 경로로 데이터 쓰기 확인, V18 실제 확인(Office 두 개·시험 repo 두 개).** 허브만으로는 팀원이 아직 쓸 수 없다. [G3 결정](understanding/team-story-board-decision.md) · [구현 계획](plans/2026-10-22-1445-feat-team-story-board-hub-plan.md) · [검증 기록](verification/2026-10-22-team-story-board-hub.md)
 
 # 2026-10-21 새 최소 Office 1단계 (`--lean`, 시험)
@@ -110,7 +110,7 @@
   - vendor 232/234(이전부터 실패하던 sprite-avatar 2건), vendor tsc exit 0
   - 빌드 exit 0
   - Task별 리뷰와 보안 포함 브랜치 전체 리뷰를 거쳤다. 전체 리뷰의 Important 4건과 "결과 요약" 누락을 고쳤고, 재검토에서 모두 해결됐다.
-- **eevee-be 실제 확인을 통과했다(2026-10-27).** 작업 하나를 다른 실행기 리뷰(작업 `claude · default`, 리뷰 `claude · sonnet`)로 G1 → 구현 → 리뷰 → G4 → 인도까지 돌렸고, agent 추가·이름·실행기 변경·삭제와 거부(작업 중, 마지막 agent), Decisions 작업 링크를 확인했다. codex를 리뷰 실행기로 고르는 확인은 개인 지침 파일 때문에 하지 못했다.
+- **app-be 실제 확인을 통과했다(2026-10-27).** 작업 하나를 다른 실행기 리뷰(작업 `claude · default`, 리뷰 `claude · sonnet`)로 G1 → 구현 → 리뷰 → G4 → 인도까지 돌렸고, agent 추가·이름·실행기 변경·삭제와 거부(작업 중, 마지막 agent), Decisions 작업 링크를 확인했다. codex를 리뷰 실행기로 고르는 확인은 개인 지침 파일 때문에 하지 못했다.
 - 실제 확인에서 sonnet 리뷰어가 설명 뒤에 붙인 JSON 보고서를 읽지 못해 작업이 멈추는 문제를 찾아 고쳤다(`dc6d213`·`70d3d8a`, main에 있던 claude 출력 변환, 독립 리뷰 지적 반영). root 927/927, 타입 검사 exit 0. 실행기 오류를 fail로 분류하는 문제, 멈춘 작업 재실행 없음, OAuth 갱신 잠금은 후속 작업 후보다.
 - G4는 2026-10-27 "피드백 확인 후 승인"(컨트롤러 답 초안 그대로)으로 [G4 기록](verification/2026-10-21-lean-office-phase1-g4.md)에 남겼다. 같은 PR에서 README(영·한)를 지금 상태(기본은 Claw Office, `--lean`은 옵션, codex·claude 실행기, 팀 허브)에 맞췄다. [사용 안내](LOCAL-PREVIEW.md#새-office-1단계-시험) · [검증 기록](verification/2026-10-21-lean-office-phase1.md) · [G3 결정](understanding/lean-office-decision.md)
 
@@ -123,7 +123,7 @@
   - vendor 232/234(이전부터 실패하던 sprite-avatar 2건), tsc exit 0
   - 빌드 exit 0
   - Task별 리뷰와 보안 포함 전체 리뷰: Important를 모두 고쳤다(재검토 Approved).
-- **허브 재배포 후 Fusion 실제 확인(두 건 수락·거절)과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#받은-요청-office에서-수락거절) · [검증 기록](verification/2026-10-16-team-hub-office-inbox.md) · [G3 결정](understanding/team-hub-office-inbox-decision.md)
+- **허브 재배포 후 OpenShift 실제 확인(두 건 수락·거절)과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#받은-요청-office에서-수락거절) · [검증 기록](verification/2026-10-16-team-hub-office-inbox.md) · [G3 결정](understanding/team-hub-office-inbox-decision.md)
 
 # 2026-10-15 Office 캐릭터 역할 중심 정리 (B)
 
@@ -134,18 +134,18 @@
   - vendor 208/210(이전부터 실패하던 sprite-avatar 2건), vendor tsc exit 0
   - 빌드 exit 0
   - Task 리뷰와 B 전체 리뷰에서 나온 Important를 모두 고쳤다(재검토 Approved).
-- **eevee-be 실제 화면 확인과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#office-캐릭터) · [검증 기록](verification/2026-10-15-office-role-characters.md) · [G3 결정](understanding/office-role-characters-decision.md)
+- **app-be 실제 화면 확인과 G4는 남아 있다.** [사용 안내](LOCAL-PREVIEW.md#office-캐릭터) · [검증 기록](verification/2026-10-15-office-role-characters.md) · [G3 결정](understanding/office-role-characters-decision.md)
 
-# 2026-10-15 팀 허브 합류·연결 붙여넣기 한 번 (A)과 Fusion 허브 (U12)
+# 2026-10-15 팀 허브 합류·연결 붙여넣기 한 번 (A)과 OpenShift 허브 (U12)
 
-- **Fusion 허브(U12, M11·D19):** 허브를 Fusion 프로젝트에 프록시 뒤 모드로 띄웠다(파드 1개, PVC SQLite, 라우터 TLS). Office는 공인 인증서를 시스템 신뢰로 검증해 지문 없이 연결한다. 레포가 공개라서 배포 파일은 Template이고 클러스터 값은 git이 무시하는 `deploy/fusion/local.env`에 둔다. 실제 배포와 Office 한 대 연결은 확인했다. 두 번째 팀원 확인, 검증 문서, G4는 남아 있다.
+- **OpenShift 허브(U12, M11·D19):** 허브를 OpenShift 프로젝트에 프록시 뒤 모드로 띄웠다(파드 1개, PVC SQLite, 라우터 TLS). Office는 공인 인증서를 시스템 신뢰로 검증해 지문 없이 연결한다. 레포가 공개라서 배포 파일은 Template이고 클러스터 값은 git이 무시하는 `deploy/openshift/local.env`에 둔다. 실제 배포와 Office 한 대 연결은 확인했다. 두 번째 팀원 확인, 검증 문서, G4는 남아 있다.
 - **합류·연결 단순화(A, M12·D20):** 팀원이 초대 링크로 합류하고, 시작 화면의 연결 문자열을 복사해 Office 상단 **팀 허브**에 붙여넣으면 연결된다. 경로나 터미널은 필요 없다. 레포는 origin으로 찾고, 없으면 그 팀원을 담당자로 자동 등록한다. 터미널 `hub-link --connect`도 있다.
 - 자동 검사:
   - root 677/677, 타입 검사 exit 0
   - vendor 169/171(이전부터 실패하던 sprite-avatar 2건), vendor tsc exit 0
   - 빌드 exit 0
   - Task별 리뷰와 보안 포함 전체 리뷰: Ready, Critical/Important 0
-- **실제 확인(Fusion에서 테스트 팀원 합류 → 붙여넣기 연결 → 보내기·수락·취소)과 G4는 B(캐릭터 정리) 다음에 한다.** [사용 안내](LOCAL-PREVIEW.md#팀원의-가장-짧은-순서) · [검증 기록](verification/2026-10-15-team-hub-onboarding.md) · [G3 결정](understanding/team-hub-onboarding-decision.md)
+- **실제 확인(OpenShift에서 테스트 팀원 합류 → 붙여넣기 연결 → 보내기·수락·취소)과 G4는 B(캐릭터 정리) 다음에 한다.** [사용 안내](LOCAL-PREVIEW.md#팀원의-가장-짧은-순서) · [검증 기록](verification/2026-10-15-team-hub-onboarding.md) · [G3 결정](understanding/team-hub-onboarding-decision.md)
 
 # 2026-10-14 Office에서 보낸 팀 허브 요청 취소
 
@@ -165,14 +165,14 @@
 
 - 연결된 live Office의 Tasks 카드와 채팅창에서 사람이 다른 레포로 팀 허브 요청을 보내고, 카드에서 상태(`↗ <레포> · <상태>`)를 보며, 상대 PM의 질문·범위 승인(G1)·계획 재개에 **자기 Office Decisions**에서 답한다(M9·V11·D17, G3 2026-10-13 승인). 허브 프로토콜 2가 연결 토큰에 레포 목록·요청 생성·(팀원, 보낸 곳 레포) 범위의 보낸 요청 조회·요청자 답변을 더한다. 허브는 1과 2를 함께 받는다. 토큰은 Office 서버에만 있고, Office에서는 승인만 할 수 있다(거절·취소는 허브).
 - 자동 검사 root **582/582**, 타입 검사 exit 0, vendor 화면 **118/120**(실패 2건은 이전부터 실패하던 sprite-avatar 테스트), vendor 타입 검사 exit 0, 빌드 exit 0. Task별 리뷰와 최종 전체 리뷰(Critical 0)에서 나온 Important를 모두 고쳤다. 예: Office에서 보낸 요청을 취소할 수 있던 문제, 인코딩된 `hubout:` 답변이 전달되지 않던 문제, 재전송 시 작업 연결이 사라지던 문제.
-- **내 Mac 한 대로 Office 두 개를 써서 실제 확인을 통과했다(2026-10-13).** eevee-be 카드에서 보내기 → 시험 레포 담당 수락 → 상대 PM G1을 eevee-be Decisions에서 승인 → 상대 작업 G1·G4(eevee-be에는 안 뜸) → 인도 → eevee-be 보낸 기록 완료와 4줄 요약까지 확인했다. 시험 레포 원본은 바뀌지 않았다. **다른 사람 PC와 회사 IT 정책은 아직 확인하지 않았다.**
+- **내 Mac 한 대로 Office 두 개를 써서 실제 확인을 통과했다(2026-10-13).** app-be 카드에서 보내기 → 시험 레포 담당 수락 → 상대 PM G1을 app-be Decisions에서 승인 → 상대 작업 G1·G4(app-be에는 안 뜸) → 인도 → app-be 보낸 기록 완료와 4줄 요약까지 확인했다. 시험 레포 원본은 바뀌지 않았다. **다른 사람 PC와 회사 IT 정책은 아직 확인하지 않았다.**
 - PR syjkim0125/pazmo-agent-office#18로 main에 합쳐졌다. G4는 2026-10-13 사용자 답변과 "피드백 확인 후 승인"으로 [검증 기록](verification/2026-10-13-team-hub-office-send.md#g4-2026-10-13-사용자-답변)에 남겼다. [사용 안내](LOCAL-PREVIEW.md#office에서-보내기-2단계) · [검증 기록](verification/2026-10-13-team-hub-office-send.md) · [G3 결정](understanding/team-hub-office-send-decision.md)
 
 # 2026-10-12 팀 허브 1단계
 
 - 초대받은 팀원이 사내망 허브(`pazmo-office hub`)에서 레포 목록과 요청 게시판을 함께 쓰고, 레포 담당자가 수락한 요청을 **자기 PC의 Office와 자기 로그인**으로 실행하는 1단계를 구현했다(M8·V10·D16, G3 2026-10-08 승인). 허브는 실행기·로그인·인도물을 갖지 않고, 각 Office는 `127.0.0.1` 경계를 유지한 채 `hub-link`로 나가는 연결만 더한다. 질문·G1은 요청자가 허브에서, 작업 G1·G3·G4와 인도는 맡은 사람이 자기 Office에서 한다.
 - 자동 검사 root **540/540**, 타입 검사 exit 0(2026-10-12). 단위별 리뷰와 최종 전체 리뷰(Critical 0)에서 나온 보안 결함(null Origin, CA 다중 인증서 고정 우회, CA 이름 제한 등)을 모두 고쳤다.
-- **내 Mac 한 대로 실제 확인을 통과했다(2026-10-12).** 허브에서 팀원 요청 → 수락 → Office 접수 → 허브 G1 → 로컬 작업 G1·G4 → 인도 → 허브 완료·diff·요약까지 확인했고 원본 eevee-be는 바뀌지 않았다. **다른 사람 PC, 회사 IT·보안 정책, 여러 날 운영은 아직 확인하지 않았다.** 다중 PC 검증 완료가 아니다. 노트북 IP 변경으로 허브·브라우저 세션이 끊기는 한계가 있어 고정 IP에서만 운영한다.
+- **내 Mac 한 대로 실제 확인을 통과했다(2026-10-12).** 허브에서 팀원 요청 → 수락 → Office 접수 → 허브 G1 → 로컬 작업 G1·G4 → 인도 → 허브 완료·diff·요약까지 확인했고 원본 app-be는 바뀌지 않았다. **다른 사람 PC, 회사 IT·보안 정책, 여러 날 운영은 아직 확인하지 않았다.** 다중 PC 검증 완료가 아니다. 노트북 IP 변경으로 허브·브라우저 세션이 끊기는 한계가 있어 고정 IP에서만 운영한다.
 - PR syjkim0125/pazmo-agent-office#17로 main에 합쳐졌고 G4는 PR에 기록됐다. [사용 안내](LOCAL-PREVIEW.md#팀-허브-1단계-시험) · [검증 기록](verification/2026-10-12-team-hub.md) · [G3 결정](understanding/team-hub-decision.md)
 
 # 2026-10-06 사용자 설치 codex·claude 실행기 선택
@@ -181,13 +181,13 @@
 - 로그인 정보는 읽거나 옮기지 않는다. 도구는 기존 VM 컨테이너에서만 실행한다(claude는 내장 도구 없이 Office MCP 다리로만). 바이너리는 (SHA, 모델)별로 로그인 없는 VM 검사를 통과해야 실행된다. 실패하면 다른 실행기·API 키로 자동 전환하지 않는다.
 - codex는 로그인 폴더의 개인 지침(`~/.codex/AGENTS.md`)을 항상 모델에 넣는다. 9/22부터 쓰던 고정 경로도 같았다. 사용자 결정에 따라 그 파일이 있으면 codex 역할을 막고 안내한다. **이 PC는 파일이 있어 codex가 차단되며, 고르지 않은 역할은 claude를 쓴다.**
 - root 451/451, 타입 검사 exit 0. vendor UI 98/100이며 실패 2건은 HEAD에서도 실패한다. 실제 VM 검사 codex 0.160.0·claude 2.1.280 각 7/7. 실제 구독 실행은 claude 최종 코드 1회 성공, codex 1회 성공(차단 전, 개인 지침 포함 가능). 별도 미리보기에서 화면 저장·재시작 유지를 확인했다. **역할 그래프 전체·사용자 G4 인수는 이번 범위가 아니다.** [검증 기록](verification/2026-10-06-cli-runner-selection.md)
-- 실사용 시험: eevee-be "README 맨 위에 목차 추가"를 claude로 PM→Lead→Developer→Reviewer→G4(사용자)→인도까지 완료해 보고서에 올렸다. 시험 중 중첩 git 저장소 스냅샷 오류와 claude Lead 조사 근거 누락을 고쳤다. 요청에 따라 보고서 실행기 섹션과 G4 `[변경사항]` 3줄 요약을 추가했다. [검증 기록](verification/2026-10-06-cli-runner-selection.md#실사용-시험-eevee-be-readme-맨-위에-목차-추가-2026-10-06)
+- 실사용 시험: app-be "README 맨 위에 목차 추가"를 claude로 PM→Lead→Developer→Reviewer→G4(사용자)→인도까지 완료해 보고서에 올렸다. 시험 중 중첩 git 저장소 스냅샷 오류와 claude Lead 조사 근거 누락을 고쳤다. 요청에 따라 보고서 실행기 섹션과 G4 `[변경사항]` 3줄 요약을 추가했다. [검증 기록](verification/2026-10-06-cli-runner-selection.md#실사용-시험-app-be-readme-맨-위에-목차-추가-2026-10-06)
 
 # 2026-10-02 Decisions 승인 요청 만료·재발급
 
 - 열린 Decisions 창이 만료된 승인 요청을 계속 보여 주고, 재발급 후 메모가 사라지던 문제를 고쳤다(D14). 목록 조회 시 만료된 요청을 새 요청으로 바꾸고, 메모는 새 요청으로 옮기며, 409에도 메모를 유지한다. 승인은 자동 재제출하지 않는다. 열린 승인 요청의 유효 시각을 표시한다.
 - 같은 계획의 재발급은 채팅 안내를 반복하지 않는다. 챌린지 1회 소비·세션 귀속·10분 만료는 그대로다.
-- 격리된 `--claw` 미리보기의 실제 브라우저와 자동 테스트로 확인했다. 실행 중인 eevee-be 인스턴스는 재빌드·재시작 전까지 이전 화면을 쓴다. **G4와 실제 모델 경로 재확인은 남아 있다.** [검증](verification/2026-09-29-native-claw-preview.md)
+- 격리된 `--claw` 미리보기의 실제 브라우저와 자동 테스트로 확인했다. 실행 중인 app-be 인스턴스는 재빌드·재시작 전까지 이전 화면을 쓴다. **G4와 실제 모델 경로 재확인은 남아 있다.** [검증](verification/2026-09-29-native-claw-preview.md)
 
 # 2026-09-29 Decisions·Task Board·한 명령 실행
 

@@ -61,7 +61,7 @@ describe("decision answer draft", () => {
   });
 });
 
-describe("reissued approval challenge (2026-10-02 eevee-be G1 case)", () => {
+describe("reissued approval challenge (2026-10-02 app-be G1 case)", () => {
   const oldG1 = {
     ...item,
     id: "53a5deb4-old",

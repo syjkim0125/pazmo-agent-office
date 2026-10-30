@@ -65,7 +65,7 @@ Office 화면(캐릭터 채팅, Tasks)에서 바로 "백엔드 담당자에게 �
 
 ## 불변 조건과 예시
 
-예: eevee-be Office(관리자)에서 작업 'README 목차'를 보다가 **팀 허브로 보내기**를 누르고 checkout-backend를 고른다. 허브 게시판에 요청자 관리자, 출처 "eevee-be Office의 작업 'README 목차'"로 요청이 생긴다. checkout-backend 담당자가 수락하고 상대 PM이 질문하면 eevee-be Office Decisions에 뜨고, 관리자가 거기서 답한다. eevee-be 카드에는 `↗ checkout-backend · 답변 대기`가 보인다.
+예: app-be Office(관리자)에서 작업 'README 목차'를 보다가 **팀 허브로 보내기**를 누르고 checkout-backend를 고른다. 허브 게시판에 요청자 관리자, 출처 "app-be Office의 작업 'README 목차'"로 요청이 생긴다. checkout-backend 담당자가 수락하고 상대 PM이 질문하면 app-be Office Decisions에 뜨고, 관리자가 거기서 답한다. app-be 카드에는 `↗ checkout-backend · 답변 대기`가 보인다.
 
 다음은 모두 실패해야 한다.
 - 연결 토큰으로 남이 보낸 요청이나 다른 레포의 diff를 읽는 것
@@ -95,8 +95,8 @@ Office 화면(캐릭터 채팅, Tasks)에서 바로 "백엔드 담당자에게 �
   - Office: 로컬 API 인증, 연결 모듈의 보낸 요청 동기화와 답변 전달, Decisions 항목 처리
   - 화면(vitest): 버튼 표시 조건, 보내기 창 검증, 카드 표시, Decisions에서 답하기
 - 기존 테스트는 전부 통과해야 한다. Office `127.0.0.1` 단언도 유지한다.
-- 실제 확인: 이 Mac에서 Office 두 개(eevee-be는 관리자, 시험용 레포는 다른 팀원)를 허브에 연결하고 다음을 확인한다.
-  - eevee-be에서 보내기 → 상대 수락 → 상대 PM 질문과 G1에 eevee-be Decisions에서 답하기 → 카드가 완료로 바뀜
+- 실제 확인: 이 Mac에서 Office 두 개(app-be는 관리자, 시험용 레포는 다른 팀원)를 허브에 연결하고 다음을 확인한다.
+  - app-be에서 보내기 → 상대 수락 → 상대 PM 질문과 G1에 app-be Decisions에서 답하기 → 카드가 완료로 바뀜
 - 보안을 포함한 브랜치 전체 리뷰 1회. 결과는 X/X로 보고한다.
 
 ## 대안과 복구

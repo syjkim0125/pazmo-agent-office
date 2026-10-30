@@ -19,7 +19,7 @@ Plan source: docs/plans/2026-10-16-1100-feat-team-hub-office-inbox-plan.md (Task
 
 ## Verify
 - 허브·Office·화면 자동 시험 X/X, 전체 회귀 X/X(root·vendor), 타입 검사, 빌드, 보안 포함 브랜치 리뷰 1회.
-- Fusion 실제 확인: eevee-be → 시험 Office 두 건을 Office Inbox에서 하나 수락·하나 거절하고 요청자 쪽 거절 표시를 본다.
+- OpenShift 실제 확인: app-be → 시험 Office 두 건을 Office Inbox에서 하나 수락·하나 거절하고 요청자 쪽 거절 표시를 본다.
 
 ## Risk / Dependency
 - 실제 확인에는 허브 재배포와 Office 재시작이 필요하다(사용자 확인 후).

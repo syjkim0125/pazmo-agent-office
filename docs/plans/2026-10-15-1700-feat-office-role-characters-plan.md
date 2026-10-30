@@ -120,7 +120,7 @@ export function applyOfficeRoles(input: { agents: Agent[]; departments: Departme
 
 - [ ] 전체 회귀를 X/X로 돌린다. 이어서 B 범위 리뷰를 1회 한다(A 최종 리뷰와 별도).
 - [ ] `docs/LOCAL-PREVIEW.md`에 "Office 캐릭터" 짧은 절을 쓴다. `CONCEPTS.md`에 role character 항목이 필요한지 확인한다.
-- [ ] 실제 eevee-be 확인은 A 실제 확인과 함께 한다. Office 재시작은 사용자 확인 후에 한다.
+- [ ] 실제 app-be 확인은 A 실제 확인과 함께 한다. Office 재시작은 사용자 확인 후에 한다.
 
 ## Self-Review
 
