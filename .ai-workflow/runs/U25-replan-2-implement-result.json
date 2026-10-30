@@ -1,5 +1,5 @@
 {
-  "token": "fe05b27dba4fcc7c8c4bd45693457926e082d33e0590d5b28cf58a64fe3368f4",
+  "token": "7a54aaacbcc835d0d113f3674e951ea5b1d7f8b3598c0595b59f0eb562d187a9",
   "output": {
     "summary": "Second replan after review 2 (Approve) moved the D30 parenthetical about createLiveRuntime away from the pinned rule, which changed the Story fingerprint again. Code unchanged since 2e8a816 (implement attempt 2 in .ai-workflow/runs/U25-launcher-hook-check-replan.json; attempt 1 and review 1 in U25-launcher-hook-check.json). This attempt is docs only: D30 wording, worst-case listing time 22 s, final npm test row, STATUS checks line, follow-ups for the two-step hint and the older pinned lead. Code evidence as before: RED/GREEN for 9 tests (launcher x7 incl. 4 pass-from-start gap fillers, live-runtime x2), mutations 12/13 caught (survivor is the test-only extraDirs seam), real up (claw, lean) with fake hooked claude stops at step 1, real claude 2.1.280 not blocked.",
     "evidence": [
@@ -13,9 +13,10 @@
       ".ai-workflow/runs/U25-review-1.md",
       ".ai-workflow/runs/U25-review-2.md",
       "docs/verification/2026-10-30-launcher-hook-check.md",
-      "docs/understanding/pazmo-agent-office-contract.md",
-      "docs/STATUS.md"
+      "docs/understanding/pazmo-agent-office-contract.md"
     ]
   },
-  "evaluation": { "passed": true }
+  "evaluation": {
+    "passed": true
+  }
 }
