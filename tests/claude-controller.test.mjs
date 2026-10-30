@@ -15,8 +15,10 @@ const fakeExec = fileURLToPath(new URL("./fixtures/fake-exec-server.mjs", import
 // Some tests of a stop mock setTimeout, the controller's clock: its timeout and
 // its 6 s grace then run out exactly when the test ticks them, however slowly a
 // loaded machine runs the fake claude. Waiting for the fake's own progress
-// keeps the real clock. A frozen clock never stops a fake on its own, so those
-// tests carry a timeout, and refreshingClaude kills what is left after a test.
+// keeps the real clock. A frozen clock never stops a fake on its own, and a
+// fake that never gets going is waited for until the test ends, so every test
+// of a refreshing claude carries a timeout, and refreshingClaude kills what is
+// left after it.
 const realSetTimeout = globalThis.setTimeout;
 const pause = (ms) => new Promise((r) => realSetTimeout(r, ms));
 /** Resolves once a fake claude has created `path`: it got that far. Gives up
@@ -161,7 +163,7 @@ while :; do ${idle}; done\n`,
 
 // A killed claude leaves the lock, and every claude after it fails to sign in
 // ("Failed to refresh OAuth token") until the lock is a minute old.
-test("a claude cancelled while it refreshes the login releases the lock", async (t) => {
+test("a claude cancelled while it refreshes the login releases the lock", { timeout: 15000 }, async (t) => {
   const fx = refreshingClaude(t);
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
@@ -230,7 +232,7 @@ test("a claude that ignores SIGTERM is killed once its 6 s grace runs out", { ti
   assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });
 });
 
-test("a process the claude started does not outlive a cancel even if it ignores SIGTERM", async (t) => {
+test("a process the claude started does not outlive a cancel even if it ignores SIGTERM", { timeout: 30000 }, async (t) => {
   const fx = refreshingClaude(
     t,
     undefined,
@@ -283,7 +285,7 @@ test("a claude stopped for an unexpected hook or init gets no SIGTERM to shut do
     });
 });
 
-test("a cancel after the claude itself exited still kills what it left running", async (t) => {
+test("a cancel after the claude itself exited still kills what it left running", { timeout: 30000 }, async (t) => {
   const root = tempRoot();
   const binary = fakeNative(
     join(root, "claude"),
@@ -309,9 +311,12 @@ exit 0\n`,
   const abort = new AbortController();
   const job = claudeJob(options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
   // The claude has exited; a child keeps its output open, so the run goes on.
-  while (!existsSync(join(root, "pid"))) await new Promise((r) => setTimeout(r, 20));
+  await reached(join(root, "pid"), t.signal);
   const pid = Number(readFileSync(join(root, "pid"), "utf8"));
-  while (!gone(pid)) await new Promise((r) => setTimeout(r, 20));
+  while (!gone(pid)) {
+    t.signal.throwIfAborted();
+    await pause(20);
+  }
   abort.abort();
   const { result } = await job;
   assert.equal(result.error, "CANCELLED");
@@ -343,7 +348,7 @@ test("a hook the claude starts while shutting down after a cancel is killed at o
 // A cancel can land before init, while a startup login refresh holds the lock;
 // what the CLI prints on its way out is no init problem and must not cut the
 // shutdown short.
-test("a line the claude prints while shutting down after a cancel does not cut its shutdown short", async (t) => {
+test("a line the claude prints while shutting down after a cancel does not cut its shutdown short", { timeout: 15000 }, async (t) => {
   const fx = refreshingClaude(
     t,
     `cat "$HOME/result.json"; sleep 0.3; rmdir "$lock"; exit 143`,
