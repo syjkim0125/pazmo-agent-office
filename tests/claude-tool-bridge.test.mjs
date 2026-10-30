@@ -6,9 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { tempRoot } from "./runner-fixture.mjs";
 
-const { WebSocketServer } = createRequire(
-  new URL("../vendor/claw-empire/package.json", import.meta.url),
-)("ws");
+const { WebSocketServer } = createRequire(import.meta.url)("ws");
 const bridgePath = fileURLToPath(
   new URL("../src/runners/claude-tool-bridge.mjs", import.meta.url),
 );

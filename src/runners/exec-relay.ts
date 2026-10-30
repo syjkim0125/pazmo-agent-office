@@ -3,11 +3,9 @@ import { createServer } from "node:http";
 import { createRequire } from "node:module";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { AddressInfo } from "node:net";
-const { WebSocketServer } = createRequire(
-  new URL("../../vendor/claw-empire/package.json", import.meta.url),
-)(
+const { WebSocketServer } = createRequire(import.meta.url)(
   "ws",
-) as typeof import("../../vendor/claw-empire/node_modules/@types/ws/index.d.ts");
+) as typeof import("ws");
 
 const frameLimit = 4 * 1024 * 1024,
   totalLimit = 64 * 1024 * 1024;

@@ -5,9 +5,7 @@ import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import { posix } from "node:path";
 
-const { WebSocket } = createRequire(
-  new URL("../../vendor/claw-empire/package.json", import.meta.url),
-)("ws");
+const { WebSocket } = createRequire(import.meta.url)("ws");
 const url = process.argv[2];
 const limit = 256 * 1024;
 if (!/^ws:\/\/127\.0\.0\.1:\d+\/exec\/[A-Za-z0-9-]+$/.test(url ?? "")) process.exit(2);
