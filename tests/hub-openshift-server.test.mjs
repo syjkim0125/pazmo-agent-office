@@ -28,7 +28,7 @@ async function proxyHub(t) {
   return { store, hub, call };
 }
 
-test("behind the Fusion router the hub answers its public host only, and its URL is the public origin", async (t) => {
+test("behind the OpenShift router the hub answers its public host only, and its URL is the public origin", async (t) => {
   const { hub, call } = await proxyHub(t);
   assert.equal(hub.url, PUBLIC);
   assert.equal((await call("GET", "/")).status, 401, "signed-out page for the public host");
@@ -62,7 +62,7 @@ test("writes need the public origin; invites set a Secure cookie; there is no ce
 test("the link command and invite text carry no fingerprint behind the router", async (t) => {
   const { store, call } = await proxyHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac");
-  const repo = store.addRepo(admin.member, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin.member, "app-be", "https://github.example.com/team/app-be.git");
   const cookie = `pazmo_hub=${admin.session}`;
   const page = await call("GET", "/repos", { headers: { cookie } });
   const csrf = /name="csrf" value="([^"]+)"/.exec(page.text)[1];

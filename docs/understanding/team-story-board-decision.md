@@ -26,7 +26,7 @@ DingTalk 문서의 컨셉과 1차 피드백을 대화로 다듬었다.
 - **Office:** 프로젝트 하나에 묶여 있다(`src/cli/project.ts:73`). 엔진도 다른 프로젝트의 작업을 거부한다(`src/core/intake.ts:248`, `src/core/handoffs.ts:176`).
 - **인도:** 결과를 로컬 폴더에 고정된 사본으로 저장하고 브랜치·PR을 만들지 않는다(`src/core/delivery.ts:92`). 사람 G4가 없으면 인도가 막힌다(`src/core/completion.ts:237`, `G4_REQUIRED`).
 - **3줄 요약:** 모델이 아니라 작업 제목·바뀐 파일·검사 결과로 조립한다(`src/runtime/decision-summary.ts:45`). Hub로 보내는 장치가 이미 있다(`src/runtime/hub-snapshot.ts:71`).
-- **git 호스팅:** eevee-be origin은 GitHub Enterprise(사내 GitHub Enterprise 호스트)다. 이 Mac에 `gh` 2.102.0이 있다.
+- **git 호스팅:** app-be origin은 GitHub Enterprise(사내 GitHub Enterprise 호스트)다. 이 Mac에 `gh` 2.102.0이 있다.
 
 ## 사용자 결정 (2026-10-21~22 대화)
 
@@ -220,7 +220,7 @@ kit가 넣기 전까지는 node의 추가 칸과 Office·Hub의 자체 검사로
 ## 위험과 받아들인 비용
 
 - **사람이 보기 전에 agent 코드가 원격 브랜치에 올라간다.** repo가 브랜치 push마다 CI를 돌리면, agent 코드가 사람 검토 전에 CI에서 실행된다. Story base는 main/master가 아니다.
-- **Hub가 Story 계획과 진행의 유일한 원본이 된다.** Fusion PVC 백업이 필요하다.
+- **Hub가 Story 계획과 진행의 유일한 원본이 된다.** OpenShift PVC 백업이 필요하다.
 - **Hub에 새로 올라가는 내용:** Story 본문, Task 설명, 3줄 요약, 판단 기록, PR 주소. 코드, diff 원문, 로그인 정보, 검증 증거 원문은 올라가지 않는다.
 - **위쪽 Task의 판단이 틀리면 아래 Task를 다시 해야 한다.** 각자의 구독 토큰을 쓴다. Story G4 전에는 사람이 보지 않는다.
 - **Story base가 오래 살수록 main과 멀어진다.** Story는 1~2주 안에 끝나는 크기로 잡는다.

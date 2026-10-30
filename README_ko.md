@@ -7,7 +7,7 @@
 **기존 시스템 개선부터 새로운 제품 개발까지, 내가 지휘하는 AI 팀.**
 
 ![단계](https://img.shields.io/badge/stage-local_alpha-orange)
-![Pazmo 신규 코드](https://img.shields.io/badge/Pazmo_originals-MIT-blue)
+![Pazmo 신규 코드](https://img.shields.io/badge/Pazmo_originals-PolyForm_Shield_1.0.0-blue)
 ![원본 라이선스](https://img.shields.io/badge/Claw--Empire-Apache--2.0-blue)
 ![설계 방향](https://img.shields.io/badge/workflow_design-Jira_optional-purple)
 
@@ -99,7 +99,9 @@ Claw-Empire 없는 새 최소 Office를 써 보려면 `--lean`을 붙입니다: 
 
 ## 라이선스
 
-**Pazmo 독자 코드·문서는 [MIT](LICENSE)**, 기존 Claw-Empire 코드에는 **Apache-2.0**이 적용됩니다. 원 저작권·NOTICE·변경 고지와 제3자 권리를 보존합니다. 원본 전체가 MIT로 바뀌었다는 의미가 아닙니다.
+**Pazmo 독자 코드·문서는 [PolyForm Shield 1.0.0](LICENSE)**, 기존 Claw-Empire 코드에는 **Apache-2.0**이 적용됩니다. Pazmo 코드는 회사 안에서 쓰는 것을 포함해 어떤 목적으로든 쓰고 고치고 나눌 수 있지만, Pazmo와 경쟁하는 제품을 내놓는 데는 무료라도 쓸 수 없습니다. 2026-10-30(커밋 `610169e`)까지 공개된 버전은 MIT였습니다. 원 저작권·NOTICE·변경 고지와 제3자 권리를 보존합니다.
+
+Pazmo는 소스 공개형이며 OSI 오픈소스가 아닙니다. 원본 프로젝트의 라이선스를 바꾸는 것도 아닙니다.
 
 [범위별 라이선스](LICENSING.md) · [출처 및 제3자 고지](THIRD_PARTY_NOTICES.md)
 

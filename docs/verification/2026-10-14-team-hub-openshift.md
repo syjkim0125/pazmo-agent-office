@@ -1,6 +1,6 @@
-# 2026-10-14~15 팀 허브 Fusion 배포 (U12) 검증
+# 2026-10-14~15 팀 허브 OpenShift 배포 (U12) 검증
 
-Story: M11 · V13 · D19. 결정: [team-hub-fusion-decision.md](../understanding/team-hub-fusion-decision.md). 계획: [2026-10-14-1500-feat-team-hub-fusion-plan.md](../plans/2026-10-14-1500-feat-team-hub-fusion-plan.md).
+Story: M11 · V13 · D19. 결정: [team-hub-openshift-decision.md](../understanding/team-hub-openshift-decision.md). 계획: [2026-10-14-1500-feat-team-hub-openshift-plan.md](../plans/2026-10-14-1500-feat-team-hub-openshift-plan.md).
 
 ## 구현 범위
 
@@ -23,9 +23,9 @@ Story: M11 · V13 · D19. 결정: [team-hub-fusion-decision.md](../understanding
   - 허브 전용 진입점 `bin/pazmo-hub.mjs`(Node 24)
   - `src/hub/main.ts`(환경 변수 설정)
   - `npm run hub:bundle`: import 그래프 기반 묶음이다. `--out` 보호를 강화했다.
-- **배포 파일:** OpenShift Template `deploy/fusion/pazmo-hub.json`
+- **배포 파일:** OpenShift Template `deploy/openshift/pazmo-hub.json`
   - 구성: ImageStream, BuildConfig(바이너리 Source, Node 24 빌더, `SKIP_BUILDING`), PVC 2Gi, Deployment(파드 1개, Recreate, `/healthz` 검사), Service, edge Route
-  - 레포가 공개라서 클러스터 호스트와 빌더 이미지는 매개변수이고, 실제 값은 git이 무시하는 `deploy/fusion/local.env`에 둔다(2026-10-15 공개 전 정리).
+  - 레포가 공개라서 클러스터 호스트와 빌더 이미지는 매개변수이고, 실제 값은 git이 무시하는 `deploy/openshift/local.env`에 둔다(2026-10-15 공개 전 정리).
 
 ## 자동 검증
 
@@ -57,7 +57,7 @@ Story: M11 · V13 · D19. 결정: [team-hub-fusion-decision.md](../understanding
   - Node 시스템 신뢰로 인증서 검증에 성공했다(공인 CA).
   - `/trust`는 404이고, HTTP는 HTTPS로 넘어간다.
 - 관리자가 입장했다.
-- eevee-be Office 한 대를 지문 없이 연결했다. 읽기 전용 확인에서 레포 목록이 보였다.
+- app-be Office 한 대를 지문 없이 연결했다. 읽기 전용 확인에서 레포 목록이 보였다.
 
 ## 아직 하지 않은 것 (G4 전)
 

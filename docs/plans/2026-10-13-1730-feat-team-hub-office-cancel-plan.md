@@ -138,8 +138,8 @@ test("an Office link cancels requests it sent, open or accepted, and nothing els
 ```js
 test("outgoing-cancel cancels this link's sent request over HTTP and needs protocol 2", async (t) => {
   const { api, store, admin, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
-  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "99999999-9999-4999-8999-999999999999", source: "eevee-be Office 채팅", parentAssignmentId: null } });
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
+  const sent = await api("POST", "/api/link/requests", { token, body: { repoId: repo, body: "일", risk: "normal", key: "99999999-9999-4999-8999-999999999999", source: "app-be Office 채팅", parentAssignmentId: null } });
   const body = { requestId: sent.json.requestId };
   assert.equal((await api("POST", "/api/link/outgoing-cancel", { token, protocol: "1", body })).status, 426);
   assert.equal((await api("GET", "/api/link/outgoing-cancel", { token })).status, 405);
@@ -602,8 +602,8 @@ export const cancelHubRequest = (requestId: string) =>
   - 로컬 기록을 허브 성공 뒤에만 바꾸는지
   - Critical/Important는 고치고 Step 1을 다시 돈다.
 - [ ] **Step 3: 실제 확인.** 사용자와 함께 한다. 허브·Office를 시작하거나 재시작하기 전에 사용자에게 묻는다.
-  1. 허브를 새 코드로 시작한다. eevee-be Office를 새 코드로 재시작하고, 시험 레포 Office(`~/Documents/pazmo-hub-test-backend`)를 띄운다.
-  2. (a) eevee-be 카드에서 보내고, "테스트"로 수락한다. 상대 PM의 G1이 eevee-be Decisions에 뜨면 사용자가 **요청 취소**를 고르고 확인한다.
+  1. 허브를 새 코드로 시작한다. app-be Office를 새 코드로 재시작하고, 시험 레포 Office(`~/Documents/pazmo-hub-test-backend`)를 띄운다.
+  2. (a) app-be 카드에서 보내고, "테스트"로 수락한다. 상대 PM의 G1이 app-be Decisions에 뜨면 사용자가 **요청 취소**를 고르고 확인한다.
      - 허브가 취소로 바뀌는지 본다.
      - 시험 Office 작업이 5초 안에 멈추는지 본다.
      - 카드가 `↗ … · 취소`가 되는지 본다.

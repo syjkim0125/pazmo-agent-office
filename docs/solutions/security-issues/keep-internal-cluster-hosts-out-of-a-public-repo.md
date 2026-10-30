@@ -11,13 +11,13 @@ symptoms:
   - "The repository is public on github.com"
 root_cause: config_error
 resolution_type: config_change
-tags: [openshift, template, public-repo, hostnames, deploy, fusion]
+tags: [openshift, template, public-repo, hostnames, deploy]
 ---
 
 # Keep internal cluster hosts out of a public repo with a parameterized OpenShift Template
 
 ## Problem
-The Fusion (OpenShift) hub work was ready to commit, but the repo is public. The manifest, four test files, the decision doc, the plan and the Story line all contained the company's internal route domain, builder registry and console host. `main` had none of them. Pushing would have published internal infrastructure names.
+The OpenShift hub work was ready to commit, but the repo is public. The manifest, four test files, the decision doc, the plan and the Story line all contained the company's internal route domain, builder registry and console host. `main` had none of them. Pushing would have published internal infrastructure names.
 
 ## Symptoms
 - `git grep -i -E "<company domains>"` over the staged tree matched the deploy manifest, tests and docs. Over `origin/main` it matched nothing.
@@ -35,10 +35,10 @@ The Fusion (OpenShift) hub work was ready to commit, but the repo is public. The
      "objects": [ … "host": "${HUB_HOST}" … "name": "${BUILDER_IMAGE}" … ] }
    ```
    ```
-   # .gitignore
-   deploy/fusion/local.env
+   # .gitignore — any deploy folder, so a renamed folder cannot expose a leftover env file
+   deploy/*/local.env
    ```
-   Deploy with `oc process -f deploy/fusion/pazmo-hub.json --param-file=deploy/fusion/local.env | oc apply -f -`.
+   Deploy with `oc process -f deploy/openshift/pazmo-hub.json --param-file=deploy/openshift/local.env | oc apply -f -`.
 2. Change test fixtures to example hosts (`pazmo-hub.apps.example.com`, `github.example.com`). The manifest test asserts the parameters exist, are required and have no default, and that the route host is `${HUB_HOST}`.
 3. Replace hosts in docs with placeholders (`<apps 도메인>`, `${BUILDER_IMAGE}`).
 4. Confirm the rendered Template matches what is deployed: `oc process … --local -o json` gives the same six objects and route host.
@@ -51,5 +51,7 @@ Only the env file holds the cluster-specific values, and git never tracks it. Th
 - Do not put a company hostname into a test assertion. A test needs an example host, not the real one.
 - Before the first push of any deploy or infra change, compare the staged tree with `origin/main` for internal domain names.
 - Do not commit the real `local.env`. Keep the `required: true` parameters without defaults.
+- Hosts are not the only internal names. On 2026-10-30 the internal platform name, OpenShift project name and team repo names (plus a list of the project's other services) were still in about 100 files: test fixtures, verification records, run summaries and file paths. They were replaced with `OpenShift`, `team-project`, `app-be` and `app-fe`, and the service list was removed. Use these aliases in new tests and records too, and add the real names to the step 5 grep.
+- Replacing names in the current tree does not remove them from git history or old PR pages.
 
 Related: syjkim0125/pazmo-agent-office#23 (U12).

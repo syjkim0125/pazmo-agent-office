@@ -4,7 +4,7 @@
   "metadata": {
     "name": "pazmo-hub",
     "annotations": {
-      "description": "Pazmo team hub: one pod, SQLite on a PVC, edge route. Apply with: oc process -f deploy/fusion/pazmo-hub.json --param-file=deploy/fusion/local.env | oc apply -f -"
+      "description": "Pazmo team hub: one pod, SQLite on a PVC, edge route. Apply with: oc process -f deploy/openshift/pazmo-hub.json --param-file=deploy/openshift/local.env | oc apply -f -"
     }
   },
   "parameters": [

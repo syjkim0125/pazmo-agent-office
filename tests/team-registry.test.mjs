@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { status } from "../src/cli/lifecycle.ts";
+import { STARTUP_MS, status } from "../src/cli/lifecycle.ts";
 import { init, locate } from "../src/cli/project.ts";
 import {
   addTeamRepo,
@@ -32,8 +32,8 @@ import { openTeamStore } from "../src/team/store.ts";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
-const ORIGIN = "https://github.example.com/team/eevee-be.git";
-const REMOTE = "github.example.com/team/eevee-be";
+const ORIGIN = "https://github.example.com/team/app-be.git";
+const REMOTE = "github.example.com/team/app-be";
 
 /** A temp data directory plus helpers to make git repos beside it. */
 function fixture(t) {
@@ -50,11 +50,13 @@ function fixture(t) {
   };
   return f;
 }
-/** Runs the real CLI; returns the JSON it printed (stdout on success, stderr on failure). */
+/** Runs the real CLI; returns the JSON it printed (stdout on success, stderr on failure).
+ * The limit is above what start --lean may wait for its Office, so a slow start
+ * is reported by start itself instead of leaving its start lock behind. */
 function call(f, ...args) {
   const r = spawnSync(process.execPath, [cli, ...args, "--data-dir", f.data], {
     encoding: "utf8",
-    timeout: 30000,
+    timeout: STARTUP_MS.lean + 30000,
   });
   return { status: r.status, value: JSON.parse(r.status === 0 ? r.stdout : r.stderr) };
 }
@@ -62,7 +64,7 @@ const team = (f, action, project) => call(f, "team", action, ...(project ? ["--p
 
 test("add records the repo by its real path and normalized origin, and adding it again changes nothing", async (t) => {
   const f = fixture(t);
-  const dir = f.repo("eevee-be", ORIGIN);
+  const dir = f.repo("app-be", ORIGIN);
   // A path that is not canonical (macOS tmp is behind a symlink): the real path is stored.
   const link = join(f.root, "link");
   symlinkSync(dir, link);
@@ -102,7 +104,7 @@ test("registration order is kept, and a changed origin is refreshed on the next 
 
 test("a repo subfolder or a non-repo directory is NOT_GIT_ROOT, a repo without origin is NO_ORIGIN, and nothing is written", async (t) => {
   const f = fixture(t);
-  const dir = f.repo("eevee-be", ORIGIN);
+  const dir = f.repo("app-be", ORIGIN);
   const sub = join(dir, "src");
   mkdirSync(sub);
   await assert.rejects(addTeamRepo(f.data, sub), { code: "NOT_GIT_ROOT" });
@@ -120,11 +122,11 @@ test("a repo subfolder or a non-repo directory is NOT_GIT_ROOT, a repo without o
 
 test("a second clone with the same origin is DUPLICATE_REMOTE, however the origin is spelled", async (t) => {
   const f = fixture(t);
-  const first = await addTeamRepo(f.data, f.repo("eevee-be", ORIGIN));
+  const first = await addTeamRepo(f.data, f.repo("app-be", ORIGIN));
   for (const [name, origin] of [
     ["clone-same", ORIGIN],
-    ["clone-ssh", "git@github.example.com:Team/Eevee-BE.git"],
-    ["clone-token", "https://user:secret@github.example.com/team/eevee-be"],
+    ["clone-ssh", "git@github.example.com:Team/App-BE.git"],
+    ["clone-token", "https://user:secret@github.example.com/team/app-be"],
   ])
     await assert.rejects(addTeamRepo(f.data, f.repo(name, origin)), { code: "DUPLICATE_REMOTE" }, name);
   assert.deepEqual(readTeam(f.data).repos, [first]);
@@ -184,7 +186,7 @@ async function runningOffice(t, f, project, { listen = true } = {}) {
 
 test("a repo whose single Office is running is RUNNING, and it can be added once that Office is gone", async (t) => {
   const f = fixture(t);
-  const dir = f.repo("eevee-be", ORIGIN);
+  const dir = f.repo("app-be", ORIGIN);
   const office = await runningOffice(t, f, dir);
   // The fake answers as a real Office would: status() sees it running, not merely unknown.
   assert.equal((await status(office.p)).status, "running");
@@ -196,14 +198,14 @@ test("a repo whose single Office is running is RUNNING, and it can be added once
 
 test("a single Office whose state cannot be authenticated also blocks the add, because it may still be running", async (t) => {
   const f = fixture(t);
-  const dir = f.repo("eevee-be", ORIGIN);
+  const dir = f.repo("app-be", ORIGIN);
   await runningOffice(t, f, dir, { listen: false });
   await assert.rejects(addTeamRepo(f.data, dir), { code: "RUNNING" });
 });
 
 test("a repo that was never initialised has no Office to be running, so it can be added", async (t) => {
   const f = fixture(t);
-  const dir = f.repo("eevee-be", ORIGIN);
+  const dir = f.repo("app-be", ORIGIN);
   const p = locate(dir, f.data);
   assert.equal(existsSync(join(p.directory, "manifest.json")), false);
   await addTeamRepo(f.data, dir);
@@ -426,7 +428,7 @@ test("team needs a known action, and add and remove need --project", (t) => {
 
 test("a registered repo cannot be started as a single Office; after remove it can", async (t) => {
   const f = fixture(t);
-  const dir = f.repo("eevee-be", ORIGIN);
+  const dir = f.repo("app-be", ORIGIN);
   const single = ["--project", dir];
   const p = locate(dir, f.data);
   t.after(async () => {
@@ -469,7 +471,7 @@ test(
   { skip: !appleSilicon && "up runs on Apple Silicon macOS only" },
   async (t) => {
     const f = fixture(t);
-    const dir = f.repo("eevee-be", ORIGIN);
+    const dir = f.repo("app-be", ORIGIN);
     assert.equal(team(f, "add", dir).status, 0);
     // An empty HOME and a PATH without runner CLIs: were the check missing, `up` would stop
     // at LOGIN_REQUIRED instead of reaching for the VM or the vendor install.

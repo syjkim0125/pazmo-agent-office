@@ -94,13 +94,13 @@ Story: M15 · V17 · D23. 결정: [lean-office-decision.md](../understanding/lea
 - 최종 수정 뒤에 멈춤 표시, 원래 작업 링크, 결과 요약, 내용 길이 사전 검사를 다시 봤다.
 - **live에서만 볼 수 있는 것:** 결정 답하기 성공, 작업 취소 성공, 실제 모델 목록으로 실행기 고르기. 아래 실제 확인에서 본다.
 
-## 실제 확인 (eevee-be, 2026-10-21~27)
+## 실제 확인 (app-be, 2026-10-21~27)
 
-사용자 확인 뒤 eevee-be Claw Office를 멈추고 `./office --lean`으로 켰다. 화면 조작은 내장 브라우저로 했고, 결정(G1·G4·재개)에는 사용자가 대화에서 한 답만 넣었다.
+사용자 확인 뒤 app-be Claw Office를 멈추고 `./office --lean`으로 켰다. 화면 조작은 내장 브라우저로 했고, 결정(G1·G4·재개)에는 사용자가 대화에서 한 답만 넣었다.
 
 | 계획한 확인 | 결과 |
 |---|---|
-| 1. 작업 하나를 G1 → 구현 → 다른 실행기 리뷰 → G4 → 인도 | **통과(10-27).** "LICENSE 무변경 확인" 작업을 "리뷰 확인 agent"(작업 `claude · default`, 리뷰 `claude · sonnet`)에게 맡겼다. 스토리 G1·계획 G1 → 구현 → 등록 검사 3개 통과 → sonnet 리뷰 pass → G4(사용자 답변) → 인도까지 갔다. 실행기 기록은 pm·lead·engineer가 `claude · default`, reviewer가 `claude · sonnet`이다. 변경 파일은 없고, 원본 eevee-be도 바뀌지 않았다. 10-21에는 기본 agent(작업·리뷰 같은 실행기)로 작업 하나를 인도까지 돌렸다. |
+| 1. 작업 하나를 G1 → 구현 → 다른 실행기 리뷰 → G4 → 인도 | **통과(10-27).** "LICENSE 무변경 확인" 작업을 "리뷰 확인 agent"(작업 `claude · default`, 리뷰 `claude · sonnet`)에게 맡겼다. 스토리 G1·계획 G1 → 구현 → 등록 검사 3개 통과 → sonnet 리뷰 pass → G4(사용자 답변) → 인도까지 갔다. 실행기 기록은 pm·lead·engineer가 `claude · default`, reviewer가 `claude · sonnet`이다. 변경 파일은 없고, 원본 app-be도 바뀌지 않았다. 10-21에는 기본 agent(작업·리뷰 같은 실행기)로 작업 하나를 인도까지 돌렸다. |
 | 2. agent 추가·이름 변경·실행기 변경·삭제 | **통과.** 추가(리뷰 haiku) → 이름 "리뷰 확인 agent"로 변경, 리뷰 실행기를 sonnet으로 변경. 작업 중 삭제는 "진행 중인 작업이 있습니다."로 거부됐다. 작업이 끝난 뒤 삭제됐고, 남은 기본 agent 삭제는 "마지막 agent는 삭제할 수 없습니다."로 거부됐다. Office를 재시작해도 agent는 남았다. |
 | 3. Decisions의 작업 링크 | **통과.** 링크가 원래 작업 상세로 가고, 상세 안에서 같은 결정 카드(메모 칸, 승인 버튼)가 보인다. |
 | 4. CLI 하나로 켠 뒤 다른 CLI를 리뷰 실행기로 | **하지 않음.** codex는 개인 지침 파일(`~/.codex/AGENTS.md`) 때문에 막혀 있어 고를 수 없었다. 다른 실행기 리뷰는 같은 claude의 다른 모델(sonnet)로만 확인했다. |

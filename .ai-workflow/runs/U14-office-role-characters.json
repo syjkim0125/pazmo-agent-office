@@ -167,7 +167,7 @@
         "attempts": 1,
         "revision": 1,
         "output": {
-          "summary": "Fresh evidence as recorded (code unchanged since commit 0561925); eevee-be real screen 2026-10-15 (4 role characters, 3 rooms, Team hub connected) and the Fusion real check run on this build; G4 recorded from the user answers and approval, including after-the-fact confirmation of D21 defaults.",
+          "summary": "Fresh evidence as recorded (code unchanged since commit 0561925); app-be real screen 2026-10-15 (4 role characters, 3 rooms, Team hub connected) and the OpenShift real check run on this build; G4 recorded from the user answers and approval, including after-the-fact confirmation of D21 defaults.",
           "evidence": [
             "docs/verification/2026-10-15-office-role-characters-g4.md"
           ]
@@ -248,7 +248,7 @@
         "workflow-review",
         "workflow-verify"
       ],
-      "reason": "Verification doc gained the eevee-be real-screen section after recording; re-record with current evidence.",
+      "reason": "Verification doc gained the app-be real-screen section after recording; re-record with current evidence.",
       "at": "2026-10-16T00:23:40.464Z"
     },
     {
@@ -319,7 +319,7 @@
         "attempts": 1,
         "revision": 1,
         "output": {
-          "summary": "Fresh evidence as recorded (code unchanged since commit 0561925); eevee-be real screen 2026-10-15 (4 role characters, 3 rooms, Team hub connected) and the Fusion real check run on this build; G4 recorded from the user answers and approval, including after-the-fact confirmation of D21 defaults.",
+          "summary": "Fresh evidence as recorded (code unchanged since commit 0561925); app-be real screen 2026-10-15 (4 role characters, 3 rooms, Team hub connected) and the OpenShift real check run on this build; G4 recorded from the user answers and approval, including after-the-fact confirmation of D21 defaults.",
           "evidence": [
             "docs/verification/2026-10-15-office-role-characters-g4.md"
           ]

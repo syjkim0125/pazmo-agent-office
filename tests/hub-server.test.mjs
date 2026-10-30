@@ -31,12 +31,12 @@ test("everything except the invite, trust and CA pages needs a registered browse
 test("writes need this hub's Origin and the session's CSRF token", async (t) => {
   const { store, hub, call, enter } = await startTestHub(t);
   const { cookie, csrf } = await enter(store.bootstrapAdmin());
-  const body = (token) => `csrf=${token}&name=eevee-be&remote=${encodeURIComponent("git@github.example.com:team/eevee-be.git")}`;
+  const body = (token) => `csrf=${token}&name=app-be&remote=${encodeURIComponent("git@github.example.com:team/app-be.git")}`;
   assert.equal((await call("POST", "/repos", { cookie, body: body("wrong"), headers: { origin: hub.url } })).status, 403);
   assert.equal((await call("POST", "/repos", { cookie, body: body(csrf), headers: { origin: "https://evil.example" } })).status, 403);
   assert.equal((await call("POST", "/repos", { cookie, body: body(csrf) })).status, 403, "no Origin");
   assert.equal((await call("POST", "/repos", { cookie, body: body(csrf), headers: { origin: hub.url } })).status, 303);
-  assert.match((await call("GET", "/repos", { cookie })).text, /github\.example\.com\/team\/eevee-be/);
+  assert.match((await call("GET", "/repos", { cookie })).text, /github\.example\.com\/team\/app-be/);
 });
 
 test("other host names, oversized forms and unsafe framing are refused", async (t) => {
@@ -99,7 +99,7 @@ test("the board enforces owner-only accept and requester-only answers over HTTP"
   const admin = await enter(store.bootstrapAdmin());
   const adminMember = store.members()[0];
   const b = await enter(store.createInvite(adminMember, "B"));
-  const repo = store.addRepo(adminMember, "eevee-be", "https://github.example.com/team/eevee-be");
+  const repo = store.addRepo(adminMember, "app-be", "https://github.example.com/team/app-be");
   const bMember = store.members().find((m) => m.name === "B");
   const req = store.createRequest(bMember, repo, "README 목차 추가", "normal");
   const post = (who, path, extra = "") =>

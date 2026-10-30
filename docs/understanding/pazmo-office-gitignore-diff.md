@@ -10,7 +10,7 @@
 ## 공개한 증거 (해설 없이)
 
 - 검증: 전체 `npm test` 591/591 exit 0, typecheck exit 0, `check.mjs story`와 `gate G1` exit 0
-- 실제 repo 확인: eevee-be를 로컬로 clone한 사본에서 확인했다.
+- 실제 repo 확인: app-be를 로컬로 clone한 사본에서 확인했다.
   - init을 하고 기록 파일을 추가한 뒤, 그리고 remove 뒤에도 `git status --porcelain`이 비어 있었다.
   - 루트 `.gitignore`의 해시는 그대로였다.
 - 리뷰

@@ -8,9 +8,9 @@ async function team(t) {
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const join = (n) => store.acceptInvite(store.createInvite(admin, n), n).member;
   const pl = join("PL"), c = join("C");
-  const be = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
+  const be = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
   store.addOwner(admin, be, pl.id); store.addOwner(admin, be, c.id);
-  const token = (m) => store.pair(store.createLinkCode(m, be), "https://github.example.com/team/eevee-be").token;
+  const token = (m) => store.pair(store.createLinkCode(m, be), "https://github.example.com/team/app-be").token;
   return { ...h, be, plTok: token(pl), cTok: token(c) };
 }
 const graph = (be) => ({ nodes: [{ id: "api", repoId: be, title: "api", spec: "s", files: ["src/api.ts"], verify: [{ id: "V1", argv: ["npm", "test"], timeoutMs: 60000 }] }], edges: [] });
@@ -43,7 +43,7 @@ test("publish → open → claim → lock → merged over HTTP", async (t) => {
   assert.equal((await p("/api/link/story/merge-lock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json.granted, true);
   assert.deepEqual((await p("/api/link/story/merge-unlock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json, { ok: true });
   assert.equal((await p("/api/link/story/merge-lock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json.granted, true);
-  const m = await p("/api/link/story/merged", { taskId: task.taskId, claimId: task.claimId, prUrl: "https://github.example.com/team/eevee-be/pull/1", mergeCommit: "c".repeat(40), summary: "s", assumptions: [] }, cTok);
+  const m = await p("/api/link/story/merged", { taskId: task.taskId, claimId: task.claimId, prUrl: "https://github.example.com/team/app-be/pull/1", mergeCommit: "c".repeat(40), summary: "s", assumptions: [] }, cTok);
   assert.equal(m.status, 200);
   const s = await api("GET", `/api/link/story/story?id=${pub.storyId}`, { token: cTok, protocol: "3" });
   assert.equal(s.json.tasks.find((x) => x.nodeId === "api").state, "merged");

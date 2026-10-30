@@ -58,9 +58,9 @@ test("codes expire, revoked members cannot use theirs, and old repo codes still 
   const gone = store.createConnectCode(b);
   store.revokeMember(admin, b.id);
   assert.throws(() => store.connect(gone, "https://github.example.com/team/x"), { code: "FORBIDDEN", status: 403 });
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be");
-  const old = store.pairAny(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
-  assert.deepEqual([old.repoId, old.repoName, old.created], [repo, "eevee-be", false]);
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
+  const old = store.pairAny(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
+  assert.deepEqual([old.repoId, old.repoName, old.created], [repo, "app-be", false]);
   const viaAny = store.pairAny(store.createConnectCode(admin), "https://github.example.com/team/new-one");
   assert.equal(viaAny.created, true);
   assert.throws(() => store.connect(store.createConnectCode(admin), "not a remote"), { code: "INVALID", status: 400 });

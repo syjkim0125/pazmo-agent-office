@@ -22,7 +22,7 @@ test("hub commands validate their options before touching anything", (t) => {
   assert.match(run("start", "--project", ".", "--host", "1.2.3.4").stderr, /--host is not supported by start/);
 });
 
-test("hub Fusion arguments are validated before the hub starts", () => {
+test("hub OpenShift arguments are validated before the hub starts", () => {
   const code = (out) => JSON.parse(out.stderr.trim().split("\n").at(-1)).code;
   const a = run("hub", "--public-url", "https://h.example", "--host", "192.168.0.2", "--listen", "127.0.0.1:0");
   assert.equal(code(a), "ARGUMENT");

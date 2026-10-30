@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "runId": "0fc45a40-3495-4d1e-a0b8-d8a0d8b5a3d2",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan 2 (Story D31 wording hedged after replan review 1 M1; earlier runs U26-discovery-stop-grace.json and -replan.json kept as evidence). D31 records the user's 30 s choice, the 32 s no-answer case, Claw callers and live lean; main merged (13c48ff, clean); product code unchanged since 7c949ab except the lifecycle.ts comment. typecheck 0, Story 0, startup guard 1/1; related 57/57 after the merge.",
+          "evidence": [
+            ".ai-workflow/runs/U26-replan-implement-1.md",
+            ".ai-workflow/runs/U26-replan-implement-2.md",
+            ".ai-workflow/runs/U26-replan-review-1.md",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            "src/cli/lifecycle.ts",
+            "src/runners/runner-models.ts",
+            "tests/runner-models.test.mjs",
+            "tests/lean-lifecycle.test.mjs",
+            "tests/team-registry.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-replan-implement-1.md": "48beadaa519d0c3c20c1a139017e468981188eba535bcc7b64e9290ef13c8d8c",
+          ".ai-workflow/runs/U26-replan-implement-2.md": "b60c13194de88e68a09a2eec26033e834a737f79527f90c82ea4d7a6d4a67dec",
+          ".ai-workflow/runs/U26-replan-review-1.md": "ef6d4fe256185af67b28d25c3bccd52b08f156f02289ae49370ca0b2a8481810",
+          "docs/understanding/pazmo-agent-office-contract.md": "5ee84f3b2004c24db5ebc543f939a46fd3fdba6aa18296db680b7c1162fceff9",
+          "src/cli/lifecycle.ts": "df817c9c37af4526af69072c62fd16c120d7347bd459cd54195fb2dc366c74b6",
+          "src/runners/runner-models.ts": "56fa078c7f7ba580ec339482de207f39471ed522f7e4a0f98e0b5a34cee7cd9b",
+          "tests/runner-models.test.mjs": "973d7f4c96a594649cb346bd898a27dd571017daa38e74c48ba48b212bac626a",
+          "tests/lean-lifecycle.test.mjs": "fb9b570c81b7df82c57d108dd6e4dcf110b2affdaeb48e5c0af5033bb75de410",
+          "tests/team-registry.test.mjs": "7e08dbaa4356d2da149c07ab5152b858ece91fc3d8c829abd5d52c205973bad3"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan-2 review: Ready. Replan review 1 (D31 edit, main merge) was Ready on substance with M1 wording; the hedge is confirmed in D31, lifecycle.ts comment, STATUS and docs. Optional comment nit (\"is never SIGKILLed\" before the service exits) not applied, conclusion holds.",
+          "evidence": [
+            ".ai-workflow/runs/U26-replan-review-1.md",
+            ".ai-workflow/runs/U26-replan-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-replan-review-1.md": "ef6d4fe256185af67b28d25c3bccd52b08f156f02289ae49370ca0b2a8481810",
+          ".ai-workflow/runs/U26-replan-review-2.md": "e0c839757b1901b483fde2cf920b253df784332dcfba97bfde12309aa8e371c3"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification for replan-2: npm test 1106/1106 exit 0 (14:32-14:34, after the last code change at 14:31); post-merge run before the hedge 1106/1106; typecheck 0; Story check 0; related 57/57 + 1/1. Limits: no new real-CLI run; lean start under load unmeasured; 32 s no-answer case beyond 30 s kept by user choice.",
+          "evidence": [
+            ".ai-workflow/runs/U26-replan-2-verify.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-replan-2-verify.md": "ebb930918009e6cf9595a58ad261e5799e4b389b2a1c282ffdf3aa30cd36a967"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "01dbfc2bf6d4366e46e9ca543cf338ccc47bb52c559626a4716527b25f6dadfc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T05:32:54.770Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T05:32:55.302Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan 2 (Story D31 wording hedged after replan review 1 M1; earlier runs U26-discovery-stop-grace.json and -replan.json kept as evidence). D31 records the user's 30 s choice, the 32 s no-answer case, Claw callers and live lean; main merged (13c48ff, clean); product code unchanged since 7c949ab except the lifecycle.ts comment. typecheck 0, Story 0, startup guard 1/1; related 57/57 after the merge.",
+          "evidence": [
+            ".ai-workflow/runs/U26-replan-implement-1.md",
+            ".ai-workflow/runs/U26-replan-implement-2.md",
+            ".ai-workflow/runs/U26-replan-review-1.md",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            "src/cli/lifecycle.ts",
+            "src/runners/runner-models.ts",
+            "tests/runner-models.test.mjs",
+            "tests/lean-lifecycle.test.mjs",
+            "tests/team-registry.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-replan-implement-1.md": "48beadaa519d0c3c20c1a139017e468981188eba535bcc7b64e9290ef13c8d8c",
+          ".ai-workflow/runs/U26-replan-implement-2.md": "b60c13194de88e68a09a2eec26033e834a737f79527f90c82ea4d7a6d4a67dec",
+          ".ai-workflow/runs/U26-replan-review-1.md": "ef6d4fe256185af67b28d25c3bccd52b08f156f02289ae49370ca0b2a8481810",
+          "docs/understanding/pazmo-agent-office-contract.md": "5ee84f3b2004c24db5ebc543f939a46fd3fdba6aa18296db680b7c1162fceff9",
+          "src/cli/lifecycle.ts": "df817c9c37af4526af69072c62fd16c120d7347bd459cd54195fb2dc366c74b6",
+          "src/runners/runner-models.ts": "56fa078c7f7ba580ec339482de207f39471ed522f7e4a0f98e0b5a34cee7cd9b",
+          "tests/runner-models.test.mjs": "973d7f4c96a594649cb346bd898a27dd571017daa38e74c48ba48b212bac626a",
+          "tests/lean-lifecycle.test.mjs": "fb9b570c81b7df82c57d108dd6e4dcf110b2affdaeb48e5c0af5033bb75de410",
+          "tests/team-registry.test.mjs": "7e08dbaa4356d2da149c07ab5152b858ece91fc3d8c829abd5d52c205973bad3"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T05:32:55.630Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T05:33:23.022Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan-2 review: Ready. Replan review 1 (D31 edit, main merge) was Ready on substance with M1 wording; the hedge is confirmed in D31, lifecycle.ts comment, STATUS and docs. Optional comment nit (\"is never SIGKILLed\" before the service exits) not applied, conclusion holds.",
+          "evidence": [
+            ".ai-workflow/runs/U26-replan-review-1.md",
+            ".ai-workflow/runs/U26-replan-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-replan-review-1.md": "ef6d4fe256185af67b28d25c3bccd52b08f156f02289ae49370ca0b2a8481810",
+          ".ai-workflow/runs/U26-replan-review-2.md": "e0c839757b1901b483fde2cf920b253df784332dcfba97bfde12309aa8e371c3"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T05:35:15.538Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T05:35:15.642Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification for replan-2: npm test 1106/1106 exit 0 (14:32-14:34, after the last code change at 14:31); post-merge run before the hedge 1106/1106; typecheck 0; Story check 0; related 57/57 + 1/1. Limits: no new real-CLI run; lean start under load unmeasured; 32 s no-answer case beyond 30 s kept by user choice.",
+          "evidence": [
+            ".ai-workflow/runs/U26-replan-2-verify.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-replan-2-verify.md": "ebb930918009e6cf9595a58ad261e5799e4b389b2a1c282ffdf3aa30cd36a967"
+        }
+      }
+    }
+  ]
+}

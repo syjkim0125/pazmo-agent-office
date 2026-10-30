@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { opened } from "./hub-story-fixture.mjs";
 const SHA = "a".repeat(40), SHA2 = "b".repeat(40);
-const merged = (over = {}) => ({ prUrl: "https://github.example.com/team/eevee-be/pull/7", mergeCommit: SHA, summary: "[변경사항]\n1. 작업: api\n2. 변경 파일: src/api.ts\n3. 확인: V1 통과", assumptions: ["ASSUMED: 쿠폰 코드는 대문자"], ...over });
+const merged = (over = {}) => ({ prUrl: "https://github.example.com/team/app-be/pull/7", mergeCommit: SHA, summary: "[변경사항]\n1. 작업: api\n2. 변경 파일: src/api.ts\n3. 확인: V1 통과", assumptions: ["ASSUMED: 쿠폰 코드는 대문자"], ...over });
 const states = (board, l, id) => Object.fromEntries(board.story(l, id).tasks.map((t) => [t.nodeId, t.state]));
 /** Claims the link's next task and merges it under its own commit. */
 const finish = (board, l) => {
@@ -206,8 +206,8 @@ test("report fields are validated", () => {
   assert.throws(() => board.reportMerged(l, t.taskId, t.claimId, merged({ mergeCommit: "zz" })), (e) => e.code === "INVALID");
   assert.throws(() => board.reportMerged(l, t.taskId, t.claimId, merged({ assumptions: Array(51).fill("x") })), (e) => e.code === "INVALID");
   // A valid address is stored as the parsed URL's href.
-  board.reportMerged(l, t.taskId, t.claimId, merged({ prUrl: "https://GitHub.Example.com/team/eevee-be/pull/7" }));
-  assert.equal(board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api").prUrl, "https://github.example.com/team/eevee-be/pull/7");
+  board.reportMerged(l, t.taskId, t.claimId, merged({ prUrl: "https://GitHub.Example.com/team/app-be/pull/7" }));
+  assert.equal(board.story(plBe, pub.storyId).tasks.find((x) => x.nodeId === "api").prUrl, "https://github.example.com/team/app-be/pull/7");
 });
 test("story verify: ready after all work merges, PL only, fail reopens, pass awaits G4, complete finishes", () => {
   const { board, pl, b, c, be, fe, linkOf, plBe, pub } = opened();

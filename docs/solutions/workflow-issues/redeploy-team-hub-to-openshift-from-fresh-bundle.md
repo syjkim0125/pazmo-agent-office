@@ -1,5 +1,5 @@
 ---
-title: Redeploy the team hub to Fusion from a fresh bundle and verify it without writing data
+title: Redeploy the team hub to OpenShift from a fresh bundle and verify it without writing data
 date: "2026-10-22"
 category: workflow-issues
 module: team hub deploy
@@ -7,7 +7,7 @@ problem_type: workflow_issue
 component: development_workflow
 severity: medium
 applies_when:
-  - "Redeploying the team hub to Fusion (OpenShift) after a code change"
+  - "Redeploying the team hub to OpenShift after a code change"
   - "The pazmo-hub BuildConfig is a Binary build fed from a local directory with oc start-build --from-dir"
   - "More than one worktree, person or agent session can build the bundle or start a build for the same hub"
   - "Verifying a rollout on a hub that already has members, repos, requests and live Office links"
@@ -18,13 +18,13 @@ symptoms:
   - "The route answered 503 'Application is not available' right after the rollout until the new pod was Ready"
   - "A read-only database check failed with 'unable to open database file' because it used the wrong path"
 resolution_type: workflow_improvement
-tags: [openshift, fusion, binary-build, oc-start-build, hub-bundle, redeploy, deploy-verification, team-hub]
+tags: [openshift, binary-build, oc-start-build, hub-bundle, redeploy, deploy-verification, team-hub]
 ---
 
-# Redeploy the team hub to Fusion from a fresh bundle and verify it without writing data
+# Redeploy the team hub to OpenShift from a fresh bundle and verify it without writing data
 
 ## Context
-The first deploy of the team hub to Fusion (OpenShift) is documented in [docs/LOCAL-PREVIEW.md](../../LOCAL-PREVIEW.md#fusionopenshift에-허브-띄우기). It ends with `npm run hub:bundle` and `oc start-build`. That section does not cover the second deploy: shipping a code change to a hub that already has members, repos and connected Offices.
+The first deploy of the team hub to OpenShift is documented in [docs/LOCAL-PREVIEW.md](../../LOCAL-PREVIEW.md#openshift에-허브-띄우기). It ends with `npm run hub:bundle` and `oc start-build`. That section does not cover the second deploy: shipping a code change to a hub that already has members, repos and connected Offices.
 
 The redeploy for PR #29 (team Story board) on 2026-10-22 showed that this path has silent failure modes. A stale bundle deploys old code and reports success. A half-done login fails only at the last step. Verifying the result by writing test data would put it in the shared team database. This doc records the command sequence and the checks that proved the redeploy without writing anything.
 
@@ -33,7 +33,7 @@ The same pitfalls showed up in the earlier redeploys of 2026-10-15 and 2026-10-1
 All values below are placeholders: `<cluster API URL>`, `<project>`, `<hub route host>`, `<pod>`. Real values stay out of this public repo (see [keep-internal-cluster-hosts-out-of-a-public-repo](../security-issues/keep-internal-cluster-hosts-out-of-a-public-repo.md)).
 
 ## Guidance
-Redeploy is two commands plus a check. The BuildConfig source type is `Binary` (`deploy/fusion/pazmo-hub.json:50`), so the bundle is uploaded from the machine that runs `oc`. A finished build moves the `pazmo-hub:latest` image tag, and the Deployment's image trigger (`deploy/fusion/pazmo-hub.json:114`) rolls the pod.
+Redeploy is two commands plus a check. The BuildConfig source type is `Binary` (`deploy/openshift/pazmo-hub.json:50`), so the bundle is uploaded from the machine that runs `oc`. A finished build moves the `pazmo-hub:latest` image tag, and the Deployment's image trigger (`deploy/openshift/pazmo-hub.json:114`) rolls the pod.
 
 Division of labor: the person logs in (`oc login --web`, in the browser, so no token passes through chat). After that, an agent may run the bundle, the build and the read-only checks for that deploy when the person asks for it.
 
@@ -71,13 +71,13 @@ Division of labor: the person logs in (`oc login --web`, in the browser, so no t
    - a login that worked in the morning had expired by the next day, so check `oc whoami` on every deploy;
    - the console's copied login command used the API's default port, which did not answer from the office network; a `--server` URL with the port that answers fixed it;
    - a terminal with `KUBECONFIG` set saves the login to a different file than the one the agent's shell reads.
-3. **The CLI is required.** The Binary BuildConfig is fed by `oc start-build --from-dir` from the machine that holds the bundle (`deploy/fusion/pazmo-hub.json:49-51`). The web console's start button does not upload a local directory (as observed in this session), so a redeploy cannot be "just clicked".
-4. **Never start the same build twice.** The BuildConfig has `runPolicy: Serial` (`deploy/fusion/pazmo-hub.json:48`), so a duplicate does not fail. It would queue, finish later and roll the pod a second time; here the duplicate was cancelled before that happened. If two people or agents may be deploying, list and cancel:
+3. **The CLI is required.** The Binary BuildConfig is fed by `oc start-build --from-dir` from the machine that holds the bundle (`deploy/openshift/pazmo-hub.json:49-51`). The web console's start button does not upload a local directory (as observed in this session), so a redeploy cannot be "just clicked".
+4. **Never start the same build twice.** The BuildConfig has `runPolicy: Serial` (`deploy/openshift/pazmo-hub.json:48`), so a duplicate does not fail. It would queue, finish later and roll the pod a second time; here the duplicate was cancelled before that happened. If two people or agents may be deploying, list and cancel:
    ```sh
    oc get builds -l buildconfig=pazmo-hub
    oc cancel-build <duplicate build name>
    ```
-5. **Right after rollout the route answers 503 "Application is not available".** The Deployment strategy is `Recreate` (`deploy/fusion/pazmo-hub.json:120`), so the old pod stops before the new one is Ready. The readiness probe is `/healthz`. Wait for `READY 1/1` and endpoints, then test.
+5. **Right after rollout the route answers 503 "Application is not available".** The Deployment strategy is `Recreate` (`deploy/openshift/pazmo-hub.json:120`), so the old pod stops before the new one is Ready. The readiness probe is `/healthz`. Wait for `READY 1/1` and endpoints, then test.
 6. **The database is one directory deeper than the data dir.** `PAZMO_HUB_DATA_DIR` defaults to `/data` in the container (`src/hub/main.ts:27`). The hub adds a `team-hub` subdirectory (`src/hub/run.ts:54`) and opens `hub.sqlite` there (`src/hub/run.ts:65`). So the file is `/data/team-hub/hub.sqlite`, not `/data/hub.sqlite`.
 
 ## Why This Matters
@@ -91,7 +91,7 @@ The redeploy keeps the PVC. Members, repos, requests and connected Offices are t
 - Test data written to prove the deploy stays in the team's board for good. Writing it is a decision for the team, not part of the deploy.
 
 ## When to Apply
-- You changed anything under `src/hub/` or `bin/pazmo-hub.mjs` and the Fusion hub must run it.
+- You changed anything under `src/hub/` or `bin/pazmo-hub.mjs` and the OpenShift hub must run it.
 - You are deploying from a worktree, or from a shell that may not be in the repo root.
 - More than one person or agent can deploy to the same project.
 - The hub already has members. A first deploy with an empty database is covered by the LOCAL-PREVIEW section; the admin invite appears in the pod log only while the hub has no members (a restart before the admin joins prints a fresh link).
@@ -145,8 +145,8 @@ Modeled on the checks run after the PR #29 redeploy (that run probed `/api/link/
 Stop here. Creating a project, a Story or a request on the shared hub to "test end to end" is a separate step. Ask the team first.
 
 ## Related
-- [docs/LOCAL-PREVIEW.md, "Fusion(OpenShift)에 허브 띄우기"](../../LOCAL-PREVIEW.md#fusionopenshift에-허브-띄우기): first-deploy commands (Template, `local.env`, first `adminInvite`).
-- [docs/understanding/team-hub-fusion-decision.md](../../understanding/team-hub-fusion-decision.md): why one pod, `Recreate`, PVC and an edge route.
+- [docs/LOCAL-PREVIEW.md, "OpenShift에 허브 띄우기"](../../LOCAL-PREVIEW.md#openshift에-허브-띄우기): first-deploy commands (Template, `local.env`, first `adminInvite`).
+- [docs/understanding/team-hub-openshift-decision.md](../../understanding/team-hub-openshift-decision.md): why one pod, `Recreate`, PVC and an edge route.
 - [keep-internal-cluster-hosts-out-of-a-public-repo](../security-issues/keep-internal-cluster-hosts-out-of-a-public-repo.md): keep real hosts out of commands and examples like the ones above.
 - [fresh-worktree-tests-fail-without-office-ui-build](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): Node 24 and vendor setup for a fresh worktree.
 - [Hub stage verification record](../../verification/2026-10-22-team-story-board-hub.md): the dated evidence for this redeploy.

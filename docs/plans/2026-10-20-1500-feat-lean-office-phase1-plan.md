@@ -285,7 +285,7 @@
   - `docs/LOCAL-PREVIEW.md`에 "새 Office(1단계, 시험)" 절을 쓴다.
   - `CONCEPTS.md`에 agent(작업 agent)·작업 실행기·리뷰 실행기를 쓴다.
   - `docs/STATUS.md`, `docs/verification/<날짜>-lean-office-phase1.md`, Task `docs/tasks/U16-lean-office-phase1.md`를 쓰고 검사가 exit 0이어야 한다.
-- [ ] 실제 확인: 사용자 확인 후 eevee-be에서 `up --lean`으로 작업 하나를 G1 → 구현 → 다른 실행기 리뷰 → G4 → 인도까지 돌리고, agent 추가·변경·삭제를 해 본다. 그 뒤 G4를 받는다.
+- [ ] 실제 확인: 사용자 확인 후 app-be에서 `up --lean`으로 작업 하나를 G1 → 구현 → 다른 실행기 리뷰 → G4 → 인도까지 돌리고, agent 추가·변경·삭제를 해 본다. 그 뒤 G4를 받는다.
 
 ## Self-Review
 

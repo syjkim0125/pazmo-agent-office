@@ -17,7 +17,7 @@ tags: [office-startup, claw, tsx, cpu-load, flaky-test, ready-wait, stress-repro
 # The claw Office start is CPU-bound and outran its 15 s ready wait under load
 
 ## Problem
-`start` waits for the spawned service's IPC `ready` message and gives up with `Office startup timed out.` (`src/cli/lifecycle.ts:261`). The claw engine's start often took longer than that wait whenever the machine was busy. The two tests that start claw then failed, but only during full suites that ran in parallel.
+`start` waits for the spawned service's IPC `ready` message and gives up with `Office startup timed out.` (`src/cli/lifecycle.ts:266`). The claw engine's start often took longer than that wait whenever the machine was busy. The two tests that start claw then failed, but only during full suites that ran in parallel.
 
 ## Symptoms
 - `927/929` (PR #35 record) and `955/956` (PR #40 record) full runs, each failure `Office startup timed out.`, at load average 24-33 with other sessions' suites running.
@@ -53,7 +53,7 @@ export const STARTUP_MS: Record<Engine, number> = {
 
 A crash (`exit`) or an error reply still ends the wait at once, so only a service that neither replies nor exits waits 120 s. A first try at 60 s still failed 1 of 4 valid runs at 16 stress threads. That run's second claw start went past 60 s, and the 12-start measurement above followed. A test that drives the CLI with `spawnSync` needs a limit above that wait. `tests/lean-lifecycle.test.mjs` derives it as `STARTUP_MS.claw + 60000`. Otherwise `spawnSync` kills the CLI mid-start, which leaves `start.lock` behind and an Office that no `running.json` records.
 
-Fix opened on branch `codex/load-flaky-tests`, unmerged as of this writing.
+Merged in PR #47 (main `3926ee2`). Lean later went to 30 s for another reason (D31, 2026-10-30): a live lean Office reports ready only after its first runner discovery, which may wait up to 17 s for the claude it asked to exit ([discovery stop](../integration-issues/stop-claude-model-discovery-without-sigkill.md)). `tests/team-registry.test.mjs`, which starts lean, now derives its `spawnSync` limit as `STARTUP_MS.lean + 30000` for the same reason as above.
 
 ## Why This Works
 The wait has to cover CPU work whose wall time scales with how oversubscribed the CPU is, and with paging when memory swaps. The claw start runs several CPU-heavy parts at once: the esbuild process, the tsx hooks thread and the main thread. A new data directory also starts with an empty tsx transform cache, because each Office's TMPDIR is its own `dataDir/tmp`. The first start of every test is therefore a cold transpile. 120 s is more than twice the slowest start that finished in the measurement. With it, the two lifecycle files passed 5 of 5 runs (75/75) at 16 stress threads, where they had passed 1 of 3 before the fix. A load past the measured range can still exceed it.
