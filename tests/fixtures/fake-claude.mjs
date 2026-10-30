@@ -1,9 +1,9 @@
 // Test double for the claude CLI: drives the configured MCP bridge like claude
-// does and prints a stream-json transcript. Mode is argv[2], marker argv[3].
+// does and prints a stream-json transcript. Mode is argv[2].
 import { spawn } from "node:child_process";
-import { readFileSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 
-const [mode, marker, ...args] = process.argv.slice(2);
+const [mode, ...args] = process.argv.slice(2);
 const emit = (e) => process.stdout.write(JSON.stringify(e) + "\n");
 const config = JSON.parse(readFileSync(args[args.indexOf("--mcp-config") + 1], "utf8"));
 const server = config.mcpServers.office;
@@ -45,10 +45,10 @@ emit({
   apiKeySource: mode === "api-key" ? "ANTHROPIC_API_KEY" : "none",
   prompt_length: prompt.length,
 });
-if (mode === "extra-tool" || mode === "hook" || mode === "api-key") {
-  await new Promise((r) => setTimeout(r, 1500));
-  writeFileSync(marker, "continued after a failed boundary check");
-}
+// Office must stop a claude that fails a boundary check here, before it goes
+// on. This one waits to be stopped instead of going on after a fixed delay,
+// which a slow Office on a loaded machine could lose to.
+if (mode === "extra-tool" || mode === "hook" || mode === "api-key") await new Promise(() => setInterval(() => {}, 60000));
 emit({ type: "assistant", message: { content: [{ type: "tool_use", name: "mcp__office__read_file", input: { path: "README.md" } }] } });
 const read = (await request("tools/call", { name: "read_file", arguments: { path: "README.md" } })).result;
 emit({ type: "user", message: { content: [{ type: "tool_result", content: read.content[0].text }] } });

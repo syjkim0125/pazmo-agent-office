@@ -1,0 +1,379 @@
+{
+  "version": 1,
+  "runId": "ae26adc8-30fd-4841-b005-5c24b230881b",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after re-review: every refreshing-claude test now has a test timeout (15 s, or 30 s where a 10 s helper-reaping poll runs), and 'a cancel after the claude itself exited' waits for its pid and the claude's exit with the test's signal. A spawn-failure mutant (no pid ever written) now ends the file in 150 s with 20/20 tests failing, instead of hanging; controller source restored byte-identical. Normal: 20/20 three times. Bounded tests took at most 3.7 s under 36 stress threads. Unchanged from attempt 1: claw 120 s start wait (STARTUP_MS exported), lean-lifecycle CLI limit STARTUP_MS.claw + 60 s, mocked controller clock for the stop tests, 7 controller mutations caught. Commits b8649d5, cfb14c4, 10a5642.",
+          "evidence": [
+            "src/cli/lifecycle.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/fixtures/fake-claude.mjs",
+            "tests/lean-lifecycle.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/lifecycle.ts": "677e40af6217b125e807e2a55873d03e661f5c996bef9035b18dde52477e525e",
+          "tests/claude-controller.test.mjs": "053d750de063c3843ea044c89009e353316084eb5956b7dff842642b4d666c4b",
+          "tests/fixtures/fake-claude.mjs": "415edc0317aa311b08bd95cb0cb6aa0139ed44b1389a815b8455e07a3b310ce0",
+          "tests/lean-lifecycle.test.mjs": "462f3ad6d1d8986de46d8cfdc359b1f2ea04f589ff6c2680c0fc19f0cd302d7d"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Independent report-only review, three passes: b8649d5 With fixes (mocked-clock tests could hang) -> cfb14c4; re-review With fixes (three non-mocked lock tests unbounded) -> 10a5642; final check Ready to merge Yes. Two non-blocking, pre-existing follow-ups recorded (empty-pid read in 'a cancel after the claude itself exited'; pid path under HOME).",
+          "evidence": [
+            ".ai-workflow/runs/load-flaky-tests-review-1.md",
+            ".ai-workflow/runs/load-flaky-tests-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/load-flaky-tests-review-1.md": "da06652481cf7da4b1b395f0e00f311d52fe6e90a663485c9ef80b5b21895c6f",
+          ".ai-workflow/runs/load-flaky-tests-review-2.md": "96031e5a0d944dc647476fdc7bc67232664dc783c1b4d09f08d3c062df8c7ee8"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after the review fixes, on final commit 10a5642 with no other test suite running: root npm test 1092/1092 exit 0 (80 s); claude-controller 20/20 three times; npm run typecheck exit 0; Story checker exit 0. Under induced load: lifecycle files 16 stress threads 5/5 (75/75) with the 120 s claw wait (RED 1/3); claude-controller 36 threads 6/6 (120/120) on 10a5642 (RED 1/4). Changed-file scope: src/cli/lifecycle.ts (claw-only STARTUP_MS 120 s, exported), tests/claude-controller.test.mjs, tests/fixtures/fake-claude.mjs, tests/lean-lifecycle.test.mjs; controller source and its 6 s/12 s values untouched. Unproven: claw start beyond the measured load; two real full suites at once (one-at-a-time rule); a 'still starting' message during the 120 s wait; pre-existing follow-ups from the review. G4 pending the user's answer.",
+          "evidence": [
+            "docs/verification/2026-10-29-load-flaky-tests.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-load-flaky-tests.md": "ca7cdf3a138dba27e71b9801713b69e38576eda8de51e77f77d42c98c09c8dbc"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "58fa97b0712faef7d6cf35592e11d7f52bdaa6f3ef4553b782a465fdfff204d3"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-29T10:13:03.314Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:16:33.226Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Load-only failures. (1) 'Office startup timed out.' in the two claw-starting tests: claw's start is CPU-bound (tsx transpiles ~220 vendor TS modules; cold cache per data dir), measured 1-2 s idle, 7.5-51 s under CPU stress with heavy swap, 2/12 over 60 s; lean/legacy < 3 s. Fix: src/cli/lifecycle.ts exported per-engine STARTUP_MS, claw 120 s, others 15 s; lean-lifecycle CLI spawnSync limit STARTUP_MS.claw + 60 s. RED: lifecycle files at 16 stress threads 1/3 runs; 60 s attempt 3/4 valid; GREEN 120 s 5/5 (75/75). (2) claude-controller stop tests raced real timers ('timed out while it refreshes' ENOENT 3/4 at 36 threads). Fix: t.mock.timers for setTimeout (controller clock), progress via marker files on a captured real timer, 5999/6000 ms assertions, boundary fixture waits to be killed, helper polls 10 s; review fixes: 15 s test timeouts on frozen-clock tests, refreshingClaude(t) kills the process group (skips empty pid: kill(-0) hit own group), reached() stops on t.signal. GREEN 36 threads 6/6 (120/120); 7 controller mutations caught, no fake left; controller source unchanged (6 s/12 s untouched). Commits b8649d5, cfb14c4.",
+          "evidence": [
+            "src/cli/lifecycle.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/fixtures/fake-claude.mjs",
+            "tests/lean-lifecycle.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/lifecycle.ts": "677e40af6217b125e807e2a55873d03e661f5c996bef9035b18dde52477e525e",
+          "tests/claude-controller.test.mjs": "544a752437849cb2ec89ba20550e7650b9563d55db1d5f0b6bc90e6de1d2c0e1",
+          "tests/fixtures/fake-claude.mjs": "415edc0317aa311b08bd95cb0cb6aa0139ed44b1389a815b8455e07a3b310ce0",
+          "tests/lean-lifecycle.test.mjs": "462f3ad6d1d8986de46d8cfdc359b1f2ea04f589ff6c2680c0fc19f0cd302d7d"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:16:39.109Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:17:45.757Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Two independent report-only reviews. Review of b8649d5: With fixes (mocked-clock tests could hang the file on a no-SIGTERM mutant; minors) - fixed in cfb14c4. Re-review of cfb14c4: With fixes - three non-mocked lock tests ('cancelled while it refreshes', 'a process the claude started', 'a line the claude prints') can poll forever without a test timeout when the fake never writes its pid.",
+          "evidence": [
+            ".ai-workflow/runs/load-flaky-tests-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: give the three non-mocked lock tests in tests/claude-controller.test.mjs a test timeout so a fake that never writes its pid fails instead of hanging the file."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/load-flaky-tests-review-1.md": "da06652481cf7da4b1b395f0e00f311d52fe6e90a663485c9ef80b5b21895c6f"
+        },
+        "error": "implement: give the three non-mocked lock tests in tests/claude-controller.test.mjs a test timeout so a fake that never writes its pid fails instead of hanging the file."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review: three non-mocked lock tests need a test timeout so a missing pid file fails instead of hanging",
+      "at": "2026-10-30T00:17:45.846Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:27:36.519Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:27:40.220Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after re-review: every refreshing-claude test now has a test timeout (15 s, or 30 s where a 10 s helper-reaping poll runs), and 'a cancel after the claude itself exited' waits for its pid and the claude's exit with the test's signal. A spawn-failure mutant (no pid ever written) now ends the file in 150 s with 20/20 tests failing, instead of hanging; controller source restored byte-identical. Normal: 20/20 three times. Bounded tests took at most 3.7 s under 36 stress threads. Unchanged from attempt 1: claw 120 s start wait (STARTUP_MS exported), lean-lifecycle CLI limit STARTUP_MS.claw + 60 s, mocked controller clock for the stop tests, 7 controller mutations caught. Commits b8649d5, cfb14c4, 10a5642.",
+          "evidence": [
+            "src/cli/lifecycle.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/fixtures/fake-claude.mjs",
+            "tests/lean-lifecycle.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/lifecycle.ts": "677e40af6217b125e807e2a55873d03e661f5c996bef9035b18dde52477e525e",
+          "tests/claude-controller.test.mjs": "053d750de063c3843ea044c89009e353316084eb5956b7dff842642b4d666c4b",
+          "tests/fixtures/fake-claude.mjs": "415edc0317aa311b08bd95cb0cb6aa0139ed44b1389a815b8455e07a3b310ce0",
+          "tests/lean-lifecycle.test.mjs": "462f3ad6d1d8986de46d8cfdc359b1f2ea04f589ff6c2680c0fc19f0cd302d7d"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:28:07.206Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:32:08.968Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Independent report-only review, three passes: b8649d5 With fixes (mocked-clock tests could hang) -> cfb14c4; re-review With fixes (three non-mocked lock tests unbounded) -> 10a5642; final check Ready to merge Yes. Two non-blocking, pre-existing follow-ups recorded (empty-pid read in 'a cancel after the claude itself exited'; pid path under HOME).",
+          "evidence": [
+            ".ai-workflow/runs/load-flaky-tests-review-1.md",
+            ".ai-workflow/runs/load-flaky-tests-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/load-flaky-tests-review-1.md": "da06652481cf7da4b1b395f0e00f311d52fe6e90a663485c9ef80b5b21895c6f",
+          ".ai-workflow/runs/load-flaky-tests-review-2.md": "96031e5a0d944dc647476fdc7bc67232664dc783c1b4d09f08d3c062df8c7ee8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T00:34:27.913Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T00:34:28.080Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after the review fixes, on final commit 10a5642 with no other test suite running: root npm test 1092/1092 exit 0 (80 s); claude-controller 20/20 three times; npm run typecheck exit 0; Story checker exit 0. Under induced load: lifecycle files 16 stress threads 5/5 (75/75) with the 120 s claw wait (RED 1/3); claude-controller 36 threads 6/6 (120/120) on 10a5642 (RED 1/4). Changed-file scope: src/cli/lifecycle.ts (claw-only STARTUP_MS 120 s, exported), tests/claude-controller.test.mjs, tests/fixtures/fake-claude.mjs, tests/lean-lifecycle.test.mjs; controller source and its 6 s/12 s values untouched. Unproven: claw start beyond the measured load; two real full suites at once (one-at-a-time rule); a 'still starting' message during the 120 s wait; pre-existing follow-ups from the review. G4 pending the user's answer.",
+          "evidence": [
+            "docs/verification/2026-10-29-load-flaky-tests.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-29-load-flaky-tests.md": "ca7cdf3a138dba27e71b9801713b69e38576eda8de51e77f77d42c98c09c8dbc"
+        }
+      }
+    }
+  ]
+}

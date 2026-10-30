@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { locate } from "../src/cli/project.ts";
-import { start, vendorInstalled } from "../src/cli/lifecycle.ts";
+import { STARTUP_MS, start, vendorInstalled } from "../src/cli/lifecycle.ts";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
@@ -23,11 +23,14 @@ const service = new URL("../src/runtime/lean-service.ts", import.meta.url).pathn
 const slowStart = new URL("./lean-service-slow-start.mjs", import.meta.url).pathname;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Runs the CLI against a temp project and data dir; returns the JSON it printed. */
+/** Runs the CLI against a temp project and data dir; returns the JSON it printed.
+ * The limit is a minute above what start --claw may wait for its Office, so a
+ * slow start under load is reported by start itself; killing the CLI half way
+ * would leave its start lock behind and an Office no state file records. */
 function call(f, ...args) {
   const r = spawnSync(process.execPath, [cli, ...args, "--project", f.project, "--data-dir", f.data], {
     encoding: "utf8",
-    timeout: 30000,
+    timeout: STARTUP_MS.claw + 60000,
   });
   return { status: r.status, value: JSON.parse(r.status === 0 ? r.stdout : r.stderr) };
 }
