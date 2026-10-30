@@ -104,14 +104,20 @@ const SERVICE: Record<Engine, string> = {
  * modules as it starts, from an empty transform cache the first time a data
  * directory is used (its TMPDIR is the Office's own). That takes 1–2 s on an
  * idle machine but can pass a minute with the CPU oversubscribed and memory
- * swapping. Legacy and lean still started in under 3 s there; they keep 15 s,
- * as does team. A crash or an error reply ends the wait at once, so only a
- * service that neither replies nor exits waits this long. Measurements:
+ * swapping. Legacy and lean still started in under 3 s there; legacy and team
+ * keep 15 s. A live lean Office reports ready only after its first runner
+ * discovery, which waits up to 17 s for the claude it asked to exit (D31), so
+ * lean waits 30 s. A claude that also takes its whole 15 s to answer makes that
+ * discovery alone up to 32 s; such a start still times out. The claude, in
+ * its own process group, then gets the end of its input and is never
+ * SIGKILLed, so it cannot strand its login lock.
+ * A crash or an error reply ends the wait at once, so only a service that
+ * neither replies nor exits waits this long. Measurements:
  * docs/solutions/test-failures/claw-startup-wait-is-cpu-bound-under-load.md */
 export const STARTUP_MS: Record<Engine, number> = {
   legacy: 15000,
   claw: 120000,
-  lean: 15000,
+  lean: 30000,
   team: 15000,
 };
 /** What `status` shows of a running team Office: its TeamStatus. */

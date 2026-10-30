@@ -18,7 +18,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
-import { status } from "../src/cli/lifecycle.ts";
+import { STARTUP_MS, status } from "../src/cli/lifecycle.ts";
 import { init, locate } from "../src/cli/project.ts";
 import {
   addTeamRepo,
@@ -50,11 +50,13 @@ function fixture(t) {
   };
   return f;
 }
-/** Runs the real CLI; returns the JSON it printed (stdout on success, stderr on failure). */
+/** Runs the real CLI; returns the JSON it printed (stdout on success, stderr on failure).
+ * The limit is above what start --lean may wait for its Office, so a slow start
+ * is reported by start itself instead of leaving its start lock behind. */
 function call(f, ...args) {
   const r = spawnSync(process.execPath, [cli, ...args, "--data-dir", f.data], {
     encoding: "utf8",
-    timeout: 30000,
+    timeout: STARTUP_MS.lean + 30000,
   });
   return { status: r.status, value: JSON.parse(r.status === 0 ? r.stdout : r.stderr) };
 }

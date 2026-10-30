@@ -1,0 +1,391 @@
+{
+  "version": 1,
+  "runId": "730e3aae-a3f7-4376-893d-ec6b3bcd5ac5",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after review 1 (Changes needed, .ai-workflow/runs/U26-review-1.md). Production values unchanged (D31: SIGTERM->SIGKILL 12 s in claudeModels, STARTUP_MS.lean 30 s). Fixes: CLAUDE_STOP_MS frozen; lifecycle.ts comment states that a claude using its whole 15 s answer limit makes discovery up to 32 s, so such a start can still time out (safely: the service exits, the discovery claude gets EOF and ends itself); lean-lifecycle test renamed to what it proves ('the lean start wait is 10 s longer than a discovery claude's slowest stop'); tests/team-registry.test.mjs CLI limit 30 s -> STARTUP_MS.lean + 30000 (M1). Docs: solutions doc corrects 'runCommand never ends a claude' (discovery's claude --version / auth status are SIGKILLed on a 10 s timeout; follow-up), idle wording, flaky overclaim; claw-startup doc paragraph placement, line ref 266, merged note; verification doc rewritten with the Claw callers, 32 s case, waiter timing, unverified items (auth status, lean shutdown limit 10 s). Declined: shared constant with claude-controller.ts (boundary file -> re-qualification), M9. RED/GREEN from attempt 1 stand (3 tests RED before the change; mutations 4/4). Fresh related checks: runner-models + runner-settings + team-registry 57/57, lean-lifecycle startup test 1/1, typecheck exit 0, Story check exit 0.",
+          "evidence": [
+            "src/runners/runner-models.ts",
+            "src/cli/lifecycle.ts",
+            "tests/runner-models.test.mjs",
+            "tests/lean-lifecycle.test.mjs",
+            "tests/team-registry.test.mjs",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            ".ai-workflow/runs/U26-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/runner-models.ts": "56fa078c7f7ba580ec339482de207f39471ed522f7e4a0f98e0b5a34cee7cd9b",
+          "src/cli/lifecycle.ts": "ff643b45b36d25e067eba4b8909e42d45361ee17e032e334cb4c9c00ae975997",
+          "tests/runner-models.test.mjs": "973d7f4c96a594649cb346bd898a27dd571017daa38e74c48ba48b212bac626a",
+          "tests/lean-lifecycle.test.mjs": "fb9b570c81b7df82c57d108dd6e4dcf110b2affdaeb48e5c0af5033bb75de410",
+          "tests/team-registry.test.mjs": "593556a2e91078abf5256ecb2734d9e28fe105c6b14eff3150bcbb093153ea0b",
+          "docs/understanding/pazmo-agent-office-contract.md": "9bdf7e4a343679376c3916c45a51c25f36c079e46d069430137205fedb906ebb",
+          ".ai-workflow/runs/U26-review-1.md": "5648300fb467a72601754b013cc58cbb9d9c5c2367d9d7170f8086917a66490c"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 2 (same independent reviewer, report-only): Ready. Review 1 fixes correct; the timed-out-start safety claim verified (EOF on service exit; real claude 2.1.280 does not die of SIGPIPE). Non-blocking: N1 snippet and N2 STATUS fixed in docs, N3 test-name wording not changed, N4 user question on lean >= 42 s surfaced.",
+          "evidence": [
+            ".ai-workflow/runs/U26-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-review-2.md": "5b0533a480ff11dfb241c582a19927728dbcc8546a08aa16ae751067042fc513"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review 2: npm test 1106/1106 exit 0 (11:10-11:12, after the last code change at 11:07); typecheck exit 0; Story check exit 0; focused 57/57 + 1/1. Changed product files: src/runners/runner-models.ts (CLAUDE_STOP_MS term 12 s, frozen), src/cli/lifecycle.ts (STARTUP_MS.lean 30 s). Limits: no new real-CLI run; real lean start under load not measured; 32 s no-answer case beyond 30 s (safe timeout, user question open).",
+          "evidence": [
+            ".ai-workflow/runs/U26-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-verify-1.md": "138844fb020bd41b2ba5a6338e1a33987179827488ed739d30875aa8a9f16dfe"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "78286b67f7b453eef9135dadd14c584057ccfba4ed049798a314a07e92629154"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T01:39:14.342Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T01:49:28.278Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D31 (user choice (a), 2026-10-30): claudeModels() waits 12 s after SIGTERM before SIGKILL (was 2 s); the three waits are CLAUDE_STOP_MS {input 3000, term 12000, kill 2000}; STARTUP_MS.lean 15 s -> 30 s because a live lean Office reports ready only after its first discovery (stop worst case 17 s). Refactor first (constants, behavior unchanged): runner-models 15/15. RED: new 'takes 9 s to release the lock after SIGTERM' failed (lock left), rewritten 'ignores SIGTERM too is killed once its 12 s grace runs out' failed ('ended' before 11.999 s), new lean-lifecycle 'lean start waits out a discovery claude's whole stop with 10 s to spare' failed (15000 < 17000). Both stop tests mock setTimeout and tick after the fake saw EOF/SIGTERM. GREEN: runner-models 16/16, startup test 1/1, runner-settings 18/18, typecheck exit 0, Story check exit 0. Mutations 4/4 caught (term 11999, 12001, 2000; lean 26999). Simplify: no change (reached/pause helper kept local to avoid tests/runner-fixture.mjs, which session launcher-hook-check is editing). Docs: Story D31, verification doc, STATUS, solutions docs (discovery stop, claw startup wait), #45 record follow-up pointer. D30/U25 are taken by the launcher-hook-check session.",
+          "evidence": [
+            "src/runners/runner-models.ts",
+            "src/cli/lifecycle.ts",
+            "tests/runner-models.test.mjs",
+            "tests/lean-lifecycle.test.mjs",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            "docs/verification/2026-10-30-discovery-stop-grace.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/runner-models.ts": "ea11af710c2faac494a926c5bdef83b5f23bac39d8e95adeec3ef1eee4db7dcb",
+          "src/cli/lifecycle.ts": "d5d08a3088e466113578db33e6d058a1d1ed0b81cc55a589d5d7a448ff31b809",
+          "tests/runner-models.test.mjs": "973d7f4c96a594649cb346bd898a27dd571017daa38e74c48ba48b212bac626a",
+          "tests/lean-lifecycle.test.mjs": "1aed7913e864c0cdda3f6d934413d592ee3da2047548c9b58cc3ffc65002f683",
+          "docs/understanding/pazmo-agent-office-contract.md": "9bdf7e4a343679376c3916c45a51c25f36c079e46d069430137205fedb906ebb",
+          "docs/verification/2026-10-30-discovery-stop-grace.md": "4672a83a91979f0d1199d7dd94c2ea93dd0d62fedae1d4b6d4b518527c893f4e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T01:49:35.319Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T02:06:58.379Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review 1: Changes needed. Production change correct against D31. Important: I1 the 30 s lean wait / relational test do not cover a claude that does not answer within 15 s (discovery up to 32 s; safe failure); I2 solutions doc wrongly says runCommand never ends a claude (claude --version / auth status are SIGKILLed on a 10 s timeout). Minor M1-M9 (team-registry spawnSync 30 s limit, idle wording, 7.5 s waiter wording, claw synchronous discoveries, claw-startup doc refs, flaky overclaim, freeze constant, lean shutdown limit 10 s, unhandled rejection on failed test).",
+          "evidence": [
+            ".ai-workflow/runs/U26-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1, I2 and M1-M6, M8 (docs/test framing, team-registry limit, freeze CLAUDE_STOP_MS) in implement; rerun related tests and review."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-review-1.md": "bac72fcd706a7e669d43d1bbb4aca56091701b7a24c0a920e8077f2d314f6aac"
+        },
+        "error": "Fix I1, I2 and M1-M6, M8 (docs/test framing, team-registry limit, freeze CLAUDE_STOP_MS) in implement; rerun related tests and review."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1 Changes needed: fix I1/I2 and minors (docs, test framing, team-registry limit, freeze CLAUDE_STOP_MS)",
+      "at": "2026-10-30T02:06:58.505Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T02:07:04.395Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T02:10:27.535Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after review 1 (Changes needed, .ai-workflow/runs/U26-review-1.md). Production values unchanged (D31: SIGTERM->SIGKILL 12 s in claudeModels, STARTUP_MS.lean 30 s). Fixes: CLAUDE_STOP_MS frozen; lifecycle.ts comment states that a claude using its whole 15 s answer limit makes discovery up to 32 s, so such a start can still time out (safely: the service exits, the discovery claude gets EOF and ends itself); lean-lifecycle test renamed to what it proves ('the lean start wait is 10 s longer than a discovery claude's slowest stop'); tests/team-registry.test.mjs CLI limit 30 s -> STARTUP_MS.lean + 30000 (M1). Docs: solutions doc corrects 'runCommand never ends a claude' (discovery's claude --version / auth status are SIGKILLed on a 10 s timeout; follow-up), idle wording, flaky overclaim; claw-startup doc paragraph placement, line ref 266, merged note; verification doc rewritten with the Claw callers, 32 s case, waiter timing, unverified items (auth status, lean shutdown limit 10 s). Declined: shared constant with claude-controller.ts (boundary file -> re-qualification), M9. RED/GREEN from attempt 1 stand (3 tests RED before the change; mutations 4/4). Fresh related checks: runner-models + runner-settings + team-registry 57/57, lean-lifecycle startup test 1/1, typecheck exit 0, Story check exit 0.",
+          "evidence": [
+            "src/runners/runner-models.ts",
+            "src/cli/lifecycle.ts",
+            "tests/runner-models.test.mjs",
+            "tests/lean-lifecycle.test.mjs",
+            "tests/team-registry.test.mjs",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            ".ai-workflow/runs/U26-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/runner-models.ts": "56fa078c7f7ba580ec339482de207f39471ed522f7e4a0f98e0b5a34cee7cd9b",
+          "src/cli/lifecycle.ts": "ff643b45b36d25e067eba4b8909e42d45361ee17e032e334cb4c9c00ae975997",
+          "tests/runner-models.test.mjs": "973d7f4c96a594649cb346bd898a27dd571017daa38e74c48ba48b212bac626a",
+          "tests/lean-lifecycle.test.mjs": "fb9b570c81b7df82c57d108dd6e4dcf110b2affdaeb48e5c0af5033bb75de410",
+          "tests/team-registry.test.mjs": "593556a2e91078abf5256ecb2734d9e28fe105c6b14eff3150bcbb093153ea0b",
+          "docs/understanding/pazmo-agent-office-contract.md": "9bdf7e4a343679376c3916c45a51c25f36c079e46d069430137205fedb906ebb",
+          ".ai-workflow/runs/U26-review-1.md": "5648300fb467a72601754b013cc58cbb9d9c5c2367d9d7170f8086917a66490c"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T02:10:34.364Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T02:16:05.532Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 2 (same independent reviewer, report-only): Ready. Review 1 fixes correct; the timed-out-start safety claim verified (EOF on service exit; real claude 2.1.280 does not die of SIGPIPE). Non-blocking: N1 snippet and N2 STATUS fixed in docs, N3 test-name wording not changed, N4 user question on lean >= 42 s surfaced.",
+          "evidence": [
+            ".ai-workflow/runs/U26-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-review-2.md": "5b0533a480ff11dfb241c582a19927728dbcc8546a08aa16ae751067042fc513"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T02:16:30.015Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T02:16:30.125Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review 2: npm test 1106/1106 exit 0 (11:10-11:12, after the last code change at 11:07); typecheck exit 0; Story check exit 0; focused 57/57 + 1/1. Changed product files: src/runners/runner-models.ts (CLAUDE_STOP_MS term 12 s, frozen), src/cli/lifecycle.ts (STARTUP_MS.lean 30 s). Limits: no new real-CLI run; real lean start under load not measured; 32 s no-answer case beyond 30 s (safe timeout, user question open).",
+          "evidence": [
+            ".ai-workflow/runs/U26-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U26-verify-1.md": "138844fb020bd41b2ba5a6338e1a33987179827488ed739d30875aa8a9f16dfe"
+        }
+      }
+    }
+  ]
+}
