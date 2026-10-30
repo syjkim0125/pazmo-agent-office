@@ -1,0 +1,354 @@
+{
+  "version": 1,
+  "runId": "fc238a11-1e2b-43e9-9200-9f12ef93e07a",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after review 1 (Changes needed). Important 1: qualify() refuses a blocked install before the cache lookup (RUNNER_NOT_READY) and Claw prequalify skips blocked installs. Important 2: claudeModels resolves {models, hooks:null} when the CLI answered the models but closed or hit the 15 s timer without a listing. Minor: blocked text deduplicated; claude-profile.ts comment notes SessionEnd never reaches the stream; remote-job budget test reaps at 17 s; docs refreshed (solutions doc distilled to 12 s/18 s and hook listing, STATUS, 10-28/10-29 records, D28/D29). RED: 4 new tests failed (blocked qualified; models-then-exit and models-then-silence not unknown; duplicate hook text); 3 coverage tests (listing first, malformed entry, discovery failure not judged) passed from the start. GREEN: runner-qualification+runner-models+runner-settings+claude-controller+remote-job 66/66; typecheck exit 0; full npm test 1104/1104 exit 0 (09:49-09:50, load ~5-15). Real check: loadRunnerCatalog on this Mac with claude 2.1.280: hooks [], not blocked, 5 models, 1.8 s. Follow-ups left: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "src/runners/runner-models.ts",
+            "src/runners/runner-qualification.ts",
+            "src/runners/claude-profile.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "tests/runner-models.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-qualification.test.mjs",
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "486b0d3db00c473ad4bdbf616f49681327ca14b4efe0cac7846efe15b10becab",
+          "src/runners/remote-job.ts": "b005397a381fe4c45ef2915dcf3793f849c274c5f19bf19d908748693e07b2c0",
+          "src/runners/runner-models.ts": "77f33f40a05b5aa0c4b927b100c5359efe38a45e8273a2b96a846698f486654f",
+          "src/runners/runner-qualification.ts": "a9c42f5d6257261ff60b77a204b84f56d437b198531f21c6938383aa30b895e9",
+          "src/runners/claude-profile.ts": "4a49a50cad65bb8ad621edfdc31abe67cef6604dd8abf4f5a211efb045a9c903",
+          "src/runtime/runner-settings.ts": "5ccaee9fe3cd0674ee4e9c29d226d132cc9c8b08cc4fc0f02a574818e62ba8a1",
+          "src/runtime/live.ts": "9aae6ae899df71dd3a5ae2d71e016c3d885a6f45a146f1f6c3b578b54cc3c464",
+          "tests/claude-controller.test.mjs": "3236647c582a175d6aa30020a2b48e83427137f6e32e84b6082e894cc4a50487",
+          "tests/remote-job.test.mjs": "a1cac2a6ebdcbbffe34b0beace5af229995c0a331e412bd5e0d510dd90166865",
+          "tests/runner-models.test.mjs": "00fb79298770c62382d07889340e852c66df924d5343880ced024aaf6d4f856e",
+          "tests/runner-settings.test.mjs": "5b02630e9c3083507373b976d9303361f78e50ea00d372d2cdd123e313b974c6",
+          "tests/runner-qualification.test.mjs": "a7dbef1012bd016abd06bb906b444b330794330b068102d3f6b3c1b6c893fa11",
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "e3443693c7c892f668971a97b28bf8885ea9206cb14f4273a6f8832508701519"
+        }
+      },
+      "workflow-review": {
+        "status": "running",
+        "attempts": 2,
+        "revision": 1
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 1
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "f9dfca5ff67c2d0808046e866f9b714a0e9054d828f1fd3f5df42b2c25cfc9c8"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:24:48.511Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:33:15.757Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Story D28 (P2 (a), user 2026-10-30): claude role cancel/timeout grace SIGTERM->SIGKILL 6 s -> 12 s (runClaude), superviseRemote grace 12 s -> 18 s. Story D29 (P1 (a), user 2026-10-30): claudeModels also sends get_hooks_listing next to initialize and returns {models, hooks}; hooks null when the CLI does not list them. loadRunnerCatalog blocks claude (blocked + hint) when the listing has any hook or is unavailable; a failed discovery decides nothing. RED: claude-controller 'takes 9 s to release the lock' failed (lock left, 7.2 s); remote-job 'reaps within the stop budget' at 13 s failed (closed false, 12.0 s); runner-models/runner-settings 9 new or updated tests failed (no hook request sent -> 15 s discovery timeout, catalog not blocked). GREEN: claude-controller+remote-job 25/25; runner-models+runner-settings 28/28; typecheck exit 0. Updated the existing 'ignores SIGTERM' limit 8 s -> 14 s (12 s grace). Real CLI basis: docs/verification/2026-10-29-real-cli-runner-checks.md.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "src/runners/runner-models.ts",
+            "src/runtime/runner-settings.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "tests/runner-models.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "486b0d3db00c473ad4bdbf616f49681327ca14b4efe0cac7846efe15b10becab",
+          "src/runners/remote-job.ts": "b005397a381fe4c45ef2915dcf3793f849c274c5f19bf19d908748693e07b2c0",
+          "src/runners/runner-models.ts": "127c0ae616318a0dae4222087540a9c6d960c2577e937f0a2afb2e419b40d206",
+          "src/runtime/runner-settings.ts": "52ab3137b08275a68639d4d72d88734410c7a865700ec38c92939065fdfb2b6d",
+          "tests/claude-controller.test.mjs": "3236647c582a175d6aa30020a2b48e83427137f6e32e84b6082e894cc4a50487",
+          "tests/remote-job.test.mjs": "523580b7c28d5729723288cd9725dad3993bf26854d463f839d2187a1b2e9162",
+          "tests/runner-models.test.mjs": "9c6ba426d6449ae6bc836cccceed0dc85e0a16f9b93c16f445785701fb6712ca",
+          "tests/runner-settings.test.mjs": "4405e3a07f76a796416dcc27316e2c04a0efe7d25eb7b7b045823a1c3363699d",
+          "docs/understanding/pazmo-agent-office-contract.md": "2b3e2abd8b66f60089aa4a892801908aec4be2b30c87d9e3d4959fc05deeb6e0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:33:23.264Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:45:49.192Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review (attempt 1): Changes needed, no Critical. Reviewer ran the 4 files 53/53 exit 0, typecheck exit 0, and confirmed RED by pairing HEAD 5bbcb18 src with the new tests (11 fail). Real claude 2.1.280 probe: both responses arrive in either order; unknown subtype -> subtype error; --settings hook listed as {event, source:flagSettings}. Important 1: Claw prequalify (src/runtime/live.ts:485) and qualify (runner-qualification.ts) ignore blocked, so a blocked claude can still be started on the host by the qualification fixture (its SessionEnd hook would run). Important 2: a CLI that answers initialize but never the listing makes the whole discovery fail, so claude is not blocked (runner-models.ts timer/close). Minor: stale docs (solutions doc 6/12 s, STATUS P2 open, claude-profile.ts hook comment), missing tests (listing first, malformed entry, discovery failure not blocked), remote-job test should reap near the 17 s budget, hint not deduplicated; discovery's own 2 s SIGTERM->SIGKILL and launcher step-1 hook check left as follow-ups.",
+          "evidence": [
+            "src/runtime/live.ts",
+            "src/runners/runner-qualification.ts",
+            "src/runners/runner-models.ts",
+            "src/runtime/runner-settings.ts"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix Important 1 and 2 and the in-scope Minor items, then re-review."
+        },
+        "evidenceHashes": {
+          "src/runtime/live.ts": "a1b2717aa6a33d2d13d28e5c985988526e9497ab4fece7b5e92b33f5df014641",
+          "src/runners/runner-qualification.ts": "4dadc5ba914097b42514514c6c9a349f28041e4639c2beab3e1476785e1677fb",
+          "src/runners/runner-models.ts": "127c0ae616318a0dae4222087540a9c6d960c2577e937f0a2afb2e419b40d206",
+          "src/runtime/runner-settings.ts": "52ab3137b08275a68639d4d72d88734410c7a865700ec38c92939065fdfb2b6d"
+        },
+        "error": "Fix Important 1 and 2 and the in-scope Minor items, then re-review."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Apply independent review Important 1 and 2 and in-scope Minor items before re-review",
+      "at": "2026-10-30T00:45:53.148Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:46:03.326Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:51:06.373Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Attempt 2 after review 1 (Changes needed). Important 1: qualify() refuses a blocked install before the cache lookup (RUNNER_NOT_READY) and Claw prequalify skips blocked installs. Important 2: claudeModels resolves {models, hooks:null} when the CLI answered the models but closed or hit the 15 s timer without a listing. Minor: blocked text deduplicated; claude-profile.ts comment notes SessionEnd never reaches the stream; remote-job budget test reaps at 17 s; docs refreshed (solutions doc distilled to 12 s/18 s and hook listing, STATUS, 10-28/10-29 records, D28/D29). RED: 4 new tests failed (blocked qualified; models-then-exit and models-then-silence not unknown; duplicate hook text); 3 coverage tests (listing first, malformed entry, discovery failure not judged) passed from the start. GREEN: runner-qualification+runner-models+runner-settings+claude-controller+remote-job 66/66; typecheck exit 0; full npm test 1104/1104 exit 0 (09:49-09:50, load ~5-15). Real check: loadRunnerCatalog on this Mac with claude 2.1.280: hooks [], not blocked, 5 models, 1.8 s. Follow-ups left: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "src/runners/runner-models.ts",
+            "src/runners/runner-qualification.ts",
+            "src/runners/claude-profile.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "tests/runner-models.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-qualification.test.mjs",
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "486b0d3db00c473ad4bdbf616f49681327ca14b4efe0cac7846efe15b10becab",
+          "src/runners/remote-job.ts": "b005397a381fe4c45ef2915dcf3793f849c274c5f19bf19d908748693e07b2c0",
+          "src/runners/runner-models.ts": "77f33f40a05b5aa0c4b927b100c5359efe38a45e8273a2b96a846698f486654f",
+          "src/runners/runner-qualification.ts": "a9c42f5d6257261ff60b77a204b84f56d437b198531f21c6938383aa30b895e9",
+          "src/runners/claude-profile.ts": "4a49a50cad65bb8ad621edfdc31abe67cef6604dd8abf4f5a211efb045a9c903",
+          "src/runtime/runner-settings.ts": "5ccaee9fe3cd0674ee4e9c29d226d132cc9c8b08cc4fc0f02a574818e62ba8a1",
+          "src/runtime/live.ts": "9aae6ae899df71dd3a5ae2d71e016c3d885a6f45a146f1f6c3b578b54cc3c464",
+          "tests/claude-controller.test.mjs": "3236647c582a175d6aa30020a2b48e83427137f6e32e84b6082e894cc4a50487",
+          "tests/remote-job.test.mjs": "a1cac2a6ebdcbbffe34b0beace5af229995c0a331e412bd5e0d510dd90166865",
+          "tests/runner-models.test.mjs": "00fb79298770c62382d07889340e852c66df924d5343880ced024aaf6d4f856e",
+          "tests/runner-settings.test.mjs": "5b02630e9c3083507373b976d9303361f78e50ea00d372d2cdd123e313b974c6",
+          "tests/runner-qualification.test.mjs": "a7dbef1012bd016abd06bb906b444b330794330b068102d3f6b3c1b6c893fa11",
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "e3443693c7c892f668971a97b28bf8885ea9206cb14f4273a6f8832508701519"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:51:10.915Z"
+    }
+  ]
+}

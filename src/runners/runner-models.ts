@@ -28,6 +28,9 @@ type CodexEntry = {
   supported_reasoning_levels?: { effort: string; description?: string }[];
 };
 
+/** A hook the CLI would run in this configuration, as its listing names it. */
+export type ClaudeHook = { event: string; source: string };
+
 const invalid = () => new Error("MODEL_CATALOG_INVALID");
 
 /** The catalog bundled in the qualified binary: no network, account or user config. */
@@ -78,11 +81,12 @@ export async function codexModels(
   }
 }
 
-/** The installed CLI's own SDK initialize answer; no model turn is sent. */
+/** The installed CLI's own SDK initialize answer and its hook listing; no
+ * model turn is sent. `hooks` is null when the CLI does not list them. */
 export async function claudeModels(
   binary: string,
   home: string,
-): Promise<RunnerModel[]> {
+): Promise<{ models: RunnerModel[]; hooks: ClaudeHook[] | null }> {
   const cwd = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-claude-models-")));
   const child = spawn(
     binary,
@@ -130,11 +134,24 @@ export async function claudeModels(
     await exitWithin(2000);
   };
   try {
-    return await new Promise<RunnerModel[]>((resolve, reject) => {
-      const timer = setTimeout(() => reject(invalid()), 15000);
+    return await new Promise((resolve, reject) => {
       let buffer = "";
+      let models: RunnerModel[] | undefined;
+      let hooks: ClaudeHook[] | null | undefined;
+      const settle = () => {
+        if (models === undefined || hooks === undefined) return;
+        clearTimeout(timer);
+        resolve({ models, hooks });
+      };
+      // Models without a hook listing still count: the hooks are unknown.
+      const end = () => {
+        if (models === undefined) return reject(invalid());
+        hooks ??= null;
+        settle();
+      };
+      const timer = setTimeout(end, 15000);
       child.on("error", () => reject(invalid()));
-      child.on("close", () => reject(invalid()));
+      child.on("close", end);
       child.stdout.on("data", (chunk: Buffer) => {
         buffer += chunk.toString("utf8");
         if (buffer.length > 4 * 1024 * 1024) return reject(invalid());
@@ -148,46 +165,55 @@ export async function claudeModels(
           } catch {
             continue;
           }
-          if (
-            event?.type !== "control_response" ||
-            event.response?.request_id !== "pazmo-models"
-          )
+          if (event?.type !== "control_response") continue;
+          const answer = event.response?.response;
+          if (event.response?.request_id === "pazmo-hooks") {
+            const listed = answer?.hooks;
+            hooks =
+              event.response.subtype === "success" &&
+              Array.isArray(listed) &&
+              listed.every((h) => typeof h?.event === "string" && typeof h?.source === "string")
+                ? listed.map((h: ClaudeHook) => ({ event: h.event, source: h.source }))
+                : null;
+            settle();
             continue;
-          clearTimeout(timer);
-          const models = event.response?.response?.models;
-          if (event.response.subtype !== "success" || !Array.isArray(models))
+          }
+          if (event.response?.request_id !== "pazmo-models") continue;
+          const list = answer?.models;
+          if (event.response.subtype !== "success" || !Array.isArray(list)) {
+            clearTimeout(timer);
             return reject(invalid());
-          resolve(
-            models
-              .filter((m: { value?: unknown }) => typeof m?.value === "string")
-              .map(
-                (m: {
-                  value: string;
-                  displayName?: string;
-                  supportedEffortLevels?: string[];
-                }) => ({
-                  slug: m.value,
-                  ...(m.displayName ? { displayName: m.displayName } : {}),
-                  ...(m.supportedEffortLevels?.length
-                    ? {
-                        reasoningLevels: m.supportedEffortLevels.map((effort) => ({
-                          effort,
-                        })),
-                      }
-                    : {}),
-                }),
-              ),
-          );
+          }
+          models = list
+            .filter((m: { value?: unknown }) => typeof m?.value === "string")
+            .map(
+              (m: {
+                value: string;
+                displayName?: string;
+                supportedEffortLevels?: string[];
+              }) => ({
+                slug: m.value,
+                ...(m.displayName ? { displayName: m.displayName } : {}),
+                ...(m.supportedEffortLevels?.length
+                  ? {
+                      reasoningLevels: m.supportedEffortLevels.map((effort) => ({
+                        effort,
+                      })),
+                    }
+                  : {}),
+              }),
+            );
+          settle();
         }
       });
       child.stdin.on("error", () => {});
-      child.stdin.write(
-        JSON.stringify({
-          type: "control_request",
-          request_id: "pazmo-models",
-          request: { subtype: "initialize" },
-        }) + "\n",
-      );
+      for (const [id, subtype] of [
+        ["pazmo-models", "initialize"],
+        ["pazmo-hooks", "get_hooks_listing"],
+      ])
+        child.stdin.write(
+          JSON.stringify({ type: "control_request", request_id: id, request: { subtype } }) + "\n",
+        );
     });
   } finally {
     await stop();

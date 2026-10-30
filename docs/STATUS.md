@@ -1,14 +1,26 @@
+# 2026-10-30 claude 멈춤 유예 12초, hook이 있는 claude는 막기
+
+- 실제 CLI 확인(아래)의 P1·P2를 사용자 선택(2026-10-30)대로 고쳤다(D28·D29).
+- 취소·시간 초과로 claude 역할을 멈출 때 SIGTERM 뒤 SIGKILL까지 12초(이전 6초), 바깥 감독은 18초(이전 12초)를 기다린다. 보안 검사 멈춤은 그대로 바로 SIGKILL이다.
+- 모델 목록 조회 때 claude CLI에 hook 목록(`get_hooks_listing`)도 묻는다. hook이 있거나 목록을 주지 않으면 claude를 막고(codex `AGENTS.md`와 같은 경로) 화면에 이유를 보인다. 막힌 claude는 자격 검사도 받지 않는다. 조회 자체가 실패하면 판단하지 않는다.
+- 이 Mac의 실제 claude 2.1.280은 hook 목록이 비어 있어 막히지 않았다("준비됨", 모델 5개).
+- 업데이트 뒤 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `claude-controller.ts`가 바뀜).
+- 한계: 막힌 claude도 모델 목록 조회 때는 CLI를 띄우므로, 조회마다 그 SessionStart·SessionEnd hook이 한 번 돈다(이 변경 전부터 같음).
+- 자동 검사: root 1104/1104, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰 두 번(1차 Changes needed → 고침, 2차 코드 승인·문서 반영). PR syjkim0125/pazmo-agent-office#45.
+- G4는 2026-10-30 피드백(답 초안)을 본 뒤 "승인 후 머지"로 기록했다(D13, ① 승인 후 머지). [G4 기록](verification/2026-10-30-claude-stop-grace-hooks-g4.md)
+- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(후속), `./office` 시작 1단계의 hook 확인(후속). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
+
 # 2026-10-29 실제 claude·codex CLI로 실행기 오류와 SIGTERM 종료 확인
 
 - 제품 코드는 바꾸지 않았다. #35·#40의 자동 시험이 흉내만 내던 동작을 이 Mac의 실제 CLI로 봤다. [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
 - 리뷰 실행기 오류: 없는 모델을 고른 실제 claude·codex 리뷰어는 exit 1로 끝났다. 실제 coordinator·kit·VM 리뷰어를 거쳐 `REVIEW_RUNNER_FAILED`로 멈췄고, 엔지니어는 다시 돌지 않았다. claude 5/5, codex 2/2. codex 0.163.0도 API 오류에 exit 1이다.
-- claude SIGTERM: 갱신이 없을 때 0.3–1.7초, SessionEnd hook이 있으면 최대 1.9초(CLI 기본 한도 1.5초) 걸렸다. **SessionEnd hook은 SIGTERM 때도 정상 종료 때도 stream 이벤트로 나오지 않아 Office의 hook 감시에 보이지 않는다**(제안 P1, 결정 필요).
+- claude SIGTERM: 갱신이 없을 때 0.3–1.7초, SessionEnd hook이 있으면 최대 1.9초(CLI 기본 한도 1.5초) 걸렸다. **SessionEnd hook은 SIGTERM 때도 정상 종료 때도 stream 이벤트로 나오지 않아 Office의 hook 감시에 보이지 않는다**(제안 P1 → D29로 구현).
 - 갱신 중 SIGTERM은 사용자 확인 뒤 가짜 토큰·격리 config·답하지 않는 프록시로 쟀다.
   - CLI는 진행 중인 갱신을 최대 2초 기다리고 나갔고, 스스로 나가면 잠금은 풀렸다.
   - 한가할 때는 2.5초 안에 끝났다.
-  - **부하가 높으면 6초를 넘었다(최대 9.1초). Office와 같은 6초 SIGKILL을 걸자 load average 90–102에서 3회 중 2회 잠금이 남았다**(제안 P2, 결정 필요, 추천은 유예 늘리기).
+  - **부하가 높으면 6초를 넘었다(최대 9.1초). Office와 같은 6초 SIGKILL을 걸자 load average 90–102에서 3회 중 2회 잠금이 남았다**(제안 P2 → D28로 12초로 늘림).
   - Keychain 항목은 생기지 않았다.
-- **남은 것:** P1·P2 결정, 관리형 SessionEnd hook, 평소 부하에서의 갱신 중 SIGTERM, 실제 토큰 서버가 느리게 답하는 갱신, 안전장치 거절 자체.
+- **남은 것:** 관리형 SessionEnd hook, 평소 부하에서의 갱신 중 SIGTERM, 실제 토큰 서버가 느리게 답하는 갱신, 안전장치 거절 자체.
 
 # 2026-10-29 판정 없는 리뷰를 kit에 needs_changes로 남기지 않기
 
@@ -41,7 +53,7 @@
 - 취소·시간 초과 때의 유예는 2초에서 6초로, 바깥 감독 유예는 5.5초에서 12초로 늘렸다(사용자 선택). 갱신 중인 claude가 종료 처리와 갱신 대기를 마치고 잠금을 풀 시간이다.
 - G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 승인 후 머지). [G4 기록](verification/2026-10-28-claude-stop-integrity-g4.md)
 - 2026-10-29 실제 CLI로 쟀다. 갱신이 없을 때 claude 2.1.280은 SIGTERM 뒤 0.3–1.7초에 exit 143으로 끝났다. SessionEnd hook이 있으면 CLI의 기본 한도 1.5초까지 기다려 최대 1.9초였다. SessionEnd hook은 stream 이벤트로 나오지 않는다. [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
-- 갱신 중인 claude도 쟀다(가짜 토큰, 답하지 않는 프록시). CLI는 갱신을 최대 2초 기다리고 나갔다. 한가할 때는 2.5초 안에 끝났다. **부하가 높으면 6초를 넘었고(최대 9.1초), 6초 SIGKILL로 잠금이 남았다(load average 90–102에서 3회 중 2회).** 유예를 늘릴지는 결정이 필요하다(제안 P2). [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
+- 갱신 중인 claude도 쟀다(가짜 토큰, 답하지 않는 프록시). CLI는 갱신을 최대 2초 기다리고 나갔다. 한가할 때는 2.5초 안에 끝났다. **부하가 높으면 6초를 넘었고(최대 9.1초), 6초 SIGKILL로 잠금이 남았다(load average 90–102에서 3회 중 2회).** 2026-10-30 D28로 12초(감독 18초)로 늘렸다. [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
 
 # 2026-10-27 리뷰 실행기 오류를 리뷰 fail로 세지 않기
 

@@ -33,8 +33,25 @@ export async function loadRunnerCatalog(
   const models: RunnerCatalog["models"] = {};
   if (installs.codex.status === "ready")
     models.codex = (await codexModels(installs.codex.path!).catch(() => ({ models: [] }))).models;
-  if (installs.claude.status === "ready")
-    models.claude = await claudeModels(installs.claude.path!, home).catch(() => []);
+  if (installs.claude.status === "ready") {
+    const found = await claudeModels(installs.claude.path!, home).catch(() => null);
+    models.claude = found?.models ?? [];
+    // SessionEnd hooks never show in a role run's stream, so the run's own
+    // hook guard cannot stop them: refuse a claude that lists any hook, or
+    // will not list them. A failed discovery decides nothing.
+    if (found && found.hooks?.length !== 0) {
+      const blocked = found.hooks
+        ? [...new Set(found.hooks.map((h) => `${h.event} hook (${h.source})`))].join(", ")
+        : "hook 목록 없음";
+      installs.claude = {
+        ...installs.claude,
+        blocked,
+        hint: found.hooks
+          ? `claude에 ${blocked}이 걸려 있습니다. hook은 Office 역할 실행 중 Office가 볼 수 없게 이 Mac에서 돌 수 있어 claude를 쓰지 않습니다. 그 hook을 빼거나(회사 IT의 관리형 설정이면 IT에 문의) codex를 고르세요.`
+          : "claude가 hook 목록을 알려 주지 않아 Office 역할 실행에 hook이 끼는지 확인할 수 없습니다. Claude Code를 업데이트하거나 codex를 고르세요.",
+      };
+    }
+  }
   return { installs, models };
 }
 

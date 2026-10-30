@@ -156,7 +156,7 @@ HOOK_SLEEP=8 HOOK_TIMEOUT=4 node docs/verification/real-cli-checks/claude-sigter
     - 없으면 `max(1500, min(가장 긴 hook timeout×1000, 60000))`ms다.
   - `--setting-sources ""`여도 `--settings` 파일의 hook은 돈다.
     - Office는 `--settings`를 넘기지 않으므로, Office 실행에 남는 것은 관리형 hook이다.
-    - 이 Mac에는 `/Library/Application Support/ClaudeCode/`가 없다.
+    - 이 Mac에는 `/Library/Application Support/ClaudeCode/`가 없다. 다만 CLI는 관리형 출처 `policySettings`를 하나 보고한다(`get_settings`, 2026-10-30). 내용은 `env`뿐이고 hook은 없다. 값은 읽지 않았다.
     - 관리형 hook으로는 시험하지 않았다(시스템 폴더 쓰기가 필요하다).
 - 실제 로그인 실행은 Office가 취소할 때와 같은 일을 한다: 정상 실행 중에 SIGTERM을 받는다. 자격 증명을 고치거나 복사하거나 갱신을 일으키지 않았다.
 
@@ -249,7 +249,7 @@ Office와 같이 SIGTERM 6초 뒤 그룹 SIGKILL(`KILL_AFTER_MS=6000`):
 
 ## 제안 (제품 코드는 바꾸지 않았다)
 
-- **P1. SessionEnd hook은 Office의 hook 감시에 보이지 않는다.**
+- **P1. SessionEnd hook은 Office의 hook 감시에 보이지 않는다.** → 2026-10-30 사용자 선택 (a), D29로 구현했다. 모델 목록 조회 때 CLI의 `get_hooks_listing`으로 묻고 hook이 있으면 claude를 막는다. [변경 기록](2026-10-30-claude-stop-grace-hooks.md)
   - 다음 둘은 stream에 나온 hook 이벤트로만 움직인다.
     - `isHookEvent` → `CLAUDE_HOOK_UNEXPECTED`
     - #40의 "취소 뒤 종료 중 hook 이벤트 → 바로 SIGKILL"
@@ -261,7 +261,7 @@ Office와 같이 SIGTERM 6초 뒤 그룹 SIGKILL(`KILL_AFTER_MS=6000`):
     - (a) claude 실행 전에 관리형 설정 파일에 `hooks`가 있으면 claude 실행기를 막는 사전 검사를 둔다.
     - (b) 한계로 문서에만 적는다.
   - `src/runners/claude-controller.ts`의 주석과 [solutions 문서](../solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md)의 "종료 중 hook 이벤트" 설명은 이 측정에 맞게 고쳐야 한다. 이 PR에서는 solutions 문서만 고쳤다.
-- **P2. 부하가 높으면 6초 유예로는 갱신 잠금이 남는다(결정 필요).**
+- **P2. 부하가 높으면 6초 유예로는 갱신 잠금이 남는다.** → 2026-10-30 사용자 선택 (a), D28로 12초·18초로 늘렸다. [변경 기록](2026-10-30-claude-stop-grace-hooks.md)
   - 갱신이 걸린 claude는 한가할 때 2.5초 안에 끝났다.
   - load average 58–172에서는 25회 중 4회가 6초를 넘었다(SIGKILL 없음, 최대 9.1초).
   - Office와 같은 6초 SIGKILL을 걸면 load average 90–102에서 3회 중 2회 잠금이 남았다.
