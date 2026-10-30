@@ -159,10 +159,11 @@ test("a claude timed out while it refreshes the login releases the lock", async 
   assert.equal(existsSync(fx.lock), false);
 });
 
-// CLI 2.1.280 cleans up and waits for a refresh in flight (up to 2 s each)
-// before it exits and the lock goes, so 2 s of grace could still strand it.
-test("a claude that takes over 2 s to release the lock after SIGTERM still releases it", async () => {
-  const fx = refreshingClaude(`sleep 2.5; rmdir "$lock"; exit 143`);
+// CLI 2.1.280 waits up to 2 s for a refresh in flight, then exits and the
+// lock goes; on a busy Mac that took up to 9.1 s after SIGTERM (2026-10-29),
+// so 6 s of grace stranded it.
+test("a claude that takes 9 s to release the lock after SIGTERM still releases it", { timeout: 20000 }, async () => {
+  const fx = refreshingClaude(`sleep 9; rmdir "$lock"; exit 143`);
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
   await fx.holding();
@@ -173,7 +174,7 @@ test("a claude that takes over 2 s to release the lock after SIGTERM still relea
   assert.equal(existsSync(fx.lock), false, "the lock was released");
 });
 
-test("a claude that ignores SIGTERM is still killed soon after a cancel", { timeout: 15000 }, async (t) => {
+test("a claude that ignores SIGTERM is still killed soon after a cancel", { timeout: 20000 }, async (t) => {
   const fx = refreshingClaude("");
   t.after(() => {
     try {
@@ -186,8 +187,8 @@ test("a claude that ignores SIGTERM is still killed soon after a cancel", { time
   const begun = Date.now();
   abort.abort();
   const { closed, result } = await job;
-  // 6 s of grace, then SIGKILL.
-  assert.ok(Date.now() - begun < 8000, "the cancel still ends promptly");
+  // 12 s of grace, then SIGKILL.
+  assert.ok(Date.now() - begun < 14000, "the cancel still ends promptly");
   assert.equal(result.error, "CANCELLED");
   assert.equal(closed, true);
   assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });

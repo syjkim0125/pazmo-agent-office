@@ -71,8 +71,9 @@ function runClaude(
     // and every claude after that fails to sign in until the lock is a minute
     // old. SIGKILL is left for a CLI still running after SIGTERM, and for
     // whatever it started that is still running once it has gone. On SIGTERM
-    // CLI 2.1.280 cleans up and waits for a refresh in flight (up to 2 s each)
-    // before it exits, hence 6 s; superviseRemote's grace covers it.
+    // CLI 2.1.280 waits up to 2 s for a refresh in flight, then exits; on a
+    // busy Mac that took up to 9.1 s and 6 s stranded the lock, hence 12 s;
+    // superviseRemote's grace covers it.
     // Only a cancel or a timeout gets SIGTERM: the CLI's shutdown also runs
     // SessionEnd hooks, so a stop for something Office refuses (a hook, a wrong
     // init) kills at once, as does any stop once the CLI has already exited.
@@ -86,7 +87,7 @@ function runClaude(
         return kill("SIGKILL");
       if (stopping) return;
       kill("SIGTERM");
-      stopping = setTimeout(() => kill("SIGKILL"), 6000);
+      stopping = setTimeout(() => kill("SIGKILL"), 12000);
     };
     child.once("exit", () => {
       if (stopping) kill("SIGKILL");
