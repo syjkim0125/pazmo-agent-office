@@ -48,7 +48,7 @@ flowchart LR
 | 판정 | 이유 |
 |---|---|
 | 루트 의존성은 정확한 버전: `ws` 8.19.0, `typescript` 5.9.3, `@types/node` 24.10.13, `@types/ws` 8.18.1. `package-lock.json`을 커밋한다 | 지금 vendor가 시험을 통과시킨 버전과 같다. 범위 지정은 lock이 있어도 다음 설치에서 바뀔 수 있다 |
-| `up`·`up --team`은 **켜진 Office를 다시 쓸지 정하기 전에** 루트 의존성을 확인한다. 루트 `ws`가 lock과 같은 버전으로 풀리면 건너뛰고, 아니면 `npm ci --omit=dev --prefer-offline`을 한다 | 켜진 Office도 claude 작업마다 `claude-tool-bridge.mjs`를 디스크에서 새로 띄우므로, 업데이트 직후 재사용되는 Office도 루트 `ws`가 있어야 한다(리뷰 지적). 매번 `npm ci`를 하면 개발 checkout의 TypeScript가 지워진다. 업데이트 뒤 첫 실행은 레지스트리 접속이 한 번 필요하다 |
+| `up`·`up --team`은 **켜진 Office를 다시 쓰거나 새로 켜기 전에** 루트 의존성을 확인한다(거부 판단 뒤, 새로 켤 때는 준비물·로그인 확인 뒤). 루트 `ws`가 lock과 같은 버전으로 풀리면 건너뛰고, 아니면 `npm ci --omit=dev --prefer-offline`을 한다 | 켜진 Office도 claude 작업마다 `claude-tool-bridge.mjs`를 디스크에서 새로 띄우므로, 업데이트 직후 재사용되는 Office도 루트 `ws`가 있어야 한다(리뷰 지적). 매번 `npm ci`를 하면 개발 checkout의 TypeScript가 지워진다. 업데이트 뒤 첫 실행은 레지스트리 접속이 한 번 필요하다 |
 | 옛 버전이 켠 Office의 상태 파일(`engine: "claw"`, `"legacy"`, 엔진 칸 없음)은 계속 읽는다. `status`는 보이고, `stop`은 지금의 인증된 제어 호출로 멈춘다. `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부하고 `stop` 명령을 안내한다 | 그 프로세스는 메모리의 코드로 `/__pazmo/stop`에 답하므로 vendor 없이도 멈출 수 있다. 읽지 못하면 사용자가 빠져나갈 길이 없다(리뷰 지적) |
 | 시험용 스키마는 `src/lean/schema.ts`가 내보내는 함수(`openLeanDb`가 쓰는 같은 SCHEMA)다 | 실제로 도는 스키마와 시험 스키마가 하나가 된다 |
 | 남은 엔진 코드가 Claw 전용 칸(`agents.cli_provider`, 부서 등)을 읽는 시험은, `runner-settings.test.mjs`처럼 시험 안에서 필요한 칸만 더한다 | vendor 없이 남은 코드를 계속 시험한다. 엔진 정리 때 같이 지운다 |
@@ -147,7 +147,7 @@ flowchart LR
 **Approach:**
 - `monitor`는 lean 로컬 세션 주소만 준다. team은 지금처럼 `UNSUPPORTED`.
 - 옛 상태 파일은 판정 표대로 읽고 멈춘다.
-- 의존성 설치는 판정 표대로, 재사용 판단 전에 한다. 설치 실패면 엔진을 켜지 않고 `NOT_INSTALLED`와 "업데이트 뒤 첫 실행은 레지스트리 접속이 필요합니다, `npm ci --omit=dev`" 안내를 준다.
+- 의존성 설치는 판정 표대로, 다시 쓰거나 새로 켜기 전에 한다(단순화 리뷰 뒤: 거부될 요청에는 설치하지 않는다). 설치 실패면 엔진을 켜지 않고 `NOT_INSTALLED`와 "업데이트 뒤 첫 실행은 레지스트리 접속이 필요합니다, `npm ci --omit=dev`" 안내를 준다.
 - legacy로만 돌던 재시작 복구 시험(계획 lease 격리, 검증 round 격리, 깨진 인도 무효화)은 lean으로 하나 옮긴다. 엔진의 `recoverInterrupted`·`reconcileDeliveries` 호출이 빠지면 실패해야 한다(리뷰 지적).
 
 **Execution note:** `--claw`·기본 엔진·옛 상태 파일 처리는 시험을 먼저 쓴다.

@@ -14,6 +14,8 @@
 | `0a2f602` | lean이 기본, claw·legacy 엔진·채팅 bridge·operator CLI 삭제, `--claw`는 `CLAW_REMOVED`, 옛 상태 파일은 읽고 멈춤, `up`은 재사용 판단 전에 의존성 설치 |
 | `68a1f32` | `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, Claw 전용 시험 삭제, `/vendor/` 무시 |
 | `45078a1` | README(영·한), LOCAL-PREVIEW, CHAT-CONTROL(폐기 안내), AGENTS.md, CONCEPTS, LICENSING, THIRD_PARTY_NOTICES, `upstream/` |
+| `948afc7` | 단순화 리뷰 반영: `ws` static import, `Engine` 타입 재사용, 의존성 설치를 거부 판단 뒤로(새로 켤 때는 준비물·로그인 확인 뒤), 읽지 않는 `operatorToken` 칸 삭제 |
+| `91d9a27` | origin/main(#48 내부 이름 별칭, #49) 병합. 이 브랜치의 새 문서도 별칭으로 |
 
 남긴 것(결정 2): `native-office.ts`의 Claw용 API, `operator.ts`, `runner-settings.ts`의 역할별 경로, `hub-link.ts`·`hub-outgoing.ts`의 옛 요청 흐름과 그 시험. D24 3단계 뒤 별도로 정리한다.
 
@@ -24,7 +26,9 @@
 | 기준선 `3926ee2`(vendor 설치·빌드, 이 worktree) 전체 시험 | **1104/1104** exit 0, 122.6초 |
 | vendor를 지운 이 worktree(`68a1f32`) 전체 시험 | **1070/1070** exit 0, 74.2초 |
 | 메인 checkout 밖 새 사본(`45078a1`, `npm ci`만, vendor 없음) 전체 시험 | **1070/1070** exit 0, 77.1초. 다른 세션의 시험 프로세스가 같이 돌던 부하 상태 |
-| 타입 검사(루트 `tsc`) | exit 0 (이 worktree, 새 사본) |
+| 단순화 뒤(`948afc7`) 관련 시험 15개 파일 | **244/244** exit 0 |
+| main 병합 뒤(`91d9a27`) 전체 시험 | **1070/1070** exit 0, 112.2초. 파일별 시험 수는 병합 전과 같음(#48이 바꾼 파일 이름 2개만 다름) |
+| 타입 검사(루트 `tsc`) | exit 0 (이 worktree, 새 사본, 병합 뒤) |
 | Story 검사기 | exit 0 |
 | `git ls-files vendor` | 0개, `.gitmodules` 없음 |
 | `npm pack --dry-run` | 550개 파일, `vendor/`·`node_modules` 0개 |
@@ -68,7 +72,16 @@ node 기준 1104 → 1070, junit 기준 1086 → 1052로 둘 다 34개 줄었다
 - `npm ci --omit=dev --prefer-offline`: 패키지 1개(`ws`)만 설치.
 - 그 뒤 옵션 없는 `start`는 lean으로 켜지고 `status`·`stop`이 동작했다.
 - 데이터 폴더의 `claw/`(가짜 `claw.sqlite`와 로그)는 `start`·`stop` 뒤 해시와 수정 시각이 같았다. `lean/`만 새로 생겼다.
-- 켜진 lean Office(잠긴 미리보기)가 있고 루트 `node_modules`를 지운 상태에서 `up --no-open`: 먼저 `[1/4] 의존성 설치`로 `ws`를 설치했고, 그다음 재사용 판단에서 `RUNNING`으로 거부했다. 켜진 Office는 그대로였다.
+- (`45078a1` 기준) 켜진 lean Office(잠긴 미리보기)와 루트 `node_modules`가 없는 상태에서 `up --no-open`은 `ws`를 먼저 설치한 뒤 `RUNNING`으로 거부했다. 단순화 리뷰가 거부될 요청에 설치하는 낭비를 지적해 `948afc7`에서 순서를 바꿨고, 아래처럼 다시 확인했다.
+
+### 켜진 Office를 다시 쓸 때 (`91d9a27`, 루트 `node_modules` 없는 새 사본)
+
+`/__pazmo/status`에 답하는 가짜 제어 서버와 lean 상태 파일로 켜진 Office를 흉내 내고 `up --no-open`을 실행했다(`scratchpad/check-up-reuse.mjs`, 저장소 밖 스크립트).
+
+| 켜진 Office | `up` | `ws` |
+|---|---|---|
+| 실행 가능(`execution: ready`) | exit 0, 그 Office를 다시 씀(로컬 세션 주소), 정지 호출 없음 | 설치함 |
+| 잠긴 미리보기(`execution: locked`) | `RUNNING`으로 거부, 정지 호출 없음 | 설치하지 않음 |
 
 ## `claw` 문자열이 남은 곳
 
