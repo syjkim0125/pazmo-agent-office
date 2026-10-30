@@ -14,7 +14,7 @@ import {
 import { execFileSync } from "node:child_process";
 import { fixture } from "./contract-fixture.mjs";
 import { proposal } from "./planning-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { IntakeLedger } from "../src/core/intake.ts";
 import { freezeWorkspace } from "../src/core/workspace.ts";
@@ -24,7 +24,7 @@ function setup(t) {
   const f = fixture(t),
     db = new DatabaseSync(join(f.root, "office.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   t.after(() => db.close());
   const store = new OfficeStore(db, f.project, token);
   return { ...f, db, store, intake: new IntakeLedger(db, store, f.project) };

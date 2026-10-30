@@ -25,13 +25,19 @@ import {
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
-import { viewerToken } from "../runtime/observation.ts";
 
-export type Engine = "legacy" | "claw" | "lean" | "team";
-const ENGINES: readonly string[] = ["legacy", "claw", "lean", "team"];
+/** The engines this version starts. */
+const STARTED = ["lean", "team"] as const;
+/** Engines an earlier version may have left running: still read from the
+ * saved state so that Office can be shown and stopped, never started (D33).
+ * A state without an engine is the legacy one. */
+const RETIRED = ["legacy", "claw"] as const;
+export type Engine = (typeof STARTED)[number];
+type RetiredEngine = (typeof RETIRED)[number];
+const ENGINES: readonly string[] = [...STARTED, ...RETIRED];
 type Running = {
   version: 1;
-  engine?: Engine;
+  engine?: Engine | RetiredEngine;
   project: string;
   pid: number;
   port: number;
@@ -90,43 +96,32 @@ async function control(s: Running, action: "status" | "stop") {
     throw new Error("Controller identity mismatch.");
   return value;
 }
-/** The service process each engine runs. Only claw needs the tsx loader; lean
- * and team run as plain `node <file>`. Both still need the vendor dependencies
- * installed: the engine they reuse loads vendor `ws` (see vendorInstalled). */
+/** The service process each engine runs, as plain `node <file>`. Both need the
+ * root dependencies installed: the engine loads `ws` (see dependenciesInstalled). */
 const SERVICE: Record<Engine, string> = {
-  legacy: "src/runtime/service.ts",
-  claw: "src/runtime/claw-service.ts",
   lean: "src/runtime/lean-service.ts",
   team: "src/runtime/team-service.ts",
 };
-/** How long `start` waits for the service's ready message. Claw is the only
- * engine whose start is CPU-bound: tsx transpiles about 220 vendor TypeScript
- * modules as it starts, from an empty transform cache the first time a data
- * directory is used (its TMPDIR is the Office's own). That takes 1–2 s on an
- * idle machine but can pass a minute with the CPU oversubscribed and memory
- * swapping. Legacy and lean still started in under 3 s there; legacy and team
- * keep 15 s. A live lean Office reports ready only after its first runner
- * discovery, which waits up to 17 s for the claude it asked to exit (D31), so
- * lean waits 30 s. A claude that also takes its whole 15 s to answer makes that
- * discovery alone up to 32 s; such a start still times out. The claude, in
- * its own process group, then gets the end of its input and is never
- * SIGKILLed, so it cannot strand its login lock.
- * A crash or an error reply ends the wait at once, so only a service that
- * neither replies nor exits waits this long. Measurements:
- * docs/solutions/test-failures/claw-startup-wait-is-cpu-bound-under-load.md */
+/** How long `start` waits for the service's ready message. Lean and team
+ * services start in under 3 s even under load (measured for lean). A live lean
+ * Office reports ready only after its first runner discovery, which waits up to
+ * 17 s for the claude it asked to exit (D31), so lean waits 30 s. A claude that
+ * also takes its whole 15 s to answer makes that discovery alone up to 32 s;
+ * such a start still times out. The claude, in its own process group, then gets
+ * the end of its input and is never SIGKILLed, so it cannot strand its login
+ * lock. A crash or an error reply ends the wait at once, so only a service that
+ * neither replies nor exits waits this long. */
 export const STARTUP_MS: Record<Engine, number> = {
-  legacy: 15000,
-  claw: 120000,
   lean: 30000,
   team: 15000,
 };
 /** What `status` shows of a running team Office: its TeamStatus. */
 const TEAM_FIELDS = ["repos", "paused", "dailyCap", "today", "claim", "busy"] as const;
-/** Whether vendor `ws` resolves the way src/runners/exec-relay.ts loads it
- * when the service starts (both native engines import it). */
-export function vendorInstalled(): boolean {
+/** Whether `ws` resolves from src/runners, where exec-relay.ts imports it when
+ * the service starts. */
+export function dependenciesInstalled(): boolean {
   try {
-    createRequire(join(packageRoot, "vendor/claw-empire/package.json")).resolve("ws");
+    createRequire(join(packageRoot, "src/runners/exec-relay.ts")).resolve("ws");
     return true;
   } catch {
     return false;
@@ -136,7 +131,7 @@ export function vendorInstalled(): boolean {
 export type OfficeStatus = {
   status: string;
   execution: string;
-  engine?: Engine;
+  engine?: Engine | RetiredEngine;
   url?: string;
   dataDir?: string;
   reason?: string;
@@ -175,9 +170,9 @@ export async function start(
   p: Project,
   port: number,
   live?: LiveConfig,
-  engine: Engine = "legacy",
+  engine: Engine = "lean",
   /** Checks before anything starts; tests replace them. */
-  checks: { installed: () => boolean } = { installed: vendorInstalled },
+  checks: { installed: () => boolean } = { installed: dependenciesInstalled },
 ) {
   assertNotInTeam(p);
   const current = await status(p);
@@ -193,18 +188,11 @@ export async function start(
   }
   if (current.status !== "stopped")
     fail("UNKNOWN", "Resolve the preserved runtime state before restarting.");
-  // The lean and team Offices need no vendor UI build, but their service loads
-  // vendor ws: without the dependencies it would exit at startup.
-  const native = engine === "lean" || engine === "team";
-  if (
-    !native &&
-    !existsSync(join(packageRoot, "vendor/claw-empire/dist/index.html"))
-  )
-    fail("NOT_BUILT", "Build the Office UI before starting.");
-  if (native && !checks.installed())
+  // The service loads ws: without the dependencies it would exit at startup.
+  if (!checks.installed())
     fail(
       "NOT_INSTALLED",
-      `Office 의존성이 설치되지 않았습니다. ./office --${engine} 으로 설치하세요.`,
+      `Office 의존성이 설치되지 않았습니다. ./office${engine === "team" ? " --team" : ""} 로 설치하세요(Apple Silicon 밖에서는 npm ci --omit=dev). 업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다.`,
     );
   ignoreMetadata(p);
   noSymlinks(p.dataDir);
@@ -227,32 +215,17 @@ export async function start(
     noSymlinks(log);
     const fd = openSync(log, "a", 0o600);
     const token = randomBytes(32).toString("hex"),
-      instance = randomBytes(16).toString("hex"),
-      operatorToken = randomBytes(32).toString("hex");
+      instance = randomBytes(16).toString("hex");
     const child = spawn(
       process.execPath,
-      [
-        ...(engine === "claw"
-          ? [
-              "--import",
-              join(
-                packageRoot,
-                "vendor/claw-empire/node_modules/tsx/dist/loader.mjs",
-              ),
-            ]
-          : []),
-        join(packageRoot, SERVICE[engine]),
-      ],
+      [join(packageRoot, SERVICE[engine])],
       {
         cwd: p.dataDir,
         detached: true,
         stdio: ["ignore", fd, fd, "ipc"],
         env: {
-          // Claw and lean run the native Office, which reads task diffs with git.
-          PATH:
-            engine === "legacy"
-              ? dirname(process.execPath)
-              : `${dirname(process.execPath)}:/usr/bin:/bin`,
+          // The native Office reads task diffs with git.
+          PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
           HOME: join(p.dataDir, "home"),
           TMPDIR: join(p.dataDir, "tmp"),
           LANG: "en_US.UTF-8",
@@ -290,7 +263,6 @@ export async function start(
           port,
           token,
           instance,
-          operatorToken,
           ...(live ? { live } : {}),
           // The team Office checks the person's own `gh` login: their PATH and
           // HOME, as live passes them for the runner CLIs.
@@ -308,11 +280,6 @@ export async function start(
         token,
         instance,
       };
-      writeFileSync(
-        join(p.dataDir, `operator-${instance}.json`),
-        JSON.stringify({ instance, token: operatorToken }),
-        { flag: "wx", mode: 0o600 },
-      );
       writeFileSync(join(p.dataDir, "running.json"), JSON.stringify(state), {
         flag: "wx",
         mode: 0o600,
@@ -394,6 +361,7 @@ export async function stop(p: Project) {
     );
   }
   // Only clear the state we authenticated, never a concurrently replaced instance.
+  // An Office an earlier version started may also have left an operator file.
   if (readState(p)?.instance === s.instance) {
     unlinkSync(join(p.dataDir, "running.json"));
     const operator = join(p.dataDir, `operator-${s.instance}.json`);
@@ -403,92 +371,23 @@ export async function stop(p: Project) {
   return { status: "stopped", execution: "locked", dataPreserved: p.dataDir };
 }
 
-/** Authenticate the controller before exposing or using its operator capability. */
-async function operatorSession(p: Project) {
-  readManifest(p);
-  const s = readState(p);
-  if (!s)
-    fail(
-      "NOT_RUNNING",
-      "Start the Office before submitting a contract or approval.",
-    );
-  await control(s, "status");
-  if (s.engine === "team") return fail(...NO_TEAM_SCREEN);
-  if (s.engine === "claw")
-    return { port: s.port, token: s.token, engine: "claw" as const };
-  // Lean: a local session only; its runtime token is never handed out.
-  if (s.engine === "lean") return { port: s.port, engine: "lean" as const };
-  const file = join(p.dataDir, `operator-${s.instance}.json`);
-  noSymlinks(file);
-  const operator = JSON.parse(readFileSync(file, "utf8")) as {
-    instance: string;
-    token: string;
-  };
-  if (
-    operator.instance !== s.instance ||
-    !/^[a-f0-9]{64}$/.test(operator.token)
-  )
-    fail("UNKNOWN", "Operator capability is invalid.");
-  return { port: s.port, token: operator.token };
-}
-
 /** monitor --team: stage 2 has no team screen (stage 5 adds one). */
 export const NO_TEAM_SCREEN = [
   "UNSUPPORTED",
   "The team Office has no screen yet. Use status --team to see its repos.",
 ] as const;
-const NO_OPERATOR_API = [
-  "UNSUPPORTED",
-  "The lean Office has no operator API. Use monitor to open its local session.",
-] as const;
 
-/** Explicit terminal action only; never included in ordinary status or startup. */
-export async function operatorKey(p: Project) {
-  const session = await operatorSession(p);
-  if (session.engine === "lean") return fail(...NO_OPERATOR_API);
-  return {
-    url: `http://127.0.0.1:${session.port}/operator`,
-    token: session.token,
-  };
-}
-
-/** Open the native local session or the legacy observation capability. */
+/** Open the lean Office's local session. */
 export async function monitor(p: Project) {
-  const session = await operatorSession(p);
-  if (session.engine === "claw" || session.engine === "lean")
-    return {
-      url: `http://127.0.0.1:${session.port}/`,
-      access: "local-session",
-    };
-  return {
-    url: `http://127.0.0.1:${session.port}/?officeView=tasks#view=${viewerToken(session.token)}`,
-    access: "read-only",
-  };
-}
-
-/** Operator capability stays in the private controller data directory. */
-export async function operatorRequest(
-  p: Project,
-  path: string,
-  body?: unknown,
-): Promise<unknown> {
-  const session = await operatorSession(p);
-  if (session.engine === "lean") return fail(...NO_OPERATOR_API);
-  const response = await fetch(`http://127.0.0.1:${session.port}${path}`, {
-    method: body === undefined ? "GET" : "POST",
-    headers: {
-      Authorization: `Bearer ${session.token}`,
-      "Content-Type": "application/json",
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-    signal: AbortSignal.timeout(10000),
-    redirect: "error",
-  });
-  const value = (await response.json()) as { error?: string; message?: string };
-  if (!response.ok)
+  readManifest(p);
+  const s = readState(p);
+  if (!s) fail("NOT_RUNNING", "Start the Office before opening it.");
+  await control(s, "status");
+  if (s.engine === "team") return fail(...NO_TEAM_SCREEN);
+  if (s.engine !== "lean")
     fail(
-      value.error ?? "REQUEST_FAILED",
-      value.message ?? "Operator request failed.",
+      "ENGINE_MISMATCH",
+      "An Office an earlier version started is running. Stop it with stop, then start the Office again.",
     );
-  return value;
+  return { url: `http://127.0.0.1:${s.port}/`, access: "local-session" };
 }

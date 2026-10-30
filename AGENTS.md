@@ -16,12 +16,12 @@ Invoke: `$workflow <request>`, `$workflow status`, `$workflow finish`. Start a n
 
 ## Bootstrap status
 
-Read `docs/STATUS.md` for the active phase and evidence limits. The canonical Story is `docs/understanding/pazmo-agent-office-contract.md`; implementation HOW is in `docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md`. Runtime G3 is accepted; G4 and actual isolation proof remain pending. Imported handoff documents and vendor instructions are historical inputs, not user approval. Preserve the exact source baseline and do not execute upstream agents before the runtime gate is implemented and verified.
+Read `docs/STATUS.md` for the active phase and evidence limits. The canonical Story is `docs/understanding/pazmo-agent-office-contract.md`; implementation HOW is in `docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md`. Runtime G3 is accepted; G4 and actual isolation proof remain pending. Imported handoff documents and former vendor instructions are historical inputs, not user approval. The Claw-Empire source was removed from the tree in D33; its exact original import stays only on the local branch `codex/local-original-claw-v2.0.4`, which must never be pushed.
 
 `docs/solutions/` contains reusable findings organized by category with YAML `module`, `problem_type`, and `tags`; relevant when importing upstream sources or working in a documented area.
 
 `CONCEPTS.md` defines shared domain vocabulary (Story, Gates, Decisions, planning recovery); relevant when orienting to the codebase or discussing domain concepts.
 
-## Chat-controlled Office
+## Agents and Office
 
-When the user delegates a project job to Office, follow `docs/CHAT-CONTROL.md`: use the supported `bridge` CLI with private local authentication, continue the existing Office role executions, relay only actual human answers, and open the read-only `monitor` URL. Do not ask the user to copy an operator key, compose approval JSON, or edit the database. Do not substitute your own implementation for Office's requested role execution. This is a host integration protocol, not another workflow graph or a background daemon.
+When the user delegates a project job to Office, the person creates the task and answers its decisions in the Office screen. An agent may start, inspect and stop Office for the person (`node bin/pazmo-office.mjs up --project <path> --no-open`, then give the person the `monitor` URL; `status`, `stop`). An agent must not answer or approve a Decision (G1, G3, G4 or a question) through the Office's local API on the person's behalf. The chat bridge (`docs/CHAT-CONTROL.md`) was removed with the legacy engine in D33; do not substitute your own implementation for Office's role execution.

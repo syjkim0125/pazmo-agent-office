@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { fixture } from "./contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 const token = "a".repeat(64);
 function setup(t) {
   const f = fixture(t),
     db = new DatabaseSync(":memory:");
   db.exec("PRAGMA foreign_keys=ON");
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   t.after(() => db.close());
   return { ...f, db, store: new OfficeStore(db, f.project, token) };
 }

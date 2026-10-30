@@ -2,12 +2,9 @@
 // forwards every tool to the job's single VM exec-server relay. It has no host
 // filesystem or process access of its own: confinement belongs to the container.
 import { randomUUID } from "node:crypto";
-import { createRequire } from "node:module";
 import { posix } from "node:path";
+import { WebSocket } from "ws";
 
-const { WebSocket } = createRequire(
-  new URL("../../vendor/claw-empire/package.json", import.meta.url),
-)("ws");
 const url = process.argv[2];
 const limit = 256 * 1024;
 if (!/^ws:\/\/127\.0\.0\.1:\d+\/exec\/[A-Za-z0-9-]+$/.test(url ?? "")) process.exit(2);

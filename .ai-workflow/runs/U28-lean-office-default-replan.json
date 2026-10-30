@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "runId": "c506962f-17cd-4ac5-819e-bd24e9c620a2",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan after merging #50·#53: this branch's decision renumbered to D33 and its kit unit to U28; the implementation from the two earlier U28 runs plus the merges of #52·#54 (license), #55 (README) and #50·#53 (step 1 hook check, pinned codex gate) with their conflict resolutions.",
+          "evidence": [
+            ".ai-workflow/runs/U28-replan-implement-3.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-replan-implement-3.md": "cb68c1a67fb456eb5420bb99e262a4f2f28cb048a5f3097d3c9aa8259a383fe6"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the #50·#53 merge: launcher.ts and its test differ from main only by this branch's change set (plus main's two imports); step 1 still stops before any install; the renumber changes no asserted behavior; earlier run evidence hashes still match. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U28-replan-review-3.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-replan-review-3.md": "41397f603e2b9e2b81f5486d541a8464e0c2f49dda26c5c1392f6e1838a7dd0b"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh on 4b1197a: full suite 1089/1089, typecheck exit 0, Story checker exit 0, no vendor files or .gitmodules, npm pack has no vendor/node_modules; app-be real run and the pre-checks not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U28-replan-verify-3.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-replan-verify-3.md": "f08a19b4d6f9f59aab80ef311a3696f7e8d86dfeae8fc02b35ce1757841c148a"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "594ca57c61b046272ddb031233eddb9a0a990714050d625535ef457c39d56d43"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T07:02:52.268Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T07:02:52.406Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan after merging #50·#53: this branch's decision renumbered to D33 and its kit unit to U28; the implementation from the two earlier U28 runs plus the merges of #52·#54 (license), #55 (README) and #50·#53 (step 1 hook check, pinned codex gate) with their conflict resolutions.",
+          "evidence": [
+            ".ai-workflow/runs/U28-replan-implement-3.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-replan-implement-3.md": "cb68c1a67fb456eb5420bb99e262a4f2f28cb048a5f3097d3c9aa8259a383fe6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T07:03:28.531Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T07:03:28.682Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the #50·#53 merge: launcher.ts and its test differ from main only by this branch's change set (plus main's two imports); step 1 still stops before any install; the renumber changes no asserted behavior; earlier run evidence hashes still match. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U28-replan-review-3.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-replan-review-3.md": "41397f603e2b9e2b81f5486d541a8464e0c2f49dda26c5c1392f6e1838a7dd0b"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T07:05:26.408Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T07:05:26.577Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh on 4b1197a: full suite 1089/1089, typecheck exit 0, Story checker exit 0, no vendor files or .gitmodules, npm pack has no vendor/node_modules; app-be real run and the pre-checks not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U28-replan-verify-3.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-replan-verify-3.md": "f08a19b4d6f9f59aab80ef311a3696f7e8d86dfeae8fc02b35ce1757841c148a"
+        }
+      }
+    }
+  ]
+}

@@ -1,12 +1,11 @@
-import { createHash } from "node:crypto";
 import {
   existsSync,
   mkdirSync,
   readFileSync,
-  readdirSync,
   renameSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -19,6 +18,7 @@ import {
   packageRoot,
 } from "./project.ts";
 import { monitor, start, startTeam, status } from "./lifecycle.ts";
+import type { Engine } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { LiveConfig } from "../runtime/live.ts";
@@ -201,68 +201,64 @@ export async function prepareVm(
   }
 }
 
-function sourceDigest(root: string) {
-  const hash = createHash("sha256");
-  function visit(path: string) {
-    for (const entry of readdirSync(path, { withFileTypes: true }).sort(
-      (a, b) => a.name.localeCompare(b.name),
-    )) {
-      if (["node_modules", "dist", ".git"].includes(entry.name)) continue;
-      const child = join(path, entry.name);
-      if (entry.isDirectory()) visit(child);
-      else if (entry.isFile() && !entry.name.endsWith(".tsbuildinfo"))
-        hash.update(child.slice(root.length)).update(readFileSync(child));
+/** The locked `ws` version and the one installed in the package root, or null. */
+function wsVersions(root: string) {
+  const json = (file: string) => {
+    try {
+      return JSON.parse(readFileSync(file, "utf8"));
+    } catch {
+      return null;
+    }
+  };
+  return {
+    locked: (json(join(root, "package-lock.json"))?.packages?.["node_modules/ws"]?.version ?? null) as string | null,
+    installed: (json(join(root, "node_modules/ws/package.json"))?.version ?? null) as string | null,
+  };
+}
+/** Step 1 of `up`, also before a running Office is reused: the engine loads
+ * `ws` (src/runners/exec-relay.ts, and the claude tool bridge each claude job
+ * starts from disk), so a reused Office needs it too. Installs the
+ * production dependencies only when `ws` is missing or not the locked version,
+ * so a checkout's development tools stay installed otherwise. Without a
+ * lockfile (a packed install) there is nothing to install from: `ws` must
+ * already resolve. */
+export async function prepareDependencies(
+  exec: Run,
+  root = packageRoot,
+): Promise<"current" | "installed"> {
+  const { locked, installed } = wsVersions(root);
+  if (locked === null) {
+    try {
+      createRequire(join(root, "package.json")).resolve("ws");
+      return "current";
+    } catch {
+      return fail("NOT_INSTALLED", "Office 의존성이 설치되지 않았습니다. 패키지 폴더에서 npm install --omit=dev 를 실행하세요.");
     }
   }
-  // Build inputs only; no logs, databases or installed dependencies.
-  for (const name of ["src", "public"]) visit(join(root, name));
-  for (const entry of readdirSync(root))
-    if (
-      /^(package\.json|pnpm-lock\.yaml|index\.html|vite\.config\..+|tsconfig.*\.json)$/.test(
-        entry,
-      )
-    )
-      hash.update(entry).update(readFileSync(join(root, entry)));
-  return hash.digest("hex");
-}
-/** Step 1 of `up`: the vendor dependencies for either engine (the lean engine
- * loads vendor `ws` through src/runners/exec-relay.ts), then, for Claw only,
- * its UI build when the build inputs changed. */
-export async function prepareVendor(
-  exec: Run,
-  engine: "claw" | "lean",
-  vendor = join(packageRoot, "vendor/claw-empire"),
-) {
+  if (installed === locked) return "current";
+  console.error("[1/4] 의존성 설치 (업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다)");
   await exec(
-    join(dirname(process.execPath), "npx"),
-    ["--yes", "pnpm@10.30.1", "install", "--frozen-lockfile"],
-    vendor,
+    join(dirname(process.execPath), "npm"),
+    ["ci", "--omit=dev", "--prefer-offline", "--ignore-scripts", "--no-audit", "--no-fund"],
+    root,
   );
-  if (engine === "lean") return;
-  const digest = sourceDigest(vendor),
-    stamp = join(vendor, "node_modules/.pazmo-build");
-  if (
-    !existsSync(join(vendor, "dist/index.html")) ||
-    !existsSync(stamp) ||
-    readFileSync(stamp, "utf8") !== digest
-  ) {
-    await exec(
-      process.execPath,
-      ["node_modules/typescript/bin/tsc", "-b"],
-      vendor,
-    );
-    await exec(
-      process.execPath,
-      ["node_modules/vite/bin/vite.js", "build"],
-      vendor,
-    );
-    writeFileSync(stamp, digest);
-  }
+  return "installed";
+}
+/** After the refusals: a running Office is reused once the root dependencies
+ * are in place (its claude jobs start the tool bridge from disk), a stopped
+ * one is started. */
+async function reuseOrStart(
+  current: { status: string },
+  prepare: () => Promise<unknown>,
+  startOffice: () => Promise<unknown>,
+) {
+  if (current.status === "running") await prepare();
+  else await startOffice();
 }
 /** `up` reuses an Office only when it runs the engine asked for and can execute. */
 export function canReuse(
   current: { status: string; engine?: string; execution?: string },
-  engine: "claw" | "lean" | "team",
+  engine: Engine,
 ): boolean {
   return (
     current.status === "running" &&
@@ -276,15 +272,18 @@ type UpOptions = {
   port?: number;
   open?: boolean;
   codexRuntime?: "installed" | "pinned";
-  /** The engine to run; claw unless the lean or team Office is asked for. */
-  engine?: "claw" | "lean" | "team";
+  /** The engine to run; lean unless the team Office is asked for. */
+  engine?: Engine;
 };
 
-/** Steps 1–3 of `up`, the same for every engine: the prerequisites and a
- * logged-in runner, the vendor dependencies (and Claw's UI build), the pinned
- * Codex runtime, the dedicated VM and its isolation probe. Returns the live
+/** Steps 1–3 of `up` for an Office it starts, the same for both engines: the
+ * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
+ * runtime, the dedicated VM and its isolation probe. Returns the live
  * configuration step 4 starts the Office with. */
-async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptions): Promise<LiveConfig> {
+async function prepareMachine(
+  options: UpOptions,
+  prepare: () => Promise<unknown>,
+): Promise<LiveConfig> {
   for (const name of ["colima", "docker"])
     if (!existsSync(`/opt/homebrew/bin/${name}`))
       fail(
@@ -299,13 +298,7 @@ async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptio
     }),
     runnerLoginOptions(options.codexRuntime, homedir()),
   );
-  // Every engine needs the vendor dependencies; only Claw builds its UI.
-  console.error(
-    engine === "claw"
-      ? "[1/4] 설치·빌드 확인 (첫 설치는 시간이 걸릴 수 있습니다)"
-      : `[1/4] 의존성 설치 확인 (${engine === "lean" ? "lean" : "팀"} Office는 UI 빌드가 없습니다. 첫 설치는 시간이 걸릴 수 있습니다)`,
-  );
-  await prepareVendor(run, engine === "claw" ? "claw" : "lean");
+  await prepare();
   console.error("[2/4] 고정된 Codex 실행 파일 확인");
   await setupRuntime(options.dataDir, true);
   console.error("[3/4] 전용 VM·이미지 준비 및 파일 공유 차단 확인");
@@ -335,7 +328,7 @@ async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptio
 /** `up --team`: every registered repo is prepared as `up` prepares one (its
  * git root, its Office metadata), then the machine as for lean, then one team
  * Office runs them all. There is no page to open yet; the result is its status. */
-async function upTeam(options: UpOptions) {
+async function upTeam(options: UpOptions, prepare: () => Promise<unknown>) {
   const root = dataRoot(options.dataDir);
   const { repos } = readTeam(root);
   if (repos.length === 0)
@@ -357,16 +350,21 @@ async function upTeam(options: UpOptions) {
       "RUNNING",
       "기존 실행을 보존했습니다. status --team/stop --team으로 기존 실행 상태를 확인해주세요.",
     );
-  if (current.status === "stopped")
-    await startTeam(root, options.port ?? 0, await prepareMachine("team", options));
+  await reuseOrStart(current, prepare, async () =>
+    startTeam(root, options.port ?? 0, await prepareMachine(options, prepare)),
+  );
   return { ...(await status(p)), reused: current.status === "running" };
 }
 
-export async function up(options: UpOptions) {
-  const engine = options.engine ?? "claw";
+export async function up(
+  options: UpOptions,
+  /** The root dependency step; tests replace it. */
+  prepare: () => Promise<unknown> = () => prepareDependencies(run),
+) {
+  const engine = options.engine ?? "lean";
   if (process.platform !== "darwin" || process.arch !== "arm64")
     fail("PLATFORM", "현재 live 실행은 Apple Silicon macOS에서 검증됐습니다.");
-  if (engine === "team") return upTeam(options);
+  if (engine === "team") return upTeam(options, prepare);
   const root = dataRoot(options.dataDir),
     preference = join(root, "launcher.json");
   noSymlinks(preference);
@@ -399,8 +397,9 @@ export async function up(options: UpOptions) {
       "RUNNING",
       "기존 실행을 보존했습니다. status/stop으로 기존 실행 상태를 확인해주세요.",
     );
-  if (current.status === "stopped")
-    await start(p, options.port ?? 0, await prepareMachine(engine, options), engine);
+  await reuseOrStart(current, prepare, async () =>
+    start(p, options.port ?? 0, await prepareMachine(options, prepare), engine),
+  );
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const temp = `${preference}.${process.pid}.tmp`;
   writeFileSync(temp, JSON.stringify({ version: 1, project: p.project }), {

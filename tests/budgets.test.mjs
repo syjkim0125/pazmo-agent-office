@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { Worker } from "node:worker_threads";
 import { fixture } from "./contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
 import { ExecutionLedger } from "../src/core/budgets.ts";
@@ -18,7 +18,7 @@ async function setup(t) {
     path = join(f.root, "office.sqlite");
   const db = new DatabaseSync(path);
   db.exec("PRAGMA foreign_keys=ON; PRAGMA busy_timeout=5000");
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   t.after(() => db.close());
   const store = new OfficeStore(db, f.project, token);
   let now = 1000;

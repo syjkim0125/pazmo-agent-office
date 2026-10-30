@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "runId": "fb57d3b2-0e27-4e69-b6bf-77313b622c43",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D30 implemented on codex/lean-phase3-g3 (ee12b05..3bfb30a): root ws/TypeScript, engine tests on the lean schema, lean default with claw/legacy/bridge/operator CLI removed and old state stoppable, vendor tree removed, docs; simplify pass and review fixes applied. RED/GREEN and mutation checks in the evidence file.",
+          "evidence": [
+            ".ai-workflow/runs/U28-implement-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-implement-1.md": "bf32e59ada8cd367d307c3577b0b3f93822db02b6b671912bcdc39a60fa64634"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review (ce-code-review mode:agent, 9 reviewers plus Codex cross-model): 3 actionable P2 findings, all resolved (reuse-path test, survive-restart half, fresh graph run); lower-priority items applied in 3bfb30a; residual risks recorded.",
+          "evidence": [
+            ".ai-workflow/runs/U28-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-review-1.md": "e121d6d6ab9e743209d9cb72c8f5037c174f284952e63564025bdb427a8c71a1"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification after the last code change (3bfb30a): full suite 1072/1072, typecheck exit 0, Story checker exit 0; fresh copy, upgrade, reuse and removal checks as listed; app-be real run and the two pre-checks not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U28-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-verify-1.md": "6d6b21dc99f5495e195fa2f8309694f63c2596129815175acebca937d4812d43"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "951569704ef2f989e37e20027241fbb3076e03f0d1898c97de15f4050dd1275d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T06:02:28.491Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T06:02:28.647Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D30 implemented on codex/lean-phase3-g3 (ee12b05..3bfb30a): root ws/TypeScript, engine tests on the lean schema, lean default with claw/legacy/bridge/operator CLI removed and old state stoppable, vendor tree removed, docs; simplify pass and review fixes applied. RED/GREEN and mutation checks in the evidence file.",
+          "evidence": [
+            ".ai-workflow/runs/U28-implement-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-implement-1.md": "bf32e59ada8cd367d307c3577b0b3f93822db02b6b671912bcdc39a60fa64634"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T06:02:39.916Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T06:02:40.119Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review (ce-code-review mode:agent, 9 reviewers plus Codex cross-model): 3 actionable P2 findings, all resolved (reuse-path test, survive-restart half, fresh graph run); lower-priority items applied in 3bfb30a; residual risks recorded.",
+          "evidence": [
+            ".ai-workflow/runs/U28-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-review-1.md": "e121d6d6ab9e743209d9cb72c8f5037c174f284952e63564025bdb427a8c71a1"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T06:02:40.433Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T06:02:41.006Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification after the last code change (3bfb30a): full suite 1072/1072, typecheck exit 0, Story checker exit 0; fresh copy, upgrade, reuse and removal checks as listed; app-be real run and the two pre-checks not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U28-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U28-verify-1.md": "6d6b21dc99f5495e195fa2f8309694f63c2596129815175acebca937d4812d43"
+        }
+      }
+    }
+  ]
+}

@@ -1,14 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
+import { WebSocketServer } from "ws";
 import { tempRoot } from "./runner-fixture.mjs";
 
-const { WebSocketServer } = createRequire(
-  new URL("../vendor/claw-empire/package.json", import.meta.url),
-)("ws");
 const bridgePath = fileURLToPath(
   new URL("../src/runners/claude-tool-bridge.mjs", import.meta.url),
 );

@@ -1,5 +1,7 @@
 # Pazmo Agent Office — 구현 계약 v3
 
+> **이력 문서.** 지금의 요구사항 원본은 [Story](understanding/pazmo-agent-office-contract.md)다. 여기 나오는 Claw-Empire 기반 구성은 2026-10-30 D33으로 지웠다.
+
 2026-09-17 · 대상: `syjkim0125/pazmo-agent-office` · 이전 v1/v2와 마지막의 “워크플로우만 만들자” 제안을 대체한다.
 
 ## 0. 현재 사실과 읽는 방법

@@ -1,3 +1,18 @@
+# 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D33, A안)
+
+- `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D33, G3 2026-10-30 "A로 해").
+- 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 가져오기는 로컬 브랜치 `codex/local-original-claw-v2.0.4`에 남는다.
+- `ws`·TypeScript는 루트 의존성이다. `up`은 켜진 Office를 다시 쓰거나 새로 켜기 전에 `ws`가 없거나 다른 버전일 때만 `npm ci --omit=dev --prefer-offline`을 한다. 예전 버전이 켠 Claw·legacy Office는 `status`로 보이고 `stop`으로 멈추며, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다.
+- 엔진 코드(`native-office.ts`의 Claw용 API, 역할별 실행기 경로, 옛 허브 요청 흐름)는 D24 3단계와 충돌하지 않도록 남겼다. Story는 M7·M9·M10·M13·M14와 V7·V11·V12·V15·V16을 폐기하고 Goal·M1·M2·M3·M8·M12·M15·O2와 V1·V8·V9·V10·V14·V17을 고쳤다(M8·M12·V9·V10·V14는 승인 뒤 찾아 ASSUMED).
+- 자동 검사:
+  - 기준선 `3926ee2` 1104/1104 → vendor 없이 1070/1070(삭제는 모두 Claw·legacy·bridge 전용, 파일별 대조는 검증 기록). 메인 checkout 밖 새 사본(`npm ci`만)에서도 1070/1070. 독립 리뷰 반영과 main(#48·#49·#51·#52·#54·#55) 병합 뒤 **1074/1074**, #50·#53 병합 뒤 **1089/1089** exit 0(main 1121 대비 −32 = 지운 Claw·legacy·bridge 전용 37개 − 새 시험 5개). #50·#53과 결정 번호·kit unit이 겹쳐 이 결정을 D33, unit을 U28로 바꿨다
+  - 타입 검사 exit 0, Story 검사기 exit 0, `npm pack --dry-run`에 vendor 없음
+  - 엔진 재시작 복구 시험은 복구 호출 셋 중 하나만 지워도 실패한다
+  - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
+- 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
+- PR syjkim0125/pazmo-agent-office#56. G4는 2026-10-30에 기록했다. 사용자가 선택 ②("2", 승인 후 머지)를 고른 뒤, 컨트롤러가 쓴 답 초안과 사전 확인 두 개를 보고 "확인했어 승인"이라고 답했다(승인 후 머지). 세 질문의 답은 컨트롤러가 썼다. [G4 기록](verification/2026-10-30-lean-office-default-g4.md)
+- **남은 것: app-be 실제 확인(V17), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+
 # 2026-10-30 `--codex-runtime pinned` 시작 검사를 1단계와 Office에서 같게
 
 - PR #50(D30)의 리뷰 후속 두 가지다(D32). pinned 부분은 2026-10-30 사용자 선택(B)이고, 로그인 안내 부분은 ASSUMED다. 이 변경은 PR #50 위에 있다.

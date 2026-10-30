@@ -9,3 +9,4 @@ node_modules/
 .pazmo-office/
 dist/
 deploy/*/local.env
+/vendor/

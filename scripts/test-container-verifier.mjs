@@ -12,7 +12,7 @@ import { join } from "node:path";
 import { tmpdir, homedir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import { fixture } from "../tests/contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
 import { ExecutionLedger } from "../src/core/budgets.ts";
@@ -45,7 +45,7 @@ try {
     let cancellationTimer;
     try {
       db.exec("PRAGMA foreign_keys=ON");
-      applyBaseSchema(db);
+      applyLeanSchema(db, "/office-probe-project");
       f.put(
         "verify.json",
         JSON.stringify({

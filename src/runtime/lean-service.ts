@@ -9,10 +9,9 @@ import { openLeanDb } from "../lean/schema.ts";
 import { startLeanServer } from "../lean/server.ts";
 import type { LiveConfig } from "./live.ts";
 
-// The lean Office's service process. Plain `node` runs it: nothing here (or in
-// src/lean) imports vendor TypeScript, so no loader is needed. The engine it
-// reuses still loads vendor `ws` (src/runners/exec-relay.ts), so the vendor
-// dependencies must be installed; `start --lean` checks that (NOT_INSTALLED).
+// The lean Office's service process. Plain `node` runs it: no loader is needed.
+// The engine it reuses loads `ws` (src/runners/exec-relay.ts), so the root
+// dependencies must be installed; `start` checks that (NOT_INSTALLED).
 
 /** A shutdown that has not finished by then is abandoned with a non-zero exit. */
 const SHUTDOWN_LIMIT_MS = 10_000;
@@ -24,8 +23,6 @@ type Startup = {
   port: number;
   token: string;
   instance: string;
-  /** Sent by the launcher for every engine; the lean Office has no operator API. */
-  operatorToken?: string;
   live?: LiveConfig;
 };
 

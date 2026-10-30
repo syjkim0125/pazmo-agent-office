@@ -10,8 +10,8 @@ import type { LiveConfig } from "./live.ts";
 // The team Office's service process: one lean engine per registered repo and
 // the claim scheduler (src/team/office.ts), behind a server with the lifecycle
 // routes only (stage 2 has no page). Plain `node` runs it, as the lean service;
-// the engines it reuses load vendor `ws`, so `start --team` checks that the
-// vendor dependencies are installed (NOT_INSTALLED).
+// the engines it reuses load `ws`, so `start --team` checks that the root
+// dependencies are installed (NOT_INSTALLED).
 
 /** A shutdown that has not finished by then is abandoned with a non-zero exit. */
 const SHUTDOWN_LIMIT_MS = 10_000;
@@ -23,8 +23,6 @@ type Startup = {
   port: number;
   token: string;
   instance: string;
-  /** Sent by the launcher for every engine; the team Office has no operator API. */
-  operatorToken?: string;
   live?: LiveConfig;
   /** The person's own PATH and HOME, for `gh auth status`. */
   gh: { pathEnv: string; home: string };

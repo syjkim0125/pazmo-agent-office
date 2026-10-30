@@ -41,5 +41,9 @@
   "published_tree": "d1263143c625cf5270a9cf5eaa1c70d3d7025bcd",
   "published_tree_matches_original": false,
   "modifications": "upstream/CHANGES.md",
-  "publication_evidence": "docs/verification/2026-09-18-publication.md"
+  "publication_evidence": "docs/verification/2026-09-18-publication.md",
+  "destination_status": "removed",
+  "removed_at": "2026-10-30",
+  "removal_decision": "docs/understanding/lean-office-default-decision.md",
+  "last_commit_with_source": "f5687342f90d063baf90dc7cbdb4e18a30ddda2b"
 }

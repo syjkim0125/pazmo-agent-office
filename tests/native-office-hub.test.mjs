@@ -5,16 +5,16 @@ import { mkdtempSync, mkdirSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
-import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
+import { addRoleAgents } from "./role-agents-fixture.mjs";
 import { createNativeOffice } from "../src/runtime/native-office.ts";
 
 async function office(t, hub) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "native-hub-"))), project = join(root, "project");
   mkdirSync(project);
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   const planned = [];
   const live = { status: () => ({ execution: "ready", active: [] }), startPlanning: (...a) => planned.push(a), assertIdle() {}, close: async () => {}, abort() {} };
   const o = await createNativeOffice({ db, project, dataDir: root, token: "a".repeat(64), createRuntime: async () => live, hub });

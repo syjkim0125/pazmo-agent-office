@@ -1,9 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { assertRunnerLogin, assertVmConfig, canReuse, prepareVendor, prepareVm, runnerLoginOptions, startupRunners } from "../src/cli/launcher.ts";
+import { assertRunnerLogin, assertVmConfig, canReuse, prepareDependencies, prepareVm, runnerLoginOptions, startupRunners } from "../src/cli/launcher.ts";
 import { fakeNative, fakeRunners, listing, tempRoot } from "./runner-fixture.mjs";
 
 const safe =
@@ -250,10 +250,11 @@ exit 1\n`,
 test("up reuses a running Office only when it is the same engine and ready", () => {
   const running = (engine, execution) => ({ status: "running", engine, execution });
   assert.equal(canReuse(running("lean", "ready"), "lean"), true);
-  assert.equal(canReuse(running("claw", "ready"), "claw"), true);
-  // Another engine on the same data is never reused, in either direction.
+  assert.equal(canReuse(running("team", "ready"), "team"), true);
+  // Another engine on the same data is never reused, nor an Office an earlier
+  // version left running with the removed engines.
+  assert.equal(canReuse(running("team", "ready"), "lean"), false);
   assert.equal(canReuse(running("claw", "ready"), "lean"), false);
-  assert.equal(canReuse(running("lean", "ready"), "claw"), false);
   assert.equal(canReuse(running("legacy", "ready"), "lean"), false);
   // A preview that cannot execute is not what `up` promises.
   assert.equal(canReuse(running("lean", "locked"), "lean"), false);
@@ -261,43 +262,55 @@ test("up reuses a running Office only when it is the same engine and ready", () 
   assert.equal(canReuse({ status: "stopped", execution: "locked" }, "lean"), false);
 });
 
-test("up --lean installs the vendor dependencies and skips the UI build; claw still builds when its sources changed", async (t) => {
-  const vendor = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-vendor-")));
-  t.after(() => rmSync(vendor, { recursive: true, force: true }));
-  for (const dir of ["src", "public", "node_modules"]) mkdirSync(join(vendor, dir));
-  writeFileSync(join(vendor, "src", "main.ts"), "export {};\n");
-  writeFileSync(join(vendor, "package.json"), "{}\n");
+test("up installs the root dependencies only when ws is missing or not the locked version", async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-deps-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(
+    join(root, "package-lock.json"),
+    JSON.stringify({ lockfileVersion: 3, packages: { "": {}, "node_modules/ws": { version: "8.19.0" } } }),
+  );
   const calls = [];
   const exec = async (exe, args, cwd) => {
     calls.push([basename(exe), args.join(" "), cwd]);
     return "";
   };
-  const install = ["npx", "--yes pnpm@10.30.1 install --frozen-lockfile", vendor];
-  // The lean engine loads vendor ws (src/runners/exec-relay.ts): install, no build.
-  await prepareVendor(exec, "lean", vendor);
+  const install = ["npm", "ci --omit=dev --prefer-offline --ignore-scripts --no-audit --no-fund", root];
+  // Nothing installed: one production install in the package root.
+  assert.equal(await prepareDependencies(exec, root), "installed");
   assert.deepEqual(calls, [install]);
-  assert.equal(existsSync(join(vendor, "node_modules/.pazmo-build")), false, "no build stamp");
-  // Claw: install, then tsc and vite while there is no build of these sources.
+  // The locked version is installed: nothing runs, so a checkout's dev tools stay.
+  mkdirSync(join(root, "node_modules/ws"), { recursive: true });
+  writeFileSync(join(root, "node_modules/ws/package.json"), JSON.stringify({ name: "ws", version: "8.19.0" }));
   calls.length = 0;
-  await prepareVendor(exec, "claw", vendor);
-  assert.deepEqual(
-    calls.map(([exe, args]) => `${exe} ${args}`),
-    [`${install[0]} ${install[1]}`, `${basename(process.execPath)} node_modules/typescript/bin/tsc -b`, `${basename(process.execPath)} node_modules/vite/bin/vite.js build`],
-  );
-  const stamp = readFileSync(join(vendor, "node_modules/.pazmo-build"), "utf8");
-  assert.match(stamp, /^[a-f0-9]{64}$/);
-  // Built and unchanged: install only.
-  mkdirSync(join(vendor, "dist"));
-  writeFileSync(join(vendor, "dist/index.html"), "<!doctype html>");
-  calls.length = 0;
-  await prepareVendor(exec, "claw", vendor);
+  assert.equal(await prepareDependencies(exec, root), "current");
+  assert.deepEqual(calls, []);
+  // Another version (an older checkout's install): installed again.
+  writeFileSync(join(root, "node_modules/ws/package.json"), JSON.stringify({ name: "ws", version: "8.18.0" }));
+  assert.equal(await prepareDependencies(exec, root), "installed");
   assert.deepEqual(calls, [install]);
-  // A failed install stops before anything else, for either engine.
+  // A failed install is reported as it is; nothing else runs.
   calls.length = 0;
   const failing = async (exe, args, cwd) => {
     calls.push([basename(exe), args.join(" "), cwd]);
-    throw Object.assign(new Error("npx install: offline"), { code: "SETUP_FAILED" });
+    throw Object.assign(new Error("npm ci: offline"), { code: "SETUP_FAILED" });
   };
-  await assert.rejects(prepareVendor(failing, "lean", vendor), { code: "SETUP_FAILED" });
+  await assert.rejects(prepareDependencies(failing, root), { code: "SETUP_FAILED" });
   assert.deepEqual(calls, [install]);
+});
+
+test("without a lockfile (a packed install) up installs nothing and needs ws to resolve", async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-deps-packed-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, "package.json"), JSON.stringify({ name: "packed", version: "0.0.0" }));
+  const calls = [];
+  const exec = async (exe, args, cwd) => {
+    calls.push([basename(exe), args.join(" "), cwd]);
+    return "";
+  };
+  await assert.rejects(prepareDependencies(exec, root), { code: "NOT_INSTALLED" });
+  mkdirSync(join(root, "node_modules/ws"), { recursive: true });
+  writeFileSync(join(root, "node_modules/ws/package.json"), JSON.stringify({ name: "ws", version: "8.19.0", main: "index.js" }));
+  writeFileSync(join(root, "node_modules/ws/index.js"), "module.exports = {};\n");
+  assert.equal(await prepareDependencies(exec, root), "current");
+  assert.deepEqual(calls, [], "npm ci needs a lockfile: it never runs");
 });

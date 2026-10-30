@@ -5,7 +5,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fixture } from "./contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { workspaceScope } from "../src/core/workspace.ts";
 import {
@@ -103,7 +103,7 @@ test("PM question, addressed human answer, Lead proposal produces contracts that
     writeFileSync(join(f.project, name), content);
   const db = new DatabaseSync(":memory:");
   t.after(() => db.close());
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   const token = "a".repeat(64),
     store = new OfficeStore(db, f.project, token);
   const task = await store.register(token, draft.contracts[0]);

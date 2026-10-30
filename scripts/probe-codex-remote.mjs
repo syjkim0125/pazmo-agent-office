@@ -1,13 +1,9 @@
 import { createServer } from "node:http";
 import { spawn } from "node:child_process";
-import { createRequire } from "node:module";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-const require = createRequire(
-  new URL("../vendor/claw-empire/package.json", import.meta.url),
-);
-const { WebSocketServer } = require("ws");
+import { WebSocketServer } from "ws";
 const [container, root, codex] = process.argv.slice(2),
   route = "/exec/" + randomUUID();
 const isolatedHome = join(root, "mock-controller-home"),

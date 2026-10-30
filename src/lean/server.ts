@@ -23,7 +23,7 @@ export type LeanServerOptions = {
 };
 
 // The cookie jar is shared by every port of 127.0.0.1, so each Office names its
-// cookie by its own port (as the Claw viewer does): two Offices in one browser
+// cookie by its own port: two Offices in one browser
 // keep separate sessions.
 const SESSION_COOKIE = "pazmo_lean_session";
 const BODY_LIMIT = 1024 * 1024;
@@ -214,7 +214,7 @@ export type LifecycleOptions = {
   onStop?: () => void;
 };
 
-/** Lifecycle control, for the CLI only: Bearer, as the Claw host does. The
+/** Lifecycle control, for the CLI only: a Bearer token. The
  * lean and team servers answer `/__pazmo/status` and `/__pazmo/stop` with it. */
 export function lifecycleRoutes(o: LifecycleOptions) {
   const bearer = `Bearer ${o.token}`;

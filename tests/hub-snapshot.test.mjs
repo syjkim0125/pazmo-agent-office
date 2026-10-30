@@ -1,8 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
-import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
+import { addRoleAgents } from "./role-agents-fixture.mjs";
 import { hubSnapshot } from "../src/runtime/hub-snapshot.ts";
 import { parseSnapshot } from "../src/hub/protocol.ts";
 import { changeSummary } from "../src/runtime/decision-summary.ts";
@@ -17,8 +17,8 @@ const EVIDENCE = {
 const G4_SUMMARY = `최종 결과 승인\n1. 질문\n세 질문에 번호별로 답해주세요.\n${changeSummary(EVIDENCE)}\n검증과 변경 내용:\n${JSON.stringify(EVIDENCE, null, 2)}`;
 function fixture(status = "in_progress", extra = {}) {
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   db.prepare("INSERT INTO tasks(id,title,status) VALUES (?,?,?)").run(ROOT, "README 목차", status);
   db.prepare("INSERT INTO tasks(id,title,status) VALUES (?,?,?)").run(CHILD, "목차 구현", "review");
   const agent = db.prepare("SELECT id FROM agents LIMIT 1").get().id;

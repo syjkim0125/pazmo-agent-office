@@ -6,8 +6,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { randomUUID, X509Certificate } from "node:crypto";
 import { createServer } from "node:https";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
-import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
+import { addRoleAgents } from "./role-agents-fixture.mjs";
 import { startTestHub } from "./hub-fixture.mjs";
 import { pairOffice, createHubSync, hubCall, readLinkConfig, writeLinkConfig } from "../src/runtime/hub-link.ts";
 
@@ -46,8 +46,8 @@ async function linked(t) {
   const dataDir = mkdtempSync(join(tmpdir(), "hub-link-"));
   t.after(() => rmSync(dataDir, { recursive: true, force: true }));
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   db.exec("CREATE TABLE pazmo_hub_requests(hub_key TEXT PRIMARY KEY, task_id TEXT NOT NULL, requester TEXT NOT NULL)");
   const office = fakeOffice(db);
   return { ...ctx, admin, b, repo, dataDir, db, office, pair: (fingerprint = tls.fingerprint) =>
@@ -382,8 +382,8 @@ test("a second Office paired as the same member and repo leaves work bound to th
   const dataDir = mkdtempSync(join(tmpdir(), "hub-link-b-"));
   t.after(() => rmSync(dataDir, { recursive: true, force: true }));
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   db.exec("CREATE TABLE pazmo_hub_requests(hub_key TEXT PRIMARY KEY, task_id TEXT NOT NULL, requester TEXT NOT NULL)");
   const office = fakeOffice(db);
   await pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint: tls.fingerprint, remote: "git@github.example.com:team/app-be.git" });

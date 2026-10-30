@@ -103,21 +103,21 @@ The Hub backend already implements claim limits, hold detection and merge locks.
 
 ## Current status
 
-As of **2026-10-28**, on `main`:
+As of **2026-10-30**, on `main`:
 
 | Area | Implemented and verified | Remaining work |
 |---|---|---|
 | Local execution | PM, Lead, Developer and Reviewer workflows using installed codex or claude CLIs; real tasks reached human G4 and delivery on one Mac. | Other people's PCs and longer-term operation. |
-| Minimal Office (`--lean`) | Tasks, task detail, Decisions and Agents; separate work/review runner settings; a real task completed on 2026-10-27. | Team Hub UI and making this the default Office. |
-| Existing team Hub | Sending, accepting and cancelling requests between Offices; checked with two Offices on one Mac. | Replacing manual handoffs with automatic Story Task pickup; cross-PC validation. |
+| Minimal Office (default) | Tasks, task detail, Decisions and Agents; separate work/review runner settings; a real task completed on 2026-10-27. Made the default on 2026-10-30, when the Claw-based Office and its source were removed (D33). | Team Hub UI; a real task through the new default in app-be. |
+| Existing team Hub | Hub server with invites, repositories and owners. Sending, accepting and cancelling requests was checked with two Offices on one Mac; those Office screens went with the Claw-based Office (D33). | Replacing manual handoffs with automatic Story Task pickup; cross-PC validation. |
 | Hub Story board, phase 1 | Project/Story/Task storage, graph validation, exclusive claims, holds, merge locks and result reporting. | End-to-end use from Office; live validation with two Offices and two test repositories. |
 | One Office, several repositories | Target design agreed. | Repository engines, Task execution mode, PL flow and Project → Story → Task Kanban screens. |
 | Story branch integration | Branch rules and review/verification requirements agreed. | Automated branch creation, push, PRs, revalidation and merge into Story base. |
 | Distribution | Source-based local startup on Apple Silicon macOS. | Publishing and installation-testing `@pazmo/agent-office` on npm. |
 
-The default launcher still opens the earlier Claw-based Office. `--lean` selects the new minimal Office; replacing the default and removing the legacy UI are later stages. The new Hub Story-board backend has automated test coverage, but writes through its new API on the deployed Hub remain unverified. The backend alone does not yet provide the complete team workflow.
+Since 2026-10-30 (D33) the default launcher opens the minimal Office, and the earlier Claw-based Office, its source and the chat bridge are removed. The new Hub Story-board backend has automated test coverage, but writes through its new API on the deployed Hub remain unverified. The backend alone does not yet provide the complete team workflow.
 
-See [status and next steps](docs/STATUS.md), [the team Story design](docs/understanding/team-story-board-decision.md), [Hub verification](docs/verification/2026-10-22-team-story-board-hub.md) and [minimal Office verification](docs/verification/2026-10-21-lean-office-phase1.md).
+See [status and next steps](docs/STATUS.md), [the team Story design](docs/understanding/team-story-board-decision.md), [Hub verification](docs/verification/2026-10-22-team-story-board-hub.md) [minimal Office verification](docs/verification/2026-10-21-lean-office-phase1.md) and [default switch verification](docs/verification/2026-10-30-lean-office-default.md).
 
 ## Run locally
 
@@ -126,10 +126,17 @@ Live execution currently supports **Apple Silicon macOS**. Prepare Node **24.19+
 From this repository, select an existing Git project outside the Office installation folder:
 
 ```bash
-./office --lean --project /absolute/path/to/project
+./office --project /absolute/path/to/project
 ```
 
-Stop any Office already running for the same project before switching modes. The minimal Office uses separate data. To use the current default UI, omit `--lean`; see the [minimal Office guide](docs/LOCAL-PREVIEW.md#새-office-1단계-시험) and [team Hub guide](docs/LOCAL-PREVIEW.md#팀-허브-1단계-시험).
+`--lean` from older commands is still accepted and starts the same Office; `--claw` was removed. Use `./office --team` for the team Office. See the [Office guide](docs/LOCAL-PREVIEW.md#새-office) and [team Hub guide](docs/LOCAL-PREVIEW.md#팀-허브).
+
+### Updating from a Claw version
+
+1. Before pulling: finish or cancel the Claw Office's running tasks and any team hub requests you accepted, then stop that Office (`node bin/pazmo-office.mjs stop --project /absolute/path/to/project`). The same command still stops it after pulling.
+2. After pulling: run `./office` once (`./office --team` for the team Office). The first run installs the root dependency (`ws`), so it needs the npm registry, and the runners are qualified once more before the first role runs. An Office that is already running gets the dependency through this run too.
+3. If several Offices run from one checkout (per project, or the team Office), update while no task is running: the install briefly removes `node_modules`, so another Office's claude jobs can fail meanwhile.
+4. The leftover `vendor/` folder (the old install and build) can be deleted. The old task data (`claw/`) is kept as it is; the new Office does not read it.
 
 Agent Office is not yet published on npm. The AI Workflow Kit package linked here is a separate project.
 
@@ -162,4 +169,4 @@ The goal is an environment where opening Office lets an agent pick up shared wor
 
 Keep changes small, connect them to Story acceptance criteria and record verification evidence. Distinguish automated checks from live workflow checks, and keep the documentation clear about what is implemented.
 
-Original Pazmo code and documentation use [PolyForm Shield 1.0.0](LICENSE): any purpose is allowed, including use inside a company, except providing a product that competes with Pazmo, even for free. Versions published up to 2026-10-30 (commit `610169e`) were MIT. Imported Claw-Empire code retains **Apache-2.0** and its attribution and notices. Pazmo is source-available, not OSI open source. See [license boundaries](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+Original Pazmo code and documentation use [PolyForm Shield 1.0.0](LICENSE): any purpose is allowed, including use inside a company, except providing a product that competes with Pazmo, even for free. Versions published up to 2026-10-30 (commit `610169e`) were MIT. Third-party files in the repository (the Codex model entry in `assets/codex`) are **Apache-2.0**, with their license and notice retained. Claw-Empire code (Apache-2.0), where the project started, is only in versions before its removal on 2026-10-30; its provenance and notices stay on record. Pazmo is source-available, not OSI open source. See [license boundaries](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).

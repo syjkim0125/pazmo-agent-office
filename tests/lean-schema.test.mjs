@@ -14,7 +14,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { openLeanDb } from "../src/lean/schema.ts";
+import { applyLeanSchema, openLeanDb } from "../src/lean/schema.ts";
 import { createNativeOffice } from "../src/runtime/native-office.ts";
 import { hubSnapshot } from "../src/runtime/hub-snapshot.ts";
 
@@ -138,6 +138,20 @@ test("tables carry exactly the columns the engine reads or writes plus the lean 
   ]);
   assert.deepEqual(columns(db, "task_logs"), ["created_at", "id", "kind", "message", "task_id"]);
   assert.deepEqual(columns(db, "projects"), ["id", "project_path"]);
+});
+
+test("the in-memory schema the engine tests use is the file's schema, owner included", (t) => {
+  const w = workspace(t);
+  const file = openLeanDb(w.root, w.project);
+  t.after(() => file.close());
+  const memory = new DatabaseSync(":memory:");
+  t.after(() => memory.close());
+  applyLeanSchema(memory, w.project);
+  const schema = (db) =>
+    db.prepare("SELECT type,name,sql FROM sqlite_master ORDER BY type,name").all().map((r) => ({ ...r }));
+  assert.deepEqual(schema(memory), schema(file));
+  assert.equal(memory.prepare("SELECT project FROM lean_instance").get().project, w.project);
+  assert.equal(memory.prepare("PRAGMA foreign_keys").get().foreign_keys, 1);
 });
 
 test("a database made before reruns gains their links when it opens; a task reruns once and its link goes with it", (t) => {

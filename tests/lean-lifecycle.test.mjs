@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { locate } from "../src/cli/project.ts";
-import { STARTUP_MS, start, vendorInstalled } from "../src/cli/lifecycle.ts";
+import { STARTUP_MS, dependenciesInstalled, start } from "../src/cli/lifecycle.ts";
 import { CLAUDE_STOP_MS } from "../src/runners/runner-models.ts";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
 
@@ -25,13 +25,13 @@ const slowStart = new URL("./lean-service-slow-start.mjs", import.meta.url).path
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** Runs the CLI against a temp project and data dir; returns the JSON it printed.
- * The limit is a minute above what start --claw may wait for its Office, so a
- * slow start under load is reported by start itself; killing the CLI half way
- * would leave its start lock behind and an Office no state file records. */
+ * The limit is a minute above what start may wait for its Office, so a slow
+ * start under load is reported by start itself; killing the CLI half way would
+ * leave its start lock behind and an Office no state file records. */
 function call(f, ...args) {
   const r = spawnSync(process.execPath, [cli, ...args, "--project", f.project, "--data-dir", f.data], {
     encoding: "utf8",
-    timeout: STARTUP_MS.claw + 60000,
+    timeout: STARTUP_MS.lean + 60000,
   });
   return { status: r.status, value: JSON.parse(r.status === 0 ? r.stdout : r.stderr) };
 }
@@ -65,9 +65,9 @@ test("the lean start wait is 10 s longer than a discovery claude's slowest stop"
   assert.ok(STARTUP_MS.lean >= input + term + kill + 10000, `${STARTUP_MS.lean} ms`);
 });
 
-test("start --lean runs the lean engine on its own data, without the vendor loader", async (t) => {
+test("start runs the lean engine by default on its own data, without a loader or vendor path", async (t) => {
   const f = setup(t);
-  const started = call(f, "start", "--lean", "--port", "0");
+  const started = call(f, "start", "--port", "0");
   assert.equal(started.status, 0, JSON.stringify(started.value));
   assert.equal(started.value.engine, "lean");
   assert.equal(started.value.execution, "locked");
@@ -107,12 +107,13 @@ test("start --lean runs the lean engine on its own data, without the vendor load
   // The API is not open without that session.
   assert.equal((await fetch(`${monitor.value.url}api/board`)).status, 401);
 
-  // The lean Office has no operator API: the key is not handed out.
+  // operator-key went with the legacy engine: the refusal names why.
   const key = call(f, "operator-key");
   assert.equal(key.status, 1);
-  assert.equal(key.value.code, "UNSUPPORTED");
+  assert.equal(key.value.code, "COMMAND_REMOVED");
 
-  // Same engine: start is idempotent and reports the running Office.
+  // Same engine: start is idempotent and reports the running Office; --lean,
+  // kept for old scripts, names the same default.
   const again = call(f, "start", "--lean");
   assert.equal(again.status, 0, JSON.stringify(again.value));
   assert.equal(again.value.engine, "lean");
@@ -128,7 +129,7 @@ test("start --lean runs the lean engine on its own data, without the vendor load
   assert.equal(existsSync(sqlite), true);
 });
 
-test("start --lean without the vendor dependencies refuses with NOT_INSTALLED before it starts anything", async (t) => {
+test("start without the root dependencies refuses with NOT_INSTALLED before it starts anything", async (t) => {
   const f = setup(t);
   const p = locate(f.project, f.data);
   let checked = 0;
@@ -138,92 +139,63 @@ test("start --lean without the vendor dependencies refuses with NOT_INSTALLED be
   };
   await assert.rejects(start(p, 0, undefined, "lean", { installed: missing }), {
     code: "NOT_INSTALLED",
-    message: "Office 의존성이 설치되지 않았습니다. ./office --lean 으로 설치하세요.",
+    message: "Office 의존성이 설치되지 않았습니다. ./office 로 설치하세요(Apple Silicon 밖에서는 npm ci --omit=dev). 업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다.",
   });
   assert.equal(checked, 1);
   assert.equal(existsSync(join(f.dataDir, "start.lock")), false, "no start lock was taken");
   assert.equal(existsSync(join(f.dataDir, "running.json")), false, "nothing was started");
   assert.equal(existsSync(join(f.dataDir, "office.log")), false);
   assert.equal(call(f, "status").value.status, "stopped");
-  // This checkout has them: the real check finds vendor ws the way exec-relay.ts loads it.
-  assert.equal(vendorInstalled(), true);
+  // This checkout has them: the real check finds ws the way exec-relay.ts loads it.
+  assert.equal(dependenciesInstalled(), true);
 });
 
-test("a running legacy Office refuses start --lean, and a running lean Office refuses start and start --claw", async (t) => {
+test("start and start --lean reach the same running Office; --claw is refused and leaves it running", async (t) => {
   const f = setup(t);
-  const stopOffice = async () => {
-    const pid = officePid(f.dataDir);
-    assert.equal(call(f, "stop").status, 0);
-    await assertOfficesExited([pid]);
-  };
-  const legacy = call(f, "start", "--port", "0");
-  assert.equal(legacy.status, 0, JSON.stringify(legacy.value));
-  assert.equal(legacy.value.engine, "legacy");
-  const refused = call(f, "start", "--lean", "--port", "0");
-  assert.equal(refused.status, 1);
-  assert.equal(refused.value.code, "ENGINE_MISMATCH");
-  const dataDir = f.dataDir;
-  assert.equal(existsSync(join(dataDir, "lean")), false, "the refused start created no lean data");
-  assert.equal(call(f, "status").value.engine, "legacy", "the refused start left the legacy Office running");
-  await stopOffice();
-
-  const lean = call(f, "start", "--lean", "--port", "0");
+  const lean = call(f, "start", "--port", "0");
   assert.equal(lean.status, 0, JSON.stringify(lean.value));
-  for (const flags of [[], ["--claw"]]) {
+  const same = call(f, "start", "--lean", "--port", "0");
+  assert.equal(same.status, 0, JSON.stringify(same.value));
+  assert.equal(same.value.url, lean.value.url);
+  for (const flags of [["--claw"], ["--lean", "--claw"]]) {
     const other = call(f, "start", ...flags, "--port", "0");
     assert.equal(other.status, 1, flags.join(" "));
-    assert.equal(other.value.code, "ENGINE_MISMATCH");
+    assert.equal(other.value.code, "CLAW_REMOVED");
   }
   assert.equal(call(f, "status").value.engine, "lean");
-  await stopOffice();
-  assert.equal(existsSync(join(dataDir, "claw")), false);
+  const pid = officePid(f.dataDir);
+  assert.equal(call(f, "stop").status, 0);
+  await assertOfficesExited([pid]);
+  assert.equal(existsSync(join(f.dataDir, "claw")), false);
 });
 
-// `up` reaches its engine check before any VM, vendor or login step, so it can
-// be exercised against a running Office without starting anything of its own.
+// `up` refuses a running Office it cannot reuse before any dependency, VM or
+// login step, so it can be exercised against a running Office without starting
+// anything of its own.
 const appleSilicon = process.platform === "darwin" && process.arch === "arm64";
 test(
-  "up refuses a running Office of another engine, in both directions, and never stops it",
+  "up does not reuse a running Office that cannot execute, and never stops it",
   { skip: !appleSilicon && "up runs on Apple Silicon macOS only" },
   async (t) => {
     const f = setup(t);
-    const stopOffice = async () => {
-      const pid = officePid(f.dataDir);
-      assert.equal(call(f, "stop").status, 0);
-      await assertOfficesExited([pid]);
-    };
-    const running = (engine) => {
+    const lean = call(f, "start", "--port", "0");
+    assert.equal(lean.status, 0, JSON.stringify(lean.value));
+    for (const flags of [[], ["--lean"]]) {
+      // A preview that cannot execute is not reused: RUNNING, as before.
+      const up = call(f, "up", ...flags, "--no-open");
+      assert.equal(up.status, 1, flags.join(" "));
+      assert.equal(up.value.code, "RUNNING");
       const status = call(f, "status");
       assert.equal(status.value.status, "running");
-      assert.equal(status.value.engine, engine, "the running Office was not touched");
-    };
-    const lean = call(f, "start", "--lean", "--port", "0");
-    assert.equal(lean.status, 0, JSON.stringify(lean.value));
-    // Plain up wants Claw: it is told to stop the lean Office, which keeps running.
-    const claw = call(f, "up", "--no-open");
-    assert.equal(claw.status, 1);
-    assert.equal(claw.value.code, "ENGINE_MISMATCH");
-    assert.match(claw.value.error, /Stop the current Office/);
-    running("lean");
-    // The same engine that cannot execute (a preview) is not reused: RUNNING, as before.
-    const same = call(f, "up", "--lean", "--no-open");
-    assert.equal(same.status, 1);
-    assert.equal(same.value.code, "RUNNING");
-    running("lean");
-    await stopOffice();
-
-    const native = call(f, "start", "--claw", "--port", "0");
-    assert.equal(native.status, 0, JSON.stringify(native.value));
-    const other = call(f, "up", "--lean", "--no-open");
-    assert.equal(other.status, 1);
-    assert.equal(other.value.code, "ENGINE_MISMATCH");
-    assert.match(other.value.error, /Stop the current Office/);
-    running("claw");
-    await stopOffice();
+      assert.equal(status.value.engine, "lean", "the running Office was not touched");
+    }
+    const pid = officePid(f.dataDir);
+    assert.equal(call(f, "stop").status, 0);
+    await assertOfficesExited([pid]);
   },
 );
 
-test("--lean is for start and up only and cannot be combined with --claw", () => {
+test("--claw is refused with CLAW_REMOVED wherever it appears, removed commands are named, --lean is for start and up only", () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-lean-args-")));
   try {
     const project = join(root, "project");
@@ -234,9 +206,25 @@ test("--lean is for start and up only and cannot be combined with --claw", () =>
     };
     const base = ["--project", project, "--data-dir", join(root, "data")];
     for (const args of [
+      ["start", "--claw", ...base],
+      ["up", "--claw", ...base],
+      ["status", "--claw", ...base],
       ["start", "--lean", "--claw", ...base],
-      ["start", "--claw", "--lean", ...base],
-      ["up", "--lean", "--claw", ...base],
+      ["start", "--team", "--claw", "--data-dir", join(root, "data")],
+    ]) {
+      const result = run(...args);
+      assert.equal(result.status, 1, args.join(" "));
+      assert.equal(result.value.code, "CLAW_REMOVED", args.join(" "));
+      assert.match(result.value.error, /\.\/office/, "it names the command that starts the Office");
+    }
+    // The operator commands went with the legacy engine: named, not unknown.
+    for (const command of ["bridge", "operator-key", "contract", "intake-create", "approval-decide", "deliver"]) {
+      const result = run(command, ...base);
+      assert.equal(result.status, 1, command);
+      assert.equal(result.value.code, "COMMAND_REMOVED", command);
+      assert.match(result.value.error, /CHAT-CONTROL\.md/, command);
+    }
+    for (const args of [
       ["status", "--lean", ...base],
       ["stop", "--lean", ...base],
       ["monitor", "--lean", ...base],
@@ -246,7 +234,7 @@ test("--lean is for start and up only and cannot be combined with --claw", () =>
       assert.equal(result.value.code, "ARGUMENT", args.join(" "));
     }
     // up accepts --lean: with no project it stops at PROJECT_REQUIRED (or PLATFORM
-    // off Apple Silicon), before touching the VM, the vendor tree or any process.
+    // off Apple Silicon), before touching the VM or any process.
     const up = run("up", "--lean", "--no-open", "--data-dir", join(root, "data"));
     assert.equal(up.status, 1);
     assert.ok(["PROJECT_REQUIRED", "PLATFORM"].includes(up.value.code), up.value.code);
@@ -256,11 +244,14 @@ test("--lean is for start and up only and cannot be combined with --claw", () =>
   }
 });
 
-test("the help text names the lean option", () => {
+test("the help text describes the default Office and names no removed command or option", () => {
   const r = spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8" });
   assert.equal(r.status, 0);
-  assert.match(r.stdout, /start --lean/);
-  assert.match(r.stdout, /up --lean/);
+  assert.match(r.stdout, /start --project PATH/);
+  assert.match(r.stdout, /up \[--project PATH\]/);
+  assert.match(r.stdout, /Team Office/);
+  for (const removed of ["--claw", "bridge", "operator-key", "contract", "intake", "approval", "verification", "deliver", "--task-id", "--gate", "--challenge", "--file"])
+    assert.ok(!r.stdout.includes(removed), removed);
 });
 
 // The service itself, as a child with the IPC channel the launcher uses.
@@ -289,7 +280,6 @@ function config(root, extra = {}) {
     port: 0,
     token: randomBytes(32).toString("hex"),
     instance: randomBytes(16).toString("hex"),
-    operatorToken: randomBytes(32).toString("hex"),
     ...extra,
   };
 }

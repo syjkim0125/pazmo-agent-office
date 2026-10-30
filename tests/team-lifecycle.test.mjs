@@ -161,16 +161,16 @@ test("a registered repo whose folder is gone stops start --team and up --team wi
   assert.equal(call(f, "team", "remove", "--project", b).status, 0);
 });
 
-test("--team cannot be combined with --project, --lean or --claw and is for start, up, status, stop and monitor only", (t) => {
+test("--team cannot be combined with --project or --lean and is for start, up, status, stop and monitor only", (t) => {
   const f = fixture(t);
   const dir = f.repo("alpha");
+  // --claw is refused before this check (CLAW_REMOVED, tests/lean-lifecycle.test.mjs).
   for (const args of [
     ["start", "--team", "--project", dir],
     ["up", "--team", "--project", dir],
     ["status", "--team", "--project", dir],
     ["stop", "--team", "--project", dir],
     ["start", "--team", "--lean"],
-    ["start", "--team", "--claw"],
     ["up", "--team", "--lean"],
     ["init", "--team"],
     ["doctor", "--team"],

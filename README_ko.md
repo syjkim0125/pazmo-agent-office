@@ -103,21 +103,21 @@ Hub 백엔드에는 동시 가져가기 제한, 보류 감지와 병합 잠금�
 
 ## 현재 상태
 
-**2026-10-28, main 기준**입니다.
+**2026-10-30, main 기준**입니다.
 
 | 항목 | 구현·확인된 범위 | 남은 범위 |
 |---|---|---|
 | 로컬 실행 | 설치된 codex·claude CLI로 PM·Lead·Developer·Reviewer 실행. Mac 한 대에서 실제 작업을 사람 G4·인도까지 완료했습니다. | 다른 팀원의 PC와 장기간 운영 확인. |
-| 최소 Office (`--lean`) | Tasks·작업 상세·Decisions·Agents, 작업·리뷰 실행기 분리. 2026-10-27 실제 작업 완료를 확인했습니다. | 팀 Hub 화면과 기본 Office 전환. |
-| 기존 팀 Hub | Office 사이의 요청 보내기·수락·취소. Mac 한 대의 Office 두 개로 확인했습니다. | 수동 전달을 Story Task 자동 가져가기로 전환, 여러 PC 검증. |
+| 최소 Office (기본) | Tasks·작업 상세·Decisions·Agents, 작업·리뷰 실행기 분리. 2026-10-27 실제 작업 완료를 확인했습니다. 2026-10-30에 기본이 됐고, 기존 Claw 기반 Office와 그 소스를 지웠습니다(D33). | 팀 Hub 화면, app-be에서 새 기본으로 실제 작업 하나 확인. |
+| 기존 팀 Hub | 초대·레포·담당자를 관리하는 허브 서버. Office 사이의 요청 보내기·수락·취소를 Mac 한 대의 Office 두 개로 확인했고, 그 Office 화면은 Claw 기반 Office와 함께 지웠습니다(D33). | 수동 전달을 Story Task 자동 가져가기로 전환, 여러 PC 검증. |
 | Hub Story 보드 1단계 | 프로젝트·Story·Task 저장, 그래프 검사, 중복 가져가기 방지, 보류, 병합 잠금, 결과 보고. | Office와 전체 흐름 연결, 실제 Office 두 개·시험 repo 두 개로 확인. |
 | Office 하나에 여러 repo | 목표 설계 합의. | repo별 엔진, Task 실행 모드, PL 흐름, 프로젝트 → Story → Task 칸반 화면. |
 | Story 브랜치 통합 | 브랜치 규칙과 리뷰·검증 조건 합의. | 브랜치 생성·push·PR·재검증·Story base 병합 자동화. |
 | 배포 | Apple Silicon Mac에서 소스를 받아 로컬 실행. | npm `@pazmo/agent-office` 게시·설치 시험. |
 
-현재 기본 실행은 기존 Claw 기반 Office이며, `--lean`이 새 최소 Office를 선택합니다. 기본 전환과 기존 UI 제거는 이후 단계입니다. Hub Story 보드 백엔드는 자동 검사로 확인했고, 배포된 Hub의 새 API로 데이터를 쓰는 실제 확인은 남아 있습니다. 백엔드만으로 전체 팀 협업 흐름을 사용할 수 있는 상태는 아닙니다.
+2026-10-30부터 기본 실행은 최소 Office이며, 기존 Claw 기반 Office와 그 소스, 채팅 bridge는 지웠습니다(D33). Hub Story 보드 백엔드는 자동 검사로 확인했고, 배포된 Hub의 새 API로 데이터를 쓰는 실제 확인은 남아 있습니다. 백엔드만으로 전체 팀 협업 흐름을 사용할 수 있는 상태는 아닙니다.
 
-자세한 근거는 [현재 상태와 다음 단계](docs/STATUS.md), [팀 Story 설계](docs/understanding/team-story-board-decision.md), [Hub 검증 기록](docs/verification/2026-10-22-team-story-board-hub.md), [최소 Office 검증 기록](docs/verification/2026-10-21-lean-office-phase1.md)을 참고하세요.
+자세한 근거는 [현재 상태와 다음 단계](docs/STATUS.md), [팀 Story 설계](docs/understanding/team-story-board-decision.md), [Hub 검증 기록](docs/verification/2026-10-22-team-story-board-hub.md), [최소 Office 검증 기록](docs/verification/2026-10-21-lean-office-phase1.md), [기본 전환 검증 기록](docs/verification/2026-10-30-lean-office-default.md)을 참고하세요.
 
 ## 로컬 실행
 
@@ -126,10 +126,17 @@ Hub 백엔드에는 동시 가져가기 제한, 보류 감지와 병합 잠금�
 Office 저장소에서, 설치 폴더와 별도인 기존 Git 프로젝트를 지정해 실행합니다.
 
 ```bash
-./office --lean --project /absolute/path/to/project
+./office --project /absolute/path/to/project
 ```
 
-같은 프로젝트에 Office가 이미 실행 중이면 모드를 바꾸기 전에 멈춥니다. 최소 Office는 별도 데이터를 사용합니다. 현재 기본 UI를 쓰려면 `--lean`을 생략합니다. [최소 Office 안내](docs/LOCAL-PREVIEW.md#새-office-1단계-시험) · [팀 Hub 안내](docs/LOCAL-PREVIEW.md#팀-허브-1단계-시험)
+예전 명령의 `--lean`은 받아들이고 같은 Office를 켭니다. `--claw`는 지웠습니다. 팀 Office는 `./office --team`으로 켭니다. [Office 안내](docs/LOCAL-PREVIEW.md#새-office) · [팀 Hub 안내](docs/LOCAL-PREVIEW.md#팀-허브)
+
+### Claw 버전에서 업데이트
+
+1. 받기 전에: Claw Office의 진행 중인 작업과 수락한 팀 허브 요청을 끝내거나 취소하고, 그 Office를 멈춥니다(`node bin/pazmo-office.mjs stop --project /절대/프로젝트/경로`). 받은 뒤에도 같은 명령으로 멈출 수 있습니다.
+2. 받은 뒤: `./office`(팀 Office는 `./office --team`)를 한 번 실행합니다. 첫 실행은 루트 의존성(`ws`)을 설치하느라 npm 레지스트리 접속이 필요하고, 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돕니다. 이미 켜져 있던 새 Office도 이 실행으로 의존성을 받습니다.
+3. 한 checkout에서 Office를 여러 개(프로젝트별, 팀 Office) 켜 두었다면 진행 중인 작업이 없을 때 업데이트합니다. 설치는 `node_modules`를 잠깐 지우므로, 그동안 다른 Office의 claude 작업이 실패할 수 있습니다.
+4. 남은 `vendor/` 폴더(예전 설치물·빌드물)는 지워도 됩니다. 예전 작업 기록(`claw/`)은 지우지 않고 그대로 두며, 새 Office는 읽지 않습니다.
 
 Agent Office는 아직 npm에 게시되지 않았습니다. 아래의 AI Workflow Kit npm 패키지는 별도 프로젝트입니다.
 
@@ -162,4 +169,4 @@ Checkout 도메인에는 야간·주말 장애 대응과 타 도메인으로의 
 
 변경을 작게 나누고 Story의 인수조건과 검증 근거를 연결합니다. 자동 검사와 실제 실행 확인을 구분하고, 구현된 범위가 문서에서 분명하게 드러나도록 합니다.
 
-Pazmo 독자 코드·문서는 [PolyForm Shield 1.0.0](LICENSE), 반입된 Claw-Empire 코드에는 **Apache-2.0**이 적용됩니다. Pazmo 코드는 회사 안에서 쓰는 것을 포함해 어떤 목적으로든 쓸 수 있지만, Pazmo와 경쟁하는 제품을 내놓는 데는 무료라도 쓸 수 없습니다. 2026-10-30(커밋 `610169e`)까지 공개된 버전은 MIT였습니다. Pazmo는 소스 공개형이며 OSI 오픈소스가 아닙니다. 원 저작권·출처·고지는 유지합니다. [범위별 라이선스](LICENSING.md) · [제3자 고지](THIRD_PARTY_NOTICES.md)
+Pazmo 독자 코드·문서는 [PolyForm Shield 1.0.0](LICENSE)이고, 저장소에 들어 있는 제3자 파일(`assets/codex`의 Codex 모델 항목)은 **Apache-2.0**입니다. 출발점이던 Claw-Empire 코드(Apache-2.0)는 2026-10-30에 지우기 전 버전에만 들어 있습니다. Pazmo 코드는 회사 안에서 쓰는 것을 포함해 어떤 목적으로든 쓸 수 있지만, Pazmo와 경쟁하는 제품을 내놓는 데는 무료라도 쓸 수 없습니다. 2026-10-30(커밋 `610169e`)까지 공개된 버전은 MIT였습니다. Pazmo는 소스 공개형이며 OSI 오픈소스가 아닙니다. 원 저작권·출처·고지는 유지합니다. [범위별 라이선스](LICENSING.md) · [제3자 고지](THIRD_PARTY_NOTICES.md)

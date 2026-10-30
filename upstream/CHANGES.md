@@ -21,3 +21,10 @@ The root `src/runtime/service.ts` is new Pazmo code. It imports Claw's unmodifie
 The lock file's published tree remains the source-import checkpoint, not the working vendor tree after these disclosed UI changes. Original Apache-2.0 licensing and notices remain in place; new root code retains the project MIT license.
 
 Verification: [runtime baseline](../docs/verification/2026-09-18-runtime-baseline.md).
+
+## 2026-10-30 — Removed from the tree (D33)
+
+The whole `vendor/claw-empire/` tree (last on main at `f5687342f90d063baf90dc7cbdb4e18a30ddda2b`), its two gitlinks (`tools/playwright-mcp`, `tools/ppt_team_agent`), `.gitmodules` and the `build:office` script were removed. Office now runs only the lean and team engines, which never loaded Claw-Empire code; `ws` and TypeScript come from root dependencies. History is not rewritten: earlier versions keep the sanitized source with its license, notices and the modification notices listed above, and the exact original import stays on the local branch `codex/local-original-claw-v2.0.4`, which must not be pushed.
+
+Approval: [D33 decision](../docs/understanding/lean-office-default-decision.md).
+Verification: [removal checks](../docs/verification/2026-10-30-lean-office-default.md).
