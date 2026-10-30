@@ -1,11 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { createServer } from "node:http";
-import { createRequire } from "node:module";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { AddressInfo } from "node:net";
-const { WebSocketServer } = createRequire(import.meta.url)(
-  "ws",
-) as typeof import("ws");
+import { WebSocketServer } from "ws";
 
 const frameLimit = 4 * 1024 * 1024,
   totalLimit = 64 * 1024 * 1024;

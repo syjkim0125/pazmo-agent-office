@@ -255,6 +255,7 @@ test("opening the Office engine recovers what a restart interrupted: running pla
   );
   assert.equal(f.db.prepare("SELECT status FROM tasks WHERE id=?").get(f.task.id).status, "pending");
 });
+
 test("late cancellation cannot undo a committed delivery", async (t) => {
   const f = await ready(t);
   f.completion.deliver(token, f.task.id);

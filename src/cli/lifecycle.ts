@@ -27,12 +27,14 @@ import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 
 /** The engines this version starts. */
-export type Engine = "lean" | "team";
+const STARTED = ["lean", "team"] as const;
 /** Engines an earlier version may have left running: still read from the
  * saved state so that Office can be shown and stopped, never started (D30).
  * A state without an engine is the legacy one. */
-type RetiredEngine = "legacy" | "claw";
-const ENGINES: readonly string[] = ["legacy", "claw", "lean", "team"];
+const RETIRED = ["legacy", "claw"] as const;
+export type Engine = (typeof STARTED)[number];
+type RetiredEngine = (typeof RETIRED)[number];
+const ENGINES: readonly string[] = [...STARTED, ...RETIRED];
 type Running = {
   version: 1;
   engine?: Engine | RetiredEngine;
@@ -108,8 +110,8 @@ export const STARTUP_MS: Record<Engine, number> = {
 };
 /** What `status` shows of a running team Office: its TeamStatus. */
 const TEAM_FIELDS = ["repos", "paused", "dailyCap", "today", "claim", "busy"] as const;
-/** Whether `ws` resolves the way src/runners/exec-relay.ts loads it when the
- * service starts. */
+/** Whether `ws` resolves from src/runners, where exec-relay.ts imports it when
+ * the service starts. */
 export function dependenciesInstalled(): boolean {
   try {
     createRequire(join(packageRoot, "src/runners/exec-relay.ts")).resolve("ws");

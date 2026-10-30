@@ -23,8 +23,6 @@ type Startup = {
   port: number;
   token: string;
   instance: string;
-  /** Sent by the launcher for every engine; the team Office has no operator API. */
-  operatorToken?: string;
   live?: LiveConfig;
   /** The person's own PATH and HOME, for `gh auth status`. */
   gh: { pathEnv: string; home: string };

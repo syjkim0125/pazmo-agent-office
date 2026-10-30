@@ -125,6 +125,8 @@ export function openLeanDb(dataDir: string, project: string): DatabaseSync {
       const owners = db.prepare("SELECT project FROM lean_instance").all() as { project: string }[];
       if (owners.length !== 1 || owners[0].project !== project)
         fail("DATA_MISMATCH", "Database does not belong to this Office project.");
+      // A file made before reruns gains their table (applyLeanSchema adds it to new ones).
+      db.exec(RERUNS);
     } else if (tables.length) {
       fail("DATA_MISMATCH", "File is not a lean Office database.");
     } else {
@@ -137,7 +139,6 @@ export function openLeanDb(dataDir: string, project: string): DatabaseSync {
         throw error;
       }
     }
-    db.exec(RERUNS);
     return db;
   } catch (error) {
     db.close();

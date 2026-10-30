@@ -16,8 +16,7 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
 
-// Engine-independent lifecycle boundaries, on the default (lean) Office. The
-// legacy engine and its operator API tests went with it (D30).
+// Engine-independent lifecycle boundaries, on the default (lean) Office.
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
 function call(f, ...args) {
   const r = spawnSync(
@@ -180,7 +179,11 @@ test("an Office an earlier version left running is shown, refused and stopped", 
   const pid = spawnSync("/usr/bin/true").pid;
   const file = join(f.dataDir, "running.json");
   mkdirSync(f.dataDir, { recursive: true });
-  for (const [engine, token] of [["claw", "c"], ["legacy", "d"], [undefined, "e"]].map(([e, c]) => [e, c.repeat(64)])) {
+  for (const [engine, token] of [
+    ["claw", "c".repeat(64)],
+    ["legacy", "d".repeat(64)],
+    [undefined, "e".repeat(64)],
+  ]) {
     const instance = "f".repeat(32);
     const calls = [];
     const server = createServer((req, res) => {

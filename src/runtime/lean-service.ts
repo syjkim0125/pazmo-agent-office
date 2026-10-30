@@ -23,8 +23,6 @@ type Startup = {
   port: number;
   token: string;
   instance: string;
-  /** Sent by the launcher for every engine; the lean Office has no operator API. */
-  operatorToken?: string;
   live?: LiveConfig;
 };
 

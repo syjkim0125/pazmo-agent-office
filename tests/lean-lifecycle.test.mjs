@@ -97,7 +97,7 @@ test("start runs the lean engine by default on its own data, without a loader or
   // The API is not open without that session.
   assert.equal((await fetch(`${monitor.value.url}api/board`)).status, 401);
 
-  // The operator API went with the legacy and Claw engines, and its command with it.
+  // operator-key is no longer a command.
   const key = call(f, "operator-key");
   assert.equal(key.status, 1);
   assert.equal(key.value.code, "ARGUMENT");
@@ -263,7 +263,6 @@ function config(root, extra = {}) {
     port: 0,
     token: randomBytes(32).toString("hex"),
     instance: randomBytes(16).toString("hex"),
-    operatorToken: randomBytes(32).toString("hex"),
     ...extra,
   };
 }

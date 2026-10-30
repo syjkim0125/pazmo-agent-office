@@ -17,6 +17,7 @@ import {
   packageRoot,
 } from "./project.ts";
 import { monitor, start, startTeam, status } from "./lifecycle.ts";
+import type { Engine } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { LiveConfig } from "../runtime/live.ts";
@@ -163,39 +164,29 @@ export async function prepareVm(
 
 /** The locked `ws` version and the one installed in the package root, or null. */
 function wsVersions(root: string) {
-  const version = (file: string): string | null => {
+  const json = (file: string) => {
     try {
-      return JSON.parse(readFileSync(file, "utf8")).version ?? null;
+      return JSON.parse(readFileSync(file, "utf8"));
     } catch {
       return null;
     }
   };
-  let locked: string | null = null;
-  try {
-    locked =
-      JSON.parse(readFileSync(join(root, "package-lock.json"), "utf8")).packages?.[
-        "node_modules/ws"
-      ]?.version ?? null;
-  } catch {
-    locked = null;
-  }
-  return { locked, installed: version(join(root, "node_modules/ws/package.json")) };
+  return {
+    locked: (json(join(root, "package-lock.json"))?.packages?.["node_modules/ws"]?.version ?? null) as string | null,
+    installed: (json(join(root, "node_modules/ws/package.json"))?.version ?? null) as string | null,
+  };
 }
-/** Step 1 of `up`, before a running Office is reused: the engine loads `ws`
- * (src/runners/exec-relay.ts, and the claude tool bridge each claude job starts
- * from disk), so a reused Office needs it too. Installs the production
- * dependencies only when `ws` is missing or not the locked version, so a
- * checkout's development tools stay installed otherwise. */
+/** Step 1 of `up`, also before a running Office is reused: the engine loads
+ * `ws` (src/runners/exec-relay.ts, and the claude tool bridge each claude job
+ * starts from disk), so a reused Office needs it too. Installs the
+ * production dependencies only when `ws` is missing or not the locked version,
+ * so a checkout's development tools stay installed otherwise. */
 export async function prepareDependencies(
   exec: Run,
   root = packageRoot,
-  /** Told just before an install starts; nothing is printed otherwise, so an
-   * early refusal stays the only output. */
-  announce: () => void = () => {},
 ): Promise<"current" | "installed"> {
   const { locked, installed } = wsVersions(root);
   if (locked !== null && installed === locked) return "current";
-  announce();
   await exec(
     join(dirname(process.execPath), "npm"),
     ["ci", "--omit=dev", "--prefer-offline", "--no-audit", "--no-fund"],
@@ -206,7 +197,7 @@ export async function prepareDependencies(
 /** `up` reuses an Office only when it runs the engine asked for and can execute. */
 export function canReuse(
   current: { status: string; engine?: string; execution?: string },
-  engine: "lean" | "team",
+  engine: Engine,
 ): boolean {
   return (
     current.status === "running" &&
@@ -221,12 +212,13 @@ type UpOptions = {
   open?: boolean;
   codexRuntime?: "installed" | "pinned";
   /** The engine to run; lean unless the team Office is asked for. */
-  engine?: "lean" | "team";
+  engine?: Engine;
 };
 
-/** Steps 2–3 of `up`, the same for both engines: the prerequisites and a
- * logged-in runner, the pinned Codex runtime, the dedicated VM and its
- * isolation probe. Returns the live configuration step 4 starts the Office with. */
+/** Steps 1–3 of `up` for an Office it starts, the same for both engines: the
+ * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
+ * runtime, the dedicated VM and its isolation probe. Returns the live
+ * configuration step 4 starts the Office with. */
 async function prepareMachine(options: UpOptions): Promise<LiveConfig> {
   for (const name of ["colima", "docker"])
     if (!existsSync(`/opt/homebrew/bin/${name}`))
@@ -241,7 +233,8 @@ async function prepareMachine(options: UpOptions): Promise<LiveConfig> {
       codexRuntime: options.codexRuntime,
     },
   );
-  console.error("[1/4] 의존성 확인됨");
+  console.error("[1/4] 의존성 확인 (업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요할 수 있습니다)");
+  await prepareDependencies(run);
   console.error("[2/4] 고정된 Codex 실행 파일 확인");
   await setupRuntime(options.dataDir, true);
   console.error("[3/4] 전용 VM·이미지 준비 및 파일 공유 차단 확인");
@@ -293,6 +286,8 @@ async function upTeam(options: UpOptions) {
       "RUNNING",
       "기존 실행을 보존했습니다. status --team/stop --team으로 기존 실행 상태를 확인해주세요.",
     );
+  // A reused Office's claude jobs start the tool bridge from disk: it needs ws too.
+  if (current.status === "running") await prepareDependencies(run);
   if (current.status === "stopped")
     await startTeam(root, options.port ?? 0, await prepareMachine(options));
   return { ...(await status(p)), reused: current.status === "running" };
@@ -302,9 +297,6 @@ export async function up(options: UpOptions) {
   const engine = options.engine ?? "lean";
   if (process.platform !== "darwin" || process.arch !== "arm64")
     fail("PLATFORM", "현재 live 실행은 Apple Silicon macOS에서 검증됐습니다.");
-  await prepareDependencies(run, packageRoot, () =>
-    console.error("[1/4] 의존성 설치 (업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다)"),
-  );
   if (engine === "team") return upTeam(options);
   const root = dataRoot(options.dataDir),
     preference = join(root, "launcher.json");
@@ -338,6 +330,8 @@ export async function up(options: UpOptions) {
       "RUNNING",
       "기존 실행을 보존했습니다. status/stop으로 기존 실행 상태를 확인해주세요.",
     );
+  // A reused Office's claude jobs start the tool bridge from disk: it needs ws too.
+  if (current.status === "running") await prepareDependencies(run);
   if (current.status === "stopped")
     await start(p, options.port ?? 0, await prepareMachine(options), engine);
   mkdirSync(root, { recursive: true, mode: 0o700 });
