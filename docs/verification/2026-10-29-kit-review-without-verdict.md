@@ -66,5 +66,6 @@ Story: M4 · D26 · D27(ASSUMED). 앞선 변경: PR syjkim0125/pazmo-agent-offic
 ## 아직 하지 않은 것
 
 - 실제 실행기 오류로 이 경로를 거친 실제 확인(#35와 같은 한계, 안전장치 거절은 마음대로 재현할 수 없다).
+- 2026-10-30 #42를 합친 코드에서 없는 모델로 확인했다([실제 CLI 확인](2026-10-29-real-cli-runner-checks.md)). 실제 claude 리뷰어가 exit 1로 끝났고, kit 리뷰 노드는 `verdict` 없이 `failed`, `action: "human"`, 피드백 "The review runner ended without a report (REVIEW_RUNNER_FAILED); no review was performed."로 남았다. 안전장치 거절 자체는 여전히 재현하지 않았다.
 - kit 쪽에 "리뷰 안 됨" 판정을 정식으로 두는 것(kit 원본 변경, O2 범위 밖).
 - **G4:** 사용자 답변으로만 기록한다.
