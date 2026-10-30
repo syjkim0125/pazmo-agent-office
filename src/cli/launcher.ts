@@ -26,20 +26,41 @@ import { runCommand } from "../runners/command.ts";
 import { IMAGE } from "../runners/container-verifier.ts";
 import { discoverRunners } from "../runners/runner-discovery.ts";
 import type { RunnerInstall, RunnerName } from "../runners/runner-discovery.ts";
+import { claudeModels } from "../runners/runner-models.ts";
+import { blockHookedClaude, usable } from "../runtime/runner-settings.ts";
 
-/** Start needs one installed, logged-in CLI; the pinned runtime needs codex's. */
+/** Start needs one installed, logged-in CLI; the pinned runtime needs codex's.
+ * A blocked CLI is installed and logged in, so its own hint leads instead. */
 export function assertRunnerLogin(
   installs: Record<RunnerName, RunnerInstall>,
   o: { codexAuth: boolean; codexRuntime?: "installed" | "pinned" },
 ) {
-  const ready = Object.values(installs).some(
-    (i) => i.status === "ready" && i.loggedIn && !i.blocked,
-  );
+  const ready = Object.values(installs).some(usable);
   if (o.codexRuntime === "pinned" ? o.codexAuth && !installs.codex.blocked : ready) return;
+  const blocked = Object.values(installs).some((i) => i.blocked);
   fail(
-    "LOGIN_REQUIRED",
-    `최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요. codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
+    blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",
+    `${blocked ? "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요." : "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요."} codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
   );
+}
+
+/** Step 1's runners, with claude judged as Office judges it (D29), so a
+ * blocked claude stops here, before any install or VM work. The hook listing
+ * starts the claude CLI once (about 1–2 s), so it is asked only when claude
+ * alone can start Office (D30). */
+export async function startupRunners(o: {
+  pathEnv: string;
+  home: string;
+  codexRuntime?: "installed" | "pinned";
+}) {
+  const installs = await discoverRunners({ pathEnv: o.pathEnv, home: o.home });
+  const { codex, claude } = installs;
+  if (o.codexRuntime !== "pinned" && !usable(codex) && usable(claude)) {
+    // A failed listing decides nothing, as in Office.
+    const found = await claudeModels(claude.path!, o.home).catch(() => null);
+    if (found) installs.claude = blockHookedClaude(claude, found.hooks);
+  }
+  return installs;
 }
 
 type Run = (
@@ -254,7 +275,11 @@ async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptio
         "최초 준비: Homebrew에서 brew install colima docker 후 다시 실행해주세요.",
       );
   assertRunnerLogin(
-    await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() }),
+    await startupRunners({
+      pathEnv: process.env.PATH ?? "",
+      home: homedir(),
+      codexRuntime: options.codexRuntime,
+    }),
     {
       codexAuth: existsSync(join(homedir(), ".codex/auth.json")),
       codexRuntime: options.codexRuntime,

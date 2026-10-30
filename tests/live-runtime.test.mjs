@@ -316,6 +316,35 @@ test("runner mode refuses startup when no installed CLI is logged in, naming bot
   );
 });
 
+test("runner mode refuses startup as blocked, not as a missing login, when the only logged-in CLI is blocked", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  const hint = "claude에 SessionEnd hook (policySettings)이 걸려 있습니다. 그 hook을 빼거나 codex를 고르세요.";
+  const settings = {
+    catalog: {
+      installs: {
+        codex: { runner: "codex", status: "missing", loggedIn: false, hint: "codex가 설치되어 있지 않습니다. 설치 후 터미널에서 codex login을 실행하세요." },
+        claude: { runner: "claude", status: "ready", loggedIn: true, blocked: "SessionEnd hook (policySettings)", hint },
+      },
+      models: {},
+    },
+    refresh: async () => settings.catalog,
+    choice: () => ({ runner: "claude", model: "default", reasoning: null }),
+  };
+  await assert.rejects(
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome: f.root, socket: join(f.root, "docker.sock"), codexRuntime: "installed" },
+      f.project,
+      f.root,
+      f,
+      token,
+      { settings, evidence: { record() {} } },
+    ),
+    (e) => e.code === "RUNNER_BLOCKED" && e.message.includes(hint) && !/설치·로그인한 뒤/.test(e.message),
+  );
+});
+
 test("runner wiring follows a per-task choose when given, otherwise the per-role settings choice", () => {
   const seen = [];
   const settings = {

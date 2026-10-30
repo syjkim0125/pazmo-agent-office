@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
-import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { RunnerSettings, validateRunnerChoice, defaultRunnerChoice, loadRunnerCatalog } from "../src/runtime/runner-settings.ts";
 import { RunnerEvidence } from "../src/core/runner-evidence.ts";
-import { fakeNative, tempRoot } from "./runner-fixture.mjs";
+import { fakeNative, fakeRunners, listing } from "./runner-fixture.mjs";
 
 const catalog = () => ({
   installs: {
@@ -243,41 +242,10 @@ test("defaultRunnerChoice picks codex when usable, else a logged-in claude, with
   assert.equal(defaultRunnerChoice(noPreferred).model, "gpt-x", "first listed model when the preferred one is absent");
 });
 
-/** Native fake codex and claude on PATH; the claude answers discovery's
- * initialize and hook-listing requests with `hooks` as the listing reply. */
-function cliFixture(hooks) {
-  const root = tempRoot();
-  const home = join(root, "home");
-  const bin = join(root, "bin");
-  mkdirSync(home);
-  fakeNative(
-    join(bin, "codex"),
-    `case "$1 $2" in
-  "--version ") echo "codex-cli 0.160.0";;
-  "login status") echo "Logged in using ChatGPT";;
-  *) exit 2;;
-esac\n`,
-  );
-  const models = { type: "control_response", response: { subtype: "success", request_id: "pazmo-models", response: { models: [{ value: "default" }] } } };
-  fakeNative(
-    join(bin, "claude"),
-    `case "$1 $2" in
-  "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
-  "auth status") echo '{"loggedIn":true}'; exit 0;;
-esac
-read line
-read second
-echo '${JSON.stringify(models)}'
-echo '${JSON.stringify(hooks)}'
-cat >/dev/null\n`,
-  );
-  return { home, bin };
-}
-const listing = (response) => ({ type: "control_response", response: { subtype: "success", request_id: "pazmo-hooks", response } });
 
 test("a claude whose CLI would run a hook is blocked with the hook and where it comes from", async () => {
   const hook = { event: "SessionEnd", source: "policySettings", commandText: "true" };
-  const fx = cliFixture(listing({ hooks: [hook, { ...hook, commandText: "false" }] }));
+  const fx = fakeRunners(listing({ hooks: [hook, { ...hook, commandText: "false" }] }));
   const { installs } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.equal(installs.claude.status, "ready");
   assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)", "each hook kind is named once");
@@ -287,14 +255,14 @@ test("a claude whose CLI would run a hook is blocked with the hook and where it 
 });
 
 test("a claude that cannot list its hooks is blocked too", async () => {
-  const fx = cliFixture({ type: "control_response", response: { subtype: "error", request_id: "pazmo-hooks", error: "Unknown request" } });
+  const fx = fakeRunners({ type: "control_response", response: { subtype: "error", request_id: "pazmo-hooks", error: "Unknown request" } });
   const { installs } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.ok(installs.claude.blocked);
   assert.match(installs.claude.hint, /hook/);
 });
 
 test("a claude with no hooks stays usable", async () => {
-  const fx = cliFixture(listing({ events: [], hooks: [] }));
+  const fx = fakeRunners(listing({ events: [], hooks: [] }));
   const { installs, models } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.equal(installs.claude.blocked, undefined);
   assert.equal(installs.claude.hint, "준비됨");
@@ -302,7 +270,7 @@ test("a claude with no hooks stays usable", async () => {
 });
 
 test("a claude whose model discovery fails is not judged and stays usable", async () => {
-  const { home, bin } = cliFixture(listing({ hooks: [] }));
+  const { home, bin } = fakeRunners(listing({ hooks: [] }));
   fakeNative(
     join(bin, "claude"),
     `case "$1 $2" in

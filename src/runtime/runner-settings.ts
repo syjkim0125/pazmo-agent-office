@@ -5,7 +5,7 @@ import { CONTROLLER_MODEL } from "../runners/codex-profile.ts";
 import { discoverRunners } from "../runners/runner-discovery.ts";
 import type { RunnerInstall, RunnerName } from "../runners/runner-discovery.ts";
 import { claudeModels, codexModels } from "../runners/runner-models.ts";
-import type { RunnerModel } from "../runners/runner-models.ts";
+import type { ClaudeHook, RunnerModel } from "../runners/runner-models.ts";
 import type { ExecutingRole } from "../runners/role-profiles.ts";
 
 export type RunnerChoice = {
@@ -36,26 +36,30 @@ export async function loadRunnerCatalog(
   if (installs.claude.status === "ready") {
     const found = await claudeModels(installs.claude.path!, home).catch(() => null);
     models.claude = found?.models ?? [];
-    // SessionEnd hooks never show in a role run's stream, so the run's own
-    // hook guard cannot stop them: refuse a claude that lists any hook, or
-    // will not list them. A failed discovery decides nothing.
-    if (found && found.hooks?.length !== 0) {
-      const blocked = found.hooks
-        ? [...new Set(found.hooks.map((h) => `${h.event} hook (${h.source})`))].join(", ")
-        : "hook 목록 없음";
-      installs.claude = {
-        ...installs.claude,
-        blocked,
-        hint: found.hooks
-          ? `claude에 ${blocked}이 걸려 있습니다. hook은 Office 역할 실행 중 Office가 볼 수 없게 이 Mac에서 돌 수 있어 claude를 쓰지 않습니다. 그 hook을 빼거나(회사 IT의 관리형 설정이면 IT에 문의) codex를 고르세요.`
-          : "claude가 hook 목록을 알려 주지 않아 Office 역할 실행에 hook이 끼는지 확인할 수 없습니다. Claude Code를 업데이트하거나 codex를 고르세요.",
-      };
-    }
+    // A failed discovery decides nothing.
+    if (found) installs.claude = blockHookedClaude(installs.claude, found.hooks);
   }
   return { installs, models };
 }
 
-const usable = (i: RunnerInstall) => i.status === "ready" && i.loggedIn && !i.blocked;
+/** SessionEnd hooks never show in a role run's stream, so the run's own hook
+ * guard cannot stop them: a claude that lists any hook, or will not list them
+ * (`null`), is blocked. */
+export function blockHookedClaude(install: RunnerInstall, hooks: ClaudeHook[] | null): RunnerInstall {
+  if (hooks?.length === 0) return install;
+  const blocked = hooks
+    ? [...new Set(hooks.map((h) => `${h.event} hook (${h.source})`))].join(", ")
+    : "hook 목록 없음";
+  return {
+    ...install,
+    blocked,
+    hint: hooks
+      ? `claude에 ${blocked}이 걸려 있습니다. hook은 Office 역할 실행 중 Office가 볼 수 없게 이 Mac에서 돌 수 있어 claude를 쓰지 않습니다. 그 hook을 빼거나(회사 IT의 관리형 설정이면 IT에 문의) codex를 고르세요.`
+      : "claude가 hook 목록을 알려 주지 않아 Office 역할 실행에 hook이 끼는지 확인할 수 없습니다. Claude Code를 업데이트하거나 codex를 고르세요.",
+  };
+}
+
+export const usable = (i: RunnerInstall) => i.status === "ready" && i.loggedIn && !i.blocked;
 function runnerName(runner: unknown): RunnerName {
   if (!runners.includes(runner as RunnerName))
     fail("RUNNER_UNSUPPORTED", "codex 또는 claude만 선택할 수 있습니다.");

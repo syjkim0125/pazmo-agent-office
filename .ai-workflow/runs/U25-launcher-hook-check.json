@@ -1,0 +1,248 @@
+{
+  "version": 1,
+  "runId": "1cee50ae-ddbf-4d5d-b198-e4526751e236",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D30 (ASSUMED, D29 follow-up). ./office step 1 (startupRunners in src/cli/launcher.ts, all engines) asks claude for its hook listing only when claude alone can start Office (no usable codex, not pinned, claude installed and logged in) and judges it with blockHookedClaude, extracted from loadRunnerCatalog; a failed listing decides nothing. No usable runner plus a blocked CLI fails as RUNNER_BLOCKED with a lead that does not say install/login, in the launcher and in createLiveRuntime; otherwise LOGIN_REQUIRED unchanged. RED seen first: 4 tests (launcher x3 incl. the changed AGENTS.md test, live-runtime x1); 2 more pin the cost bound and the failed-listing rule. GREEN: launcher+runner-settings 30/30, live-runtime targeted 2/2, typecheck exit 0, story check exit 0. 7/7 mutations caught. Real up CLI (claw, lean) with a fake hooked claude stops at step 1 (RUNNER_BLOCKED, no [1/4], no data/runtime/VM); real claude 2.1.280 not blocked, listing 1.27-1.43 s. Simplification: criteria applied directly (user's global rule limits CE to compound skills); extracted blockHookedClaude and exported usable, no further change.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-fixture.mjs",
+            "tests/runner-settings.test.mjs",
+            "docs/verification/2026-10-30-launcher-hook-check.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "52201bcb5481963b34a413a6b4ef825f1bbb5d1d6ad9d7d06f40e4abd4faf9de",
+          "src/runtime/runner-settings.ts": "269ec747b7f5d25d9723ce563f4268f2686ac1771d6279a7185e925fad6f5793",
+          "src/runtime/live.ts": "0855bf1a0a4860d9201ddcaa9aa13ae6842a9284fd7f3af3ee7a9c88425d360b",
+          "tests/launcher.test.mjs": "f5257ff2cc0f2e82bcca4d8c471001901f762d9a564c6d007eda6cd5a207306c",
+          "tests/live-runtime.test.mjs": "53abd27ef3452622d7e4b8994a3fe97f507be267873b10e6f238610e4796364a",
+          "tests/runner-fixture.mjs": "9619d2ff34542b3d267906b1c4a337f204852b051bdc6364a7cbbb3e340020c7",
+          "tests/runner-settings.test.mjs": "76c81f91449f7cbfe979c7b71acdfbf3b0796773a73b1ba071613fed46392b37",
+          "docs/verification/2026-10-30-launcher-hook-check.md": "cf80404ca0b0c8013406285bd4bde926913a6e91cbf0995dc6a5e8fa500e560d",
+          "docs/understanding/pazmo-agent-office-contract.md": "50345b8b3c10c998762433513935bab9347d848ecf2d43302a71f0480facbe67"
+        }
+      },
+      "workflow-review": {
+        "status": "running",
+        "attempts": 1,
+        "revision": 0
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "f120ef18dce56a78f770f0917f8df2375d0fa672a5657319eb8120b3359db936"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T01:33:22.841Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T01:41:52.061Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D30 (ASSUMED, D29 follow-up). ./office step 1 (startupRunners in src/cli/launcher.ts, all engines) asks claude for its hook listing only when claude alone can start Office (no usable codex, not pinned, claude installed and logged in) and judges it with blockHookedClaude, extracted from loadRunnerCatalog; a failed listing decides nothing. No usable runner plus a blocked CLI fails as RUNNER_BLOCKED with a lead that does not say install/login, in the launcher and in createLiveRuntime; otherwise LOGIN_REQUIRED unchanged. RED seen first: 4 tests (launcher x3 incl. the changed AGENTS.md test, live-runtime x1); 2 more pin the cost bound and the failed-listing rule. GREEN: launcher+runner-settings 30/30, live-runtime targeted 2/2, typecheck exit 0, story check exit 0. 7/7 mutations caught. Real up CLI (claw, lean) with a fake hooked claude stops at step 1 (RUNNER_BLOCKED, no [1/4], no data/runtime/VM); real claude 2.1.280 not blocked, listing 1.27-1.43 s. Simplification: criteria applied directly (user's global rule limits CE to compound skills); extracted blockHookedClaude and exported usable, no further change.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-fixture.mjs",
+            "tests/runner-settings.test.mjs",
+            "docs/verification/2026-10-30-launcher-hook-check.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "52201bcb5481963b34a413a6b4ef825f1bbb5d1d6ad9d7d06f40e4abd4faf9de",
+          "src/runtime/runner-settings.ts": "269ec747b7f5d25d9723ce563f4268f2686ac1771d6279a7185e925fad6f5793",
+          "src/runtime/live.ts": "0855bf1a0a4860d9201ddcaa9aa13ae6842a9284fd7f3af3ee7a9c88425d360b",
+          "tests/launcher.test.mjs": "f5257ff2cc0f2e82bcca4d8c471001901f762d9a564c6d007eda6cd5a207306c",
+          "tests/live-runtime.test.mjs": "53abd27ef3452622d7e4b8994a3fe97f507be267873b10e6f238610e4796364a",
+          "tests/runner-fixture.mjs": "9619d2ff34542b3d267906b1c4a337f204852b051bdc6364a7cbbb3e340020c7",
+          "tests/runner-settings.test.mjs": "76c81f91449f7cbfe979c7b71acdfbf3b0796773a73b1ba071613fed46392b37",
+          "docs/verification/2026-10-30-launcher-hook-check.md": "cf80404ca0b0c8013406285bd4bde926913a6e91cbf0995dc6a5e8fa500e560d",
+          "docs/understanding/pazmo-agent-office-contract.md": "50345b8b3c10c998762433513935bab9347d848ecf2d43302a71f0480facbe67"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T01:42:00.662Z"
+    }
+  ]
+}

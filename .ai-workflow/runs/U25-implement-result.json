@@ -1,0 +1,18 @@
+{
+  "token": "b45e4f8008e0b1d999aa5e1a68d226972eec55d4a3eebe77fe4afe1a27bedda7",
+  "output": {
+    "summary": "D30 (ASSUMED, D29 follow-up). ./office step 1 (startupRunners in src/cli/launcher.ts, all engines) asks claude for its hook listing only when claude alone can start Office (no usable codex, not pinned, claude installed and logged in) and judges it with blockHookedClaude, extracted from loadRunnerCatalog; a failed listing decides nothing. No usable runner plus a blocked CLI fails as RUNNER_BLOCKED with a lead that does not say install/login, in the launcher and in createLiveRuntime; otherwise LOGIN_REQUIRED unchanged. RED seen first: 4 tests (launcher x3 incl. the changed AGENTS.md test, live-runtime x1); 2 more pin the cost bound and the failed-listing rule. GREEN: launcher+runner-settings 30/30, live-runtime targeted 2/2, typecheck exit 0, story check exit 0. 7/7 mutations caught. Real up CLI (claw, lean) with a fake hooked claude stops at step 1 (RUNNER_BLOCKED, no [1/4], no data/runtime/VM); real claude 2.1.280 not blocked, listing 1.27-1.43 s. Simplification: criteria applied directly (user's global rule limits CE to compound skills); extracted blockHookedClaude and exported usable, no further change.",
+    "evidence": [
+      "src/cli/launcher.ts",
+      "src/runtime/runner-settings.ts",
+      "src/runtime/live.ts",
+      "tests/launcher.test.mjs",
+      "tests/live-runtime.test.mjs",
+      "tests/runner-fixture.mjs",
+      "tests/runner-settings.test.mjs",
+      "docs/verification/2026-10-30-launcher-hook-check.md",
+      "docs/understanding/pazmo-agent-office-contract.md"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

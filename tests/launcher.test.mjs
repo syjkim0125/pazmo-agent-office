@@ -3,7 +3,8 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { assertRunnerLogin, assertVmConfig, canReuse, prepareVendor, prepareVm } from "../src/cli/launcher.ts";
+import { assertRunnerLogin, assertVmConfig, canReuse, prepareVendor, prepareVm, startupRunners } from "../src/cli/launcher.ts";
+import { fakeNative, fakeRunners, listing } from "./runner-fixture.mjs";
 
 const safe =
   "vmType: vz\nmounts: null\nforwardAgent: false\nsshConfig: false\nportForwarder: none\n";
@@ -81,8 +82,63 @@ test("a blocked codex does not count as a usable runner at startup", () => {
   const i = installs("in", null);
   i.codex.blocked = "~/.codex/AGENTS.md";
   i.codex.hint = "~/.codex/AGENTS.md를 옮기거나 claude를 고르세요.";
-  assert.throws(() => assertRunnerLogin(i, { codexAuth: true }), (e) => e.code === "LOGIN_REQUIRED" && /AGENTS\.md/.test(e.message));
-  assert.throws(() => assertRunnerLogin(i, { codexAuth: true, codexRuntime: "pinned" }), /AGENTS\.md/);
+  // Installed and logged in: the fix is the block's, not an install or a login.
+  assert.throws(
+    () => assertRunnerLogin(i, { codexAuth: true }),
+    (e) => e.code === "RUNNER_BLOCKED" && /AGENTS\.md/.test(e.message) && !/설치하고 로그인/.test(e.message),
+  );
+  assert.throws(() => assertRunnerLogin(i, { codexAuth: true, codexRuntime: "pinned" }), (e) => e.code === "RUNNER_BLOCKED" && /AGENTS\.md/.test(e.message));
+});
+
+// Step 1 judges claude's hooks as Office does (D29, D30), through real discovery
+// of native fake CLIs. A logged-out codex leaves claude alone to start Office.
+const hooked = listing({ hooks: [{ event: "SessionEnd", source: "policySettings", commandText: "true" }] });
+test("a claude-only start stops at step 1 when its claude would run a hook", async () => {
+  const fx = fakeRunners(hooked, { codex: "out" });
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home });
+  assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)");
+  assert.throws(
+    () => assertRunnerLogin(installs, { codexAuth: false }),
+    (e) =>
+      e.code === "RUNNER_BLOCKED" &&
+      /claude에 SessionEnd hook \(policySettings\)이 걸려/.test(e.message) &&
+      /codex login/.test(e.message) &&
+      !/설치하고 로그인/.test(e.message),
+  );
+});
+
+test("a claude-only start with a hook-free claude passes step 1 after one listing", async () => {
+  const fx = fakeRunners(listing({ hooks: [] }), { codex: "out" });
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home });
+  assert.doesNotThrow(() => assertRunnerLogin(installs, { codexAuth: false }));
+  assert.equal(fx.starts(), 1);
+});
+
+test("step 1 never starts claude for its hooks when codex can start Office", async () => {
+  const usable = fakeRunners(hooked);
+  const installs = await startupRunners({ pathEnv: usable.bin, home: usable.home });
+  assert.doesNotThrow(() => assertRunnerLogin(installs, { codexAuth: true }));
+  assert.equal(installs.claude.blocked, undefined, "the UI judges it later");
+  assert.equal(usable.starts(), 0);
+  const pinned = fakeRunners(hooked, { codex: "out" });
+  const only = await startupRunners({ pathEnv: pinned.bin, home: pinned.home, codexRuntime: "pinned" });
+  assert.doesNotThrow(() => assertRunnerLogin(only, { codexAuth: true, codexRuntime: "pinned" }));
+  assert.equal(pinned.starts(), 0);
+});
+
+test("a hook listing that fails decides nothing at step 1", async () => {
+  const fx = fakeRunners(hooked, { codex: "out" });
+  fakeNative(
+    join(fx.bin, "claude"),
+    `case "$1 $2" in
+  "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
+  "auth status") echo '{"loggedIn":true}'; exit 0;;
+esac
+exit 1\n`,
+  );
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home });
+  assert.equal(installs.claude.blocked, undefined);
+  assert.doesNotThrow(() => assertRunnerLogin(installs, { codexAuth: false }));
 });
 
 test("up reuses a running Office only when it is the same engine and ready", () => {

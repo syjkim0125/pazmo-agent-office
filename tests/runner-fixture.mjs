@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   realpathSync,
   writeFileSync,
 } from "node:fs";
@@ -50,3 +51,41 @@ export function tempRoot(prefix = "pazmo-runner-") {
 }
 
 export const exists = existsSync;
+
+/** Native fake codex and claude in `bin`, with an empty `home`. The codex is
+ * logged in, or installed but logged out with `codex: "out"`. The claude is
+ * logged in and answers discovery's initialize and hook-listing requests with
+ * `hooks` as the listing reply; `starts()` counts how often it was started for
+ * them. */
+export function fakeRunners(hooks, { codex = "in" } = {}) {
+  const root = tempRoot();
+  const home = join(root, "home");
+  const bin = join(root, "bin");
+  const log = join(root, "claude-starts");
+  mkdirSync(home);
+  fakeNative(
+    join(bin, "codex"),
+    `case "$1 $2" in
+  "--version ") echo "codex-cli 0.160.0";;
+  "login status") ${codex === "in" ? 'echo "Logged in using ChatGPT"' : 'echo "Not logged in"; exit 1'};;
+  *) exit 2;;
+esac\n`,
+  );
+  const models = { type: "control_response", response: { subtype: "success", request_id: "pazmo-models", response: { models: [{ value: "default" }] } } };
+  fakeNative(
+    join(bin, "claude"),
+    `case "$1 $2" in
+  "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
+  "auth status") echo '{"loggedIn":true}'; exit 0;;
+esac
+echo >> '${log}'
+read line
+read second
+echo '${JSON.stringify(models)}'
+echo '${JSON.stringify(hooks)}'
+cat >/dev/null\n`,
+  );
+  return { home, bin, starts: () => (existsSync(log) ? readFileSync(log, "utf8").length : 0) };
+}
+/** A successful hook-listing reply carrying `response`. */
+export const listing = (response) => ({ type: "control_response", response: { subtype: "success", request_id: "pazmo-hooks", response } });

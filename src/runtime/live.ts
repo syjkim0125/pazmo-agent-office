@@ -423,10 +423,11 @@ export async function createLiveRuntime(
   if (runners) {
     const { installs } = runners.settings.catalog ?? (await runners.settings.refresh());
     const usable = Object.values(installs).some((i) => i.status === "ready" && i.loggedIn && !i.blocked);
+    const blocked = Object.values(installs).some((i) => i.blocked);
     if (!usable && !(config.codexRuntime === "pinned" && existsSync(join(config.authHome, "auth.json"))))
       fail(
-        "LOGIN_REQUIRED",
-        `codex 또는 claude 중 하나를 설치·로그인한 뒤 다시 시작하세요. codex: ${installs.codex.hint} claude: ${installs.claude.hint}`,
+        blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",
+        `${blocked ? "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤" : "codex 또는 claude 중 하나를 설치·로그인한 뒤"} 다시 시작하세요. codex: ${installs.codex.hint} claude: ${installs.claude.hint}`,
       );
   }
   verifyControllerBinary(config.controller);

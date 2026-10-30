@@ -1,3 +1,12 @@
+# 2026-10-30 `./office` 시작 1단계에서 hook이 있는 claude 막기
+
+- #45(D29)의 리뷰 후속이다(D30, ASSUMED). 지금까지 claude만 쓰는 사용자에게 hook이 있으면 `./office`가 1단계를 통과했다. 그래서 의존성 설치와 VM 준비를 기다린 뒤에야 `LOGIN_REQUIRED`("설치·로그인한 뒤")로 멈췄다.
+- 이제 1단계가 Office와 같은 규칙으로 claude의 hook 목록을 묻고, 막히면 설치·VM 작업 전에 멈춘다. claude를 띄우는 이 조회(이 Mac에서 1.3–1.4초)는 claude만으로 시작할 수 있을 때만 한다. 쓸 수 있는 codex가 있거나 `--codex-runtime pinned`이면 묻지 않는다.
+- 쓸 수 있는 실행기가 없고 막힌 CLI(hook이 있는 claude, `~/.codex/AGENTS.md`가 있는 codex)가 있으면 `RUNNER_BLOCKED`로 멈추고, "설치·로그인" 대신 CLI별 안내를 앞세운다. Office를 켜는 단계(`createLiveRuntime`)도 같다. 막힌 것이 없으면 `LOGIN_REQUIRED` 그대로다.
+- 실제 `up`(Claw·lean)을 가짜 hook claude로 돌려 1단계에서 멈추는 것(`[1/4]` 없음, VM·런타임 흔적 없음)을 봤다. 이 Mac의 실제 claude 2.1.280은 hook이 없어 막히지 않았다.
+- 자동 검사: (최종 실행 뒤 채움). PR: (생성 뒤 채움).
+- **G4 대기.** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
+
 # 2026-10-29 부하에서만 실패하던 시험 고치기
 
 - 다른 시험과 같이 돌 때만 `Office startup timed out.`으로 실패하던 두 시험은 claw를 켜는 시험이었다. claw는 시작하면서 TypeScript 모듈 약 220개를 변환한다. 유휴 1–2초가 CPU가 바쁘고 메모리가 스왑되면 1분을 넘기도 한다. 시작 대기를 **claw만 120초**로 늘렸다. legacy·lean·team은 15초 그대로다. 서비스가 죽거나 오류로 답하면 기다리지 않는다.
@@ -19,7 +28,7 @@
 - 한계: 막힌 claude도 모델 목록 조회 때는 CLI를 띄우므로, 조회마다 그 SessionStart·SessionEnd hook이 한 번 돈다(이 변경 전부터 같음).
 - 자동 검사: root 1104/1104, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰 두 번(1차 Changes needed → 고침, 2차 코드 승인·문서 반영). PR syjkim0125/pazmo-agent-office#45.
 - G4는 2026-10-30 피드백(답 초안)을 본 뒤 "승인 후 머지"로 기록했다(D13, ① 승인 후 머지). [G4 기록](verification/2026-10-30-claude-stop-grace-hooks-g4.md)
-- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(후속), `./office` 시작 1단계의 hook 확인(후속). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
+- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(후속), `./office` 시작 1단계의 hook 확인(위 2026-10-30 D30에서 다룸). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
 
 # 2026-10-29 실제 claude·codex CLI로 실행기 오류와 SIGTERM 종료 확인
 
