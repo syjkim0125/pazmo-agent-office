@@ -1,3 +1,15 @@
+# 2026-10-30 `--codex-runtime pinned` 시작 검사를 1단계와 Office에서 같게
+
+- PR #50(D30)의 리뷰 후속 두 가지다(D32). pinned 부분은 2026-10-30 사용자 선택(B)이고, 로그인 안내 부분은 ASSUMED다. 이 변경은 PR #50 위에 있다.
+- 고정 0.155.1 codex도 `~/.codex/AGENTS.md`·`AGENTS.override.md`를 모델 요청에 넣는다(2026-10-06 실험, 고정 SHA는 그대로). 실행 직전의 `codexJob` 거부 덕분에 새지는 않았지만, 멈추는 곳이 들어오는 길마다 달랐다.
+  - 1단계는 설치된 codex가 없으면 그 파일을 보지 못하고 통과시켰다.
+  - Office 시작(`createLiveRuntime`)은 `auth.json`만 있거나 쓸 수 있는 CLI가 하나라도 있으면 켜졌다. 그 뒤 VM 준비를 마치고 codex 역할 작업마다 실패했다.
+- 이제 `pinnedCodexProblem(~/.codex)` 하나로 1단계와 Office 시작이 판단한다. `auth.json`이 있고 두 파일이 없어야 시작하며, 설치된 CLI는 보지 않는다. 문구는 고정 codex의 로그인이나 로그인 폴더의 파일을 말한다. 예전의 "codex 또는 claude 중 하나를 … claude: 준비됨"은 나오지 않는다.
+- 로그아웃된 막힌 CLI(codex 개인 지침, claude hook)의 안내 뒤에 "그 CLI를 쓰려면 로그인도 하라"는 말이 붙는다. 막힘만 고친 사용자가 다음 실행에서 로그인 오류를 또 만나지 않게 하려는 것이다.
+- 실제 `up --codex-runtime pinned`(Claw·lean, 임시 HOME, 설치된 codex 없음)는 1단계에서 `RUNNER_BLOCKED`/`LOGIN_REQUIRED`로 멈췄다(`[1/4]` 없음, VM·런타임 흔적 없음). 이 Mac의 실제 `~/.codex`에는 `AGENTS.md`가 있어 pinned는 그 파일을 옮기기 전까지 시작하지 않는다.
+- 자동 검사: root 1119/1119 exit 0(최종 `9216ed4`, 구현 1회차 `5e480ae`는 1118/1118), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 7개 모두 잡음(리뷰어 따로 6개도 모두). 독립 리뷰 두 번 모두 Approve(1회차 Minor 1–4 반영).
+- **G4 대기.** `office start --codex-runtime pinned`의 실제 실행과 `prepareMachine` 연결 한 줄의 자동 시험은 없다. [변경 기록](verification/2026-10-30-pinned-codex-gate.md)
+
 # 2026-10-30 `./office` 시작 1단계에서 hook이 있는 claude 막기
 
 - #45(D29)의 리뷰 후속이다(D30, ASSUMED). 지금까지 claude만 쓰는 사용자에게 hook이 있으면 `./office`가 1단계를 통과했다. 그래서 의존성 설치와 VM 준비를 기다린 뒤에야 `LOGIN_REQUIRED`("설치·로그인한 뒤")로 멈췄다.
@@ -6,7 +18,7 @@
 - 실제 `up`(Claw·lean)을 가짜 hook claude로 돌려 1단계에서 멈추는 것(`[1/4]` 없음, VM·런타임 흔적 없음)을 봤다. 이 Mac의 실제 claude 2.1.280은 hook이 없어 막히지 않았다.
 - 자동 검사: root 1114/1114 exit 0(최종 `44f478c`, `2e8a816`도 같음), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 13개 중 12개를 잡음(남은 하나는 시험용 `extraDirs` 경계).
 - 독립 리뷰 두 번: 1회차 Changes needed(로그아웃된 막힌 CLI의 로그인 안내 누락 등) → 고침, 2회차 Approve. PR syjkim0125/pazmo-agent-office#50.
-- **G4 대기.** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. pinned에서 막힌 codex를 런처만 거부하는 불일치(#45 이전부터)는 결정이 필요한 후속이다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
+- **G4 대기.** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. pinned에서 막힌 codex를 런처만 거부하는 불일치(#45 이전부터)는 D32(바로 위)에서 고쳤다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
 
 # 2026-10-29 부하에서만 실패하던 시험 고치기
 
