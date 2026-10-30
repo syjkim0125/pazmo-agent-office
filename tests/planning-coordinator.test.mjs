@@ -6,7 +6,7 @@ import { join } from "node:path";
 import { createServer } from "node:http";
 import { handleOperator } from "../src/runtime/operator.ts";
 import { fixture } from "./contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { IntakeLedger } from "../src/core/intake.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
@@ -18,7 +18,7 @@ function setup(t, mode = "ready", kitRoles = false) {
   const f = fixture(t),
     db = new DatabaseSync(join(f.root, "planning.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   t.after(() => db.close());
   const store = new OfficeStore(db, f.project, token),
     intake = new IntakeLedger(db, store, f.project),

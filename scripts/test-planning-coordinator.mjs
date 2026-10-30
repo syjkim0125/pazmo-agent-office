@@ -11,7 +11,7 @@ import { tmpdir, homedir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fixture } from "../tests/contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { IntakeLedger } from "../src/core/intake.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
@@ -29,7 +29,7 @@ const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-planning-vm-"))),
 const f = fixture({ after: (fn) => cleanups.push(fn) }),
   db = new DatabaseSync(join(root, "office.sqlite"));
 db.exec("PRAGMA foreign_keys=ON");
-applyBaseSchema(db);
+applyLeanSchema(db, "/office-probe-project");
 const token = "a".repeat(64),
   store = new OfficeStore(db, f.project, token),
   intake = new IntakeLedger(db, store, f.project),

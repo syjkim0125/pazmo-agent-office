@@ -10,7 +10,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { fixture } from "./contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
 import { ExecutionLedger } from "../src/core/budgets.ts";
@@ -33,7 +33,7 @@ export async function setup(t) {
   const f = fixture(t),
     db = new DatabaseSync(join(f.root, "office.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   t.after(() => db.close());
   mkdirSync(join(f.project, "src"));
   f.put("src/a", "before\n");

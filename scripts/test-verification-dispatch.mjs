@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { homedir, tmpdir } from "node:os";
 import { DatabaseSync } from "node:sqlite";
 import { fixture } from "../tests/contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { freezeCandidate } from "../src/core/candidates.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
@@ -31,7 +31,7 @@ try {
     let timer;
     try {
       db.exec("PRAGMA foreign_keys=ON");
-      applyBaseSchema(db);
+      applyLeanSchema(db, "/office-probe-project");
       f.put(
         "check.cjs",
         `console.log(JSON.stringify({index:Number(process.argv[2]),start:Date.now()}));setTimeout(()=>console.log(JSON.stringify({index:Number(process.argv[2]),end:Date.now()})),3000);`,

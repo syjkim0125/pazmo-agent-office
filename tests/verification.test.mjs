@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { fixture } from "./contract-fixture.mjs";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { freezeCandidate } from "../src/core/candidates.ts";
 import { VerificationLedger } from "../src/core/verification.ts";
@@ -21,7 +21,7 @@ async function setup(t, approved = true) {
   f.put("verify.json", JSON.stringify(f.verification));
   const db = new DatabaseSync(join(f.root, "office.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
-  applyBaseSchema(db);
+  applyLeanSchema(db, "/office-test-project");
   t.after(() => db.close());
   const store = new OfficeStore(db, f.project, token);
   const item = await store.register(token, f.input);

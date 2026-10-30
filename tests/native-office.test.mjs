@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdtempSync, mkdirSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { applyBaseSchema } from "../vendor/claw-empire/server/modules/bootstrap/schema/base-schema.ts";
-import { applyDefaultSeeds } from "../vendor/claw-empire/server/modules/bootstrap/schema/seeds.ts";
+import { applyLeanSchema } from "../src/lean/schema.ts";
+import { addRoleAgents } from "./role-agents-fixture.mjs";
 import { createNativeOffice } from "../src/runtime/native-office.ts";
 
 test("native assignment adopts the original task and uses the same authoritative database", async (t) => {
@@ -13,8 +13,8 @@ test("native assignment adopts the original task and uses the same authoritative
     project = join(root, "project");
   mkdirSync(project);
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   const calls = [];
   const live = {
     status: () => ({ execution: "ready", active: [] }),
@@ -71,8 +71,8 @@ async function fixture(t) {
     project = join(root, "project");
   mkdirSync(project);
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   const calls = [];
   const live = {
     status: () => ({ execution: "ready", active: [] }),
@@ -239,7 +239,7 @@ test("native G4 preserves failed feedback and delivers after explicit human ackn
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const { writeFileSync } = await import("node:fs");
   const f = await officeFixture(t);
-  applyDefaultSeeds(f.db);
+  addRoleAgents(f.db);
   const calls = [];
   const office = await createNativeOffice({
     db: f.db,
@@ -377,7 +377,7 @@ test("native G4 preserves failed feedback and delivers after explicit human ackn
 test("native expired contract Decisions cannot approve and refresh with a new challenge", async (t) => {
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const f = await officeFixture(t, false);
-  applyDefaultSeeds(f.db);
+  addRoleAgents(f.db);
   const office = await createNativeOffice({
     db: f.db,
     project: f.project,
@@ -400,7 +400,7 @@ test("native expired contract Decisions cannot approve and refresh with a new ch
 test("reading Decisions replaces an expired approval with a new challenge for the same task and gate", async (t) => {
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const f = await officeFixture(t, false);
-  applyDefaultSeeds(f.db);
+  addRoleAgents(f.db);
   const office = await createNativeOffice({
     db: f.db,
     project: f.project,
@@ -453,7 +453,7 @@ test("reading Decisions replaces an expired approval with a new challenge for th
 test("reissuing an unchanged approval does not repeat its chat notice but still updates open clients", async (t) => {
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const f = await officeFixture(t, false);
-  applyDefaultSeeds(f.db);
+  addRoleAgents(f.db);
   const office = await createNativeOffice({
     db: f.db,
     project: f.project,
@@ -582,7 +582,7 @@ test("native recovery Decision survives restart and consumes exactly one human r
 test("plan gates show a readable contract summary and keep every document verbatim", async (t) => {
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const f = await officeFixture(t, false);
-  applyDefaultSeeds(f.db);
+  addRoleAgents(f.db);
   f.put(
     "plan.md",
     "# Proposed implementation plan\n\nRequest: r\nInput digest: d\n\nWorker could not access the snapshot; no commands ran.\n\nThis is a model proposal. No repository inspection or approval is established by this document.\n",
@@ -634,8 +634,8 @@ test("role runner choices persist across live restarts and only CLI-listed value
     project = join(root, "project");
   mkdirSync(project);
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   const catalogCalls = [];
   const catalog = async (...args) => (catalogCalls.push(args), {
     installs: {
@@ -688,8 +688,8 @@ test("a chooseRunner given to createNativeOffice reaches the runtime as the runn
     project = join(root, "project");
   mkdirSync(project);
   const db = new DatabaseSync(":memory:");
-  applyBaseSchema(db);
-  applyDefaultSeeds(db);
+  applyLeanSchema(db, "/office-test-project");
+  addRoleAgents(db);
   t.after(() => {
     db.close();
     rmSync(root, { recursive: true, force: true });
@@ -745,7 +745,7 @@ test("officeRoles maps pm and lead to the same agent when only three exist, and 
   const { db, office } = await fixture(t);
   db.exec("DELETE FROM agents");
   const insert = db.prepare(
-    "INSERT INTO agents (id,name,name_ko,department_id,role,cli_provider,avatar_emoji) VALUES (?,?,?,?,?,?,?)",
+    "INSERT INTO agents (id,name,name_ko,department_id,role,cli_provider,avatar_emoji,work_runner,work_model,review_runner,review_model) VALUES (?,?,?,?,?,?,?,'codex','default','codex','default')",
   );
   insert.run("pazmo-lead", "Lead", "기획 담당", "planning", "team_leader", "codex", "x");
   insert.run("pazmo-engineer", "Engineer", "구현 담당", "dev", "senior", "codex", "x");
@@ -770,9 +770,7 @@ test("assign passes a given risk to the intake and keeps normal otherwise", asyn
 test("deliveries lists the delivery of each contract task under a request", async (t) => {
   const { officeFixture } = await import("./coordinator-fixture.mjs");
   const f = await officeFixture(t);
-  applyDefaultSeeds(f.db);
-  // Subtask links come from a later Claw migration (and the lean schema).
-  f.db.exec("ALTER TABLE tasks ADD COLUMN source_task_id TEXT");
+  addRoleAgents(f.db);
   const office = await createNativeOffice({
     db: f.db,
     project: f.project,

@@ -93,6 +93,14 @@ CREATE TABLE IF NOT EXISTS task_reruns (
 
 const SIDECARS = ["-wal", "-shm", "-journal"];
 
+/** Creates the lean tables, owned by `project`, in an empty database: a new
+ * file below, or an in-memory database in the engine tests. */
+export function applyLeanSchema(db: DatabaseSync, project: string): void {
+  db.exec(SCHEMA);
+  db.prepare("INSERT INTO lean_instance (project) VALUES (?)").run(project);
+  db.exec(RERUNS);
+}
+
 /** Creates or opens `<dataDir>/lean/office.sqlite` for one project. The file is
  * private (0600), never a symlink, and refuses to serve another project. */
 export function openLeanDb(dataDir: string, project: string): DatabaseSync {
@@ -122,8 +130,7 @@ export function openLeanDb(dataDir: string, project: string): DatabaseSync {
     } else {
       db.exec("BEGIN IMMEDIATE");
       try {
-        db.exec(SCHEMA);
-        db.prepare("INSERT INTO lean_instance (project) VALUES (?)").run(project);
+        applyLeanSchema(db, project);
         db.exec("COMMIT");
       } catch (error) {
         db.exec("ROLLBACK");

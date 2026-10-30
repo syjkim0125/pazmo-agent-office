@@ -4,9 +4,7 @@ import { createRequire } from "node:module";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-const require = createRequire(
-  new URL("../vendor/claw-empire/package.json", import.meta.url),
-);
+const require = createRequire(import.meta.url);
 const { WebSocketServer } = require("ws");
 const [container, root, codex] = process.argv.slice(2),
   route = "/exec/" + randomUUID();
