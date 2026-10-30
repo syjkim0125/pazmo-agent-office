@@ -5,7 +5,7 @@
       "role": "engineer",
       "origin": "pazmo-authored",
       "ref": "pazmo-engineer@1.0.0",
-      "license": "MIT",
+      "license": "PolyForm-Shield-1.0.0",
       "licensePath": "LICENSE",
       "source": "assets/roles/engineer.md",
       "files": [
@@ -23,7 +23,7 @@
       "role": "reviewer",
       "origin": "pazmo-authored",
       "ref": "pazmo-reviewer@1.0.0",
-      "license": "MIT",
+      "license": "PolyForm-Shield-1.0.0",
       "licensePath": "LICENSE",
       "source": "assets/roles/reviewer.md",
       "files": [
@@ -41,7 +41,7 @@
       "role": "pm",
       "origin": "pazmo-authored",
       "ref": "pazmo-pm@1.1.0",
-      "license": "MIT",
+      "license": "PolyForm-Shield-1.0.0",
       "licensePath": "LICENSE",
       "source": "assets/roles/pm.md",
       "files": [
@@ -59,7 +59,7 @@
       "role": "lead",
       "origin": "pazmo-authored",
       "ref": "pazmo-lead@1.1.0",
-      "license": "MIT",
+      "license": "PolyForm-Shield-1.0.0",
       "licensePath": "LICENSE",
       "source": "assets/roles/lead.md",
       "files": [
