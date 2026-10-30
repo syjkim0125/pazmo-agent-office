@@ -176,10 +176,25 @@ test("claude without a models response yields an error", async () => {
   await assert.rejects(claudeModels(fx.binary, fx.root), /MODEL_CATALOG_INVALID/);
 });
 
+// Some tests of a stop mock setTimeout, discovery's clock: its waits then run
+// out exactly when the test ticks them, however slowly a loaded machine runs
+// the fake claude. Waiting for the fake's own progress keeps the real clock,
+// so those tests carry a timeout in case the fake never gets there.
+const realSetTimeout = globalThis.setTimeout;
+const pause = (ms) => new Promise((r) => realSetTimeout(r, ms));
+/** Resolves once a fake claude has created `path`; gives up when the test ends. */
+async function reached(path, signal) {
+  while (!existsSync(path)) {
+    signal.throwIfAborted();
+    await pause(20);
+  }
+}
+
 /** A claude whose login is being refreshed when it answers: like CLI 2.1.280
  * it holds ~/.claude/.oauth_refresh.lock meanwhile and its exit handler
- * releases the lock on SIGTERM. `rest` runs after the answer. */
-function refreshingClaude(rest) {
+ * releases the lock on SIGTERM; `onTerm` replaces that handler. `rest` runs
+ * after the answer. Whatever of it still runs when test `t` ends is killed. */
+function refreshingClaude(t, rest, onTerm = `rmdir "$lock"; exit 143`) {
   const root = tempRoot();
   const lock = join(root, ".claude", ".oauth_refresh.lock");
   const response = {
@@ -191,20 +206,31 @@ function refreshingClaude(rest) {
     `lock="$HOME/.claude/.oauth_refresh.lock"
 mkdir -p "$HOME/.claude" && mkdir "$lock"
 echo $$ > "$HOME/pid"
-trap 'rmdir "$lock"; exit 143' TERM
+trap '${onTerm}' TERM
 read line
 read second
 echo '${JSON.stringify(response)}'
 echo '${JSON.stringify(noHooks)}'
 ${rest}\n`,
   );
-  return { root, binary, lock };
+  const pidFile = join(root, "pid");
+  const pid = () => Number(readFileSync(pidFile, "utf8"));
+  t.after(() => {
+    // A fake killed while writing its pid leaves the file empty: 0 would be
+    // this test process's own group.
+    const group = existsSync(pidFile) ? pid() : 0;
+    if (group > 0)
+      try {
+        process.kill(-group, "SIGKILL");
+      } catch {}
+  });
+  return { root, binary, lock, pid, reached: (name) => reached(join(root, name), t.signal) };
 }
 
 // A killed claude leaves the lock, and every claude after it fails to sign in
 // ("Failed to refresh OAuth token") until the lock is a minute old.
-test("a claude refreshing its login when the models arrive finishes and releases the lock", async () => {
-  const fx = refreshingClaude(`cat >/dev/null
+test("a claude refreshing its login when the models arrive finishes and releases the lock", async (t) => {
+  const fx = refreshingClaude(t, `cat >/dev/null
 sleep 1
 touch "$HOME/refreshed"
 rmdir "$lock"
@@ -214,23 +240,53 @@ exit 0`);
   assert.equal(existsSync(fx.lock), false);
 });
 
-test("a claude that ignores the end of its input is stopped so it still releases the lock", async () => {
-  const fx = refreshingClaude("while :; do sleep 1; done");
+test("a claude that ignores the end of its input is stopped so it still releases the lock", async (t) => {
+  const fx = refreshingClaude(t, "while :; do sleep 1; done");
   assert.deepEqual((await claudeModels(fx.binary, fx.root)).models, [{ slug: "default" }]);
   assert.equal(existsSync(fx.lock), false);
 });
 
-test("a claude that ignores SIGTERM too is killed rather than left running", async (t) => {
-  const fx = refreshingClaude(`trap '' TERM
-while :; do sleep 1; done`);
-  const pid = () => Number(readFileSync(join(fx.root, "pid"), "utf8"));
-  t.after(() => {
-    try {
-      process.kill(-pid(), "SIGKILL");
-    } catch {}
-  });
-  assert.deepEqual((await claudeModels(fx.binary, fx.root)).models, [{ slug: "default" }]);
-  assert.throws(() => process.kill(pid(), 0), { code: "ESRCH" });
+/** After the answer the fake notes the end of its input and carries on,
+ * answering a ping while it lives. */
+const ignoresInput = `cat >/dev/null
+touch "$HOME/eof"
+while :; do [ -e "$HOME/ping" ] && touch "$HOME/pong"; sleep 0.05; done`;
+
+// CLI 2.1.280 waits up to 2 s for a refresh in flight after SIGTERM, then
+// exits and the lock goes; on a busy Mac that took up to 9.1 s (2026-10-29),
+// so 2 s of grace stranded it (D31).
+test("a claude that takes 9 s to release the lock after SIGTERM still releases it", { timeout: 15000 }, async (t) => {
+  // It releases the lock only when the test says so: 11.999 s after SIGTERM.
+  const fx = refreshingClaude(
+    t,
+    ignoresInput,
+    `touch "$HOME/term"; until [ -e "$HOME/go" ]; do sleep 0.05; done; rmdir "$lock"; exit 143`,
+  );
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const found = claudeModels(fx.binary, fx.root);
+  await fx.reached("eof");
+  t.mock.timers.tick(3000);
+  await fx.reached("term");
+  t.mock.timers.tick(11999);
+  writeFileSync(join(fx.root, "go"), "");
+  assert.deepEqual((await found).models, [{ slug: "default" }]);
+  assert.equal(existsSync(fx.lock), false, "the lock was released");
+});
+
+test("a claude that ignores SIGTERM too is killed once its 12 s grace runs out", { timeout: 15000 }, async (t) => {
+  const fx = refreshingClaude(t, ignoresInput, `touch "$HOME/term"`);
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const found = claudeModels(fx.binary, fx.root);
+  await fx.reached("eof");
+  t.mock.timers.tick(3000);
+  await fx.reached("term");
+  t.mock.timers.tick(11999);
+  writeFileSync(join(fx.root, "ping"), "");
+  const first = await Promise.race([found.then(() => "ended"), fx.reached("pong").then(() => "answered")]);
+  assert.equal(first, "answered", "it still runs 1 ms before the grace runs out");
+  t.mock.timers.tick(1);
+  assert.deepEqual((await found).models, [{ slug: "default" }]);
+  assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });
 });
 
 test("a single-model codex catalog is written once and identified by digest", () => {

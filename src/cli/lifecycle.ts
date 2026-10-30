@@ -102,10 +102,17 @@ const SERVICE: Record<Engine, string> = {
   lean: "src/runtime/lean-service.ts",
   team: "src/runtime/team-service.ts",
 };
-/** How long `start` waits for the service's ready message. Both start in under
- * 3 s even under load; a crash or an error reply ends the wait at once. */
+/** How long `start` waits for the service's ready message. Lean and team
+ * services start in under 3 s even under load (measured for lean). A live lean
+ * Office reports ready only after its first runner discovery, which waits up to
+ * 17 s for the claude it asked to exit (D31), so lean waits 30 s. A claude that
+ * also takes its whole 15 s to answer makes that discovery alone up to 32 s;
+ * such a start still times out. The claude, in its own process group, then gets
+ * the end of its input and is never SIGKILLed, so it cannot strand its login
+ * lock. A crash or an error reply ends the wait at once, so only a service that
+ * neither replies nor exits waits this long. */
 export const STARTUP_MS: Record<Engine, number> = {
-  lean: 15000,
+  lean: 30000,
   team: 15000,
 };
 /** What `status` shows of a running team Office: its TeamStatus. */
