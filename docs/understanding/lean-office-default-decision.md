@@ -1,7 +1,7 @@
 # G3 proposal: 새 Office를 기본으로, Claw Empire 삭제 (D23 3단계)
 
-Status: Proposed
-Understanding gate (G3): pending
+Status: Approved
+Understanding gate (G3): user conversation · 2026-10-30 · Check-in: accepted ("A로 해", 설명 페이지 게시 후)
 Story: pazmo-agent-office-contract.md (Goal; M1·M2·M3·M7·M9·M10·M13·M14·M15; O2; V1·V7·V8·V11·V12·V15·V16·V17; D23 3단계)
 Builds on: lean-office-decision.md (D23), team-story-board-decision.md (D24). 설명 페이지: https://claude.ai/artifact/M6pQbDBvwYCuxLB5dxxqHc
 
@@ -169,7 +169,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 4. 문서: README(영·한), `docs/LOCAL-PREVIEW.md`, `docs/CHAT-CONTROL.md`(폐기 안내만 남김), `AGENTS.md`의 "Chat-controlled Office" 절, `CONCEPTS.md`, `LICENSING.md`, `THIRD_PARTY_NOTICES.md`, `upstream/` 메모, `docs/STATUS.md`
 5. Story 수정(아래)과 D30
 
-## Story 수정안 (3걸음에서 적용, 2걸음에서는 M15만)
+## Story 수정안 (A안: 같은 PR에서 적용)
 
 | 항목 | 지금 | 바꿈 |
 |---|---|---|
@@ -178,10 +178,13 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 | M2 | 신뢰된 채팅 host에서 요청·답·승인을 전달 | 사람이 Office 화면에서 작업을 만들고 질문에 답하고 승인·취소한다. Jira 없는 Story→G1→실행→검토→G4→인도와 키 입력 없음은 유지 |
 | M3 | PM·Lead·Engineer·Reviewer 역할 운영, Designer·DevOps 조건부 | 사람이 만든 agent가 작업을 맡는다. 기획·설계·구현은 agent의 작업 실행기, 리뷰는 리뷰 실행기로 돈다. 공식 CLI 구독 로그인, 단일 큐, 자동 수정 2회 제한, 역할별 권한은 유지 |
 | M7, M9, M10, M13, M14 | 픽셀 화면, Office의 허브 요청 보내기·취소·받기, 역할 캐릭터 | 폐기. 번호는 다시 쓰지 않는다 |
+| M8 (승인 뒤 찾음) | 수락한 요청을 자기 Office에서 실행, G4·인도도 자기 Office | 허브 쪽(초대, 팀원·레포·담당자, 요청 게시판, 허브는 실행·로그인·인도물이 없음, Office의 `127.0.0.1` 경계)만 남긴다. Office가 허브 요청을 받아 실행하던 부분은 claw 엔진만 했으므로 빠진다. 허브 일의 실행은 M16 |
+| M12 (승인 뒤 찾음) | Office 상단 팀 허브 창에 붙여넣어 터미널 없이 연결 | 연결 문자열(팀원 단위 일회용)·origin으로 레포 찾기·자동 등록·담당자 아님 거부는 남기고, 연결은 `hub-link --connect`로 한다. 상단 창은 Claw 화면에만 있었다 |
 | M15 | `--lean` 옵션으로 켠다 | `./office`의 기본 Office다(`--lean`은 호환용) |
 | O2 | 다른 Office 재선정 … 별도 작업 관리 UI 추가 제외 | "다른 Office 재선정"을 뺀다. kit 원본 변경, API 키 자동 대체, 요청하지 않은 기능 추가 제외는 유지 |
 | V1 | 가져오기 SHA·tree·gitlink 비교 | `git ls-files vendor`가 비고 `.gitmodules`가 없으며, 로컬 원본 브랜치가 남고, 사용자 데이터가 그대로인 것을 확인 |
 | V7, V11, V12, V15, V16 | 위 폐기 항목의 검증 | 폐기 |
+| V9, V10, V14 (승인 뒤 찾음) | 역할별 선택, Office 실행이 낀 허브 흐름, Office 연결 창 | agent별 선택, 허브 쪽 시험과 남은 엔진 코드 시험, `hub-link --connect` |
 | V8 | 원본 TaskBoard·서버·WebSocket 사용 | 새 Office의 Tasks·Decisions, 키 입력 없는 로컬 세션, kit 역할 run 연결, 검증된 VM 실행, 사용자 승인 뒤 인도 |
 | V17 | `up --lean`으로 실제 확인 | `./office`(옵션 없음)로 실제 확인 |
 | D30 | 없음 | 이 결정(선택한 안, 폐기한 M/V, 남긴 엔진 코드, 사전 확인) |
@@ -215,7 +218,16 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 
 그래프: G3 승인 뒤 `ce-plan`으로 구현 계획을 쓰고, 걸음마다 kit 그래프 run(`.ai-workflow/runs/U25-…`)을 만든다.
 
-## 승인 범위 (승인 시)
+## 사람의 결정
 
-- **승인하는 것:** 고른 안의 순서, "함께 정하는 것" 1–7(바꾼 것은 바꾼 대로), Story 수정안, 검증 계획
+2026-10-30 사용자는 설명 페이지와 G3 질문(A·B·C, 기본값 1–5)을 받은 뒤 "A로 해"라고 답했다. 이 답이 G3 승인이다.
+
+- **A안(한 번에)을 골랐다.** "순서"의 1–3걸음을 PR 하나에서 한다. 2걸음의 `--claw` 안내 기간은 없고, `--claw`는 바로 안내 오류가 된다.
+- "함께 정하는 것" 1–7은 바꾸지 않았다(질문에는 1–5를 적었고 6–7은 이 문서에 있다).
+- 3걸음의 사전 확인 두 개(eevee-be의 진행 중 Claw 작업, Fusion 허브의 진행 중 요청)는 머지 전 G4에서 사용자에게 묻는다.
+- 승인 뒤 구현 준비 중 M8·M12와 V9·V10·V14도 Claw 화면이나 claw 엔진에 기댄다는 것을 찾았다. 승인한 동작(Office의 허브 요청 보내기·받기 사라짐, Claw 화면 삭제)에서 나온 문구 정리라 위 Story 수정안에 더하고 D30에 ASSUMED로 적는다. G4에서 함께 확인한다.
+
+## 승인 범위
+
+- **승인하는 것:** A안, "함께 정하는 것" 1–7, Story 수정안, 검증 계획
 - **승인하지 않는 것:** 4단계(npm 설치), 새 Office의 operator API·채팅 조작, 엔진 코드 정리(D24 3단계 뒤 별도), 사용자 데이터 정리·이관, main 머지(걸음마다 사용자가 한다)
