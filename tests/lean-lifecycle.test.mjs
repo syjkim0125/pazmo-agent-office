@@ -97,10 +97,10 @@ test("start runs the lean engine by default on its own data, without a loader or
   // The API is not open without that session.
   assert.equal((await fetch(`${monitor.value.url}api/board`)).status, 401);
 
-  // operator-key is no longer a command.
+  // operator-key went with the legacy engine: the refusal names why.
   const key = call(f, "operator-key");
   assert.equal(key.status, 1);
-  assert.equal(key.value.code, "ARGUMENT");
+  assert.equal(key.value.code, "COMMAND_REMOVED");
 
   // Same engine: start is idempotent and reports the running Office; --lean,
   // kept for old scripts, names the same default.
@@ -129,7 +129,7 @@ test("start without the root dependencies refuses with NOT_INSTALLED before it s
   };
   await assert.rejects(start(p, 0, undefined, "lean", { installed: missing }), {
     code: "NOT_INSTALLED",
-    message: "Office 의존성이 설치되지 않았습니다. ./office 로 설치하세요(업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다).",
+    message: "Office 의존성이 설치되지 않았습니다. ./office 로 설치하세요(Apple Silicon 밖에서는 npm ci --omit=dev). 업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다.",
   });
   assert.equal(checked, 1);
   assert.equal(existsSync(join(f.dataDir, "start.lock")), false, "no start lock was taken");
@@ -159,9 +159,9 @@ test("start and start --lean reach the same running Office; --claw is refused an
   assert.equal(existsSync(join(f.dataDir, "claw")), false);
 });
 
-// `up` reaches its reuse check before any VM or login step (its dependency
-// check finds this checkout's install current), so it can be exercised against
-// a running Office without starting anything of its own.
+// `up` refuses a running Office it cannot reuse before any dependency, VM or
+// login step, so it can be exercised against a running Office without starting
+// anything of its own.
 const appleSilicon = process.platform === "darwin" && process.arch === "arm64";
 test(
   "up does not reuse a running Office that cannot execute, and never stops it",
@@ -185,7 +185,7 @@ test(
   },
 );
 
-test("--claw is refused with CLAW_REMOVED wherever it appears; --lean is for start and up only", () => {
+test("--claw is refused with CLAW_REMOVED wherever it appears, removed commands are named, --lean is for start and up only", () => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-lean-args-")));
   try {
     const project = join(root, "project");
@@ -206,6 +206,13 @@ test("--claw is refused with CLAW_REMOVED wherever it appears; --lean is for sta
       assert.equal(result.status, 1, args.join(" "));
       assert.equal(result.value.code, "CLAW_REMOVED", args.join(" "));
       assert.match(result.value.error, /\.\/office/, "it names the command that starts the Office");
+    }
+    // The operator commands went with the legacy engine: named, not unknown.
+    for (const command of ["bridge", "operator-key", "contract", "intake-create", "approval-decide", "deliver"]) {
+      const result = run(command, ...base);
+      assert.equal(result.status, 1, command);
+      assert.equal(result.value.code, "COMMAND_REMOVED", command);
+      assert.match(result.value.error, /CHAT-CONTROL\.md/, command);
     }
     for (const args of [
       ["status", "--lean", ...base],

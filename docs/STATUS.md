@@ -10,7 +10,7 @@
   - 엔진 재시작 복구 시험은 복구 호출 셋 중 하나만 지워도 실패한다
   - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
 - 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
-- **남은 것: 독립 리뷰, G4, app-be 실제 확인(V17), 사전 확인 두 개(app-be Claw Office의 진행 중 작업, OpenShift 허브의 진행 중 요청), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 정리(`/ce-compound-refresh`).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+- **남은 것: 독립 리뷰, G4, app-be 실제 확인(V17), 사전 확인 두 개(app-be Claw Office의 진행 중 작업, OpenShift 허브의 진행 중 요청), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
 
 # 2026-10-29 부하에서만 실패하던 시험 고치기
 

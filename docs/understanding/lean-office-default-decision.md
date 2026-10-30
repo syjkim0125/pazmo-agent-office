@@ -118,7 +118,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 4. **옵션 호환.** ASSUMED. `--lean`은 계속 받아들인다(문서·습관 호환). `--claw`는 2걸음째에 안내와 함께 동작하고, 삭제 뒤에는 이유와 새 명령을 알려 주는 오류다.
 5. **Story 정리 범위를 넓힌다.** D23은 Goal·M1·M3·M7·O2만 꼽았다. 조사해 보니 M2(채팅 host), M9·M10·M14(Office의 허브 요청 화면), M13(역할 캐릭터)도 Claw 화면에만 있다. 아래 수정안대로 고친다.
 6. **출처 기록은 이력으로 남긴다.** ASSUMED. `upstream/claw-empire.lock.json`·`CHANGES.md`는 지우지 않고 "삭제된 커밋"을 적는다. `THIRD_PARTY_NOTICES.md`·`LICENSING.md`의 Claw 항목은 "이전 버전에 포함됐다"로 고친다. `package.json`의 `MIT AND Apache-2.0`은 그대로다(`assets/codex`가 Apache-2.0). README의 Claw 원본 화면 그림은 뺀다.
-7. **오래된 해결 문서.** 삭제 뒤 `docs/solutions`의 `claw-startup-wait-is-cpu-bound-under-load.md`, `fresh-worktree-tests-fail-without-office-ui-build.md`, `claw-cli-usage-panel-reads-cli-login-credentials-under-office.md`를 `/ce-compound-refresh`로 정리한다.
+7. **오래된 해결 문서.** 삭제 뒤 `docs/solutions`에서 vendor·`build:office`·`--claw`·bridge를 가리키는 문서(구현 리뷰에서 약 10개로 확인, 목록은 [검증 기록](../verification/2026-10-30-lean-office-default.md))를 `/ce-compound-refresh`로 정리한다.
 
 ## 무엇이 되돌릴 수 없나
 

@@ -73,7 +73,8 @@ The Office has four screens (Tasks, task detail, Decisions, Agents), and each ag
 
 1. Before pulling: finish or cancel the Claw Office's running tasks and any team hub requests you accepted, then stop that Office (`node bin/pazmo-office.mjs stop --project /absolute/path/to/project`). The same command still stops it after pulling.
 2. After pulling: run `./office` once (`./office --team` for the team Office). The first run installs the root dependency (`ws`), so it needs the npm registry, and the runners are qualified once more before the first role runs. An Office that is already running gets the dependency through this run too.
-3. The leftover `vendor/` folder (the old install and build) can be deleted. The old task data (`claw/`) is kept as it is; the new Office does not read it.
+3. If several Offices run from one checkout (per project, or the team Office), update while no task is running: the install briefly removes `node_modules`, so another Office's claude jobs can fail meanwhile.
+4. The leftover `vendor/` folder (the old install and build) can be deleted. The old task data (`claw/`) is kept as it is; the new Office does not read it.
 
 ## Current status
 

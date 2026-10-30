@@ -22,4 +22,6 @@ Read `docs/STATUS.md` for the active phase and evidence limits. The canonical St
 
 `CONCEPTS.md` defines shared domain vocabulary (Story, Gates, Decisions, planning recovery); relevant when orienting to the codebase or discussing domain concepts.
 
-When the user delegates a project job to Office, the person creates the task and answers its decisions in the Office screen (`./office`). The chat bridge (`docs/CHAT-CONTROL.md`) was removed with the legacy engine in D30; do not substitute your own implementation for Office's role execution.
+## Agents and Office
+
+When the user delegates a project job to Office, the person creates the task and answers its decisions in the Office screen. An agent may start, inspect and stop Office for the person (`node bin/pazmo-office.mjs up --project <path> --no-open`, then give the person the `monitor` URL; `status`, `stop`). An agent must not answer or approve a Decision (G1, G3, G4 or a question) through the Office's local API on the person's behalf. The chat bridge (`docs/CHAT-CONTROL.md`) was removed with the legacy engine in D30; do not substitute your own implementation for Office's role execution.

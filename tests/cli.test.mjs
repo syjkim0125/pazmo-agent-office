@@ -170,7 +170,10 @@ test("an existing installation gains the ignore file and keeps its manifest", (t
   assert.equal(run(f, ["init", "--apply"]).changed, true);
   assert.ok(existsSync(ignoreFile(f)));
   assert.equal(run(f, ["init", "--apply"]).changed, false);
-  assert.equal(run(f, ["doctor"]).initialized, true);
+  const doctor = run(f, ["doctor"]);
+  assert.equal(doctor.initialized, true);
+  assert.equal(doctor.dependencies, true, "this checkout has ws where the engine loads it");
+  assert.equal("uiBuilt" in doctor, false);
 });
 
 test("a user's ignore file is never replaced and a symlinked one is refused", (t) => {

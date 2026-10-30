@@ -659,7 +659,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     };
   }
 
-  // Resume what a previous run left waiting, as the Claw service does on start.
+  // Resume what a previous run left waiting.
   void native.refresh().catch((error) =>
     console.error("Lean startup reconciliation stopped:", message(error)),
   );

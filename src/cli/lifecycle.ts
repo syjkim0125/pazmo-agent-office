@@ -185,7 +185,7 @@ export async function start(
   if (!checks.installed())
     fail(
       "NOT_INSTALLED",
-      `Office 의존성이 설치되지 않았습니다. ./office${engine === "team" ? " --team" : ""} 로 설치하세요(업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다).`,
+      `Office 의존성이 설치되지 않았습니다. ./office${engine === "team" ? " --team" : ""} 로 설치하세요(Apple Silicon 밖에서는 npm ci --omit=dev). 업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다.`,
     );
   ignoreMetadata(p);
   noSymlinks(p.dataDir);

@@ -1,5 +1,7 @@
 # Claw-Empire v2.0.4 가져오기 — M0 실행 절차
 
+> **이력 문서.** Claw-Empire는 2026-10-30 D30으로 저장소에서 지웠다. 이 절차를 다시 실행하지 않는다. [결정](understanding/lean-office-default-decision.md)
+
 **이 절차는 다음 세션의 권한 있는 로컬 작업 환경에서 실행한다. 준비 세션에서는 GitHub 쓰기가 403으로 거절되어 실행하지 못했다. 이 ZIP에는 Claw-Empire 전체 소스가 없다.**
 
 목표는 원본 tracked tree를 `vendor/claw-empire/`에 보존하는 것이다. GitHub Fork 버튼이나 새 repository 생성은 필요 없다. `.git` 이력 전체, node_modules, 실행 데이터는 복사 대상이 아니다. 별도 gitlink의 외부 소스는 아직 초기화하지 않는다.

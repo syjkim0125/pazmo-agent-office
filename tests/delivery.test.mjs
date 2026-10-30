@@ -205,12 +205,24 @@ test("a symlink output root is rejected without writing into its target", async 
   assert.equal(f.store.get(f.task.id).status, "review");
 });
 
-test("opening the Office engine recovers what a restart interrupted: running planning, a checking round and a delivery whose output is gone", async (t) => {
+test("opening the Office engine keeps a valid delivery and recovers what a restart interrupted: running planning, a checking round and a delivery whose output is gone", async (t) => {
   const { createNativeOffice } = await import("../src/runtime/native-office.ts");
   const { IntakeLedger } = await import("../src/core/intake.ts");
   const { ExecutionLedger } = await import("../src/core/budgets.ts");
   const f = await ready(t);
   const delivered = f.completion.deliver(token, f.task.id);
+  // The lean and team Offices open the engine on their database this way
+  // (createLeanOffice); its deliveries live under the data directory.
+  const open = () => createNativeOffice({ db: f.db, project: f.project, dataDir: f.root, token });
+  const stored = () => ({
+    delivery: f.db.prepare("SELECT state FROM pazmo_deliveries WHERE task_id=?").get(f.task.id).state,
+    task: f.db.prepare("SELECT status FROM tasks WHERE id=?").get(f.task.id).status,
+  });
+  // A restart over an intact delivery keeps it: read the stored rows, because
+  // delivery() would itself re-inspect the output.
+  const first = await open();
+  assert.deepEqual(stored(), { delivery: "delivered", task: "done" });
+  await first.close();
   rmSync(delivered.directory, { recursive: true });
   const intake = new IntakeLedger(f.db, f.store, f.project),
     planner = new ExecutionLedger(f.db, f.store, f.verification, Date.now, intake);
@@ -232,14 +244,7 @@ test("opening the Office engine recovers what a restart interrupted: running pla
   }
   const round = f.verification.begin(second.id, f.candidate);
   assert.equal(f.verification.get(round.id).state, "checking");
-  // The lean and team Offices open the engine on their database this way
-  // (createLeanOffice); its deliveries live under the data directory.
-  const office = await createNativeOffice({
-    db: f.db,
-    project: f.project,
-    dataDir: f.root,
-    token,
-  });
+  const office = await open();
   f.defer(() => office.close());
   const planning = planner.getPlanning(lease.id);
   assert.equal(planning.state, "unknown");
@@ -248,12 +253,7 @@ test("opening the Office engine recovers what a restart interrupted: running pla
   assert.equal(intake.get(request.taskId).reason, "CONTROLLER_RESTARTED");
   assert.equal(f.verification.get(round.id).state, "human_required");
   assert.equal(f.verification.get(round.id).reason, "CONTROLLER_RESTARTED");
-  // Read the stored rows: delivery() would itself re-inspect the output.
-  assert.equal(
-    f.db.prepare("SELECT state FROM pazmo_deliveries WHERE task_id=?").get(f.task.id).state,
-    "invalid",
-  );
-  assert.equal(f.db.prepare("SELECT status FROM tasks WHERE id=?").get(f.task.id).status, "pending");
+  assert.deepEqual(stored(), { delivery: "invalid", task: "pending" });
 });
 
 test("late cancellation cannot undo a committed delivery", async (t) => {

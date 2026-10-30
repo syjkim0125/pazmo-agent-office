@@ -5,6 +5,7 @@ import {
   renameSync,
   writeFileSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import {
@@ -180,19 +181,41 @@ function wsVersions(root: string) {
  * `ws` (src/runners/exec-relay.ts, and the claude tool bridge each claude job
  * starts from disk), so a reused Office needs it too. Installs the
  * production dependencies only when `ws` is missing or not the locked version,
- * so a checkout's development tools stay installed otherwise. */
+ * so a checkout's development tools stay installed otherwise. Without a
+ * lockfile (a packed install) there is nothing to install from: `ws` must
+ * already resolve. */
 export async function prepareDependencies(
   exec: Run,
   root = packageRoot,
 ): Promise<"current" | "installed"> {
   const { locked, installed } = wsVersions(root);
-  if (locked !== null && installed === locked) return "current";
+  if (locked === null) {
+    try {
+      createRequire(join(root, "package.json")).resolve("ws");
+      return "current";
+    } catch {
+      return fail("NOT_INSTALLED", "Office 의존성이 설치되지 않았습니다. 패키지 폴더에서 npm install --omit=dev 를 실행하세요.");
+    }
+  }
+  if (installed === locked) return "current";
+  console.error("[1/4] 의존성 설치 (업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요합니다)");
   await exec(
     join(dirname(process.execPath), "npm"),
-    ["ci", "--omit=dev", "--prefer-offline", "--no-audit", "--no-fund"],
+    ["ci", "--omit=dev", "--prefer-offline", "--ignore-scripts", "--no-audit", "--no-fund"],
     root,
   );
   return "installed";
+}
+/** After the refusals: a running Office is reused once the root dependencies
+ * are in place (its claude jobs start the tool bridge from disk), a stopped
+ * one is started. */
+async function reuseOrStart(
+  current: { status: string },
+  prepare: () => Promise<unknown>,
+  startOffice: () => Promise<unknown>,
+) {
+  if (current.status === "running") await prepare();
+  else await startOffice();
 }
 /** `up` reuses an Office only when it runs the engine asked for and can execute. */
 export function canReuse(
@@ -219,7 +242,10 @@ type UpOptions = {
  * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
  * runtime, the dedicated VM and its isolation probe. Returns the live
  * configuration step 4 starts the Office with. */
-async function prepareMachine(options: UpOptions): Promise<LiveConfig> {
+async function prepareMachine(
+  options: UpOptions,
+  prepare: () => Promise<unknown>,
+): Promise<LiveConfig> {
   for (const name of ["colima", "docker"])
     if (!existsSync(`/opt/homebrew/bin/${name}`))
       fail(
@@ -233,8 +259,7 @@ async function prepareMachine(options: UpOptions): Promise<LiveConfig> {
       codexRuntime: options.codexRuntime,
     },
   );
-  console.error("[1/4] 의존성 확인 (업데이트 뒤 첫 실행은 npm 레지스트리 접속이 필요할 수 있습니다)");
-  await prepareDependencies(run);
+  await prepare();
   console.error("[2/4] 고정된 Codex 실행 파일 확인");
   await setupRuntime(options.dataDir, true);
   console.error("[3/4] 전용 VM·이미지 준비 및 파일 공유 차단 확인");
@@ -264,7 +289,7 @@ async function prepareMachine(options: UpOptions): Promise<LiveConfig> {
 /** `up --team`: every registered repo is prepared as `up` prepares one (its
  * git root, its Office metadata), then the machine as for lean, then one team
  * Office runs them all. There is no page to open yet; the result is its status. */
-async function upTeam(options: UpOptions) {
+async function upTeam(options: UpOptions, prepare: () => Promise<unknown>) {
   const root = dataRoot(options.dataDir);
   const { repos } = readTeam(root);
   if (repos.length === 0)
@@ -286,18 +311,21 @@ async function upTeam(options: UpOptions) {
       "RUNNING",
       "기존 실행을 보존했습니다. status --team/stop --team으로 기존 실행 상태를 확인해주세요.",
     );
-  // A reused Office's claude jobs start the tool bridge from disk: it needs ws too.
-  if (current.status === "running") await prepareDependencies(run);
-  if (current.status === "stopped")
-    await startTeam(root, options.port ?? 0, await prepareMachine(options));
+  await reuseOrStart(current, prepare, async () =>
+    startTeam(root, options.port ?? 0, await prepareMachine(options, prepare)),
+  );
   return { ...(await status(p)), reused: current.status === "running" };
 }
 
-export async function up(options: UpOptions) {
+export async function up(
+  options: UpOptions,
+  /** The root dependency step; tests replace it. */
+  prepare: () => Promise<unknown> = () => prepareDependencies(run),
+) {
   const engine = options.engine ?? "lean";
   if (process.platform !== "darwin" || process.arch !== "arm64")
     fail("PLATFORM", "현재 live 실행은 Apple Silicon macOS에서 검증됐습니다.");
-  if (engine === "team") return upTeam(options);
+  if (engine === "team") return upTeam(options, prepare);
   const root = dataRoot(options.dataDir),
     preference = join(root, "launcher.json");
   noSymlinks(preference);
@@ -330,10 +358,9 @@ export async function up(options: UpOptions) {
       "RUNNING",
       "기존 실행을 보존했습니다. status/stop으로 기존 실행 상태를 확인해주세요.",
     );
-  // A reused Office's claude jobs start the tool bridge from disk: it needs ws too.
-  if (current.status === "running") await prepareDependencies(run);
-  if (current.status === "stopped")
-    await start(p, options.port ?? 0, await prepareMachine(options), engine);
+  await reuseOrStart(current, prepare, async () =>
+    start(p, options.port ?? 0, await prepareMachine(options, prepare), engine),
+  );
   mkdirSync(root, { recursive: true, mode: 0o700 });
   const temp = `${preference}.${process.pid}.tmp`;
   writeFileSync(temp, JSON.stringify({ version: 1, project: p.project }), {

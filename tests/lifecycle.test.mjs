@@ -15,6 +15,7 @@ import { createServer } from "node:http";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
+import { STARTUP_MS } from "../src/cli/lifecycle.ts";
 
 // Engine-independent lifecycle boundaries, on the default (lean) Office.
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
@@ -22,7 +23,7 @@ function call(f, ...args) {
   const r = spawnSync(
     process.execPath,
     [cli, ...args, "--project", f.project, "--data-dir", f.data],
-    { encoding: "utf8", timeout: 75000 },
+    { encoding: "utf8", timeout: STARTUP_MS.lean + 60000 },
   );
   return {
     status: r.status,
@@ -212,18 +213,92 @@ test("an Office an earlier version left running is shown, refused and stopped", 
       assert.equal(shown.engine, engine ?? "legacy");
       await assert.rejects(start(p, 0), { code: "ENGINE_MISMATCH" });
       await assert.rejects(monitor(p), { code: "ENGINE_MISMATCH" });
-      if (appleSilicon)
-        await assert.rejects(up({ project: f.project, dataDir: f.data, open: false }), {
-          code: "ENGINE_MISMATCH",
-        });
+      if (appleSilicon) {
+        let prepared = 0;
+        await assert.rejects(
+          up({ project: f.project, dataDir: f.data, open: false }, async () => prepared++),
+          { code: "ENGINE_MISMATCH" },
+        );
+        assert.equal(prepared, 0, "a refusal installs nothing");
+      }
       assert.equal(readFileSync(file, "utf8"), content, "nothing was started over it");
       assert.equal(existsSync(join(f.dataDir, "lean")), false);
+      // The legacy engine also left its operator capability next to the state.
+      const operator = join(f.dataDir, `operator-${instance}.json`);
+      writeFileSync(operator, JSON.stringify({ instance, token: "9".repeat(64) }), { mode: 0o600 });
       assert.equal((await stop(p)).status, "stopped");
       assert.ok(calls.includes("POST /__pazmo/stop"), String(engine));
       assert.equal(existsSync(file), false);
+      assert.equal(existsSync(operator), false, "the stopped Office's operator file went with it");
     } finally {
       rmSync(file, { force: true });
       await new Promise((resolve) => server.close(resolve));
     }
   }
 });
+
+// `up` reuses a running Office that can execute: its claude jobs start the
+// tool bridge from disk, so the root dependencies are put in place first. A
+// refusal installs nothing, and a failed install reuses nothing.
+test(
+  "up prepares the root dependencies before it reuses a running Office, never for a refusal",
+  { skip: !appleSilicon && "up runs on Apple Silicon macOS only" },
+  async (t) => {
+    const { locate } = await import("../src/cli/project.ts");
+    const { up } = await import("../src/cli/launcher.ts");
+    const f = setup(t);
+    const p = locate(f.project, f.data);
+    const pid = spawnSync("/usr/bin/true").pid;
+    const file = join(f.dataDir, "running.json");
+    mkdirSync(f.dataDir, { recursive: true });
+    const token = "a".repeat(64),
+      instance = "b".repeat(32);
+    for (const execution of ["ready", "locked"]) {
+      const calls = [];
+      const server = createServer((req, res) => {
+        calls.push(`${req.method} ${req.url}`);
+        if (req.headers.authorization !== `Bearer ${token}`) {
+          res.statusCode = 401;
+          return res.end();
+        }
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify({ instance, project: p.project, status: "running", execution }));
+      });
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+      const content = JSON.stringify({
+        version: 1,
+        engine: "lean",
+        project: p.project,
+        pid,
+        port: server.address().port,
+        token,
+        instance,
+      });
+      writeFileSync(file, content);
+      try {
+        const options = { project: f.project, dataDir: f.data, open: false };
+        const order = [];
+        const prepare = async () => order.push("prepare");
+        if (execution === "ready") {
+          const reused = await up(options, prepare);
+          assert.equal(reused.reused, true);
+          assert.equal(reused.url, `http://127.0.0.1:${server.address().port}/`);
+          assert.deepEqual(order, ["prepare"], "installed once, before the Office was reused");
+          // A failed install reuses nothing and touches nothing.
+          const failing = async () => {
+            throw Object.assign(new Error("npm ci: offline"), { code: "SETUP_FAILED" });
+          };
+          await assert.rejects(up(options, failing), { code: "SETUP_FAILED" });
+        } else {
+          await assert.rejects(up(options, prepare), { code: "RUNNING" });
+          assert.deepEqual(order, [], "a refusal installs nothing");
+        }
+        assert.ok(!calls.includes("POST /__pazmo/stop"), "the running Office was never stopped");
+        assert.equal(readFileSync(file, "utf8"), content);
+      } finally {
+        rmSync(file, { force: true });
+        await new Promise((resolve) => server.close(resolve));
+      }
+    }
+  },
+);

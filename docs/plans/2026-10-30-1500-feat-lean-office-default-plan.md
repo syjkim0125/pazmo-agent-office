@@ -238,7 +238,7 @@ flowchart LR
 ### Deferred to Follow-Up Work
 
 - 엔진 정리: `native-office.ts`의 Claw용 API, `operator.ts`, `runner-settings.ts`의 역할별 경로, `hub-link.ts`·`hub-outgoing.ts`의 옛 요청 흐름과 그 시험. D24 3단계 머지 뒤.
-- `docs/solutions`의 오래된 문서 세 개는 `/ce-compound-refresh`로 정리한다(머지 뒤).
+- `docs/solutions`의 오래된 문서(구현 리뷰에서 약 10개로 확인, 목록은 검증 기록)는 `/ce-compound-refresh`로 정리한다(머지 뒤).
 - 4단계(npm 설치), 새 Office의 operator API·채팅 조작(원하면 별도 G3).
 
 ## Risks

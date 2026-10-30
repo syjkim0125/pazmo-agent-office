@@ -27,6 +27,25 @@ import {
   NO_TEAM_SCREEN,
 } from "./lifecycle.ts";
 
+/** Commands of the legacy engine's operator API, removed with it (D30): named
+ * on refusal so a stale script or chat host learns why. */
+const REMOVED_COMMANDS = [
+  "bridge",
+  "operator-key",
+  "contracts",
+  "contract",
+  "verification",
+  "delivery",
+  "deliver",
+  "approval-request",
+  "approval-decide",
+  "intake-create",
+  "intake",
+  "intake-answer",
+  "intake-cancel",
+  "intake-publish",
+];
+
 export async function main(args: string[]): Promise<void> {
   try {
     const command = args.shift();
@@ -36,6 +55,11 @@ export async function main(args: string[]): Promise<void> {
       );
       return;
     }
+    if (REMOVED_COMMANDS.includes(command))
+      fail(
+        "COMMAND_REMOVED",
+        `${command} was removed with the chat bridge and the legacy engine (D30). Use the Office screen (./office); see docs/CHAT-CONTROL.md.`,
+      );
     if (command === "--version") {
       console.log("0.1.0-alpha.1");
       return;

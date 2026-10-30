@@ -112,7 +112,7 @@ test("up installs the root dependencies only when ws is missing or not the locke
     calls.push([basename(exe), args.join(" "), cwd]);
     return "";
   };
-  const install = ["npm", "ci --omit=dev --prefer-offline --no-audit --no-fund", root];
+  const install = ["npm", "ci --omit=dev --prefer-offline --ignore-scripts --no-audit --no-fund", root];
   // Nothing installed: one production install in the package root.
   assert.equal(await prepareDependencies(exec, root), "installed");
   assert.deepEqual(calls, [install]);
@@ -134,4 +134,21 @@ test("up installs the root dependencies only when ws is missing or not the locke
   };
   await assert.rejects(prepareDependencies(failing, root), { code: "SETUP_FAILED" });
   assert.deepEqual(calls, [install]);
+});
+
+test("without a lockfile (a packed install) up installs nothing and needs ws to resolve", async (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-deps-packed-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  writeFileSync(join(root, "package.json"), JSON.stringify({ name: "packed", version: "0.0.0" }));
+  const calls = [];
+  const exec = async (exe, args, cwd) => {
+    calls.push([basename(exe), args.join(" "), cwd]);
+    return "";
+  };
+  await assert.rejects(prepareDependencies(exec, root), { code: "NOT_INSTALLED" });
+  mkdirSync(join(root, "node_modules/ws"), { recursive: true });
+  writeFileSync(join(root, "node_modules/ws/package.json"), JSON.stringify({ name: "ws", version: "8.19.0", main: "index.js" }));
+  writeFileSync(join(root, "node_modules/ws/index.js"), "module.exports = {};\n");
+  assert.equal(await prepareDependencies(exec, root), "current");
+  assert.deepEqual(calls, [], "npm ci needs a lockfile: it never runs");
 });
