@@ -101,16 +101,16 @@ const SERVICE: Record<Engine, string> = {
 };
 /** How long `start` waits for the service's ready message. Claw is the only
  * engine whose start is CPU-bound: tsx transpiles about 220 vendor TypeScript
- * modules on every start, from an empty transform cache in a new data
- * directory (its TMPDIR is the Office's own). That is 1–2 s on an idle 12-core
- * Mac, but up to 33 s with the CPU oversubscribed (two test suites at once, or
- * a stress loop at load 40–140; 5 of 8 starts took over 15 s), while legacy
- * and lean stayed under 3 s and keep their 15 s. A crash or an error reply
- * ends the wait at once, so only a service that neither replies nor exits
- * waits this long. */
-const STARTUP_MS: Record<Engine, number> = {
+ * modules as it starts, from an empty transform cache the first time a data
+ * directory is used (its TMPDIR is the Office's own). That takes 1–2 s on an
+ * idle machine but can pass a minute with the CPU oversubscribed and memory
+ * swapping. Legacy and lean still started in under 3 s there; they keep 15 s,
+ * as does team. A crash or an error reply ends the wait at once, so only a
+ * service that neither replies nor exits waits this long. Measurements:
+ * docs/solutions/test-failures/claw-startup-wait-is-cpu-bound-under-load.md */
+export const STARTUP_MS: Record<Engine, number> = {
   legacy: 15000,
-  claw: 60000,
+  claw: 120000,
   lean: 15000,
   team: 15000,
 };

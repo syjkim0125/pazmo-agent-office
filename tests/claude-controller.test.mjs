@@ -15,14 +15,18 @@ const fakeExec = fileURLToPath(new URL("./fixtures/fake-exec-server.mjs", import
 // Some tests of a stop mock setTimeout, the controller's clock: its timeout and
 // its 6 s grace then run out exactly when the test ticks them, however slowly a
 // loaded machine runs the fake claude. Waiting for the fake's own progress
-// keeps the real clock.
+// keeps the real clock. A frozen clock never stops a fake on its own, so those
+// tests carry a timeout, and refreshingClaude kills what is left after a test.
 const realSetTimeout = globalThis.setTimeout;
 const pause = (ms) => new Promise((r) => realSetTimeout(r, ms));
-/** Resolves once a fake claude has created `path`: it got that far. A fake
- * that never does fails the test after 30 s instead of hanging it. */
-async function reached(path) {
-  for (const deadline = Date.now() + 30000; !existsSync(path); await pause(20))
-    if (Date.now() > deadline) throw new Error(`never reached: ${path}`);
+/** Resolves once a fake claude has created `path`: it got that far. Gives up
+ * when the test ends (its `signal`), so a fake that never gets there fails at
+ * the test's timeout and leaves nothing polling. */
+async function reached(path, signal) {
+  while (!existsSync(path)) {
+    signal.throwIfAborted();
+    await pause(20);
+  }
 }
 
 function setup(mode = "ok", executorMode = "ok") {
@@ -113,8 +117,9 @@ test("executor loss overrides a successful exit", async () => {
 /** A claude refreshing the user's login when Office stops it: like CLI 2.1.280
  * it holds ~/.claude/.oauth_refresh.lock meanwhile and its exit handler
  * releases the lock on SIGTERM. `onTerm` replaces that handler; `started`
- * runs while it holds the lock; `idle` is what it then does over and over. */
-function refreshingClaude(onTerm = `rmdir "$lock"; exit 143`, started = "", idle = "sleep 1") {
+ * runs while it holds the lock; `idle` is what it then does over and over.
+ * Whatever of it is still running when test `t` ends is killed. */
+function refreshingClaude(t, onTerm = `rmdir "$lock"; exit 143`, started = "", idle = "sleep 1") {
   const root = tempRoot();
   const lock = join(root, ".claude", ".oauth_refresh.lock");
   const binary = fakeNative(
@@ -127,6 +132,16 @@ echo $$ > "$HOME/pid"
 while :; do ${idle}; done\n`,
   );
   const pidFile = join(root, "pid");
+  const pid = () => Number(readFileSync(pidFile, "utf8"));
+  t.after(() => {
+    // A fake killed while writing its pid leaves the file empty: 0 would be
+    // this test process's own group.
+    const group = existsSync(pidFile) ? pid() : 0;
+    if (group > 0)
+      try {
+        process.kill(-group, "SIGKILL");
+      } catch {}
+  });
   return {
     root,
     lock,
@@ -137,17 +152,17 @@ while :; do ${idle}; done\n`,
       timeoutMs: 20000,
       openExecutor: () => assert.fail("no tool call was made"),
     },
-    pid: () => Number(readFileSync(pidFile, "utf8")),
-    holding: () => reached(pidFile),
+    pid,
+    holding: () => reached(pidFile, t.signal),
     /** Resolves once the fake has created `name` in its home. */
-    reached: (name) => reached(join(root, name)),
+    reached: (name) => reached(join(root, name), t.signal),
   };
 }
 
 // A killed claude leaves the lock, and every claude after it fails to sign in
 // ("Failed to refresh OAuth token") until the lock is a minute old.
-test("a claude cancelled while it refreshes the login releases the lock", async () => {
-  const fx = refreshingClaude();
+test("a claude cancelled while it refreshes the login releases the lock", async (t) => {
+  const fx = refreshingClaude(t);
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
   await fx.holding();
@@ -158,8 +173,8 @@ test("a claude cancelled while it refreshes the login releases the lock", async 
   assert.equal(existsSync(fx.lock), false);
 });
 
-test("a claude timed out while it refreshes the login releases the lock", async (t) => {
-  const fx = refreshingClaude();
+test("a claude timed out while it refreshes the login releases the lock", { timeout: 15000 }, async (t) => {
+  const fx = refreshingClaude(t);
   // Its 1.5 s timeout runs out only once it holds the lock, however long it
   // took to start.
   t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -176,9 +191,9 @@ test("a claude timed out while it refreshes the login releases the lock", async 
 
 // CLI 2.1.280 cleans up and waits for a refresh in flight (up to 2 s each)
 // before it exits and the lock goes, so 2 s of grace could still strand it.
-test("a claude that takes over 2 s to release the lock after SIGTERM still releases it", async (t) => {
+test("a claude that takes over 2 s to release the lock after SIGTERM still releases it", { timeout: 15000 }, async (t) => {
   // It releases the lock only when the test says so: 5.999 s into the grace.
-  const fx = refreshingClaude(`touch "$HOME/term"; until [ -e "$HOME/go" ]; do sleep 0.05; done; rmdir "$lock"; exit 143`);
+  const fx = refreshingClaude(t, `touch "$HOME/term"; until [ -e "$HOME/go" ]; do sleep 0.05; done; rmdir "$lock"; exit 143`);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
@@ -196,12 +211,7 @@ test("a claude that takes over 2 s to release the lock after SIGTERM still relea
 
 test("a claude that ignores SIGTERM is killed once its 6 s grace runs out", { timeout: 15000 }, async (t) => {
   // It notes the SIGTERM and carries on, answering a ping while it lives.
-  const fx = refreshingClaude(`touch "$HOME/term"`, "", `[ -e "$HOME/ping" ] && touch "$HOME/pong"; sleep 0.05`);
-  t.after(() => {
-    try {
-      process.kill(-fx.pid(), "SIGKILL");
-    } catch {}
-  });
+  const fx = refreshingClaude(t, `touch "$HOME/term"`, "", `[ -e "$HOME/ping" ] && touch "$HOME/pong"; sleep 0.05`);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
@@ -222,6 +232,7 @@ test("a claude that ignores SIGTERM is killed once its 6 s grace runs out", { ti
 
 test("a process the claude started does not outlive a cancel even if it ignores SIGTERM", async (t) => {
   const fx = refreshingClaude(
+    t,
     undefined,
     `(trap '' TERM; while :; do sleep 1; done) </dev/null >/dev/null 2>&1 &
 echo $! > "$HOME/helper"`,
@@ -263,8 +274,8 @@ test("a claude stopped for an unexpected hook or init gets no SIGTERM to shut do
     ['{"type":"system","subtype":"init","tools":["Bash"],"mcp_servers":[],"plugins":[]}', "CLAUDE_TOOLS_UNEXPECTED"],
     ['{"type":"assistant"}', "CLAUDE_INIT_MISSING"],
   ])
-    await t.test(code, async () => {
-      const fx = refreshingClaude(`touch "$HOME/term-ran"; exit 143`, `echo '${line}'`);
+    await t.test(code, async (t) => {
+      const fx = refreshingClaude(t, `touch "$HOME/term-ran"; exit 143`, `echo '${line}'`);
       const { closed, result } = await run(claudeJob(fx.options, "Bounded task"));
       assert.equal(result.error, code);
       assert.equal(closed, true);
@@ -314,14 +325,10 @@ test("a hook the claude starts while shutting down after a cancel is killed at o
   // Its hook runs until it is killed, and Office's clock stands still, so the
   // grace never runs out: only the hook line can end this claude.
   const fx = refreshingClaude(
+    t,
     `cat "$HOME/hook.json"; while :; do sleep 1; done`,
     `echo '{"type":"system","subtype":"hook_started","hook_name":"SessionEnd"}' > "$HOME/hook.json"`,
   );
-  t.after(() => {
-    try {
-      process.kill(-fx.pid(), "SIGKILL");
-    } catch {}
-  });
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
   const job = claudeJob(fx.options, "Bounded task").supervise("a".repeat(64), 20000, abort.signal);
@@ -336,8 +343,9 @@ test("a hook the claude starts while shutting down after a cancel is killed at o
 // A cancel can land before init, while a startup login refresh holds the lock;
 // what the CLI prints on its way out is no init problem and must not cut the
 // shutdown short.
-test("a line the claude prints while shutting down after a cancel does not cut its shutdown short", async () => {
+test("a line the claude prints while shutting down after a cancel does not cut its shutdown short", async (t) => {
   const fx = refreshingClaude(
+    t,
     `cat "$HOME/result.json"; sleep 0.3; rmdir "$lock"; exit 143`,
     `echo '{"type":"result","subtype":"error_during_execution","is_error":true}' > "$HOME/result.json"`,
   );
