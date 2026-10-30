@@ -17,7 +17,7 @@ tags: [mock-timers, node-test, sigterm, sigkill, grace-period, flaky-test, fake-
 # Mock the controller's clock, not the machine's, in tests of a stop grace
 
 ## Problem
-`runClaude` in `src/runners/claude-controller.ts` stops a claude CLI with SIGTERM, then SIGKILL after a 6 s grace. Its timeout and grace are `setTimeout` timers. The tests raced those real timers against a fake CLI (a shell script behind a native shim). On a loaded machine the fake ran late and the race went the other way.
+`runClaude` in `src/runners/claude-controller.ts` stops a claude CLI with SIGTERM, then SIGKILL after a grace period: 6 s when this was written, 12 s since PR #45. The tests now tick 11 999 and 12 000 ms; the examples below show the 6 s version. Its timeout and grace are `setTimeout` timers. The tests raced those real timers against a fake CLI (a shell script behind a native shim). On a loaded machine the fake ran late and the race went the other way.
 
 ## Symptoms
 - The 1.5 s timeout fired before the fake had run `trap … TERM` and taken its lock. SIGTERM then killed the shell on its default action and no pid file was written: `ENOENT …/pid` (3 of 4 runs at 36 stress threads; 5 of 5 passed at 16).
