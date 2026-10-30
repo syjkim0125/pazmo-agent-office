@@ -80,7 +80,9 @@ export function pinnedCodexProblem(authHome: string) {
       code: "LOGIN_REQUIRED",
       message: `고정 codex(--codex-runtime pinned)는 이 Mac의 codex 로그인(${join(authHome, "auth.json")})을 씁니다. 터미널에서 codex login을 실행하세요(codex가 없으면 npm i -g @openai/codex로 먼저 설치).${move}`,
     } as const;
-  return files ? ({ code: "RUNNER_BLOCKED", message: `고정 codex(--codex-runtime pinned)가 쓸 codex가 막혀 있습니다.${move}` } as const) : null;
+  return files
+    ? ({ code: "RUNNER_BLOCKED", message: `고정 codex(--codex-runtime pinned)가 쓰는 codex 로그인 폴더에 개인 지침 파일이 있습니다.${move}` } as const)
+    : null;
 }
 
 function runnerName(runner: unknown): RunnerName {

@@ -261,7 +261,7 @@ test("a logged-out claude blocked by a hook keeps its login cue", async (t) => {
   const { installs } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)");
   // Removing the hook alone would only lead to a login error on the next start.
-  assert.match(installs.claude.hint, /hook[^]*claude auth login/);
+  assert.match(installs.claude.hint, /hook[^]*claude를 쓰려면 터미널에서 claude auth login도/);
 });
 
 test("a claude that cannot list its hooks is blocked too", async (t) => {

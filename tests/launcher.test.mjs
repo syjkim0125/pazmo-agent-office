@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
-import { assertRunnerLogin, assertVmConfig, canReuse, prepareVendor, prepareVm, startupRunners } from "../src/cli/launcher.ts";
+import { assertRunnerLogin, assertVmConfig, canReuse, prepareVendor, prepareVm, runnerLoginOptions, startupRunners } from "../src/cli/launcher.ts";
 import { fakeNative, fakeRunners, listing, tempRoot } from "./runner-fixture.mjs";
 
 const safe =
@@ -104,8 +104,19 @@ test("the pinned runtime checks the codex login folder itself, with no codex ins
   for (const file of ["AGENTS.md", "AGENTS.override.md"])
     assert.throws(
       () => assertRunnerLogin(installs(null, "in"), pinned(codexHome(t, "auth.json", file))),
-      (e) => e.code === "RUNNER_BLOCKED" && /고정 codex/.test(e.message) && e.message.includes(file) && !/codex·claude가 없습니다/.test(e.message),
+      (e) =>
+        e.code === "RUNNER_BLOCKED" &&
+        /고정 codex[^]*codex 로그인 폴더/.test(e.message) &&
+        e.message.includes(file) &&
+        !/codex가 막혀/.test(e.message) &&
+        !/codex·claude가 없습니다/.test(e.message),
     );
+});
+
+test("step 1 judges the pinned runtime on the Mac codex login folder, other runtimes on the CLIs", () => {
+  assert.deepEqual(runnerLoginOptions("pinned", "/Users/someone"), { codexRuntime: "pinned", authHome: "/Users/someone/.codex" });
+  assert.deepEqual(runnerLoginOptions("installed", "/Users/someone"), {});
+  assert.deepEqual(runnerLoginOptions(undefined, "/Users/someone"), {});
 });
 
 test("a blocked codex does not count as a usable runner at startup", (t) => {
@@ -214,7 +225,7 @@ test("a logged-out codex blocked by AGENTS.md keeps its login cue next to a hook
   writeFileSync(join(fx.home, ".codex", "AGENTS.md"), "personal\n");
   const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home, extraDirs: [] });
   // Moving the file alone would only lead to a login error on the next run.
-  assert.match(installs.codex.hint, /AGENTS\.md[^]*codex login/);
+  assert.match(installs.codex.hint, /AGENTS\.md[^]*codex를 쓰려면 터미널에서 codex login도/);
   assert.throws(
     () => assertRunnerLogin(installs),
     (e) => e.code === "RUNNER_BLOCKED" && /AGENTS\.md[^]*codex login/.test(e.message) && /SessionEnd hook \(policySettings\)/.test(e.message),

@@ -54,6 +54,12 @@ export function assertRunnerLogin(
   );
 }
 
+/** Step 1's check options: the pinned runtime is judged on the Mac codex
+ * login folder that Office then gives it as CODEX_HOME (D32). */
+export function runnerLoginOptions(codexRuntime: "installed" | "pinned" | undefined, home: string) {
+  return codexRuntime === "pinned" ? { codexRuntime, authHome: join(home, ".codex") } : {};
+}
+
 /** Step 1's runners, with claude judged as Office judges it (D29), so a
  * blocked claude stops here, before any install or VM work. The hook listing
  * starts the claude CLI once (about 1–2 s), so it is asked only when claude
@@ -291,7 +297,7 @@ async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptio
       home: homedir(),
       codexRuntime: options.codexRuntime,
     }),
-    options.codexRuntime === "pinned" ? { codexRuntime: "pinned", authHome: join(homedir(), ".codex") } : {},
+    runnerLoginOptions(options.codexRuntime, homedir()),
   );
   // Every engine needs the vendor dependencies; only Claw builds its UI.
   console.error(
