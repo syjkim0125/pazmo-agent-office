@@ -18,7 +18,8 @@
   - main(#40)을 합친 `45df698`에서 다시 돌린 전체 시험 **1092/1092** exit 0, 타입 검사 exit 0, Story 검사기 exit 0
 - G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 푸시·PR, 머지는 사용자가 정함). [G4 기록](verification/2026-10-29-team-story-office-repos-g4.md)
 - **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다.
-- **남은 것:** 로컬 Hub(`pazmo-office hub`)에 시험 Story를 올려 eevee-be와 시험 repo 두 개로 하는 실제 확인(사용자 확인 뒤), `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
+- 실제 확인(2026-10-30, main `ebef236`): 로컬 Hub와 시험 repo 세 개(github.com, 회사 GHE, gh 로그인 없는 호스트)로 16개를 확인했고, 모두 기대대로 동작했다. 등록·중복 거절, 상태, 가져가기 순서, 하트비트, 재시작과 응답을 잃은 경우의 이어 받기, PL 취소, 멈춤, 하루 상한, 켜진 동안의 연결과 5분 재확인, `REPO_MISSING`·`REPO_REMOVED`, 보류 뒤 PL 풀기, 하트비트 404다. **찾은 것:** repo 빼기(`REPO_REMOVED`)나 하트비트 404는 로컬 기록만 버리고 Hub에는 그 Task가 이 사람의 claim으로 남는다. 그래서 PL이 풀거나 취소할 때까지(풀기는 10분 보류 뒤) 팀 Office가 다른 Task도 가져가지 않는다. 그동안 `status --team`과 로그에 이유가 나오지 않는다. eevee-be는 실제 데이터와 Fusion 연결을 건드리지 않으려고 쓰지 않았다. [실제 확인 기록](verification/2026-10-30-team-story-office-real-check.md)
+- **남은 것:** 위 찾은 것을 어떻게 다룰지 결정, `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
 
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
 

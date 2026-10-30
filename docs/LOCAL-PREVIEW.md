@@ -314,9 +314,9 @@ pazmo-office team status     # 설정과 열린 기록 (Office가 꺼져 있어�
 ```
 
 - **멈추기:** `pazmo-office stop --team`.
-- **가진 Task:** 2단계는 가져온 Task를 끝내지 않는다. 그래서 한 번 가져오면 그 기록이 닫힐 때까지 새 Task를 가져가지 않는다. 켜져 있는 팀 Office는 60초마다 하트비트를 보내 그 Task가 보류되지 않으므로, PL은 풀 수 없고 취소만 할 수 있다. PL이 Hub에서 그 Task를 취소하면 켜져 있는 팀 Office가 다음 하트비트에서 기록을 닫는다. Hub가 그 Task를 모른다고 답하면(`NOT_FOUND`, Hub를 새로 만들었거나 repo를 다른 Hub에 다시 연결함) 기록을 닫고, Hub가 아직 이 사람의 claim이라고 하면 다음 가져가기에서 다시 받는다.
+- **가진 Task:** 2단계는 가져온 Task를 끝내지 않는다. 그래서 한 번 가져오면 그 기록이 닫힐 때까지 새 Task를 가져가지 않는다. 켜져 있는 팀 Office는 60초마다 하트비트를 보내 그 Task가 보류되지 않으므로, PL은 풀 수 없고 취소만 할 수 있다. PL이 Hub에서 그 Task를 취소하면 켜져 있는 팀 Office가 다음 하트비트에서 기록을 닫는다. Hub가 그 Task를 모른다고 답하면(`NOT_FOUND`, Hub를 새로 만들었거나 repo를 다른 Hub에 다시 연결함) 기록을 닫고, Hub가 아직 이 사람의 claim이라고 하면 다음 가져가기에서 다시 받는다. Hub가 모른다고 답한 Task가 Hub의 다른 repo에 이 사람의 claim으로 남아 있으면(예: origin을 바꿔 다시 연결함), 그 Task를 PL이 풀거나 취소할 때까지 팀 Office는 아무 Task도 가져가지 않는다. Hub는 열린 Task가 있는 사람에게 새 Task를 주지 않는다. 지금은 `status --team`에 이유가 나오지 않는다(`claim`이 `null`).
 - **repo 바꾸기:** `team add`·`team remove`는 팀 Office를 멈춘 뒤에 한다. 켜지는 중에도 거부한다(`TEAM_RUNNING`). 지금 가진 Task의 repo는 폴더가 남아 있는 한 그 기록이 닫힐 때까지 뺄 수 없다(`OPEN_CLAIM`).
-- **repo 폴더를 옮기거나 지웠을 때:** `start --team`·`./office --team`이 `REPO_MISSING`으로 멈추고 그 경로와 `pazmo-office team remove --project <경로>`를 알려 준다. 폴더를 제자리에 돌려놓거나, 그 명령으로 뺀다. 폴더가 없는 repo는 가진 Task가 있어도 빠지고, 그 로컬 기록은 버린다(`REPO_REMOVED`). Hub의 그 Task는 하트비트가 끊겨 10분 뒤 보류되고, 그다음은 PL이 정한다.
+- **repo 폴더를 옮기거나 지웠을 때:** `start --team`·`./office --team`이 `REPO_MISSING`으로 멈추고 그 경로와 `pazmo-office team remove --project <경로>`를 알려 준다. 폴더를 제자리에 돌려놓거나, 그 명령으로 뺀다. 폴더가 없는 repo는 가진 Task가 있어도 빠지고, 그 로컬 기록은 버린다(`REPO_REMOVED`). Hub의 그 Task는 하트비트가 끊겨 10분 뒤 보류되고, 그다음은 PL이 정한다. **그동안 팀 Office는 다른 repo의 Task도 가져가지 않는다.** Hub에는 그 Task가 아직 이 사람의 claim으로 남아 있기 때문이다. 빼기 전에 PL에게 그 Task를 취소해 달라고 하면 바로 풀린다.
 - **repo에 남은 lean 작업:** 등록 전에 그 repo의 단일 lean Office에서 하던 작업은 손대지 않고 그대로 기다린다. 팀 Office는 그것을 시작하지도 보여 주지도 않는다. 그 repo를 `team remove`하고 단일 Office로 켜면 다시 보인다.
 - **데이터:** 팀 Office 자신의 데이터는 데이터 디렉터리의 `team/`이다. repo 엔진은 그 repo의 기존 lean 데이터를 그대로 쓴다. 등록된 repo는 단일 Office(`--lean`·`--claw`)로 켤 수 없다(`IN_TEAM_OFFICE`).
 - **실행 잠금:** 2단계 팀 Office는 `start --team`, `start --team --live`, `./office --team` 어느 것으로 켜도 repo 엔진을 잠근 채 연다. 가져가기·`gh` 확인·하트비트는 그래도 돈다.
