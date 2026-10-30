@@ -108,8 +108,9 @@ const SERVICE: Record<Engine, string> = {
  * keep 15 s. A live lean Office reports ready only after its first runner
  * discovery, which waits up to 17 s for the claude it asked to exit (D31), so
  * lean waits 30 s. A claude that also takes its whole 15 s to answer makes that
- * discovery alone up to 32 s; such a start still times out, and the claude,
- * in its own process group, gets the end of its input and exits by itself.
+ * discovery alone up to 32 s; such a start still times out. The claude, in
+ * its own process group, then gets the end of its input and is never
+ * SIGKILLed, so it cannot strand its login lock.
  * A crash or an error reply ends the wait at once, so only a service that
  * neither replies nor exits waits this long. Measurements:
  * docs/solutions/test-failures/claw-startup-wait-is-cpu-bound-under-load.md */

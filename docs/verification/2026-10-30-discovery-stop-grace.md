@@ -8,6 +8,7 @@ Story: M3 · M4 · D31. 근거: [실제 CLI 확인](2026-10-29-real-cli-runner-c
 - 실제 claude 2.1.280은 갱신 중에 SIGTERM을 받으면 갱신을 최대 2초 기다리고 나가며, 나갈 때 갱신 잠금(`~/.claude/.oauth_refresh.lock`)을 푼다. SIGTERM부터 끝까지 부하 시험이 막 끝난 때 0.55–2.53초, 바쁠 때 최대 9.1초가 걸렸다(완전히 한가한 Mac은 재지 않았다). 2초 유예는 CLI가 스스로 기다리는 시간과 같거나 짧다.
 - lean Office에서 조회는 작업 만들기·계획 "다시 시도" 답·agent 실행기 저장 바로 앞에서 캐시 없이 돈다. 2026-10-23 사고(조회 claude의 SIGKILL로 잠금이 남아 계획 claude가 로그인 실패)가 난 자리다. #45(D28)는 역할 실행만 12초로 늘렸다.
 - 사용자 선택(2026-10-30, 6부의 (a)): 조회도 12초, lean 시작 대기 15초 → 30초.
+- 리뷰 2차 뒤 질문(32초 경우까지 덮도록 42초 이상으로 올릴지)에 사용자가 "그대로"라고 답했다(2026-10-30). 30초로 두고 그 이유를 D31에 적었다. Story가 바뀌어 kit run을 새로 만들었다(`U26-discovery-stop-grace-replan.json`, 이전 run은 증거로 둔다).
 
 ## 바뀐 동작
 
@@ -19,7 +20,7 @@ Story: M3 · M4 · D31. 근거: [실제 CLI 확인](2026-10-29-real-cli-runner-c
     - bridge·operator CLI(10초 fetch 한도)는 조회를 동기로 부르는 경로가 없다(리뷰어 확인).
   - 15초 안에 답하지 않는 claude는 그 뒤 같은 멈춤을 거치므로 조회 하나가 최대 32초(이전 22초)다.
 - lean Office 시작 대기(`STARTUP_MS.lean`, `src/cli/lifecycle.ts`): **15초 → 30초**. live lean Office는 첫 조회를 마친 뒤에야 준비를 알린다(`lean-service.ts` → `createLeanOffice` → `createNativeOffice`의 `runners.settings.refresh()`).
-  - 30초는 답한 claude의 멈춤 최악 17초보다 13초 길다. 15초를 다 쓰고도 답하지 않는 claude(조회만 최대 32초)까지는 덮지 않는다. 그 시작은 지금처럼 "Office startup timed out"으로 끝나고, 서비스가 SIGTERM을 받아 나가면 조회 claude(자기 프로세스 그룹)는 입력 끝을 받고 스스로 끝난다. 잠금은 남지 않는다.
+  - 30초는 답한 claude의 멈춤 최악 17초보다 13초 길다. 15초를 다 쓰고도 답하지 않는 claude(조회만 최대 32초)까지는 덮지 않는다. 그 시작은 지금처럼 "Office startup timed out"으로 끝나고, 서비스가 SIGTERM을 받아 나가면 조회 claude(자기 프로세스 그룹)는 입력 끝을 받고, 아무도 SIGKILL하지 않으므로 잠금을 남기지 않는다. 갱신 중인 claude가 입력 끝만으로 끝나는지는 재지 않았다.
   - 서비스가 죽거나 오류로 답하면 지금처럼 바로 끝나므로, 늦어지는 것은 답도 안 하고 죽지도 않는 서비스뿐이다.
 - `tests/team-registry.test.mjs`의 CLI 실행 한도는 30초에서 `STARTUP_MS.lean + 30000`으로 바꿨다. 한도가 시작 대기와 같으면 느린 `start --lean`을 시험이 먼저 죽여 `start.lock`이 남는다(리뷰 지적).
 - 그대로인 것: claw 시작 대기 120초, legacy·team 15초(team은 저장소 엔진이 잠긴 채 열려 조회하지 않는다), 조회의 15초 응답 한도, 역할 실행의 12초·18초(D28), 오류 코드.
@@ -52,7 +53,10 @@ GREEN: runner-models 16/16, 시작 대기 시험 1/1, runner-settings 18/18, 타
 
 - 전체 `npm test`: **1106/1106** exit 0. 리뷰 1차를 고친 뒤 11:10–11:12(load average 10–20, 다른 전체 시험 없이)에 돌렸다. 코드·시험 파일은 11:07에 마지막으로 바뀌었다. 고치기 전 같은 값으로 돌린 10:47–10:50도 1106/1106이었다. main의 1104에 새 시험 2개가 더해졌다.
 - 타입 검사 exit 0, Story 검사기 exit 0(11:16).
-- kit graph `U26-discovery-stop-grace.json`: implement(2회) → workflow-review(2회) → workflow-verify, `status`의 action은 `g4`다.
+- kit graph `U26-discovery-stop-grace.json`: implement(2회) → workflow-review(2회) → workflow-verify, D31을 고치기 전 `status`의 action은 `g4`였다.
+- main(`f568734`, #48·#49)을 합친 뒤(`13c48ff`, 충돌 없음): 관련 시험 57/57 + 1/1, 타입 검사 exit 0. 전체 `npm test`는 30초 결정을 D31에 적은 뒤 **1106/1106** exit 0(14:28–14:30). 표현을 고친 뒤 다시 **1106/1106** exit 0(14:32–14:34, 마지막 코드 변경 14:31 뒤). `build:office`도 다시 했다.
+- D31을 고칠 때마다 Story가 바뀌어 run을 새로 만들었다. `U26-discovery-stop-grace-replan.json`(30초 결정 → 리뷰에서 표현 지적)과 `U26-discovery-stop-grace-replan-2.json`(표현을 고친 뒤 implement → workflow-review → workflow-verify). 최종 run의 `status` action은 `g4`다. 앞 run들은 증거로 둔다.
+- 리뷰 3차(30초 결정·main 합침): Ready. "조회 claude가 스스로 끝난다"를 사실처럼 적은 표현만 지적해 고쳤다. 리뷰 4차(그 표현): Ready. 기록: `U26-replan-review-1.md`, `U26-replan-review-2.md`.
 
 ## 리뷰 (독립, 보고만)
 
@@ -65,7 +69,7 @@ GREEN: runner-models 16/16, 시작 대기 시험 1/1, runner-settings 18/18, 타
 
 2차(같은 리뷰어, 고친 것만): **Ready.** 기록: `.ai-workflow/runs/U26-review-2.md`.
 
-- "시작이 시간 초과로 끝나도 조회 claude는 입력 끝을 받고 스스로 끝난다"를 확인했다. lifecycle은 서비스에만 SIGTERM을 보내고, 서비스는 10초 안에 나가며, 따로 띄운(detached) claude는 SIGKILL을 받지 않는다. Node의 stdio 파이프로 띄운 자식은 부모가 `process.exit`하면 다른 자식이 살아 있어도 입력 끝을 받았다. 실제 claude 2.1.280(`--version`, 빈 HOME, stdout을 읽는 쪽을 먼저 닫음)은 `{code: 0, signal: null}`로 끝났고 `/bin/echo`는 SIGPIPE로 죽었다. 그래서 claude가 종료 처리 없이 SIGPIPE로 죽지는 않는다.
+- "시작이 시간 초과로 끝나도 조회 claude는 입력 끝을 받고 SIGKILL되지 않는다"를 확인했다(입력 끝만으로 끝나는지는 재지 않음). lifecycle은 서비스에만 SIGTERM을 보내고, 서비스는 10초 안에 나가며, 따로 띄운(detached) claude는 SIGKILL을 받지 않는다. Node의 stdio 파이프로 띄운 자식은 부모가 `process.exit`하면 다른 자식이 살아 있어도 입력 끝을 받았다. 실제 claude 2.1.280(`--version`, 빈 HOME, stdout을 읽는 쪽을 먼저 닫음)은 `{code: 0, signal: null}`로 끝났고 `/bin/echo`는 SIGPIPE로 죽었다. 그래서 claude가 종료 처리 없이 SIGPIPE로 죽지는 않는다.
 - Minor: solutions 문서의 코드 조각(고침), STATUS에 32초 경우와 사용자 질문(고침), 시험 이름의 "10 s longer"가 실제로는 "적어도"(고치지 않음, 시험 파일이 기록된 구현 증거이고 실패 메시지에 값이 나온다), 30초를 두는 것은 32초 경우를 알고 덮지 않는 결정이므로 사용자 답을 D31이나 새 결정으로 남길 것(사용자에게 물음).
 
 ## 확인하지 못한 것
@@ -75,5 +79,5 @@ GREEN: runner-models 16/16, 시작 대기 시험 1/1, runner-settings 18/18, 타
 - 실제 claude로 새로 재지 않았다. 근거는 4번 측정과 가짜 claude 시험이다.
 - 바쁠 때의 실제 lean 시작 시간. 시작에는 조회 1단계(명령 4개, 각 10초 한도), codex 모델 목록(15초 한도), claude 조회, 그 뒤 git·docker 확인이 이어진다.
 - 조회 1단계의 `claude auth status`가 로그인을 갱신하거나 잠금을 잡는지. 잡는다면 10초 시간 초과의 SIGKILL이 잠금을 남길 수 있다(후속).
-- lean 서비스의 종료 한도는 10초다. 시작 중 조회가 도는 동안 서비스가 SIGTERM을 받으면 조회의 마지막 SIGKILL 전에 나갈 수 있다. 실제 claude는 입력 끝을 받고 스스로 끝나지만, SIGTERM까지 무시하는 CLI는 남는다. 그 구간이 2초에서 12초로 늘었다.
+- lean 서비스의 종료 한도는 10초다. 시작 중 조회가 도는 동안 서비스가 SIGTERM을 받으면 조회의 마지막 SIGKILL 전에 나갈 수 있다. 실제 claude는 입력 끝을 받고 SIGKILL되지 않으므로 잠금을 남기지 않지만, 입력 끝과 SIGTERM을 모두 무시하는 CLI는 남는다. 그 구간이 2초에서 12초로 늘었다.
 - 실제 토큰 서버가 느리게 답하는 갱신(4번과 같음).
