@@ -3,7 +3,7 @@
 Status: Proposed
 Understanding gate (G3): pending
 Story: pazmo-agent-office-contract.md (Goal; M1·M2·M3·M7·M9·M10·M13·M14·M15; O2; V1·V7·V8·V11·V12·V15·V16·V17; D23 3단계)
-Builds on: lean-office-decision.md (D23), team-story-board-decision.md (D24)
+Builds on: lean-office-decision.md (D23), team-story-board-decision.md (D24). 설명 페이지: https://claude.ai/artifact/M6pQbDBvwYCuxLB5dxxqHc
 
 ## 요청
 
