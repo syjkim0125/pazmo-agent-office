@@ -9,13 +9,25 @@
 - PR syjkim0125/pazmo-agent-office#47. G4는 2026-10-30 사용자 지시("너가 알려주고, 승인으로 기록해서 … 머지까지")로 컨트롤러가 쓴 답을 승인으로 기록했다(① 승인 후 머지). 사용자는 답을 기록 전에 보지 않았다. [G4 기록](verification/2026-10-29-load-flaky-tests-g4.md)
 - **claw를 빨리 켜는 일(vendor 서버 미리 빌드)은 하지 않았다.** 120초 동안 멈춘 claw 시작에 안내가 없는 점과 리뷰 후속은 남아 있다. [검증 기록](verification/2026-10-29-load-flaky-tests.md)
 
+# 2026-10-29 실제 claude·codex CLI로 실행기 오류와 SIGTERM 종료 확인
+
+- 제품 코드는 바꾸지 않았다. #35·#40의 자동 시험이 흉내만 내던 동작을 이 Mac의 실제 CLI로 봤다. [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
+- 리뷰 실행기 오류: 없는 모델을 고른 실제 claude·codex 리뷰어는 exit 1로 끝났다. 실제 coordinator·kit·VM 리뷰어를 거쳐 `REVIEW_RUNNER_FAILED`로 멈췄고, 엔지니어는 다시 돌지 않았다. claude 5/5, codex 2/2. codex 0.163.0도 API 오류에 exit 1이다.
+- claude SIGTERM: 갱신이 없을 때 0.3–1.7초, SessionEnd hook이 있으면 최대 1.9초(CLI 기본 한도 1.5초) 걸렸다. **SessionEnd hook은 SIGTERM 때도 정상 종료 때도 stream 이벤트로 나오지 않아 Office의 hook 감시에 보이지 않는다**(제안 P1, 결정 필요).
+- 갱신 중 SIGTERM은 사용자 확인 뒤 가짜 토큰·격리 config·답하지 않는 프록시로 쟀다.
+  - CLI는 진행 중인 갱신을 최대 2초 기다리고 나갔고, 스스로 나가면 잠금은 풀렸다.
+  - 한가할 때는 2.5초 안에 끝났다.
+  - **부하가 높으면 6초를 넘었다(최대 9.1초). Office와 같은 6초 SIGKILL을 걸자 load average 90–102에서 3회 중 2회 잠금이 남았다**(제안 P2, 결정 필요, 추천은 유예 늘리기).
+  - Keychain 항목은 생기지 않았다.
+- **남은 것:** P1·P2 결정, 관리형 SessionEnd hook, 평소 부하에서의 갱신 중 SIGTERM, 실제 토큰 서버가 느리게 답하는 갱신, 안전장치 거절 자체.
+
 # 2026-10-29 판정 없는 리뷰를 kit에 needs_changes로 남기지 않기
 
 - #35의 후속이다. 리뷰 실행기가 보고서 없이 끝나 Office 결과가 unknown(`REVIEW_RUNNER_FAILED`)이어도, kit 리뷰어 run에는 `verdict: "needs_changes"`가 적혀 리뷰어가 수정을 요청한 것처럼 보였다. 이제 판정이 없는 리뷰(실행기 실패·시간 초과 등)는 `verdict`와 `reviewedRevision` 없이 "No review verdict" 실패(`action: "human"`)로 남고, 실행기 실패면 피드백에 `REVIEW_RUNNER_FAILED`가 들어간다(D27, ASSUMED).
 - kit 파일은 바꾸지 않았다. kit는 리뷰어 판정(pass·needs_changes) 검사를 통과한 기록에만 한다. Office 흐름(멈춤·이유·수정 횟수)도 그대로다.
 - 자동 검사: root 1093/1093(#41을 합친 `3ebcff8`, 합치기 전 `b84d62d` 기준 960/960), 타입 검사 exit 0, Story 검사기 exit 0. 새 시험은 고치기 전 `needs_changes`로 실패했다. 독립 리뷰 두 번 Approve.
 - PR syjkim0125/pazmo-agent-office#42. G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 확인, ① 승인 후 머지). [G4 기록](verification/2026-10-29-kit-review-without-verdict-g4.md)
-- **실제 실행기 오류로 이 경로를 거친 확인은 남아 있다.** [검증 기록](verification/2026-10-29-kit-review-without-verdict.md)
+- 2026-10-30 실제 실행기 오류(없는 모델의 claude 리뷰어)로 확인했다. kit 리뷰 노드에 `verdict`가 없고 피드백에 `REVIEW_RUNNER_FAILED`가 들어갔다. 안전장치 거절 자체는 거치지 않았다. [검증 기록](verification/2026-10-29-kit-review-without-verdict.md) · [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
 
 # 2026-10-29 팀 Story 보드 2단계 (팀 Office 여러 repo, 시험)
 
@@ -29,7 +41,8 @@
   - main(#40)을 합친 `45df698`에서 다시 돌린 전체 시험 **1092/1092** exit 0, 타입 검사 exit 0, Story 검사기 exit 0
 - G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 푸시·PR, 머지는 사용자가 정함). [G4 기록](verification/2026-10-29-team-story-office-repos-g4.md)
 - **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다.
-- **남은 것:** 로컬 Hub(`pazmo-office hub`)에 시험 Story를 올려 eevee-be와 시험 repo 두 개로 하는 실제 확인(사용자 확인 뒤), `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
+- 실제 확인(2026-10-30, main `ebef236`): 로컬 Hub와 시험 repo 세 개(github.com, 회사 GHE, gh 로그인 없는 호스트)로 16개를 확인했고, 모두 기대대로 동작했다. 등록·중복 거절, 상태, 가져가기 순서, 하트비트, 재시작과 응답을 잃은 경우의 이어 받기, PL 취소, 멈춤, 하루 상한, 켜진 동안의 연결과 5분 재확인, `REPO_MISSING`·`REPO_REMOVED`, 보류 뒤 PL 풀기, 하트비트 404다. **찾은 것:** repo 빼기(`REPO_REMOVED`)나 하트비트 404는 로컬 기록만 버리고 Hub에는 그 Task가 이 사람의 claim으로 남는다. 그래서 PL이 풀거나 취소할 때까지(풀기는 10분 보류 뒤) 팀 Office가 다른 Task도 가져가지 않는다. 그동안 `status --team`과 로그에 이유가 나오지 않는다. eevee-be는 실제 데이터와 Fusion 연결을 건드리지 않으려고 쓰지 않았다. [실제 확인 기록](verification/2026-10-30-team-story-office-real-check.md)
+- **남은 것:** 위 찾은 것을 어떻게 다룰지 결정, `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
 
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
 
@@ -38,7 +51,8 @@
 - 자동 검사: root 959/959, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰 두 번(#36 머지 뒤, 이 변경)의 지적을 반영했다.
 - 취소·시간 초과 때의 유예는 2초에서 6초로, 바깥 감독 유예는 5.5초에서 12초로 늘렸다(사용자 선택). 갱신 중인 claude가 종료 처리와 갱신 대기를 마치고 잠금을 풀 시간이다.
 - G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 승인 후 머지). [G4 기록](verification/2026-10-28-claude-stop-integrity-g4.md)
-- **6초가 실제로 충분한지는 재 보지 못했다.** [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
+- 2026-10-29 실제 CLI로 쟀다. 갱신이 없을 때 claude 2.1.280은 SIGTERM 뒤 0.3–1.7초에 exit 143으로 끝났다. SessionEnd hook이 있으면 CLI의 기본 한도 1.5초까지 기다려 최대 1.9초였다. SessionEnd hook은 stream 이벤트로 나오지 않는다. [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
+- 갱신 중인 claude도 쟀다(가짜 토큰, 답하지 않는 프록시). CLI는 갱신을 최대 2초 기다리고 나갔다. 한가할 때는 2.5초 안에 끝났다. **부하가 높으면 6초를 넘었고(최대 9.1초), 6초 SIGKILL로 잠금이 남았다(load average 90–102에서 3회 중 2회).** 유예를 늘릴지는 결정이 필요하다(제안 P2). [검증 기록](verification/2026-10-28-claude-stop-integrity.md)
 
 # 2026-10-27 리뷰 실행기 오류를 리뷰 fail로 세지 않기
 
@@ -50,7 +64,7 @@
   - 독립 리뷰 Approve
 - G4는 2026-10-28 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 승인 후 머지). [G4 기록](verification/2026-10-27-review-runner-failure-g4.md)
 - 이렇게 멈춘 lean 작업은 #37의 [다시 실행]으로 새 작업을 만들 수 있다. Claw Office에는 아직 재실행이 없다(취소 후 새로 만들기).
-- **실제 실행기 오류로 이 경로를 거친 확인은 남아 있다.** [검증 기록](verification/2026-10-27-review-runner-failure.md)
+- 2026-10-29 실제 실행기 오류로 이 경로를 확인했다. 없는 모델을 고른 실제 claude(2.1.280)와 codex(0.163.0) 리뷰어는 API 오류에 exit 1로 끝났다. 실제 coordinator·kit·VM 리뷰어를 거쳐 `REVIEW_RUNNER_FAILED`로 멈췄고, 엔지니어는 한 번만 돌았다. **안전장치 거절 자체와 Office 화면은 거치지 않았다.** [검증 기록](verification/2026-10-27-review-runner-failure.md) · [실제 CLI 확인](verification/2026-10-29-real-cli-runner-checks.md)
 
 # 2026-10-27 새 Office: 멈춘 작업 다시 실행 (`--lean`)
 
