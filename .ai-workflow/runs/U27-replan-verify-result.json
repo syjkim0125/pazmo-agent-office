@@ -1,0 +1,10 @@
+{
+  "token": "fe39905d9703d8de92da0dac5506d77972f39cc4f3c1d7d124b78ffa5ffb6872",
+  "output": {
+    "summary": "Fresh verification on the final code commit 9216ed4 (worktree codex/pinned-codex-gate on PR #50 head 2062c17): npm test 1119/1119 exit 0 (2026-10-30 14:58-15:01, load 10-22, no other full run); typecheck exit 0; story check exit 0. Attempt 1 5e480ae: 1118/1118. Related files 148/148 on 9216ed4. Real up --codex-runtime pinned (claw, lean; temp HOME, PATH /usr/bin:/bin, no installed codex; the real claude in /opt/homebrew/bin may have been asked --version/auth status): RUNNER_BLOCKED / LOGIN_REQUIRED at step 1, no [1/4], no qualified-runtime, no .colima. Changed product files: src/cli/launcher.ts, src/runtime/live.ts, src/runtime/runner-settings.ts, src/runners/runner-discovery.ts. Evidence limits: no real office start --codex-runtime pinned (createLiveRuntime gate by test only); the prepareMachine call line has no automated test; pinned stop cases only (the passing case would run the real vendor install, runtime download and VM start); G4 is the user's.",
+    "evidence": [
+      "docs/verification/2026-10-30-pinned-codex-gate.md"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

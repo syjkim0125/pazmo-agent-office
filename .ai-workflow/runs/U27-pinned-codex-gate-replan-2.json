@@ -1,0 +1,325 @@
+{
+  "version": 1,
+  "runId": "f7c013ee-6b76-4f18-8b45-21be52d63ce4",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan 2 after merging origin/main (#48, #49, #51 D31, #52, #54) into the branch at 33c321b: the Story gained D31, so the Story fingerprint changed. Code unchanged since 9216ed4 (implement attempt 2 in U27-pinned-codex-gate-replan.json; attempt 1 in U27-pinned-codex-gate.json); main touched none of these src/tests files since the merge base 3926ee2. Merge conflicts were docs only (Story D30/D31/D32 order, STATUS, model-discovery solution doc). Code evidence as before: RED/GREEN per attempt, mutations 7/7 (reviewer 6/6), real up --codex-runtime pinned stops at step 1. Post-merge: related 10 files 164/164, typecheck 0, story check 0.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/live.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runners/runner-discovery.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-discovery.test.mjs",
+            ".ai-workflow/runs/U27-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "a0be99021162b6b08a42f5e0898cf700c595ee3b8c860f98baab9d3069fbdbca",
+          "src/runtime/live.ts": "ea8c9e9e4f5d58ba92a415ea048e9e814bf2ea547b4a51e7a9e237187456b56a",
+          "src/runtime/runner-settings.ts": "7c432f395eaed8faf9797593d87bae3d3def4bbda17096735321f3701d377457",
+          "src/runners/runner-discovery.ts": "3b42e87149821f5c53c35f88149c43026e3fe20697f87f8068973bca6d2291a0",
+          "tests/launcher.test.mjs": "8b50e3bda5c4a5618ba0f85e25cc259504a9e38b40f938f0425e6540dfa09d63",
+          "tests/live-runtime.test.mjs": "e7459e2bd323134490f2a3595a529cfdeb6a3c7058d4549ad886ee9c0b839b4c",
+          "tests/runner-settings.test.mjs": "97fd9b507ea4a28a3b44b9bb2781d18a1b03821813b15d7ecdf525884a736176",
+          "tests/runner-discovery.test.mjs": "85b43d0e9e203d3f1222e4ff21dcb3cdf857e1285becd98d87dba39be62099f6",
+          ".ai-workflow/runs/U27-review-1.md": "05681626f0dfc5078219b867c5a2fc418fdf997d00160dece9f466755a1a7a1e"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review, two passes (same reviewer), both Approve with no Critical/Important: review 1 on 5e480ae (62/62, 85/85, typecheck 0, story 0, own mutations 6/6; Minor 1-4 fixed in 9216ed4, Minor 5 follow-up), review 2 on 9216ed4 (63/63, 85/85; Minor 1-2 docs fixed after it). The merge with main changed no reviewed src/tests file; its doc conflict resolutions are author-checked (Story keeps D30, D31, D32; STATUS keeps all sections; the solution doc keeps main's role-run bullet and #50's sentence).",
+          "evidence": [
+            ".ai-workflow/runs/U27-review-1.md",
+            ".ai-workflow/runs/U27-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U27-review-1.md": "05681626f0dfc5078219b867c5a2fc418fdf997d00160dece9f466755a1a7a1e",
+          ".ai-workflow/runs/U27-review-2.md": "f72f17c59ab295159431aed045501bd5b6bd568ae4843c48040a27f3dec1d286"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification after merging main at 33c321b: npm test 1121/1121 exit 0 (2026-10-30 15:51-15:53, load 7-24, vendor install and build:office redone, no other full run); related 164/164; typecheck 0; story check 0. Before the merge: 9216ed4 1119/1119, 5e480ae 1118/1118. Real up --codex-runtime pinned (claw, lean; temp HOME; no installed codex) stops at step 1 with RUNNER_BLOCKED / LOGIN_REQUIRED, no [1/4], no runtime, no .colima. Limits: no real office start --codex-runtime pinned; the prepareMachine call line has no automated test; G4 is the user's.",
+          "evidence": [
+            "docs/verification/2026-10-30-pinned-codex-gate.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-pinned-codex-gate.md": "1cc48324414f374f258045d2482f7016bdabc60422db0eba1ef93e2be039c23f"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "d3504bfd155a383d982dbf92b67b9d58407e56afb11408d826cea885f265af69"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T06:54:29.655Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T06:54:30.195Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan 2 after merging origin/main (#48, #49, #51 D31, #52, #54) into the branch at 33c321b: the Story gained D31, so the Story fingerprint changed. Code unchanged since 9216ed4 (implement attempt 2 in U27-pinned-codex-gate-replan.json; attempt 1 in U27-pinned-codex-gate.json); main touched none of these src/tests files since the merge base 3926ee2. Merge conflicts were docs only (Story D30/D31/D32 order, STATUS, model-discovery solution doc). Code evidence as before: RED/GREEN per attempt, mutations 7/7 (reviewer 6/6), real up --codex-runtime pinned stops at step 1. Post-merge: related 10 files 164/164, typecheck 0, story check 0.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/live.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runners/runner-discovery.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-discovery.test.mjs",
+            ".ai-workflow/runs/U27-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "a0be99021162b6b08a42f5e0898cf700c595ee3b8c860f98baab9d3069fbdbca",
+          "src/runtime/live.ts": "ea8c9e9e4f5d58ba92a415ea048e9e814bf2ea547b4a51e7a9e237187456b56a",
+          "src/runtime/runner-settings.ts": "7c432f395eaed8faf9797593d87bae3d3def4bbda17096735321f3701d377457",
+          "src/runners/runner-discovery.ts": "3b42e87149821f5c53c35f88149c43026e3fe20697f87f8068973bca6d2291a0",
+          "tests/launcher.test.mjs": "8b50e3bda5c4a5618ba0f85e25cc259504a9e38b40f938f0425e6540dfa09d63",
+          "tests/live-runtime.test.mjs": "e7459e2bd323134490f2a3595a529cfdeb6a3c7058d4549ad886ee9c0b839b4c",
+          "tests/runner-settings.test.mjs": "97fd9b507ea4a28a3b44b9bb2781d18a1b03821813b15d7ecdf525884a736176",
+          "tests/runner-discovery.test.mjs": "85b43d0e9e203d3f1222e4ff21dcb3cdf857e1285becd98d87dba39be62099f6",
+          ".ai-workflow/runs/U27-review-1.md": "05681626f0dfc5078219b867c5a2fc418fdf997d00160dece9f466755a1a7a1e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T06:54:30.811Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T06:54:31.258Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent report-only review, two passes (same reviewer), both Approve with no Critical/Important: review 1 on 5e480ae (62/62, 85/85, typecheck 0, story 0, own mutations 6/6; Minor 1-4 fixed in 9216ed4, Minor 5 follow-up), review 2 on 9216ed4 (63/63, 85/85; Minor 1-2 docs fixed after it). The merge with main changed no reviewed src/tests file; its doc conflict resolutions are author-checked (Story keeps D30, D31, D32; STATUS keeps all sections; the solution doc keeps main's role-run bullet and #50's sentence).",
+          "evidence": [
+            ".ai-workflow/runs/U27-review-1.md",
+            ".ai-workflow/runs/U27-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U27-review-1.md": "05681626f0dfc5078219b867c5a2fc418fdf997d00160dece9f466755a1a7a1e",
+          ".ai-workflow/runs/U27-review-2.md": "f72f17c59ab295159431aed045501bd5b6bd568ae4843c48040a27f3dec1d286"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T06:54:31.883Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T06:54:32.530Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh verification after merging main at 33c321b: npm test 1121/1121 exit 0 (2026-10-30 15:51-15:53, load 7-24, vendor install and build:office redone, no other full run); related 164/164; typecheck 0; story check 0. Before the merge: 9216ed4 1119/1119, 5e480ae 1118/1118. Real up --codex-runtime pinned (claw, lean; temp HOME; no installed codex) stops at step 1 with RUNNER_BLOCKED / LOGIN_REQUIRED, no [1/4], no runtime, no .colima. Limits: no real office start --codex-runtime pinned; the prepareMachine call line has no automated test; G4 is the user's.",
+          "evidence": [
+            "docs/verification/2026-10-30-pinned-codex-gate.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-pinned-codex-gate.md": "1cc48324414f374f258045d2482f7016bdabc60422db0eba1ef93e2be039c23f"
+        }
+      }
+    }
+  ]
+}

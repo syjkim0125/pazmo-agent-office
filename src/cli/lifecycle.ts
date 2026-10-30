@@ -29,7 +29,7 @@ import type { LiveConfig } from "../runtime/live.ts";
 /** The engines this version starts. */
 const STARTED = ["lean", "team"] as const;
 /** Engines an earlier version may have left running: still read from the
- * saved state so that Office can be shown and stopped, never started (D30).
+ * saved state so that Office can be shown and stopped, never started (D33).
  * A state without an engine is the legacy one. */
 const RETIRED = ["legacy", "claw"] as const;
 export type Engine = (typeof STARTED)[number];

@@ -27,7 +27,7 @@ import {
   NO_TEAM_SCREEN,
 } from "./lifecycle.ts";
 
-/** Commands of the legacy engine's operator API, removed with it (D30): named
+/** Commands of the legacy engine's operator API, removed with it (D33): named
  * on refusal so a stale script or chat host learns why. */
 const REMOVED_COMMANDS = [
   "bridge",
@@ -58,7 +58,7 @@ export async function main(args: string[]): Promise<void> {
     if (REMOVED_COMMANDS.includes(command))
       fail(
         "COMMAND_REMOVED",
-        `${command} was removed with the chat bridge and the legacy engine (D30). Use the Office screen (./office); see docs/CHAT-CONTROL.md.`,
+        `${command} was removed with the chat bridge and the legacy engine (D33). Use the Office screen (./office); see docs/CHAT-CONTROL.md.`,
       );
     if (command === "--version") {
       console.log("0.1.0-alpha.1");
@@ -141,7 +141,7 @@ export async function main(args: string[]): Promise<void> {
         options[flag] = value;
       }
     }
-    // The Claw Office was removed (D30): say so before any other check.
+    // The Claw Office was removed (D33): say so before any other check.
     if (options["--claw"])
       fail(
         "CLAW_REMOVED",

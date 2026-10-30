@@ -32,7 +32,7 @@ flowchart LR
 
 **Tech Stack:** Node 24(`node:sqlite`, `node:test`, 타입 제거 실행). 루트 의존성은 `ws` 하나, 개발 의존성은 `typescript`·`@types/node`·`@types/ws`.
 
-**Spec:** `docs/understanding/lean-office-default-decision.md`(G3 2026-10-30, A안). Story D30, M1·M2·M3·M8·M12·M15, V1·V8·V9·V10·V14·V17.
+**Spec:** `docs/understanding/lean-office-default-decision.md`(G3 2026-10-30, A안). Story D33, M1·M2·M3·M8·M12·M15, V1·V8·V9·V10·V14·V17.
 
 ## Global Constraints
 
@@ -202,7 +202,7 @@ flowchart LR
 - 고침: `README.md`, `README_ko.md`(Claw 원본 그림 삭제, 기본 Office, 표의 "Claw-Empire 없는 최소 Office" 줄), `docs/LOCAL-PREVIEW.md`, `AGENTS.md`("Chat-controlled Office" 절 삭제), `docs/CHAT-CONTROL.md`(폐기 안내만), `CONCEPTS.md`, `LICENSING.md`, `THIRD_PARTY_NOTICES.md`, `upstream/CHANGES.md`, `upstream/claw-empire.lock.json`(삭제 커밋 기록), `docs/STATUS.md`
 - 새로: `docs/verification/2026-10-30-lean-office-default.md`
 
-**Approach:** 옛 검증 기록(`docs/verification/*`)과 결정 문서는 이력이라 고치지 않는다. `AGENTS.md`의 kit 관리 블록(`<!-- BEGIN ai-workflow-kit -->`)은 건드리지 않는다. Story(D30과 M/V 변경)는 G3 기록 커밋(`25e358e`)에서 이미 고쳤다. README(영·한)에 "Claw 버전에서 업데이트" 안내를 넣는다: 받기 전에 Claw 작업과 수락한 허브 요청을 끝내거나 취소하고 옛 Office를 멈춘다, 받은 뒤 `./office`(또는 `--team`)를 한 번 실행한다(첫 실행은 레지스트리 접속 필요, 실행기 자격 검사 한 번), `vendor/claw-empire` 폴더는 지워도 된다.
+**Approach:** 옛 검증 기록(`docs/verification/*`)과 결정 문서는 이력이라 고치지 않는다. `AGENTS.md`의 kit 관리 블록(`<!-- BEGIN ai-workflow-kit -->`)은 건드리지 않는다. Story(D33과 M/V 변경)는 G3 기록 커밋(`25e358e`)에서 이미 고쳤다. README(영·한)에 "Claw 버전에서 업데이트" 안내를 넣는다: 받기 전에 Claw 작업과 수락한 허브 요청을 끝내거나 취소하고 옛 Office를 멈춘다, 받은 뒤 `./office`(또는 `--team`)를 한 번 실행한다(첫 실행은 레지스트리 접속 필요, 실행기 자격 검사 한 번), `vendor/claw-empire` 폴더는 지워도 된다.
 
 **Test scenarios:** `Test expectation: none -- 문서. U6의 grep과 Story 검사기가 증거다.`
 
@@ -218,7 +218,7 @@ flowchart LR
 
 **Dependencies:** U1–U5
 
-**Files:** `docs/verification/2026-10-30-lean-office-default.md`, `.ai-workflow/runs/U25-lean-office-default*.{json,md}`
+**Files:** `docs/verification/2026-10-30-lean-office-default.md`, `.ai-workflow/runs/U28-lean-office-default*.{json,md}`
 
 **Approach:**
 - 메인 checkout 밖(상위 폴더의 `node_modules`를 찾지 않는 곳)에 새로 받은 사본에서 루트 `npm ci`만으로 전체 시험·타입 검사·Story 검사기.

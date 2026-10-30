@@ -144,5 +144,6 @@ test("codex with personal instructions in ~/.codex is marked blocked with guidan
   assert.match(r.codex.blocked, /AGENTS\.md/);
   assert.match(r.codex.hint, /AGENTS\.md/);
   assert.match(r.codex.hint, /claude/);
+  assert.doesNotMatch(r.codex.hint, /codex login/, "logged in: the block is the only fix");
   assert.equal(r.claude.blocked, undefined);
 });

@@ -1,0 +1,244 @@
+{
+  "version": 1,
+  "runId": "6aa835ce-ba22-4dc9-b1cf-13b703806e9f",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D32 (user choice B; login cue ASSUMED) on 5e480ae over PR #50 head 2062c17. pinnedCodexProblem(authHome) in runner-settings.ts is the one pinned start check for ./office step 1 (assertRunnerLogin) and createLiveRuntime (runner mode): ~/.codex/auth.json present and no AGENTS.md / AGENTS.override.md there, by existence, installed codex or not; a logged-in claude does not count. blockedHint in runner-discovery.ts appends the CLI's login hint to a blocked, logged-out CLI's hint (codex inspect(), claude blockHookedClaude). RED on the old code: 6 behaviour tests failed for the expected reason (pinned login lead, folder check with no installed codex, pinned block, step-1 two-step codex hint, Office pinned start, logged-out hooked claude hint); 9 more failed only on the assertRunnerLogin signature change. GREEN: launcher, live-runtime, runner-settings, runner-discovery, lean-office, runner-jobs, codex-controller 125/125; typecheck exit 0. Mutations 7/7 caught. Real up --codex-runtime pinned (claw, lean; temp HOME, no installed CLI): login+AGENTS.md -> RUNNER_BLOCKED, AGENTS.override.md without login -> LOGIN_REQUIRED, no [1/4], no qualified-runtime, no .colima. The old PR #50 assertRunnerLogin passed step 1 for pinned with auth.json and no installed codex.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/live.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runners/runner-discovery.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-discovery.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "6a9b51f95b6385cfb8db26349ffec49229804a809287b61f1f6b67d8fd61f843",
+          "src/runtime/live.ts": "ea8c9e9e4f5d58ba92a415ea048e9e814bf2ea547b4a51e7a9e237187456b56a",
+          "src/runtime/runner-settings.ts": "760cab97acf9ad93e4601bcb6bcb82caa40426f35e26affb0a5bd888e2f7916f",
+          "src/runners/runner-discovery.ts": "9677d395d23e8165dc95745900d6a50accfd7ad964cb1cdb53fd5c3ef230866e",
+          "tests/launcher.test.mjs": "a12e578f59978ad1dc42d90e9a7d9ee3ce863ef97840f8e88fb1005526284878",
+          "tests/live-runtime.test.mjs": "e7459e2bd323134490f2a3595a529cfdeb6a3c7058d4549ad886ee9c0b839b4c",
+          "tests/runner-settings.test.mjs": "b90fa1c75df8fef6831292a92f584fc3eb3de031bb7e67dde6f3dd78c55dcb55",
+          "tests/runner-discovery.test.mjs": "85b43d0e9e203d3f1222e4ff21dcb3cdf857e1285becd98d87dba39be62099f6"
+        }
+      },
+      "workflow-review": {
+        "status": "running",
+        "attempts": 1,
+        "revision": 0
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "59a266a637932e440610f412ca2af4278c4e0f69d1ff21bff1d0bf3109615fcc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T05:28:46.779Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T05:40:56.198Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D32 (user choice B; login cue ASSUMED) on 5e480ae over PR #50 head 2062c17. pinnedCodexProblem(authHome) in runner-settings.ts is the one pinned start check for ./office step 1 (assertRunnerLogin) and createLiveRuntime (runner mode): ~/.codex/auth.json present and no AGENTS.md / AGENTS.override.md there, by existence, installed codex or not; a logged-in claude does not count. blockedHint in runner-discovery.ts appends the CLI's login hint to a blocked, logged-out CLI's hint (codex inspect(), claude blockHookedClaude). RED on the old code: 6 behaviour tests failed for the expected reason (pinned login lead, folder check with no installed codex, pinned block, step-1 two-step codex hint, Office pinned start, logged-out hooked claude hint); 9 more failed only on the assertRunnerLogin signature change. GREEN: launcher, live-runtime, runner-settings, runner-discovery, lean-office, runner-jobs, codex-controller 125/125; typecheck exit 0. Mutations 7/7 caught. Real up --codex-runtime pinned (claw, lean; temp HOME, no installed CLI): login+AGENTS.md -> RUNNER_BLOCKED, AGENTS.override.md without login -> LOGIN_REQUIRED, no [1/4], no qualified-runtime, no .colima. The old PR #50 assertRunnerLogin passed step 1 for pinned with auth.json and no installed codex.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/live.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runners/runner-discovery.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-discovery.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "6a9b51f95b6385cfb8db26349ffec49229804a809287b61f1f6b67d8fd61f843",
+          "src/runtime/live.ts": "ea8c9e9e4f5d58ba92a415ea048e9e814bf2ea547b4a51e7a9e237187456b56a",
+          "src/runtime/runner-settings.ts": "760cab97acf9ad93e4601bcb6bcb82caa40426f35e26affb0a5bd888e2f7916f",
+          "src/runners/runner-discovery.ts": "9677d395d23e8165dc95745900d6a50accfd7ad964cb1cdb53fd5c3ef230866e",
+          "tests/launcher.test.mjs": "a12e578f59978ad1dc42d90e9a7d9ee3ce863ef97840f8e88fb1005526284878",
+          "tests/live-runtime.test.mjs": "e7459e2bd323134490f2a3595a529cfdeb6a3c7058d4549ad886ee9c0b839b4c",
+          "tests/runner-settings.test.mjs": "b90fa1c75df8fef6831292a92f584fc3eb3de031bb7e67dde6f3dd78c55dcb55",
+          "tests/runner-discovery.test.mjs": "85b43d0e9e203d3f1222e4ff21dcb3cdf857e1285becd98d87dba39be62099f6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T05:41:05.198Z"
+    }
+  ]
+}

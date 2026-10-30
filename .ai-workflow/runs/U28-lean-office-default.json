@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "runId": "fccefbd8-21b9-4e20-bbd5-b8436ff428f6",
+  "runId": "fb57d3b2-0e27-4e69-b6bf-77313b622c43",
   "graph": {
     "id": "delivery",
     "nodes": [
@@ -121,16 +121,16 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Replan after merging #51 (D31): the D30 implementation from the first U25 run plus the conflict resolution (STARTUP_MS lean 30 s per D31, team 15 s, claw/legacy entries removed).",
+          "summary": "D30 implemented on codex/lean-phase3-g3 (ee12b05..3bfb30a): root ws/TypeScript, engine tests on the lean schema, lean default with claw/legacy/bridge/operator CLI removed and old state stoppable, vendor tree removed, docs; simplify pass and review fixes applied. RED/GREEN and mutation checks in the evidence file.",
           "evidence": [
-            ".ai-workflow/runs/U25-merge-implement-2.md"
+            ".ai-workflow/runs/U28-implement-1.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U25-merge-implement-2.md": "4afe0d269373f85ba83682a10672e1d573be4248ec29324ff5f47a6acbc7e63e"
+          ".ai-workflow/runs/U28-implement-1.md": "bf32e59ada8cd367d307c3577b0b3f93822db02b6b671912bcdc39a60fa64634"
         }
       },
       "workflow-review": {
@@ -138,16 +138,16 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Only the merge of #51 changed code since the reviewed 3bfb30a; #51 was reviewed on main; the conflict resolution was checked against D31 and the merged wait test.",
+          "summary": "Independent report-only review (ce-code-review mode:agent, 9 reviewers plus Codex cross-model): 3 actionable P2 findings, all resolved (reuse-path test, survive-restart half, fresh graph run); lower-priority items applied in 3bfb30a; residual risks recorded.",
           "evidence": [
-            ".ai-workflow/runs/U25-merge-review-2.md"
+            ".ai-workflow/runs/U28-review-1.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U25-merge-review-2.md": "0f33ad201ba8c148cb1d4c26d40472a5ecc53fb84a923d16aa81243a0b4a0051"
+          ".ai-workflow/runs/U28-review-1.md": "e121d6d6ab9e743209d9cb72c8f5037c174f284952e63564025bdb427a8c71a1"
         }
       },
       "workflow-verify": {
@@ -155,103 +155,103 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh after the merge: full suite 1074/1074, typecheck exit 0, Story checker exit 0; earlier checks unaffected; app-be real run and the pre-checks not verified.",
+          "summary": "Fresh verification after the last code change (3bfb30a): full suite 1072/1072, typecheck exit 0, Story checker exit 0; fresh copy, upgrade, reuse and removal checks as listed; app-be real run and the two pre-checks not verified.",
           "evidence": [
-            ".ai-workflow/runs/U25-merge-verify-2.md"
+            ".ai-workflow/runs/U28-verify-1.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U25-merge-verify-2.md": "ba418ba846a733a861d8231b689aa5256bce9ccfff0a026f41cab543c7dbcffc"
+          ".ai-workflow/runs/U28-verify-1.md": "6d6b21dc99f5495e195fa2f8309694f63c2596129815175acebca937d4812d43"
         }
       }
     }
   },
   "story": {
     "path": "docs/understanding/pazmo-agent-office-contract.md",
-    "fingerprint": "9b2582dac4123b82ef744cc96c454fbdbbe75c6ed029875e04f7077e5c8ef3d0"
+    "fingerprint": "951569704ef2f989e37e20027241fbb3076e03f0d1898c97de15f4050dd1275d"
   },
   "history": [
     {
       "event": "start",
       "nodeId": "implement",
-      "at": "2026-10-30T06:07:28.621Z"
+      "at": "2026-10-30T06:02:28.491Z"
     },
     {
       "event": "record",
       "nodeId": "implement",
-      "at": "2026-10-30T06:07:28.708Z",
+      "at": "2026-10-30T06:02:28.647Z",
       "result": {
         "status": "completed",
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Replan after merging #51 (D31): the D30 implementation from the first U25 run plus the conflict resolution (STARTUP_MS lean 30 s per D31, team 15 s, claw/legacy entries removed).",
+          "summary": "D30 implemented on codex/lean-phase3-g3 (ee12b05..3bfb30a): root ws/TypeScript, engine tests on the lean schema, lean default with claw/legacy/bridge/operator CLI removed and old state stoppable, vendor tree removed, docs; simplify pass and review fixes applied. RED/GREEN and mutation checks in the evidence file.",
           "evidence": [
-            ".ai-workflow/runs/U25-merge-implement-2.md"
+            ".ai-workflow/runs/U28-implement-1.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U25-merge-implement-2.md": "4afe0d269373f85ba83682a10672e1d573be4248ec29324ff5f47a6acbc7e63e"
+          ".ai-workflow/runs/U28-implement-1.md": "bf32e59ada8cd367d307c3577b0b3f93822db02b6b671912bcdc39a60fa64634"
         }
       }
     },
     {
       "event": "start",
       "nodeId": "workflow-review",
-      "at": "2026-10-30T06:07:28.819Z"
+      "at": "2026-10-30T06:02:39.916Z"
     },
     {
       "event": "record",
       "nodeId": "workflow-review",
-      "at": "2026-10-30T06:07:28.906Z",
+      "at": "2026-10-30T06:02:40.119Z",
       "result": {
         "status": "completed",
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Only the merge of #51 changed code since the reviewed 3bfb30a; #51 was reviewed on main; the conflict resolution was checked against D31 and the merged wait test.",
+          "summary": "Independent report-only review (ce-code-review mode:agent, 9 reviewers plus Codex cross-model): 3 actionable P2 findings, all resolved (reuse-path test, survive-restart half, fresh graph run); lower-priority items applied in 3bfb30a; residual risks recorded.",
           "evidence": [
-            ".ai-workflow/runs/U25-merge-review-2.md"
+            ".ai-workflow/runs/U28-review-1.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U25-merge-review-2.md": "0f33ad201ba8c148cb1d4c26d40472a5ecc53fb84a923d16aa81243a0b4a0051"
+          ".ai-workflow/runs/U28-review-1.md": "e121d6d6ab9e743209d9cb72c8f5037c174f284952e63564025bdb427a8c71a1"
         }
       }
     },
     {
       "event": "start",
       "nodeId": "workflow-verify",
-      "at": "2026-10-30T06:07:29.016Z"
+      "at": "2026-10-30T06:02:40.433Z"
     },
     {
       "event": "record",
       "nodeId": "workflow-verify",
-      "at": "2026-10-30T06:07:29.106Z",
+      "at": "2026-10-30T06:02:41.006Z",
       "result": {
         "status": "completed",
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh after the merge: full suite 1074/1074, typecheck exit 0, Story checker exit 0; earlier checks unaffected; app-be real run and the pre-checks not verified.",
+          "summary": "Fresh verification after the last code change (3bfb30a): full suite 1072/1072, typecheck exit 0, Story checker exit 0; fresh copy, upgrade, reuse and removal checks as listed; app-be real run and the two pre-checks not verified.",
           "evidence": [
-            ".ai-workflow/runs/U25-merge-verify-2.md"
+            ".ai-workflow/runs/U28-verify-1.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U25-merge-verify-2.md": "ba418ba846a733a861d8231b689aa5256bce9ccfff0a026f41cab543c7dbcffc"
+          ".ai-workflow/runs/U28-verify-1.md": "6d6b21dc99f5495e195fa2f8309694f63c2596129815175acebca937d4812d43"
         }
       }
     }

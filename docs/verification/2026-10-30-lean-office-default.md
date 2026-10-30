@@ -1,8 +1,8 @@
-# 검증 기록: 새 Office 기본 전환과 Claw Empire 삭제 (D30)
+# 검증 기록: 새 Office 기본 전환과 Claw Empire 삭제 (D33)
 
 - 결정: [lean-office-default-decision.md](../understanding/lean-office-default-decision.md) (G3 2026-10-30, A안 "A로 해")
 - 계획: [2026-10-30-1500-feat-lean-office-default-plan.md](../plans/2026-10-30-1500-feat-lean-office-default-plan.md)
-- Story: D30, M1·M2·M3·M8·M12·M15, V1·V8·V9·V10·V14·V17
+- Story: D33, M1·M2·M3·M8·M12·M15, V1·V8·V9·V10·V14·V17
 - 브랜치: `codex/lean-phase3-g3` (origin/main `3926ee2` 위)
 
 ## 바뀐 것
@@ -19,7 +19,8 @@
 | `3bfb30a` | 독립 리뷰 반영(아래 "독립 리뷰") |
 | `73b15ed` | origin/main(#51, D31: live lean 시작 대기 30초) 병합. `STARTUP_MS`는 lean 30초·team 15초만 남김 |
 | `491c668` | origin/main(#52 `claude auth status` 잠금 기록, #54 Pazmo 원본 라이선스 PolyForm Shield 1.0.0) 병합. LICENSING·README(영·한)는 #54의 새 라이선스와 이 브랜치의 Claw 삭제 문구를 둘 다 살림, `package-lock.json`의 license도 `SEE LICENSE IN LICENSING.md`로 |
-| (#55 병합 커밋) | origin/main(#55 README를 팀 Story 보드 중심으로 다시 씀) 병합. #55의 구조를 그대로 두고 Claw 삭제 내용(상태 표의 기본 전환·허브 화면 삭제, `./office` 실행, "Claw 버전에서 업데이트" 절차, 라이선스 문단)을 다시 넣음 |
+| `a6f4929` | origin/main(#55 README를 팀 Story 보드 중심으로 다시 씀) 병합. #55의 구조를 그대로 두고 Claw 삭제 내용(상태 표의 기본 전환·허브 화면 삭제, `./office` 실행, "Claw 버전에서 업데이트" 절차, 라이선스 문단)을 다시 넣음 |
+| (#53 병합 커밋) | origin/main(#50·#53: `./office` 1단계 hook 검사 D30, pinned codex 시작 조건 D32) 병합. 결정 번호와 kit unit이 겹쳐 이 브랜치의 결정을 D33, unit을 U28로 바꿈(아래 "번호 바꿈") |
 
 남긴 것(결정 2): `native-office.ts`의 Claw용 API, `operator.ts`, `runner-settings.ts`의 역할별 경로, `hub-link.ts`·`hub-outgoing.ts`의 옛 요청 흐름과 그 시험. D24 3단계 뒤 별도로 정리한다.
 
@@ -36,6 +37,7 @@
 | #51 병합 뒤(`73b15ed`) 전체 시험 | **1074/1074** exit 0, 73.5초. #51의 시험 2개가 더해짐. main(`610169e`, 1106) 대비 −32 = Claw·legacy·bridge 전용 37개 삭제 + 새 시험 5개. 타입 검사 exit 0, Story 검사기 exit 0 |
 | #52·#54 병합 뒤 전체 시험 | **1074/1074** exit 0, 96.2초. #52는 문서·실측 스크립트만, #54는 `role-profiles` 시험 내용만 바꿔 시험 수가 같음. 타입 검사 exit 0, Story 검사기 exit 0(Story 변경 없음, kit 그래프 run은 그대로 `g4`) |
 | #55 병합 뒤 전체 시험 | **1074/1074** exit 0, 123.1초. #55는 README만 바꿈. 타입 검사 exit 0, Story 검사기 exit 0 |
+| #53 병합 뒤 전체 시험 | **1089/1089** exit 0, 74.3초(다른 세션의 시험 프로세스 하나와 같이 돎). main(`cfa323c`, 1121) 대비 −32로 앞과 같은 차이이며, #50·#53의 새 시험 15개가 모두 돈다. 타입 검사 exit 0, Story 검사기 exit 0 |
 | 타입 검사(루트 `tsc`) | exit 0 (이 worktree, 새 사본, 병합 뒤) |
 | Story 검사기 | exit 0 |
 | `git ls-files vendor` | 0개, `.gitmodules` 없음 |
@@ -70,6 +72,15 @@ node 기준 1104 → 1070, junit 기준 1086 → 1052로 둘 다 34개 줄었다
 | `execution.recoverInterrupted()` | 실패 |
 | `completion.reconcileDeliveries()` | 실패(저장된 행을 직접 읽어 확인) |
 | 없음 | 통과 |
+
+## 번호 바꿈 (#53 병합, 2026-10-30)
+
+main의 #50·#53이 먼저 D30(`./office` 1단계 hook 검사)·D32와 kit unit U25를 썼다. 이 브랜치도 D30과 U25를 쓰고 있었다.
+
+- 결정: 이 브랜치의 결정은 **D33**이다. main 쪽에 D30이 없던 파일의 D30을 모두 D33으로 바꿨다. main의 D30이 있는 파일(`launcher.ts`, `tests/launcher.test.mjs`, main의 검증 기록 셋, 해결 문서 하나)은 그대로 뒀다. 이 브랜치의 커밋 메시지와 앞 두 kit run 증거(내용 고정)에 적힌 D30은 D33을 가리킨다.
+- kit run: 이 브랜치의 run 파일을 U28로 옮겼다. 이름이 겹친 `U25-implement-result.json`·`U25-review-1.md`는 main 것을 그 자리에 두고, 이 브랜치 것은 `a6f4929`에서 꺼내 `U28-implement-result.json`·`U28-review-1.md`로 살렸다. run JSON과 결과 JSON은 경로 문자열만 바꿨다. 옮긴 두 run의 증거 해시 6개는 모두 그대로 맞는다.
+- main의 1단계 hook 검사(`startupRunners`)는 `prepare()`(의존성 설치)보다 먼저 돈다. 이 검사가 띄우는 claude는 MCP 없이(`--strict-mcp-config`, 도구 없음) 돌아 `ws`가 필요한 `claude-tool-bridge.mjs`를 띄우지 않는다. launcher에서 닿는 모듈에는 `node:` 밖의 정적 import가 없어, `ws` 없이도 launcher가 로드된다.
+- Story가 바뀌어(main의 D30·D32, 이 브랜치의 D33) 새 run `U28-lean-office-default-replan.json`을 만들었다. 앞 run 둘은 증거로 둔다.
 
 ## 업데이트 확인 (vendor를 설치·빌드했던 checkout)
 

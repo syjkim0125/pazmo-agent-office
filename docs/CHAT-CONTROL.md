@@ -1,6 +1,6 @@
 # 채팅으로 Office에 일 맡기기 (폐기)
 
-2026-10-30 D30으로 폐기했다. 채팅 host가 `bridge` 명령으로 Office에 요청·답·승인을 전달하던 방식과 Claw Office의 캐릭터 채팅은 legacy·Claw 엔진과 함께 지웠다. `bridge`, `contract`, `contracts`, `intake-*`, `approval-*`, `verification`, `delivery`, `deliver`, `operator-key` 명령도 없다.
+2026-10-30 D33으로 폐기했다. 채팅 host가 `bridge` 명령으로 Office에 요청·답·승인을 전달하던 방식과 Claw Office의 캐릭터 채팅은 legacy·Claw 엔진과 함께 지웠다. `bridge`, `contract`, `contracts`, `intake-*`, `approval-*`, `verification`, `delivery`, `deliver`, `operator-key` 명령도 없다.
 
 지금은 사람이 Office 화면에서 일한다.
 

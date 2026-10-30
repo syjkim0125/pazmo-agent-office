@@ -1,0 +1,1 @@
+{"token":"e14fe47e3e333fc64a9e2a704bb45111975619ca11d51d149281f8c2b8c31df9","output":{"summary":"Fresh after the merge: full suite 1074/1074, typecheck exit 0, Story checker exit 0; earlier checks unaffected; app-be real run and the pre-checks not verified.","evidence":[".ai-workflow/runs/U28-merge-verify-2.md"]},"evaluation":{"passed":true}}

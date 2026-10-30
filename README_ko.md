@@ -108,14 +108,14 @@ Hub 백엔드에는 동시 가져가기 제한, 보류 감지와 병합 잠금�
 | 항목 | 구현·확인된 범위 | 남은 범위 |
 |---|---|---|
 | 로컬 실행 | 설치된 codex·claude CLI로 PM·Lead·Developer·Reviewer 실행. Mac 한 대에서 실제 작업을 사람 G4·인도까지 완료했습니다. | 다른 팀원의 PC와 장기간 운영 확인. |
-| 최소 Office (기본) | Tasks·작업 상세·Decisions·Agents, 작업·리뷰 실행기 분리. 2026-10-27 실제 작업 완료를 확인했습니다. 2026-10-30에 기본이 됐고, 기존 Claw 기반 Office와 그 소스를 지웠습니다(D30). | 팀 Hub 화면, app-be에서 새 기본으로 실제 작업 하나 확인. |
-| 기존 팀 Hub | 초대·레포·담당자를 관리하는 허브 서버. Office 사이의 요청 보내기·수락·취소를 Mac 한 대의 Office 두 개로 확인했고, 그 Office 화면은 Claw 기반 Office와 함께 지웠습니다(D30). | 수동 전달을 Story Task 자동 가져가기로 전환, 여러 PC 검증. |
+| 최소 Office (기본) | Tasks·작업 상세·Decisions·Agents, 작업·리뷰 실행기 분리. 2026-10-27 실제 작업 완료를 확인했습니다. 2026-10-30에 기본이 됐고, 기존 Claw 기반 Office와 그 소스를 지웠습니다(D33). | 팀 Hub 화면, app-be에서 새 기본으로 실제 작업 하나 확인. |
+| 기존 팀 Hub | 초대·레포·담당자를 관리하는 허브 서버. Office 사이의 요청 보내기·수락·취소를 Mac 한 대의 Office 두 개로 확인했고, 그 Office 화면은 Claw 기반 Office와 함께 지웠습니다(D33). | 수동 전달을 Story Task 자동 가져가기로 전환, 여러 PC 검증. |
 | Hub Story 보드 1단계 | 프로젝트·Story·Task 저장, 그래프 검사, 중복 가져가기 방지, 보류, 병합 잠금, 결과 보고. | Office와 전체 흐름 연결, 실제 Office 두 개·시험 repo 두 개로 확인. |
 | Office 하나에 여러 repo | 목표 설계 합의. | repo별 엔진, Task 실행 모드, PL 흐름, 프로젝트 → Story → Task 칸반 화면. |
 | Story 브랜치 통합 | 브랜치 규칙과 리뷰·검증 조건 합의. | 브랜치 생성·push·PR·재검증·Story base 병합 자동화. |
 | 배포 | Apple Silicon Mac에서 소스를 받아 로컬 실행. | npm `@pazmo/agent-office` 게시·설치 시험. |
 
-2026-10-30부터 기본 실행은 최소 Office이며, 기존 Claw 기반 Office와 그 소스, 채팅 bridge는 지웠습니다(D30). Hub Story 보드 백엔드는 자동 검사로 확인했고, 배포된 Hub의 새 API로 데이터를 쓰는 실제 확인은 남아 있습니다. 백엔드만으로 전체 팀 협업 흐름을 사용할 수 있는 상태는 아닙니다.
+2026-10-30부터 기본 실행은 최소 Office이며, 기존 Claw 기반 Office와 그 소스, 채팅 bridge는 지웠습니다(D33). Hub Story 보드 백엔드는 자동 검사로 확인했고, 배포된 Hub의 새 API로 데이터를 쓰는 실제 확인은 남아 있습니다. 백엔드만으로 전체 팀 협업 흐름을 사용할 수 있는 상태는 아닙니다.
 
 자세한 근거는 [현재 상태와 다음 단계](docs/STATUS.md), [팀 Story 설계](docs/understanding/team-story-board-decision.md), [Hub 검증 기록](docs/verification/2026-10-22-team-story-board-hub.md), [최소 Office 검증 기록](docs/verification/2026-10-21-lean-office-phase1.md), [기본 전환 검증 기록](docs/verification/2026-10-30-lean-office-default.md)을 참고하세요.
 

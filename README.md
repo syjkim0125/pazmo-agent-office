@@ -108,14 +108,14 @@ As of **2026-10-30**, on `main`:
 | Area | Implemented and verified | Remaining work |
 |---|---|---|
 | Local execution | PM, Lead, Developer and Reviewer workflows using installed codex or claude CLIs; real tasks reached human G4 and delivery on one Mac. | Other people's PCs and longer-term operation. |
-| Minimal Office (default) | Tasks, task detail, Decisions and Agents; separate work/review runner settings; a real task completed on 2026-10-27. Made the default on 2026-10-30, when the Claw-based Office and its source were removed (D30). | Team Hub UI; a real task through the new default in app-be. |
-| Existing team Hub | Hub server with invites, repositories and owners. Sending, accepting and cancelling requests was checked with two Offices on one Mac; those Office screens went with the Claw-based Office (D30). | Replacing manual handoffs with automatic Story Task pickup; cross-PC validation. |
+| Minimal Office (default) | Tasks, task detail, Decisions and Agents; separate work/review runner settings; a real task completed on 2026-10-27. Made the default on 2026-10-30, when the Claw-based Office and its source were removed (D33). | Team Hub UI; a real task through the new default in app-be. |
+| Existing team Hub | Hub server with invites, repositories and owners. Sending, accepting and cancelling requests was checked with two Offices on one Mac; those Office screens went with the Claw-based Office (D33). | Replacing manual handoffs with automatic Story Task pickup; cross-PC validation. |
 | Hub Story board, phase 1 | Project/Story/Task storage, graph validation, exclusive claims, holds, merge locks and result reporting. | End-to-end use from Office; live validation with two Offices and two test repositories. |
 | One Office, several repositories | Target design agreed. | Repository engines, Task execution mode, PL flow and Project → Story → Task Kanban screens. |
 | Story branch integration | Branch rules and review/verification requirements agreed. | Automated branch creation, push, PRs, revalidation and merge into Story base. |
 | Distribution | Source-based local startup on Apple Silicon macOS. | Publishing and installation-testing `@pazmo/agent-office` on npm. |
 
-Since 2026-10-30 (D30) the default launcher opens the minimal Office, and the earlier Claw-based Office, its source and the chat bridge are removed. The new Hub Story-board backend has automated test coverage, but writes through its new API on the deployed Hub remain unverified. The backend alone does not yet provide the complete team workflow.
+Since 2026-10-30 (D33) the default launcher opens the minimal Office, and the earlier Claw-based Office, its source and the chat bridge are removed. The new Hub Story-board backend has automated test coverage, but writes through its new API on the deployed Hub remain unverified. The backend alone does not yet provide the complete team workflow.
 
 See [status and next steps](docs/STATUS.md), [the team Story design](docs/understanding/team-story-board-decision.md), [Hub verification](docs/verification/2026-10-22-team-story-board-hub.md) [minimal Office verification](docs/verification/2026-10-21-lean-office-phase1.md) and [default switch verification](docs/verification/2026-10-30-lean-office-default.md).
 

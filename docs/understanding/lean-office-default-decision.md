@@ -167,7 +167,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
    - lean으로 옮긴다(엔진과 무관한 경계): `lifecycle`의 포트 충돌, 남의 SQLite 거부·보존, 시작 중 stop 거부, 인증 안 된 상태 파일이 남의 프로세스를 멈추지 않음, 재시작 시 같은 데이터 재사용
    - 고친다: `launcher`, `lean-lifecycle`(다른 엔진 거부), `lean-schema`, `team-lifecycle`, `team-registry`, `live-runtime`
 4. 문서: README(영·한), `docs/LOCAL-PREVIEW.md`, `docs/CHAT-CONTROL.md`(폐기 안내만 남김), `AGENTS.md`의 "Chat-controlled Office" 절, `CONCEPTS.md`, `LICENSING.md`, `THIRD_PARTY_NOTICES.md`, `upstream/` 메모, `docs/STATUS.md`
-5. Story 수정(아래)과 D30
+5. Story 수정(아래)과 D33
 
 ## Story 수정안 (A안: 같은 PR에서 적용)
 
@@ -187,7 +187,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 | V9, V10, V14 (승인 뒤 찾음) | 역할별 선택, Office 실행이 낀 허브 흐름, Office 연결 창 | agent별 선택, 허브 쪽 시험과 남은 엔진 코드 시험, `hub-link --connect` |
 | V8 | 원본 TaskBoard·서버·WebSocket 사용 | 새 Office의 Tasks·Decisions, 키 입력 없는 로컬 세션, kit 역할 run 연결, 검증된 VM 실행, 사용자 승인 뒤 인도 |
 | V17 | `up --lean`으로 실제 확인 | `./office`(옵션 없음)로 실제 확인 |
-| D30 | 없음 | 이 결정(선택한 안, 폐기한 M/V, 남긴 엔진 코드, 사전 확인) |
+| D33 | 없음 | 이 결정(선택한 안, 폐기한 M/V, 남긴 엔진 코드, 사전 확인) |
 
 ## 검증 계획
 
@@ -216,7 +216,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 - app-be 실제 확인: 새로 받은 checkout에서 `./office --project`로 작업 하나를 기획→G1→구현→리뷰(다른 실행기)→G4→인도까지 돌리고(V17), `claw/` 해시가 그대로다.
 - 사전 확인 두 개(진행 중 Claw 작업 없음, 허브 진행 중 요청 없음)의 기록
 
-그래프: G3 승인 뒤 `ce-plan`으로 구현 계획을 쓰고, 걸음마다 kit 그래프 run(`.ai-workflow/runs/U25-…`)을 만든다.
+그래프: G3 승인 뒤 `ce-plan`으로 구현 계획을 쓰고, 걸음마다 kit 그래프 run(`.ai-workflow/runs/U28-…`)을 만든다.
 
 ## 사람의 결정
 
@@ -225,7 +225,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 - **A안(한 번에)을 골랐다.** "순서"의 1–3걸음을 PR 하나에서 한다. 2걸음의 `--claw` 안내 기간은 없고, `--claw`는 바로 안내 오류가 된다.
 - "함께 정하는 것" 1–7은 바꾸지 않았다(질문에는 1–5를 적었고 6–7은 이 문서에 있다).
 - 3걸음의 사전 확인 두 개(app-be의 진행 중 Claw 작업, OpenShift 허브의 진행 중 요청)는 머지 전 G4에서 사용자에게 묻는다.
-- 승인 뒤 구현 준비 중 M8·M12와 V9·V10·V14도 Claw 화면이나 claw 엔진에 기댄다는 것을 찾았다. 승인한 동작(Office의 허브 요청 보내기·받기 사라짐, Claw 화면 삭제)에서 나온 문구 정리라 위 Story 수정안에 더하고 D30에 ASSUMED로 적는다. G4에서 함께 확인한다.
+- 승인 뒤 구현 준비 중 M8·M12와 V9·V10·V14도 Claw 화면이나 claw 엔진에 기댄다는 것을 찾았다. 승인한 동작(Office의 허브 요청 보내기·받기 사라짐, Claw 화면 삭제)에서 나온 문구 정리라 위 Story 수정안에 더하고 D33에 ASSUMED로 적는다. G4에서 함께 확인한다.
 
 ## 승인 범위
 

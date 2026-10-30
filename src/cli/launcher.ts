@@ -26,20 +26,58 @@ import { runCommand } from "../runners/command.ts";
 import { IMAGE } from "../runners/container-verifier.ts";
 import { discoverRunners } from "../runners/runner-discovery.ts";
 import type { RunnerInstall, RunnerName } from "../runners/runner-discovery.ts";
+import { claudeModels } from "../runners/runner-models.ts";
+import { blockHookedClaude, pinnedCodexProblem, usable } from "../runtime/runner-settings.ts";
 
-/** Start needs one installed, logged-in CLI; the pinned runtime needs codex's. */
+/** Start needs one installed, logged-in CLI; the pinned runtime needs its own
+ * codex login folder, judged as Office judges it (D32). A blocked CLI that is
+ * also logged in needs only its own fix, so that leads instead of an install
+ * and login. */
 export function assertRunnerLogin(
   installs: Record<RunnerName, RunnerInstall>,
-  o: { codexAuth: boolean; codexRuntime?: "installed" | "pinned" },
+  o: { codexRuntime?: "installed" } | { codexRuntime: "pinned"; authHome: string } = {},
 ) {
-  const ready = Object.values(installs).some(
-    (i) => i.status === "ready" && i.loggedIn && !i.blocked,
-  );
-  if (o.codexRuntime === "pinned" ? o.codexAuth && !installs.codex.blocked : ready) return;
+  if (o.codexRuntime === "pinned") {
+    const problem = pinnedCodexProblem(o.authHome);
+    if (problem) fail(problem.code, `${problem.message} 그런 뒤 다시 실행해주세요. 로그인 정보는 VM에 복사하지 않습니다.`);
+    return;
+  }
+  if (Object.values(installs).some(usable)) return;
+  const blocked = Object.values(installs).some((i) => i.blocked && i.loggedIn);
   fail(
-    "LOGIN_REQUIRED",
-    `최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요. codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
+    blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",
+    `${
+      blocked
+        ? "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요."
+        : "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요."
+    } codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
   );
+}
+
+/** Step 1's check options: the pinned runtime is judged on the Mac codex
+ * login folder that Office then gives it as CODEX_HOME (D32). */
+export function runnerLoginOptions(codexRuntime: "installed" | "pinned" | undefined, home: string) {
+  return codexRuntime === "pinned" ? { codexRuntime, authHome: join(home, ".codex") } : {};
+}
+
+/** Step 1's runners, with claude judged as Office judges it (D29), so a
+ * blocked claude stops here, before any install or VM work. The hook listing
+ * starts the claude CLI once (about 1–2 s), so it is asked only when claude
+ * alone can start Office (D30). */
+export async function startupRunners(o: {
+  pathEnv: string;
+  home: string;
+  extraDirs?: string[];
+  codexRuntime?: "installed" | "pinned";
+}) {
+  const installs = await discoverRunners({ pathEnv: o.pathEnv, home: o.home, extraDirs: o.extraDirs });
+  const { codex, claude } = installs;
+  if (o.codexRuntime !== "pinned" && !usable(codex) && usable(claude)) {
+    // A failed listing decides nothing, as in Office.
+    const found = await claudeModels(claude.path!, o.home).catch(() => null);
+    if (found) installs.claude = blockHookedClaude(claude, found.hooks);
+  }
+  return installs;
 }
 
 type Run = (
@@ -253,11 +291,12 @@ async function prepareMachine(
         "최초 준비: Homebrew에서 brew install colima docker 후 다시 실행해주세요.",
       );
   assertRunnerLogin(
-    await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() }),
-    {
-      codexAuth: existsSync(join(homedir(), ".codex/auth.json")),
+    await startupRunners({
+      pathEnv: process.env.PATH ?? "",
+      home: homedir(),
       codexRuntime: options.codexRuntime,
-    },
+    }),
+    runnerLoginOptions(options.codexRuntime, homedir()),
   );
   await prepare();
   console.error("[2/4] 고정된 Codex 실행 파일 확인");

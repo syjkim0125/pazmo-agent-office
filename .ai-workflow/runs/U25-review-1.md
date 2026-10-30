@@ -1,9 +1,21 @@
-# U25 workflow-review — attempt 1
+# U25 review 1 (independent, report-only) — commit 2d1fbba
 
-Independent report-only review: ce-code-review mode:agent against origin/main (f5687342), run 20261030-144107-4f9d51a2. Reviewers: correctness, security, adversarial (session model), testing, maintainability, project-standards, reliability, agent-native, learnings; Codex cross-model adversarial pass.
+Verdict: Changes needed. No Critical.
 
-- Codex cross-model: 0 findings. Security: 0 findings.
-- Actionable (anchor 75): (1) P2 reuse-path dependency step untested — fixed in 3bfb30a with the prepare seam and a new lifecycle test; (2) P2 restart test lost the survive-restart half — fixed in 3bfb30a; (3) P2 graph run stale against the final Story — this run replaces it.
-- Below the gate, applied in 3bfb30a: --ignore-scripts, packed-install guard, install line only when installing, COMMAND_REMOVED, NOT_INSTALLED hint, doctor/operator-file assertions, static ws imports, stale comments, AGENTS.md "Agents and Office", README shared-checkout note, history banners, last commit with source in upstream/.
-- Recorded as residual risk: npm ci empties node_modules before fetching (future ws bump offline); concurrent installs unlocked; CJS vs ESM ws resolution; team start time unmeasured; hub web still offers accept; chat control reopening needs a human-only gate design.
-- Earlier, plan review (coherence, feasibility, adversarial) and the simplify pass (reuse, quality, efficiency) ran; their findings were applied (plan ea152ee, code 948afc7).
+Reviewer ran: launcher + runner-settings + runner-models 45/45 (twice, exit 0); live-runtime "runner mode refuses startup" 2/2 (exit 0); typecheck exit 0; probes with native fake CLIs only (no real claude/codex/up).
+
+Important
+1. RUNNER_BLOCKED drops the login cue when the blocked CLI is also logged out. `inspect()` sets codex `blocked` whatever `loggedIn` is and replaces the login hint; `loadRunnerCatalog` judges hooks for any ready claude. Codex logged out + ~/.codex/AGENTS.md, claude logged out → RUNNER_BLOCKED, no "codex login" anywhere (before: LOGIN_REQUIRED "install and log in" lead). Same in createLiveRuntime for a logged-out hooked claude. Fix: count only blocked AND logged in, or append the login hint.
+2. Test gaps: no step-1 test with a logged-out claude (`usable(claude)` → `status === "ready"` survives); no startupRunners test for an AGENTS.md-blocked logged-in codex with a hooked claude (works in a probe, untested).
+
+Minor
+3. Pinned, codex auth present, codex AGENTS.md-blocked, claude logged in → RUNNER_BLOCKED "no codex·claude can run" followed by "claude: 준비됨". createLiveRuntime and pinned codex jobs (runner-jobs.ts:46) ignore `blocked`; the launcher's pinned gate (from f2bd735) does not. Drop the gate's block check or word the headline per mode.
+4. fakeRunners never removes its temp root (pattern is older; adds 4 dirs per launcher run).
+5. startupRunners has no extraDirs seam; tests rely on both fakes shadowing /opt/homebrew/bin and /usr/local/bin.
+6. No progress line during the listing (before "[1/4]"); "about 1–2 s"/"1.3 s" are idle numbers; worst case adds the 15 s timer plus up to 7 s stop.
+7. Placeholders left in docs/STATUS.md and the verification doc.
+8. Verification doc "lean 0.2초" is a whole `up` process time with fakes; say what was timed.
+
+Checked correct: wiring before prepareVendor/setupRuntime/prepareVm for claw, lean, team; refactor of blockHookedClaude/usable preserves behavior; step 1 agrees with Office for every non-pinned combination traced (except D29's by-design failed-listing case); no import cycle.
+
+Disposition (author): 1, 2, 4, 5, 7, 8 fixed. 3: headline worded for the pinned runtime; the pinned gate itself (launcher stricter than Office) is older and is a guard change, left as a follow-up for a decision. 6: documented (idle numbers and the worst case), no progress line added.

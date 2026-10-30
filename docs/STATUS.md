@@ -1,16 +1,40 @@
-# 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D30, A안)
+# 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D33, A안)
 
-- `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D30, G3 2026-10-30 "A로 해").
+- `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D33, G3 2026-10-30 "A로 해").
 - 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 가져오기는 로컬 브랜치 `codex/local-original-claw-v2.0.4`에 남는다.
 - `ws`·TypeScript는 루트 의존성이다. `up`은 켜진 Office를 다시 쓰거나 새로 켜기 전에 `ws`가 없거나 다른 버전일 때만 `npm ci --omit=dev --prefer-offline`을 한다. 예전 버전이 켠 Claw·legacy Office는 `status`로 보이고 `stop`으로 멈추며, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다.
 - 엔진 코드(`native-office.ts`의 Claw용 API, 역할별 실행기 경로, 옛 허브 요청 흐름)는 D24 3단계와 충돌하지 않도록 남겼다. Story는 M7·M9·M10·M13·M14와 V7·V11·V12·V15·V16을 폐기하고 Goal·M1·M2·M3·M8·M12·M15·O2와 V1·V8·V9·V10·V14·V17을 고쳤다(M8·M12·V9·V10·V14는 승인 뒤 찾아 ASSUMED).
 - 자동 검사:
-  - 기준선 `3926ee2` 1104/1104 → vendor 없이 1070/1070(삭제는 모두 Claw·legacy·bridge 전용, 파일별 대조는 검증 기록). 메인 checkout 밖 새 사본(`npm ci`만)에서도 1070/1070. 독립 리뷰 반영과 main(#48·#49·#51·#52·#54·#55) 병합 뒤 **1074/1074** exit 0
+  - 기준선 `3926ee2` 1104/1104 → vendor 없이 1070/1070(삭제는 모두 Claw·legacy·bridge 전용, 파일별 대조는 검증 기록). 메인 checkout 밖 새 사본(`npm ci`만)에서도 1070/1070. 독립 리뷰 반영과 main(#48·#49·#51·#52·#54·#55) 병합 뒤 **1074/1074**, #50·#53 병합 뒤 **1089/1089** exit 0(main 1121 대비 −32 = 지운 Claw·legacy·bridge 전용 37개 − 새 시험 5개). #50·#53과 결정 번호·kit unit이 겹쳐 이 결정을 D33, unit을 U28로 바꿨다
   - 타입 검사 exit 0, Story 검사기 exit 0, `npm pack --dry-run`에 vendor 없음
   - 엔진 재시작 복구 시험은 복구 호출 셋 중 하나만 지워도 실패한다
   - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
 - 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
 - **남은 것: G4, app-be 실제 확인(V17), 사전 확인 두 개(app-be Claw Office의 진행 중 작업, OpenShift 허브의 진행 중 요청), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+
+# 2026-10-30 `--codex-runtime pinned` 시작 검사를 1단계와 Office에서 같게
+
+- PR #50(D30)의 리뷰 후속 두 가지다(D32). pinned 부분은 2026-10-30 사용자 선택(B)이고, 로그인 안내 부분은 ASSUMED다. 이 변경은 PR #50 위에 있다.
+- 고정 0.155.1 codex도 `~/.codex/AGENTS.md`·`AGENTS.override.md`를 모델 요청에 넣는다(2026-10-06 실험, 고정 SHA는 그대로). 실행 직전의 `codexJob` 거부 덕분에 새지는 않았지만, 멈추는 곳이 들어오는 길마다 달랐다.
+  - 1단계는 설치된 codex가 없으면 그 파일을 보지 못하고 통과시켰다.
+  - Office 시작(`createLiveRuntime`)은 `auth.json`만 있거나 쓸 수 있는 CLI가 하나라도 있으면 켜졌다. 그 뒤 VM 준비를 마치고 codex 역할 작업마다 실패했다.
+- 이제 `pinnedCodexProblem(~/.codex)` 하나로 1단계와 Office 시작이 판단한다. `auth.json`이 있고 두 파일이 없어야 시작하며, 설치된 CLI는 보지 않는다. 문구는 고정 codex의 로그인이나 로그인 폴더의 파일을 말한다. 예전의 "codex 또는 claude 중 하나를 … claude: 준비됨"은 나오지 않는다.
+- 로그아웃된 막힌 CLI(codex 개인 지침, claude hook)의 안내 뒤에 "그 CLI를 쓰려면 로그인도 하라"는 말이 붙는다. 막힘만 고친 사용자가 다음 실행에서 로그인 오류를 또 만나지 않게 하려는 것이다.
+- 실제 `up --codex-runtime pinned`(Claw·lean, 임시 HOME, 설치된 codex 없음)는 1단계에서 `RUNNER_BLOCKED`/`LOGIN_REQUIRED`로 멈췄다(`[1/4]` 없음, VM·런타임 흔적 없음). 이 Mac의 실제 `~/.codex`에는 `AGENTS.md`가 있어 pinned는 그 파일을 옮기기 전까지 시작하지 않는다.
+- 자동 검사: root 1119/1119 exit 0(`9216ed4`, 구현 1회차 `5e480ae`는 1118/1118, main을 합친 `33c321b`는 1121/1121), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 7개 모두 잡음(리뷰어 따로 6개도 모두). 독립 리뷰 두 번 모두 Approve(1회차 Minor 1–4 반영). PR syjkim0125/pazmo-agent-office#53(#50 위에 쌓음).
+- G4는 2026-10-30 사용자 지시("너가 알려주고 승인해 … 머지까지해")와 머지 범위 답("#50·#53 둘 다")으로 컨트롤러가 쓴 답을 승인으로 기록했다(승인 후 머지). 사용자는 범위를 고르기 전에 그 답을 대화에서 봤다. [G4 기록](verification/2026-10-30-pinned-codex-gate-g4.md)
+- **남은 것:** `office start --codex-runtime pinned`의 실제 실행과 `prepareMachine` 연결 한 줄의 자동 시험은 없다. [변경 기록](verification/2026-10-30-pinned-codex-gate.md)
+
+# 2026-10-30 `./office` 시작 1단계에서 hook이 있는 claude 막기
+
+- #45(D29)의 리뷰 후속이다(D30, ASSUMED). 지금까지 claude만 쓰는 사용자에게 hook이 있으면 `./office`가 1단계를 통과했다. 그래서 의존성 설치와 VM 준비를 기다린 뒤에야 `LOGIN_REQUIRED`("설치·로그인한 뒤")로 멈췄다.
+- 이제 1단계가 Office와 같은 규칙으로 claude의 hook 목록을 묻고, 막히면 설치·VM 작업 전에 멈춘다. claude를 띄우는 이 조회(이 Mac에서 1.3–1.4초)는 claude만으로 시작할 수 있을 때만 한다. 쓸 수 있는 codex가 있거나 `--codex-runtime pinned`이면 묻지 않는다.
+- 쓸 수 있는 실행기가 없고, 설치·로그인되었지만 막힌 CLI(hook이 있는 claude, `~/.codex/AGENTS.md`가 있는 codex)가 있으면 `RUNNER_BLOCKED`로 멈추고, "설치·로그인" 대신 CLI별 안내를 앞세운다. Office를 켜는 단계(`createLiveRuntime`)도 같다. 막힌 CLI가 로그인도 안 되어 있거나 막힌 것이 없으면 `LOGIN_REQUIRED` 그대로다.
+- 실제 `up`(Claw·lean)을 가짜 hook claude로 돌려 1단계에서 멈추는 것(`[1/4]` 없음, VM·런타임 흔적 없음)을 봤다. 이 Mac의 실제 claude 2.1.280은 hook이 없어 막히지 않았다.
+- 자동 검사: root 1114/1114 exit 0(최종 `44f478c`, `2e8a816`도 같음), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 13개 중 12개를 잡음(남은 하나는 시험용 `extraDirs` 경계).
+- 독립 리뷰 두 번: 1회차 Changes needed(로그아웃된 막힌 CLI의 로그인 안내 누락 등) → 고침, 2회차 Approve. PR syjkim0125/pazmo-agent-office#50.
+- G4는 #53과 같은 지시와 범위 답("#50·#53 둘 다")으로 컨트롤러가 쓴 답을 승인으로 기록했다(승인 후 머지). 사용자는 #50의 답을 기록 전에 보지 않았다. [G4 기록](verification/2026-10-30-launcher-hook-check-g4.md)
+- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. pinned에서 막힌 codex를 런처만 거부하는 불일치(#45 이전부터)는 D32(바로 위)에서 고쳤다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
 
 # 2026-10-30 러너 탐색의 `claude auth status`와 OAuth 갱신 잠금
 
@@ -52,7 +76,7 @@
 - 한계: 막힌 claude도 모델 목록 조회 때는 CLI를 띄우므로, 조회마다 그 SessionStart·SessionEnd hook이 한 번 돈다(이 변경 전부터 같음).
 - 자동 검사: root 1104/1104, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰 두 번(1차 Changes needed → 고침, 2차 코드 승인·문서 반영). PR syjkim0125/pazmo-agent-office#45.
 - G4는 2026-10-30 피드백(답 초안)을 본 뒤 "승인 후 머지"로 기록했다(D13, ① 승인 후 머지). [G4 기록](verification/2026-10-30-claude-stop-grace-hooks-g4.md)
-- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(→ D31로 12초, 위), `./office` 시작 1단계의 hook 확인(후속). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
+- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(→ D31로 12초, 위), `./office` 시작 1단계의 hook 확인(위 2026-10-30 D30에서 다룸). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
 
 # 2026-10-29 실제 claude·codex CLI로 실행기 오류와 SIGTERM 종료 확인
 

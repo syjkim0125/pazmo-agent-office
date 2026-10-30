@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 // a lean database for the engine paths that still read them: agent(role),
 // officeRoles, chat and the per-role runner choice in src/runtime/native-office.ts
 // and runner-settings.ts. Lean agents have neither; these paths and this
-// fixture go together when the engine is cleaned up (D30).
+// fixture go together when the engine is cleaned up (D33).
 export function addRoleAgents(db) {
   for (const column of ["cli_provider TEXT", "cli_model TEXT", "cli_reasoning_level TEXT", "avatar_emoji TEXT"])
     db.exec(`ALTER TABLE agents ADD COLUMN ${column}`);

@@ -1,0 +1,12 @@
+{
+  "token": "9b26ff688fd42cf8a0c9a5b0a52582d0ce70d46897a9cc608ab3ab33fcaf6195",
+  "output": {
+    "summary": "Fresh verification after merging main at 33c321b: npm test 1121/1121 exit 0 (2026-10-30 15:51-15:53, load 7-24, vendor install and build:office redone, no other full run); related 164/164; typecheck 0; story check 0. Before the merge: 9216ed4 1119/1119, 5e480ae 1118/1118. Real up --codex-runtime pinned (claw, lean; temp HOME; no installed codex) stops at step 1 with RUNNER_BLOCKED / LOGIN_REQUIRED, no [1/4], no runtime, no .colima. Limits: no real office start --codex-runtime pinned; the prepareMachine call line has no automated test; G4 is the user's.",
+    "evidence": [
+      "docs/verification/2026-10-30-pinned-codex-gate.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

@@ -1,1 +1,0 @@
-{"token":"8185ba46fc5446eeeebd3a98f21eb8567ac2fc8f0cdc5e45b5386ec1b9564d6f","output":{"summary":"Replan after merging #51 (D31): the D30 implementation from the first U25 run plus the conflict resolution (STARTUP_MS lean 30 s per D31, team 15 s, claw/legacy entries removed).","evidence":[".ai-workflow/runs/U25-merge-implement-2.md"]},"evaluation":{"passed":true}}
