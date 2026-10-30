@@ -121,16 +121,16 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "U12 implemented via subagent-driven Tasks 1-4 plus a final fix wave: hub proxy mode, system-trust Office link, hub entrypoint and bundle, OpenShift Template with parameters (public repo). root 640/640, hub-* 149/149, typecheck 0; deployed to the Fusion project (pod 1/1, /healthz 200, one Office linked without fingerprint).",
+          "summary": "U12 implemented via subagent-driven Tasks 1-4 plus a final fix wave: hub proxy mode, system-trust Office link, hub entrypoint and bundle, OpenShift Template with parameters (public repo). root 640/640, hub-* 149/149, typecheck 0; deployed to the OpenShift project (pod 1/1, /healthz 200, one Office linked without fingerprint).",
           "evidence": [
-            "docs/verification/2026-10-14-team-hub-fusion.md"
+            "docs/verification/2026-10-14-team-hub-openshift.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+          "docs/verification/2026-10-14-team-hub-openshift.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
         }
       },
       "workflow-review": {
@@ -140,14 +140,14 @@
         "output": {
           "summary": "Per-task reviews (Task 4 Important fixed) and final whole-branch review (Critical 0, 1 Important fixed with minors in one wave, re-review clean). Residuals in the verification doc.",
           "evidence": [
-            "docs/verification/2026-10-14-team-hub-fusion.md"
+            "docs/verification/2026-10-14-team-hub-openshift.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+          "docs/verification/2026-10-14-team-hub-openshift.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
         }
       },
       "workflow-verify": {
@@ -155,16 +155,16 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh evidence: root 640/640 and typecheck 0 at commit 184d19c (code unchanged since); Fusion real check 2026-10-15 with a second member (join, paste connect, send/accept/cancel, pod replacement keeps links); G4 recorded from the user answers and approval.",
+          "summary": "Fresh evidence: root 640/640 and typecheck 0 at commit 184d19c (code unchanged since); OpenShift real check 2026-10-15 with a second member (join, paste connect, send/accept/cancel, pod replacement keeps links); G4 recorded from the user answers and approval.",
           "evidence": [
-            "docs/verification/2026-10-15-team-hub-fusion-g4.md"
+            "docs/verification/2026-10-15-team-hub-openshift-g4.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          "docs/verification/2026-10-15-team-hub-fusion-g4.md": "e222e1ffb897d018449307d031b1a08d150676c05d645b31c7626743cfffdfc6"
+          "docs/verification/2026-10-15-team-hub-openshift-g4.md": "e222e1ffb897d018449307d031b1a08d150676c05d645b31c7626743cfffdfc6"
         }
       }
     }
@@ -188,16 +188,16 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "U12 implemented via subagent-driven Tasks 1-4 plus a final fix wave: hub proxy mode, system-trust Office link, hub entrypoint and bundle, OpenShift Template with parameters (public repo). root 640/640, hub-* 149/149, typecheck 0; deployed to the Fusion project (pod 1/1, /healthz 200, one Office linked without fingerprint).",
+          "summary": "U12 implemented via subagent-driven Tasks 1-4 plus a final fix wave: hub proxy mode, system-trust Office link, hub entrypoint and bundle, OpenShift Template with parameters (public repo). root 640/640, hub-* 149/149, typecheck 0; deployed to the OpenShift project (pod 1/1, /healthz 200, one Office linked without fingerprint).",
           "evidence": [
-            "docs/verification/2026-10-14-team-hub-fusion.md"
+            "docs/verification/2026-10-14-team-hub-openshift.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+          "docs/verification/2026-10-14-team-hub-openshift.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
         }
       }
     },
@@ -217,14 +217,14 @@
         "output": {
           "summary": "Per-task reviews (Task 4 Important fixed) and final whole-branch review (Critical 0, 1 Important fixed with minors in one wave, re-review clean). Residuals in the verification doc.",
           "evidence": [
-            "docs/verification/2026-10-14-team-hub-fusion.md"
+            "docs/verification/2026-10-14-team-hub-openshift.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          "docs/verification/2026-10-14-team-hub-fusion.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
+          "docs/verification/2026-10-14-team-hub-openshift.md": "1ef62e518a6d8588e421afe8745f103667bfe934cb5f096900753a4768341093"
         }
       }
     },
@@ -242,16 +242,16 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh evidence: root 640/640 and typecheck 0 at commit 184d19c (code unchanged since); Fusion real check 2026-10-15 with a second member (join, paste connect, send/accept/cancel, pod replacement keeps links); G4 recorded from the user answers and approval.",
+          "summary": "Fresh evidence: root 640/640 and typecheck 0 at commit 184d19c (code unchanged since); OpenShift real check 2026-10-15 with a second member (join, paste connect, send/accept/cancel, pod replacement keeps links); G4 recorded from the user answers and approval.",
           "evidence": [
-            "docs/verification/2026-10-15-team-hub-fusion-g4.md"
+            "docs/verification/2026-10-15-team-hub-openshift-g4.md"
           ]
         },
         "evaluation": {
           "passed": true
         },
         "evidenceHashes": {
-          "docs/verification/2026-10-15-team-hub-fusion-g4.md": "e222e1ffb897d018449307d031b1a08d150676c05d645b31c7626743cfffdfc6"
+          "docs/verification/2026-10-15-team-hub-openshift-g4.md": "e222e1ffb897d018449307d031b1a08d150676c05d645b31c7626743cfffdfc6"
         }
       }
     }

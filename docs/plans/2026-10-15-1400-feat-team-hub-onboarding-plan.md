@@ -12,12 +12,12 @@
 
 **Tech Stack:** Node 24.19(`node:test`, `node:sqlite`), 허브 서버 렌더링 HTML(`src/hub/pages.ts`), vendored React + Tailwind + vitest(`vendor/claw-empire/src`).
 
-**Spec:** `docs/understanding/team-hub-onboarding-decision.md` (G3 2026-10-15), Story `docs/understanding/pazmo-agent-office-contract.md` M12 / D20 / V14. 앞 결정: `team-hub-decision.md`(D16), `team-hub-fusion-decision.md`(D19).
+**Spec:** `docs/understanding/team-hub-onboarding-decision.md` (G3 2026-10-15), Story `docs/understanding/pazmo-agent-office-contract.md` M12 / D20 / V14. 앞 결정: `team-hub-decision.md`(D16), `team-hub-openshift-decision.md`(D19).
 
 ## Global Constraints
 
 - 연결 문자열 형식:
-  - Fusion(프록시) 허브: `https://<허브 공개 호스트>/connect#c=<43자 base64url 코드>`
+  - OpenShift(프록시) 허브: `https://<허브 공개 호스트>/connect#c=<43자 base64url 코드>`
   - 사내망(자체 CA) 허브: `https://<host>:<port>/connect#c=<코드>&fp=<CA SHA-256 지문>`
   - 코드는 팀원 단위이고 10분(`LINK_CODE_TTL`) 동안 한 번만 쓸 수 있다. 저장은 sha256 해시로만 한다.
 - Office는 붙여넣은 텍스트의 앞뒤 공백·줄바꿈·따옴표를 지운 뒤 해석한다. 옛 터미널 명령(`… hub-link … --hub <url> --code <코드> [--fingerprint <지문>]`)을 붙여넣어도 받는다.
@@ -160,9 +160,9 @@ test("codes expire, revoked members cannot use theirs, and old repo codes still 
   const gone = store.createConnectCode(b);
   store.revokeMember(admin, b.id);
   assert.throws(() => store.connect(gone, "https://github.example.com/team/x"), { status: 403 });
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be");
-  const old = store.pairAny(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
-  assert.deepEqual([old.repoId, old.repoName, old.created], [repo, "eevee-be", false]);
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
+  const old = store.pairAny(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
+  assert.deepEqual([old.repoId, old.repoName, old.created], [repo, "app-be", false]);
   const viaAny = store.pairAny(store.createConnectCode(admin), "https://github.example.com/team/new-one");
   assert.equal(viaAny.created, true);
   assert.throws(() => store.connect(store.createConnectCode(admin), "not a remote"), { code: "INVALID", status: 400 });
@@ -208,7 +208,7 @@ CREATE TABLE IF NOT EXISTS hub_connect_codes(code_hash TEXT PRIMARY KEY,member_i
 **Files:**
 - Modify: `src/hub/pages.ts` (`layout` 메뉴, 새 `start`·`connectHelp`, `repos` 화면 안내)
 - Modify: `src/hub/server.ts` (`/start` GET·POST, `/connect` GET, 초대 합류 후 이동)
-- Test: `tests/hub-start-page.test.mjs` (새, 사내망·Fusion 두 모드), `tests/hub-server.test.mjs`·`tests/hub-fusion-server.test.mjs` 회귀
+- Test: `tests/hub-start-page.test.mjs` (새, 사내망·OpenShift 두 모드), `tests/hub-server.test.mjs`·`tests/hub-openshift-server.test.mjs` 회귀
 
 **Interfaces:**
 - Consumes: Task 1 `createConnectCode(by)`.
@@ -219,13 +219,13 @@ CREATE TABLE IF NOT EXISTS hub_connect_codes(code_hash TEXT PRIMARY KEY,member_i
   - `GET /connect`: 세션 없이 열 수 있는 안내 화면이다.
 
 - [ ] **Step 1: 실패하는 테스트를 쓴다.** `tests/hub-start-page.test.mjs`를 만든다.
-  - 사내망 모드는 `startTestHub` + `enter`를, Fusion 모드는 `tests/hub-fusion-server.test.mjs`의 `proxyHub`와 같은 도우미를 쓴다(필요하면 파일 안에 같은 형태로 둔다).
+  - 사내망 모드는 `startTestHub` + `enter`를, OpenShift 모드는 `tests/hub-openshift-server.test.mjs`의 `proxyHub`와 같은 도우미를 쓴다(필요하면 파일 안에 같은 형태로 둔다).
   - 단언할 것:
     - 초대 링크로 합류(`POST /invite/<raw>`)하면 303 `location: /start`로 간다. 기기 초대도 같다.
     - `GET /start`에 세 단계 제목이 보인다: "Office 켜기", "연결 문자열", "일 보내기".
     - 메뉴에 `<a href="/start">내 Office 연결</a>`이 있다.
     - `POST /start/connect-code`(CSRF 포함) 응답에 연결 문자열이 있다.
-      - Fusion: `https://pazmo-hub.apps.example.com/connect#c=[A-Za-z0-9_-]{43}`이고 `fp=`가 없다.
+      - OpenShift: `https://pazmo-hub.apps.example.com/connect#c=[A-Za-z0-9_-]{43}`이고 `fp=`가 없다.
       - 사내망: `https://127.0.0.1:<port>/connect#c=…&fp=<tls.fingerprint>`.
     - 그 코드로 `store.connect`(또는 `/api/link/pair`)가 성공한다.
     - CSRF가 없으면 403이다.
@@ -249,7 +249,7 @@ CREATE TABLE IF NOT EXISTS hub_connect_codes(code_hash TEXT PRIMARY KEY,member_i
     - `connectHelp()`: `layout("Office에 붙여넣기", null, …)`. "이 주소는 Office에 붙여넣는 연결 문자열입니다. Office 상단의 팀 허브 버튼을 누르고 붙여넣은 뒤 연결을 누르세요."
     - `repos` 화면에서 레포별 연결 명령 버튼 자리에 `<a href="/start">내 Office 연결</a>` 안내 링크를 둔다. 기존 POST 라우트는 남긴다.
 
-- [ ] **Step 4: 통과와 회귀를 확인한다.** Run: `node --test tests/hub-start-page.test.mjs tests/hub-server.test.mjs tests/hub-fusion-server.test.mjs tests/hub-link-api.test.mjs`, `npm run typecheck`. Expected: PASS.
+- [ ] **Step 4: 통과와 회귀를 확인한다.** Run: `node --test tests/hub-start-page.test.mjs tests/hub-server.test.mjs tests/hub-openshift-server.test.mjs tests/hub-link-api.test.mjs`, `npm run typecheck`. Expected: PASS.
 
 ---
 

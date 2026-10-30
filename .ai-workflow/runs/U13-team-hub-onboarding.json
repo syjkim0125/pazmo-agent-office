@@ -161,7 +161,7 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh evidence: root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0 at commit 119a24f (code unchanged since); Fusion real check 2026-10-15 (invite join, paste connect with repo auto-registration and link replacement, send/accept/cancel); G4 recorded from the user answers and approval.",
+          "summary": "Fresh evidence: root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0 at commit 119a24f (code unchanged since); OpenShift real check 2026-10-15 (invite join, paste connect with repo auto-registration and link replacement, send/accept/cancel); G4 recorded from the user answers and approval.",
           "evidence": [
             "docs/verification/2026-10-15-team-hub-onboarding-g4.md"
           ]
@@ -248,7 +248,7 @@
         "attempts": 1,
         "revision": 0,
         "output": {
-          "summary": "Fresh evidence: root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0 at commit 119a24f (code unchanged since); Fusion real check 2026-10-15 (invite join, paste connect with repo auto-registration and link replacement, send/accept/cancel); G4 recorded from the user answers and approval.",
+          "summary": "Fresh evidence: root 677/677, typecheck 0, vendor 169/171 (2 known sprite-avatar), tsc 0, build 0 at commit 119a24f (code unchanged since); OpenShift real check 2026-10-15 (invite join, paste connect with repo auto-registration and link replacement, send/accept/cancel); G4 recorded from the user answers and approval.",
           "evidence": [
             "docs/verification/2026-10-15-team-hub-onboarding-g4.md"
           ]

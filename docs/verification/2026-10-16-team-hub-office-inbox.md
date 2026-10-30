@@ -53,7 +53,7 @@ Story: M14 · V16 · D22. 결정: [team-hub-office-inbox-decision.md](../underst
 ## 아직 하지 않은 것 (G4 전)
 
 - **실제 확인:** 허브 재배포와 Office 재시작이 필요하고, 둘 다 사용자 확인 후에 한다.
-  1. eevee-be에서 hub-test-backend로 요청 두 건을 보낸다.
+  1. app-be에서 hub-test-backend로 요청 두 건을 보낸다.
   2. 시험 Office의 Inbox에서 하나는 수락해 작업이 생기는지 본다.
-  3. 다른 하나는 사유를 써서 거절하고, eevee-be 카드에 "거절됨 · 사유"가 뜨는지 본다.
+  3. 다른 하나는 사유를 써서 거절하고, app-be 카드에 "거절됨 · 사유"가 뜨는지 본다.
 - **G4:** 사용자 답변으로만 기록한다. 기록은 별도 파일로 한다.

@@ -13,7 +13,7 @@ const report = {
   meeting_minutes: [],
   planning_summary: { title: "S", content: "c", documents: [], generated_at: 1500 },
   team_reports: [],
-  project: { root_task_id: "root-1", project_name: "eevee-be", project_path: "/p", core_goal: "g" },
+  project: { root_task_id: "root-1", project_name: "app-be", project_path: "/p", core_goal: "g" },
 };
 const run = (taskId: string, role: string, model = "default") => ({ taskId, role, runner: "claude", version: "2.1.280", model, reasoning: null });
 const renderPopup = () =>

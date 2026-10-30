@@ -119,7 +119,7 @@ Builds on: team-hub-office-inbox-decision.md (D22). 방향 비교: https://claud
   - 세션·CSRF, `127.0.0.1` 경계
   - 화면: 기본 대화상자 없음, 이스케이프
 - 기존 시험(엔진·허브·Claw Office)은 모두 통과해야 한다.
-- 실제 확인: eevee-be에서 `up --lean`으로 켜서 다음을 해 본다.
+- 실제 확인: app-be에서 `up --lean`으로 켜서 다음을 해 본다.
   1. 작업 하나를 만든다.
   2. 기획 → G1 답 → 구현 → 리뷰(다른 실행기) → G4 → 인도까지 돈다.
   3. agent를 추가·이름 변경·삭제한다.

@@ -20,11 +20,11 @@ function accepted() {
   const ctx = setup();
   const { store, admin, join } = ctx;
   const b = join("B"), c = join("C");
-  const repo = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
   store.addOwner(admin, repo, c.id);
   const req = store.createRequest(b, repo, "README 목차", "normal");
   store.accept(c, req);
-  const token = store.pair(store.createLinkCode(c, repo), "https://github.example.com/team/eevee-be").token;
+  const token = store.pair(store.createLinkCode(c, repo), "https://github.example.com/team/app-be").token;
   const link = store.link(token);
   const [a] = store.work(link).assignments;
   return { ...ctx, b, c, repo, req, token, link, a };
@@ -96,7 +96,7 @@ test("only owners accept, the second accept loses, and only the requester answer
 test("a link sees only its member's accepted work on its own repository", () => {
   const { store, b, c, repo, req, link } = accepted();
   const repo2 = store.addRepo(c, "web", "https://github.example.com/team/web");
-  assert.throws(() => store.pair(store.createLinkCode(c, repo2), "https://github.example.com/team/eevee-be"), { code: "REMOTE_MISMATCH" });
+  assert.throws(() => store.pair(store.createLinkCode(c, repo2), "https://github.example.com/team/app-be"), { code: "REMOTE_MISMATCH" });
   const code = store.createLinkCode(c, repo2);
   store.pair(code, "https://github.example.com/team/web.git");
   assert.throws(() => store.pair(code, "https://github.example.com/team/web.git"), { code: "LINK_CODE_INVALID" });
@@ -117,7 +117,7 @@ test("removing an owner revokes that owner's link to the repository", () => {
   assert.equal(store.link(token), null, "C no longer owns the repository");
   store.removeOwner(admin, repo, admin.id); // addRepo made the creator an owner too
   assert.throws(() => store.removeOwner(admin, repo, b.id), { code: "LAST_OWNER" });
-  assert.ok(store.link(store.pair(store.createLinkCode(b, repo), "git@github.example.com:team/eevee-be").token));
+  assert.ok(store.link(store.pair(store.createLinkCode(b, repo), "git@github.example.com:team/app-be").token));
 });
 
 test("snapshots apply once and in order, and a final status finishes the request", () => {
@@ -170,7 +170,7 @@ test("answers longer than 16000 characters are refused for either option", () =>
 test("a request the Office could not plan (over 16384 UTF-8 bytes, or NUL) is refused on the hub", () => {
   const { store, admin, join } = setup();
   const b = join("B");
-  const repo = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
   const korean = "가".repeat(6000); // 6000 characters, 18000 bytes
   assert.throws(() => store.createRequest(b, repo, korean, "normal"), (e) => e.code === "INVALID" && /16384바이트/.test(e.message));
   assert.throws(() => store.createRequest(b, repo, "앞\0뒤", "normal"), { code: "INVALID" });
