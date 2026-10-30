@@ -7,7 +7,7 @@
 **Build products and improve existing systems with a team you direct.**
 
 ![Stage](https://img.shields.io/badge/stage-local_alpha-orange)
-![Pazmo originals](https://img.shields.io/badge/Pazmo_originals-MIT-blue)
+![Pazmo originals](https://img.shields.io/badge/Pazmo_originals-PolyForm_Shield_1.0.0-blue)
 ![Upstream license](https://img.shields.io/badge/Claw--Empire-Apache--2.0-blue)
 ![Workflow design](https://img.shields.io/badge/workflow_design-Jira_optional-purple)
 
@@ -101,8 +101,8 @@ Current work and the next step are in [STATUS](docs/STATUS.md). Existing user fi
 
 ## License
 
-**Original Pazmo code and documentation: [MIT](LICENSE).** Imported Claw-Empire code: **Apache-2.0**, with original licensing, attribution and applicable notices retained. Other components keep their respective licenses.
+**Original Pazmo code and documentation: [PolyForm Shield 1.0.0](LICENSE).** You may use, change and share it for any purpose, including inside your company, except to provide a product that competes with Pazmo, even for free. Versions published up to 2026-10-30 (commit `610169e`) were MIT. Imported Claw-Empire code: **Apache-2.0**, with original licensing, attribution and applicable notices retained. Other components keep their respective licenses.
 
-This is **not** an MIT-only relicensing of the upstream project. See [license boundaries](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+Pazmo is source-available, not OSI open source, and this does not relicense the upstream project. See [license boundaries](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 With thanks to Claw-Empire and AI Workflow Kit, and to the maintainers of Compound Engineering and Superpowers. Open Office and Pixel Agents informed the documentation/interaction references. Pazmo is independent and is not an official release of those projects or OpenAI.
