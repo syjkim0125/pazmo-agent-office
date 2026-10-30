@@ -7,8 +7,9 @@
 - 이제 `pinnedCodexProblem(~/.codex)` 하나로 1단계와 Office 시작이 판단한다. `auth.json`이 있고 두 파일이 없어야 시작하며, 설치된 CLI는 보지 않는다. 문구는 고정 codex의 로그인이나 로그인 폴더의 파일을 말한다. 예전의 "codex 또는 claude 중 하나를 … claude: 준비됨"은 나오지 않는다.
 - 로그아웃된 막힌 CLI(codex 개인 지침, claude hook)의 안내 뒤에 "그 CLI를 쓰려면 로그인도 하라"는 말이 붙는다. 막힘만 고친 사용자가 다음 실행에서 로그인 오류를 또 만나지 않게 하려는 것이다.
 - 실제 `up --codex-runtime pinned`(Claw·lean, 임시 HOME, 설치된 codex 없음)는 1단계에서 `RUNNER_BLOCKED`/`LOGIN_REQUIRED`로 멈췄다(`[1/4]` 없음, VM·런타임 흔적 없음). 이 Mac의 실제 `~/.codex`에는 `AGENTS.md`가 있어 pinned는 그 파일을 옮기기 전까지 시작하지 않는다.
-- 자동 검사: root 1119/1119 exit 0(최종 `9216ed4`, 구현 1회차 `5e480ae`는 1118/1118), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 7개 모두 잡음(리뷰어 따로 6개도 모두). 독립 리뷰 두 번 모두 Approve(1회차 Minor 1–4 반영). PR syjkim0125/pazmo-agent-office#53(#50 위에 쌓음).
-- **G4 대기.** `office start --codex-runtime pinned`의 실제 실행과 `prepareMachine` 연결 한 줄의 자동 시험은 없다. [변경 기록](verification/2026-10-30-pinned-codex-gate.md)
+- 자동 검사: root 1119/1119 exit 0(`9216ed4`, 구현 1회차 `5e480ae`는 1118/1118, main을 합친 `33c321b`는 1121/1121), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 7개 모두 잡음(리뷰어 따로 6개도 모두). 독립 리뷰 두 번 모두 Approve(1회차 Minor 1–4 반영). PR syjkim0125/pazmo-agent-office#53(#50 위에 쌓음).
+- G4는 2026-10-30 사용자 지시("너가 알려주고 승인해 … 머지까지해")와 머지 범위 답("#50·#53 둘 다")으로 컨트롤러가 쓴 답을 승인으로 기록했다(승인 후 머지). 사용자는 범위를 고르기 전에 그 답을 대화에서 봤다. [G4 기록](verification/2026-10-30-pinned-codex-gate-g4.md)
+- **남은 것:** `office start --codex-runtime pinned`의 실제 실행과 `prepareMachine` 연결 한 줄의 자동 시험은 없다. [변경 기록](verification/2026-10-30-pinned-codex-gate.md)
 
 # 2026-10-30 `./office` 시작 1단계에서 hook이 있는 claude 막기
 
@@ -18,7 +19,8 @@
 - 실제 `up`(Claw·lean)을 가짜 hook claude로 돌려 1단계에서 멈추는 것(`[1/4]` 없음, VM·런타임 흔적 없음)을 봤다. 이 Mac의 실제 claude 2.1.280은 hook이 없어 막히지 않았다.
 - 자동 검사: root 1114/1114 exit 0(최종 `44f478c`, `2e8a816`도 같음), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 13개 중 12개를 잡음(남은 하나는 시험용 `extraDirs` 경계).
 - 독립 리뷰 두 번: 1회차 Changes needed(로그아웃된 막힌 CLI의 로그인 안내 누락 등) → 고침, 2회차 Approve. PR syjkim0125/pazmo-agent-office#50.
-- **G4 대기.** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. pinned에서 막힌 codex를 런처만 거부하는 불일치(#45 이전부터)는 D32(바로 위)에서 고쳤다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
+- G4는 #53과 같은 지시와 범위 답("#50·#53 둘 다")으로 컨트롤러가 쓴 답을 승인으로 기록했다(승인 후 머지). 사용자는 #50의 답을 기록 전에 보지 않았다. [G4 기록](verification/2026-10-30-launcher-hook-check-g4.md)
+- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. pinned에서 막힌 codex를 런처만 거부하는 불일치(#45 이전부터)는 D32(바로 위)에서 고쳤다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
 
 # 2026-10-30 러너 탐색의 `claude auth status`와 OAuth 갱신 잠금
 

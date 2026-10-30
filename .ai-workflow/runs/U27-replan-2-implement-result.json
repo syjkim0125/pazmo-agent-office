@@ -1,0 +1,20 @@
+{
+  "token": "6d4ae0a18b33517ac340713ef9405e7831849bf567bfa600f2c04c6bb7706882",
+  "output": {
+    "summary": "Replan 2 after merging origin/main (#48, #49, #51 D31, #52, #54) into the branch at 33c321b: the Story gained D31, so the Story fingerprint changed. Code unchanged since 9216ed4 (implement attempt 2 in U27-pinned-codex-gate-replan.json; attempt 1 in U27-pinned-codex-gate.json); main touched none of these src/tests files since the merge base 3926ee2. Merge conflicts were docs only (Story D30/D31/D32 order, STATUS, model-discovery solution doc). Code evidence as before: RED/GREEN per attempt, mutations 7/7 (reviewer 6/6), real up --codex-runtime pinned stops at step 1. Post-merge: related 10 files 164/164, typecheck 0, story check 0.",
+    "evidence": [
+      "src/cli/launcher.ts",
+      "src/runtime/live.ts",
+      "src/runtime/runner-settings.ts",
+      "src/runners/runner-discovery.ts",
+      "tests/launcher.test.mjs",
+      "tests/live-runtime.test.mjs",
+      "tests/runner-settings.test.mjs",
+      "tests/runner-discovery.test.mjs",
+      ".ai-workflow/runs/U27-review-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

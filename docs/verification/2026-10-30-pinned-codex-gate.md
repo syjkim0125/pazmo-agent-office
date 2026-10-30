@@ -1,6 +1,6 @@
 # 2026-10-30 `--codex-runtime pinned` 시작 검사를 1단계와 Office에서 같게
 
-Story: M3 · M4 · D30 · D32. 근거: [PR #50 변경 기록](2026-10-30-launcher-hook-check.md)의 리뷰 후속 두 가지(pinned 관문 불일치, 두 단계 안내). kit graph: `.ai-workflow/runs/U27-pinned-codex-gate-replan.json`(최종). 처음 연 `U27-pinned-codex-gate.json`에는 구현 1회차와 시작한 리뷰가 남아 있다. 1차 리뷰 반영 때 D32에 "D30의 pinned 문장을 바꿈"을 적어 Story 지문이 바뀌었으므로 새 run을 열었다. 사용자 선택 설명: https://claude.ai/artifact/WWm4WRXZqeb7MnVKSrW9F1
+Story: M3 · M4 · D30 · D32. 근거: [PR #50 변경 기록](2026-10-30-launcher-hook-check.md)의 리뷰 후속 두 가지(pinned 관문 불일치, 두 단계 안내). kit graph: `.ai-workflow/runs/U27-pinned-codex-gate-replan-2.json`(main을 합친 뒤, 최종). `U27-pinned-codex-gate-replan.json`은 합치기 전 Story 기준으로 `g4`까지 갔다. 처음 연 `U27-pinned-codex-gate.json`에는 구현 1회차와 시작한 리뷰가 남아 있다. 1차 리뷰 반영 때 D32에 "D30의 pinned 문장을 바꿈"을 적어 Story 지문이 바뀌었으므로 새 run을 열었다. 사용자 선택 설명: https://claude.ai/artifact/WWm4WRXZqeb7MnVKSrW9F1
 
 ## 왜 바꿨나
 
@@ -75,6 +75,8 @@ Story: M3 · M4 · D30 · D32. 근거: [PR #50 변경 기록](2026-10-30-launche
 | 관련 9개 파일(위 7개 + cli·team-lifecycle), `9216ed4` | 148/148, exit 0, 건너뜀 0 |
 | root `npm test`, 구현 1회차 `5e480ae` (2026-10-30 14:41–14:43, load average 11–19, 다른 전체 시험 없이) | 1118/1118, exit 0 (PR #50의 1114 + 새 시험 4) |
 | root `npm test`, 최종 `9216ed4` (14:58–15:01, load average 10–22, 다른 전체 시험 없이) | 1119/1119, exit 0 (`runnerLoginOptions` 시험 +1) |
+| root `npm test`, main(#48·#49·#51·#52·#54)을 합친 `33c321b` (15:51–15:53, load average 7–24, 다른 전체 시험 없이, vendor 설치·`build:office` 다시 함) | 1121/1121, exit 0 |
+| 관련 10개 파일(위 9개 + runner-models), `33c321b` | 164/164, exit 0 |
 | `npm run typecheck` (`5e480ae`, `9216ed4`) | exit 0 |
 | `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` (`9216ed4`) | exit 0 |
 
@@ -99,5 +101,5 @@ Story: M3 · M4 · D30 · D32. 근거: [PR #50 변경 기록](2026-10-30-launche
 - pinned에서도 1단계는 `discoverRunners`를 돌린다(`codex --version`·`codex login status`·`claude auth status`). pinned 판단에는 그 결과를 쓰지 않는다(1차 리뷰 Minor 5, 이 변경 전과 같은 비용이라 그대로 둠).
 - 실행기 없는 기존 모드(`createLiveRuntime`의 `!runners`)는 시작 때 개인 지침 파일을 보지 않는다. 실행 직전 `codexJob` 거부만 있다(이 변경 전과 같음).
 - pinned에서 시작 뒤 `AGENTS.md`가 생기면 codex 역할 작업마다 `CODEX_PERSONAL_INSTRUCTIONS`로 실패한다(새지 않음, 이 변경 전과 같음).
-- 이 변경은 PR #50 위에 있다. PR #51(D31)과 Story의 같은 자리를 고치므로 나중에 머지하는 쪽에서 줄 하나가 충돌한다.
+- 이 변경은 PR #50 위에 있다. main(#48·#49·#51·#52·#54)을 합칠 때 문서 세 곳(Story의 D30·D31·D32 줄, STATUS, 모델 목록 조회 해결 문서)이 충돌해 풀었다. main은 이 변경의 src·tests 파일을 건드리지 않았다.
 - **G4:** 사용자 답변으로만 기록한다.
