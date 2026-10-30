@@ -440,10 +440,8 @@ test("a registered repo cannot be started as a single Office; after remove it ca
   const refused = call(f, "start", "--lean", "--port", "0", ...single);
   assert.equal(refused.status, 1, JSON.stringify(refused.value));
   assert.equal(refused.value.code, "IN_TEAM_OFFICE");
-  for (const flags of [[], ["--claw"]]) {
-    const other = call(f, "start", ...flags, "--port", "0", ...single);
-    assert.equal(other.value.code, "IN_TEAM_OFFICE", flags.join(" "));
-  }
+  const other = call(f, "start", "--port", "0", ...single);
+  assert.equal(other.value.code, "IN_TEAM_OFFICE");
   assert.equal(existsSync(join(p.dataDir, "start.lock")), false, "no start lock was taken");
   assert.equal(existsSync(join(p.dataDir, "running.json")), false, "nothing was started");
   assert.equal(existsSync(join(p.dataDir, "office.log")), false);

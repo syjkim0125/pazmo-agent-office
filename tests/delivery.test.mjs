@@ -11,7 +11,6 @@ import {
 } from "node:fs";
 import { join } from "node:path";
 import { officeFixture } from "./coordinator-fixture.mjs";
-import { assertOfficesExited, officePid } from "./office-process.mjs";
 import { CompletionLedger } from "../src/core/completion.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
 const token = "a".repeat(64);
@@ -206,74 +205,56 @@ test("a symlink output root is rejected without writing into its target", async 
   assert.equal(f.store.get(f.task.id).status, "review");
 });
 
-test("real operator CLI delivers once, survives restart and removes invalid output from the queue on restart", async (t) => {
-  const { spawnSync } = await import("node:child_process");
-  const { backup } = await import("node:sqlite");
+test("opening the Office engine recovers what a restart interrupted: running planning, a checking round and a delivery whose output is gone", async (t) => {
+  const { createNativeOffice } = await import("../src/runtime/native-office.ts");
+  const { IntakeLedger } = await import("../src/core/intake.ts");
+  const { ExecutionLedger } = await import("../src/core/budgets.ts");
   const f = await ready(t);
-  const data = join(f.root, "service");
-  const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
-  const pids = [];
-  const call = (...args) => {
-    const r = spawnSync(
-      process.execPath,
-      [cli, ...args, "--project", f.project, "--data-dir", data],
-      { encoding: "utf8", timeout: 20000 },
-    );
-    const value = JSON.parse(r.status === 0 ? r.stdout : r.stderr);
-    if (args[0] === "start" && r.status === 0)
-      pids.push(officePid(value.dataDir));
-    return { code: r.status, value };
-  };
-  f.defer(async () => {
-    call("stop");
-    await assertOfficesExited(pids);
+  const delivered = f.completion.deliver(token, f.task.id);
+  rmSync(delivered.directory, { recursive: true });
+  const intake = new IntakeLedger(f.db, f.store, f.project),
+    planner = new ExecutionLedger(f.db, f.store, f.verification, Date.now, intake);
+  const request = intake.create(token, "Review parser requirements.", "normal");
+  const lease = planner.reservePlanning(
+    request.taskId,
+    request.revision,
+    request.inputDigest,
+    "b".repeat(64),
+  );
+  planner.startPlanning(lease.id, "interrupted-pm");
+  const second = await f.store.register(token, f.input);
+  for (const gate of ["G1", "G3"]) {
+    const approval = f.store.requestApproval(token, second.id, gate);
+    f.store.decide(token, approval.id, {
+      decision: "approve",
+      note: "Disposable restart fixture only.",
+    });
+  }
+  const round = f.verification.begin(second.id, f.candidate);
+  assert.equal(f.verification.get(round.id).state, "checking");
+  // The lean and team Offices open the engine on their database this way
+  // (createLeanOffice); its deliveries live under the data directory.
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token,
   });
-  assert.equal(call("init", "--apply").code, 0);
-  f.db.exec(
-    "CREATE TABLE pazmo_instance (project TEXT NOT NULL, version INTEGER NOT NULL); PRAGMA user_version=7",
-  );
-  f.db.prepare("INSERT INTO pazmo_instance VALUES (?,7)").run(f.project);
-  const dataDir = JSON.parse(
-    readFileSync(join(f.project, ".pazmo-office/manifest.json")),
-  ).dataDir;
-  mkdirSync(dataDir, { recursive: true });
-  await backup(f.db, join(dataDir, "office.sqlite"));
-  const started = call("start", "--port", "0");
-  assert.equal(started.code, 0, JSON.stringify(started));
+  f.defer(() => office.close());
+  const planning = planner.getPlanning(lease.id);
+  assert.equal(planning.state, "unknown");
+  assert.equal(planning.reason, "CONTROLLER_RESTARTED");
+  assert.equal(intake.get(request.taskId).state, "human_required");
+  assert.equal(intake.get(request.taskId).reason, "CONTROLLER_RESTARTED");
+  assert.equal(f.verification.get(round.id).state, "human_required");
+  assert.equal(f.verification.get(round.id).reason, "CONTROLLER_RESTARTED");
+  // Read the stored rows: delivery() would itself re-inspect the output.
   assert.equal(
-    (
-      await fetch(started.value.url + "/api/pazmo/deliveries", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskId: f.task.id }),
-      })
-    ).status,
-    401,
-  );
-  const delivered = call("deliver", "--task-id", f.task.id);
-  assert.equal(delivered.code, 0, JSON.stringify(delivered));
-  assert.equal(delivered.value.status, "delivered");
-  assert.equal(call("stop").code, 0);
-  assert.equal(call("start", "--port", "0").code, 0);
-  assert.deepEqual(
-    call("delivery", "--task-id", f.task.id).value,
-    delivered.value,
-  );
-  assert.equal(call("stop").code, 0);
-  rmSync(delivered.value.directory, { recursive: true });
-  const restarted = call("start", "--port", "0");
-  assert.equal(restarted.code, 0);
-  assert.equal(
-    call("delivery", "--task-id", f.task.id).value.status,
+    f.db.prepare("SELECT state FROM pazmo_deliveries WHERE task_id=?").get(f.task.id).state,
     "invalid",
   );
-  const tasks = await (await fetch(restarted.value.url + "/api/tasks")).json();
-  assert.equal(
-    tasks.tasks.find((task) => task.id === f.task.id).status,
-    "pending",
-  );
+  assert.equal(f.db.prepare("SELECT status FROM tasks WHERE id=?").get(f.task.id).status, "pending");
 });
-
 test("late cancellation cannot undo a committed delivery", async (t) => {
   const f = await ready(t);
   f.completion.deliver(token, f.task.id);
