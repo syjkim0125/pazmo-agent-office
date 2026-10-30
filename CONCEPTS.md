@@ -131,6 +131,12 @@ A snapshot is what leaves the owner's machine, so it is the unit to reason about
 ### PL
 The member who publishes a team Story: they split it into a task graph, approve it before it reaches the hub, run its Story-level verification and answer its G4. Only the PL opens, extends or completes a Story; to recover when the PL is gone, a hub admin may also release or cancel its tasks or cancel the Story.
 
+### Team Office
+The one Office a member runs for several of their repos at once: it takes and holds team Story Claims for those repos while each repo keeps its own data and its own Office link.
+*Avoid:* multi-repo Office
+
+A repo registered with a Team Office cannot also run in a single Office, and two clones of the same origin cannot both be registered, because the hub keeps one link per member and repo. The Team Office keeps a local record of its open Claim and takes no new Claim while that record is open. It drops the record when the hub answers that the task is no longer this member's or that it does not know the task, and records it again from the hub inbox while the hub still says it is this member's. A member can pause claiming or cap claims per day. A repo holding the open Claim cannot be removed while its folder exists.
+
 ### Claim
 A member's Office's hold on one ready work task of a team Story, taken automatically for a repo the member owns and identified by its own claim ID. The Story's verification task is the exception: only the PL claims it, explicitly. A member has at most one open Claim at a time.
 *Avoid:* assignment (that is the accept-based request flow), lease
