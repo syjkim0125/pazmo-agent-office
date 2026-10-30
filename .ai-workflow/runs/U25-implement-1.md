@@ -1,0 +1,11 @@
+# U25 implement — attempt 1 (D30, lean Office default and Claw removal)
+
+Branch codex/lean-phase3-g3, commits ee12b05..3bfb30a (merge of origin/main at 91d9a27). Plan: docs/plans/2026-10-30-1500-feat-lean-office-default-plan.md.
+
+- U1 ee12b05: ws 8.19.0, typescript 5.9.3, @types/node 24.10.13, @types/ws 8.18.1 as root dependencies with package-lock.json; exec-relay.ts and claude-tool-bridge.mjs load ws from the root; typecheck uses root tsc. Related tests 63/63, typecheck exit 0.
+- U2 64ef668: applyLeanSchema exported (openLeanDb uses it); 17 test files, coordinator-fixture and 6 probe scripts move off the vendor base schema; tests/role-agents-fixture.mjs adds the four Claw role agents and per-role columns for the retained engine paths. Every tests/ file kept its baseline count.
+- U3 0a2f602: engines lean|team; start/up default lean; --claw -> CLAW_REMOVED; legacy, claw-service, operator-page, observation, bridge removed; old claw/legacy/no-engine running.json read, shown, stopped, refused for start/up/monitor; up installs root deps before reuse or start. RED first: lifecycle/lean-lifecycle/launcher tests failed on missing exports and the legacy default before the code change; GREEN 152/152. New engine-open recovery test in delivery.test.mjs; mutation: removing verification.recoverInterrupted, execution.recoverInterrupted or completion.reconcileDeliveries each fails it.
+- U4 68a1f32: vendor/claw-empire (708 files, 2 gitlinks), .gitmodules, build:office and seven Claw-only test files removed; /vendor/ ignored. Full suite without vendor 1070/1070.
+- U5 45078a1, 9de5b9b, 7d1ee87, c4f31ec: READMEs, LOCAL-PREVIEW, CHAT-CONTROL, AGENTS.md, CONCEPTS, LICENSING, THIRD_PARTY_NOTICES, upstream/, STATUS, verification record.
+- Simplify 948afc7 (ce-simplify-code, 3 reviewers): static ws import, Engine type reuse, one JSON reader, dependency step after refusals, RERUNS only on upgrade, dead operatorToken removed. Affected tests 244/244.
+- Review fixes 3bfb30a: up(options, prepare) seam and reuseOrStart; reuse-path test (mutations: step removed, step doubled — both fail); restart test keeps an intact delivery; --ignore-scripts; packed-install guard; COMMAND_REMOVED; doctor and operator-file assertions. Affected tests 178/178.
