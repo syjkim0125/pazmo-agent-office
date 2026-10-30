@@ -6,9 +6,9 @@ This file records source attribution. It does not replace any upstream LICENSE o
 
 - Source: https://github.com/GreenSheep01201/claw-empire
 - Release: `v2.0.4`, commit `5c928b24ffa55b403fe7c5521d4ac3ac49516137`.
-- Location: `vendor/claw-empire/`; original tree verified in local-only import commit `8e25d7c5ea42d03e202d1599338f3a76d61d05fe`. Published source removes built-in Google OAuth defaults; see `upstream/CHANGES.md` and the original/published trees in the lock file.
+- Location: `vendor/claw-empire/` until 2026-10-30, when it was removed from the tree (D30, `docs/understanding/lean-office-default-decision.md`). Earlier versions include it; the current tree and package do not. Original tree verified in local-only import commit `8e25d7c5ea42d03e202d1599338f3a76d61d05fe`. Published source removes built-in Google OAuth defaults; see `upstream/CHANGES.md` and the original/published trees in the lock file.
 - License: Apache-2.0. Retain the original license, applicable NOTICE, original notices and modification attribution.
-- README image: upstream `Sample_Img/Office.png` at this commit, explicitly labeled as an upstream reference, not completed Pazmo behavior.
+- README image: until D30 the READMEs showed upstream `Sample_Img/Office.png` at this commit as a labeled reference; it is no longer shown.
 
 ## AI Workflow Kit
 
@@ -34,6 +34,6 @@ entitlement, model availability, or the model actually served.
 
 Compound Engineering, Superpowers, PM Skills, Impeccable, Vercel/HashiCorp skills and Trail of Bits are selected design inputs, not included installed dependencies in this pack. Before redistributing any of their code or skill text, record exact ref, files, license and notices. Do not imply endorsement.
 
-`tools/playwright-mcp` and `tools/ppt_team_agent` are separate pinned Git submodules of Claw-Empire. Preserving their gitlinks does not copy their contents or complete their license review.
+`tools/playwright-mcp` and `tools/ppt_team_agent` were separate pinned Git submodules of Claw-Empire; their gitlinks were removed with it in D30. They never copied their contents into this repository.
 
 Open Office and Pixel Agents are public UX/README references only. Their code, artwork and logos have not been included in this handoff pack.

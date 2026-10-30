@@ -76,7 +76,7 @@ It drives the runner against a scripted local model so that its tool actions pro
 
 ### Agent
 A named worker in the lean Office that a human assigns a task to, carrying a work runner and a review runner.
-*Avoid:* role agent, employee (the Claw Office's per-role characters)
+*Avoid:* role agent, employee (the removed Claw Office's per-role characters)
 
 The workflow stages (plan, design, build, review, G4) run inside the agent's task as its progress, not as separate role characters. An agent with an open task, and the last agent, cannot be deleted. A task whose agent was deleted, or that the engine created without one, uses the oldest remaining agent's runners.
 
@@ -91,10 +91,8 @@ A review runner that ends without a report (an API error or refusal, for example
 ## Hosting
 
 ### Managed mode
-The state in which the original Claw office app runs inside Office as Office's screen and data store, instead of as a standalone app.
+The state in which the original Claw office app ran inside Office as Office's screen and data store. Retired with the Claw Office (D30): the lean Office has no original app to lock.
 *Avoid:* Pazmo mode
-
-In managed mode Office owns every action the original app would otherwise take by itself. Original paths that would call a model, merge work, sign in to a provider, receive outside chat messages or run background sweeps are locked or switched off. Where the screen needs information, such as whether a Runner is installed and logged in, Office supplies its own answer. A feature that can only work by reading the user's login does not run at all; it shows that Office does not provide it, instead of appearing logged out or broken.
 
 ## Team hub
 
@@ -108,21 +106,25 @@ The hub is not a second Office. Each person's Office keeps its own `127.0.0.1` b
 A teammate who may accept requests for a registered repo and connect their own Office to it. The person who registers a repo is its first owner; owners or the admin add and remove owners. Anyone may post a request, but only an owner takes it.
 
 ### Assignment
-An owner's explicit acceptance of one hub request, binding it to that owner's Office, PC and login, made on the hub page or from the owner's Office Inbox. There is no automatic assignment. An owner may instead decline an open request with an optional reason; that closes it for every owner and the requester sees the decline and reason. The requester answers the questions and the scope Gate (G1) on the hub; the assignee answers the task Gates and G4 in their own Office. An assignee can release the request and the requester can cancel it.
+An owner's explicit acceptance of one hub request, binding it to that owner's Office, PC and login, made on the hub page (the Office Inbox went with the Claw Office, D30). There is no automatic assignment. An owner may instead decline an open request with an optional reason; that closes it for every owner and the requester sees the decline and reason. The requester answers the questions and the scope Gate (G1) on the hub; the assignee answers the task Gates and G4 in their own Office. An assignee can release the request and the requester can cancel it.
 
 ### Office link
-The one-owner, one-repo pairing between an Office and the hub. The member copies a single-use, member-level connection string from the hub's start page and pastes it into the Office's top-bar team hub dialog (or `hub-link --connect`); the hub finds the repo by the Office's git origin and, if no repo has that origin, registers it with that member as owner. A repo someone else owns refuses the link and leaves the string usable. With a fingerprint (LAN hub) the Office trusts only that hub CA; without one (Fusion hub) it verifies the public certificate through system trust. The stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations, plus — from hub protocol 2 — list repos, create requests in the owner's name and read, answer and cancel the Outgoing requests sent from this repo's Office, and list, accept and decline the repo's open incoming requests. From hub protocol 3 it also reads the team Story board, takes Claims on that repo's ready tasks and reports their results; a Story's PL may use any of their links for the Story's own actions.
+The one-owner, one-repo pairing between an Office and the hub. The member copies a single-use, member-level connection string from the hub's start page and runs `hub-link --connect` with it (the Office's top-bar dialog went with the Claw Office, D30); the hub finds the repo by the Office's git origin and, if no repo has that origin, registers it with that member as owner. A repo someone else owns refuses the link and leaves the string usable. With a fingerprint (LAN hub) the Office trusts only that hub CA; without one (Fusion hub) it verifies the public certificate through system trust. The stored token can only read that owner's accepted requests for that repo, upload their progress and receive answers and cancellations, plus — from hub protocol 2 — list repos, create requests in the owner's name and read, answer and cancel the Outgoing requests sent from this repo's Office, and list, accept and decline the repo's open incoming requests. From hub protocol 3 it also reads the team Story board, takes Claims on that repo's ready tasks and reports their results; a Story's PL may use any of their links for the Story's own actions.
 *Avoid:* login, sync account
 
 A link is outbound and polled; the hub never opens a connection into an Office. Re-pairing moves the link to another Office and revokes the first, whose in-flight local work the hub can no longer reach.
 
 ### Outgoing request
+No Office screen sends these since D30 (the team Story board replaces them); the term remains for the hub and the engine code that still records them.
+
 A hub request a person sends from their own linked Office (a Tasks card or the chat) to another repo, recorded in that Office with the hub request ID, the local task if any, the target repo and when it was sent. The Office shows its status on the card and lists the other side's PM questions, scope Gate (G1) and planning retry in its own Decisions; those answers travel through the Office link as the requester's hub answers.
 *Avoid:* handoff, delegation, cross-repo task
 
 Sending is always a person's act; the original task keeps running. If an owner of the target repo declines it instead of accepting, the request is closed and the sender's card shows it as declined with the owner's optional reason; a decline is not a cancellation by the sender. From Decisions the Office can approve or cancel the request — "rejecting" means cancelling, there is no send-back-for-revision — and a card can cancel it while it is waiting or in progress; cancelling is the hub's own cancel, so the assignee's Office stops. The Office never sees the other repo's diff, task Gates, G4 or delivery. Scope is (member, origin repo): the same person's requests sent from another repo's Office or from the hub page are not listed.
 
 ### Hub snapshot
+No Office uploads these since D30, because no Office runs accepted hub requests any more.
+
 The single bounded summary an Office uploads for an accepted request: status, title, pending questions and scope Decisions, role conversation, the candidate diff, a short report and the runners used. The hub keeps only the latest one, so a reconnect simply sends it again.
 *Avoid:* event log, sync
 
