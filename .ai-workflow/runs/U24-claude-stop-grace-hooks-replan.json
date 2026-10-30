@@ -1,0 +1,454 @@
+{
+  "version": 1,
+  "runId": "1fd8bac7-311f-4e5d-bbf2-eec454b3603b",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Replanned after the Story change made in review 2 (D29 limit: discovery itself starts a blocked claude, so its hooks run once per discovery). Earlier run .ai-workflow/runs/U24-claude-stop-grace-hooks.json holds attempts 1-2 and review 1. Attempt 2 after review 1 (Changes needed). Important 1: qualify() refuses a blocked install before the cache lookup (RUNNER_NOT_READY) and Claw prequalify skips blocked installs. Important 2: claudeModels resolves {models, hooks:null} when the CLI answered the models but closed or hit the 15 s timer without a listing. Minor: blocked text deduplicated; claude-profile.ts comment notes SessionEnd never reaches the stream; remote-job budget test reaps at 17 s; docs refreshed (solutions doc distilled to 12 s/18 s and hook listing, STATUS, 10-28/10-29 records, D28/D29). RED: 4 new tests failed (blocked qualified; models-then-exit and models-then-silence not unknown; duplicate hook text); 3 coverage tests (listing first, malformed entry, discovery failure not judged) passed from the start. GREEN: runner-qualification+runner-models+runner-settings+claude-controller+remote-job 66/66; typecheck exit 0; full npm test 1104/1104 exit 0 (09:49-09:50, load ~5-15). Real check: loadRunnerCatalog on this Mac with claude 2.1.280: hooks [], not blocked, 5 models, 1.8 s. Follow-ups left: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "src/runners/runner-models.ts",
+            "src/runners/runner-qualification.ts",
+            "src/runners/claude-profile.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "tests/runner-models.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-qualification.test.mjs",
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "486b0d3db00c473ad4bdbf616f49681327ca14b4efe0cac7846efe15b10becab",
+          "src/runners/remote-job.ts": "b005397a381fe4c45ef2915dcf3793f849c274c5f19bf19d908748693e07b2c0",
+          "src/runners/runner-models.ts": "77f33f40a05b5aa0c4b927b100c5359efe38a45e8273a2b96a846698f486654f",
+          "src/runners/runner-qualification.ts": "24f6f2afd5e7e147d843eff2e89c83a6d52c3518c076e3b9a24fa6c72c56d46f",
+          "src/runners/claude-profile.ts": "4a49a50cad65bb8ad621edfdc31abe67cef6604dd8abf4f5a211efb045a9c903",
+          "src/runtime/runner-settings.ts": "5ccaee9fe3cd0674ee4e9c29d226d132cc9c8b08cc4fc0f02a574818e62ba8a1",
+          "src/runtime/live.ts": "9aae6ae899df71dd3a5ae2d71e016c3d885a6f45a146f1f6c3b578b54cc3c464",
+          "tests/claude-controller.test.mjs": "3236647c582a175d6aa30020a2b48e83427137f6e32e84b6082e894cc4a50487",
+          "tests/remote-job.test.mjs": "a1cac2a6ebdcbbffe34b0beace5af229995c0a331e412bd5e0d510dd90166865",
+          "tests/runner-models.test.mjs": "00fb79298770c62382d07889340e852c66df924d5343880ced024aaf6d4f856e",
+          "tests/runner-settings.test.mjs": "fa503279698dc0236ce3a229cd93c7931df14f0688312b0595dbf1105a9c03f4",
+          "tests/runner-qualification.test.mjs": "a7dbef1012bd016abd06bb906b444b330794330b068102d3f6b3c1b6c893fa11",
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "cea3e2c75a9c746f934999980fe3ce159af0272d75b5567aecd305d17e565508",
+          "docs/understanding/pazmo-agent-office-contract.md": "833d55dcf28659ed4ee0ad38d5a76852c7d9e45846e8a60f62c6bf66bd5e0ff6"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Two independent report-only reviews. (1) Changes needed: Important 1 (qualify/prequalify ignored blocked) and 2 (models answered without a listing not blocked) plus Minor; all fixed in implement attempt 2. (2) Same reviewer on the fixes: code approved as is (5 files 66/66, typecheck exit 0; no race or double settle); docs-only Important: discovery itself still starts a blocked claude so its SessionStart/SessionEnd hooks run once per discovery (confirmed on real CLI 2.1.280 with an isolated config and a --settings hook; predates this change). Applied after review 2: qualify comment narrowed, limit added to D29, the 10-30 record and STATUS, solutions doc hedged and line refs fixed, remote-job table row, discovery-failure test given a fake codex. Follow-ups accepted as deferred: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            "src/runners/runner-qualification.ts",
+            "tests/runner-settings.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "cea3e2c75a9c746f934999980fe3ce159af0272d75b5567aecd305d17e565508",
+          "docs/understanding/pazmo-agent-office-contract.md": "833d55dcf28659ed4ee0ad38d5a76852c7d9e45846e8a60f62c6bf66bd5e0ff6",
+          "src/runners/runner-qualification.ts": "24f6f2afd5e7e147d843eff2e89c83a6d52c3518c076e3b9a24fa6c72c56d46f",
+          "tests/runner-settings.test.mjs": "fa503279698dc0236ce3a229cd93c7931df14f0688312b0595dbf1105a9c03f4"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review 2 fixes (worktree codex/claude-stop-grace on codex/real-cli-check 5bbcb18): npm test 1104/1104 exit 0 (2026-10-30 09:56-09:57, load 4-7); typecheck exit 0; story check exit 0; affected 5 files 66/66. Changed product files: src/runners/claude-controller.ts, remote-job.ts, runner-models.ts, runner-qualification.ts, claude-profile.ts (comment), src/runtime/runner-settings.ts, live.ts. Real check: loadRunnerCatalog with this Mac claude 2.1.280 -> hooks [], not blocked. Unproven: a Mac with managed hooks; 12 s under real load (basis: 9.1 s max measured); whether server-delivered settings are merged at discovery time; discovery itself still runs a blocked claude and its hooks once per discovery.",
+          "evidence": [
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/STATUS.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "cea3e2c75a9c746f934999980fe3ce159af0272d75b5567aecd305d17e565508",
+          "docs/STATUS.md": "11080bc67a8396b3ec6a428c32168afca38e8af501385719b267b1f23417ced6"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "d6771b5bc39ae0fc20c8a951f1aac97ecea601d8a55c4a36a5d9fa532a29d138"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:58:01.747Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:58:01.842Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replanned after the Story change made in review 2 (D29 limit: discovery itself starts a blocked claude, so its hooks run once per discovery). Earlier run .ai-workflow/runs/U24-claude-stop-grace-hooks.json holds attempts 1-2 and review 1. Attempt 2 after review 1 (Changes needed). Important 1: qualify() refuses a blocked install before the cache lookup (RUNNER_NOT_READY) and Claw prequalify skips blocked installs. Important 2: claudeModels resolves {models, hooks:null} when the CLI answered the models but closed or hit the 15 s timer without a listing. Minor: blocked text deduplicated; claude-profile.ts comment notes SessionEnd never reaches the stream; remote-job budget test reaps at 17 s; docs refreshed (solutions doc distilled to 12 s/18 s and hook listing, STATUS, 10-28/10-29 records, D28/D29). RED: 4 new tests failed (blocked qualified; models-then-exit and models-then-silence not unknown; duplicate hook text); 3 coverage tests (listing first, malformed entry, discovery failure not judged) passed from the start. GREEN: runner-qualification+runner-models+runner-settings+claude-controller+remote-job 66/66; typecheck exit 0; full npm test 1104/1104 exit 0 (09:49-09:50, load ~5-15). Real check: loadRunnerCatalog on this Mac with claude 2.1.280: hooks [], not blocked, 5 models, 1.8 s. Follow-ups left: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "src/runners/runner-models.ts",
+            "src/runners/runner-qualification.ts",
+            "src/runners/claude-profile.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "tests/runner-models.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-qualification.test.mjs",
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "486b0d3db00c473ad4bdbf616f49681327ca14b4efe0cac7846efe15b10becab",
+          "src/runners/remote-job.ts": "b005397a381fe4c45ef2915dcf3793f849c274c5f19bf19d908748693e07b2c0",
+          "src/runners/runner-models.ts": "77f33f40a05b5aa0c4b927b100c5359efe38a45e8273a2b96a846698f486654f",
+          "src/runners/runner-qualification.ts": "24f6f2afd5e7e147d843eff2e89c83a6d52c3518c076e3b9a24fa6c72c56d46f",
+          "src/runners/claude-profile.ts": "4a49a50cad65bb8ad621edfdc31abe67cef6604dd8abf4f5a211efb045a9c903",
+          "src/runtime/runner-settings.ts": "5ccaee9fe3cd0674ee4e9c29d226d132cc9c8b08cc4fc0f02a574818e62ba8a1",
+          "src/runtime/live.ts": "9aae6ae899df71dd3a5ae2d71e016c3d885a6f45a146f1f6c3b578b54cc3c464",
+          "tests/claude-controller.test.mjs": "3236647c582a175d6aa30020a2b48e83427137f6e32e84b6082e894cc4a50487",
+          "tests/remote-job.test.mjs": "a1cac2a6ebdcbbffe34b0beace5af229995c0a331e412bd5e0d510dd90166865",
+          "tests/runner-models.test.mjs": "00fb79298770c62382d07889340e852c66df924d5343880ced024aaf6d4f856e",
+          "tests/runner-settings.test.mjs": "fa503279698dc0236ce3a229cd93c7931df14f0688312b0595dbf1105a9c03f4",
+          "tests/runner-qualification.test.mjs": "a7dbef1012bd016abd06bb906b444b330794330b068102d3f6b3c1b6c893fa11",
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "3621bd8b360a795a2988fe095ae06da9d21ef67d77d0af60a96fce44f6b70f27",
+          "docs/understanding/pazmo-agent-office-contract.md": "833d55dcf28659ed4ee0ad38d5a76852c7d9e45846e8a60f62c6bf66bd5e0ff6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:58:08.847Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:58:08.958Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Two independent report-only reviews. (1) Changes needed: Important 1 (qualify/prequalify ignored blocked) and 2 (models answered without a listing not blocked) plus Minor; all fixed in implement attempt 2. (2) Same reviewer on the fixes: code approved as is (5 files 66/66, typecheck exit 0; no race or double settle); docs-only Important: discovery itself still starts a blocked claude so its SessionStart/SessionEnd hooks run once per discovery (confirmed on real CLI 2.1.280 with an isolated config and a --settings hook; predates this change). Applied after review 2: qualify comment narrowed, limit added to D29, the 10-30 record and STATUS, solutions doc hedged and line refs fixed, remote-job table row, discovery-failure test given a fake codex. Follow-ups accepted as deferred: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            "src/runners/runner-qualification.ts",
+            "tests/runner-settings.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "3621bd8b360a795a2988fe095ae06da9d21ef67d77d0af60a96fce44f6b70f27",
+          "docs/understanding/pazmo-agent-office-contract.md": "833d55dcf28659ed4ee0ad38d5a76852c7d9e45846e8a60f62c6bf66bd5e0ff6",
+          "src/runners/runner-qualification.ts": "24f6f2afd5e7e147d843eff2e89c83a6d52c3518c076e3b9a24fa6c72c56d46f",
+          "tests/runner-settings.test.mjs": "fa503279698dc0236ce3a229cd93c7931df14f0688312b0595dbf1105a9c03f4"
+        }
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Verification record filled with the fresh results after the review; re-record the same evidence",
+      "at": "2026-10-30T00:58:37.794Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:58:37.952Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T00:58:38.017Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Replanned after the Story change made in review 2 (D29 limit: discovery itself starts a blocked claude, so its hooks run once per discovery). Earlier run .ai-workflow/runs/U24-claude-stop-grace-hooks.json holds attempts 1-2 and review 1. Attempt 2 after review 1 (Changes needed). Important 1: qualify() refuses a blocked install before the cache lookup (RUNNER_NOT_READY) and Claw prequalify skips blocked installs. Important 2: claudeModels resolves {models, hooks:null} when the CLI answered the models but closed or hit the 15 s timer without a listing. Minor: blocked text deduplicated; claude-profile.ts comment notes SessionEnd never reaches the stream; remote-job budget test reaps at 17 s; docs refreshed (solutions doc distilled to 12 s/18 s and hook listing, STATUS, 10-28/10-29 records, D28/D29). RED: 4 new tests failed (blocked qualified; models-then-exit and models-then-silence not unknown; duplicate hook text); 3 coverage tests (listing first, malformed entry, discovery failure not judged) passed from the start. GREEN: runner-qualification+runner-models+runner-settings+claude-controller+remote-job 66/66; typecheck exit 0; full npm test 1104/1104 exit 0 (09:49-09:50, load ~5-15). Real check: loadRunnerCatalog on this Mac with claude 2.1.280: hooks [], not blocked, 5 models, 1.8 s. Follow-ups left: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "src/runners/claude-controller.ts",
+            "src/runners/remote-job.ts",
+            "src/runners/runner-models.ts",
+            "src/runners/runner-qualification.ts",
+            "src/runners/claude-profile.ts",
+            "src/runtime/runner-settings.ts",
+            "src/runtime/live.ts",
+            "tests/claude-controller.test.mjs",
+            "tests/remote-job.test.mjs",
+            "tests/runner-models.test.mjs",
+            "tests/runner-settings.test.mjs",
+            "tests/runner-qualification.test.mjs",
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/runners/claude-controller.ts": "486b0d3db00c473ad4bdbf616f49681327ca14b4efe0cac7846efe15b10becab",
+          "src/runners/remote-job.ts": "b005397a381fe4c45ef2915dcf3793f849c274c5f19bf19d908748693e07b2c0",
+          "src/runners/runner-models.ts": "77f33f40a05b5aa0c4b927b100c5359efe38a45e8273a2b96a846698f486654f",
+          "src/runners/runner-qualification.ts": "24f6f2afd5e7e147d843eff2e89c83a6d52c3518c076e3b9a24fa6c72c56d46f",
+          "src/runners/claude-profile.ts": "4a49a50cad65bb8ad621edfdc31abe67cef6604dd8abf4f5a211efb045a9c903",
+          "src/runtime/runner-settings.ts": "5ccaee9fe3cd0674ee4e9c29d226d132cc9c8b08cc4fc0f02a574818e62ba8a1",
+          "src/runtime/live.ts": "9aae6ae899df71dd3a5ae2d71e016c3d885a6f45a146f1f6c3b578b54cc3c464",
+          "tests/claude-controller.test.mjs": "3236647c582a175d6aa30020a2b48e83427137f6e32e84b6082e894cc4a50487",
+          "tests/remote-job.test.mjs": "a1cac2a6ebdcbbffe34b0beace5af229995c0a331e412bd5e0d510dd90166865",
+          "tests/runner-models.test.mjs": "00fb79298770c62382d07889340e852c66df924d5343880ced024aaf6d4f856e",
+          "tests/runner-settings.test.mjs": "fa503279698dc0236ce3a229cd93c7931df14f0688312b0595dbf1105a9c03f4",
+          "tests/runner-qualification.test.mjs": "a7dbef1012bd016abd06bb906b444b330794330b068102d3f6b3c1b6c893fa11",
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "cea3e2c75a9c746f934999980fe3ce159af0272d75b5567aecd305d17e565508",
+          "docs/understanding/pazmo-agent-office-contract.md": "833d55dcf28659ed4ee0ad38d5a76852c7d9e45846e8a60f62c6bf66bd5e0ff6"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:58:38.137Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T00:58:38.201Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Two independent report-only reviews. (1) Changes needed: Important 1 (qualify/prequalify ignored blocked) and 2 (models answered without a listing not blocked) plus Minor; all fixed in implement attempt 2. (2) Same reviewer on the fixes: code approved as is (5 files 66/66, typecheck exit 0; no race or double settle); docs-only Important: discovery itself still starts a blocked claude so its SessionStart/SessionEnd hooks run once per discovery (confirmed on real CLI 2.1.280 with an isolated config and a --settings hook; predates this change). Applied after review 2: qualify comment narrowed, limit added to D29, the 10-30 record and STATUS, solutions doc hedged and line refs fixed, remote-job table row, discovery-failure test given a fake codex. Follow-ups accepted as deferred: discovery's own 2 s SIGTERM->SIGKILL, launcher step-1 hook check.",
+          "evidence": [
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/understanding/pazmo-agent-office-contract.md",
+            "src/runners/runner-qualification.ts",
+            "tests/runner-settings.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "cea3e2c75a9c746f934999980fe3ce159af0272d75b5567aecd305d17e565508",
+          "docs/understanding/pazmo-agent-office-contract.md": "833d55dcf28659ed4ee0ad38d5a76852c7d9e45846e8a60f62c6bf66bd5e0ff6",
+          "src/runners/runner-qualification.ts": "24f6f2afd5e7e147d843eff2e89c83a6d52c3518c076e3b9a24fa6c72c56d46f",
+          "tests/runner-settings.test.mjs": "fa503279698dc0236ce3a229cd93c7931df14f0688312b0595dbf1105a9c03f4"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T00:58:38.314Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T00:58:47.721Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh verification after review 2 fixes (worktree codex/claude-stop-grace on codex/real-cli-check 5bbcb18): npm test 1104/1104 exit 0 (2026-10-30 09:56-09:57, load 4-7); typecheck exit 0; story check exit 0; affected 5 files 66/66. Changed product files: src/runners/claude-controller.ts, remote-job.ts, runner-models.ts, runner-qualification.ts, claude-profile.ts (comment), src/runtime/runner-settings.ts, live.ts. Real check: loadRunnerCatalog with this Mac claude 2.1.280 -> hooks [], not blocked. Unproven: a Mac with managed hooks; 12 s under real load (basis: 9.1 s max measured); whether server-delivered settings are merged at discovery time; discovery itself still runs a blocked claude and its hooks once per discovery.",
+          "evidence": [
+            "docs/verification/2026-10-30-claude-stop-grace-hooks.md",
+            "docs/STATUS.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "docs/verification/2026-10-30-claude-stop-grace-hooks.md": "cea3e2c75a9c746f934999980fe3ce159af0272d75b5567aecd305d17e565508",
+          "docs/STATUS.md": "11080bc67a8396b3ec6a428c32168afca38e8af501385719b267b1f23417ced6"
+        }
+      }
+    }
+  ]
+}
