@@ -1,3 +1,13 @@
+# 2026-10-29 부하에서만 실패하던 시험 고치기
+
+- 다른 시험과 같이 돌 때만 `Office startup timed out.`으로 실패하던 두 시험은 claw를 켜는 시험이었다. claw는 시작하면서 TypeScript 모듈 약 220개를 변환한다. 유휴 1–2초가 CPU가 바쁘고 메모리가 스왑되면 1분을 넘기도 한다. 시작 대기를 **claw만 120초**로 늘렸다. legacy·lean·team은 15초 그대로다. 서비스가 죽거나 오류로 답하면 기다리지 않는다.
+- `tests/claude-controller.test.mjs`의 멈춤 시험은 벽시계 대신 컨트롤러의 시계(`t.mock.timers`)를 돌린다. 6초 유예(5999ms에 살아 있음)와 SIGKILL 대체 경로(6000ms)를 정확히 확인한다. 컨트롤러 코드와 6초·12초는 바꾸지 않았다.
+- 자동 검사:
+  - 부하 재현: lifecycle 두 파일은 16스레드 부하에서 고치기 전 3회 중 1회 → 고친 뒤 **5/5(75/75)**. claude-controller는 36스레드에서 4회 중 1회 → **6/6(120/120)**. 컨트롤러 돌연변이 7개와 spawn 실패를 모두 잡고, 어느 경우에도 파일이 멈추지 않는다.
+  - 전체 시험 **1092/1092** exit 0(최종 `10a5642`, 다른 시험 없이). 타입 검사 exit 0, Story 검사기 exit 0.
+- 독립 리뷰 세 번(보고만): 두 번의 지적(실패 경로에서 시험 파일이 멈춤)을 고친 뒤 "머지 가능".
+- **claw를 빨리 켜는 일(vendor 서버 미리 빌드)은 하지 않았다.** G4는 사용자 답변으로만 기록한다. [검증 기록](verification/2026-10-29-load-flaky-tests.md)
+
 # 2026-10-29 팀 Story 보드 2단계 (팀 Office 여러 repo, 시험)
 
 - 한 사람이 **팀 Office** 하나에 repo 여러 개를 등록해 켠다(`team add --project` 후 `./office --team`, M16·V18·D24). repo마다 그 repo의 lean 데이터로 엔진을 하나씩 둔다. **2단계 팀 Office는 repo 엔진을 실행하지 않는다(3단계에서 Story Task 모드와 함께 켬).** `start --team --live`나 `./office --team`으로 켜도 같다. repo에 남은 lean 작업은 손대지 않고 그대로 기다린다.
