@@ -423,7 +423,8 @@ export async function createLiveRuntime(
   if (runners) {
     const { installs } = runners.settings.catalog ?? (await runners.settings.refresh());
     const usable = Object.values(installs).some((i) => i.status === "ready" && i.loggedIn && !i.blocked);
-    const blocked = Object.values(installs).some((i) => i.blocked);
+    // Blocked but logged in: the block is all that is in the way.
+    const blocked = Object.values(installs).some((i) => i.blocked && i.loggedIn);
     if (!usable && !(config.codexRuntime === "pinned" && existsSync(join(config.authHome, "auth.json"))))
       fail(
         blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",

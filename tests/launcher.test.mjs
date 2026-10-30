@@ -90,12 +90,36 @@ test("a blocked codex does not count as a usable runner at startup", () => {
   assert.throws(() => assertRunnerLogin(i, { codexAuth: true, codexRuntime: "pinned" }), (e) => e.code === "RUNNER_BLOCKED" && /AGENTS\.md/.test(e.message));
 });
 
+test("a blocked CLI that is also logged out still asks for its login", () => {
+  const i = installs("out", null);
+  i.codex.blocked = "~/.codex/AGENTS.md";
+  i.codex.hint = "~/.codex/AGENTS.md를 옮기거나 claude를 고르세요.";
+  // Fixing the block alone would only lead to a login error on the next run.
+  for (const codexRuntime of [undefined, "pinned"])
+    assert.throws(
+      () => assertRunnerLogin(i, { codexAuth: false, codexRuntime }),
+      (e) => e.code === "LOGIN_REQUIRED" && /설치하고 로그인/.test(e.message) && /AGENTS\.md/.test(e.message),
+    );
+});
+
+test("under the pinned runtime a blocked codex is reported as the pinned codex's block", () => {
+  const i = installs("in", "in");
+  i.claude.hint = "준비됨";
+  i.codex.blocked = "~/.codex/AGENTS.md";
+  i.codex.hint = "~/.codex/AGENTS.md를 옮기거나 claude를 고르세요.";
+  // A ready claude cannot start the pinned runtime; the headline must not deny it exists.
+  assert.throws(
+    () => assertRunnerLogin(i, { codexAuth: true, codexRuntime: "pinned" }),
+    (e) => e.code === "RUNNER_BLOCKED" && /고정 codex/.test(e.message) && !/codex·claude가 없습니다/.test(e.message),
+  );
+});
+
 // Step 1 judges claude's hooks as Office does (D29, D30), through real discovery
 // of native fake CLIs. A logged-out codex leaves claude alone to start Office.
 const hooked = listing({ hooks: [{ event: "SessionEnd", source: "policySettings", commandText: "true" }] });
-test("a claude-only start stops at step 1 when its claude would run a hook", async () => {
-  const fx = fakeRunners(hooked, { codex: "out" });
-  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home });
+test("a claude-only start stops at step 1 when its claude would run a hook", async (t) => {
+  const fx = fakeRunners(t, hooked, { codex: "out" });
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home, extraDirs: [] });
   assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)");
   assert.throws(
     () => assertRunnerLogin(installs, { codexAuth: false }),
@@ -107,27 +131,49 @@ test("a claude-only start stops at step 1 when its claude would run a hook", asy
   );
 });
 
-test("a claude-only start with a hook-free claude passes step 1 after one listing", async () => {
-  const fx = fakeRunners(listing({ hooks: [] }), { codex: "out" });
-  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home });
+test("a claude-only start with a hook-free claude passes step 1 after one listing", async (t) => {
+  const fx = fakeRunners(t, listing({ hooks: [] }), { codex: "out" });
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home, extraDirs: [] });
   assert.doesNotThrow(() => assertRunnerLogin(installs, { codexAuth: false }));
   assert.equal(fx.starts(), 1);
 });
 
-test("step 1 never starts claude for its hooks when codex can start Office", async () => {
-  const usable = fakeRunners(hooked);
-  const installs = await startupRunners({ pathEnv: usable.bin, home: usable.home });
+test("step 1 never starts claude for its hooks when codex can start Office", async (t) => {
+  const usable = fakeRunners(t, hooked);
+  const installs = await startupRunners({ pathEnv: usable.bin, home: usable.home, extraDirs: [] });
   assert.doesNotThrow(() => assertRunnerLogin(installs, { codexAuth: true }));
   assert.equal(installs.claude.blocked, undefined, "the UI judges it later");
   assert.equal(usable.starts(), 0);
-  const pinned = fakeRunners(hooked, { codex: "out" });
-  const only = await startupRunners({ pathEnv: pinned.bin, home: pinned.home, codexRuntime: "pinned" });
+  const pinned = fakeRunners(t, hooked, { codex: "out" });
+  const only = await startupRunners({ pathEnv: pinned.bin, home: pinned.home, extraDirs: [], codexRuntime: "pinned" });
   assert.doesNotThrow(() => assertRunnerLogin(only, { codexAuth: true, codexRuntime: "pinned" }));
   assert.equal(pinned.starts(), 0);
 });
 
-test("a hook listing that fails decides nothing at step 1", async () => {
-  const fx = fakeRunners(hooked, { codex: "out" });
+test("a logged-out claude is not started for its hooks, and the start asks for its login", async (t) => {
+  const fx = fakeRunners(t, hooked, { codex: "out", claude: "out" });
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home, extraDirs: [] });
+  assert.equal(fx.starts(), 0);
+  assert.throws(
+    () => assertRunnerLogin(installs, { codexAuth: false }),
+    (e) => e.code === "LOGIN_REQUIRED" && /claude auth login/.test(e.message),
+  );
+});
+
+test("a blocked codex leaves claude alone to start Office, so step 1 lists its hooks", async (t) => {
+  const fx = fakeRunners(t, hooked);
+  mkdirSync(join(fx.home, ".codex"));
+  writeFileSync(join(fx.home, ".codex", "AGENTS.md"), "personal\n");
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home, extraDirs: [] });
+  assert.equal(fx.starts(), 1);
+  assert.throws(
+    () => assertRunnerLogin(installs, { codexAuth: true }),
+    (e) => e.code === "RUNNER_BLOCKED" && /AGENTS\.md/.test(e.message) && /SessionEnd hook \(policySettings\)/.test(e.message),
+  );
+});
+
+test("a hook listing that fails decides nothing at step 1", async (t) => {
+  const fx = fakeRunners(t, hooked, { codex: "out" });
   fakeNative(
     join(fx.bin, "claude"),
     `case "$1 $2" in
@@ -136,7 +182,7 @@ test("a hook listing that fails decides nothing at step 1", async () => {
 esac
 exit 1\n`,
   );
-  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home });
+  const installs = await startupRunners({ pathEnv: fx.bin, home: fx.home, extraDirs: [] });
   assert.equal(installs.claude.blocked, undefined);
   assert.doesNotThrow(() => assertRunnerLogin(installs, { codexAuth: false }));
 });

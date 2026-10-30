@@ -1,0 +1,19 @@
+{
+  "token": "5119c52275d2cd60648eba6982ec36f2d0f7d4429defe63130b640caf098bbfe",
+  "output": {
+    "summary": "Replanned after review 1 changed the D30 wording (only a blocked CLI that is logged in reports RUNNER_BLOCKED). Earlier run .ai-workflow/runs/U25-launcher-hook-check.json holds attempt 1 (2d1fbba) and review 1 (.ai-workflow/runs/U25-review-1.md). Attempt 2: assertRunnerLogin and createLiveRuntime count a CLI as blocked only when it is also logged in (pinned: Mac codex auth present and codex blocked), so a logged-out blocked CLI keeps LOGIN_REQUIRED with the install/login lead and the block hint; pinned block has its own headline (no 'no codex·claude' next to 'claude: 준비됨'); startupRunners forwards extraDirs; fakeRunners(t, hooks, {codex, claude}) removes its temp root and can log either CLI out. RED seen for 3 new tests (launcher logged-out block incl. pinned, launcher pinned headline, live-runtime logged-out block); 2 more fill review gaps (logged-out claude not listed; AGENTS.md-blocked codex leads to a claude listing). GREEN: launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0, story exit 0. Mutations 12/13 caught; the survivor (extraDirs not forwarded) is a test-isolation seam with no observable difference on this Mac. Attempt-1 evidence still holds: real up (claw, lean) with fake hooked logged-in claude stops at step 1 (RUNNER_BLOCKED, no [1/4]); real claude 2.1.280 not blocked, listing 1.27-1.43 s idle.",
+    "evidence": [
+      "src/cli/launcher.ts",
+      "src/runtime/live.ts",
+      "src/runtime/runner-settings.ts",
+      "tests/launcher.test.mjs",
+      "tests/live-runtime.test.mjs",
+      "tests/runner-fixture.mjs",
+      "tests/runner-settings.test.mjs",
+      ".ai-workflow/runs/U25-review-1.md",
+      "docs/verification/2026-10-30-launcher-hook-check.md",
+      "docs/understanding/pazmo-agent-office-contract.md"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

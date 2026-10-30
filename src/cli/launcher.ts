@@ -30,17 +30,26 @@ import { claudeModels } from "../runners/runner-models.ts";
 import { blockHookedClaude, usable } from "../runtime/runner-settings.ts";
 
 /** Start needs one installed, logged-in CLI; the pinned runtime needs codex's.
- * A blocked CLI is installed and logged in, so its own hint leads instead. */
+ * A blocked CLI that is also logged in needs only its own fix, so that leads
+ * instead of an install and login. */
 export function assertRunnerLogin(
   installs: Record<RunnerName, RunnerInstall>,
   o: { codexAuth: boolean; codexRuntime?: "installed" | "pinned" },
 ) {
-  const ready = Object.values(installs).some(usable);
-  if (o.codexRuntime === "pinned" ? o.codexAuth && !installs.codex.blocked : ready) return;
-  const blocked = Object.values(installs).some((i) => i.blocked);
+  const pinned = o.codexRuntime === "pinned";
+  if (pinned ? o.codexAuth && !installs.codex.blocked : Object.values(installs).some(usable)) return;
+  const blocked = pinned
+    ? o.codexAuth && !!installs.codex.blocked
+    : Object.values(installs).some((i) => i.blocked && i.loggedIn);
   fail(
     blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",
-    `${blocked ? "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요." : "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요."} codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
+    `${
+      !blocked
+        ? "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요."
+        : pinned
+          ? "고정 codex(--codex-runtime pinned)가 쓸 codex가 막혀 있습니다. codex 안내대로 고친 뒤 다시 실행해주세요."
+          : "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요."
+    } codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
   );
 }
 
@@ -51,9 +60,10 @@ export function assertRunnerLogin(
 export async function startupRunners(o: {
   pathEnv: string;
   home: string;
+  extraDirs?: string[];
   codexRuntime?: "installed" | "pinned";
 }) {
-  const installs = await discoverRunners({ pathEnv: o.pathEnv, home: o.home });
+  const installs = await discoverRunners({ pathEnv: o.pathEnv, home: o.home, extraDirs: o.extraDirs });
   const { codex, claude } = installs;
   if (o.codexRuntime !== "pinned" && !usable(codex) && usable(claude)) {
     // A failed listing decides nothing, as in Office.

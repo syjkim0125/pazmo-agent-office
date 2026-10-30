@@ -243,9 +243,9 @@ test("defaultRunnerChoice picks codex when usable, else a logged-in claude, with
 });
 
 
-test("a claude whose CLI would run a hook is blocked with the hook and where it comes from", async () => {
+test("a claude whose CLI would run a hook is blocked with the hook and where it comes from", async (t) => {
   const hook = { event: "SessionEnd", source: "policySettings", commandText: "true" };
-  const fx = fakeRunners(listing({ hooks: [hook, { ...hook, commandText: "false" }] }));
+  const fx = fakeRunners(t, listing({ hooks: [hook, { ...hook, commandText: "false" }] }));
   const { installs } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.equal(installs.claude.status, "ready");
   assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)", "each hook kind is named once");
@@ -254,23 +254,23 @@ test("a claude whose CLI would run a hook is blocked with the hook and where it 
   assert.equal(codeOf(choose), "RUNNER_NOT_READY");
 });
 
-test("a claude that cannot list its hooks is blocked too", async () => {
-  const fx = fakeRunners({ type: "control_response", response: { subtype: "error", request_id: "pazmo-hooks", error: "Unknown request" } });
+test("a claude that cannot list its hooks is blocked too", async (t) => {
+  const fx = fakeRunners(t, { type: "control_response", response: { subtype: "error", request_id: "pazmo-hooks", error: "Unknown request" } });
   const { installs } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.ok(installs.claude.blocked);
   assert.match(installs.claude.hint, /hook/);
 });
 
-test("a claude with no hooks stays usable", async () => {
-  const fx = fakeRunners(listing({ events: [], hooks: [] }));
+test("a claude with no hooks stays usable", async (t) => {
+  const fx = fakeRunners(t, listing({ events: [], hooks: [] }));
   const { installs, models } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.equal(installs.claude.blocked, undefined);
   assert.equal(installs.claude.hint, "준비됨");
   assert.deepEqual(models.claude, [{ slug: "default" }]);
 });
 
-test("a claude whose model discovery fails is not judged and stays usable", async () => {
-  const { home, bin } = fakeRunners(listing({ hooks: [] }));
+test("a claude whose model discovery fails is not judged and stays usable", async (t) => {
+  const { home, bin } = fakeRunners(t, listing({ hooks: [] }));
   fakeNative(
     join(bin, "claude"),
     `case "$1 $2" in

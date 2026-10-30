@@ -7,6 +7,7 @@ import {
   mkdtempSync,
   readFileSync,
   realpathSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -52,13 +53,13 @@ export function tempRoot(prefix = "pazmo-runner-") {
 
 export const exists = existsSync;
 
-/** Native fake codex and claude in `bin`, with an empty `home`. The codex is
- * logged in, or installed but logged out with `codex: "out"`. The claude is
- * logged in and answers discovery's initialize and hook-listing requests with
- * `hooks` as the listing reply; `starts()` counts how often it was started for
- * them. */
-export function fakeRunners(hooks, { codex = "in" } = {}) {
+/** Native fake codex and claude in `bin`, with an empty `home`, removed after
+ * test `t`. Each is logged in, or installed but logged out with "out". The
+ * claude answers discovery's initialize and hook-listing requests with `hooks`
+ * as the listing reply; `starts()` counts how often it was started for them. */
+export function fakeRunners(t, hooks, { codex = "in", claude = "in" } = {}) {
   const root = tempRoot();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
   const home = join(root, "home");
   const bin = join(root, "bin");
   const log = join(root, "claude-starts");
@@ -76,7 +77,7 @@ esac\n`,
     join(bin, "claude"),
     `case "$1 $2" in
   "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
-  "auth status") echo '{"loggedIn":true}'; exit 0;;
+  "auth status") echo '{"loggedIn":${claude === "in"}}'; exit 0;;
 esac
 echo >> '${log}'
 read line
