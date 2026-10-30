@@ -5,12 +5,21 @@
 - `ws`·TypeScript는 루트 의존성이다. `up`은 켜진 Office를 다시 쓰거나 새로 켜기 전에 `ws`가 없거나 다른 버전일 때만 `npm ci --omit=dev --prefer-offline`을 한다. 예전 버전이 켠 Claw·legacy Office는 `status`로 보이고 `stop`으로 멈추며, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다.
 - 엔진 코드(`native-office.ts`의 Claw용 API, 역할별 실행기 경로, 옛 허브 요청 흐름)는 D24 3단계와 충돌하지 않도록 남겼다. Story는 M7·M9·M10·M13·M14와 V7·V11·V12·V15·V16을 폐기하고 Goal·M1·M2·M3·M8·M12·M15·O2와 V1·V8·V9·V10·V14·V17을 고쳤다(M8·M12·V9·V10·V14는 승인 뒤 찾아 ASSUMED).
 - 자동 검사:
-  - 기준선 `3926ee2` 1104/1104 → vendor 없이 1070/1070(삭제는 모두 Claw·legacy·bridge 전용, 파일별 대조는 검증 기록). 메인 checkout 밖 새 사본(`npm ci`만)에서도 1070/1070. 독립 리뷰 반영과 main(#48·#49·#51) 병합 뒤 **1074/1074** exit 0
+  - 기준선 `3926ee2` 1104/1104 → vendor 없이 1070/1070(삭제는 모두 Claw·legacy·bridge 전용, 파일별 대조는 검증 기록). 메인 checkout 밖 새 사본(`npm ci`만)에서도 1070/1070. 독립 리뷰 반영과 main(#48·#49·#51·#52·#54) 병합 뒤 **1074/1074** exit 0
   - 타입 검사 exit 0, Story 검사기 exit 0, `npm pack --dry-run`에 vendor 없음
   - 엔진 재시작 복구 시험은 복구 호출 셋 중 하나만 지워도 실패한다
   - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
 - 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
-- **남은 것: 독립 리뷰, G4, app-be 실제 확인(V17), 사전 확인 두 개(app-be Claw Office의 진행 중 작업, OpenShift 허브의 진행 중 요청), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+- **남은 것: G4, app-be 실제 확인(V17), 사전 확인 두 개(app-be Claw Office의 진행 중 작업, OpenShift 허브의 진행 중 요청), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+
+# 2026-10-30 러너 탐색의 `claude auth status`와 OAuth 갱신 잠금
+
+- 제품 코드는 바꾸지 않았다. 조회 1단계의 `claude auth status`가 잠금을 잡는지 실제 claude 2.1.280으로 쟀다. 이 명령은 `runCommand`로 돌고, 10초 시간 초과 때 SIGKILL된다. 측정은 사용자 확인 뒤 격리 config, 가짜 만료 토큰, 답하지 않는 프록시로 했다. [검증 기록](verification/2026-10-30-claude-auth-status-lock.md)
+- 토큰이 만료 5분 전 안쪽이면 잠금을 잡는다(team·enterprise·구독 기록 없음·pro).
+- 갱신은 기다리지 않는다. 0.25–0.84초에 exit 0으로 끝나며 잠금을 지웠다(**0/17** 남음).
+- 잠금을 잡고 있는 순간 SIGKILL하면 잠금이 남았다(**8/8**). `--version`은 잠금과 무관하다.
+- 사용자 선택(2026-10-30, (a)): 10초 SIGKILL은 그대로 둔다. PR syjkim0125/pazmo-agent-office#52.
+- **남은 것:** 실제 토큰 서버에서 응답 전에 끝날 때 서버가 바꾼 토큰이 사라지는지, 높은 부하에서의 `auth status` 시간.
 
 # 2026-10-30 모델 목록 조회 claude의 멈춤 유예 12초, lean 시작 대기 30초
 
@@ -20,7 +29,7 @@
 - 자동 검사: 새·바꾼 시험 3개가 고치기 전에 실패했다. 돌연변이 4/4를 잡았다. 전체 시험 **1106/1106** exit 0(main #48·#49를 합친 뒤에도 같음), 타입 검사·Story 검사기 exit 0. 독립 리뷰 네 번(1차 Changes needed → 문서·시험 표현과 team-registry 시험 한도를 고침, 2차 Ready, 30초 결정·main 합침 뒤 3차 Ready, 표현 하나 고침). [변경 기록](verification/2026-10-30-discovery-stop-grace.md)
 - 리뷰가 물은 "32초 경우까지 덮도록 42초 이상으로 올릴지"에 사용자가 "그대로"라고 답해(2026-10-30) 30초로 두고 D31에 적었다.
 - PR syjkim0125/pazmo-agent-office#51. G4는 2026-10-30 사용자 지시("설명해주고 … 머지도 해")로 컨트롤러가 쓴 답을 승인으로 기록했다(승인 후 머지). 사용자는 답을 기록 전에 보지 않았다. [G4 기록](verification/2026-10-30-discovery-stop-grace-g4.md)
-- **남은 것:** 실제 claude가 입력이 닫히는 것만으로 끝내기를 시작하는지, 바쁠 때 실제 lean 시작 시간, 조회 1단계의 `claude auth status`가 잠금을 잡는지(10초 시간 초과 때 SIGKILL). 모두 재지 않았다.
+- **남은 것:** 실제 claude가 입력이 닫히는 것만으로 끝내기를 시작하는지, 바쁠 때 실제 lean 시작 시간. 둘 다 재지 않았다. 조회 1단계의 `claude auth status`가 잠금을 잡는지는 위 항목에서 쟀다.
 
 # 2026-10-29 부하에서만 실패하던 시험 고치기
 

@@ -34,7 +34,7 @@ test("each launched role receives its pinned first-party instructions and proven
     const profile = loadRoleProfile(role);
     assert.equal(profile.role, role);
     assert.equal(profile.origin, "pazmo-authored");
-    assert.equal(profile.license, "MIT");
+    assert.equal(profile.license, "PolyForm-Shield-1.0.0");
     assert.match(profile.ref, /^pazmo-.*@1\.0\.0$/);
     for (const file of profile.files)
       assert.equal(digest(file.content), file.digest);

@@ -37,7 +37,7 @@ export function loadRoleProfile(
       entry.origin !== "pazmo-authored" ||
       entry.ref !==
         `pazmo-${role}@${role === "pm" || role === "lead" ? "1.1.0" : "1.0.0"}` ||
-      entry.license !== "MIT" ||
+      entry.license !== "PolyForm-Shield-1.0.0" ||
       entry.licensePath !== "LICENSE" ||
       entry.source !== expectedPaths[1] ||
       entry.files.length !== expectedPaths.length

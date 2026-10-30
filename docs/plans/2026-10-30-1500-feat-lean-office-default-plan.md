@@ -57,7 +57,7 @@ flowchart LR
 | `--lean`은 `start`·`up`에서 받아들이고 아무 일도 하지 않는다. 다른 명령과 `--team`과의 조합 거부는 지금처럼 둔다 | 문서·습관 호환. 도움말에는 "기본값"으로 적는다 |
 | 지우는 CLI 명령: `bridge`, `operator-key`, `contracts`, `contract`, `verification`, `delivery`, `deliver`, `intake-create`, `intake`, `intake-answer`, `intake-cancel`, `intake-publish`, `approval-request`, `approval-decide`. 그 명령들만 받던 옵션 `--file`, `--task-id`, `--gate`, `--challenge`도 지운다. 남는 것: `up`, `setup-runtime`, `monitor`, `hub`, `hub-link`, `hub-unlink`, `init`, `doctor`, `start`, `status`, `stop`, `remove`, `team` | 지우는 명령은 operator API(legacy·claw)에만 있었다. lean에서는 이미 `UNSUPPORTED`다 |
 | `doctor`는 `uiBuilt` 대신 루트 의존성 설치 여부를 보인다 | 화면 빌드 단계가 없어진다 |
-| `upstream/claw-empire.lock.json`·`CHANGES.md`는 남기고 "삭제" 항목을 더한다. `package.json` license는 `MIT AND Apache-2.0` 그대로 | 출처 기록. `assets/codex`가 Apache-2.0이다 |
+| `upstream/claw-empire.lock.json`·`CHANGES.md`는 남기고 "삭제" 항목을 더한다. `package.json` license는 `MIT AND Apache-2.0` 그대로(#54 뒤 `SEE LICENSE IN LICENSING.md`) | 출처 기록. `assets/codex`가 Apache-2.0이다 |
 
 ## Review Focus
 

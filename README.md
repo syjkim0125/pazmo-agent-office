@@ -7,7 +7,7 @@
 **Build products and improve existing systems with a team you direct.**
 
 ![Stage](https://img.shields.io/badge/stage-local_alpha-orange)
-![Pazmo originals](https://img.shields.io/badge/Pazmo_originals-MIT-blue)
+![Pazmo originals](https://img.shields.io/badge/Pazmo_originals-PolyForm_Shield_1.0.0-blue)
 ![Included third-party files](https://img.shields.io/badge/third--party_files-Apache--2.0-blue)
 ![Workflow design](https://img.shields.io/badge/workflow_design-Jira_optional-purple)
 
@@ -100,8 +100,8 @@ Current work and the next step are in [STATUS](docs/STATUS.md). Existing user fi
 
 ## License
 
-**Original Pazmo code and documentation: [MIT](LICENSE).** Third-party files in the repository (the Codex model entry in `assets/codex`) are **Apache-2.0**, with their license and notice retained. Claw-Empire code (Apache-2.0) is only in versions before 2026-10-30; its provenance and notices stay on record. Other components keep their respective licenses.
+**Original Pazmo code and documentation: [PolyForm Shield 1.0.0](LICENSE).** You may use, change and share it for any purpose, including inside your company, except to provide a product that competes with Pazmo, even for free. Versions published up to 2026-10-30 (commit `610169e`) were MIT. Third-party files in the repository (the Codex model entry in `assets/codex`) are **Apache-2.0**, with their license and notice retained. Claw-Empire code (Apache-2.0) is only in versions before its removal on 2026-10-30; its provenance and notices stay on record. Other components keep their respective licenses.
 
-See [license boundaries](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
+Pazmo is source-available, not OSI open source, and this does not relicense the upstream project. See [license boundaries](LICENSING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
 
 With thanks to Claw-Empire and AI Workflow Kit, and to the maintainers of Compound Engineering and Superpowers. Open Office and Pixel Agents informed the documentation/interaction references. Pazmo is independent and is not an official release of those projects or OpenAI.
