@@ -250,8 +250,18 @@ test("a claude whose CLI would run a hook is blocked with the hook and where it 
   assert.equal(installs.claude.status, "ready");
   assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)", "each hook kind is named once");
   assert.match(installs.claude.hint, /hook/);
+  assert.doesNotMatch(installs.claude.hint, /claude auth login/, "logged in: the hook is the only fix");
   const choose = () => validateRunnerChoice({ installs, models: { claude: [{ slug: "default" }] } }, { runner: "claude", model: "default", effort: null });
   assert.equal(codeOf(choose), "RUNNER_NOT_READY");
+});
+
+test("a logged-out claude blocked by a hook keeps its login cue", async (t) => {
+  const hook = { event: "SessionEnd", source: "policySettings", commandText: "true" };
+  const fx = fakeRunners(t, listing({ hooks: [hook] }), { claude: "out" });
+  const { installs } = await loadRunnerCatalog(fx.home, fx.bin);
+  assert.equal(installs.claude.blocked, "SessionEnd hook (policySettings)");
+  // Removing the hook alone would only lead to a login error on the next start.
+  assert.match(installs.claude.hint, /hook[^]*claude auth login/);
 });
 
 test("a claude that cannot list its hooks is blocked too", async (t) => {

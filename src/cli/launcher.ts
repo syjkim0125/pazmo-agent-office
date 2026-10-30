@@ -27,28 +27,29 @@ import { IMAGE } from "../runners/container-verifier.ts";
 import { discoverRunners } from "../runners/runner-discovery.ts";
 import type { RunnerInstall, RunnerName } from "../runners/runner-discovery.ts";
 import { claudeModels } from "../runners/runner-models.ts";
-import { blockHookedClaude, usable } from "../runtime/runner-settings.ts";
+import { blockHookedClaude, pinnedCodexProblem, usable } from "../runtime/runner-settings.ts";
 
-/** Start needs one installed, logged-in CLI; the pinned runtime needs codex's.
- * A blocked CLI that is also logged in needs only its own fix, so that leads
- * instead of an install and login. */
+/** Start needs one installed, logged-in CLI; the pinned runtime needs its own
+ * codex login folder, judged as Office judges it (D32). A blocked CLI that is
+ * also logged in needs only its own fix, so that leads instead of an install
+ * and login. */
 export function assertRunnerLogin(
   installs: Record<RunnerName, RunnerInstall>,
-  o: { codexAuth: boolean; codexRuntime?: "installed" | "pinned" },
+  o: { codexRuntime?: "installed" } | { codexRuntime: "pinned"; authHome: string } = {},
 ) {
-  const pinned = o.codexRuntime === "pinned";
-  if (pinned ? o.codexAuth && !installs.codex.blocked : Object.values(installs).some(usable)) return;
-  const blocked = pinned
-    ? o.codexAuth && !!installs.codex.blocked
-    : Object.values(installs).some((i) => i.blocked && i.loggedIn);
+  if (o.codexRuntime === "pinned") {
+    const problem = pinnedCodexProblem(o.authHome);
+    if (problem) fail(problem.code, `${problem.message} 그런 뒤 다시 실행해주세요. 로그인 정보는 VM에 복사하지 않습니다.`);
+    return;
+  }
+  if (Object.values(installs).some(usable)) return;
+  const blocked = Object.values(installs).some((i) => i.blocked && i.loggedIn);
   fail(
     blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",
     `${
-      !blocked
-        ? "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요."
-        : pinned
-          ? "고정 codex(--codex-runtime pinned)가 쓸 codex가 막혀 있습니다. codex 안내대로 고친 뒤 다시 실행해주세요."
-          : "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요."
+      blocked
+        ? "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요."
+        : "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요."
     } codex: ${installs.codex.hint} claude: ${installs.claude.hint} 로그인 정보는 VM에 복사하지 않습니다.`,
   );
 }
@@ -290,10 +291,7 @@ async function prepareMachine(engine: "claw" | "lean" | "team", options: UpOptio
       home: homedir(),
       codexRuntime: options.codexRuntime,
     }),
-    {
-      codexAuth: existsSync(join(homedir(), ".codex/auth.json")),
-      codexRuntime: options.codexRuntime,
-    },
+    options.codexRuntime === "pinned" ? { codexRuntime: "pinned", authHome: join(homedir(), ".codex") } : {},
   );
   // Every engine needs the vendor dependencies; only Claw builds its UI.
   console.error(

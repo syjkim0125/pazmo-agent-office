@@ -35,6 +35,7 @@ import type { Qualification } from "../runners/runner-qualification.ts";
 import type { RunnerInstall } from "../runners/runner-discovery.ts";
 import type { ExecutingRole } from "../runners/role-profiles.ts";
 import { roleJobFactory } from "./runner-jobs.ts";
+import { pinnedCodexProblem, usable } from "./runner-settings.ts";
 import type { RunnerChoice, RunnerSettings } from "./runner-settings.ts";
 import type { RunnerEvidence } from "../core/runner-evidence.ts";
 import { runCommand } from "../runners/command.ts";
@@ -422,14 +423,18 @@ export async function createLiveRuntime(
     fail("LIVE_CONFIG", "Unknown codex runtime.");
   if (runners) {
     const { installs } = runners.settings.catalog ?? (await runners.settings.refresh());
-    const usable = Object.values(installs).some((i) => i.status === "ready" && i.loggedIn && !i.blocked);
-    // Blocked but logged in: the block is all that is in the way.
-    const blocked = Object.values(installs).some((i) => i.blocked && i.loggedIn);
-    if (!usable && !(config.codexRuntime === "pinned" && existsSync(join(config.authHome, "auth.json"))))
+    if (config.codexRuntime === "pinned") {
+      // Its own codex login folder alone decides, as at `./office` step 1 (D32).
+      const problem = pinnedCodexProblem(config.authHome);
+      if (problem) fail(problem.code, `${problem.message} 그런 뒤 다시 시작하세요.`);
+    } else if (!Object.values(installs).some(usable)) {
+      // Blocked but logged in: the block is all that is in the way.
+      const blocked = Object.values(installs).some((i) => i.blocked && i.loggedIn);
       fail(
         blocked ? "RUNNER_BLOCKED" : "LOGIN_REQUIRED",
         `${blocked ? "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤" : "codex 또는 claude 중 하나를 설치·로그인한 뒤"} 다시 시작하세요. codex: ${installs.codex.hint} claude: ${installs.claude.hint}`,
       );
+    }
   }
   verifyControllerBinary(config.controller);
   if (

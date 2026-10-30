@@ -71,6 +71,12 @@ const hints = {
   },
 } as const;
 
+/** A block's hint replaces the login hint, so a blocked CLI that is also logged
+ * out keeps its login cue: fixing only the block would end in a login error (D32). */
+export function blockedHint(install: Pick<RunnerInstall, "runner" | "loggedIn">, hint: string) {
+  return install.loggedIn ? hint : `${hint} ${hints[install.runner].login}`;
+}
+
 /** Minimal environment for user CLIs: no inherited keys or proxies. USER lets
  * claude find its own macOS keychain item; Office never reads that item. */
 export function runnerEnv(home: string): NodeJS.ProcessEnv {
@@ -131,7 +137,10 @@ async function inspect(
     loggedIn,
     ...(blocked ? { blocked } : {}),
     hint: blocked
-      ? `${blocked}가 있으면 codex가 이 개인 지침을 Office 역할 실행에 섞습니다. 그 파일을 다른 곳으로 옮기거나 claude를 고르세요.`
+      ? blockedHint(
+          { runner, loggedIn },
+          `${blocked}가 있으면 codex가 이 개인 지침을 Office 역할 실행에 섞습니다. 그 파일을 다른 곳으로 옮기거나 claude를 고르세요.`,
+        )
       : loggedIn
         ? "준비됨"
         : hints[runner].login,
