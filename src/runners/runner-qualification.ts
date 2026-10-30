@@ -113,7 +113,9 @@ export async function qualify(i: {
 }): Promise<Qualification> {
   const boundary = i.boundary ?? BOUNDARY_DIGEST;
   const { install, model } = i;
-  if (install.status !== "ready" || !install.path || !install.sha256 || !install.version)
+  // A blocked install is never qualified or run for a role (D29); only model
+  // discovery still starts it, to ask again.
+  if (install.status !== "ready" || install.blocked || !install.path || !install.sha256 || !install.version)
     throw Object.assign(new Error("RUNNER_NOT_READY"), { code: "RUNNER_NOT_READY" });
   const known = i.store.get(install.runner, install.sha256, model, i.executorSha256, boundary);
   if (known) return known;

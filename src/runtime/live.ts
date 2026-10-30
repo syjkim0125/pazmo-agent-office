@@ -482,7 +482,7 @@ export async function createLiveRuntime(
       for (const role of roleNames) {
         const { runner, model } = runners.settings.choice(role);
         const install = installs?.[runner];
-        if (install?.status === "ready" && install.loggedIn && config.codexRuntime !== "pinned")
+        if (install?.status === "ready" && install.loggedIn && !install.blocked && config.codexRuntime !== "pinned")
           void qualifyRunner(install, model).catch((error) =>
             console.error("Runner qualification failed:", String(error)),
           );

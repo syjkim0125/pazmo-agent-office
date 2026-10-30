@@ -109,3 +109,19 @@ test("the default boundary digest covers the profiles, bridge and fixtures", asy
   const { BOUNDARY_DIGEST } = await import("../src/runners/runner-qualification.ts");
   assert.match(BOUNDARY_DIGEST, /^[a-f0-9]{64}$/);
 });
+
+// D29: a claude blocked for its hooks must not be started on the host, and
+// the qualification fixture would start it (Claw prequalifies on startup).
+test("a blocked runner is never qualified, even with an earlier pass on record", async () => {
+  const h = harness();
+  await qualify({ ...h.base, install: install(), model: "haiku" });
+  await assert.rejects(
+    qualify({ ...h.base, install: { ...install(), blocked: "SessionEnd hook (policySettings)" }, model: "haiku" }),
+    /RUNNER_NOT_READY/,
+  );
+  await assert.rejects(
+    qualify({ ...h.base, install: { ...install("c".repeat(64)), blocked: "SessionEnd hook (policySettings)" }, model: "haiku" }),
+    /RUNNER_NOT_READY/,
+  );
+  assert.equal(h.calls.length, 1, "only the unblocked install ran the fixture");
+});

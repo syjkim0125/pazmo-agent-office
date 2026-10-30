@@ -13,7 +13,7 @@ const fakeClaude = fileURLToPath(new URL("./fixtures/fake-claude.mjs", import.me
 const fakeExec = fileURLToPath(new URL("./fixtures/fake-exec-server.mjs", import.meta.url));
 
 // Some tests of a stop mock setTimeout, the controller's clock: its timeout and
-// its 6 s grace then run out exactly when the test ticks them, however slowly a
+// its 12 s grace then run out exactly when the test ticks them, however slowly a
 // loaded machine runs the fake claude. Waiting for the fake's own progress
 // keeps the real clock. A frozen clock never stops a fake on its own, and a
 // fake that never gets going is waited for until the test ends, so every test
@@ -191,10 +191,11 @@ test("a claude timed out while it refreshes the login releases the lock", { time
   assert.equal(existsSync(fx.lock), false);
 });
 
-// CLI 2.1.280 cleans up and waits for a refresh in flight (up to 2 s each)
-// before it exits and the lock goes, so 2 s of grace could still strand it.
-test("a claude that takes over 2 s to release the lock after SIGTERM still releases it", { timeout: 15000 }, async (t) => {
-  // It releases the lock only when the test says so: 5.999 s into the grace.
+// CLI 2.1.280 waits up to 2 s for a refresh in flight, then exits and the
+// lock goes; on a busy Mac that took up to 9.1 s after SIGTERM (2026-10-29),
+// so 6 s of grace stranded it.
+test("a claude that takes 9 s to release the lock after SIGTERM still releases it", { timeout: 15000 }, async (t) => {
+  // It releases the lock only when the test says so: 11.999 s into the grace.
   const fx = refreshingClaude(t, `touch "$HOME/term"; until [ -e "$HOME/go" ]; do sleep 0.05; done; rmdir "$lock"; exit 143`);
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const abort = new AbortController();
@@ -202,7 +203,7 @@ test("a claude that takes over 2 s to release the lock after SIGTERM still relea
   await fx.holding();
   abort.abort();
   await fx.reached("term");
-  t.mock.timers.tick(5999);
+  t.mock.timers.tick(11999);
   writeFileSync(join(fx.root, "go"), "");
   const { closed, result } = await job;
   assert.equal(result.error, "CANCELLED");
@@ -211,7 +212,7 @@ test("a claude that takes over 2 s to release the lock after SIGTERM still relea
   assert.equal(existsSync(fx.lock), false, "the lock was released");
 });
 
-test("a claude that ignores SIGTERM is killed once its 6 s grace runs out", { timeout: 15000 }, async (t) => {
+test("a claude that ignores SIGTERM is killed once its 12 s grace runs out", { timeout: 15000 }, async (t) => {
   // It notes the SIGTERM and carries on, answering a ping while it lives.
   const fx = refreshingClaude(t, `touch "$HOME/term"`, "", `[ -e "$HOME/ping" ] && touch "$HOME/pong"; sleep 0.05`);
   t.mock.timers.enable({ apis: ["setTimeout"] });
@@ -220,7 +221,7 @@ test("a claude that ignores SIGTERM is killed once its 6 s grace runs out", { ti
   await fx.holding();
   abort.abort();
   await fx.reached("term");
-  t.mock.timers.tick(5999);
+  t.mock.timers.tick(11999);
   writeFileSync(join(fx.root, "ping"), "");
   const first = await Promise.race([job.then(() => "ended"), fx.reached("pong").then(() => "answered")]);
   assert.equal(first, "answered", "it still runs 1 ms before the grace runs out");

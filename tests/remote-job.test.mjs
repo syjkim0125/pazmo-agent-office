@@ -102,9 +102,9 @@ test("a later deadline cannot replace an earlier cancellation during cleanup", a
   assert.equal(r.result.error, "CANCELLED");
 });
 
-// A claude role gets 6 s to exit on SIGTERM and the exec relay up to 5 s to
+// A claude role gets 12 s to exit on SIGTERM and the exec relay up to 5 s to
 // reap its executor; a stop within that budget is a confirmed close.
-test("a controller that reaps its process within the stop budget is confirmed closed", { timeout: 20000 }, async () => {
+test("a controller that reaps its process within the stop budget is confirmed closed", { timeout: 25000 }, async () => {
   const abort = new AbortController();
   const r = await superviseRemote(
     {
@@ -112,7 +112,7 @@ test("a controller that reaps its process within the stop budget is confirmed cl
       timeoutMs: 60000,
       supervise: async (_handle, _time, signal) => {
         abort.abort();
-        await new Promise((resolve) => setTimeout(resolve, 7000));
+        await new Promise((resolve) => setTimeout(resolve, 17000));
         return { ...success, result: { ...success.result, error: "CANCELLED" } };
       },
     },

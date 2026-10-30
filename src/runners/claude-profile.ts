@@ -34,6 +34,8 @@ export function claudeProfile(i: {
       "--verbose",
       // Without this flag hook lifecycle events never reach the stream, so a
       // managed or stray hook would run undetected by the per-run guard.
+      // SessionEnd hooks never reach it even with the flag (CLI 2.1.280);
+      // model discovery's hook listing blocks such a claude instead (D29).
       "--include-hook-events",
       "--strict-mcp-config",
       "--mcp-config",
