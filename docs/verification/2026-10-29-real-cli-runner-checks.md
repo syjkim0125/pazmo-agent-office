@@ -166,7 +166,7 @@ HOOK_SLEEP=8 HOOK_TIMEOUT=4 node docs/verification/real-cli-checks/claude-sigter
 
 - CLI는 SIGTERM 뒤 진행 중인 갱신을 **최대 2초만** 기다리고, 끝나지 않았으면 기다리지 않고 나간다.
 - 스스로 나가면 잠금은 언제나 풀렸다.
-- 늦어지는 것은 2초 대기 뒤 실제로 나가기까지의 시간이다. `--debug-file` 실행에서 이 시간은 0.6초에서 6.0초까지였고, 부하가 높을수록 길었다.
+- 늦어지는 것은 2초 대기 뒤 실제로 나가기까지의 시간이다. `--debug-file` 실행에서 이 시간은 0.5초에서 6.0초까지였고, 부하가 높을수록 길었다.
 
 사용자 확인(2026-10-29 "진행", 2026-10-30 "다시 시도해 주세요") 뒤 가짜 자격 증명으로 했다. 사용자의 실제 자격 증명(`~/.claude`, Keychain `Claude Code-credentials`)은 쓰지도 읽지도 않았다.
 
@@ -209,6 +209,9 @@ SIGKILL 없이(CLI가 스스로 나갈 때까지 기다림):
 | 0초, `--debug-file` | 75–130 | 3 | 5726, 6832, **9119**ms | 2 |
 | 1.0초, `--debug-file` | 135–172 | 3 | 4236, 5261, **7823**ms | 1 |
 | 8.0초, `--debug-file` | 171 | 3 | 2978–4302ms | 0 |
+| 0초, `--debug-file` | 95–106 | 3 | 4664, 5364, **6446**ms | 1 |
+| 1.0초, `--debug-file` | 87–106 | 3 | 2517–4113ms | 0 |
+| 8.0초, `--debug-file` | 59–87(부하 시험이 끝나 가는 중) | 3 | 2519–2534ms | 0 |
 
 Office와 같이 SIGTERM 6초 뒤 그룹 SIGKILL(`KILL_AFTER_MS=6000`):
 
@@ -240,7 +243,7 @@ Office와 같이 SIGTERM 6초 뒤 그룹 SIGKILL(`KILL_AFTER_MS=6000`):
 ```
 
 - "최대 2초 기다린 뒤 나간다"는 #40 리뷰어의 바이너리 읽기와 맞는다.
-- `--debug-file` 실행 10회에서 "still in flight after 2000ms" 줄은 SIGTERM 뒤 2.1–4.6초에 찍혔다. 실제 종료는 그 뒤 0.6–6.0초가 더 걸렸다. 가장 느린 것은 9.1초였다.
+- `--debug-file` 실행 19회에서 "still in flight after 2000ms" 줄은 SIGTERM 뒤 2.0–4.6초에 찍혔다. 실제 종료는 그 뒤 0.5–6.0초가 더 걸렸다. 가장 느린 것은 9.1초였다. 부하가 내려간 마지막 배치에서는 2.0초에 찍히고 0.5초 뒤 끝나, 2.52초로 일정했다.
 - SIGTERM이 잠금이 생긴 직후(0초)에 오면 가장 오래 걸렸다. CLI가 아직 시작 중이기 때문으로 보인다("skipping further initialization").
 - 갱신이 끝나지 않은 채 나가므로, 서버가 이미 토큰을 바꿨는데 응답을 받기 전이었다면 새 토큰은 저장되지 않는다. 이것은 CLI의 동작이고 Office의 유예 시간으로는 바뀌지 않는다.
 
@@ -260,7 +263,7 @@ Office와 같이 SIGTERM 6초 뒤 그룹 SIGKILL(`KILL_AFTER_MS=6000`):
   - `src/runners/claude-controller.ts`의 주석과 [solutions 문서](../solutions/integration-issues/stop-claude-model-discovery-without-sigkill.md)의 "종료 중 hook 이벤트" 설명은 이 측정에 맞게 고쳐야 한다. 이 PR에서는 solutions 문서만 고쳤다.
 - **P2. 부하가 높으면 6초 유예로는 갱신 잠금이 남는다(결정 필요).**
   - 갱신이 걸린 claude는 한가할 때 2.5초 안에 끝났다.
-  - load average 75–172에서는 16회 중 3회가 6초를 넘었다(SIGKILL 없음, 최대 9.1초).
+  - load average 58–172에서는 25회 중 4회가 6초를 넘었다(SIGKILL 없음, 최대 9.1초).
   - Office와 같은 6초 SIGKILL을 걸면 load average 90–102에서 3회 중 2회 잠금이 남았다.
   - 잠금이 남으면 2026-10-23 사고와 같다. 뒤에 오는 claude가 로그인 갱신에 실패한다. 잠금은 다른 claude가 60초 지난 잠금을 넘겨받을 때까지 남는다.
   - 선택지:
