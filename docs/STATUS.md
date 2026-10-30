@@ -4,8 +4,8 @@
 - 이제 1단계가 Office와 같은 규칙으로 claude의 hook 목록을 묻고, 막히면 설치·VM 작업 전에 멈춘다. claude를 띄우는 이 조회(이 Mac에서 1.3–1.4초)는 claude만으로 시작할 수 있을 때만 한다. 쓸 수 있는 codex가 있거나 `--codex-runtime pinned`이면 묻지 않는다.
 - 쓸 수 있는 실행기가 없고, 설치·로그인되었지만 막힌 CLI(hook이 있는 claude, `~/.codex/AGENTS.md`가 있는 codex)가 있으면 `RUNNER_BLOCKED`로 멈추고, "설치·로그인" 대신 CLI별 안내를 앞세운다. Office를 켜는 단계(`createLiveRuntime`)도 같다. 막힌 CLI가 로그인도 안 되어 있거나 막힌 것이 없으면 `LOGIN_REQUIRED` 그대로다.
 - 실제 `up`(Claw·lean)을 가짜 hook claude로 돌려 1단계에서 멈추는 것(`[1/4]` 없음, VM·런타임 흔적 없음)을 봤다. 이 Mac의 실제 claude 2.1.280은 hook이 없어 막히지 않았다.
-- 자동 검사: (최종 실행 뒤 채움). PR: (생성 뒤 채움).
-- 독립 리뷰 1회차 Changes needed(로그아웃된 막힌 CLI의 로그인 안내 누락 등) → 고침.
+- 자동 검사: root 1114/1114 exit 0(`2e8a816`), 타입 검사 exit 0, Story 검사기 exit 0. 돌연변이 13개 중 12개를 잡음(남은 하나는 시험용 `extraDirs` 경계).
+- 독립 리뷰 두 번: 1회차 Changes needed(로그아웃된 막힌 CLI의 로그인 안내 누락 등) → 고침, 2회차 Approve.
 - **G4 대기.** 관리형 hook이 실제로 걸린 Mac에서의 확인은 없다. pinned에서 막힌 codex를 런처만 거부하는 불일치(#45 이전부터)는 결정이 필요한 후속이다. [변경 기록](verification/2026-10-30-launcher-hook-check.md)
 
 # 2026-10-29 부하에서만 실패하던 시험 고치기

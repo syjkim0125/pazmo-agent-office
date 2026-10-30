@@ -1,0 +1,8 @@
+{
+  "token": "865c0996defead78f3922b0dbaf9141e4f7ca262fce2ec3a158ae3d25d2d95de",
+  "output": {
+    "summary": "Review 1 (2d1fbba): Changes needed, fixed in implement attempt 2 (2e8a816). Review 2 by the same independent reviewer on 2e8a816: Approve, no Critical/Important; launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0. Minor: two-step hint for a logged-out blocked codex next to a hooked claude, older pinned lead, worst-case arithmetic (22 s), D30 parenthetical placement, doc placeholders.",
+    "evidence": [".ai-workflow/runs/U25-review-1.md", ".ai-workflow/runs/U25-review-2.md"]
+  },
+  "evaluation": { "passed": true }
+}

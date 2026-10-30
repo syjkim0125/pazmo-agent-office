@@ -1,6 +1,10 @@
 # 2026-10-30 `./office` 시작 1단계에서 hook이 있는 claude 막기
 
-Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-stop-grace-hooks.md)의 리뷰 후속("`./office` 시작 1단계는 hook을 묻지 않는다"). kit graph: `.ai-workflow/runs/U25-launcher-hook-check-replan.json`(처음 연 run `U25-launcher-hook-check.json`에는 구현 1회차와 1차 리뷰가 남아 있다. 1차 리뷰 반영 때 D30 문구를 고쳐 Story 지문이 바뀌었다).
+Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-stop-grace-hooks.md)의 리뷰 후속("`./office` 시작 1단계는 hook을 묻지 않는다"). kit graph: `.ai-workflow/runs/U25-launcher-hook-check-replan-2.json`.
+
+- 처음 연 run `U25-launcher-hook-check.json`에는 구현 1회차와 1차 리뷰가 남아 있다. 1차 리뷰 반영 때 D30 문구를 고쳐 Story 지문이 바뀌었다.
+- 두 번째 run `U25-launcher-hook-check-replan.json`에는 구현 2회차와 2차 리뷰(Approve)가 남아 있다. 2차 리뷰의 Minor로 D30의 괄호 위치를 고쳐 지문이 다시 바뀌었다.
+- 그래서 그래프 규칙대로 새 run을 열고, 같은 증거와 문서 수정으로 구현·리뷰·검증을 다시 기록했다.
 
 ## 왜 바꿨나
 
@@ -18,7 +22,7 @@ Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-sto
 - 묻는 방법과 판단은 Office와 같다. `claudeModels`로 묻고, `loadRunnerCatalog`에서 뽑아낸 `blockHookedClaude`로 판단한다. 같은 hook 종류는 한 번만 적고, 안내 문구도 같다. 조회 자체가 실패하면 판단하지 않는다(D29).
 - codex를 쓸 수 있는 사용자는 1단계에서 claude를 띄우지 않는다(추가 비용 없음). claude의 막힘은 지금처럼 Office 화면에서 보인다.
 - 로그인되지 않은 claude에는 묻지 않는다. 그 claude로는 어차피 시작할 수 없고, 로그인한 뒤의 다음 `./office`에서 묻는다.
-- claude만 쓰는 사용자는 1단계에서 claude를 한 번 더 띄운다. 이 Mac에서 한가할 때 1.3–1.4초였다. 바쁠 때는 더 걸릴 수 있다. 조회 한도는 15초이고, 끝낼 때 stdin 닫기 → 3초 → SIGTERM → 2초 → SIGKILL → 2초를 더 기다릴 수 있다. 이 동안 화면에는 `[1/4]` 전이라 진행 줄이 없다. hook이 있으면 여기서 멈춘다. 없으면 Office를 켤 때 전처럼 한 번 더 묻는다.
+- claude만 쓰는 사용자는 1단계에서 claude를 한 번 더 띄운다. 이 Mac에서 한가할 때 1.3–1.4초였다. 바쁠 때는 더 걸릴 수 있다. 조회 한도는 15초이고, 끝낼 때 stdin 닫기 → 3초 → SIGTERM → 2초 → SIGKILL → 2초를 더 기다릴 수 있다(조회만 최악 22초). 이 동안 화면에는 `[1/4]` 전이라 진행 줄이 없다. hook이 있으면 여기서 멈춘다. 없으면 Office를 켤 때 전처럼 한 번 더 묻는다.
 - 쓸 수 있는 실행기가 없고, **설치·로그인되었지만 막힌** CLI가 있으면 `LOGIN_REQUIRED`가 아니라 `RUNNER_BLOCKED`로 멈춘다. 막힘만 고치면 되는 경우다.
   - 1단계: "Office 역할을 실행할 수 있는 codex·claude가 없습니다. 아래 CLI별 안내대로 고친 뒤 다시 실행해주세요. codex: … claude: … 로그인 정보는 VM에 복사하지 않습니다."
   - `--codex-runtime pinned`에서 Mac codex 로그인(`~/.codex/auth.json`)이 있는데 codex가 막혔으면: "고정 codex(--codex-runtime pinned)가 쓸 codex가 막혀 있습니다. codex 안내대로 고친 뒤 다시 실행해주세요. codex: … claude: … …". 고정 codex 실행에는 claude가 쓰이지 않으므로 "codex·claude가 없다"고 하지 않는다.
@@ -75,10 +79,12 @@ Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-sto
 | 검사 | 결과 |
 |---|---|
 | root `npm test`, 구현 1회차 `2d1fbba` (2026-10-30 10:42–10:44, load average 9–17) | 1109/1109, exit 0 |
-| root `npm test`, 구현 2회차 (최종) | (최종 실행 뒤 채움) |
+| root `npm test`, 구현 2회차 `2e8a816` (10:59–11:02, load average 27–34) | 1114/1114, exit 0 |
 | 영향 파일 `launcher`·`runner-settings`·`runner-models` + `live-runtime`의 "runner mode" 시험(2회차) | 49/49, 3/3 |
 | `npm run typecheck` | exit 0 |
 | `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0 |
+
+- `2e8a816` 뒤 커밋은 문서·kit 기록만 바꿨다. 시험은 문서를 읽지 않는다(`tests/`에서 `docs/` 참조 없음).
 
 ## 리뷰 (독립, 보고만)
 
@@ -93,6 +99,13 @@ Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-sto
   - pinned 관문 자체: 런처는 pinned에서도 막힌 codex를 거부하지만, `createLiveRuntime`(pinned와 `auth.json`이면 통과)과 고정 codex 역할 실행(`runner-jobs.ts`)은 `blocked`를 보지 않는다. #45 이전(`f2bd735`)부터의 불일치다. 런처를 풀지(안전장치 완화) Office를 조일지는 결정이 필요하다.
   - 조회 동안의 진행 줄: 넣지 않고 위 "바뀐 동작"에 최악 시간을 적었다.
 
+2회차(같은 리뷰어, `2e8a816`) 판정은 Approve였고 Critical·Important는 없었다. 기록: `.ai-workflow/runs/U25-review-2.md`.
+
+- 리뷰어가 돌린 것: launcher·runner-settings·runner-models 49/49, live-runtime "runner mode" 3/3, 타입 검사 exit 0, 가짜 CLI 탐색.
+- 확인된 것: 로그인된 막힘만 `RUNNER_BLOCKED`(1단계·`createLiveRuntime`·pinned), 새 시험이 그 조건을 빼면 실패함, 임시 폴더 정리, 운영 경로는 `extraDirs`를 넘기지 않음.
+- **Minor(고침):** 최악 시간 계산(24초 → 22초), D30의 괄호 위치(`createLiveRuntime`에는 pinned 막힘 규칙이 없음), 문서 빈칸.
+- **Minor(후속으로 둠):** 아래 "아직 하지 않은 것"의 두 단계 안내와 pinned의 옛 문구.
+
 ## 아직 하지 않은 것
 
 - 관리형 설정(회사 IT)의 hook이 실제로 걸린 Mac에서의 확인.
@@ -100,6 +113,8 @@ Story: M3 · M4 · D29 · D30. 근거: [#45 변경 기록](2026-10-30-claude-sto
 - 모델 목록 조회 자체의 멈춤(stdin 닫기 → 3초 → SIGTERM → 2초 → SIGKILL)은 바쁠 때 갱신 잠금을 남길 수 있다(#45 후속, 그대로). claude만 쓰는 사용자에게는 1단계 조회가 그 기회를 한 번 더한다.
 - 로그인되지 않은 claude에는 1단계에서 hook을 묻지 않는다. 로그인한 뒤의 다음 `./office`에서 묻는다.
 - pinned 관문의 불일치(위 리뷰 후속): 결정 필요.
-- 1단계 조회 동안 진행 줄이 없다(한가할 때 1.3–1.4초, 최악 약 24초).
+- 1단계 조회 동안 진행 줄이 없다(한가할 때 1.3–1.4초, 조회만 최악 22초).
+- 두 단계 안내(2차 리뷰): codex가 로그아웃되었고 `AGENTS.md`로 막혔으며 claude는 로그인되었지만 hook이 있으면 `RUNNER_BLOCKED`다. claude만 고치면 시작할 수 있다. 그러나 codex 쪽을 고치는 사용자는 다음 실행에서 `RUNNER_BLOCKED`를 다시 만나고, 그때야 `codex login` 안내를 본다. codex 안내 문구(`inspect()`)는 화면에도 쓰여서 이번에는 바꾸지 않았다.
+- pinned의 옛 문구(2차 리뷰, 이 변경 전부터): pinned인데 `~/.codex/auth.json`이 없으면 "codex 또는 claude 중 하나를" 문구와 "claude: 준비됨"이 같이 나온다. pinned 관문 결정과 함께 다룬다.
 - `unsupported`(버전을 읽을 수 없는 설치본)뿐일 때는 그대로 `LOGIN_REQUIRED`와 "설치하고 로그인한 뒤" 문구다.
 - **G4:** 사용자 답변으로만 기록한다.

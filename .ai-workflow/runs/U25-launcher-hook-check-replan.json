@@ -182,9 +182,23 @@
         }
       },
       "workflow-review": {
-        "status": "running",
+        "status": "completed",
         "attempts": 1,
-        "revision": 0
+        "revision": 0,
+        "output": {
+          "summary": "Review 1 (2d1fbba): Changes needed, fixed in implement attempt 2 (2e8a816). Review 2 by the same independent reviewer on 2e8a816: Approve, no Critical/Important; launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0. Minor: two-step hint for a logged-out blocked codex next to a hooked claude, older pinned lead, worst-case arithmetic (22 s), D30 parenthetical placement, doc placeholders.",
+          "evidence": [
+            ".ai-workflow/runs/U25-review-1.md",
+            ".ai-workflow/runs/U25-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-review-1.md": "3ddb01f88e609b9dbefac0edc080e01b756526b1c2bc35a197e1054d4521f2aa",
+          ".ai-workflow/runs/U25-review-2.md": "4bdffdb6f19f7cb251ae4b02de932dee98c01fb2eff2f6eaaf7fc0bcaf1b3ea4"
+        }
       },
       "workflow-verify": {
         "status": "pending",
@@ -247,6 +261,30 @@
       "event": "start",
       "nodeId": "workflow-review",
       "at": "2026-10-30T01:59:16.785Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T02:03:07.699Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Review 1 (2d1fbba): Changes needed, fixed in implement attempt 2 (2e8a816). Review 2 by the same independent reviewer on 2e8a816: Approve, no Critical/Important; launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0. Minor: two-step hint for a logged-out blocked codex next to a hooked claude, older pinned lead, worst-case arithmetic (22 s), D30 parenthetical placement, doc placeholders.",
+          "evidence": [
+            ".ai-workflow/runs/U25-review-1.md",
+            ".ai-workflow/runs/U25-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-review-1.md": "3ddb01f88e609b9dbefac0edc080e01b756526b1c2bc35a197e1054d4521f2aa",
+          ".ai-workflow/runs/U25-review-2.md": "4bdffdb6f19f7cb251ae4b02de932dee98c01fb2eff2f6eaaf7fc0bcaf1b3ea4"
+        }
+      }
     }
   ]
 }
