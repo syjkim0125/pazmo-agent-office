@@ -1,3 +1,17 @@
+# 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D30, A안)
+
+- `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D30, G3 2026-10-30 "A로 해").
+- 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 가져오기는 로컬 브랜치 `codex/local-original-claw-v2.0.4`에 남는다.
+- `ws`·TypeScript는 루트 의존성이다. `up`은 켜진 Office를 다시 쓸지 정하기 전에 `ws`가 없거나 다른 버전일 때만 `npm ci --omit=dev --prefer-offline`을 한다. 예전 버전이 켠 Claw·legacy Office는 `status`로 보이고 `stop`으로 멈추며, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다.
+- 엔진 코드(`native-office.ts`의 Claw용 API, 역할별 실행기 경로, 옛 허브 요청 흐름)는 D24 3단계와 충돌하지 않도록 남겼다. Story는 M7·M9·M10·M13·M14와 V7·V11·V12·V15·V16을 폐기하고 Goal·M1·M2·M3·M8·M12·M15·O2와 V1·V8·V9·V10·V14·V17을 고쳤다(M8·M12·V9·V10·V14는 승인 뒤 찾아 ASSUMED).
+- 자동 검사:
+  - 기준선 `3926ee2` 1104/1104 → vendor 없이 **1070/1070** exit 0(삭제 34개는 모두 Claw·legacy·bridge 전용, 파일별 대조는 검증 기록). 메인 checkout 밖 새 사본(`npm ci`만)에서도 1070/1070
+  - 타입 검사 exit 0, Story 검사기 exit 0, `npm pack --dry-run`에 vendor 없음
+  - 엔진 재시작 복구 시험은 복구 호출 셋 중 하나만 지워도 실패한다
+  - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
+- 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
+- **남은 것: 독립 리뷰, G4, eevee-be 실제 확인(V17), 사전 확인 두 개(eevee-be Claw Office의 진행 중 작업, Fusion 허브의 진행 중 요청), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 정리(`/ce-compound-refresh`).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+
 # 2026-10-29 부하에서만 실패하던 시험 고치기
 
 - 다른 시험과 같이 돌 때만 `Office startup timed out.`으로 실패하던 두 시험은 claw를 켜는 시험이었다. claw는 시작하면서 TypeScript 모듈 약 220개를 변환한다. 유휴 1–2초가 CPU가 바쁘고 메모리가 스왑되면 1분을 넘기도 한다. 시작 대기를 **claw만 120초**로 늘렸다. legacy·lean·team은 15초 그대로다. 서비스가 죽거나 오류로 답하면 기다리지 않는다.
