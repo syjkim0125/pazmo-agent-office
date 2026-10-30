@@ -49,15 +49,15 @@ Story: M13 · V15 · D21. 결정: [office-role-characters-decision.md](../unders
   - Decisions의 workflow 항목 이름은 서버 값을 쓴다. 관리 Office는 "Office"다.
   - 대시보드의 부서별 실적은 서버 전체 값이다.
   - 나중에 이름 편집을 열 때는 역할 이름이 저장되지 않게 막아야 한다.
-  - Office 이전 기록에 비관리 작업의 `current_task_id`가 남은 캐릭터는 계속 보일 수 있다. eevee-be 실제 확인 때 함께 본다.
+  - Office 이전 기록에 비관리 작업의 `current_task_id`가 남은 캐릭터는 계속 보일 수 있다. app-be 실제 확인 때 함께 본다.
 
-## eevee-be 실제 화면 (2026-10-15)
+## app-be 실제 화면 (2026-10-15)
 
-- 사용자 허락을 받고 eevee-be Office(claw 엔진, 127.0.0.1:60368)를 B 브랜치 빌드로 다시 시작했다. 실행 상태는 `ready`다.
+- 사용자 허락을 받고 app-be Office(claw 엔진, 127.0.0.1:60368)를 B 브랜치 빌드로 다시 시작했다. 실행 상태는 `ready`다.
 - 영어 화면, 밝은 테마에서 본 것:
   - 방 3개: Planning에 PM·Lead, Development에 Engineer, QA/QC에 Reviewer
   - 디자인·DevSecOps·운영 방과 나머지 10명은 보이지 않았다.
-  - 상단 버튼이 "Team hub · connected"로 보인다. 기존 Fusion 연결이 유지된다.
+  - 상단 버튼이 "Team hub · connected"로 보인다. 기존 OpenShift 연결이 유지된다.
 - 어두운 테마와 한국어 화면, 캐릭터 상세의 원래 이름은 아직 보지 않았다.
 
 ## 아직 하지 않은 것 (G4 전)

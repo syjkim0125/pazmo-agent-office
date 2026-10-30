@@ -282,10 +282,10 @@ export function setup() {
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const join = (name) => store.acceptInvite(store.createInvite(admin, name), name).member;
   const pl = join("PL"), b = join("B"), c = join("C");
-  const be = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
-  const fe = store.addRepo(admin, "eevee-fe", "git@github.example.com:team/eevee-fe.git");
+  const be = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
+  const fe = store.addRepo(admin, "app-fe", "git@github.example.com:team/app-fe.git");
   for (const [m, r] of [[pl, be], [pl, fe], [b, fe], [c, be]]) store.addOwner(admin, r, m.id);
-  const remote = { [be]: "https://github.example.com/team/eevee-be", [fe]: "https://github.example.com/team/eevee-fe" };
+  const remote = { [be]: "https://github.example.com/team/app-be", [fe]: "https://github.example.com/team/app-fe" };
   // A new pair for the same (member, repo) revokes the previous token, so tests keep the Link objects they got.
   const tokenOf = (m, r) => store.pair(store.createLinkCode(m, r), remote[r]).token;
   const linkOf = (m, r) => store.link(tokenOf(m, r));
@@ -562,7 +562,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { opened } from "./hub-story-fixture.mjs";
 const SHA = "a".repeat(40), SHA2 = "b".repeat(40);
-const merged = (over = {}) => ({ prUrl: "https://github.example.com/team/eevee-be/pull/7", mergeCommit: SHA, summary: "[변경사항]\n1. 작업: api\n2. 변경 파일: src/api.ts\n3. 확인: V1 통과", assumptions: ["ASSUMED: 쿠폰 코드는 대문자"], ...over });
+const merged = (over = {}) => ({ prUrl: "https://github.example.com/team/app-be/pull/7", mergeCommit: SHA, summary: "[변경사항]\n1. 작업: api\n2. 변경 파일: src/api.ts\n3. 확인: V1 통과", assumptions: ["ASSUMED: 쿠폰 코드는 대문자"], ...over });
 const states = (board, l, id) => Object.fromEntries(board.story(l, id).tasks.map((t) => [t.nodeId, t.state]));
 
 test("merge needs the lock; merging api readies ui and records the report", () => {
@@ -713,9 +713,9 @@ async function team(t) {
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const join = (n) => store.acceptInvite(store.createInvite(admin, n), n).member;
   const pl = join("PL"), c = join("C");
-  const be = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
+  const be = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
   store.addOwner(admin, be, pl.id); store.addOwner(admin, be, c.id);
-  const token = (m) => store.pair(store.createLinkCode(m, be), "https://github.example.com/team/eevee-be").token;
+  const token = (m) => store.pair(store.createLinkCode(m, be), "https://github.example.com/team/app-be").token;
   return { ...h, be, plTok: token(pl), cTok: token(c) };
 }
 const graph = (be) => ({ nodes: [{ id: "api", repoId: be, title: "api", spec: "s", files: ["src/api.ts"], verify: [{ id: "V1", argv: ["npm", "test"], timeoutMs: 60000 }] }], edges: [] });
@@ -739,7 +739,7 @@ test("publish → open → claim → lock → merged over HTTP", async (t) => {
   assert.equal(task.branch, `feature/story-${pub.number}/task-${pub.number + 1}`);
   assert.equal((await p("/api/link/story/heartbeat", { taskId: task.taskId, claimId: task.claimId, stage: "build" }, cTok)).status, 200);
   assert.equal((await p("/api/link/story/merge-lock", { taskId: task.taskId, claimId: task.claimId }, cTok)).json.granted, true);
-  const m = await p("/api/link/story/merged", { taskId: task.taskId, claimId: task.claimId, prUrl: "https://github.example.com/team/eevee-be/pull/1", mergeCommit: "c".repeat(40), summary: "s", assumptions: [] }, cTok);
+  const m = await p("/api/link/story/merged", { taskId: task.taskId, claimId: task.claimId, prUrl: "https://github.example.com/team/app-be/pull/1", mergeCommit: "c".repeat(40), summary: "s", assumptions: [] }, cTok);
   assert.equal(m.status, 200);
   const s = await api("GET", `/api/link/story/story?id=${pub.storyId}`, { token: cTok, protocol: "3" });
   assert.equal(s.json.tasks.find((x) => x.nodeId === "api").state, "merged");

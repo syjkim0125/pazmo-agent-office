@@ -153,7 +153,7 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
       return `<tr><td><b>${esc(r.name)}</b><br><span class="muted">${esc(r.remote)}</span></td><td>${owners}${add}</td><td>${links}<br>${link}</td></tr>`;
     })
     .join("");
-  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="eevee-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/eevee-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, { trust });
+  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="app-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/app-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, { trust });
 }
 export function members(me: Member, csrf: string, list: MemberView[], trust = true) {
   const rows = list

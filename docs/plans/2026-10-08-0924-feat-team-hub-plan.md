@@ -40,7 +40,7 @@ execution: code
 - **기본값(ASSUMED):** 초대 72시간, 세션 30일(사용할 때마다 연장), 연결 코드 10분, 조회 주기 5초, 허브 포트 8443
 - **재시도:** 쓰기 요청은 자동으로 재시도하지 않는다. 스냅샷 전송은 멱등이라 다음 주기에 다시 보낸다.
 - **사용 중인 Office 보호:** 다른 세션과 사용자 작업을 고려한다.
-  - 사용자가 eevee-be 작업에 쓰는 Office(포트 60368, 이 worktree에서 실행 중)는 재시작하거나 중지하지 않는다. 실제 확인(Task 8)에서 재시작이 필요하면 먼저 사용자에게 묻는다.
+  - 사용자가 app-be 작업에 쓰는 Office(포트 60368, 이 worktree에서 실행 중)는 재시작하거나 중지하지 않는다. 실제 확인(Task 8)에서 재시작이 필요하면 먼저 사용자에게 묻는다.
   - 실행할 때마다 다시 읽히는 `src/runners/*.mjs`, `*.cjs`는 수정하지 않는다.
   - `native-office.ts`는 편집 직전에 다시 읽고 최소 줄만 바꾼다.
 - **커밋과 보고:** 커밋·푸시는 사용자 요청 시에만 한다. 각 Task의 "Commit" 단계는 `git diff --stat` 확인으로 대체한다. 테스트 결과는 X/X로 보고한다.
@@ -133,11 +133,11 @@ function accepted() {
   const ctx = setup();
   const { store, admin, join } = ctx;
   const b = join("B"), c = join("C");
-  const repo = store.addRepo(admin, "eevee-be", "git@github.example.com:team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
   store.addOwner(admin, repo, c.id);
   const req = store.createRequest(b, repo, "README 목차", "normal");
   store.accept(c, req);
-  const token = store.pair(store.createLinkCode(c, repo), "https://github.example.com/team/eevee-be").token;
+  const token = store.pair(store.createLinkCode(c, repo), "https://github.example.com/team/app-be").token;
   const link = store.link(token);
   const [a] = store.work(link).assignments;
   return { ...ctx, b, c, repo, req, token, link, a };
@@ -209,7 +209,7 @@ test("only owners accept, the second accept loses, and only the requester answer
 test("a link sees only its member's accepted work on its own repository", () => {
   const { store, b, c, repo, req, link } = accepted();
   const repo2 = store.addRepo(c, "web", "https://github.example.com/team/web");
-  assert.throws(() => store.pair(store.createLinkCode(c, repo2), "https://github.example.com/team/eevee-be"), { code: "REMOTE_MISMATCH" });
+  assert.throws(() => store.pair(store.createLinkCode(c, repo2), "https://github.example.com/team/app-be"), { code: "REMOTE_MISMATCH" });
   const code = store.createLinkCode(c, repo2);
   store.pair(code, "https://github.example.com/team/web.git");
   assert.throws(() => store.pair(code, "https://github.example.com/team/web.git"), { code: "LINK_CODE_INVALID" });
@@ -229,7 +229,7 @@ test("removing an owner revokes that owner's link to the repository", () => {
   store.removeOwner(admin, repo, c.id);
   assert.equal(store.link(token), null, "C no longer owns the repository");
   assert.throws(() => store.removeOwner(admin, repo, b.id), { code: "LAST_OWNER" });
-  assert.ok(store.link(store.pair(store.createLinkCode(b, repo), "git@github.example.com:team/eevee-be").token));
+  assert.ok(store.link(store.pair(store.createLinkCode(b, repo), "git@github.example.com:team/app-be").token));
 });
 
 test("snapshots apply once and in order, and a final status finishes the request", () => {
@@ -1215,12 +1215,12 @@ test("everything except the invite, trust and CA pages needs a registered browse
 test("writes need this hub's Origin and the session's CSRF token", async (t) => {
   const { store, hub, call, enter } = await startTestHub(t);
   const { cookie, csrf } = await enter(store.bootstrapAdmin());
-  const body = (token) => `csrf=${token}&name=eevee-be&remote=${encodeURIComponent("git@github.example.com:team/eevee-be.git")}`;
+  const body = (token) => `csrf=${token}&name=app-be&remote=${encodeURIComponent("git@github.example.com:team/app-be.git")}`;
   assert.equal((await call("POST", "/repos", { cookie, body: body("wrong"), headers: { origin: hub.url } })).status, 403);
   assert.equal((await call("POST", "/repos", { cookie, body: body(csrf), headers: { origin: "https://evil.example" } })).status, 403);
   assert.equal((await call("POST", "/repos", { cookie, body: body(csrf) })).status, 403, "no Origin");
   assert.equal((await call("POST", "/repos", { cookie, body: body(csrf), headers: { origin: hub.url } })).status, 303);
-  assert.match((await call("GET", "/repos", { cookie })).text, /github\.example\.com\/team\/eevee-be/);
+  assert.match((await call("GET", "/repos", { cookie })).text, /github\.example\.com\/team\/app-be/);
 });
 
 test("other host names, oversized forms and unsafe framing are refused", async (t) => {
@@ -1242,7 +1242,7 @@ test("the board enforces owner-only accept and requester-only answers over HTTP"
   const admin = await enter(store.bootstrapAdmin());
   const adminMember = store.members()[0];
   const b = await enter(store.createInvite(adminMember, "B"));
-  const repo = store.addRepo(adminMember, "eevee-be", "https://github.example.com/team/eevee-be");
+  const repo = store.addRepo(adminMember, "app-be", "https://github.example.com/team/app-be");
   const bMember = store.members().find((m) => m.name === "B");
   const req = store.createRequest(bMember, repo, "README 목차 추가", "normal");
   const post = (who, path, extra = "") =>
@@ -1406,7 +1406,7 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
       return `<tr><td><b>${esc(r.name)}</b><br><span class="muted">${esc(r.remote)}</span></td><td>${owners}${add}</td><td>${links}<br>${link}</td></tr>`;
     })
     .join("");
-  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="eevee-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/eevee-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`);
+  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="app-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/app-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`);
 }
 export function members(me: Member, csrf: string, list: MemberView[]) {
   const rows = list
@@ -1685,7 +1685,7 @@ async function seeded(t) {
   const { store } = ctx;
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const b = store.acceptInvite(store.createInvite(admin, "B"), "b").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const req = store.createRequest(b, repo, "README 목차", "normal");
   store.accept(admin, req);
   return { ...ctx, admin, b, repo, req };
@@ -1706,7 +1706,7 @@ test("pairing with the right origin returns a token that sees exactly the accept
   const wrong = await api("POST", "/api/link/pair", { body: { code: store.createLinkCode(admin, repo), remote: "https://github.example.com/team/other" } });
   assert.equal(wrong.status, 409);
   assert.equal(wrong.json.error, "REMOTE_MISMATCH");
-  const paired = await api("POST", "/api/link/pair", { body: { code: store.createLinkCode(admin, repo), remote: "git@github.example.com:team/eevee-be.git" } });
+  const paired = await api("POST", "/api/link/pair", { body: { code: store.createLinkCode(admin, repo), remote: "git@github.example.com:team/app-be.git" } });
   assert.equal(paired.status, 200);
   const work = (await api("GET", "/api/link/work", { token: paired.json.token })).json;
   assert.deepEqual(work.assignments.map((a) => a.requestId), [req]);
@@ -1721,7 +1721,7 @@ test("pairing with the right origin returns a token that sees exactly the accept
 
 test("a snapshot larger than 1 MiB is refused", async (t) => {
   const { api, store, admin, repo } = await seeded(t);
-  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/eevee-be");
+  const { token } = store.pair(store.createLinkCode(admin, repo), "https://github.example.com/team/app-be");
   const res = await api("POST", "/api/link/snapshot", { token, body: { assignmentId: "a", seq: 1, snapshot: { pad: "x".repeat(1100 * 1024) } } });
   assert.equal(res.status, 413);
 });
@@ -2158,7 +2158,7 @@ async function linked(t) {
   const { store, hub, tls } = ctx;
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const b = store.acceptInvite(store.createInvite(admin, "B"), "b").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
   const dataDir = mkdtempSync(join(tmpdir(), "hub-link-"));
   t.after(() => rmSync(dataDir, { recursive: true, force: true }));
   const db = new DatabaseSync(":memory:");
@@ -2167,7 +2167,7 @@ async function linked(t) {
   db.exec("CREATE TABLE t_map(k TEXT PRIMARY KEY, task_id TEXT)");
   const office = fakeOffice(db);
   return { ...ctx, admin, b, repo, dataDir, db, office, pair: (fingerprint = tls.fingerprint) =>
-    pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint, remote: "git@github.example.com:team/eevee-be.git" }) };
+    pairOffice({ dataDir, hub: hub.url, code: store.createLinkCode(admin, repo), fingerprint, remote: "git@github.example.com:team/app-be.git" }) };
 }
 
 test("pairing trusts the hub only when the pasted fingerprint matches, and stores the link privately", async (t) => {
@@ -2675,10 +2675,10 @@ Expected: 전부 통과(이전 466 + 새 테스트), exit 0. 결과는 X/X로 �
   - 범위: `src/hub/*`, `hub-link.ts`, `hub-snapshot.ts`, native-office diff
   - 점검: 권한표 우회, CSRF·Origin·Host, 토큰 저장(해시만), 초대 소비 시점, 연결 토큰 범위, CA 고정, XSS(`esc` 누락), 크기 제한, G4 차단
   - Critical/Important는 모두 고치고 Step 1을 다시 돈다.
-- [ ] **Step 3: 실제 확인.** 실행 중인 eevee-be Office를 재시작해야 하므로 시작 전에 사용자에게 묻는다.
+- [ ] **Step 3: 실제 확인.** 실행 중인 app-be Office를 재시작해야 하므로 시작 전에 사용자에게 묻는다.
   1. `pazmo-office hub --host <내 Mac 사내망 IP>`로 허브를 띄우고 출력된 관리자 링크로 입장한다.
   2. `/trust` 안내대로 CA를 신뢰한다. 이 단계는 사용자가 직접 한다(시스템 설정).
-  3. eevee-be를 등록하고 "내 Office 연결 명령"을 실행한 뒤 Office를 live로 재시작한다.
+  3. app-be를 등록하고 "내 Office 연결 명령"을 실행한 뒤 Office를 live로 재시작한다.
   4. 다른 브라우저 프로필로 팀원 B 초대를 받아 요청을 올린다. 관리자가 수락한다.
   5. PM 질문·G1에는 B 프로필에서 사용자가 직접 답한다(답변 생성 금지). G4는 내 Office에서 사용자가 직접 한다. 인도 후 허브에 완료와 보고서가 뜨는지 확인한다.
   6. 각 단계의 화면과 허브 응답을 검증 문서에 기록한다.

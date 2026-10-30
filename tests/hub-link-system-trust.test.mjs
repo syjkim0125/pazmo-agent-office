@@ -14,7 +14,7 @@ async function pairInChild({ hub, code, dataDir, extraCa, env: extraEnv = {} }) 
   const script = `
     import { pairOffice, readLinkConfig, hubCall } from ${JSON.stringify(ROOT + "src/runtime/hub-link.ts")};
     try {
-      await pairOffice({ dataDir: ${JSON.stringify(dataDir)}, hub: ${JSON.stringify(hub)}, code: ${JSON.stringify(code)}, remote: "https://github.example.com/team/eevee-be" });
+      await pairOffice({ dataDir: ${JSON.stringify(dataDir)}, hub: ${JSON.stringify(hub)}, code: ${JSON.stringify(code)}, remote: "https://github.example.com/team/app-be" });
       const cfg = readLinkConfig(${JSON.stringify(dataDir)});
       const work = await hubCall(cfg, "GET", "/api/link/work");
       console.log(JSON.stringify({ ok: true, caPem: cfg.caPem, fingerprint: cfg.fingerprint, assignments: work.assignments.length }));
@@ -28,7 +28,7 @@ async function pairInChild({ hub, code, dataDir, extraCa, env: extraEnv = {} }) 
 test("without a fingerprint the Office trusts the system roots, stores no CA, and keeps working", async (t) => {
   const { store, tls, hub } = await startTestHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const d = mkdtempSync(join(tmpdir(), "link-sys-"));
   t.after(() => rmSync(d, { recursive: true, force: true }));
   const ca = join(d, "ca.pem");
@@ -41,7 +41,7 @@ test("without a fingerprint the Office trusts the system roots, stores no CA, an
 test("a certificate the system does not trust is refused with a hint to pass the fingerprint", async (t) => {
   const { store, hub } = await startTestHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const d = mkdtempSync(join(tmpdir(), "link-sys-"));
   t.after(() => rmSync(d, { recursive: true, force: true }));
   const r = await pairInChild({ hub: hub.url, code: store.createLinkCode(admin, repo), dataDir: join(d, "office") });
@@ -53,7 +53,7 @@ test("a certificate the system does not trust is refused with a hint to pass the
 test("NODE_TLS_REJECT_UNAUTHORIZED=0 cannot turn verification off on the link path", async (t) => {
   const { store, hub } = await startTestHub(t);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
-  const repo = store.addRepo(admin, "eevee-be", "https://github.example.com/team/eevee-be.git");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
   const d = mkdtempSync(join(tmpdir(), "link-sys-"));
   t.after(() => rmSync(d, { recursive: true, force: true }));
   mkdirSync(join(d, "office"));

@@ -222,7 +222,7 @@
   - `docs/STATUS.md`, `docs/verification/<날짜>-team-hub-office-inbox.md`를 쓴다.
   - Task `docs/tasks/U15-team-hub-office-inbox.md`의 검사를 exit 0으로 통과시킨다.
 - [ ] 그래프 implement/review를 기록한다. 증거 파일은 기록한 뒤 고치지 않는다.
-- [ ] 실제 확인을 한다(사용자와 함께, 허브 재배포 후): eevee-be → 시험 Office 두 건, 하나는 수락하고 하나는 거절한다. 그다음 G4 파일을 따로 쓰고 verify 노드를 기록한다.
+- [ ] 실제 확인을 한다(사용자와 함께, 허브 재배포 후): app-be → 시험 Office 두 건, 하나는 수락하고 하나는 거절한다. 그다음 G4 파일을 따로 쓰고 verify 노드를 기록한다.
 
 ## Self-Review
 

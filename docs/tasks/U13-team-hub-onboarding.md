@@ -20,7 +20,7 @@ Plan source: docs/plans/2026-10-15-1400-feat-team-hub-onboarding-plan.md (Task 1
 
 ## Verify
 - 허브·Office·화면 자동 테스트 X/X, 전체 회귀 X/X(root·vendor), 타입 검사, 빌드, 보안 포함 브랜치 리뷰 1회.
-- 실제 확인은 B 다음 Fusion 허브에서: 테스트 팀원 합류 → 문자열 붙여넣기 연결(자동 등록) → 보내기·수락·취소.
+- 실제 확인은 B 다음 OpenShift 허브에서: 테스트 팀원 합류 → 문자열 붙여넣기 연결(자동 등록) → 보내기·수락·취소.
 
 ## Risk / Dependency
-- U12(Fusion 허브)가 같은 브랜치에 커밋되지 않은 상태다. Fusion 재배포와 로그인은 사용자가 한다.
+- U12(OpenShift 허브)가 같은 브랜치에 커밋되지 않은 상태다. OpenShift 재배포와 로그인은 사용자가 한다.

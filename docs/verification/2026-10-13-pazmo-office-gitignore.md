@@ -33,7 +33,7 @@ RED: 새 테스트 4개와 수정한 start 테스트 1개, 합계 5개가 실패
 - `cli`, `lifecycle`, `launcher` 테스트: 46/46
 - 전체 `npm test`: 590/590, exit 0
 - `npm run typecheck`: exit 0
-- 실제 repo 확인(사용자 repo는 건드리지 않음): `~/Documents/eevee-be`를 scratchpad에 `git clone --local`하고, 이 브랜치의 CLI를 별도 data dir로 실행했다.
+- 실제 repo 확인(사용자 repo는 건드리지 않음): `~/Documents/app-be`를 scratchpad에 `git clone --local`하고, 이 브랜치의 CLI를 별도 data dir로 실행했다.
   - `init --apply` 뒤 `git status --porcelain`이 비어 있었다. `.pazmo-office/`는 `--ignored`에서 `!!`로만 보였다.
   - 루트 `.gitignore`의 sha1은 변경 전후 모두 `11e2405…`로 같았다.
   - `remove --apply`는 `.gitignore`까지 제거했고 폴더가 사라졌다.
@@ -57,6 +57,6 @@ RED: 새 테스트 4개와 수정한 start 테스트 1개, 합계 5개가 실패
 
 ## 증명하지 못한 것
 
-- 실제로 쓰고 있는 설치(eevee-be 등)에는 적용하지 않았다. 실행 중인 Office를 건드리지 않는다는 원칙 때문이다. 이 설치들은 다음 `./office` 실행이나 `start` 때 파일을 얻는다.
+- 실제로 쓰고 있는 설치(app-be 등)에는 적용하지 않았다. 실행 중인 Office를 건드리지 않는다는 원칙 때문이다. 이 설치들은 다음 `./office` 실행이나 `start` 때 파일을 얻는다.
 - 이미 git에 커밋된 `.pazmo-office` 파일이 있는 repo에서는, 추적 중인 파일이 계속 보인다(Story O2).
 - 실행 중인 Office에서 `start`를 다시 호출하면 running 상태를 그대로 반환하므로 파일을 만들지 않는다. 다음 정지·시작 때 만들어진다.

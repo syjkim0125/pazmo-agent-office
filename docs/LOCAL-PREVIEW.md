@@ -75,7 +75,7 @@ Office 화면에는 실제로 일을 맡는 역할 캐릭터만 보인다: **PM 
 
 ### 팀원의 가장 짧은 순서
 
-1. 관리자에게 받은 **초대 링크**를 연다. 사내망 허브라면 먼저 아래 "인증서를 한 번 신뢰하기"를 한다(Fusion 허브는 필요 없다).
+1. 관리자에게 받은 **초대 링크**를 연다. 사내망 허브라면 먼저 아래 "인증서를 한 번 신뢰하기"를 한다(OpenShift 허브는 필요 없다).
 2. 합류하면 허브의 **내 Office 연결** 화면이 열린다. **연결 문자열 만들기 → 복사**를 누른다.
 3. 그 레포를 클론해 둔 자기 PC에서 live Office를 켜고, 상단의 **팀 허브** 버튼을 눌러 붙여넣은 뒤 **연결**을 누른다. 경로나 터미널 명령은 필요 없다.
    - 허브는 Office의 git origin으로 레포를 찾는다. 허브에 없는 레포면 내 이름을 담당자로 해서 자동 등록한다. 다른 사람이 담당자인 레포면 거부되고, 그 사람이나 관리자가 나를 담당자로 추가하면 같은 문자열로 다시 연결할 수 있다(10분 안).
@@ -83,17 +83,17 @@ Office 화면에는 실제로 일을 맡는 역할 캐릭터만 보인다: **PM 
 
 결정은 [team-hub-onboarding-decision.md](understanding/team-hub-onboarding-decision.md)이다.
 
-### Fusion(OpenShift)에 허브 띄우기
+### OpenShift에 허브 띄우기
 
-노트북 IP가 바뀌어도 끊기지 않게 허브를 Fusion 프로젝트에 상시로 띄울 수 있다. 라우터가 공인 인증서로 TLS를 처리하므로 **CA 신뢰와 지문이 필요 없다.** 결정은 [team-hub-fusion-decision.md](understanding/team-hub-fusion-decision.md)이다.
+노트북 IP가 바뀌어도 끊기지 않게 허브를 OpenShift 프로젝트에 상시로 띄울 수 있다. 라우터가 공인 인증서로 TLS를 처리하므로 **CA 신뢰와 지문이 필요 없다.** 결정은 [team-hub-openshift-decision.md](understanding/team-hub-openshift-decision.md)이다.
 
-- 매니페스트는 OpenShift Template `deploy/fusion/pazmo-hub.json`이다. 이 레포가 공개라서 클러스터 호스트와 빌더 이미지는 매개변수이고, 실제 값은 git이 무시하는 `deploy/fusion/local.env`에 둔다.
+- 매니페스트는 OpenShift Template `deploy/openshift/pazmo-hub.json`이다. 이 레포가 공개라서 클러스터 호스트와 빌더 이미지는 매개변수이고, 실제 값은 git이 무시하는 `deploy/openshift/local.env`에 둔다.
 
 ```sh
 # local.env 예: HUB_HOST=pazmo-hub-<프로젝트>.<apps 도메인>, BUILDER_IMAGE=<Node 24 S2I 빌더 이미지>
 oc login …                      # 사용자가 직접
 oc project <프로젝트>
-oc process -f deploy/fusion/pazmo-hub.json --param-file=deploy/fusion/local.env | oc apply -f -
+oc process -f deploy/openshift/pazmo-hub.json --param-file=deploy/openshift/local.env | oc apply -f -
 npm run hub:bundle              # dist/hub-bundle 생성
 oc start-build pazmo-hub --from-dir dist/hub-bundle --follow
 oc logs deploy/pazmo-hub | head -1   # 첫 줄 JSON의 adminInvite가 관리자 입장 링크
@@ -160,7 +160,7 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
 - 레포는 Office 프로젝트의 `git origin`으로 정해진다. 허브에 없으면 origin 끝 이름(겹치면 `-2`)으로 등록되고 내가 담당자가 되며, 창에 "허브에 새 레포 …로 등록했습니다."가 나온다. 평소 Office에 `--data-dir`를 줬다면 터미널 명령에도 같은 값을 쓴다.
   - **origin을 확인하고 붙인다.** ssh 별칭(`git@github-work:…`)이나 포크·미러 origin은 다른 레포로 보여 `-2` 같은 새 레포가 생긴다. 다른 팀원들이 원래 레포로 보낸 일은 이 Office에 오지 않는다. 관계없는 프로젝트의 Office에 붙이면 그 origin 주소가 허브 팀원 모두에게 보인다.
   - **잘못 등록됐을 때:** 지금은 허브에서 레포를 지울 수 없다. 관리자가 레포 화면에서 맞는 담당자를 더하고 잘못 붙은 담당자를 뺀다. 남은 레포는 쓰지 않으면 된다.
-- 지문이 있으면 그 지문의 인증서 한 개만 신뢰하고, 없으면(Fusion) 공인 인증서를 시스템 신뢰로 검증한다. 토큰은 Office 데이터 디렉터리에 0600으로 저장되고 브라우저로 가지 않는다. 연결과 해제에는 Office 화면의 세션 쓰기 토큰이 필요하다. 토큰은 그 팀원·그 레포의 요청 조회, 진행 올리기, 답변·취소 받기와, 아래 "Office에서 보내기"의 레포 목록·요청 생성·보낸 요청 조회·요청자 답변·취소, "받은 요청"의 대기 요청 보기·수락·거절만 할 수 있다.
+- 지문이 있으면 그 지문의 인증서 한 개만 신뢰하고, 없으면(OpenShift) 공인 인증서를 시스템 신뢰로 검증한다. 토큰은 Office 데이터 디렉터리에 0600으로 저장되고 브라우저로 가지 않는다. 연결과 해제에는 Office 화면의 세션 쓰기 토큰이 필요하다. 토큰은 그 팀원·그 레포의 요청 조회, 진행 올리기, 답변·취소 받기와, 아래 "Office에서 보내기"의 레포 목록·요청 생성·보낸 요청 조회·요청자 답변·취소, "받은 요청"의 대기 요청 보기·수락·거절만 할 수 있다.
 - 연결은 **live Office(`start --live`)**에서만 동작하고 5초마다 허브를 조회한다. live가 아니면 창에 "실행 모드(live)에서만 팀 허브에 연결할 수 있습니다."가 나온다.
 - 상단 점의 초록은 "연결 설정이 있음"이다. 허브에서 연결이 해제되거나 담당자에서 빠지면 동기화가 실패해도 점은 초록으로 남는다. 이때는 허브의 레포 화면을 확인하고 다시 연결한다.
 - `hub-unlink`나 창의 **연결 해제**는 이 Office의 설정만 지운다. 허브 쪽 연결 기록까지 끊으려면 허브의 레포 화면에서 연결 해제를 한다.
@@ -219,7 +219,7 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
 
 ### 알려진 한계
 
-- 사내망 허브는 고정 사설 IPv4에서만 연다. 호스트 이름이나 IP 변경 자동 대응은 없다. IP가 자주 바뀌면 Fusion 허브를 쓴다.
+- 사내망 허브는 고정 사설 IPv4에서만 연다. 호스트 이름이나 IP 변경 자동 대응은 없다. IP가 자주 바뀌면 OpenShift 허브를 쓴다.
 - 허브 CA는 회전하지 않는다. 만료 30일 전이면 `HUB_CA_EXPIRING`으로 멈추며, TLS 디렉터리를 지우고 모두 다시 신뢰한다.
 - Lead가 다른 레포 요청을 초안으로 만드는 기능, 에이전트 간 질문, 알림, 자동 배정은 후속이다.
 - 팀원을 회수해도 그 사람이 맡은 열린 요청은 열려 있다. 요청자가 취소하거나 관리자가 정리한다.

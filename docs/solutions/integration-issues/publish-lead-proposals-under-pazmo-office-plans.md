@@ -24,14 +24,14 @@ tags: [intake, publication, contract-paths, pazmo-office, protected-path, path-t
 
 ## Symptoms
 
-- eevee-be, pazmo-hub-test-backend, pazmo-office-live-pilot, ddokabeat 등 실제 사용자 repo root에 `office-plan-*` 폴더가 untracked로 쌓였다.
+- app-be, pazmo-hub-test-backend, pazmo-office-live-pilot, ddokabeat 등 실제 사용자 repo root에 `office-plan-*` 폴더가 untracked로 쌓였다.
 - `planningSnapshot`은 `git ls-files -z --cached --others --exclude-standard`로 파일을 모은다(`src/runtime/live.ts:310-317`). 그래서 untracked proposal 문서가 다음 planning 입력에 포함됐다.
 - `freezeWorkspace`는 `readdirSync`로 tree를 직접 걷는다(`src/core/workspace.ts:88`). 그래서 scope include가 `"."`이면 이전 proposal이 worker baseline에 들어갔다.
 - 자동화 테스트는 모두 통과하는 상태에서, 실제 Office를 사용자 checkout에 돌린 end-to-end 확인 때만 드러났다(session history).
 
 ## What Didn't Work
 
-- **처음 발견했을 때 원인을 잘못 짚고 기록을 남기지 않음 (session history):** 2026-10-12 team hub 실제 확인 중 eevee-be에서 `office-plan-oPAk1v/`를 처음 봤다.
+- **처음 발견했을 때 원인을 잘못 짚고 기록을 남기지 않음 (session history):** 2026-10-12 team hub 실제 확인 중 app-be에서 `office-plan-oPAk1v/`를 처음 봤다.
   - 의심한 곳은 `src/runners/kit-planning.ts`였다.
   - 결론도 후속 작업 기록도 남기지 않아서, 다음 날 다른 repo(pazmo-hub-test-backend)에서 같은 누출이 다시 나타났다.
   - 그때 원인 위치가 intake의 Lead proposal 게시 경로로 좁혀졌고, 별도 작업으로 분리됐다.

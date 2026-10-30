@@ -9,14 +9,14 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
 
 사용자의 말:
 - "지금 agent office에서 팀원들이 pm qa 디자이너 등등으로 나뉘어 있는데... 역할 별로 차라리 바꾸고, 기본은 다 Off시켜서 … 내가 추가한 agent만 생기도록"
-- 순서는 A → B → Fusion 실제 확인 → C로 정했다(D20).
+- 순서는 A → B → OpenShift 실제 확인 → C로 정했다(D20).
 - 2026-10-15: "내가 결정은 안하고 일단 다 승인으로 하고 넘어가. G4의 질문 단계는 마지막에 한 번에 받을게. 일단 다 진행해."
 
 이 문서의 결정은 그 지시에 따라 기본값으로 정했다. G4 질문 때 사용자가 함께 확인한다.
 
 ## 지금 상태 (코드 근거)
 
-- **실제 Office(claw 엔진, `start --claw --live`)**는 새로 만들어도 원본 Claw-Empire 캐릭터 14명을 갖는다(`claw/claw.sqlite`). 사용자가 쓰는 eevee-be Office가 그렇다.
+- **실제 Office(claw 엔진, `start --claw --live`)**는 새로 만들어도 원본 Claw-Empire 캐릭터 14명을 갖는다(`claw/claw.sqlite`). 사용자가 쓰는 app-be Office가 그렇다.
   - 역할을 맡는 것은 4명뿐이다: Clio(PM), Sage(Lead), Aria(Engineer), Hawk(Reviewer). 역할은 `native-office.ts:160-173`의 부서·직급 선택으로 정해진다.
   - 나머지 10명(Bolt, Nova, Pixel, Luna, Atlas, Turbo, Lint, DORO, Vault, Pipe)은 일을 하지 않는다. 디자인·DevSecOps·운영 방도 비어 있는 채로 보인다.
 - **service 엔진(옵션 없는 `start`, 읽기 전용 미리보기)**의 `office.sqlite`는 Lead·Engineer·Reviewer 3명만 만든다(`src/runtime/service.ts:126-155`). 이 엔진은 역할 API를 제공하지 않는다.
@@ -80,7 +80,7 @@ Builds on: team-hub-onboarding-decision.md (D20의 B)
     - 진행 중 작업의 숨김 캐릭터는 보인다.
     - API가 없으면 모두 보인다.
 - 기존 테스트는 모두 통과해야 한다.
-- 실제 확인: eevee-be Office에서 캐릭터 4명과 역할 이름이 보이는지 본다. A의 실제 확인과 함께 한다.
+- 실제 확인: app-be Office에서 캐릭터 4명과 역할 이름이 보이는지 본다. A의 실제 확인과 함께 한다.
 
 ## 대안과 복구
 

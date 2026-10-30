@@ -94,8 +94,8 @@
   - `inTeam(root: string, project: string): boolean`
   - 파일은 `<root>/team/team.json`(0600)이고 임시 파일 + rename으로 쓴다.
 
-- [ ] **Step 1: 실패하는 시험을 쓴다.** 시험은 임시 `git init` repo(`remote add origin https://github.example.com/team/eevee-be.git`)와 `--data-dir`로 만든다.
-  - `add`는 `{project: realpath, remote: "github.example.com/team/eevee-be"}`를 돌려주고, 같은 repo를 다시 더하면 같은 값이다(멱등).
+- [ ] **Step 1: 실패하는 시험을 쓴다.** 시험은 임시 `git init` repo(`remote add origin https://github.example.com/team/app-be.git`)와 `--data-dir`로 만든다.
+  - `add`는 `{project: realpath, remote: "github.example.com/team/app-be"}`를 돌려주고, 같은 repo를 다시 더하면 같은 값이다(멱등).
   - repo의 하위 폴더를 주면 `NOT_GIT_ROOT`다. origin이 없으면 `NO_ORIGIN`이다.
   - origin이 같은 두 번째 clone을 더하면 `DUPLICATE_REMOTE`다.
   - 21번째는 `LIMIT`이다.
@@ -335,5 +335,5 @@
   - 가져온 Task 실행(3단계)
   - PL의 Story 올리기(4단계)
   - 화면(5단계)
-- **실제 확인:** 사용자 확인 뒤 로컬 Hub(`pazmo-office hub`)에 시험 Story를 API로 올려 eevee-be와 시험 repo 두 개로 한다. 공유 Fusion Hub에 시험 데이터를 쓰는 것은 따로 묻는다.
+- **실제 확인:** 사용자 확인 뒤 로컬 Hub(`pazmo-office hub`)에 시험 Story를 API로 올려 app-be와 시험 repo 두 개로 한다. 공유 OpenShift Hub에 시험 데이터를 쓰는 것은 따로 묻는다.
 - **3단계 계획은 이 코드가 머지된 뒤 쓴다.** 3단계는 가져온 Task를 해당 repo 엔진의 Story Task 모드로 넘기고, 하트비트 단계를 실제 단계로 바꾼다.

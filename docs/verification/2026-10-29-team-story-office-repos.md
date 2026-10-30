@@ -82,7 +82,7 @@
 
 - **가져온 Task의 실행(3단계):** Story Task 모드로 넘기기, 하트비트의 실제 단계, push·PR·Story base 자동 머지
 - **PL의 Story 올리기(4단계), 화면(5단계):** 2단계의 상태 확인은 `status --team`뿐이다.
-- **로컬 Hub로 하는 실제 확인:** `pazmo-office hub`에 시험 Story를 API로 올리고 eevee-be와 시험 repo 두 개로 가져가기·하트비트·재시작 뒤 이어 받기를 본다. 사용자 확인 뒤에 한다. 공유 Hub에 시험 데이터를 쓰는 것은 따로 묻는다.
+- **로컬 Hub로 하는 실제 확인:** `pazmo-office hub`에 시험 Story를 API로 올리고 app-be와 시험 repo 두 개로 가져가기·하트비트·재시작 뒤 이어 받기를 본다. 사용자 확인 뒤에 한다. 공유 Hub에 시험 데이터를 쓰는 것은 따로 묻는다.
 - **`up --team` 실제 실행:** VM·실행기·vendor 준비를 끝까지 하는 것. 자동 시험은 첫 검사(colima 또는 로그인)에서 멈추는 데까지만 본다. 2단계는 repo 엔진을 실행하지 않으므로, live 엔진 여러 개를 띄우는 것은 3단계에서 본다.
 - **다른 PC, 회사 IT·보안 정책, 실제 GitHub Enterprise의 `gh` 로그인**
 - 알려진 한계:

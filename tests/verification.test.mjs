@@ -226,7 +226,7 @@ test("timeout, signal, malformed review and review findings never count as pass"
 });
 
 test("a review runner that exits non-zero has no verdict and stops without spending a fix", async (t) => {
-  // 2026-10-27 eevee-be: the claude reviewer was refused by an API safeguard.
+  // 2026-10-27 app-be: the claude reviewer was refused by an API safeguard.
   const f = await setup(t),
     round = f.ledger.begin(f.item.id, f.candidate);
   const review = round.nodes.find((n) => n.kind === "review");
