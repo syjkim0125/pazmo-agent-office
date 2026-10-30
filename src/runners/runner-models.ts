@@ -33,6 +33,11 @@ export type ClaudeHook = { event: string; source: string };
 
 const invalid = () => new Error("MODEL_CATALOG_INVALID");
 
+/** How long stopping a discovery claude waits for it to exit: after its input
+ * is closed, after SIGTERM and after SIGKILL. A role run's 12 s grace (D28)
+ * also holds after SIGTERM here (D31). */
+export const CLAUDE_STOP_MS = Object.freeze({ input: 3000, term: 12000, kill: 2000 });
+
 /** The catalog bundled in the qualified binary: no network, account or user config. */
 export async function codexModels(
   binary: string,
@@ -122,16 +127,17 @@ export async function claudeModels(
   // A login refresh the CLI started holds ~/.claude/.oauth_refresh.lock until
   // it ends; the CLI's exit handler releases it, SIGKILL does not, and every
   // claude after that fails to sign in until the lock is a minute old. Closing
-  // the input lets the refresh finish; SIGTERM still runs the exit handler;
-  // SIGKILL is left for a CLI that ignores both.
+  // the input lets the refresh finish; SIGTERM still runs the exit handler,
+  // which waits up to 2 s for the refresh and on a busy Mac took up to 9.1 s
+  // to exit; SIGKILL is left for a CLI that ignores both.
   const stop = async () => {
     if (!child.pid || child.exitCode !== null || child.signalCode !== null) return;
     child.stdin.end();
-    if (await exitWithin(3000)) return;
+    if (await exitWithin(CLAUDE_STOP_MS.input)) return;
     signal("SIGTERM");
-    if (await exitWithin(2000)) return;
+    if (await exitWithin(CLAUDE_STOP_MS.term)) return;
     signal("SIGKILL");
-    await exitWithin(2000);
+    await exitWithin(CLAUDE_STOP_MS.kill);
   };
   try {
     return await new Promise((resolve, reject) => {

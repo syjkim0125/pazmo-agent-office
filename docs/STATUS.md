@@ -1,3 +1,13 @@
+# 2026-10-30 모델 목록 조회 claude의 멈춤 유예 12초, lean 시작 대기 30초
+
+- #45의 후속이다. 모델 목록을 물은 claude는 SIGTERM 2초 뒤 SIGKILL됐다. 갱신 중인 claude는 SIGTERM 뒤 갱신을 최대 2초 기다리고 나가며, 바쁠 때 끝나기까지 최대 9.1초가 걸렸다. 그래서 2초로는 2026-10-23 사고 자리(작업 만들기·계획 재개 바로 앞의 조회)에 잠금이 남을 수 있었다.
+- 사용자 선택(2026-10-30, (a))대로 조회도 SIGTERM 뒤 **12초**를 기다린다(D31, 역할 실행 D28과 같은 값). 멈춤 최악이 17초가 되고 live lean Office는 첫 조회 뒤에야 준비를 알리므로, **lean 시작 대기를 15초 → 30초**로 올렸다. 보통 claude는 지금처럼 0.3초에 끝난다.
+- 30초는 답한 claude의 멈춤 최악(17초)을 덮는다. 15초를 다 쓰고도 답하지 않는 claude는 조회만 최대 32초라 덮지 않는다. 그 시작은 "Office startup timed out"으로 끝난다. 조회 claude는 입력 끝을 받고 아무도 SIGKILL하지 않아 잠금을 남기지 않는다(갱신 중인 claude가 입력 끝만으로 끝나는지는 재지 않았다).
+- 자동 검사: 새·바꾼 시험 3개가 고치기 전에 실패했다. 돌연변이 4/4를 잡았다. 전체 시험 **1106/1106** exit 0(main #48·#49를 합친 뒤에도 같음), 타입 검사·Story 검사기 exit 0. 독립 리뷰 네 번(1차 Changes needed → 문서·시험 표현과 team-registry 시험 한도를 고침, 2차 Ready, 30초 결정·main 합침 뒤 3차 Ready, 표현 하나 고침). [변경 기록](verification/2026-10-30-discovery-stop-grace.md)
+- 리뷰가 물은 "32초 경우까지 덮도록 42초 이상으로 올릴지"에 사용자가 "그대로"라고 답해(2026-10-30) 30초로 두고 D31에 적었다.
+- PR syjkim0125/pazmo-agent-office#51. G4는 2026-10-30 사용자 지시("설명해주고 … 머지도 해")로 컨트롤러가 쓴 답을 승인으로 기록했다(승인 후 머지). 사용자는 답을 기록 전에 보지 않았다. [G4 기록](verification/2026-10-30-discovery-stop-grace-g4.md)
+- **남은 것:** 실제 claude가 입력이 닫히는 것만으로 끝내기를 시작하는지, 바쁠 때 실제 lean 시작 시간, 조회 1단계의 `claude auth status`가 잠금을 잡는지(10초 시간 초과 때 SIGKILL). 모두 재지 않았다.
+
 # 2026-10-29 부하에서만 실패하던 시험 고치기
 
 - 다른 시험과 같이 돌 때만 `Office startup timed out.`으로 실패하던 두 시험은 claw를 켜는 시험이었다. claw는 시작하면서 TypeScript 모듈 약 220개를 변환한다. 유휴 1–2초가 CPU가 바쁘고 메모리가 스왑되면 1분을 넘기도 한다. 시작 대기를 **claw만 120초**로 늘렸다. legacy·lean·team은 15초 그대로다. 서비스가 죽거나 오류로 답하면 기다리지 않는다.
@@ -19,7 +29,7 @@
 - 한계: 막힌 claude도 모델 목록 조회 때는 CLI를 띄우므로, 조회마다 그 SessionStart·SessionEnd hook이 한 번 돈다(이 변경 전부터 같음).
 - 자동 검사: root 1104/1104, 타입 검사 exit 0, Story 검사기 exit 0. 독립 리뷰 두 번(1차 Changes needed → 고침, 2차 코드 승인·문서 반영). PR syjkim0125/pazmo-agent-office#45.
 - G4는 2026-10-30 피드백(답 초안)을 본 뒤 "승인 후 머지"로 기록했다(D13, ① 승인 후 머지). [G4 기록](verification/2026-10-30-claude-stop-grace-hooks-g4.md)
-- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(후속), `./office` 시작 1단계의 hook 확인(후속). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
+- **남은 것:** 관리형 hook이 실제로 걸린 Mac에서의 확인, 모델 목록 조회 자체의 2초 SIGKILL(→ D31로 12초, 위), `./office` 시작 1단계의 hook 확인(후속). [변경 기록](verification/2026-10-30-claude-stop-grace-hooks.md)
 
 # 2026-10-29 실제 claude·codex CLI로 실행기 오류와 SIGTERM 종료 확인
 

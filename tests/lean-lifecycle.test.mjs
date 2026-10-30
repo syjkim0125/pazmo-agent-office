@@ -16,6 +16,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { locate } from "../src/cli/project.ts";
 import { STARTUP_MS, start, vendorInstalled } from "../src/cli/lifecycle.ts";
+import { CLAUDE_STOP_MS } from "../src/runners/runner-models.ts";
 import { assertOfficesExited, officePid } from "./office-process.mjs";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
@@ -54,6 +55,15 @@ function setup(t) {
   return f;
 }
 const commandLine = (pid) => execFileSync("/bin/ps", ["-o", "command=", "-p", String(pid)], { encoding: "utf8" }).trim();
+
+// A live lean Office reports ready only after its first runner discovery, and
+// that discovery waits for the claude it asked to exit (D31). This keeps the
+// start wait 10 s above that stop; it does not cover a claude that also takes
+// its whole 15 s to answer (see STARTUP_MS).
+test("the lean start wait is 10 s longer than a discovery claude's slowest stop", () => {
+  const { input, term, kill } = CLAUDE_STOP_MS;
+  assert.ok(STARTUP_MS.lean >= input + term + kill + 10000, `${STARTUP_MS.lean} ms`);
+});
 
 test("start --lean runs the lean engine on its own data, without the vendor loader", async (t) => {
   const f = setup(t);
