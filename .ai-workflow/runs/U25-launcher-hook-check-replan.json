@@ -1,0 +1,290 @@
+{
+  "version": 1,
+  "runId": "a15bd77b-180e-4c8c-a2cc-e1d504979092",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M7",
+          "M8",
+          "M9",
+          "M10",
+          "M11",
+          "M12",
+          "M13",
+          "M14",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V16",
+          "V15",
+          "V14",
+          "V13",
+          "V12",
+          "V11",
+          "V10",
+          "V9",
+          "V8",
+          "V7",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "584f9fec355b137b920212577aac5730a2d9d34355b6c896b21feec7ebffa1b1",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replanned after review 1 changed the D30 wording (only a blocked CLI that is logged in reports RUNNER_BLOCKED). Earlier run .ai-workflow/runs/U25-launcher-hook-check.json holds attempt 1 (2d1fbba) and review 1 (.ai-workflow/runs/U25-review-1.md). Attempt 2: assertRunnerLogin and createLiveRuntime count a CLI as blocked only when it is also logged in (pinned: Mac codex auth present and codex blocked), so a logged-out blocked CLI keeps LOGIN_REQUIRED with the install/login lead and the block hint; pinned block has its own headline (no 'no codex·claude' next to 'claude: 준비됨'); startupRunners forwards extraDirs; fakeRunners(t, hooks, {codex, claude}) removes its temp root and can log either CLI out. RED seen for 3 new tests (launcher logged-out block incl. pinned, launcher pinned headline, live-runtime logged-out block); 2 more fill review gaps (logged-out claude not listed; AGENTS.md-blocked codex leads to a claude listing). GREEN: launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0, story exit 0. Mutations 12/13 caught; the survivor (extraDirs not forwarded) is a test-isolation seam with no observable difference on this Mac. Attempt-1 evidence still holds: real up (claw, lean) with fake hooked logged-in claude stops at step 1 (RUNNER_BLOCKED, no [1/4]); real claude 2.1.280 not blocked, listing 1.27-1.43 s idle.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/live.ts",
+            "src/runtime/runner-settings.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-fixture.mjs",
+            "tests/runner-settings.test.mjs",
+            ".ai-workflow/runs/U25-review-1.md",
+            "docs/verification/2026-10-30-launcher-hook-check.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "ac9369025c79a3799cbda618b6460b721f750faa70a885bad5f321eda661fe37",
+          "src/runtime/live.ts": "c189d44bc30901c69e2a6cabae590e668e1fa0ba7b274b0e4fc1c5e67f9aa593",
+          "src/runtime/runner-settings.ts": "269ec747b7f5d25d9723ce563f4268f2686ac1771d6279a7185e925fad6f5793",
+          "tests/launcher.test.mjs": "1336a01bfaadbd64a8bbdbc7ebee1ca71876589fcbf86f51a21d3678bca2e50b",
+          "tests/live-runtime.test.mjs": "8477e22f1a3d7fc3c2fccf5204ec58fe825351b89d6dabf5e57a5c1ad2f4f632",
+          "tests/runner-fixture.mjs": "73e88ba0cf07fdded610047a96265f0f2798425d966a203c11f0a5ce0c181a88",
+          "tests/runner-settings.test.mjs": "a0c20494776e9c0af05a913889aa4a1ea28ea3e03f6368987ad157e35f2f9cba",
+          ".ai-workflow/runs/U25-review-1.md": "3ddb01f88e609b9dbefac0edc080e01b756526b1c2bc35a197e1054d4521f2aa",
+          "docs/verification/2026-10-30-launcher-hook-check.md": "816284dc0813586ef9835df744c63213188f8cd2c772171102ae857cacc29ddd",
+          "docs/understanding/pazmo-agent-office-contract.md": "62f5fa83695051c0d7fe418ecffb3ecb48ea7905dcf009e500c52390de9d3364"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Review 1 (2d1fbba): Changes needed, fixed in implement attempt 2 (2e8a816). Review 2 by the same independent reviewer on 2e8a816: Approve, no Critical/Important; launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0. Minor: two-step hint for a logged-out blocked codex next to a hooked claude, older pinned lead, worst-case arithmetic (22 s), D30 parenthetical placement, doc placeholders.",
+          "evidence": [
+            ".ai-workflow/runs/U25-review-1.md",
+            ".ai-workflow/runs/U25-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-review-1.md": "3ddb01f88e609b9dbefac0edc080e01b756526b1c2bc35a197e1054d4521f2aa",
+          ".ai-workflow/runs/U25-review-2.md": "4bdffdb6f19f7cb251ae4b02de932dee98c01fb2eff2f6eaaf7fc0bcaf1b3ea4"
+        }
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "17f005f0a30b4c87d4d8f31d31834765a7efa84bbf175666af2953f89687b02b"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T01:59:00.258Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T01:59:16.507Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replanned after review 1 changed the D30 wording (only a blocked CLI that is logged in reports RUNNER_BLOCKED). Earlier run .ai-workflow/runs/U25-launcher-hook-check.json holds attempt 1 (2d1fbba) and review 1 (.ai-workflow/runs/U25-review-1.md). Attempt 2: assertRunnerLogin and createLiveRuntime count a CLI as blocked only when it is also logged in (pinned: Mac codex auth present and codex blocked), so a logged-out blocked CLI keeps LOGIN_REQUIRED with the install/login lead and the block hint; pinned block has its own headline (no 'no codex·claude' next to 'claude: 준비됨'); startupRunners forwards extraDirs; fakeRunners(t, hooks, {codex, claude}) removes its temp root and can log either CLI out. RED seen for 3 new tests (launcher logged-out block incl. pinned, launcher pinned headline, live-runtime logged-out block); 2 more fill review gaps (logged-out claude not listed; AGENTS.md-blocked codex leads to a claude listing). GREEN: launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0, story exit 0. Mutations 12/13 caught; the survivor (extraDirs not forwarded) is a test-isolation seam with no observable difference on this Mac. Attempt-1 evidence still holds: real up (claw, lean) with fake hooked logged-in claude stops at step 1 (RUNNER_BLOCKED, no [1/4]); real claude 2.1.280 not blocked, listing 1.27-1.43 s idle.",
+          "evidence": [
+            "src/cli/launcher.ts",
+            "src/runtime/live.ts",
+            "src/runtime/runner-settings.ts",
+            "tests/launcher.test.mjs",
+            "tests/live-runtime.test.mjs",
+            "tests/runner-fixture.mjs",
+            "tests/runner-settings.test.mjs",
+            ".ai-workflow/runs/U25-review-1.md",
+            "docs/verification/2026-10-30-launcher-hook-check.md",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          "src/cli/launcher.ts": "ac9369025c79a3799cbda618b6460b721f750faa70a885bad5f321eda661fe37",
+          "src/runtime/live.ts": "c189d44bc30901c69e2a6cabae590e668e1fa0ba7b274b0e4fc1c5e67f9aa593",
+          "src/runtime/runner-settings.ts": "269ec747b7f5d25d9723ce563f4268f2686ac1771d6279a7185e925fad6f5793",
+          "tests/launcher.test.mjs": "1336a01bfaadbd64a8bbdbc7ebee1ca71876589fcbf86f51a21d3678bca2e50b",
+          "tests/live-runtime.test.mjs": "8477e22f1a3d7fc3c2fccf5204ec58fe825351b89d6dabf5e57a5c1ad2f4f632",
+          "tests/runner-fixture.mjs": "73e88ba0cf07fdded610047a96265f0f2798425d966a203c11f0a5ce0c181a88",
+          "tests/runner-settings.test.mjs": "a0c20494776e9c0af05a913889aa4a1ea28ea3e03f6368987ad157e35f2f9cba",
+          ".ai-workflow/runs/U25-review-1.md": "3ddb01f88e609b9dbefac0edc080e01b756526b1c2bc35a197e1054d4521f2aa",
+          "docs/verification/2026-10-30-launcher-hook-check.md": "816284dc0813586ef9835df744c63213188f8cd2c772171102ae857cacc29ddd",
+          "docs/understanding/pazmo-agent-office-contract.md": "62f5fa83695051c0d7fe418ecffb3ecb48ea7905dcf009e500c52390de9d3364"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T01:59:16.785Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T02:03:07.699Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Review 1 (2d1fbba): Changes needed, fixed in implement attempt 2 (2e8a816). Review 2 by the same independent reviewer on 2e8a816: Approve, no Critical/Important; launcher+runner-settings+runner-models 49/49, live-runtime 'runner mode' 3/3, typecheck exit 0. Minor: two-step hint for a logged-out blocked codex next to a hooked claude, older pinned lead, worst-case arithmetic (22 s), D30 parenthetical placement, doc placeholders.",
+          "evidence": [
+            ".ai-workflow/runs/U25-review-1.md",
+            ".ai-workflow/runs/U25-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-review-1.md": "3ddb01f88e609b9dbefac0edc080e01b756526b1c2bc35a197e1054d4521f2aa",
+          ".ai-workflow/runs/U25-review-2.md": "4bdffdb6f19f7cb251ae4b02de932dee98c01fb2eff2f6eaaf7fc0bcaf1b3ea4"
+        }
+      }
+    }
+  ]
+}

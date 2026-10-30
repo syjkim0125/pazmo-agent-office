@@ -6,7 +6,7 @@
 
 ## 팀원용 한 명령 실행 (Apple Silicon Mac)
 
-Office 저장소의 `main` 브랜치를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, 그리고 Mac에 설치된 codex 또는 Claude Code 중 하나 이상의 로그인(`codex login` 또는 `claude auth login`)이다. 둘 다 있어도 되고 하나만 있어도 된다. 상태는 설정 → CLI 도구에서 확인한다. 고정 0.155.1 codex만 쓰려면 `--codex-runtime pinned`를 붙인다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
+Office 저장소의 `main` 브랜치를 받아 Office 저장소 디렉터리에서 실행한다. 최초 준비는 Node **24.19 이상 24.x**, npm/npx, Git·Python 3(Command Line Tools), Homebrew의 `colima`·`docker`, 그리고 Mac에 설치된 codex 또는 Claude Code 중 하나 이상의 로그인(`codex login` 또는 `claude auth login`)이다. 둘 다 있어도 되고 하나만 있어도 된다. `~/.codex/AGENTS.md`가 있는 codex와 hook이 걸린 claude는 쓰지 않는다. 쓸 수 있는 CLI가 없고 로그인된 CLI가 막혀 있으면 `./office`가 첫 단계에서 `RUNNER_BLOCKED`로 멈추고 CLI별 고칠 방법을 보인다. 상태는 설정 → CLI 도구에서 확인한다. 고정 0.155.1 codex만 쓰려면 `--codex-runtime pinned`를 붙인다. 이때는 설치된 CLI와 상관없이 Mac codex 로그인(`~/.codex/auth.json`)이 있고 `~/.codex/AGENTS.md`·`AGENTS.override.md`가 없어야 시작한다. 필요하면 `brew install node@24 colima docker`를 사용하고 Node 24가 PATH에서 선택되는지 확인한다. Windows·Linux·Intel Mac의 live 실행은 아직 지원하지 않는다.
 
 ```sh
 # 최초 한 번: Office 설치 폴더와 별도인 기존 Git 프로젝트 선택

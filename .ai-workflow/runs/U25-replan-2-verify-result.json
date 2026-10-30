@@ -1,0 +1,12 @@
+{
+  "token": "e9227cd65f0b429563772f51438a38a949af17b69112175dd17759db2402b6a9",
+  "output": {
+    "summary": "Fresh verification on the final commit 44f478c (worktree codex/launcher-hook-check on origin/main 3926ee2), after review 2's doc fixes: npm test 1114/1114 exit 0 (2026-10-30 11:04-11:06, load 13-25); typecheck exit 0; story check exit 0. Earlier runs: 2e8a816 1114/1114, 2d1fbba 1109/1109. Changed product files: src/cli/launcher.ts, src/runtime/runner-settings.ts, src/runtime/live.ts. Evidence limits: no automated up e2e test (a missing wiring would run the real vendor install, runtime download and VM start), real up checked once with a fake hooked claude on 2d1fbba; no Mac with a real managed hook; listing timing is idle-load only.",
+    "evidence": [
+      "docs/verification/2026-10-30-launcher-hook-check.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

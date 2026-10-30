@@ -1,0 +1,11 @@
+{
+  "token": "37ec2b0f703ca9ec018ee8177bdcc0123d823076c8df34a66911bfa34166e420",
+  "output": {
+    "summary": "Independent report-only review, two passes (same reviewer). Review 1 on 5e480ae: Approve, no Critical/Important (62/62, 85/85, typecheck 0, story 0, own mutations 6/6); Minor 1-4 fixed in 9216ed4 (pinned headline names the login-folder file, conditional login cue, runnerLoginOptions + test, D32 replaces D30's pinned sentences, solution doc), Minor 5 (discovery under pinned) left as a follow-up. Review 2 on 9216ed4: Approve, no Critical/Important (63/63, 85/85, typecheck 0, story 0); its Minor 1-2 (STATUS line, solution-doc wording) fixed in docs after the review; Minor 3 = review-1 Minor 5 follow-up. Remaining untested: the one prepareMachine call line (an up CLI test could reach the real vendor install/VM with the real claude in /opt/homebrew/bin).",
+    "evidence": [
+      ".ai-workflow/runs/U27-review-1.md",
+      ".ai-workflow/runs/U27-review-2.md"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

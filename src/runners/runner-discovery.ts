@@ -58,18 +58,26 @@ export function nativeBinary(candidate: string): string | null {
   return real;
 }
 
+const login = { codex: "codex login", claude: "claude auth login" } as const;
 const hints = {
   codex: {
     missing:
       "codex가 설치되어 있지 않습니다. 설치(npm i -g @openai/codex) 후 터미널에서 codex login을 실행하세요.",
-    login: "터미널에서 codex login을 실행하세요.",
+    login: `터미널에서 ${login.codex}을 실행하세요.`,
   },
   claude: {
     missing:
       "Claude Code가 설치되어 있지 않습니다. 설치 후 터미널에서 claude auth login을 실행하세요.",
-    login: "터미널에서 claude auth login을 실행하세요.",
+    login: `터미널에서 ${login.claude}을 실행하세요.`,
   },
 } as const;
+
+/** A block's hint replaces the login hint, so a blocked CLI that is also logged
+ * out keeps its login cue: fixing only the block would end in a login error.
+ * The hint's other way out is the other CLI, so the cue says it is for this one (D32). */
+export function blockedHint(install: Pick<RunnerInstall, "runner" | "loggedIn">, hint: string) {
+  return install.loggedIn ? hint : `${hint} ${install.runner}를 쓰려면 터미널에서 ${login[install.runner]}도 실행하세요.`;
+}
 
 /** Minimal environment for user CLIs: no inherited keys or proxies. USER lets
  * claude find its own macOS keychain item; Office never reads that item. */
@@ -131,7 +139,10 @@ async function inspect(
     loggedIn,
     ...(blocked ? { blocked } : {}),
     hint: blocked
-      ? `${blocked}가 있으면 codex가 이 개인 지침을 Office 역할 실행에 섞습니다. 그 파일을 다른 곳으로 옮기거나 claude를 고르세요.`
+      ? blockedHint(
+          { runner, loggedIn },
+          `${blocked}가 있으면 codex가 이 개인 지침을 Office 역할 실행에 섞습니다. 그 파일을 다른 곳으로 옮기거나 claude를 고르세요.`,
+        )
       : loggedIn
         ? "준비됨"
         : hints[runner].login,

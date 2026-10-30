@@ -1,0 +1,8 @@
+{
+  "token": "3dc446881dd5c9e74b714e810e66e3c7dae5d6ab98c63e561a7ccfae87253920",
+  "output": {
+    "summary": "Independent report-only review of 2d1fbba: Changes needed, no Critical. Important: RUNNER_BLOCKED drops the login cue for a blocked CLI that is also logged out (launcher and createLiveRuntime); step-1 tests miss a logged-out claude and an AGENTS.md-blocked logged-in codex. Minor: pinned headline contradicts 'claude: 준비됨'; fakeRunners leaks temp dirs; no extraDirs seam; idle-only timing claims; doc placeholders; lean timing wording.",
+    "evidence": [".ai-workflow/runs/U25-review-1.md"]
+  },
+  "evaluation": { "passed": false, "action": "fix", "feedback": "implement: count a CLI as blocked only when it is also logged in (pinned: codex blocked with Mac codex auth) so a logged-out blocked CLI keeps LOGIN_REQUIRED and its login cue; word the pinned headline for the pinned codex; add step-1 tests for a logged-out claude and an AGENTS.md-blocked logged-in codex; clean fakeRunners temp roots; forward extraDirs; fill doc placeholders and qualify timing claims." }
+}

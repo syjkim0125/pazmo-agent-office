@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { createServer } from "node:http";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { officeFixture } from "./coordinator-fixture.mjs";
 import { IntakeLedger } from "../src/core/intake.ts";
@@ -314,6 +314,100 @@ test("runner mode refuses startup when no installed CLI is logged in, naming bot
     ),
     (e) => e.code === "LOGIN_REQUIRED" && /codex login/.test(e.message) && /claude auth login/.test(e.message),
   );
+});
+
+test("runner mode refuses startup as blocked, not as a missing login, when the only logged-in CLI is blocked", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  const hint = "claude에 SessionEnd hook (policySettings)이 걸려 있습니다. 그 hook을 빼거나 codex를 고르세요.";
+  const settings = {
+    catalog: {
+      installs: {
+        codex: { runner: "codex", status: "missing", loggedIn: false, hint: "codex가 설치되어 있지 않습니다. 설치 후 터미널에서 codex login을 실행하세요." },
+        claude: { runner: "claude", status: "ready", loggedIn: true, blocked: "SessionEnd hook (policySettings)", hint },
+      },
+      models: {},
+    },
+    refresh: async () => settings.catalog,
+    choice: () => ({ runner: "claude", model: "default", reasoning: null }),
+  };
+  await assert.rejects(
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome: f.root, socket: join(f.root, "docker.sock"), codexRuntime: "installed" },
+      f.project,
+      f.root,
+      f,
+      token,
+      { settings, evidence: { record() {} } },
+    ),
+    (e) => e.code === "RUNNER_BLOCKED" && e.message.includes(hint) && !/설치·로그인한 뒤/.test(e.message),
+  );
+});
+
+test("runner mode still asks for the login when the blocked CLI is also logged out", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  const hint = "claude에 SessionEnd hook (policySettings)이 걸려 있습니다. 그 hook을 빼거나 codex를 고르세요.";
+  const settings = {
+    catalog: {
+      installs: {
+        codex: { runner: "codex", status: "missing", loggedIn: false, hint: "codex가 설치되어 있지 않습니다. 설치 후 터미널에서 codex login을 실행하세요." },
+        claude: { runner: "claude", status: "ready", loggedIn: false, blocked: "SessionEnd hook (policySettings)", hint },
+      },
+      models: {},
+    },
+    refresh: async () => settings.catalog,
+    choice: () => ({ runner: "claude", model: "default", reasoning: null }),
+  };
+  await assert.rejects(
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome: f.root, socket: join(f.root, "docker.sock"), codexRuntime: "installed" },
+      f.project,
+      f.root,
+      f,
+      token,
+      { settings, evidence: { record() {} } },
+    ),
+    (e) => e.code === "LOGIN_REQUIRED" && /설치·로그인한 뒤/.test(e.message) && e.message.includes(hint),
+  );
+});
+
+test("the pinned runtime starts only with the Mac codex login and no personal codex instructions, whatever claude's state", async (t) => {
+  const f = await setup(t),
+    bad = join(f.root, "unqualified");
+  writeFileSync(bad, "not a controller");
+  const settings = {
+    catalog: {
+      installs: {
+        codex: { runner: "codex", status: "missing", loggedIn: false, hint: "codex가 설치되어 있지 않습니다. 설치 후 터미널에서 codex login을 실행하세요." },
+        claude: { runner: "claude", status: "ready", loggedIn: true, hint: "준비됨" },
+      },
+      models: {},
+    },
+    refresh: async () => settings.catalog,
+    choice: () => ({ runner: "claude", model: "default", reasoning: null }),
+  };
+  const authHome = join(f.root, "codex-home");
+  mkdirSync(authHome);
+  const start = () =>
+    createLiveRuntime(
+      { controller: bad, binary: bad, authHome, socket: join(f.root, "docker.sock"), codexRuntime: "pinned" },
+      f.project,
+      f.root,
+      f,
+      token,
+      { settings, evidence: { record() {} } },
+    );
+  // A ready claude does not stand in for the pinned codex's login.
+  await assert.rejects(start(), (e) => e.code === "LOGIN_REQUIRED" && /고정 codex/.test(e.message) && /codex login/.test(e.message) && !/준비됨/.test(e.message));
+  writeFileSync(join(authHome, "auth.json"), "{}");
+  writeFileSync(join(authHome, "AGENTS.override.md"), "personal\n");
+  await assert.rejects(start(), (e) => e.code === "RUNNER_BLOCKED" && /고정 codex/.test(e.message) && e.message.includes("AGENTS.override.md"));
+  rmSync(join(authHome, "AGENTS.override.md"));
+  // The login and no instructions: startup goes on to the controller check.
+  await assert.rejects(start(), /UNVERIFIED_CONTROLLER_BINARY/);
 });
 
 test("runner wiring follows a per-task choose when given, otherwise the per-role settings choice", () => {

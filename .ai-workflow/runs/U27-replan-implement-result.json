@@ -1,0 +1,20 @@
+{
+  "token": "4813c8bdbdb6663e01b7500dbc126044078e3915aa9ac88dc7eda27efcb232d9",
+  "output": {
+    "summary": "Implement attempt 2 for D32 after review 1 (Approve, Minor 1-5). The first run .ai-workflow/runs/U27-pinned-codex-gate.json holds attempt 1 (5e480ae: pinnedCodexProblem shared by ./office step 1 and createLiveRuntime, blockedHint; RED 6 behaviour tests + 9 signature-only, GREEN 125/125, mutations 7/7, npm test 1118/1118) and review 1 started; D32 then gained 'D30의 pinned 문장을 바꿈', so the Story fingerprint changed and this new run was opened. Attempt 2 is 9216ed4: the pinned RUNNER_BLOCKED headline names the instruction file in the codex login folder (not 'codex가 막혀'), the blocked+logged-out cue reads '<cli>를 쓰려면 터미널에서 <command>도 실행하세요.', prepareMachine passes runnerLoginOptions(codexRuntime, homedir()) which a unit test pins, the solution doc names the pinned check. RED for attempt 2: 4 tests failed for the expected reason (headline, runnerLoginOptions stub, codex cue, claude cue). GREEN: launcher, live-runtime, runner-settings, runner-discovery, lean-office, runner-jobs, codex-controller, cli, team-lifecycle 148/148; typecheck exit 0; story check PASS. Real up --codex-runtime pinned re-run on 9216ed4 (claw, lean; temp HOME; no installed codex): RUNNER_BLOCKED / LOGIN_REQUIRED at step 1, no [1/4], no qualified-runtime, no .colima. Minor 5 (skip discovery under pinned) left as a follow-up.",
+    "evidence": [
+      "src/cli/launcher.ts",
+      "src/runtime/live.ts",
+      "src/runtime/runner-settings.ts",
+      "src/runners/runner-discovery.ts",
+      "tests/launcher.test.mjs",
+      "tests/live-runtime.test.mjs",
+      "tests/runner-settings.test.mjs",
+      "tests/runner-discovery.test.mjs",
+      ".ai-workflow/runs/U27-review-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}
