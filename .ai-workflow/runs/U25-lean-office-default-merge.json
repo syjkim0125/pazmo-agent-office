@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "runId": "fccefbd8-21b9-4e20-bbd5-b8436ff428f6",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan after merging #51 (D31): the D30 implementation from the first U25 run plus the conflict resolution (STARTUP_MS lean 30 s per D31, team 15 s, claw/legacy entries removed).",
+          "evidence": [
+            ".ai-workflow/runs/U25-merge-implement-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-merge-implement-2.md": "4afe0d269373f85ba83682a10672e1d573be4248ec29324ff5f47a6acbc7e63e"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Only the merge of #51 changed code since the reviewed 3bfb30a; #51 was reviewed on main; the conflict resolution was checked against D31 and the merged wait test.",
+          "evidence": [
+            ".ai-workflow/runs/U25-merge-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-merge-review-2.md": "0f33ad201ba8c148cb1d4c26d40472a5ecc53fb84a923d16aa81243a0b4a0051"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh after the merge: full suite 1074/1074, typecheck exit 0, Story checker exit 0; earlier checks unaffected; app-be real run and the pre-checks not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U25-merge-verify-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-merge-verify-2.md": "ba418ba846a733a861d8231b689aa5256bce9ccfff0a026f41cab543c7dbcffc"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "9b2582dac4123b82ef744cc96c454fbdbbe75c6ed029875e04f7077e5c8ef3d0"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-10-30T06:07:28.621Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-10-30T06:07:28.708Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Replan after merging #51 (D31): the D30 implementation from the first U25 run plus the conflict resolution (STARTUP_MS lean 30 s per D31, team 15 s, claw/legacy entries removed).",
+          "evidence": [
+            ".ai-workflow/runs/U25-merge-implement-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-merge-implement-2.md": "4afe0d269373f85ba83682a10672e1d573be4248ec29324ff5f47a6acbc7e63e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T06:07:28.819Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-10-30T06:07:28.906Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Only the merge of #51 changed code since the reviewed 3bfb30a; #51 was reviewed on main; the conflict resolution was checked against D31 and the merged wait test.",
+          "evidence": [
+            ".ai-workflow/runs/U25-merge-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-merge-review-2.md": "0f33ad201ba8c148cb1d4c26d40472a5ecc53fb84a923d16aa81243a0b4a0051"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T06:07:29.016Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-10-30T06:07:29.106Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh after the merge: full suite 1074/1074, typecheck exit 0, Story checker exit 0; earlier checks unaffected; app-be real run and the pre-checks not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U25-merge-verify-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U25-merge-verify-2.md": "ba418ba846a733a861d8231b689aa5256bce9ccfff0a026f41cab543c7dbcffc"
+        }
+      }
+    }
+  ]
+}

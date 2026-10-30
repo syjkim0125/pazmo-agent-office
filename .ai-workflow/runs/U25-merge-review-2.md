@@ -1,0 +1,3 @@
+# U25 (after merging #51) workflow-review — attempt 2
+
+The code since the reviewed revision 3bfb30a changed only by the merge of #51 (73b15ed), which #51's own review covered on main (PR syjkim0125/pazmo-agent-office#51, G4 2026-10-30). This branch's part of the merge is the conflict resolution: STARTUP_MS now { lean: 30000, team: 15000 }. Checked: lean keeps D31's 30 s (the merged test asserts it is 10 s above the discovery claude's slowest stop), team keeps 15 s as on main, the claw and legacy entries stay removed (no engine of that kind starts), and tests/lifecycle.test.mjs derives its CLI timeout from STARTUP_MS.lean + 60000 (now 90 s). The review of everything up to 3bfb30a is in U25-review-1.md.

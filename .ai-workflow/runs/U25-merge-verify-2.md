@@ -1,0 +1,3 @@
+# U25 (after merging #51) workflow-verify — attempt 2
+
+At 73b15ed (docs-only b8f3eb6 after it): full suite 1074/1074 exit 0 (73.5 s); typecheck (root tsc) exit 0; Story checker exit 0. Compared with origin/main 610169e (1106): -32 = 37 Claw/legacy/bridge-only tests removed + 5 new tests, as listed in the verification record. Earlier checks (fresh copy, upgrade, reuse, removal, pack) are in U25-verify-1.md and were not affected by the merge (no change to launcher, packaging or data handling). Not verified: app-be real run with ./office (V17), the two pre-checks, other PCs, first run without network.
