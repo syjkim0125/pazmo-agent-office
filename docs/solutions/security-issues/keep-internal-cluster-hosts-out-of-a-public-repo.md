@@ -35,8 +35,8 @@ The OpenShift hub work was ready to commit, but the repo is public. The manifest
      "objects": [ … "host": "${HUB_HOST}" … "name": "${BUILDER_IMAGE}" … ] }
    ```
    ```
-   # .gitignore
-   deploy/openshift/local.env
+   # .gitignore — any deploy folder, so a renamed folder cannot expose a leftover env file
+   deploy/*/local.env
    ```
    Deploy with `oc process -f deploy/openshift/pazmo-hub.json --param-file=deploy/openshift/local.env | oc apply -f -`.
 2. Change test fixtures to example hosts (`pazmo-hub.apps.example.com`, `github.example.com`). The manifest test asserts the parameters exist, are required and have no default, and that the route host is `${HUB_HOST}`.
