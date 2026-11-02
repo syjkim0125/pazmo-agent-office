@@ -1,3 +1,14 @@
+# 2026-11-02 팀 Story 보드 보완 (D35, A)
+
+- 제품 코드는 바꾸지 않았다. 끝난 사내 이관 작업 한 단계로 PL planning을 블라인드 시험했다. 결과에 따라 보완 다섯 가지를 정했다(사용자 선택 A, "A로 가자"). [결정 10장](understanding/team-story-board-decision.md#10-보완-2026-11-02-d35-사용자-선택-a)
+- 시험 결과: 막는 결정 25건 중 16건을 G1 전에 처리했다. 공존·롤백·실패 처리 5건은 ASSUMED로 넘어갔다. Task 검증 대상 16개 중 14개는 그 Task가 새로 만들 테스트였다.
+- 이번에 한 것은 kit repo 변경(P2)뿐이다. 브랜치 `fix/intake-risk-lenses`에 커밋했고, kit 전체 시험은 176/176이었다. push·릴리스는 하지 않았다.
+- **남은 것:**
+  - P3: 3단계 머지 뒤 작은 후속으로 한다(3단계 세션 답, 2026-11-02). Task 6 리뷰가 끝났고, 계약을 바꾸면 kit run을 다시 만들어야 하기 때문이다. 바꿀 곳은 `src/team/story-contract.ts`의 `ASSUMED_RULE` 문장, `assumedLines`의 prefix 검사(두 형식), `tests/team-story-contract.test.mjs`다
+  - P1·P5: 4단계
+  - P4: kit 5 업그레이드 때
+  - kit 릴리스와 Office의 kit 업그레이드
+
 # 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D33, A안)
 
 - `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D33, G3 2026-10-30 "A로 해").
