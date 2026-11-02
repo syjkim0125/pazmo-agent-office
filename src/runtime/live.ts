@@ -14,7 +14,8 @@ import type { IntakeLedger } from "../core/intake.ts";
 import type { OfficeStore } from "../core/store.ts";
 import type { ExecutionLedger } from "../core/budgets.ts";
 import type { HandoffLedger } from "../core/handoffs.ts";
-import type { VerificationLedger } from "../core/verification.ts";
+import { classifyObservation } from "../core/verification.ts";
+import type { Observation, VerificationLedger } from "../core/verification.ts";
 import type { CompletionLedger } from "../core/completion.ts";
 import { UnderstandingRunner } from "../runners/understanding.ts";
 import { PlanningCoordinator } from "../runners/planning-coordinator.ts";
@@ -109,8 +110,16 @@ type Runners = {
     answerDigest: string,
     signal: AbortSignal,
   ) => Promise<unknown>;
+  /** One registered check on a frozen candidate in the verifier VM. */
+  verify: (
+    candidate: Candidate,
+    check: { argv: string[]; timeoutMs: number },
+    signal: AbortSignal,
+  ) => Promise<Observation>;
   dispose: () => void;
 };
+/** The verifier's own cap (characters) on a check's captured output. */
+const OUTPUT_LIMIT = 256 * 1024;
 
 /** Process ownership only. Existing ledgers and kit remain the work-state owners. */
 export class LiveRuntime {
@@ -118,6 +127,7 @@ export class LiveRuntime {
   #ledgers: Ledgers;
   #runners: Runners;
   #active = new Map<string, Active>();
+  #verifying: { abort: AbortController; done: Promise<unknown> } | null = null;
   #closing = false;
   #error: { taskId: string; code: string } | null = null;
   #roles?: () => Record<string, RunnerChoice>;
@@ -145,8 +155,71 @@ export class LiveRuntime {
         kind,
         taskId,
       })),
+      /** A verify is running: like an active run, no other run starts beside it. */
+      verifying: this.#verifying !== null,
       lastError: this.#error,
     };
+  }
+  /** Runs registered checks again on a frozen candidate, one after another in
+   * the verifier VM: no model, no lease and no round (a Story Task's candidate
+   * after its base moved). It is a run of its own: refused while another is
+   * active and none starts beside it. A cancellation (the signal, or close)
+   * rejects CANCELLED once the check in flight has stopped, and starts no
+   * other. When it ends the engine is told, as after a run, but the result
+   * never waits for that continuation. */
+  async verify(
+    candidate: Candidate,
+    checks: { id: string; argv: string[]; timeoutMs: number }[],
+    signal?: AbortSignal,
+  ): Promise<{ id: string; verdict: "pass" | "fail" | "unknown"; output: string }[]> {
+    if (this.#closing) fail("EXECUTION_LOCKED", "The controller is stopping.");
+    if (this.#active.size || this.#verifying)
+      fail("BUSY", "Another run is active; verify after it settles.");
+    if (!Array.isArray(checks) || !checks.length || checks.length > 32)
+      fail("INVALID_REQUEST", "Verify between one and 32 checks.");
+    const ids = checks.map((check) => check?.id);
+    if (ids.some((id) => typeof id !== "string" || !id.trim()) || new Set(ids).size !== ids.length)
+      fail("INVALID_REQUEST", "Every check needs its own non-empty id.");
+    const cancelled = () => fail("CANCELLED", "The verify was cancelled.");
+    if (signal?.aborted) cancelled();
+    const abort = new AbortController(),
+      stop = () => abort.abort();
+    signal?.addEventListener("abort", stop, { once: true });
+    // Registered before the first check starts, as #start registers a run.
+    const verifying = { abort, done: Promise.resolve() as Promise<unknown> };
+    this.#verifying = verifying;
+    const done = (async () => {
+      const results = [];
+      for (const check of checks) {
+        if (abort.signal.aborted) cancelled();
+        const observation = await this.#runners.verify(
+          candidate,
+          { argv: check.argv, timeoutMs: check.timeoutMs },
+          abort.signal,
+        );
+        if (abort.signal.aborted) cancelled();
+        results.push({
+          id: check.id,
+          verdict: classifyObservation(observation),
+          output: observation.output.slice(0, OUTPUT_LIMIT),
+        });
+      }
+      return results;
+    })();
+    verifying.done = done;
+    try {
+      return await done;
+    } finally {
+      signal?.removeEventListener("abort", stop);
+      this.#verifying = null;
+      // Not awaited: the continuation pumps the engine (and lets the host's
+      // other engines go on), which may run other work for a long time.
+      void Promise.resolve()
+        .then(() => this.onSettled?.())
+        .catch((error) =>
+          console.error("Verify continuation stopped:", error instanceof Error ? error.message : String(error)),
+        );
+    }
   }
   startPlanning(id: string, revision: number, inputDigest: string) {
     this.#ledgers.intake.packet(id, revision, inputDigest);
@@ -200,6 +273,8 @@ export class LiveRuntime {
   }
   #start(operation: Operation) {
     if (this.#closing) fail("EXECUTION_LOCKED", "The controller is stopping.");
+    if (this.#verifying)
+      fail("BUSY", "A verify is running; start after it settles.");
     if (this.#active.has(operation.taskId))
       fail("TASK_ACTIVE", "This task already has an owned operation.");
     const abort = new AbortController();
@@ -252,7 +327,7 @@ export class LiveRuntime {
     return { state: "cancelled", taskId: id };
   }
   assertIdle() {
-    if (this.#active.size)
+    if (this.#active.size || this.#verifying)
       fail(
         "TASK_ACTIVE",
         "Cancel active tasks and wait for process cleanup before stopping Office.",
@@ -261,7 +336,11 @@ export class LiveRuntime {
   async close() {
     this.#closing = true;
     for (const active of this.#active.values()) active.abort.abort();
-    await Promise.allSettled([...this.#active.values()].map((a) => a.done));
+    this.#verifying?.abort.abort();
+    await Promise.allSettled([
+      ...[...this.#active.values()].map((a) => a.done),
+      ...(this.#verifying ? [this.#verifying.done] : []),
+    ]);
     this.#runners.dispose();
   }
 }
@@ -520,6 +599,8 @@ export async function createLiveRuntime(
       jobFor: (packet, _context, prompt) =>
         roleJob ? roleJob(packet.role, packet.requestId, prompt) : job(prompt),
     });
+    // The round's checks and a verify outside a round run on the same verifier.
+    const verifier = new ContainerVerifier(client.run);
     const implementation = new OfficeCoordinator({
       ...ledgers,
       roles: new KitDelivery(
@@ -530,7 +611,7 @@ export async function createLiveRuntime(
       ),
       workspace: new ContainerWorkspace(client.run),
       reviewer: new ContainerReviewer(client.run),
-      verifier: new ContainerVerifier(client.run),
+      verifier,
       jobFor: (packet) =>
         roleJob
           ? roleJob(packet.role, packet.taskId, rolePrompt(packet))
@@ -556,6 +637,8 @@ export async function createLiveRuntime(
       },
       understanding: (id, requestId, answerDigest, signal) =>
         understandingFor(id).run(id, requestId, answerDigest, signal),
+      verify: async (candidate, check, signal) =>
+        (await verifier.run(candidate, check, () => {}, signal)).observation,
       dispose: client.dispose,
     }, runners
       ? {

@@ -12,6 +12,30 @@ test("claim takes the oldest ready task of the link's repo and returns what the 
   assert.deepEqual(t.verify[0].argv, ["npm", "test"]);
   assert.equal(board.claimNext(linkOf(c, be)), null); // 한 사람 하나
 });
+test("a claim with nothing to give names the member's open Task", () => {
+  const { board, pl, c, be, fe, linkOf, plBe } = opened();
+  const plFe = linkOf(pl, fe);
+  assert.equal(board.openTaskOf(plFe), null);
+  const t = board.claimNext(plBe); // api: story 1, task 2, in the be repo
+  assert.equal(board.claimNext(plFe), null);
+  assert.deepEqual(board.openTaskOf(plFe), { storyNumber: 1, taskNumber: 2, repoName: "app-be", state: "claimed" });
+  // Failed is still open: the member holds it until the PL releases or the member reruns it.
+  board.reportFailed(plBe, t.taskId, t.claimId, "재검증 실패");
+  assert.deepEqual(board.openTaskOf(plFe), { storyNumber: 1, taskNumber: 2, repoName: "app-be", state: "failed" });
+  // Another member with nothing open has none to name.
+  assert.equal(board.openTaskOf(linkOf(c, be)), null);
+});
+test("the open Task named for a claim can be the Story verification Task, which has no repo", () => {
+  const { board, b, c, be, fe, linkOf, plBe, pub } = opened();
+  const SHA = (n) => String(n).padStart(40, "0");
+  for (const l of [linkOf(c, be), linkOf(c, be), linkOf(b, fe)]) {
+    const t = board.claimNext(l);
+    board.mergeLock(l, t.taskId, t.claimId);
+    board.reportMerged(l, t.taskId, t.claimId, { prUrl: "https://github.example.com/team/app-be/pull/7", mergeCommit: SHA(t.number), summary: "s", assumptions: [] });
+  }
+  const v = board.claimVerify(plBe, pub.storyId);
+  assert.deepEqual(board.openTaskOf(plBe), { storyNumber: 1, taskNumber: v.number, repoName: null, state: "claimed" });
+});
 test("claim race: two owners, one ready task, one wins and the other gets null", () => {
   const ctx = setup();
   const { store, admin, b, be } = ctx;

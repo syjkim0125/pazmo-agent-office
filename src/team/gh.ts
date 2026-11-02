@@ -1,5 +1,5 @@
 import { accessSync, constants, statSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { fail } from "../cli/project.ts";
 import { runCommand } from "../runners/command.ts";
 
@@ -20,9 +20,13 @@ export type GhResult =
   | { ok: true }
   | { ok: false; reason: "missing" | "logged-out" | "timeout"; hint: string };
 
-function findGh(pathEnv: string): string | null {
+/** The first executable `name` on `pathEnv`, for the host tools (gh, git) that run with the person's own
+ * PATH. A relative entry (`.`, `bin`) is skipped: it would resolve against whatever folder the tool is run in,
+ * which for a Story Task is a checkout of the repo's own files. */
+export function findOnPath(pathEnv: string, name: string): string | null {
   for (const dir of pathEnv.split(":").filter(Boolean)) {
-    const candidate = join(dir, "gh");
+    if (!isAbsolute(dir)) continue;
+    const candidate = join(dir, name);
     try {
       if (!statSync(candidate).isFile()) continue;
       accessSync(candidate, constants.X_OK);
@@ -48,7 +52,7 @@ export async function ghStatus(
   },
 ): Promise<GhResult> {
   const login = `gh auth login --hostname ${host}`;
-  const gh = findGh(o.pathEnv);
+  const gh = findOnPath(o.pathEnv, "gh");
   if (!gh)
     return {
       ok: false,

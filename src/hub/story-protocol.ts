@@ -86,6 +86,28 @@ export function isBaseBranchName(name: string): boolean {
   );
 }
 
+/**
+ * A PR address as the hub stores it: `https://` with a host and no account part, and nothing a later page or log
+ * line could trip on (whitespace, control characters, `"`, `<`, `>`). Returns the parsed URL's href, or null. A
+ * member's Office checks a merged report with it before the report is kept to send.
+ */
+export function prUrlOf(value: unknown): string | null {
+  if (
+    typeof value !== "string" ||
+    value.length > LIMITS.prUrlMax ||
+    !value.startsWith("https://") ||
+    /[\s\u0000-\u001f\u007f-\u009f"<>]/.test(value)
+  )
+    return null;
+  try {
+    const url = new URL(value);
+    const ok = url.protocol === "https:" && url.hostname !== "" && url.username === "" && url.password === "";
+    return ok && url.href.length <= LIMITS.prUrlMax ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Two `files` entries touch the same place when they are equal or one is a folder (trailing `/`) holding the other. */
 export function filesOverlap(a: string, b: string): boolean {
   if (a === b) return true;

@@ -105,18 +105,20 @@ const SERVICE: Record<Engine, string> = {
 /** How long `start` waits for the service's ready message. Lean and team
  * services start in under 3 s even under load (measured for lean). A live lean
  * Office reports ready only after its first runner discovery, which waits up to
- * 17 s for the claude it asked to exit (D31), so lean waits 30 s. A claude that
- * also takes its whole 15 s to answer makes that discovery alone up to 32 s;
- * such a start still times out. The claude, in its own process group, then gets
- * the end of its input and is never SIGKILLed, so it cannot strand its login
- * lock. A crash or an error reply ends the wait at once, so only a service that
- * neither replies nor exits waits this long. */
+ * 17 s for the claude it asked to exit (D31), so lean waits 30 s. A live team
+ * Office does the same discovery once for all its repo engines (it shares one),
+ * so it waits as long. A claude that also takes its whole 15 s to answer makes
+ * that discovery alone up to 32 s; such a start still times out. The claude, in
+ * its own process group, then gets the end of its input and is never
+ * SIGKILLed, so it cannot strand its login lock. A crash or an error reply ends
+ * the wait at once, so only a service that neither replies nor exits waits this
+ * long. */
 export const STARTUP_MS: Record<Engine, number> = {
   lean: 30000,
-  team: 15000,
+  team: 30000,
 };
-/** What `status` shows of a running team Office: its TeamStatus. */
-const TEAM_FIELDS = ["repos", "paused", "dailyCap", "today", "claim", "busy"] as const;
+/** What `status` shows of a running team Office: its TeamStatus (its execution is the lifecycle's own field). */
+const TEAM_FIELDS = ["repos", "paused", "dailyCap", "today", "claim", "blockedBy", "busy"] as const;
 /** Whether `ws` resolves from src/runners, where exec-relay.ts imports it when
  * the service starts. */
 export function dependenciesInstalled(): boolean {
@@ -264,10 +266,17 @@ export async function start(
           token,
           instance,
           ...(live ? { live } : {}),
-          // The team Office checks the person's own `gh` login: their PATH and
-          // HOME, as live passes them for the runner CLIs.
+          // The team Office runs the person's own gh and git (their login,
+          // credential helper and ssh agent): their PATH and HOME, as live
+          // passes them for the runner CLIs.
           ...(engine === "team"
-            ? { gh: { pathEnv: process.env.PATH ?? "", home: homedir() } }
+            ? {
+                host: {
+                  pathEnv: process.env.PATH ?? "",
+                  home: homedir(),
+                  ...(process.env.SSH_AUTH_SOCK ? { sshAuthSock: process.env.SSH_AUTH_SOCK } : {}),
+                },
+              }
             : {}),
         });
       });

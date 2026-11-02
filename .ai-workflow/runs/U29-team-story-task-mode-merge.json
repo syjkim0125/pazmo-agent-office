@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "runId": "9e20f4be-f6ee-42f1-8de3-6f79017b54f4",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The stage-3 implementation verified at 957ec6e plus the docs-only merge 56acd7f of main #57 (D35): D34 and D35 both kept, STATUS entries both kept. No code or test change.",
+          "evidence": [
+            ".ai-workflow/runs/U29-merge-implement-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-merge-implement-2.md": "ee4cccf3d691a942245f9878e6c6279238ec48274c9ccb37954278d8ad59b39c"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the docs-only #57 merge: only STATUS, the Story contract and the decision doc changed; D33-D35 in order with no duplicate; D35 leaves P3 as a follow-up. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U29-merge-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-merge-review-2.md": "e24abcf7234d73df62c29284d41f175f8b8cb895825a9ee388119189675eb135"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh on 56acd7f: full suite 1275/1275 exit 0, typecheck exit 0, Story checker exit 0; the #57 merge changed no code or test. Real Hub/GitHub/VM run, other PCs and G4 not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U29-merge-verify-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-merge-verify-2.md": "dca15d4472b32c4b4610f6ef65049ec5ab4a6b2fa449ce7167a58632e63ff7e9"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0924c359a1ee815adbed487ebc527ff8be6176d95acdc31424fd5a5a606ca85d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-02T09:46:48.045Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-02T09:46:48.260Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The stage-3 implementation verified at 957ec6e plus the docs-only merge 56acd7f of main #57 (D35): D34 and D35 both kept, STATUS entries both kept. No code or test change.",
+          "evidence": [
+            ".ai-workflow/runs/U29-merge-implement-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-merge-implement-2.md": "ee4cccf3d691a942245f9878e6c6279238ec48274c9ccb37954278d8ad59b39c"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-02T09:46:48.495Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-02T09:46:48.752Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the docs-only #57 merge: only STATUS, the Story contract and the decision doc changed; D33-D35 in order with no duplicate; D35 leaves P3 as a follow-up. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U29-merge-review-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-merge-review-2.md": "e24abcf7234d73df62c29284d41f175f8b8cb895825a9ee388119189675eb135"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-02T09:48:43.581Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-02T09:48:43.733Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh on 56acd7f: full suite 1275/1275 exit 0, typecheck exit 0, Story checker exit 0; the #57 merge changed no code or test. Real Hub/GitHub/VM run, other PCs and G4 not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U29-merge-verify-2.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-merge-verify-2.md": "dca15d4472b32c4b4610f6ef65049ec5ab4a6b2fa449ce7167a58632e63ff7e9"
+        }
+      }
+    }
+  ]
+}

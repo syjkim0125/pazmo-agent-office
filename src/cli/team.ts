@@ -10,6 +10,7 @@ export const TEAM_ACTIONS: readonly string[] = [
   "resume",
   "cap",
   "status",
+  "rerun",
 ];
 
 /** `cap` is N or `off`. Anything else becomes NaN, which the store refuses as INVALID. */
@@ -24,13 +25,27 @@ function parseCap(value: string | undefined): number | null {
  * the data root; `list` shows the whole registry, so it takes no project (one is
  * accepted and ignored). `pause|resume|cap|status` read and write the team
  * settings in the same data root, so they work while no Office is running (and
- * take no project either). */
+ * take no project either). `rerun` writes the member's request to run the
+ * failed Task again, with its memo; a live team Office (`--live`, `up --team`)
+ * that is running, or the next one that starts, asks the Hub for it. */
 export async function teamCommand(
   action: string,
-  options: { project?: string; dataDir?: string; value?: string },
+  options: { project?: string; dataDir?: string; value?: string; memo?: string },
 ) {
   const root = dataRoot(options.dataDir);
   if (action === "list") return { repos: readTeam(root).repos };
+  if (action === "rerun") {
+    if (typeof options.memo !== "string")
+      return fail("ARGUMENT", 'team rerun needs --memo "<text>": what to do differently this time.');
+    const store = openTeamStore(teamDir(root));
+    try {
+      // NO_FAILED_CLAIM unless the open record failed; INVALID over 2000 characters.
+      store.requestRerun(options.memo);
+      return { requested: true };
+    } finally {
+      store.close();
+    }
+  }
   if (["pause", "resume", "cap", "status"].includes(action)) {
     // Refuse a bad cap before the database is touched.
     const cap = action === "cap" ? parseCap(options.value) : null;
@@ -51,6 +66,9 @@ export async function teamCommand(
           claimId: claim.claimId,
           project: claim.project,
           title: claim.task.title,
+          // `failed` is what team rerun asks to run again.
+          phase: claim.phase,
+          attempts: claim.attempts,
         },
         repos: readTeam(root).repos,
       };

@@ -1,0 +1,296 @@
+{
+  "version": 1,
+  "runId": "f8925574-94b0-4e23-9cac-3d430bb9ebe7",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team Story board stage 3 (Story Task mode), Tasks 1-9 of the plan plus the final whole-branch review fixes, on origin/main 43d18f6 (merged 2026-11-02). Commit list and scope in the note.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-implement-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-implement-1.md": "e71262c8428f6c743b565f72f1bcfa0b42dafefed73871dcb30461ea32e1da60"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Independent subagent reviews: Tasks 1-9 each reviewed and re-reviewed after fix rounds (one Critical and ten Important found and fixed, one of them a fix-round regression); final whole-branch review found four Important issues reproduced by probes, all fixed in one wave and confirmed ADDRESSED by a scoped re-review (probes 4/4 and 8/8 pass, RED confirmed). Deferred items listed in the note.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-review-1.md": "6046d57e204d00c8bb21f452cc818b6b24dd9ff1c19a12417a58601f763c5e9a"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh on 957ec6e: full suite 1275/1275 exit 0, typecheck exit 0, Story checker exit 0, no internal names; real Hub/GitHub/VM run, other PCs and G4 not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-verify-1.md": "aa89f6e9f8fd680bd80951cccad4d21fc8a8d82fba8d6928fb167fc1a8262e46"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "366fe10bd13d4619ee32895b822258bc1c768231594d1a90c717538b88927265"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-02T09:39:58.848Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-02T09:39:59.234Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Team Story board stage 3 (Story Task mode), Tasks 1-9 of the plan plus the final whole-branch review fixes, on origin/main 43d18f6 (merged 2026-11-02). Commit list and scope in the note.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-implement-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-implement-1.md": "e71262c8428f6c743b565f72f1bcfa0b42dafefed73871dcb30461ea32e1da60"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-02T09:40:19.833Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-02T09:40:20.051Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent subagent reviews: Tasks 1-9 each reviewed and re-reviewed after fix rounds (one Critical and eight Important found and fixed); final whole-branch review found four Important issues reproduced by probes, all fixed in one wave and confirmed ADDRESSED by a scoped re-review (probes 4/4 and 8/8 pass, RED confirmed). Deferred items listed in the note.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-review-1.md": "6046d57e204d00c8bb21f452cc818b6b24dd9ff1c19a12417a58601f763c5e9a"
+        }
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "workflow-review",
+      "affected": [
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "result summary miscounted the per-task Important findings (8; actual 10 including one fix-round regression)",
+      "at": "2026-11-02T09:40:34.343Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-02T09:40:34.526Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-02T09:40:34.752Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Independent subagent reviews: Tasks 1-9 each reviewed and re-reviewed after fix rounds (one Critical and ten Important found and fixed, one of them a fix-round regression); final whole-branch review found four Important issues reproduced by probes, all fixed in one wave and confirmed ADDRESSED by a scoped re-review (probes 4/4 and 8/8 pass, RED confirmed). Deferred items listed in the note.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-review-1.md": "6046d57e204d00c8bb21f452cc818b6b24dd9ff1c19a12417a58601f763c5e9a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-02T09:41:50.878Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-02T09:41:51.010Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "output": {
+          "summary": "Fresh on 957ec6e: full suite 1275/1275 exit 0, typecheck exit 0, Story checker exit 0, no internal names; real Hub/GitHub/VM run, other PCs and G4 not verified.",
+          "evidence": [
+            ".ai-workflow/runs/U29-replan-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U29-replan-verify-1.md": "aa89f6e9f8fd680bd80951cccad4d21fc8a8d82fba8d6928fb167fc1a8262e46"
+        }
+      }
+    }
+  ]
+}

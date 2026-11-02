@@ -30,7 +30,7 @@ Office 저장소의 `main` 브랜치를 받아 Office 저장소 디렉터리에�
 
 ## 팀 허브
 
-초대받은 팀원이 레포 목록과 담당자를 함께 관리하는 서버다. 팀 일은 팀 Story 보드(아래 [팀 Office](#팀-office-2단계-시험))로 Hub에서 나눠 가진다. 허브는 AI를 실행하지 않는다. 결정은 [team-hub-decision.md](understanding/team-hub-decision.md)와 [team-story-board-decision.md](understanding/team-story-board-decision.md)이다. **한 Mac 확인만 마쳤고 다른 사람 PC와 회사 IT 정책 확인은 남아 있다.**
+초대받은 팀원이 레포 목록과 담당자를 함께 관리하는 서버다. 팀 일은 팀 Story 보드(아래 [팀 Office](#팀-office-3단계-시험))로 Hub에서 나눠 가진다. 허브는 AI를 실행하지 않는다. 결정은 [team-hub-decision.md](understanding/team-hub-decision.md)와 [team-story-board-decision.md](understanding/team-story-board-decision.md)이다. **한 Mac 확인만 마쳤고 다른 사람 PC와 회사 IT 정책 확인은 남아 있다.**
 
 Office에서 허브 요청을 보내고 받던 화면(상단 팀 허브 버튼, 보내기, 받은 요청 수락·거절, 보낸 요청 취소)은 Claw Office와 함께 지웠다(D33). 허브 웹의 요청 게시판은 남아 있지만 수락한 요청을 실행하는 Office가 없다.
 
@@ -40,7 +40,7 @@ Office에서 허브 요청을 보내고 받던 화면(상단 팀 허브 버튼, 
 2. 합류하면 허브의 **내 Office 연결** 화면이 열린다. **연결 문자열 만들기 → 복사**를 누른다.
 3. 그 레포를 클론해 둔 자기 PC에서 `pazmo-office hub-link --project <레포 경로> --connect "<연결 문자열>"`을 실행한다.
    - 허브는 Office의 git origin으로 레포를 찾는다. 허브에 없는 레포면 내 이름을 담당자로 해서 자동 등록한다. 다른 사람이 담당자인 레포면 거부되고, 그 사람이나 관리자가 나를 담당자로 추가하면 같은 문자열로 다시 연결할 수 있다(10분 안).
-4. 그 레포를 [팀 Office](#팀-office-2단계-시험)에 등록한다.
+4. 그 레포를 [팀 Office](#팀-office-3단계-시험)에 등록한다.
 
 결정은 [team-hub-onboarding-decision.md](understanding/team-hub-onboarding-decision.md)이다.
 
@@ -119,7 +119,7 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
   - **origin을 확인하고 붙인다.** ssh 별칭(`git@github-work:…`)이나 포크·미러 origin은 다른 레포로 보여 `-2` 같은 새 레포가 생긴다.
   - **잘못 등록됐을 때:** 지금은 허브에서 레포를 지울 수 없다. 관리자가 레포 화면에서 맞는 담당자를 더하고 잘못 붙은 담당자를 뺀다. 남은 레포는 쓰지 않으면 된다.
 - 지문이 있으면 그 지문의 인증서 한 개만 신뢰하고, 없으면(OpenShift) 공인 인증서를 시스템 신뢰로 검증한다. 토큰은 Office 데이터 디렉터리에 0600으로 저장되고 브라우저로 가지 않는다.
-- 이 연결은 [팀 Office](#팀-office-2단계-시험)가 repo마다 쓴다. 단일 Office는 허브에 연결하지 않는다.
+- 이 연결은 [팀 Office](#팀-office-3단계-시험)가 repo마다 쓴다. 단일 Office는 허브에 연결하지 않는다.
 - `hub-unlink`는 이 Office의 설정만 지운다. 허브 쪽 연결 기록까지 끊으려면 허브의 레포 화면에서 연결 해제를 한다.
 - Office는 계속 `127.0.0.1`에만 열린다. 허브가 Office로 들어오지 않고, 연결은 사람이 명령을 실행할 때만 일어난다.
 
@@ -175,9 +175,9 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
   - 하위 작업이 취소되면 요청이 "리뷰"에 머물 수 있다. 이때는 작업 상세에서 직접 취소한다.
   - 영어 화면에서도 엔진이 쓴 결정 내용은 한국어로 보인다.
 
-## 팀 Office (2단계, 시험)
+## 팀 Office (3단계, 시험)
 
-팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜는 단계다. 팀 Office는 repo마다 lean 엔진을 하나씩 두지만, **2단계 팀 Office는 repo 엔진을 실행하지 않는다(3단계에서 Story Task 모드와 함께 켬).** 가져가기 멈춤·하루 상한에 걸리지 않으면, repo마다 Hub 연결과 `gh` 로그인을 확인한 뒤 담당 repo의 ready Task 하나를 가져와 기록하고 하트비트를 보낸다. **가져온 Task를 아직 실행하지 않는다(3단계).** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
+팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜고, 담당 repo의 Story Task를 가져와 실제로 돌리는 단계다. 가져온 Task는 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh` 로그인으로 다음을 차례로 한다: Task 브랜치에 커밋·push → Story base로 PR → Hub 머지 잠금 → 최신 Story base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub에 PR 주소·머지 커밋·3줄 요약·판단 기록 보고. **자동 시험만 마쳤고 실제 확인(로컬 Hub, 시험 repo 두 개, GitHub 시험 repo)은 아직이다.** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [3단계 검증 기록](verification/2026-11-02-team-story-task-mode.md)과 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
 
 ```sh
 # `pazmo-office`는 `node bin/pazmo-office.mjs`와 같다
@@ -190,36 +190,74 @@ pazmo-office hub-link --project <repo 로컬 경로> --connect "<연결 문자�
 # 3. repo의 Git 호스트마다 gh 로그인 (예: github.com과 회사 GitHub Enterprise)
 gh auth login --hostname <Git 호스트>
 
-# 4. 팀 Office 켜기 (VM·실행기·의존성 준비는 ./office와 같다)
+# 4. 팀 Office 켜기 (VM·실행기·의존성 준비는 ./office와 같다. 켜지면 가져가고 실행한다)
 ./office --team
+#    VM과 실행기가 이미 준비된 Mac이면: pazmo-office start --team --live
 
 # 5. 상태 보기
 pazmo-office status --team
 ```
 
-- **상태(`status --team`):** repo마다 `state`와 `gh` 결과가 나온다.
-  - `state`는 `ready`, `no-link`(Hub 연결 없음), `gh`(로그인 안 됨), `relink`(Hub가 연결을 거절함, 다시 연결), `hub-too-old`(Hub가 Story 경로를 모름) 중 하나다.
-  - 그 밖에 `paused`, `dailyCap`, `today`(오늘 새로 가져온 수), `claim`(지금 가진 Task의 Story·Task 번호와 제목, repo), `busy`(실행 중인 엔진이 있는지. 2단계는 엔진을 실행하지 않으므로 늘 `false`)가 나온다.
-  - `execution`은 `--live`(또는 `./office --team`)로 켰는지만 나타낸다. 2단계에서는 어느 쪽이든 repo 엔진이 잠겨 있다.
-  - ready가 아닌 repo는 5분마다 다시 확인한다. 연결하거나 로그인한 뒤 재시작할 필요는 없다.
+- **켜기 전에 (repo마다):**
+  - GitHub repo 설정에서 머지 커밋(Allow merge commits)을 허용한다. Office는 PR을 머지 커밋으로만 머지한다(`gh pr merge --merge`). 막혀 있으면 모든 Task가 머지 단계에서 세 번 연속 실패해 실패로 보고된다.
+  - 자기 폴더(등록한 repo 폴더와 그 밖의 worktree)에서 `feature/story-<N>/task-<M>` 브랜치를 체크아웃하지 않는다. 그 브랜치가 다른 곳에 체크아웃돼 있으면 git이 Office 체크아웃의 `checkout -B`를 거부하고, 세 번 연속이면 Task가 실패로 보고된다.
+- **켜는 법:** Task를 가져가고 실행하려면 `./office --team`(`up --team`)이나 `start --team --live`로 켠다. `--live` 없이 켠 `start --team`은 실행이 잠긴다.
+  - 잠긴 팀 Office는 아무것도 가져가지 않고, 등록된 repo에 git 명령을 하나도 돌리지 않는다.
+  - 열린 기록이 있으면 진행하지 않는다. 하트비트(실패한 Task는 Task 읽기)만 보낸다. 단, 단계가 `verified`·`merging`인 기록은 하트비트도 보내지 않고 버리지도 않는다. 머지된 PR이 아직 보고되지 않았을 수 있어서다(그동안 PL이 풀었으면 하트비트가 기록을 버려 그 머지가 보고되지 않는다). 하트비트가 끊긴 그 Task는 Hub에서 10분 뒤 보류로 보인다. `--live`로 다시 켜면 바로 기록의 단계부터 이어서 한다. 그 첫 구동이 끝나기 전에는 하트비트가 `NOT_YOURS`를 받아도 `verified`·`merging` 기록을 버리지 않는다(PL이 푼 뒤에도 머지된 PR을 늦게 보고할 수 있게). 하트비트는 첫 구동을 기다리지 않는다.
+- **켜기가 실패할 때:** `--live`로 켤 때 등록된 repo 하나라도 체크아웃을 만들지 못하면(커밋이 하나도 없는 repo, 그 사람의 PATH에 git이 없음) 팀 Office 전체가 켜지지 않는다. CLI는 `{"code":"FAILED","error":"The Story checkout of <repo 경로> could not be made: …"}`를 낸다. 팀 Office 안의 오류 코드는 `GIT_FAILED`지만 켜기 경로가 메시지만 넘겨서 코드는 `FAILED`로 보인다. 그 repo에 첫 커밋을 하거나 `team remove`로 뺀 뒤 다시 켠다.
+- **가져가는 조건:** `--live`로 켬, 모든 repo 엔진의 실행기(codex·claude) 준비, 열린 기록 없음, 실행 중인 엔진 없음, 가져가기 멈춤·하루 상한에 걸리지 않음. 실행기는 켤 때 한 번 확인하고, 준비돼 있으면 5분마다, 준비되지 않았으면 가져가기(30초)마다 다시 확인한다. 가져갈 수 없는 동안(열린 기록, 멈춤, 상한, 실행 중, 준비된 repo 없음)은 확인하지 않는다(확인할 때마다 codex·claude CLI가 실행된다). 준비되지 않았으면 그 상태가 바뀔 때마다 Office 로그에 그 repo와 엔진 agent의 실행기를 한 줄로 남긴다(`team: not claiming: the runners of <repo> (work codex, review codex) are not ready …`). 엔진 agent는 처음 켤 때 그때 준비된 CLI로 정해지고 바뀌지 않는다(지금은 바꿀 화면이 없다). 그 줄에 나온 CLI에 로그인한다.
+- **체크아웃과 사용자 폴더:** Task는 등록한 repo 폴더가 아니라 **Office 전용 체크아웃**에서 돈다.
+  - 위치는 repo의 Office 데이터 폴더(`<데이터 루트>/<repo id>/`, 기본 데이터 루트는 `~/.local/share/pazmo-agent-office`)의 `story-checkout/`이다. `--live`로 켤 때 그 repo의 `git worktree`(detached)로 한 번 만든다. Story 엔진 데이터는 같은 폴더의 `story/`다.
+  - 등록한 repo 폴더의 작업 트리·HEAD·체크아웃된 브랜치·커밋 안 한 변경은 바뀌지 않는다. 바뀌는 것은 repo `.git`의 worktree 등록(`git worktree list`에 보인다)과 로컬 브랜치 `feature/story-<N>/task-<M>`이 생기는 것뿐이다.
+  - 체크아웃은 Office 것이다. Task를 시작할 때마다 초기화한다(`reset --hard`, `clean`). 거기서 손으로 고치지 않는다. Office는 이름이 `story-checkout`이고 등록한 repo 폴더가 아닌 linked worktree만 초기화한다(그 밖의 폴더는 아무것도 바꾸지 않고 `GIT_FAILED`).
+  - 시도를 시작할 때 Office 체크아웃에서 `git checkout -B feature/story-<N>/task-<M> <시작점>`을 한다. 시작점은 원격 Task 브랜치 끝(없으면 Story base)이다. 그래서 같은 이름의 **로컬** 브랜치는 그 시작점으로 강제로 옮겨진다. 이 브랜치 ref는 repo `.git`에 있어 자기 폴더의 `git branch`에도 보이고, 거기에 push하지 않은 커밋이 있었으면 그 커밋은 브랜치에서 빠진다(reflog에만 남는다). 그 밖의 로컬 브랜치, 자기 폴더의 작업 트리·HEAD·체크아웃된 브랜치·커밋 안 한 변경은 건드리지 않는다.
+- **허용되는 push:** `git push origin <sha>:refs/heads/feature/story-<N>/task-<M>` 하나뿐이다(강제 push 없음). 그 Task 브랜치에서 Story base(`feature/story-<N>/base`)로 가는 PR을 열고 머지한다(머지 커밋). main·master·다른 ref·강제 push·브랜치 삭제는 하지 않는다.
+  - push는 그 사람의 git 설정·credential helper·ssh agent로, PR은 그 사람의 `gh` 로그인으로 한다. Office 프로세스의 `GH_TOKEN`·`GITHUB_TOKEN`은 넘기지 않는다. 훅은 끈다.
+  - PR 제목·본문(Hub Task 제목, 3줄 요약, `ASSUMED:` 줄)의 `@이름`은 알림이 가지 않게 `@` 뒤에 보이지 않는 문자(U+200D)를 넣는다. `dev@example.com` 같은 주소는 그대로다. Hub에 보고하는 판단 기록은 쓴 그대로다.
+  - PR은 Office가 push하고 검증한 head에서만 머지한다. 머지 단계에서 Task 브랜치 끝이 그 head와 다르면(PR의 "Commit suggestion" 반영, 봇, 팀원의 커밋) 머지하지 않고 그 시도를 실패로 센다. 다음 시도는 그 커밋이 있는 Task 브랜치에서 구현·검증한다.
+  - PL이 Task를 취소하거나 풀면 머지하지 않는다. base를 합친 뒤의 재검증 중에 취소해도, PR 머지 바로 전에 Hub 머지 잠금을 다시 물어 거절되면 머지하지 않는다.
+- **커밋 서명:** 커밋은 그 사람의 git 설정을 따른다(작성자 포함). `commit.gpgsign = true`인데 서명 agent(gpg-agent, ssh 서명 키)를 쓸 수 없으면 커밋이 서명 오류로 실패한다. 세 번 연속 실패하면 Task를 그 이유로 실패 보고한다. 켜기 전에 그 repo에서 서명이 되는지 확인하거나 서명을 끈다.
+- **실패와 다시 실행:**
+  - 한 Task는 최대 3번 시도한다. 엔진 안의 자동 수정 라운드는 세지 않는다. 엔진이 멈춤, 최신 base와 충돌, base를 합친 뒤 검증 실패가 한 번씩 센다. 90분 넘게 끝나지 않는 실행도 한 번으로 센다. 다음 시도는 직전 실패 이유를 받아 구현부터 다시 한다. 충돌은 충돌 표시를 남긴 채 다음 시도가 푼다.
+  - 엔진이 충돌 표시를 그대로 둔 채 검증을 마친 시도도 한 번으로 센다. 다음 시도가 그 파일 목록을 받아 푼다.
+  - 한 단계(push 거부, `gh` 오류 등)가 세 번 연속 실패해도 Task를 실패로 보고한다. GitHub가 PR을 머지됨으로 보이는데 머지 커밋을 아직 주지 않으면 실패로 세지 않고 다음 구동에 다시 본다.
+  - 사람이 Task의 PR을 머지하지 않고 닫으면, 그것을 멈춤으로 본다. Office는 새 PR을 열지 않고 Task를 바로 실패로 보고한다(시도로 세지 않음, 이유 `PR #<N> was closed on GitHub; reopen it, then run team rerun`). PR을 다시 열고 `team rerun`하면 그 PR로 이어 간다. 그만두려면 PL이 취소한다. GitHub가 브랜치 삭제 때문에 닫은 PR도 같다.
+  - 실패로 보고한 Task는 기록이 `failed`로 남고, Hub에서도 이 사람의 열린 Task다(그동안 뒤 Task는 막힌다). 원인을 보고 메모와 함께 다시 실행한다:
+
+```sh
+pazmo-office team status                                      # claim.phase가 failed인지 본다 (꺼져 있어도 된다)
+pazmo-office team rerun --memo "v2 엔드포인트로 바꿔서 다시"   # 메모는 2000자까지. 꺼져 있어도 된다
+```
+
+  - `team rerun`은 요청만 기록하고 `{"requested":true}`를 낸다. `--live`(또는 `./office --team`)로 켜져 있거나 다음에 그렇게 켜지는 팀 Office가 Hub에 다시 실행을 요청하고, 새 claim으로 구현부터 다시 한다. `--live` 없이 켠 팀 Office는 요청을 그대로 둔다. 시도 수는 0부터 다시 센다. 하루 상한에는 세지 않는다. 실패한 기록이 없으면 `NO_FAILED_CLAIM`이다.
+- **상태(`status --team`):**
+  - repo마다 `state`와 `gh` 결과가 나온다. `state`는 `ready`, `no-link`(Hub 연결 없음), `gh`(로그인 안 됨), `relink`(Hub가 연결을 거절함, 다시 연결), `hub-too-old`(Hub가 Story 경로를 모름) 중 하나다. ready가 아닌 repo는 5분마다 다시 확인한다. 연결하거나 로그인한 뒤 재시작할 필요는 없다.
+  - `execution`: `--live`(또는 `./office --team`)로 켰으면 `ready`, 아니면 `locked`다.
+  - `claim`: 지금 가진 Task의 Story·Task 번호, 제목, repo, 그리고 `phase`와 `attempts`다. `phase`는 `claimed`(시도 준비), `building`(VM에서 구현·리뷰·검증), `verified`(push와 PR 끝), `merging`(머지 잠금·base 합치기·머지), `reporting`(Hub에 보고 중), `failed`(실패로 보고함, `team rerun`을 기다림) 중 하나다. `attempts`는 이 claim에서 실패한 시도 수다.
+  - `blockedBy`: **마지막으로 Hub에 가져가기를 물었을 때** 줄 Task가 없던 이유인 이 사람의 열린 Task(`storyNumber`, `taskNumber`, `repoName`, `state`는 `claimed` 또는 `failed`)다. 그 답에 열린 Task가 없었거나 Hub가 Task를 줬으면 `null`이다. 가져가기를 묻지 않는 동안(열린 기록, 멈춤, 상한, 실행 중, 실행 잠김)에는 마지막 값이 그대로 남는다. 바뀔 때마다 Office 로그에도 한 줄 남는다(`team: blocked by story-<N> task-<M> (…)`). 2단계 실제 확인의 찾은 것 1(가져가지 않는 이유가 안 보임)을 이것으로 보인다. Hub가 보고를 끝내 거절한 claim은 가져가기를 묻지 않는 동안에도 여기에 나온다. 그때 `repoName`은 다음 가져가기 답이 채울 때까지 `null`이다.
+  - 그 밖에 `paused`, `dailyCap`, `today`(오늘 새로 가져온 수), `busy`(실행 중인 엔진이 있는지)가 나온다.
 - **가져가기 설정**(팀 Office가 꺼져 있어도 된다):
 
 ```sh
-pazmo-office team pause      # 새 Task를 가져가지 않는다 (가진 Task의 하트비트는 계속)
+pazmo-office team pause      # 새 Task를 가져가지 않는다 (가진 Task는 끝까지 한다)
 pazmo-office team resume
 pazmo-office team cap 3      # 하루 상한 1–100 (기본 5, 그 PC의 자정에 풀린다)
 pazmo-office team cap off    # 상한 없음
-pazmo-office team status     # 설정과 열린 기록 (Office가 꺼져 있어도 된다)
+pazmo-office team status     # 설정과 열린 기록(단계·시도 수 포함)
 ```
 
-- **멈추기:** `pazmo-office stop --team`.
-- **가진 Task:** 2단계는 가져온 Task를 끝내지 않는다. 그래서 한 번 가져오면 그 기록이 닫힐 때까지 새 Task를 가져가지 않는다. 켜져 있는 팀 Office는 60초마다 하트비트를 보내 그 Task가 보류되지 않으므로, PL은 풀 수 없고 취소만 할 수 있다. PL이 Hub에서 그 Task를 취소하면 켜져 있는 팀 Office가 다음 하트비트에서 기록을 닫는다. Hub가 그 Task를 모른다고 답하면(`NOT_FOUND`, Hub를 새로 만들었거나 repo를 다른 Hub에 다시 연결함) 기록을 닫고, Hub가 아직 이 사람의 claim이라고 하면 다음 가져가기에서 다시 받는다. Hub가 모른다고 답한 Task가 Hub의 다른 repo에 이 사람의 claim으로 남아 있으면(예: origin을 바꿔 다시 연결함), 그 Task를 PL이 풀거나 취소할 때까지 팀 Office는 아무 Task도 가져가지 않는다. Hub는 열린 Task가 있는 사람에게 새 Task를 주지 않는다. 지금은 `status --team`에 이유가 나오지 않는다(`claim`이 `null`).
-- **repo 바꾸기:** `team add`·`team remove`는 팀 Office를 멈춘 뒤에 한다. 켜지는 중에도 거부한다(`TEAM_RUNNING`). 지금 가진 Task의 repo는 폴더가 남아 있는 한 그 기록이 닫힐 때까지 뺄 수 없다(`OPEN_CLAIM`).
+- **멈추기:** `pazmo-office stop --team`. 엔진이 실행 중이면(구현·리뷰·검증, base를 합친 뒤의 검증) `TASK_ACTIVE`로 거부한다. 끝나기를 기다렸다가 다시 한다. push·PR·머지·보고 사이에서는 멈춰도 된다. 다음에 `--live`로 켜면 바로 기록의 단계부터 이어서 하고, 같은 PR을 두 번 열거나 두 번 머지하지 않는다.
+- **가진 Task:** 켜져 있는 팀 Office는 60초마다 하트비트를 보내므로 그 Task는 보류되지 않는다.
+  - PL이 Hub에서 취소하면(실패한 Task는 풀기도) 켜져 있는 팀 Office가 다음 하트비트(실패한 Task는 다음 Task 읽기)에서 기록을 닫고 엔진 실행을 멈춘다. 체크아웃과 브랜치는 남긴다.
+  - PR은 머지했는데 보고 전에 PL이 풀었으면, 그 머지를 Hub에 늦게라도 보고한다. Hub가 끊긴 동안 끝난 보고는 기록에 남겨 두었다가 다시 보낸다.
+  - Hub가 보고를 끝내 거절하면(`HUB_REFUSED_REPORT`, 로그에 PR 주소와 Hub의 이유가 나온다) 기록을 닫고 그 claim을 다시 가져오지 않는다. 같은 작업을 다시 돌려도 또 거절되기 때문이다. 그 Task는 `blockedBy`에 나오고, 하트비트가 없어 Hub에서 10분 뒤 보류로 보인다. PL이 풀거나 취소한다. PR 주소는 Hub가 받는 모양(`https://`, 계정 정보·공백·따옴표·꺾쇠 없음)으로만 보고한다. GitHub가 준 주소가 그렇지 않으면 `https://<host>/<owner>/<repo>/pull/<N>`으로 보고한다.
+  - Hub가 그 Task를 모른다고 답하면(`NOT_FOUND`, Hub를 새로 만들었거나 repo를 다른 Hub에 다시 연결함) 기록을 닫고, Hub가 아직 이 사람의 claim이라고 하면 다음 가져가기에서 다시 받는다.
+  - Hub는 열린 Task가 있는 사람에게 새 Task를 주지 않는다. 그 Task가 무엇인지는 `blockedBy`에 나온다.
+- **repo 바꾸기:** `team add`·`team remove`는 팀 Office를 멈춘 뒤에 한다. 켜지는 중에도 거부한다(`TEAM_RUNNING`). 지금 가진 Task의 repo는 폴더가 남아 있는 한 그 기록이 닫힐 때까지(머지·보고, 또는 PL의 취소) 뺄 수 없다(`OPEN_CLAIM`).
 - **repo 폴더를 옮기거나 지웠을 때:** `start --team`·`./office --team`이 `REPO_MISSING`으로 멈추고 그 경로와 `pazmo-office team remove --project <경로>`를 알려 준다. 폴더를 제자리에 돌려놓거나, 그 명령으로 뺀다. 폴더가 없는 repo는 가진 Task가 있어도 빠지고, 그 로컬 기록은 버린다(`REPO_REMOVED`). Hub의 그 Task는 하트비트가 끊겨 10분 뒤 보류되고, 그다음은 PL이 정한다. **그동안 팀 Office는 다른 repo의 Task도 가져가지 않는다.** Hub에는 그 Task가 아직 이 사람의 claim으로 남아 있기 때문이다. 빼기 전에 PL에게 그 Task를 취소해 달라고 하면 바로 풀린다.
-- **repo에 남은 lean 작업:** 등록 전에 그 repo의 단일 lean Office에서 하던 작업은 손대지 않고 그대로 기다린다. 팀 Office는 그것을 시작하지도 보여 주지도 않는다. 그 repo를 `team remove`하고 단일 Office로 켜면 다시 보인다.
-- **데이터:** 팀 Office 자신의 데이터는 데이터 디렉터리의 `team/`이다. repo 엔진은 그 repo의 기존 lean 데이터를 그대로 쓴다. 등록된 repo는 단일 Office로 켤 수 없다(`IN_TEAM_OFFICE`).
-- **실행 잠금:** 2단계 팀 Office는 `start --team`, `start --team --live`, `./office --team` 어느 것으로 켜도 repo 엔진을 잠근 채 연다. 가져가기·`gh` 확인·하트비트는 그래도 돈다.
-- **없는 것:** 가져온 Task 실행(3단계), PL의 Story 올리기(4단계), 화면(`monitor --team`은 `UNSUPPORTED`, 5단계)
+- **repo에 남은 lean 작업:** 팀 Office는 repo의 기존 lean 데이터(`lean/`)를 열지 않는다. 등록 전에 그 repo의 단일 lean Office에서 하던 작업은 손대지 않고 그대로 기다린다. 그 repo를 `team remove`하고 단일 Office로 켜면 다시 보인다.
+- **데이터:** 팀 Office 자신의 데이터는 데이터 루트의 `team/`이다(기록 `team.sqlite`, 로그 `office.log`). repo마다 Office 데이터 폴더에 `story/`(Story 엔진)와 `story-checkout/`(체크아웃)이 생긴다. 등록된 repo는 단일 Office로 켤 수 없다(`IN_TEAM_OFFICE`).
+- **없는 것:** PL의 Story 올리기(4단계), Story 검증 Task(PL만 가져간다), 화면(`monitor --team`은 `UNSUPPORTED`, 5단계)
 
 ## 검증
 

@@ -120,6 +120,12 @@ function classify(kind: Definition["kind"], value: Observation): Verdict {
   return report.verdict === "fail" || report.findings.length ? "fail" : "pass";
 }
 
+/** The rule a round joins its nodes with, for an observation outside a round
+ * (LiveRuntime.verify runs registered checks again), judged by its own kind. */
+export function classifyObservation(value: Observation): Verdict {
+  return classify(value?.kind, value);
+}
+
 /** Controller-internal join/router, not a worker-facing result submission API.
  * The trusted runner must supply observations it captures itself. This module
  * neither proves isolation nor launches processes; the live runtime stays locked.
@@ -156,6 +162,10 @@ export class VerificationLedger {
       CREATE TABLE IF NOT EXISTS pazmo_integration_feedback (
         round_id TEXT PRIMARY KEY REFERENCES pazmo_verification_rounds(id),
         feedback_json TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS pazmo_verification_conclusions (
+        round_id TEXT PRIMARY KEY REFERENCES pazmo_verification_rounds(id),
+        verification_subject TEXT NOT NULL
       );
     `);
     deliverySchema(db);
@@ -264,10 +274,22 @@ export class VerificationLedger {
           ),
       ) &&
       validDelivery(delivered);
+    // A Story Task ends at its verified candidate instead (conclude).
+    const concludedHere =
+      item.status === "done" &&
+      row.state === "awaiting_g4" &&
+      (
+        this.#db
+          .prepare(
+            "SELECT verification_subject FROM pazmo_verification_conclusions WHERE round_id=?",
+          )
+          .get(row.id) as { verification_subject: string } | undefined
+      )?.verification_subject === this.#subject(row);
     if (
       latest?.id === row.id &&
       item.status !== queueStatus[row.state] &&
-      !deliveredHere
+      !deliveredHere &&
+      !concludedHere
     ) {
       this.#state(row, "human_required", "QUEUE_STATE_CHANGED");
       return row;
@@ -519,6 +541,38 @@ export class VerificationLedger {
         row.number < 3 ? "INTEGRATION_FEEDBACK" : "FIX_BUDGET_EXHAUSTED",
       );
       return this.get(row.id);
+    });
+  }
+  /** A Story Task ends at its current verified candidate, with no G4 and no
+   * delivery: the team Office takes the candidate on (the PL's Story approval
+   * stands in for a task G4). The task is done and the round keeps awaiting_g4,
+   * so it stays readable as a delivered round does. Only the native Office's
+   * Story path calls this; repeating it changes nothing.
+   */
+  conclude(id: string): void {
+    this.get(id); // Persist cancellation or stale-contract invalidation first.
+    transaction(this.#db, () => {
+      const row = this.#refresh(this.#row(id)),
+        subject = this.#subject(row);
+      if (
+        row.state !== "awaiting_g4" ||
+        subject === null ||
+        this.#latest(row.task_id)?.id !== row.id
+      )
+        fail(
+          "ROUND_CLOSED",
+          "Only the current verified candidate can be concluded.",
+        );
+      this.#db
+        .prepare(
+          "INSERT OR IGNORE INTO pazmo_verification_conclusions VALUES (?,?)",
+        )
+        .run(row.id, subject);
+      this.#db
+        .prepare(
+          "UPDATE tasks SET status='done',updated_at=? WHERE id=? AND status='review'",
+        )
+        .run(this.#now(), row.task_id);
     });
   }
   invalidate(

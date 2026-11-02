@@ -252,7 +252,7 @@ function settleOpenClaim(root: string, project: string, folderGone: boolean): vo
     if (!folderGone)
       fail(
         "OPEN_CLAIM",
-        "The team Office holds an open Story Task of this repo. Remove the repo once that claim is closed: with the team Office running, ask the PL to cancel the Task on the Hub (while the team Office runs, a cancel is the only way to free it); the next heartbeat, within 60 s, drops the record. Then stop the team Office and remove the repo.",
+        "The team Office holds an open Story Task of this repo. Remove the repo once that record is closed: it closes when the Task is merged and reported, or when the PL cancels the Task on the Hub (a failed Task may also be released) while the team Office runs, which notices within 60 s, at its next heartbeat or, for a failed Task, its next read of it. Then stop the team Office and remove the repo.",
       );
     store.dropClaim(open.taskId, "REPO_REMOVED");
   } finally {

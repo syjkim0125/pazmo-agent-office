@@ -51,7 +51,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean); status --team; stop --team (no screen yet: monitor --team is unsupported)",
+        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)",
       );
       return;
     }
@@ -82,12 +82,12 @@ export async function main(args: string[]): Promise<void> {
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
-    // `team` takes its action before the flags: team add|remove|list|pause|resume|cap|status.
+    // `team` takes its action before the flags: team add|remove|list|pause|resume|cap|status|rerun.
     const teamAction = command === "team" ? args.shift() : undefined;
     if (command === "team" && !TEAM_ACTIONS.includes(teamAction ?? ""))
       fail(
         "ARGUMENT",
-        "team needs an action: add, remove, list, pause, resume, cap or status.",
+        "team needs an action: add, remove, list, pause, resume, cap, status or rerun.",
       );
     // `team cap` also takes its value, N or off, before the flags.
     const teamValue =
@@ -120,6 +120,7 @@ export async function main(args: string[]): Promise<void> {
           "--connect",
           "--public-url",
           "--listen",
+          "--memo",
         ].includes(flag) ||
         flag in options
       )
@@ -201,6 +202,8 @@ export async function main(args: string[]): Promise<void> {
     for (const [flag, commands] of Object.entries(allowed))
       if (options[flag] !== undefined && !commands.includes(command))
         fail("ARGUMENT", `${flag} is not supported by ${command}.`);
+    if (options["--memo"] !== undefined && teamAction !== "rerun")
+      fail("ARGUMENT", "--memo is only supported by team rerun.");
     const required = (flag: string): string => {
       const value = options[flag];
       if (typeof value !== "string")
@@ -239,6 +242,7 @@ export async function main(args: string[]): Promise<void> {
             project: options["--project"] as string | undefined,
             dataDir: options["--data-dir"] as string | undefined,
             value: teamValue,
+            memo: options["--memo"] as string | undefined,
           }),
         ),
       );

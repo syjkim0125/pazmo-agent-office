@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync, spawn, spawnSync } from "node:child_process";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { locate } from "../src/cli/project.ts";
 import { teamDir } from "../src/team/registry.ts";
+import { openTeamStore } from "../src/team/store.ts";
 import { assertOfficesExited } from "./office-process.mjs";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
@@ -91,6 +92,7 @@ test("start --team runs every registered repo in one Office; status --team shows
     dailyCap: 5,
     today: 0,
     claim: null,
+    blockedBy: null,
     busy: false,
   });
   assert.equal(repos.length, 2);
@@ -105,9 +107,13 @@ test("start --team runs every registered repo in one Office; status --team shows
     "auth status --hostname github.example.com",
   ]);
 
-  // Each repo engine has its own lean data; the repos themselves were not touched.
+  // Each repo has its own Story engine data, never the repo's lean data; without --live no checkout is
+  // made, and the repos themselves were not touched.
   for (const dir of [a, b]) {
-    assert.equal(existsSync(join(locate(dir, f.data).dataDir, "lean", "office.sqlite")), true, dir);
+    const { dataDir } = locate(dir, f.data);
+    assert.equal(existsSync(join(dataDir, "story", "lean", "office.sqlite")), true, dir);
+    assert.equal(existsSync(join(dataDir, "lean")), false, dir);
+    assert.equal(existsSync(join(dataDir, "story-checkout")), false, dir);
     assert.equal(existsSync(join(dir, ".pazmo-office")), false, dir);
   }
 
@@ -210,10 +216,76 @@ test(
   },
 );
 
+test("team rerun --memo writes the request; NO_FAILED_CLAIM without a failed record", (t) => {
+  const f = fixture(t);
+  const a = f.repo("alpha");
+  assert.equal(call(f, "team", "add", "--project", a).status, 0);
+  const refused = (r) => [r.status, r.value.code];
+  assert.deepEqual(refused(call(f, "team", "rerun", "--memo", "try again")), [1, "NO_FAILED_CLAIM"], "no record at all");
+
+  const store = openTeamStore(teamDir(f.data));
+  t.after(() => store.close());
+  const task = { taskId: "t1", claimId: "c1", number: 2, title: "Endpoint", story: { number: 7 } };
+  store.recordClaim(a, task, "claim");
+  assert.deepEqual(refused(call(f, "team", "rerun", "--memo", "try again")), [1, "NO_FAILED_CLAIM"], "a record that did not fail");
+  assert.equal(store.openClaim().rerunMemo, null);
+
+  // The Office reported the Task failed; it is stopped now, and the request waits for its next start.
+  store.setPhase("t1", "failed", { attempts: 3 });
+  const status = call(f, "team", "status").value;
+  assert.deepEqual(status.claim, { taskId: "t1", claimId: "c1", project: a, title: "Endpoint", phase: "failed", attempts: 3 });
+  assert.deepEqual(call(f, "team", "rerun", "--memo", "use the v2 endpoint"), { status: 0, value: { requested: true } });
+  assert.equal(store.openClaim().rerunMemo, "use the v2 endpoint");
+  assert.equal(existsSync(f.running), false, "no Office was started");
+
+  // A memo of up to 2000 characters, given with --memo, and only to team rerun.
+  assert.deepEqual(refused(call(f, "team", "rerun", "--memo", "x".repeat(2001))), [1, "INVALID"]);
+  assert.deepEqual(refused(call(f, "team", "rerun")), [1, "ARGUMENT"]);
+  assert.deepEqual(refused(call(f, "team", "status", "--memo", "x")), [1, "ARGUMENT"]);
+  assert.deepEqual(refused(call(f, "status", "--team", "--memo", "x")), [1, "ARGUMENT"]);
+  assert.equal(store.openClaim().rerunMemo, "use the v2 endpoint", "the refused requests changed nothing");
+  assert.deepEqual(call(f, "team", "rerun", "--memo", "x".repeat(2000)).value, { requested: true });
+});
+
+test("the team service refuses a host config whose ssh agent socket is not text, and takes one that is", async (t) => {
+  const f = fixture(t);
+  const dataDir = teamDir(f.data);
+  mkdirSync(dataDir, { recursive: true });
+  const service = new URL("../src/runtime/team-service.ts", import.meta.url).pathname;
+  /** The service's first reply to a startup message with this `host`; it is gone before this resolves. */
+  const reply = (host) =>
+    new Promise((resolve, reject) => {
+      const child = spawn(process.execPath, [service], {
+        stdio: ["ignore", "ignore", "ignore", "ipc"],
+        env: { PATH: dirname(process.execPath), HOME: f.home, LANG: "C" },
+      });
+      let message;
+      const timer = setTimeout(() => child.kill("SIGKILL"), 15000);
+      child.once("message", (m) => {
+        message = m;
+        child.kill("SIGTERM");
+      });
+      child.once("exit", () => {
+        clearTimeout(timer);
+        if (message) resolve(message);
+        else reject(new Error("the service exited without a reply"));
+      });
+      child.send({ project: dataDir, dataDir, port: 0, token: "a".repeat(64), instance: "b".repeat(32), host });
+    });
+  assert.deepEqual(await reply({ pathEnv: "", home: f.home, sshAuthSock: 5 }), { type: "error", error: "INVALID_HOST_CONFIG" });
+  assert.deepEqual(await reply(undefined), { type: "error", error: "INVALID_HOST_CONFIG" }, "the host is required");
+  // Past the check, the start goes on and stops at the empty registry.
+  const accepted = await reply({ pathEnv: "", home: f.home, sshAuthSock: join(f.root, "agent.sock") });
+  assert.equal(accepted.type, "error");
+  assert.match(accepted.error, /No repo is registered/);
+});
+
 test("the help text names the team Office", () => {
   const r = spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8" });
   assert.equal(r.status, 0);
   assert.match(r.stdout, /start --team/);
   assert.match(r.stdout, /up --team/);
   assert.match(r.stdout, /status --team/);
+  assert.match(r.stdout, /team rerun --memo/);
+  assert.match(r.stdout, /a live team Office/, "a rerun waits for a live team Office");
 });

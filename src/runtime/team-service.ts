@@ -2,16 +2,15 @@ import { realpathSync } from "node:fs";
 import { dirname } from "node:path";
 import { noSymlinks } from "../cli/project.ts";
 import { startLifecycleServer } from "../lean/server.ts";
-import { ghStatus } from "../team/gh.ts";
-import { createTeamOffice } from "../team/office.ts";
+import { createTeamOffice, lifecycleView } from "../team/office.ts";
 import type { TeamOffice } from "../team/office.ts";
 import type { LiveConfig } from "./live.ts";
 
-// The team Office's service process: one lean engine per registered repo and
-// the claim scheduler (src/team/office.ts), behind a server with the lifecycle
-// routes only (stage 2 has no page). Plain `node` runs it, as the lean service;
-// the engines it reuses load `ws`, so `start --team` checks that the root
-// dependencies are installed (NOT_INSTALLED).
+// The team Office's service process: one Story engine per registered repo, the
+// claim scheduler and the Story Task executor (src/team/office.ts), behind a
+// server with the lifecycle routes only (no page yet). Plain `node` runs it, as
+// the lean service; the engines it reuses load `ws`, so `start --team` checks
+// that the root dependencies are installed (NOT_INSTALLED).
 
 /** A shutdown that has not finished by then is abandoned with a non-zero exit. */
 const SHUTDOWN_LIMIT_MS = 10_000;
@@ -24,8 +23,9 @@ type Startup = {
   token: string;
   instance: string;
   live?: LiveConfig;
-  /** The person's own PATH and HOME, for `gh auth status`. */
-  gh: { pathEnv: string; home: string };
+  /** The person's own PATH and HOME (and ssh agent socket, if any), for the host gh and git: the service
+   * itself runs with Office's own HOME and a short PATH. */
+  host: { pathEnv: string; home: string; sshAuthSock?: string };
 };
 
 // IPC configuration is supplied by the trusted local launcher, never an agent.
@@ -91,10 +91,11 @@ process.once("message", async (raw: unknown) => {
       !/^[a-f0-9]{64}$/.test(value.token) ||
       typeof value.instance !== "string" ||
       !/^[a-f0-9]{32}$/.test(value.instance) ||
-      !value.gh ||
-      typeof value.gh !== "object" ||
-      typeof value.gh.pathEnv !== "string" ||
-      typeof value.gh.home !== "string"
+      !value.host ||
+      typeof value.host !== "object" ||
+      typeof value.host.pathEnv !== "string" ||
+      typeof value.host.home !== "string" ||
+      (value.host.sshAuthSock !== undefined && typeof value.host.sshAuthSock !== "string")
     )
       throw new Error("INVALID_HOST_CONFIG");
 
@@ -107,15 +108,14 @@ process.once("message", async (raw: unknown) => {
     noSymlinks(dataDir);
     // The team Office is its own project (teamProject); nothing else is accepted.
     if (project !== dataDir) throw new Error("INVALID_HOST_CONFIG");
-    const { pathEnv, home } = value.gh;
-    // Only the lifecycle's `execution` follows --live (what `up --team` and a
-    // later `start --team --live` compare against). The repo engines never get
-    // it: stage 2 opens every one locked (see createTeamOffice).
-    const live = value.live;
+    const { pathEnv, home, sshAuthSock } = value.host;
     office = await createTeamOffice({
       root: dirname(dataDir),
       token: value.token,
-      ghOf: (host) => ghStatus(host, { pathEnv, home }),
+      // Every repo's Story engine runs with it; without it nothing is claimed or run.
+      live: value.live,
+      // Their gh login is checked, and their git and gh run a Story Task's push and PR, with these.
+      host: { pathEnv, home, ...(sshAuthSock ? { sshAuthSock } : {}) },
     });
     if (shuttingDown) return finish();
     const team = office;
@@ -125,7 +125,8 @@ process.once("message", async (raw: unknown) => {
       project,
       engine: "team",
       port: value.port,
-      status: () => ({ execution: live ? "ready" : "locked", ...team.status() }),
+      // A live team Office is `ready` here, as `up --team` and a later `start --team --live` compare it.
+      status: () => lifecycleView(team.status()),
       assertIdle: () => team.assertIdle(),
       beginStop: () => team.beginStop(),
       // Same path as SIGTERM: one idempotent shutdown.

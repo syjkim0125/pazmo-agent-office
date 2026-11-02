@@ -8,6 +8,7 @@ import {
   StoryGraphError,
   VERIFY_NODE_ID,
   isBaseBranchName,
+  prUrlOf,
   storyBaseBranch,
   taskBranch,
   validateGraph,
@@ -103,6 +104,14 @@ export type ClaimedTask = {
   /** Merged ancestors of this Task in the same Story, by number. */
   upstream: { number: number; title: string; summary: string | null; assumptions: string[] }[];
   lastFailure: { reason: string; memo: string | null } | null;
+};
+/** The Task a member already holds, named for a claim that found nothing to give because of it. */
+export type OpenTaskRef = {
+  storyNumber: number;
+  taskNumber: number;
+  /** Null for a Story verification Task, which has no repo. */
+  repoName: string | null;
+  state: "claimed" | "failed";
 };
 export type StoryInbox = {
   mine: { taskId: string; claimId: string; storyId: string; state: "claimed" | "failed" } | null;
@@ -227,26 +236,6 @@ function keyOf(key: unknown): string {
   return key;
 }
 
-/**
- * A PR address as the hub stores it: `https://` with a host and no account part, and nothing a later page or log
- * line could trip on (whitespace, control characters, `"`, `<`, `>`). Returns the parsed URL's href, or null.
- */
-function prUrlOf(value: unknown): string | null {
-  if (
-    typeof value !== "string" ||
-    value.length > LIMITS.prUrlMax ||
-    !value.startsWith("https://") ||
-    /[\s\u0000-\u001f\u007f-\u009f"<>]/.test(value)
-  )
-    return null;
-  try {
-    const url = new URL(value);
-    const ok = url.protocol === "https:" && url.hostname !== "" && url.username === "" && url.password === "";
-    return ok && url.href.length <= LIMITS.prUrlMax ? url.href : null;
-  } catch {
-    return null;
-  }
-}
 const withinText = (value: unknown, max: number): value is string => typeof value === "string" && value.length <= max;
 
 /** Decision lines are trimmed and empty ones dropped before the line count and length limits apply. */
@@ -663,7 +652,7 @@ export class StoryBoard {
     };
   }
 
-  /** Oldest ready work Task of the link's repo in an open Story. `null` when the member already has an open Task or nothing is ready. */
+  /** Oldest ready work Task of the link's repo in an open Story. `null` when the member already has an open Task or nothing is ready (`openTaskOf` tells which). */
   claimNext(l: Link): ClaimedTask | null {
     return transaction(this.#db, () => {
       if (this.#openTask(l.member.id)) return null;
@@ -678,6 +667,19 @@ export class StoryBoard {
       this.#event(next.story_id, next.id, l.member.id, "claimed");
       return this.#claimedTask(next.id);
     });
+  }
+
+  /** The member's open Task by Story and Task number and repo, so a claim that returned null can say which Task is in the way. */
+  openTaskOf(l: Link): OpenTaskRef | null {
+    const t = this.#openTask(l.member.id);
+    if (!t) return null;
+    const repo = t.repo_id ? this.#get<{ name: string }>("SELECT name FROM hub_repos WHERE id=?", t.repo_id) : undefined;
+    return {
+      storyNumber: this.#story(t.story_id).number,
+      taskNumber: t.number,
+      repoName: repo?.name ?? null,
+      state: t.state as OpenTaskRef["state"],
+    };
   }
 
   /**
