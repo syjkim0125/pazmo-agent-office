@@ -54,14 +54,12 @@ export async function runCommand(
       err: Buffer[] = [];
     let size = 0,
       done = false,
-      grace: NodeJS.Timeout | undefined,
-      rekill: NodeJS.Timeout | undefined;
+      grace: NodeJS.Timeout | undefined;
     const finish = (code: number | null, signal: string | null) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
       clearTimeout(grace);
-      rekill?.unref();
       options.signal?.removeEventListener("abort", cancel);
       const stdout = Buffer.concat(out);
       resolve({
@@ -83,12 +81,13 @@ export async function runCommand(
           // A process that is still being forked when the signal lands misses it
           // (seen on macOS), so the group is killed again, also after the result is
           // finished, until kill fails (no process left, or only the unreaped leader:
-          // EPERM on macOS) or for at most 5 s.
-          const until = Date.now() + 5000;
-          rekill = setInterval(() => {
+          // EPERM on macOS) or for at most 250 tries (about 5 s). The timer keeps a
+          // caller that is about to exit alive until then.
+          let tries = 0;
+          const rekill = setInterval(() => {
             try {
               process.kill(group, "SIGKILL");
-              if (Date.now() < until) return;
+              if (++tries < 250) return;
             } catch {}
             clearInterval(rekill);
           }, 20);

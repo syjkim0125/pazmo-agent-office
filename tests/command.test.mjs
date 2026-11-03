@@ -42,30 +42,28 @@ test("timeouts and output limits never look like successful completion", async (
   assert.equal(flood.error, "OUTPUT_LIMIT");
   assert.ok(Buffer.byteLength(flood.stdout) <= 1024);
 });
-// Each shell forks `child` back to back, so the group SIGKILL lands mid-fork. On macOS a
-// process still being created misses that one signal (Linux closes this race in fork).
-const forkingShells = (child) =>
-  Promise.all(
-    Array.from({ length: 5 }, () =>
-      runCommand(
-        "/bin/sh",
-        ["-c", `echo $$; i=0; while [ $i -lt 40 ]; do ${child} & i=$((i+1)); done; wait`],
-        { timeoutMs: 30, maxBytes: 1024, env: { PATH: "/usr/bin:/bin" } },
-      ),
-    ),
+// Five shells print their pid (= their group id) and fork `child` back to back, killing
+// each at once, until the group SIGKILL at 200 ms lands mid-fork. On macOS a process
+// still being created misses that one signal (Linux closes this race in fork). The
+// caller is its own node process that exits as soon as the results are back.
+function stopForkingShells(child) {
+  const shell = `exec 2>/dev/null; echo $$; while :; do ${child} & kill $!; done`;
+  const caller = `import { runCommand } from ${JSON.stringify(import.meta.resolve("../src/runners/command.ts"))};
+const started = Date.now();
+const results = await Promise.all(Array.from({ length: 5 }, () =>
+  runCommand("/bin/sh", ["-c", ${JSON.stringify(shell)}], { timeoutMs: 200, maxBytes: 1024, env: { PATH: "/usr/bin:/bin" } })));
+console.log(JSON.stringify({ ms: Date.now() - started, errors: results.map((r) => r.error), groups: results.map((r) => r.stdout.trim()) }));`;
+  return JSON.parse(
+    execFileSync(process.execPath, ["--input-type=module", "-e", caller], { encoding: "utf8" }),
   );
-test("a timeout also kills a child that was being forked when the group was killed", async () => {
-  const started = Date.now();
-  const results = await forkingShells("sleep 5");
-  assert.deepEqual(
-    results.map((r) => r.error),
-    Array(5).fill("TIMEOUT"),
-  );
-  assert.ok(Date.now() - started < 4000, "every forked child must be cut off");
+}
+test("a timeout also kills a child that was being forked when the group was killed", () => {
+  const { ms, errors } = stopForkingShells("sleep 5");
+  assert.deepEqual(errors, Array(5).fill("TIMEOUT"));
+  assert.ok(ms < 4000, "every forked child must be cut off");
 });
-test("a stop leaves no process in the group, even one that does not hold the pipes", async () => {
-  const results = await forkingShells("sleep 5 >/dev/null 2>&1");
-  const groups = new Set(results.map((r) => r.stdout.trim()).filter(Boolean));
+test("a stop leaves no process in the group, even one without the pipes in a caller that exits", async () => {
+  const groups = new Set(stopForkingShells("sleep 5 >/dev/null").groups.filter(Boolean));
   const left = () =>
     execFileSync("ps", ["-A", "-o", "pgid="], { encoding: "utf8" })
       .split("\n")
