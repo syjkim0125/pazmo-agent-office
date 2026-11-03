@@ -7,7 +7,7 @@
   - `status --team`·`team status`의 `claim.waiting`, Office 로그 한 줄, Hub 실패 이유로 보인다. Hub·프로토콜은 그대로다.
 - 그 밖의 실패는 지금처럼 센다. 한도는 첫 실행에서야 안다(가져가기 전에 실제 모델을 부르지 않는다). 다시 하는 실행은 계약 폴더를 따로 둔다(`…-a<시도>-r<번째>`).
 - 신호 근거: 실제 확인 1차 DB의 출력, claude 2.1.280 설치본(stream의 `error` 필드, `rate_limit_event.resetsAt`), codex 0.155.1 설치본(`turn.failed`·`error` 이벤트와 계정 문구).
-- 자동 검사: 전체 `npm test` **1292/1292** exit 0, 타입 검사·Story 검사기·G1 검사 exit 0. 리뷰어 8개(`ce-code-review`)와 독립 재확인 2번을 거쳤다. 거기서 찾은 P2 2건과 P3 이하 4건은 시험과 함께 고쳤다. 대표 결함은 시간 초과 뒤 기다림이 남는 것이었다. kit 실행 `.ai-workflow/runs/U31-runner-account-wait.json`(최소 계획, kit 5 올리기 작업이 U30을 써서 U31).
+- 자동 검사: 전체 `npm test` **1292/1292** exit 0(main #60–#64를 합친 뒤 **1294/1294** exit 0), 타입 검사·Story 검사기·G1 검사 exit 0. 리뷰어 8개(`ce-code-review`)와 독립 재확인 2번을 거쳤다. 거기서 찾은 P2 2건과 P3 이하 4건은 시험과 함께 고쳤다. 대표 결함은 시간 초과 뒤 기다림이 남는 것이었다. kit 실행 `.ai-workflow/runs/U31-runner-account-wait.json`(최소 계획, kit 5 올리기 작업이 U30을 써서 U31)을 main을 합친 뒤 `U31-runner-account-wait-merge.json`이 이었다. 다음은 G4다.
 - **남은 것:**
   - 한도에 걸린 실제 계정으로 다시 확인(실제 확인 2차와 함께), PR과 G4.
   - 후속 후보: 기다리는 동안 Office의 실행기 탐색이 로그아웃으로 보면, 다시 하는 실행이 `RUNNER_NOT_READY`로 시도를 쓴다. D37의 신호 밖이다. [변경 기록](verification/2026-11-03-runner-account-wait.md)

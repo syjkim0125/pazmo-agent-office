@@ -118,3 +118,8 @@ RED는 모두 고치기 전에 봤다. node는 repo가 정한 24.19.0이다. PAT
   - workflow-review 2회
   - workflow-verify 1회
   - 상태 `g4`다. G4(사람의 이해 확인)는 머지 전에 한다.
+- main(#60–#64, D38과 따옴표 경로 요약 수정)을 합친 `e0c7bbb`에서 다시 돌렸다.
+  - 전체 `npm test`: **1294/1294**, exit 0. #62가 시험 2개를 더했다.
+  - 타입 검사·Story 검사기·G1 검사: exit 0.
+  - 충돌은 Story(D37 다음 D38)와 STATUS뿐이었고 양쪽을 다 살렸다.
+  - kit 실행 `U31-runner-account-wait-merge.json`이 이어서 `g4`다.
