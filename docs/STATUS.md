@@ -20,6 +20,8 @@
   - 머지 뒤 main을 합치는 다른 브랜치의 4.1.0 kit run은 읽기 전용이 되므로, 그 브랜치는 v3 run을 새로 시작해야 한다
   - `docs/solutions`의 옛 `kitSource`·`role-runs` 언급 정리
 
+- PR syjkim0125/pazmo-agent-office#65. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문에는 직접 답하지 않았다. kit 5 절차대로 G4 JSON을 merge-2 run의 snapshot(`7628011`)에 묶었다. 결과: `check.mjs story` exit 0, `gate G4` exit 0, `graph.mjs delivery` exit 0(`delivered`). [G4 기록](../.ai-workflow/approvals/kit5-upgrade-g4.md)
+
 [G3 결정](understanding/kit5-upgrade-decision.md) · [계획](plans/2026-11-03-1200-feat-kit5-upgrade-plan.md) · [검증 기록](verification/2026-11-03-kit5-upgrade.md)
 # 2026-11-03 로컬 원본 Claw 브랜치 삭제 (D38)
 
