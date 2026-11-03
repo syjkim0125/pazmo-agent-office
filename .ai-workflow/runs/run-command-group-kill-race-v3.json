@@ -1,0 +1,504 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "7a804566-48ab-4cfe-a577-a5d1c4f9fc00",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Group-kill fix (command.ts and its tests byte-identical to 44a19b6) re-recorded on the current Story after merging main #65 (kit 5); G1 re-bound with the user's answer; STATUS conflict resolved keeping both.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-v3-implement-1.md",
+            "src/runners/command.ts",
+            "tests/command.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-v3-implement-1.md": "f450b38b51e426559b3b799052377d2ddfe539686514adca0a50c8e8885ab2fb",
+          "src/runners/command.ts": "62a5cc5770776a4f3bf5d856a748feb83f742370c2fab1f427225770cb86e145",
+          "tests/command.test.mjs": "d9bb2d7fb96bf53e310850318bc8ec275a69bc187e876416840a61c49cbd3bcf"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a",
+        "output": {
+          "summary": "Three-pass independent code review stands (code byte-identical); merges 3dfbd2d and 91a4b8c self-reviewed (not independent): STATUS kept both, no overlap with this change's files, no runCommand or group-kill use in main's changes, Story D37 does not touch M3/M4 or the gh check. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-v3-review-1.md": "2fb982e27265c76dfd194e4b8874c1a189ffa2ee7d66617a2155fe761457bbb8"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/bc00bff6-2679-4477-9112-77e32f416bca/receipt.json",
+            "hash": "9dc36fe29a4ea4f9cbc5ac2134ef09cef4417db50bf44d06f413a34f55e3af27"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/6a2109a8-bc9a-4b28-8c15-1ef6f4c91db8/receipt.json",
+            "hash": "df421cb04c94ff6b9389a501f392bb9ec265404c091f83122c74e058013c4633"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/14af5514-d8ea-4731-b861-ce9f3a70c240/receipt.json",
+            "hash": "c0794ad32c96eaa147e524c0b610c49138bcbed7d63ed8f54325d0b33a041524"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/6e6d303a-e191-4fd7-9927-bf38ea407409/receipt.json",
+            "hash": "f5285fa057a22533314ea39af0e7979e224fc1b7b4c49eb5237427829c519416"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/9bde6dc3-f142-4bc2-887a-f61fcb2cfcca/receipt.json",
+            "hash": "e1e602888aea9ef975bee31eae55d1534e2dd62aa02e043f2df006283e4e4e10"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on 0e57363 (this change + main #65/#66): tests 434/434 + 447/447 + 424/424 = 1305/1305, typecheck exit 0, story exit 0; snapshot unchanged across checks.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-v3-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-v3-verify-1.md": "5861a7132735c7ccb81c920d950dc41182c4e0b4a0d04e410ba80f23c6681183"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:03:57.213Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:03:57.706Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Group-kill fix (command.ts and its tests byte-identical to 44a19b6) re-recorded on the current Story after merging main #65 (kit 5); G1 re-bound with the user's answer; STATUS conflict resolved keeping both.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-v3-implement-1.md",
+            "src/runners/command.ts",
+            "tests/command.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-v3-implement-1.md": "f450b38b51e426559b3b799052377d2ddfe539686514adca0a50c8e8885ab2fb",
+          "src/runners/command.ts": "62a5cc5770776a4f3bf5d856a748feb83f742370c2fab1f427225770cb86e145",
+          "tests/command.test.mjs": "d9bb2d7fb96bf53e310850318bc8ec275a69bc187e876416840a61c49cbd3bcf"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:03:58.546Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:03:59.036Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a",
+        "output": {
+          "summary": "Three-pass independent code review stands (code byte-identical); merges 3dfbd2d and 91a4b8c self-reviewed (not independent): STATUS kept both, no overlap with this change's files, no runCommand or group-kill use in main's changes, Story D37 does not touch M3/M4 or the gh check. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-v3-review-1.md": "2fb982e27265c76dfd194e4b8874c1a189ffa2ee7d66617a2155fe761457bbb8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T06:04:10.826Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T06:07:41.521Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/bc00bff6-2679-4477-9112-77e32f416bca/receipt.json",
+            "hash": "9dc36fe29a4ea4f9cbc5ac2134ef09cef4417db50bf44d06f413a34f55e3af27"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/6a2109a8-bc9a-4b28-8c15-1ef6f4c91db8/receipt.json",
+            "hash": "df421cb04c94ff6b9389a501f392bb9ec265404c091f83122c74e058013c4633"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/14af5514-d8ea-4731-b861-ce9f3a70c240/receipt.json",
+            "hash": "c0794ad32c96eaa147e524c0b610c49138bcbed7d63ed8f54325d0b33a041524"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/6e6d303a-e191-4fd7-9927-bf38ea407409/receipt.json",
+            "hash": "f5285fa057a22533314ea39af0e7979e224fc1b7b4c49eb5237427829c519416"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/7a804566-48ab-4cfe-a577-a5d1c4f9fc00/9bde6dc3-f142-4bc2-887a-f61fcb2cfcca/receipt.json",
+            "hash": "e1e602888aea9ef975bee31eae55d1534e2dd62aa02e043f2df006283e4e4e10"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on 0e57363 (this change + main #65/#66): tests 434/434 + 447/447 + 424/424 = 1305/1305, typecheck exit 0, story exit 0; snapshot unchanged across checks.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-v3-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-v3-verify-1.md": "5861a7132735c7ccb81c920d950dc41182c4e0b4a0d04e410ba80f23c6681183"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "7d6542ce07fdc436ab46dc98a5fe0d29d4c5f4d47a848a1b7254b0e8aab0c8da"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}

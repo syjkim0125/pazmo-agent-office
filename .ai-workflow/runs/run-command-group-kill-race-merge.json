@@ -1,0 +1,267 @@
+{
+  "version": 1,
+  "runId": "99ccc775-79ba-4bc1-9d3b-ea416daecd65",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The group-kill fix as recorded in run-command-group-kill-race.json plus the merge 3dfbd2d of origin/main e8380d9 (#62-#66) with no conflicts; this change's files are unchanged by the merge and main's runner changes do not use runCommand or process.kill.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-merge-implement-1.md",
+            "src/runners/command.ts",
+            "tests/command.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-merge-implement-1.md": "f5bf694e7c7d1acbb80ce6fc8e9232bb86be4fc789658c6848bc04c2c117ba67",
+          "src/runners/command.ts": "62a5cc5770776a4f3bf5d856a748feb83f742370c2fab1f427225770cb86e145",
+          "tests/command.test.mjs": "d9bb2d7fb96bf53e310850318bc8ec275a69bc187e876416840a61c49cbd3bcf"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the merge 3dfbd2d: no conflicts, this change's 12 files only, main's runner changes do not use runCommand or kill, Story D37/D38 do not change M3/M4 or the gh check. The three-pass code review stands (run-command-group-kill-race-review-1.md). No findings.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-merge-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-merge-review-1.md": "b538afa3902dc3f8b1fca9fc4c68e6a54a89e50dcceb0886aa5c17ca686b1957"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merged tree 3dfbd2d: npm test 1296/1296 exit 0 (main 1294 + 2 fork-race tests); typecheck and Story checker exit 0. Automated only.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-merge-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-merge-verify-1.md": "6cf7f4e650db47c4c628f05bf5ad39af286c2e83ce8ee2001adb23fad0726617"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "ae166a9066baf7222703c10dd3ddf300f8386d6d86f5e5e5f8859c1ee7d62515"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:53:41.852Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:53:41.982Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The group-kill fix as recorded in run-command-group-kill-race.json plus the merge 3dfbd2d of origin/main e8380d9 (#62-#66) with no conflicts; this change's files are unchanged by the merge and main's runner changes do not use runCommand or process.kill.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-merge-implement-1.md",
+            "src/runners/command.ts",
+            "tests/command.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-merge-implement-1.md": "f5bf694e7c7d1acbb80ce6fc8e9232bb86be4fc789658c6848bc04c2c117ba67",
+          "src/runners/command.ts": "62a5cc5770776a4f3bf5d856a748feb83f742370c2fab1f427225770cb86e145",
+          "tests/command.test.mjs": "d9bb2d7fb96bf53e310850318bc8ec275a69bc187e876416840a61c49cbd3bcf"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:53:42.102Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:53:42.232Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the merge 3dfbd2d: no conflicts, this change's 12 files only, main's runner changes do not use runCommand or kill, Story D37/D38 do not change M3/M4 or the gh check. The three-pass code review stands (run-command-group-kill-race-review-1.md). No findings.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-merge-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-merge-review-1.md": "b538afa3902dc3f8b1fca9fc4c68e6a54a89e50dcceb0886aa5c17ca686b1957"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:55:55.447Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:55:55.576Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merged tree 3dfbd2d: npm test 1296/1296 exit 0 (main 1294 + 2 fork-race tests); typecheck and Story checker exit 0. Automated only.",
+          "evidence": [
+            ".ai-workflow/runs/run-command-group-kill-race-merge-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/run-command-group-kill-race-merge-verify-1.md": "6cf7f4e650db47c4c628f05bf5ad39af286c2e83ce8ee2001adb23fad0726617"
+        }
+      }
+    }
+  ]
+}

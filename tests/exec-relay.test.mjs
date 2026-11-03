@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { once } from "node:events";
 import { createConnection } from "node:net";
 import test from "node:test";
 import { openExecRelay } from "../src/runners/exec-relay.ts";
+import { forkLoop, leftInGroups } from "./runner-fixture.mjs";
 
 function executor(source) {
   return () =>
@@ -87,6 +88,32 @@ test("normal controller disconnect reaps the executor without fabricating a tran
   await new Promise((resolve) => setTimeout(resolve, 20));
   assert.equal(await relay.close(), true);
   assert.equal(relay.failure(), null);
+});
+
+// Ten executors send their pid (= their group id) and fork children until
+// their relays are closed 200 ms later, so the group kill lands mid-fork. The
+// caller is its own node process with nothing left to do once the relays are
+// closed, so only the relay's own timers keep it alive.
+test("closing the relay leaves no process in the executor's group, even one being forked, in a caller that exits", async () => {
+  const shell = `exec 2>/dev/null; echo '{"pid":'$$'}'; ${forkLoop("sleep 5 >/dev/null")}`;
+  const caller = `import { spawn } from "node:child_process";
+import { openExecRelay } from ${JSON.stringify(import.meta.resolve("../src/runners/exec-relay.ts"))};
+const executor = () => spawn("/bin/sh", ["-c", ${JSON.stringify(shell)}], { stdio: ["pipe", "pipe", "pipe"], detached: true, env: { PATH: "/usr/bin:/bin" } });
+const relays = await Promise.all(Array.from({ length: 10 }, () => openExecRelay(executor)));
+const groups = await Promise.all(relays.map((relay) => new Promise((resolve) => {
+  new WebSocket(relay.url).onmessage = (message) => resolve(String(JSON.parse(message.data).pid));
+})));
+await new Promise((resolve) => setTimeout(resolve, 200));
+const reaped = await Promise.all(relays.map((relay) => relay.close()));
+console.log(JSON.stringify({ reaped, groups }));`;
+  const { reaped, groups } = JSON.parse(
+    execFileSync(process.execPath, ["--input-type=module", "-e", caller], {
+      encoding: "utf8",
+      timeout: 30000,
+    }),
+  );
+  assert.deepEqual(reaped, Array(10).fill(true));
+  assert.equal(await leftInGroups(new Set(groups)), 0, "no forked child may outlive the closed relay");
 });
 
 test("closing the relay does not wait for an incomplete HTTP request", async () => {

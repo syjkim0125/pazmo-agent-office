@@ -14,6 +14,7 @@ symptoms:
 root_cause: scope_issue
 resolution_type: code_fix
 tags: [intake, publication, contract-paths, pazmo-office, protected-path, path-traversal, planning-snapshot, engineer-baseline]
+last_refreshed: "2026-11-03"
 ---
 
 # Publish Lead proposals under .pazmo-office/plans, not the project root
@@ -50,7 +51,7 @@ tags: [intake, publication, contract-paths, pazmo-office, protected-path, path-t
 핵심은 kit이 아니라 Office 자신의 `read()`가 막고 있었다는 점이다.
 
 - kit checker는 root 안이면 점으로 시작하는 디렉터리도 허용한다.
-- Office도 이미 `kitSource()`에서 `.pazmo-office/approved-contracts/<digest>/`를 kit에 넘기고 있다(`src/core/store.ts:77`).
+- 당시 Office도 `kitSource()`에서 `.pazmo-office/approved-contracts/<digest>/`를 kit에 넘기고 있었다. kit 5(D36, PR #65)부터는 `store.kitWorkspace()`가 작업별 `.pazmo-office/kit/<digest>/` 폴더를 만들어 넘긴다([kit 5 배치](run-office-roles-on-kit5-through-a-vm-result-relay.md)).
 - 막힌 곳은 `.git`/`.env`를 막으려고 점으로 시작하는 segment를 모두 거부하던 `read()`였다.
 
 **Before:**
@@ -114,7 +115,7 @@ const directory = `${PLAN_ROOT}/${basename(mkdtempSync(join(plans, "plan-")))}`;
 
 - **Office가 사용자 project에 만드는 파일은 `.pazmo-office/` 아래에 둔다.**
   - `protectedPath()`가 snapshot, baseline, worker 결과에서 이미 제외하므로 따로 exclude할 필요가 없다.
-  - kit role-run 증거도 같은 원칙으로 `.pazmo-office/role-runs/`에 둔다([Record why planning output was rejected before spending recoveries](record-planning-rejection-cause.md)).
+  - kit role-run 증거도 같은 원칙으로 `.pazmo-office/` 아래에 둔다(kit 4는 `role-runs/`, kit 5부터 `kit-runs/`·`kit/<digest>/`)([Record why planning output was rejected before spending recoveries](record-planning-rejection-cause.md)).
 - **게시 후 project root에 새 항목이 없는지 테스트로 확인한다.**
   - `tests/intake-publication.test.mjs` 첫 테스트가 게시 후 root 목록이 `.pazmo-office`와 기존 파일뿐인지 단언한다.
   - 실제 확인 중 사용자 project root에 처음 보는 파일이 보이면, 지금 검증하는 기능과 무관해 보여도 바로 후속 작업으로 기록한다(session history).

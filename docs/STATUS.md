@@ -20,6 +20,50 @@
     - 바이너리가 바뀌었는데 확인이 실패한 경우(`UNVERIFIED_CONTROLLER_BINARY`)의 시험이 없다.
     - `runner-jobs.ts` 주석의 "어떤 프로세스도 띄우기 전에"가 느슨하다(확인용으로 CLI를 잠깐 띄움).
 
+# 2026-11-03 relay·claude 실행·모델 조회의 프로세스 그룹도 빌 때까지 kill한다
+
+- 바로 아래 항목(`runCommand`)의 후속이다(M3·M4). 다음 세 곳도 프로세스 그룹에 SIGKILL을 한 번만 보냈다. 그래서 macOS에서 그 순간 fork되던 자식이 살아남았다.
+  - 실행기 relay(`exec-relay.ts`의 `stopExecutor`)
+  - claude 역할 실행(`claude-controller.ts`의 `kill`)
+  - claude 모델 조회(`runner-models.ts`의 `signal`)
+- 고친 것:
+  - `runCommand`의 반복을 `command.ts`의 공용 `signalGroup(pid, signal)`로 옮겼고, 네 곳이 모두 그것을 쓴다. SIGKILL만 반복한다. 첫 kill이 성공한 뒤 20 ms마다 다시 보내고, kill이 실패하거나 250번이 되면 멈춘다.
+  - claude는 OAuth 갱신 잠금 때문에 역할 실행의 취소·시간 초과와 모델 조회(입력을 닫고 3초 뒤에도 남아 있을 때)에서 SIGTERM을 먼저 보낸다(Office가 거절한 멈춤과 이미 끝난 뒤의 멈춤은 바로 SIGKILL). 그 순서는 그대로이고, SIGTERM은 한 번만 보낸다.
+  - `exec-relay.ts`·`claude-controller.ts`가 `BOUNDARY_DIGEST`에 들어 있다. 그래서 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다.
+- 자동 검사:
+  - 경로마다 fork 경합 시험을 하나씩 더했다. 셋 다 고치기 전 코드에서 먼저 실패했다(그룹에 남은 프로세스 2–10개). 독립 리뷰어도 따로 실패를 확인했다.
+  - fork 반복문과 `ps` 확인은 `tests/runner-fixture.mjs`로 모았다. 반복문은 자식을 `kill -9`로 죽인다. TERM을 trap하는 가짜에서는 `kill $!`가 막 fork된 자식 200개 중 139개를 놓쳤고, 첫 초안 시험이 프로세스 표(2666개)를 채웠다.
+  - 리베이스 전(`43c81f1`) 관련 시험 파일 25개는 364/364, 타입 검사 exit 0이었다. v3 run의 kit 검증은 시험 436/436 + 448/448 + 424/424 = **1308/1308**, 타입 검사·Story 검사 exit 0이었다([기록](../.ai-workflow/runs/runner-group-kill-race-v3-verify-1.md)).
+  - 독립 리뷰 1차는 With fixes였다(Critical 0). Important 1(학습 문서가 낡음)과 Minor 1(runner-models 시험의 시간 여유)을 고쳤다. runner-models 시험은 이제 claude 하나를 home 10개에서 돌린다.
+  - 독립 리뷰 2차도 With fixes였다(Critical·Important 0). 2차를 처음 맡은 리뷰어는 세션이 사용 한도에 걸려 끊겨서, 다른 계정의 세션이 새 리뷰어에게 맡겼다. 문서 Minor 3건을 고쳤다: 낡은 줄 번호, 리베이스 전 시험 수, SIGTERM을 먼저 보내는 경우를 넓게 쓴 문구, 근거 없던 시간 수치(잰 반복 횟수로 바꿈).
+  - 고친 문서만 본 리뷰는 STATUS 문구 Minor 2건을 짚었고, 리뷰 시도를 아끼려고 전달 커밋에서 고쳤다.
+- kit: 처음 run `runner-group-kill-race.json`(kit 4.1.0, implement·리뷰 1차)은 main #65(kit 5)를 합친 뒤 읽기 전용이 됐다. v3 run `runner-group-kill-race-v3.json`으로 다시 돈다.
+- PR syjkim0125/pazmo-agent-office#70. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 D39와 함께 "둘 다 ① 승인 후 머지"를 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/runner-group-kill-race-g4.md)
+- **남은 것:**
+  - SIGTERM은 여전히 한 번만 보낸다. 그래서 그 순간 fork되던 자식은 SIGTERM을 받지 못한다. 역할 실행에서는 뒤따르는 SIGKILL이 그 자식을 죽인다. 모델 조회는 claude가 유예 시간 안에 끝나면 SIGKILL을 보내지 않는다(전부터 그랬다).
+  - Linux와 실제 CLI는 확인하지 않았다.
+  - 학습 문서: [macos-fork-escapes-one-shot-process-group-sigkill.md](solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md)
+
+# 2026-11-03 멈춘 명령의 프로세스 그룹을 빌 때까지 kill한다 (gh 시험 깜빡임)
+
+- `tests/team-gh.test.mjs` "a gh that hangs times out"이 가끔 5.2초 걸려 실패하던 원인을 찾아 고쳤다(M3·M4·M16). #62 검증 기록과 #65 자동 검사(5212ms)에 남은 그 실패다.
+  - `runCommand`는 멈출 때 프로세스 그룹에 SIGKILL을 한 번만 보냈다. macOS에서는 그 순간 fork되던 자식이 신호를 받지 못하고 살아남는다.
+  - 그 자식이 파이프를 쥐고 있으면 결과가 5초 늦게 `CLI_CLOSE_UNCONFIRMED`로 끝났다. 쥐지 않았으면 결과는 평범한 `TIMEOUT`인데 자식이 뒤에서 계속 돌았다.
+  - 이제 첫 kill 뒤 20 ms마다 다시 kill한다. 결과를 돌려준 뒤에도 계속하고, kill이 실패하거나 250번이 되면 멈춘다.
+- 자동 검사:
+  - fork 경합 시험 2개가 고치기 전 코드와 중간 수정 두 버전에서 먼저 실패했다.
+  - 원래 형태의 표본은 22/2000 느림에서 0/10000이 됐다.
+  - 합치기 전 `npm test` 1278/1278, main #62–#66을 합친 뒤 1296/1296 exit 0. 타입 검사·Story 검사기 exit 0.
+  - 독립 리뷰 세 번(Critical 0), 지적은 모두 고쳤다.
+- kit: 처음 두 run(`.ai-workflow/runs/run-command-group-kill-race.json`, main #62–#66을 합친 뒤 `run-command-group-kill-race-merge.json`)은 kit 4.1.0 run이다. 그래서 main #65(kit 5)를 합친 뒤 읽기 전용이 됐다.
+  - D37이 든 Story의 G1을 다시 받았다(2026-11-03 "A. G1 승인 후 진행").
+  - v3 run `run-command-group-kill-race-v3.json`을 새로 돌렸다.
+- PR syjkim0125/pazmo-agent-office#67. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문에는 직접 답하지 않았다. kit 5 절차대로 G4 JSON을 v3 run의 snapshot(`0e57363`)에 묶었다. 결과: kit 검사 **1305/1305**, `check.mjs story`·`gate G4` exit 0, `graph.mjs delivery` exit 0(`delivered`). [G4 기록](../.ai-workflow/approvals/run-command-group-kill-race-g4.md)
+- **남은 것:**
+  - 같은 한 번짜리 그룹 신호가 남아 있던 `exec-relay.ts`·`claude-controller.ts`·`runner-models.ts`는 바로 위 항목에서 고쳤다.
+  - 원래 실패와의 연결은 추론이다. Linux와 실제 CLI는 확인하지 않았다.
+  - 학습 문서: [macos-fork-escapes-one-shot-process-group-sigkill.md](solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md)
+
 # 2026-11-03 kit 4.1.0 → 5.0.3, Office 역할 run v3 (D36, ①)
 
 - Office가 직접 부르는 kit를 공식 npm 5.0.3으로 올렸다(사용자 선택 ①, "①로 진행"). 새 역할 run은 kit 5의 v3다.

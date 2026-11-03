@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import type { AddressInfo } from "node:net";
 import { WebSocketServer } from "ws";
+import { signalGroup } from "./command.ts";
 
 const frameLimit = 4 * 1024 * 1024,
   totalLimit = 64 * 1024 * 1024;
@@ -68,7 +69,7 @@ export async function openExecRelay(
       return;
     stopRequested = true;
     try {
-      process.kill(-child.pid, "SIGKILL");
+      signalGroup(child.pid, "SIGKILL");
     } catch (e) {
       if ((e as NodeJS.ErrnoException).code !== "ESRCH" && !error)
         error = "RELAY_KILL_FAILED";

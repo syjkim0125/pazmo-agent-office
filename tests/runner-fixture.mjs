@@ -53,6 +53,29 @@ export function tempRoot(prefix = "pazmo-runner-") {
 
 export const exists = existsSync;
 
+/** A shell loop that forks `child` and kills it at once, 5000 times. A process
+ * group kill then almost always lands while a child is being forked, and on
+ * macOS that child misses it (see tests/command.test.mjs). The bound makes a
+ * shell that the kill misses end on its own. The kill is a SIGKILL: a child
+ * that has just been forked still has the shell's traps, so a trapped SIGTERM
+ * left about 7 in 10 of them running. */
+export const forkLoop = (child) =>
+  `i=0; while [ $i -lt 5000 ]; do ${child} & kill -9 $!; i=$((i+1)); done`;
+
+// Taken before any test mocks setTimeout.
+const realSetTimeout = globalThis.setTimeout;
+/** How many processes are left in the process groups `groups` (pgid strings)
+ * once they are empty or 2 s have passed. */
+export async function leftInGroups(groups) {
+  const left = () =>
+    execFileSync("ps", ["-A", "-o", "pgid="], { encoding: "utf8" })
+      .split("\n")
+      .filter((pgid) => groups.has(pgid.trim())).length;
+  const deadline = Date.now() + 2000;
+  while (left() && Date.now() < deadline) await new Promise((resolve) => realSetTimeout(resolve, 50));
+  return left();
+}
+
 /** Native fake codex and claude in `bin`, with an empty `home`, removed after
  * test `t`. Each is logged in, or installed but logged out with "out". The
  * claude answers discovery's initialize and hook-listing requests with `hooks`

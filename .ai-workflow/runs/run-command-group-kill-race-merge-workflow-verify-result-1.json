@@ -1,0 +1,1 @@
+{"token":"9fbba1093ba4204f34fe94e2615acb83ae3360c18c9f249711713f02ef4a0d07","status":"completed","output":{"summary":"Merged tree 3dfbd2d: npm test 1296/1296 exit 0 (main 1294 + 2 fork-race tests); typecheck and Story checker exit 0. Automated only.","evidence":[".ai-workflow/runs/run-command-group-kill-race-merge-verify-1.md"]},"evaluation":{"passed":true}}

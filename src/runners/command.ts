@@ -18,6 +18,26 @@ type Options = {
   captureBytes?: boolean;
 };
 
+/** Sends `signal` to the process group that `pid` leads; throws what that kill
+ * throws. A process that is still being forked when the signal lands misses it
+ * (seen on macOS), so a SIGKILL that succeeds is sent again every 20 ms, also
+ * after the caller is done with the group, until kill fails (no process left,
+ * or only the unreaped leader: EPERM on macOS) or for at most 250 tries (about
+ * 5 s). The timer keeps a caller that is about to exit alive until then. Other
+ * signals are sent once. */
+export function signalGroup(pid: number, signal: NodeJS.Signals) {
+  process.kill(-pid, signal);
+  if (signal !== "SIGKILL") return;
+  let tries = 0;
+  const rekill = setInterval(() => {
+    try {
+      process.kill(-pid, "SIGKILL");
+      if (++tries < 250) return;
+    } catch {}
+    clearInterval(rekill);
+  }, 20);
+}
+
 /** Only launches trusted controller tools. Killing a CLI does not prove that its
  * remote container stopped; the container supervisor must establish that separately.
  */
@@ -76,7 +96,7 @@ export async function runCommand(
       base.error = reason;
       if (child.pid) {
         try {
-          process.kill(-child.pid, "SIGKILL");
+          signalGroup(child.pid, "SIGKILL");
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ESRCH")
             base.error += ":KILL_FAILED";
