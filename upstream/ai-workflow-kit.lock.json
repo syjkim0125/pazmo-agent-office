@@ -20,10 +20,10 @@
     "destination": "licenses/ai-workflow-kit-MIT.txt",
     "blob": "9c432e70874900ce1dca6a0a926300744de89c3f"
   },
-  "scope": "Templates and license copied exactly; destination Git blob hashes verified. Codex workflow tooling separately installed from verified official npm 3.1.1.",
+  "scope": "Templates and license copied exactly; destination Git blob hashes verified. Codex workflow tooling separately installed from verified official npm 5.0.3 (see upstream/kit.lock.json).",
   "jira": "Already optional in inspected upstream; new product must retain tracker-independent execution.",
   "workflow_tooling": {
-    "npm_version": "3.1.1",
+    "npm_version": "5.0.3",
     "config": ".ai-workflow/config.json",
     "license": "licenses/ai-workflow-kit-MIT.txt",
     "runtime_dependency": false

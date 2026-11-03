@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "3329bb486b11fe15cecd3a24a738b0f32bdaa1827e9c4a7c158efe87786e03e4",
+  "snapshot": "e78f5219806ca33368598d7ad8e514211166e590fe47c3fec1426846455d1815",
+  "runId": "ac5be776-f9ef-4aac-aab5-647e7d398a4a",
+  "responseRef": "Claude Code conversation 2026-11-03: after reading the G4 explainer https://claude.ai/artifact/TgVDwL5CSjBtqysv59AWFX (version 4) the user chose \"① 승인 후 머지\"; record .ai-workflow/approvals/kit5-upgrade-g4.md",
+  "pr": "syjkim0125/pazmo-agent-office#65",
+  "head": "7628011",
+  "date": "2026-11-03"
+}

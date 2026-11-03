@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { join } from "node:path";
-import { mkdirSync, writeFileSync } from "node:fs";
 import type { DatabaseSync } from "node:sqlite";
 import { fail, noSymlinks } from "../cli/project.ts";
+import { kitG1, kitWorkspace } from "./kit-role-runs.ts";
 import { ApprovalLedger, transaction } from "./approvals.ts";
 import type { ApprovalAnswer, Gate } from "./approvals.ts";
 import {
@@ -58,10 +58,13 @@ export class OfficeStore {
   authorize(token: string): void {
     this.#ledger.authorize(token);
   }
-  /** Materialize a read-only input view, never a second approval decision.
-   * The canonical bytes and SQLite approval stay authoritative at every dispatch.
+  /** The kit folder of this task revision's Developer and Reviewer runs (D36): a read-only view of the task's
+   * Story bound to the actual Office G1 event, never a second approval decision. The canonical bytes and the
+   * SQLite approval stay authoritative at every dispatch. The view keeps every requirement's text, but a Verify
+   * line this Task does not cover starts with "(outside this Task)", so kit does not read its ID: kit 5 requires
+   * a check for every V it sees, and the Task's registered checks cover only its own.
    */
-  kitSource(taskId: string): string {
+  kitWorkspace(taskId: string): { root: string; source: string } {
     const { item, documents } = this.roleContext(taskId);
     if (item.status === "cancelled")
       fail("CONTRACT_NOT_READY", "Task was cancelled.");
@@ -74,54 +77,41 @@ export class OfficeStore {
       | undefined;
     if (!approval)
       fail("G1_REQUIRED", "Kit requires the actual Office approval event.");
-    const directory = `.pazmo-office/approved-contracts/${digest(`${taskId}:${item.revision}:${item.contract.digest}`)}`;
-    noSymlinks(join(this.#project, directory));
-    mkdirSync(join(this.#project, directory), { recursive: true, mode: 0o700 });
-    const evidence = `${directory}/g1.json`,
-      source = `${directory}/story.md`;
     const original = documents.find(
       (d) => d.path === item.contract.input.story,
     )!.content;
-    const gate = `Understanding gate (G1): ${evidence} · ${new Date(approval.accepted_at).toISOString().slice(0, 10)} · Check-in: accepted`;
+    const covered = new Set(item.contract.verifyIds);
+    const gate = `Understanding gate (G1): g1.json · ${new Date(approval.accepted_at).toISOString().slice(0, 10)} · Check-in: accepted`;
+    let inVerify = false;
     const view = original
       .replace(/^Understanding gate \(G1\):.*\n?/gm, "")
       .replace(
         /^Status:.*$/m,
-        `Status: Approved\n${gate}\nCanonical source: ${item.contract.input.story}\nOffice contract digest: ${item.contract.digest}\nApproval view: derived from the Office event; requirements remain owned by the canonical source.`,
-      );
-    for (const [path, content] of [
-      [
-        evidence,
-        JSON.stringify({
-          taskId,
-          revision: item.revision,
-          contractDigest: item.contract.digest,
-          challengeId: approval.challenge_id,
-          answer: JSON.parse(approval.answer_json),
-          acceptedAt: approval.accepted_at,
-        }),
-      ],
-      [source, view],
-    ]) {
-      noSymlinks(join(this.#project, path));
-      try {
-        writeFileSync(join(this.#project, path), content, {
-          flag: "wx",
-          mode: 0o600,
-        });
-      } catch (error) {
-        if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error;
-        if (
-          readStable(join(this.#project, path), 1024 * 1024).toString() !==
-          content
-        )
-          fail(
-            "KIT_SOURCE_CHANGED",
-            "The immutable approval view changed; preserve and inspect it.",
-          );
-      }
-    }
-    return source;
+        `Status: Approved\n${gate}\nCanonical source: ${item.contract.input.story}\nOffice contract digest: ${item.contract.digest}\nApproval view: derived from the Office event for this Task; requirements remain owned by the canonical source. Verify lines outside this Task are marked so.`,
+      )
+      .split("\n")
+      .map((line) => {
+        if (/^##\s/.test(line)) inVerify = /^##\s+Verify\s*$/i.test(line);
+        const id = inVerify && line.match(/^([-*]\s+)(V-?\d+)\b/i);
+        return id && !covered.has(id[2].toUpperCase())
+          ? `${id[1]}(outside this Task) ${line.slice(id[1].length)}`
+          : line;
+      })
+      .join("\n");
+    return kitWorkspace({
+      project: this.#project,
+      key: `kit5:${taskId}:${item.revision}:${item.contract.digest}`,
+      story: view,
+      g1: kitG1(view, approval.challenge_id, {
+        taskId,
+        revision: item.revision,
+        contractDigest: item.contract.digest,
+        challengeId: approval.challenge_id,
+        answer: JSON.parse(approval.answer_json),
+        acceptedAt: approval.accepted_at,
+      }),
+      checks: item.contract.checks.map((check) => check.id),
+    });
   }
   bindKitRole(
     taskId: string,
@@ -190,6 +180,17 @@ export class OfficeStore {
         "KIT_EVIDENCE_CHANGED",
         "Kit completion evidence cannot be replaced.",
       );
+  }
+  /** Whether completion evidence for this candidate is already recorded (by any kit version). */
+  kitReceiptRecorded(taskId: string, candidateDigest: string): boolean {
+    const item = this.get(taskId);
+    return Boolean(
+      this.#db
+        .prepare(
+          "SELECT 1 FROM pazmo_kit_receipts WHERE task_id=? AND revision=? AND candidate_digest=?",
+        )
+        .get(taskId, item.revision, candidateDigest),
+    );
   }
   kitReceipt(taskId: string, candidateDigest: string): string | null {
     const item = this.get(taskId);

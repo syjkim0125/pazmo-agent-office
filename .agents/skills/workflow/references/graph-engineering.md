@@ -1,6 +1,6 @@
 # Graph execution
 
-Use the installed Graph CLI automatically after G1; no user opt-in, extra npm install, API key or custom JavaScript adapter is needed. The host (Codex/Claude) executes agent and tool work. The local CLI checks dependencies, persists results and tells the host what to do next. It does not launch models or execute arbitrary commands from JSON.
+Use the installed Graph CLI automatically after G1; no user opt-in, extra npm install, API key or custom JavaScript adapter is needed. The host (Codex/Claude) executes agent and tool work. The local CLI checks dependencies, persists results and tells the host what to do next. It does not launch models. Its verification runner executes only checks selected by ID from the repository-owned verification profile, using argv without a shell. Treat that profile as executable project code; host permissions still apply.
 
 Read `skill-integration.md` when selecting Superpowers or CE for a graph node. Each selected skill implements only that stage; its own completion or shipping workflow cannot replace the kit's remaining gates.
 
@@ -23,6 +23,8 @@ One controller owns each persisted kit run through the CLI. Its file is authorit
 ## Initialize or resume
 
 Read the approved Story, relevant code/tests and prior learnings. Complete required G3 before implementation. Reuse repository-grounded planning/review already performed by Compound skills; do not repeat it with a fixed team of analyzers, advocates and mediators.
+
+Read [verification.md](verification.md) to configure real checks and bound G1/G3 records before initialization. New runs use v3. Legacy v1/v2 runs are read-only and return `upgrade-required`; stop old workers, inspect side effects, and create a new run with fresh review/checks without evading attempt limits.
 
 Use a stable run path for the Story, such as `.ai-workflow/runs/<slug>.json`. If it exists, run `status`; never replace it to escape a failure. For a small/reversible change, use the built-in plan:
 
@@ -50,7 +52,7 @@ Every Story M/V ID must be covered and unknown IDs are rejected. `description`, 
 
 ## Execute ready work
 
-1. Read the JSON status and its `action`. Give each worker only its task, Story constraints, relevant files and `input.dependencies`; do not send the whole run/history. Read evidence files by reference as needed.
+1. Read the JSON status and its `action`. Apply [model-selection.md](model-selection.md) before dispatch using the cached host catalog. Give each worker only its task, Story constraints, relevant files and `input.dependencies`; do not send the whole run/history. Read evidence files by reference as needed.
 2. Reserve each ready task before starting work:
 
    `node .ai-workflow/bin/graph.mjs start <run.json> <node-id> <ready-token>`
@@ -71,7 +73,7 @@ Every Story M/V ID must be covered and unknown IDs are rejected. `description`, 
 node .ai-workflow/bin/graph.mjs record <run.json> <node-id> <result.json>
 ```
 
-A failed result uses `"evaluation": { "passed": false, "action": "fix", "feedback": "Specific failed expectation and affected task" }`. Evaluation is mandatory. An omitted value, empty evidence, premature node or stale token cannot complete a task. The CLI validates evidence existence and hashes, not the truth of observations; the host must actually run and assess the checks. CLI exit 0 means the record was accepted, including a failure record: inspect `action` and `failed`.
+A failed result uses `"evaluation": { "passed": false, "action": "fix", "feedback": "Specific failed expectation and affected task" }`. Evaluation is mandatory. An omitted value, empty evidence, premature node or stale token cannot complete a task. Implementation/review observations remain host judgments. Final verification and Developer self-check additionally require runner-issued successful receipts covering every assigned V ID. Execute `node .ai-workflow/bin/graph.mjs verify <run.json> <node-id> <started-token> <check-id>` for each required check, inspect the returned exit status and raw logs, then record. `passed: true` cannot override a failed/missing execution. Runner CLI exit 0 means the execution was collected; inspect `verification.passed`, not just CLI exit status. CLI exit 0 means the record was accepted, including a failure record: inspect `action` and `failed`.
 
 ## Route the next action
 
@@ -85,6 +87,8 @@ A failed result uses `"evaluation": { "passed": false, "action": "fix", "feedbac
 | `stop` | Report exhausted attempts and evidence. Do not restart under a new filename without an explicit decision to continue. |
 | `question` | Transport the pending question; submit the matching answer and continue with `resumed.token`. See `role-graphs.md`. An answer is not approval. |
 | `role-complete` | Return the role's native outcome and evidence to the caller. This does not finish delivery. |
+| `stale` | Code changed after review/check start. Inspect changes and reset the earliest affected node; rerun invalidated descendants. Status never rewrites saved state. |
+| `upgrade-required` | Legacy run is inspectable only; follow the migration note above. |
 | `g4` | Follow `understanding-gate.md`; this is readiness, not approval or delivery. |
 
 ```bash
@@ -110,7 +114,7 @@ The generic API is not the delivery CLI's policy API. Choose the interface by it
 | Dependency readiness, read concurrency, exclusive writers | Within one execution | Within one run | Isolate or serialize work across runs |
 | Attempts | Counts starts; no built-in cap | Maximum three starts per node | Enforce global time, cost and attempt budgets |
 | `human` / `replan` evaluation | Records the action; independent work can continue | Routes to the decision; no further start until resolved in a new run | Stop affected processes and obtain the decision |
-| Evidence and persistence | Returns state and explicit evaluation; no evidence-file checks or checkpoint store | Checks evidence files/hashes and persists run changes | Verify observations and bind them to the actual code revision |
+| Evidence and persistence | Returns state and explicit evaluation; no evidence-file checks or checkpoint store | Binds actual snapshots, runner receipts and evidence hashes; persists run changes | Judge assertion adequacy and external/environment boundaries |
 | User approval and tool permissions | Not provided | Checks approval records, not identity; does not intercept tools | Own actual approval events and execution permissions |
 
 Do not assume `executeTaskGraph` or `resetAffectedSubgraph` enforces the delivery CLI's retry or human-decision rules. Office integration must first identify its actual dispatch, storage, cancellation and result-application boundary. If it needs shared delivery transitions, extract only the necessary rules from the CLI when connecting that consumer; do not duplicate the rules in Office or invent an unused public API in advance.

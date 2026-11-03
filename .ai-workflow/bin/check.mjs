@@ -92,7 +92,7 @@ function isSpecificNoBehaviorChange(record) {
 export async function checkGate({ root = process.cwd(), file, gate }) {
   if (!file) return { ok: false, errors: ['A Story file is required.'] };
   if (!gate) return { ok: false, errors: ['A gate name is required.'] };
-  if (!['G1', 'G4'].includes(gate)) return { ok: false, errors: [`Unsupported gate: ${gate}.`] };
+  if (!['G1', 'G3', 'G4'].includes(gate)) return { ok: false, errors: [`Unsupported gate: ${gate}.`] };
 
   root = path.resolve(root);
   const storyFile = path.isAbsolute(file) ? path.resolve(file) : path.resolve(root, file);
@@ -281,7 +281,7 @@ export async function checkArtifact({ root = process.cwd(), file, kind = 'story'
   // fail it — but then exit 0 only means the shape is right, and a caller who was
   // told "exit 0 is the only pass" will read it as approval. Say which gate went
   // unchecked, so a pass can never be quoted as one that was.
-  const notes = [];
+  const notes = ['Document shape and gate-record presence only; use graph.mjs delivery <run.json> for bound execution/approval validation.'];
   const approved = /^Status:\s*(Approved|Delivered)\s*$/imu.test(text);
   const delivered = /^Status:\s*Delivered\s*$/imu.test(text);
 
@@ -310,12 +310,13 @@ async function runCli(argv) {
   } else if (command === 'gate') {
     result = await checkGate({ gate: args[0], file: args[1] });
   } else {
-    console.error('Usage: check.mjs story <file> | task <file> | gate <G1|G4> <story-file>');
+    console.error('Usage: check.mjs story <file> | task <file> | gate <G1|G3|G4> <story-file>');
     return 2;
   }
 
   if (result.ok) {
     console.log('PASS');
+    console.log('NOTE  Document shape/gate presence only; this does not validate executable delivery.');
     for (const note of result.notes ?? []) console.log(`NOTE  ${note}`);
     return 0;
   }

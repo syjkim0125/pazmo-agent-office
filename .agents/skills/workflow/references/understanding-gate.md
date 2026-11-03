@@ -14,15 +14,18 @@ Before presenting G4, run `node .ai-workflow/bin/graph.mjs status <run.json>` an
 
 ## Record
 
-Save the raw evidence, human answer, and evaluation to `docs/understanding/<slug>-diff.md`. Then record:
+Save raw evidence, the actual human answer, and evaluation privately under `.ai-workflow/approvals/`. The referenced G4 JSON records `gate: "G4"`, the canonical `storyHash`, current Graph `snapshot`, `runId`, and a nonempty `responseRef` pointing to the real response. See `verification.md`. Binding detects reuse; it does not authenticate a person. Never invent a response or obtain it from another agent. Then record:
 
 `Understanding gate (G4): <artifact> · <date> · Check-in: accepted`
 
-Also append `G4: PASS — <what the human correctly restated>`. Set `Status: Delivered` only after both records exist and both of these exit 0:
+Also append `G4: PASS — <what the human correctly restated>`. Set `Status: Delivered` only after both records exist and the document checks and bound delivery check exit 0:
 
 ```
 node .ai-workflow/bin/check.mjs story <story-file>
 node .ai-workflow/bin/check.mjs gate G4 <story-file>
+node .ai-workflow/bin/graph.mjs delivery <run.json>
 ```
 
-Run them and report both exit codes; never claim the gate passed without that output. A `story` run on a Story that is not yet `Delivered` does not check G4 at all, and says so. Use `G4: N/A — <specific reason>` only when no implementation behavior changed; never use it to bypass uncertainty.
+Run them and report the exit codes; never claim the gate passed without that output. A `story` run on a Story that is not yet `Delivered` does not check G4 at all, and says so. Use `G4: N/A — <specific reason>` only when no implementation behavior changed; never use it to bypass uncertainty.
+
+Document-only `G4: N/A` remains a shape-check exception, not executable delivery proof. The strengthened delivery check requires a bound human G4 plus fresh Graph evidence; do not relabel N/A as runtime verification.

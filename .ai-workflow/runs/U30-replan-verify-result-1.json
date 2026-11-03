@@ -1,0 +1,1 @@
+{"token":"8a44305da87fa12853796c43180ddc86e486499bcc21f33e91b6edcb43b09699","output":{"summary":"kit graph verify: tests 451/451 + 455/455 + 379/379 = 1285/1285, typecheck exit 0, story exit 0; all receipts passed on snapshot of 25d3df7.","evidence":[".ai-workflow/runs/U30-replan-verify-1.md"]},"evaluation":{"passed":true}}

@@ -12,6 +12,10 @@ Use this guide when assigned a role objective. If the dispatcher supplied an exi
 
 Standalone use has the same local rules. Codex/Claude runs the CLI and tools. No Office server is needed. The CLI cannot intercept tools or authenticate people: host permissions and real approvals remain separate.
 
+Every role follows [model-selection.md](model-selection.md) before model dispatch. The host discovers and invokes permitted models; the role name does not fix a model tier. Model selection adds no assignment fields or CLI flags and cannot bypass local graph checks.
+
+Task `input.verification` supplies the selected project recipe path/hash and checks relevant to this node's V scope. Read the recipe and only relevant feature entries; the CLI runs profile argv, not Markdown. Delivery `workflow-review` and role `review` also receive `input.reviewBudget`: default 3 with adaptation and no nested delegation. Apply the shared round allocation in `skill-integration.md`; Office/host enforces actual worker counts.
+
 If PM and Developer disagree about completion, return the exact requirement and evidence to Office. Resolve the shared criteria there. A changed requirement or assignment starts a new run; do not silently edit the bound source or reuse old completion evidence.
 
 ## Assignment schema and initialization
@@ -131,6 +135,8 @@ For `human`, `replan` or exhausted attempts, resolve the decision explicitly; th
 
 ## Compatibility and limits
 
-Assignment schema is v1; role run format is v2. Existing delivery v1 files work without migration. Old runtimes cannot read role v2. Do not downgrade a runtime while using these commands, or edit versions/fingerprints to force compatibility. Install this source artifact and run `doctor`; a package name/version alone does not prove which code an Office worker has.
+Assignment schema remains v1; new delivery and role runs use v3. Legacy v1/v2 runs are inspectable only and require fresh review/verification in a new run. Stop old workers and inspect side effects before updating. Do not edit versions/fingerprints or rename runs to bypass retry limits. Install this source artifact and run `doctor`; a package name/version alone does not prove which code an Office worker has.
 
 No Office adapter, cross-run lock, transport authentication, sandbox, model execution or global budget manager is included. Each run has its existing atomic file lock and local read/write scheduling. Host processes must isolate multiple writers and validate actual revisions before integrating results.
+
+New role runs use v3 with `kind: role`. Developer self-check requires real runner receipts for its V scope. Reviewer results include the tool-bound snapshot selected at initialization and started at review; code changes invalidate that assignment. `needs_changes` completes the review role, never delivery. PM/team-lead planning does not require runtime checks. Record host execution metadata as described in `model-selection.md`. Legacy v2 runs are read-only; do not translate their passed flags into v3 proof.

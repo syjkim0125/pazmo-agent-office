@@ -1,8 +1,12 @@
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs/promises';
 import { createTaskGraph, dependencyIds, descendantIds, nodeById } from './task-graph.mjs';
 import { assertRunState, blockedNodeIds, createRunState, selectReadyNodes } from './scheduler.mjs';
-import { digest, readProjectFile } from './storage.mjs';
+import { digest, projectFile } from './storage.mjs';
 import { assertRoleOutput, assertRoleRun } from './roles.mjs';
+import { canonicalStory } from './snapshot.mjs';
+
+export const isRoleRun = run => run.version === 2 || run.kind === 'role';
 
 export const MAX_ATTEMPTS = 3;
 export const MAX_QUESTIONS = 3;
@@ -11,7 +15,7 @@ const VERIFY = 'workflow-verify';
 
 export function storyContract(text) {
   // Progress metadata is mutable; requirements and human decisions are not.
-  const content = text.split(/\r?\n/).filter(line => !/^(?:Status:|Understanding gate \(G[134]\):|G4:)/i.test(line)).join('\n').trim();
+  const content = canonicalStory(text);
   const sectionIds = (heading, prefix) => {
     const body = text.match(new RegExp(`^##\\s+${heading}\\s*$([\\s\\S]*?)(?=^##\\s|$(?![\\s\\S]))`, 'im'))?.[1] ?? '';
     return [...body.matchAll(new RegExp(`^[-*]\\s+(${prefix}-?\\d+)\\b`, 'gim'))].map(match => match[1].toUpperCase());
@@ -45,11 +49,11 @@ export function createWorkflowGraph(plan, ids) {
 }
 
 export function newWorkflowRun(graph, story, contract) {
-  return { version: 1, runId: randomUUID(), graph, state: createRunState(graph), story: { path: story, fingerprint: contract.fingerprint }, history: [] };
+  return { version: 3, kind: 'delivery', runId: randomUUID(), graph, state: createRunState(graph), story: { path: story, fingerprint: contract.fingerprint }, history: [] };
 }
 
 export function assertWorkflowRun(run) {
-  if (![1, 2].includes(run?.version) || typeof run.runId !== 'string' || !run.runId.trim()
+  if (![1, 2, 3].includes(run?.version) || (run.version === 3 && !['delivery', 'role'].includes(run.kind)) || typeof run.runId !== 'string' || !run.runId.trim()
     || !run.graph || !run.story?.path || !Array.isArray(run.history)) throw new Error('Invalid workflow run.');
   const graph = createTaskGraph(run.graph);
   assertRunState(graph, run.state);
@@ -57,7 +61,7 @@ export function assertWorkflowRun(run) {
     || typeof run.question.id !== 'string' || !run.question.id
     || typeof run.question.text !== 'string' || !run.question.text.trim()
     || run.question.token !== taskToken(run, run.question.nodeId))) throw new Error('Invalid pending question.');
-  if (run.version === 2) {
+  if (isRoleRun(run)) {
     assertRoleRun(run);
     return graph;
   }
@@ -73,7 +77,7 @@ export function taskToken(run, nodeId) {
   return digest(JSON.stringify([run.runId, run.state.fingerprint, run.story.fingerprint, nodeId,
     run.state.nodes[nodeId].attempts, run.state.nodes[nodeId].revision,
     dependencyIds(run.graph, nodeId).map(id => run.state.nodes[id]),
-    ...(run.version === 2 ? [run.assignment.fingerprint] : []) ]));
+    ...(isRoleRun(run) ? [run.assignment.fingerprint] : []) ]));
 }
 
 export function revisionToken(run) {
@@ -84,8 +88,8 @@ export async function evidenceHashes(root, evidence) {
   if (!Array.isArray(evidence) || evidence.length === 0) throw new Error('Node output requires evidence files.');
   const hashes = {};
   for (const file of evidence) {
-    const body = await readProjectFile(root, file);
-    if (!body.trim()) throw new Error(`Empty evidence file: ${file}`);
+    const body = await fs.readFile(await projectFile(root, file));
+    if (!body.toString('utf8').trim()) throw new Error(`Empty evidence file: ${file}`);
     Object.defineProperty(hashes, file, { value: digest(body), enumerable: true, configurable: true });
   }
   return hashes;
@@ -113,17 +117,18 @@ export function workflowStatus(run) {
   const running = nodes.filter(([, state]) => state.status === 'running').map(([id]) => id);
   const exhausted = nodes.some(([, state]) => ['pending', 'failed'].includes(state.status) && state.attempts >= MAX_ATTEMPTS);
   let action;
-  if (exhausted) action = 'stop';
+  if (run.version < 3) action = 'upgrade-required';
+  else if (exhausted) action = 'stop';
   else if (failed.some(node => node.action === 'human')) action = 'human';
   else if (failed.some(node => node.action === 'replan')) action = 'replan';
   else if (run.question) action = 'question';
   else if (failed.length) action = 'fix';
-  else if (nodes.every(([, state]) => state.status === 'completed')) action = run.version === 2 ? 'role-complete' : 'g4';
+  else if (nodes.every(([, state]) => state.status === 'completed')) action = isRoleRun(run) ? 'role-complete' : 'g4';
   else action = 'execute';
   const ready = ['execute', 'fix'].includes(action) ? selectReadyNodes(graph, run.state, 4).map(node => taskInput(run, node.id)) : [];
   if (action === 'execute' && ready.length === 0 && running.length) action = 'wait';
   return { runId: run.runId, revisionToken: revisionToken(run), action, ready, running, failed, blocked: blockedNodeIds(graph, run.state),
-    ...(run.version === 2 ? { assignment: run.assignment.value } : {}),
+    ...(isRoleRun(run) ? { assignment: run.assignment.value } : {}),
     ...(run.question ? { question: run.question } : {}),
     ...(action === 'role-complete' ? { submission: { nodeId: graph.nodes.at(-1).id, output: run.state.nodes[graph.nodes.at(-1).id].output } } : {}),
     completed: nodes.filter(([, state]) => state.status === 'completed').map(([id]) => id),
@@ -132,9 +137,20 @@ export function workflowStatus(run) {
 
 export function taskInput(run, nodeId) {
   const affected = descendantIds(run.graph, [nodeId]);
-  return { ...nodeById(run.graph, nodeId), token: taskToken(run, nodeId), input: {
+  const node = nodeById(run.graph, nodeId);
+  return { ...node, token: taskToken(run, nodeId),
+    ...(run.state.nodes[nodeId].snapshot ? { snapshot: run.state.nodes[nodeId].snapshot } : {}), input: {
     story: run.story.path,
-    ...(run.version === 2 ? { assignment: run.assignment.value } : {}),
+    ...(run.verification ? { verification: {
+      ...(run.verification.recipe ? { recipe: run.verification.recipe } : {}),
+      checks: run.verification.value.checks.filter(check => check.covers.some(id => node.covers.includes(id)))
+        .map(({ id, covers }) => ({ id, covers })),
+    } } : {}),
+    ...(nodeId === 'workflow-review' || (isRoleRun(run) && run.assignment.value.role === 'reviewer' && nodeId === 'review') ? {
+      reviewBudget: { defaultAgents: 3, smallChangeAgents: [0, 2], highRiskAgents: [4, 5], scope: 'whole-review-round',
+        nestedDelegation: false, dispatchOwner: 'host', aggregation: 'caller' },
+    } : {}),
+    ...(isRoleRun(run) ? { assignment: run.assignment.value } : {}),
     messages: run.history.flatMap(entry => {
       if (entry.event === 'record' && affected.has(entry.nodeId) && entry.result.evaluation?.passed === false) {
         return [{ event: 'failure', nodeId: entry.nodeId, feedback: entry.result.evaluation.feedback, output: entry.result.output }];

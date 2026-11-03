@@ -1,0 +1,13 @@
+{
+  "gate": "G1",
+  "storyHash": "3329bb486b11fe15cecd3a24a738b0f32bdaa1827e9c4a7c158efe87786e03e4",
+  "responseRef": "Claude Code conversation 2026-11-03: after being told that merging main #64 (D38) changes the Story hash and needs a fresh G1 for the Story with both D36 and D38 (their texts unchanged), the user answered \"합치고 G1 승인\"",
+  "story": "docs/understanding/pazmo-agent-office-contract.md",
+  "date": "2026-11-03",
+  "scope": "Canonical Story including D36 (kit 5.0.3, Office role runs v3) and D38 (Claw-Empire original referenced by the upstream tag). Earlier decisions keep their own approval records.",
+  "supersedes": {
+    "storyHash": "e75400f587d9a90eadfab52a74bf715e805e3c0ec65d793cca32fe30ddf2cd3d",
+    "responseRef": "Claude Code conversation 2026-11-03, the user answered \"①로 진행\" after reading the G3 explainer https://claude.ai/artifact/TgVDwL5CSjBtqysv59AWFX, which said the answer is also recorded as G1 of the Story with D36; record: docs/understanding/kit5-upgrade-decision.md"
+  },
+  "previous": "docs/understanding/pazmo-agent-office-g1.md (2026-09-17, original Story approval)"
+}

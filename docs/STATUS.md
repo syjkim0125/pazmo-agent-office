@@ -1,3 +1,30 @@
+# 2026-11-03 kit 4.1.0 → 5.0.3, Office 역할 run v3 (D36, ①)
+
+- Office가 직접 부르는 kit를 공식 npm 5.0.3으로 올렸다(사용자 선택 ①, "①로 진행"). 새 역할 run은 kit 5의 v3다.
+  - PM·Lead run은 `.pazmo-office/kit-runs/`에 있다.
+  - 개발자·리뷰어 run은 작업마다 따로 둔 kit 폴더(`.pazmo-office/kit/<digest>/`)에서 돈다. 그 폴더의 코드 스냅샷은 candidate 지문 파일 하나라서, kit가 묶는 대상이 실제로 검사·검토한 candidate다. 사람이 자기 checkout을 고치거나 커밋해도 리뷰가 무효가 되지 않는다.
+- 등록 검사는 지금처럼 VM에서 한 번만 돈다. kit 5가 요구하는 실행 기록은 중계(`node office-check.mjs V1`)로 채운다. 중계는 같은 candidate·같은 round의 VM 결과가 통과했을 때만 성공한다. 그래서 kit가 호스트에서 돌리는 것은 이 중계뿐이다.
+- G1 기록에 kit 5가 요구하는 `gate`·`storyHash`·`responseRef`(Office 승인 이벤트)가 들어간다. Task가 덮지 않는 V는 kit 보기에서 `(outside this Task)`로 표시한다.
+- **바뀐 동작:** kit 4로 시작한 작업은 `KIT_UPGRADE_REQUIRED`로 멈추고, 옛 run과 기록은 그대로 둔다. 취소하고 다시 만들면 kit 5로 진행한다. G3 때 기본값으로 적은 "v3에서 리뷰·검증을 다시"와 다르다. Office에는 사람 확인 상태에서 자동으로 다시 도는 길이 없고, 리뷰를 다시 하려면 새 복구 경로가 필요하기 때문이다. 완료 증거를 kit 4로 이미 기록한 round는 그대로 G4를 기다린다.
+- 팀 모드의 머지 직전 재검증은 Office가 맡는다(D34, 바꾸지 않음). P4는 다음 PR이다. 5.0.2의 intake 위험 렌즈(D35 P2)가 이번에 들어왔다.
+- 이 repo의 절차도 kit 5를 따른다.
+  - `.ai-workflow/verification.json`(시험 3묶음·타입 검사·Story 검사)과 [검사 절차](verification/kit-checks.md)를 둔다.
+  - Story G1을 JSON(`.ai-workflow/approvals/pazmo-agent-office-g1.json`)으로 바꿨다. **Story를 고칠 때마다 G1을 새로 받는다.**
+  - G4 뒤에는 `graph.mjs delivery`를 확인한다.
+  - kit 실행은 `.ai-workflow/runs/U30-kit5-upgrade-replan.json`(v3, 구현·리뷰 3회·검증)이다. 처음 run(`U30-kit5-upgrade.json`)은 시험 검사를 3묶음으로 나누기 전 프로필에 묶여 있어 그대로 남겼다. main을 합칠 때마다 새 merge run(`U30-kit5-upgrade-merge*.json`)에서 리뷰·kit 검증을 다시 했다.
+  - main #64의 D38이 Story에 들어와 Story 해시가 바뀌었다. 그래서 D36·D38이 함께 든 Story의 G1을 다시 받았다(2026-11-03 "합치고 G1 승인"). Story가 바뀌면 G1을 새로 받는다는 규칙이 처음 적용된 사례다.
+- 자동 검사(리뷰 1차 수정 뒤): root `npm test` **1284/1285** exit 1(184초, 부하 11–14)이다. 실패 1건은 `tests/team-gh.test.mjs`의 "a gh that hangs times out"이다. 이 시험은 실행 시간이 4초 미만이어야 하는데 5212ms가 걸렸고, 이번 변경과 무관하다. 그 파일만 다시 돌리면 3번 모두 15/15였다(흔들림은 다른 세션이 조사 중). 타입 검사 exit 0, Story 검사기 exit 0. 리뷰 전 값은 1284/1284(336초)였다. 실험 사본의 바꾸기 전 값은 1254/1276이었다. 돌연변이 3개(git 경계, kit 4 완료 기록, Task 밖 V 표시)를 모두 잡았다. 독립 리뷰 1차(3명)의 Important 4건(git 차단 우회, 같은 V의 검사 둘, `KIT_UPGRADE_REQUIRED`가 두 번째 실행에서 사라짐, 닿지 않는 재개 분기)을 고쳤다. 리뷰 2차에서 3건은 Fixed, 1건(`KIT_UPGRADE_REQUIRED`)은 Partly였다. round가 없을 때는 사유를 저장하지 않고, 완료 증거 없이 G4를 기다리던 kit 4 round는 G4가 계속 거부되는데, 이 둘은 받아들였다. Minor 일부는 받아들이고 남겼다([검증 기록](verification/2026-11-03-kit5-upgrade.md)). kit `graph verify` 실행 기록은 U30 replan run의 `workflow-verify`에 남는다.
+- **남은 것:**
+  - 실제 Office(실제 VM·CLI)로 v3 역할 run 확인
+  - P4
+  - 머지 뒤 main을 합치는 다른 브랜치의 4.1.0 kit run은 읽기 전용이 되므로, 그 브랜치는 v3 run을 새로 시작해야 한다
+  - `docs/solutions`의 옛 `kitSource`·`role-runs` 언급 정리
+
+- PR syjkim0125/pazmo-agent-office#65. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문에는 직접 답하지 않았다. kit 5 절차대로 G4 JSON을 merge-2 run의 snapshot(`7628011`)에 묶었다. 결과: `check.mjs story` exit 0, `gate G4` exit 0, `graph.mjs delivery` exit 0(`delivered`). [G4 기록](../.ai-workflow/approvals/kit5-upgrade-g4.md)
+
+- G4 뒤 머지 전에 main(#66, D37)을 합쳤다. 충돌은 Story(D36·D37·D38 순서)와 STATUS뿐이었다. 합친 상태에서 전체 `npm test` **1303/1303** exit 0, 타입 검사 exit 0, Story 검사기 exit 0이었다. G4와 `delivery`는 #66을 합치기 전 `7628011`에 묶여 있다. **D37이 들어와 Story 해시가 바뀌었으므로, Story G1 JSON은 D36·D38까지의 Story에 묶인 채 남는다. 다음 kit run을 시작하기 전에 G1을 다시 받아야 한다.**
+
+[G3 결정](understanding/kit5-upgrade-decision.md) · [계획](plans/2026-11-03-1200-feat-kit5-upgrade-plan.md) · [검증 기록](verification/2026-11-03-kit5-upgrade.md)
 # 2026-11-03 실행기 계정 문제는 시도로 세지 않고 기다린다 (D37)
 
 - 3단계 실제 확인 1차의 찾은 것 1·2를 고친다. 그때는 사용 한도에 걸린 claude가 로그인 확인을 통과해 Task를 가져갔고, Engineer가 바로 끝나 시도를 몇 초에 썼으며, 이유는 `ENGINEER_FAILED`로만 보였다.

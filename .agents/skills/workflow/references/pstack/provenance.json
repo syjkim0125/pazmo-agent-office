@@ -1,0 +1,37 @@
+{
+  "repository": "https://github.com/backnotprop/pstack",
+  "commit": "0c3333f09655d7933919795fbf4f9946d62b6f77",
+  "license": "MIT",
+  "files": [
+    {
+      "source": "skills/principle-prove-it-works/SKILL.md",
+      "file": "principle-prove-it-works.md",
+      "sha256": "ec79a15025bac8d33d62011c54f3b612733fd2a024e623b531b3637aa75070e2"
+    },
+    {
+      "source": "skills/create-verification-skill/SKILL.md",
+      "file": "create-verification-skill.md",
+      "sha256": "bba612e8b81a02df0f49e6f6911f3b543c8c7d9f1f3c13ae6c0e2d58cc8c3ad3"
+    },
+    {
+      "source": "skills/create-verification-skill/references/feature-map-example/README.md",
+      "file": "references/feature-map-example/README.md",
+      "sha256": "cb7bd782cf89968a4ba3d58a5151db837430db92d19a6f52a906973b77b516ba"
+    },
+    {
+      "source": "skills/create-verification-skill/references/feature-map-example/create-note.md",
+      "file": "references/feature-map-example/create-note.md",
+      "sha256": "644a44c74f35d38c2feb7cd05a0121fdebbb623e8dc376c185b565a581d1ccf7"
+    },
+    {
+      "source": "skills/create-verification-skill/references/feature-map-example/search.md",
+      "file": "references/feature-map-example/search.md",
+      "sha256": "6e87b9e7f2791a7776ba1bb83f371cd285c306c67f19d245cc4dd6ca3015c823"
+    },
+    {
+      "source": "LICENSE",
+      "file": "LICENSE",
+      "sha256": "bc957ca6bee02792566a1a028d105e02e247c6e77cf057061674273da77b200e"
+    }
+  ]
+}

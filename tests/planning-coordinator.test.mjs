@@ -355,6 +355,22 @@ test("native source tampering after G1 cannot start Lead or silently replace the
   assert.equal(f.packets.length, 2);
 });
 
+test("planning begun under kit 4 stops for a person and keeps the kit 4 run", async (t) => {
+  const { KitRoleRun } = await import("../src/core/kit-role-runs.ts");
+  const f = setup(t, "ready", true);
+  const legacy = join(
+    f.project,
+    KitRoleRun.legacyRunFile(`${f.item.taskId}:planning:pm`),
+  );
+  mkdirSync(join(legacy, ".."), { recursive: true });
+  writeFileSync(legacy, '{"version":2}');
+  const result = await f.coordinator.run(f.item.taskId, f.context);
+  assert.equal(result.state, "human_required");
+  assert.equal(result.intake.reason, "KIT_UPGRADE_REQUIRED");
+  assert.equal(f.packets.length, 0);
+  assert.equal(readFileSync(legacy, "utf8"), '{"version":2}');
+});
+
 test("explicit planning recovery preserves G1 and failed kit run while bounding retries", async (t) => {
   const f = setup(t, "ready", true);
   const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
@@ -373,7 +389,7 @@ test("explicit planning recovery preserves G1 and failed kit run while bounding 
   const { digest } = await import("../src/core/candidates.ts");
   const priorPath = join(
     f.project,
-    `.pazmo-office/role-runs/${digest(`${pm.taskId}:planning:team-lead`)}/run.json`,
+    `.pazmo-office/kit-runs/${digest(`${pm.taskId}:planning:team-lead`)}/run.json`,
   );
   const prior = readFileSync(priorPath, "utf8");
   assert.throws(
@@ -449,7 +465,7 @@ test("a Lead node that never inspected the readonly snapshot cannot become a pro
   assert.equal(result.reason, "INSPECTION_REQUIRED");
   assert.equal(result.proposal, null);
   assert.equal(f.execution.listPlanning(pm.taskId).at(-1).state, "released");
-  const reference = `.pazmo-office/role-runs/${(await import("../src/core/candidates.ts")).digest(`${pm.taskId}:planning:team-lead`)}/run.json`;
+  const reference = `.pazmo-office/kit-runs/${(await import("../src/core/candidates.ts")).digest(`${pm.taskId}:planning:team-lead`)}/run.json`;
   const run = JSON.parse(readFileSync(join(f.project, reference), "utf8"));
   assert.equal(run.state.nodes.investigate.status, "completed");
   assert.notEqual(run.state.nodes.plan.status, "completed");
@@ -614,7 +630,7 @@ test("the kit run records a runner failure as a runner failure, not a protocol v
       readFileSync(
         join(
           f.project,
-          `.pazmo-office/role-runs/${digest(`${f.item.taskId}:planning:pm`)}/run.json`,
+          `.pazmo-office/kit-runs/${digest(`${f.item.taskId}:planning:pm`)}/run.json`,
         ),
         "utf8",
       ),
