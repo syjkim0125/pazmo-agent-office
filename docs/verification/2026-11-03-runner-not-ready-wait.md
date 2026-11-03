@@ -11,7 +11,7 @@ Story: M16 · V18 · D39(D37의 후속). 근거: D37 리뷰의 후속(`.ai-workf
 ## 무엇이 바뀌었나
 
 - **엔진의 실행기 다시 보기(3-A):** 역할 실행을 시작하기 전에, 엔진이 가진 실행기 목록에서 그 실행기가 준비 안 됨이면 실행기를 한 번 새로 확인한다(`src/runtime/runner-jobs.ts`). 바이너리가 바뀌었을 때 이미 하던 재확인과 같은 자리다. 준비됐으면 그대로 자격 검사와 실행으로 간다. 여전히 준비 안 됨이면 `RUNNER_NOT_READY <실행기>: <안내>`로 거절한다. 예전 형식은 `RUNNER_NOT_READY: <안내>`였고, 그 글을 읽는 코드는 없었다. 준비되고 바뀌지 않은 실행기는 새로 보지 않는다.
-- **새로 보기가 실패할 때:** 탐색이 예외로 끝나면 마지막 목록을 그대로 쓴다. 준비 안 됨이라 새로 보던 실행은 프로세스를 띄우기 전에 그 안내로 거절되고 기다림이 된다. 바이너리가 바뀌어 새로 보던 실행은 지금처럼 `UNVERIFIED_CONTROLLER_BINARY`로 거절되고 시도로 센다. 탐색 중 claude의 hook 목록 조회만 실패하면, 같은 바이너리에서 앞서 찾은 hook 막힘을 유지한다(`keptClaudeBlock`, `src/runtime/runner-settings.ts`). 조회 실패는 아무것도 판정하지 않으므로, 그것만으로 hook 때문에 막혀 있던 claude가 풀리면 안 된다(D29).
+- **새로 보기가 실패할 때:** 탐색이 예외로 끝나면 마지막 목록을 그대로 쓴다. 준비 안 됨이라 새로 보던 실행은 프로세스를 띄우기 전에 그 안내로 거절되고 기다림이 된다. 바이너리가 바뀌어 새로 보던 실행은 지금처럼 `UNVERIFIED_CONTROLLER_BINARY`로 거절되고 시도로 센다. 탐색 중 claude의 모델·hook 목록 조회만 실패하면, 같은 바이너리에서 앞서 찾은 hook 막힘을 유지한다(`keptClaudeBlock`, `src/runtime/runner-settings.ts`). 조회 실패는 아무것도 판정하지 않으므로, 그것만으로 hook 때문에 막혀 있던 claude가 풀리면 안 된다(D29). 조회 실패는 목록에 `claudeUnlisted`로 표시하고, 유지한 막힘의 안내는 지금의 로그인 상태로 다시 만든다(아래 "후속").
 - **알아보기(1-A):** `runnerNotReady`(`src/runners/runner-account.ts`)가 그 거절을 실행기·종류 `not_ready`·안내 한 줄(최대 300자, 제어 문자 제거)로 읽는다. 다른 거절(`UNVERIFIED_CONTROLLER_BINARY`, `RUNNER_QUALIFICATION_FAILED`, 시간 초과 등)은 읽지 않는다.
 - **엔진의 멈춤 읽기:** `storyOutcome`이 Engineer 수령증의 `observation.error`(`ENGINEER_FAILED`)와 리뷰 노드의 `observation.error`를 읽는다. 시작 전에 거절된 리뷰는 실패가 아니라 결과를 모름(`UNKNOWN_RESULT`)으로 끝나서, D37의 `REVIEW_RUNNER_FAILED` 경로로는 보이지 않았다.
 - **기다림(1-A·2-A):** D37의 기다림을 그대로 쓴다. 30분마다 같은 시도를 구현부터 다시 하고, 첫 발견부터 6시간이 지나면 `RUNNER_NOT_READY <실행기>: <안내>`로 Hub에 실패 보고한다. 로그는 `<실행기> is not ready (<안내>); not counted as an attempt; running it again at <시각>`이다. 팀 기록의 기다림 종류에 `not_ready`가 더해졌다.
@@ -36,9 +36,39 @@ D37 시험을 본떠 고치기 전에 실패하는 것을 먼저 확인했다(8�
 
 리뷰에서 더한 시험 중 이미 쓴 코드를 지키는 것은, 코드를 되돌리면 실패하는지 변이로 확인했다. 7개 중 6개가 실패했다(`.ai-workflow/runs/U32-implement-2.md`).
 - 잡은 것: 예전 조건(바이너리가 바뀔 때만 새로 봄), 매번 새로 봄, 저장의 `not_ready` 종류 빼기, `waitingOf`가 `not_ready` 숨기기, `storyOutcome`이 실행 오류 무시, 기다림 안내를 다음 Engineer에게 넘기기.
-- 못 잡은 것: `src/runtime/live.ts`에서 엔진에 `rediscover`를 잇는 한 줄을 지워도 시험은 통과한다. lean-office 시험의 helper가 그 줄을 복제해 쓰기 때문이다. D39 전부터 있던 빈틈이고, 이 변경은 그 줄을 바꾸지 않았다.
+- 못 잡은 것: `src/runtime/live.ts`에서 엔진에 `rediscover`를 잇는 한 줄을 지워도 시험은 통과한다. lean-office 시험의 helper가 그 줄을 복제해 쓰기 때문이다. D39 전부터 있던 빈틈이고, 이 변경은 그 줄을 바꾸지 않았다. → 후속에서 고쳤다(아래).
 
 전체 시험·타입 검사·Story 검사의 새 결과는 kit 실행 `.ai-workflow/runs/U32-runner-not-ready-wait.json`의 검증 기록에 있다.
+
+## 후속: 마지막 리뷰의 Minor 5건 (2026-11-03)
+
+D39 마지막 리뷰([U32-review-2.md](../../.ai-workflow/runs/U32-review-2.md))가 남긴 Minor 5건을 머지 뒤 따로 고쳤다. D39의 동작과 Story는 그대로다. Story 해시 `b005160e`가 G1 기록과 같아 G1을 다시 받지 않았다. kit 실행은 `.ai-workflow/runs/U33-d39-minor-followups.json`(최소 계획)이다.
+
+1. **답은 왔는데 쓸 모델이 없는 조회:**
+   - 전에는 "claude 모델 목록이 빔"을 조회 실패로 봤다. 그래서 답은 왔는데 쓸 수 있는 모델 항목이 없으면, hook이 없어도 앞선 hook 막힘이 재시작 때까지 남았다.
+   - 이제 `loadRunnerCatalog`가 조회 실패를 목록에 `claudeUnlisted`로 표시하고, `keptClaudeBlock`은 그 표시만 본다.
+2. **유지한 막힘의 안내:**
+   - 전에는 앞선 탐색의 안내를 그대로 썼다. 그 사이 로그아웃했으면 로그인 안내가 빠졌고, 로그인했으면 낡은 로그인 안내가 남았다(D30·D32의 `blockedHint`).
+   - 이제 막힘을 지금의 설치 정보로 다시 만든다(`hookBlock`). 문구는 `blockHookedClaude`와 같다.
+3. **`rediscover` 연결:** `rediscover`를 `choice`·`installs`와 함께 `liveRunnerWiring(runners).factory`로 옮겼다. `live.ts`와 lean-office 시험의 helper가 둘 다 그것을 펼쳐 쓴다.
+4. **시험 빈틈:** 바이너리가 바뀌었는데 다시 보기가 실패한 경우의 시험을 더했다. 결과는 `UNVERIFIED_CONTROLLER_BINARY`, `closed:true`다. `runnerNotReady`가 기다림으로 읽지 않고, 자격 검사·역할 실행·실행 기록이 없다.
+5. **주석:** "어떤 프로세스도 띄우기 전에"를 "역할의 실행기 프로세스를 띄우기 전에"로 고쳤다(`runner-jobs.ts` 두 곳, `runner-account.ts`, 학습 문서). 거절 전 탐색이 CLI를 잠깐 띄운다는 것도 적었다.
+
+시험:
+- 1·2는 고치기 전에 실패했다. 2는 두 방향(로그인 → 로그아웃, 로그아웃 → 로그인)이 따로 실패했다.
+- 기존 D39 시험(조회 실패는 막힘을 유지)은 실패 표시를 쓰도록 고쳤다. 안내는 이제 막힘으로 다시 만든 문구를 본다.
+- 4는 이미 있던 동작이라 지금 코드에서 통과한다. 그래서 변이로 확인했다. 다음 두 변이는 같은 파일의 다른 시험 16개가 모두 통과하는데 이 시험만 실패했다.
+  - 실패한 다시 보기를 준비 안 됨으로 보기: 기다림이 된다.
+  - 실패하면 바이너리 검사를 건너뛰기: 검증 안 된 바이너리가 돈다.
+- 3의 변이:
+  - `liveRunnerWiring`에서 `rediscover`를 빼거나, 다시 보지 않고 옛 목록을 돌려주게 하면 live-runtime 시험과 lean-office D39 시험이 실패한다.
+  - `live.ts`에서 펼치는 줄을 지우면 타입 검사가 실패한다.
+- `keptClaudeBlock` 변이 5개를 시험이 모두 잡았다: 실패 표시 무시, 표시 안 함, 옛 안내 유지, 바이너리 비교 빼기, 옛 로그인으로 안내 만들기.
+- 바꾼 모듈을 쓰는 시험 파일 9개는 184/184, 타입 검사는 exit 0이다. 전체 시험의 결과는 U33 실행의 검증 기록에 있다.
+
+남은 것:
+- `live.ts`가 펼치지 않고 `choice`·`installs`만 골라 넘겨 `rediscover`를 빠뜨리면, 시험도 타입 검사도 잡지 못한다. `rediscover`가 선택 항목이라서다. `createLiveRuntime`의 역할 실행은 VM이 있어야 돌아서 시험하지 않았다.
+- 실제 claude로는 "답은 왔는데 모델 없음"이나, 조회 실패 중 로그인 변경을 재현하지 않았다. 가짜 CLI로만 확인했다.
 
 ## 확인하지 않은 것과 남은 위험
 

@@ -949,9 +949,7 @@ function engineJobs(runners) {
     return { supervise: async () => ({ closed: true, result: { exitCode: 0, signal: null, error: null, stdout: "", stderr: "", timedOut: false } }) };
   };
   const factory = roleJobFactory({
-    choice: liveRunnerWiring(runners).choice,
-    installs: () => runners.settings.catalog.installs,
-    rediscover: async () => (await runners.settings.refresh()).installs,
+    ...liveRunnerWiring(runners).factory,
     qualify: async () => ({ passed: true, checks: [], catalog: { path: "/cat.json", digest: "d".repeat(64) } }),
     evidence: { record() {} },
     executor: "/qualified/executor",

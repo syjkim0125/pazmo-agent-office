@@ -38,7 +38,7 @@ const CODEX_WORDS: [RegExp, RunnerAccountProblem["kind"]][] = [
 /** Free text as one bounded line: no control characters, runs of space folded. */
 const oneLine = (text: string) => text.replace(/[\s\x00-\x1f\x7f]+/g, " ").trim().slice(0, MESSAGE_MAX);
 
-/** How runner-jobs.ts refuses a run whose runner is not ready, before any process starts. */
+/** How runner-jobs.ts refuses a run whose runner is not ready, before the role's runner process starts. */
 const NOT_READY = /^RUNNER_NOT_READY (claude|codex): ([\s\S]*)$/;
 
 /** Whether a run's supervisor error is the engine's refusal of a runner that was not ready (logged out, missing,

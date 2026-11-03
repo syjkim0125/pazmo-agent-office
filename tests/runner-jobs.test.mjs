@@ -175,6 +175,21 @@ test("a binary changed since discovery is refused before qualification", async (
   assert.equal(h.calls.qualify.length, 0);
 });
 
+test("a binary changed since discovery whose new discovery fails is refused as unverified, not as a runner to wait for (D39)", async () => {
+  let discoveries = 0;
+  const h = harness({ rediscover: () => async () => (discoveries++, Promise.reject(new Error("CANDIDATE_CHANGED"))) });
+  writeFileSync(h.bins.claude, "auto-updated claude");
+  const out = await supervise(h.factory("engineer", "t", "x"));
+  assert.equal(discoveries, 1);
+  assert.equal(out.closed, true, "nothing started, so no recovery is needed");
+  // The team Office counts this refusal as an attempt; it waits only on RUNNER_NOT_READY (runner-account.ts).
+  assert.equal(out.result.error, "UNVERIFIED_CONTROLLER_BINARY");
+  assert.equal(runnerNotReady(out.result.error), null);
+  assert.equal(h.calls.qualify.length, 0);
+  assert.equal(h.calls.claude.length, 0);
+  assert.equal(h.calls.evidence.length, 0);
+});
+
 test("a failed qualification blocks the run and names the failed checks", async () => {
   const h = harness({ passed: false });
   const out = await supervise(h.factory("pm", "t", "x"));

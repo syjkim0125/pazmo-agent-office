@@ -37,7 +37,8 @@ const refused = (error: string) => ({
 });
 
 /** Role and task → runner choice → qualified user CLI job. Refusals happen before
- * any process starts and never fall back to another runner or an API key. */
+ * the role's runner process starts and never fall back to another runner or an
+ * API key. A discovery before a refusal starts the CLIs briefly (D39). */
 export function roleJobFactory(d: RoleJobDependencies) {
   const jobs = d.jobs ?? { codex: codexJob, claude: claudeJob };
   return (role: ExecutingRole, taskId: string, prompt: string): RemoteJob => {
@@ -62,7 +63,8 @@ export function roleJobFactory(d: RoleJobDependencies) {
         let install = d.installs()[choice.runner];
         // The last discovery may be stale: a CLI logged in since then is not refused (D39), and an updated CLI is a
         // new binary, qualified afresh.
-        // A discovery that fails leaves the last one: the run is refused cleanly below, before any process starts.
+        // A discovery that fails leaves the last one: the run is refused cleanly below, before the role's runner
+        // process starts.
         if (d.rediscover && (!ready(install) || !unchanged(install)))
           install =
             (

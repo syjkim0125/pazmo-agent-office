@@ -163,8 +163,8 @@ test("a refresh that could not list claude's hooks keeps the block an earlier di
     const c = catalog();
     c.installs.claude = { ...c.installs.claude, sha256, loggedIn: true, hint: blocked ? "hook을 지우거나 codex를 고르세요." : "준비됨" };
     if (blocked) c.installs.claude.blocked = blocked;
-    // loadRunnerCatalog lists claude's hooks with its models: a failed listing leaves no models and judges nothing.
-    if (!models) c.models.claude = [];
+    // loadRunnerCatalog lists claude's hooks with its models: a failed listing leaves no models, judges nothing and says so.
+    if (!models) Object.assign(c, { claudeUnlisted: true }).models.claude = [];
     return c;
   };
   let next = found({ blocked: HOOK });
@@ -172,7 +172,8 @@ test("a refresh that could not list claude's hooks keeps the block an earlier di
   await settings.refresh();
   next = found({ models: false });
   const kept = (await settings.refresh()).installs.claude;
-  assert.deepEqual([kept.blocked, kept.hint], [HOOK, "hook을 지우거나 codex를 고르세요."], "a failed listing never unblocks claude");
+  assert.equal(kept.blocked, HOOK, "a failed listing never unblocks claude");
+  assert.match(kept.hint, /^claude에 SessionEnd hook \(policySettings\)이 걸려 있습니다\./, "the hint is made again from the block");
   assert.equal(settings.catalog.installs.claude.blocked, HOOK);
   // A listing that went through decides again.
   next = found();
@@ -182,6 +183,53 @@ test("a refresh that could not list claude's hooks keeps the block an earlier di
   await settings.refresh();
   next = found({ models: false, sha256: "c".repeat(64) });
   assert.equal((await settings.refresh()).installs.claude.blocked, undefined);
+});
+
+/** Rewrites the fake claude under `bin` in place; its native file, and so its sha256, stay the same. `answer` is
+ * what it prints for discovery's model and hook listing, and null makes that listing fail. */
+function rewriteClaude(bin, { loggedIn = true, answer }) {
+  const listed = answer ? `read line\nread second\n${answer.map((e) => `echo '${JSON.stringify(e)}'`).join("\n")}\ncat >/dev/null` : "exit 1";
+  fakeNative(
+    join(bin, "claude"),
+    `case "$1 $2" in
+  "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
+  "auth status") echo '{"loggedIn":${loggedIn}}'; exit 0;;
+esac
+${listed}\n`,
+  );
+}
+const sessionEnd = { event: "SessionEnd", source: "policySettings", commandText: "true" };
+const loginCue = /claude를 쓰려면 터미널에서 claude auth login도/;
+
+test("a listing that answers with no usable claude model still went through: the hooks are judged again (D39 follow-up)", async (t) => {
+  const fx = fakeRunners(t, listing({ hooks: [sessionEnd] }));
+  const { settings } = fixture(() => loadRunnerCatalog(fx.home, fx.bin));
+  assert.equal((await settings.refresh()).installs.claude.blocked, "SessionEnd hook (policySettings)");
+  // The hook is gone, and the answer's one model entry has no value claude could run.
+  const models = { type: "control_response", response: { subtype: "success", request_id: "pazmo-models", response: { models: [{ displayName: "Opus" }] } } };
+  rewriteClaude(fx.bin, { answer: [models, listing({ hooks: [] })] });
+  const after = await settings.refresh();
+  assert.deepEqual(after.models.claude, []);
+  assert.equal(after.installs.claude.blocked, undefined, "an answered listing is not a failed one");
+  assert.equal(after.installs.claude.hint, "준비됨");
+});
+
+test("a block kept over a failed listing gives the login cue for claude's login now (D39 follow-up)", async (t) => {
+  for (const [before, now] of [["in", false], ["out", true]]) {
+    const fx = fakeRunners(t, listing({ hooks: [sessionEnd] }), { claude: before });
+    const { settings } = fixture(() => loadRunnerCatalog(fx.home, fx.bin));
+    await settings.refresh();
+    // The login changed since, and this listing fails.
+    rewriteClaude(fx.bin, { loggedIn: now, answer: null });
+    const kept = (await settings.refresh()).installs.claude;
+    assert.equal(kept.blocked, "SessionEnd hook (policySettings)", "a failed listing never unblocks claude");
+    assert.equal(kept.loggedIn, now);
+    // The hint a listing would give this block now.
+    const fresh = fakeRunners(t, listing({ hooks: [sessionEnd] }), { claude: now ? "in" : "out" });
+    const expected = (await loadRunnerCatalog(fresh.home, fresh.bin)).installs.claude.hint;
+    assert.equal(kept.hint, expected, `logged ${before} at the block, logged ${now ? "in" : "out"} now`);
+    (now ? assert.doesNotMatch : assert.match)(kept.hint, loginCue);
+  }
 });
 
 test("a blocked codex is not selectable and unchosen roles move to a logged-in claude", async () => {
@@ -300,24 +348,19 @@ test("a claude that cannot list its hooks is blocked too", async (t) => {
 
 test("a claude with no hooks stays usable", async (t) => {
   const fx = fakeRunners(t, listing({ events: [], hooks: [] }));
-  const { installs, models } = await loadRunnerCatalog(fx.home, fx.bin);
+  const { installs, models, claudeUnlisted } = await loadRunnerCatalog(fx.home, fx.bin);
   assert.equal(installs.claude.blocked, undefined);
   assert.equal(installs.claude.hint, "준비됨");
   assert.deepEqual(models.claude, [{ slug: "default" }]);
+  assert.equal(claudeUnlisted, undefined, "the listing went through");
 });
 
 test("a claude whose model discovery fails is not judged and stays usable", async (t) => {
   const { home, bin } = fakeRunners(t, listing({ hooks: [] }));
-  fakeNative(
-    join(bin, "claude"),
-    `case "$1 $2" in
-  "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
-  "auth status") echo '{"loggedIn":true}'; exit 0;;
-esac
-exit 1\n`,
-  );
-  const { installs, models } = await loadRunnerCatalog(home, bin);
+  rewriteClaude(bin, { answer: null });
+  const { installs, models, claudeUnlisted } = await loadRunnerCatalog(home, bin);
   assert.equal(installs.claude.blocked, undefined);
   assert.equal(installs.claude.hint, "준비됨");
   assert.deepEqual(models.claude, []);
+  assert.equal(claudeUnlisted, true, "the catalog says the listing failed");
 });
