@@ -12,7 +12,7 @@
   - Story G1을 JSON(`.ai-workflow/approvals/pazmo-agent-office-g1.json`)으로 바꿨다. **Story를 고칠 때마다 G1을 새로 받는다.**
   - G4 뒤에는 `graph.mjs delivery`를 확인한다.
   - kit 실행은 `.ai-workflow/runs/U30-kit5-upgrade-replan.json`(v3)이다. 처음 run(`U30-kit5-upgrade.json`)은 시험 검사를 3묶음으로 나누기 전 프로필에 묶여 있어 그대로 남겼다.
-- 자동 검사(리뷰 1차 수정 뒤): root `npm test` **1284/1285** exit 1(184초, 부하 11–14)이다. 실패 1건은 `tests/team-gh.test.mjs`의 "a gh that hangs times out"이다. 이 시험은 실행 시간이 4초 미만이어야 하는데 5212ms가 걸렸고, 이번 변경과 무관하다. 그 파일만 다시 돌리면 3번 모두 15/15였다(흔들림은 다른 세션이 조사 중). 타입 검사 exit 0, Story 검사기 exit 0. 리뷰 전 값은 1284/1284(336초)였다. 실험 사본의 바꾸기 전 값은 1254/1276이었다. 돌연변이 3개(git 경계, kit 4 완료 기록, Task 밖 V 표시)를 모두 잡았다. 독립 리뷰 1차(3명)의 Important 4건(git 차단 우회, 같은 V의 검사 둘, `KIT_UPGRADE_REQUIRED`가 두 번째 실행에서 사라짐, 닿지 않는 재개 분기)과 Minor를 고쳤다. kit `graph verify` 실행 기록은 U30 replan run의 `workflow-verify`에 남는다.
+- 자동 검사(리뷰 1차 수정 뒤): root `npm test` **1284/1285** exit 1(184초, 부하 11–14)이다. 실패 1건은 `tests/team-gh.test.mjs`의 "a gh that hangs times out"이다. 이 시험은 실행 시간이 4초 미만이어야 하는데 5212ms가 걸렸고, 이번 변경과 무관하다. 그 파일만 다시 돌리면 3번 모두 15/15였다(흔들림은 다른 세션이 조사 중). 타입 검사 exit 0, Story 검사기 exit 0. 리뷰 전 값은 1284/1284(336초)였다. 실험 사본의 바꾸기 전 값은 1254/1276이었다. 돌연변이 3개(git 경계, kit 4 완료 기록, Task 밖 V 표시)를 모두 잡았다. 독립 리뷰 1차(3명)의 Important 4건(git 차단 우회, 같은 V의 검사 둘, `KIT_UPGRADE_REQUIRED`가 두 번째 실행에서 사라짐, 닿지 않는 재개 분기)을 고쳤다. 리뷰 2차에서 3건은 Fixed, 1건(`KIT_UPGRADE_REQUIRED`)은 Partly였다. round가 없을 때는 사유를 저장하지 않고, 완료 증거 없이 G4를 기다리던 kit 4 round는 G4가 계속 거부되는데, 이 둘은 받아들였다. Minor 일부는 받아들이고 남겼다([검증 기록](verification/2026-11-03-kit5-upgrade.md)). kit `graph verify` 실행 기록은 U30 replan run의 `workflow-verify`에 남는다.
 - **남은 것:**
   - 실제 Office(실제 VM·CLI)로 v3 역할 run 확인
   - P4
@@ -20,6 +20,13 @@
   - `docs/solutions`의 옛 `kitSource`·`role-runs` 언급 정리
 
 [G3 결정](understanding/kit5-upgrade-decision.md) · [계획](plans/2026-11-03-1200-feat-kit5-upgrade-plan.md) · [검증 기록](verification/2026-11-03-kit5-upgrade.md)
+
+# 2026-11-03 3줄 요약: 따옴표(비ASCII) 경로
+
+- 바뀐 파일 이름이 모두 한글 같은 비ASCII이면 3줄 요약(Hub 보고·단일 Office G4 질문)이 `2. 변경 파일: 변경 없음`으로 나오던 것을 고쳤다(M16·V18, #59 후속). 후보 diff는 전역 Git 설정을 버려 `core.quotePath`가 켜져 있고, Git은 그런 경로의 머리줄을 따옴표와 8진수로 쓴다. 이제 `changeSummary`가 그 줄을 읽고 이름을 풀어 보인다. `\t`·`\n` 같은 글자 이스케이프는 그대로 둬 요약은 늘 3줄이다.
+- 자동 검사: 실제 생산자(`captureCandidateDiff`)로 만든 diff의 짝 시험과 실제 Git 패치 단위 시험이 고치기 전에 실패했다. root `npm test` **1278/1278** exit 0, 타입 검사·Story 검사기 exit 0. 독립 리뷰 두 번(머지 가능, Minor 5개 고침).
+- PR syjkim0125/pazmo-agent-office#62. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-quoted-path-change-summary-g4.md)
+- **남은 것:** 한글 이름 파일을 바꾸는 실제 Story Task 실행(실제 확인 2차 때), 다른 Git 버전. 첫 전체 실행에서 한 번 실패한 `tests/team-gh.test.mjs` "a gh that hangs times out"은 이 변경과 무관하며 원인을 별도로 찾고 있다.
 
 # 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 1차 끝·2차 전)
 
@@ -58,7 +65,7 @@
   - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
 - 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
 - PR syjkim0125/pazmo-agent-office#56. G4는 2026-10-30에 기록했다. 사용자가 선택 ②("2", 승인 후 머지)를 고른 뒤, 컨트롤러가 쓴 답 초안과 사전 확인 두 개를 보고 "확인했어 승인"이라고 답했다(승인 후 머지). 세 질문의 답은 컨트롤러가 썼다. [G4 기록](verification/2026-10-30-lean-office-default-g4.md)
-- **남은 것: app-be 실제 확인(V17), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+- **남은 것: app-be 실제 확인(V17), 엔진 코드 정리(D24 3단계 뒤), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
 
 # 2026-10-30 `--codex-runtime pinned` 시작 검사를 1단계와 Office에서 같게
 

@@ -111,7 +111,7 @@ manifest 밖에 둔 덕분에 `readManifest()`의 정확한 집합 비교가 그
 
 - [Publish Lead proposals under .pazmo-office/plans, not the project root](publish-lead-proposals-under-pazmo-office-plans.md): 이 문서가 닫는 "남은 한계"를 남긴 선행 작업이다.
 - [Record why planning output was rejected before spending recoveries](record-planning-rejection-cause.md): `.pazmo-office/role-runs/` 기록의 출처다.
-- [Root tests that start Office fail in a fresh worktree until the Office UI is built](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): `start()` 테스트를 새 worktree에서 돌릴 때 필요한 준비다.
+- [Root tests that start Office fail in a fresh worktree until the root dependencies are installed](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): `start()` 테스트를 새 worktree에서 돌릴 때 필요한 준비다.
 - Story와 검증 기록:
   - `docs/understanding/pazmo-office-gitignore-contract.md`
   - `docs/verification/2026-10-13-pazmo-office-gitignore.md`

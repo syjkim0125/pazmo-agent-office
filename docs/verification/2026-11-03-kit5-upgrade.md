@@ -39,7 +39,7 @@
 
 - 구현 끝(리뷰 전): root `npm test` **1284/1284** exit 0, 336초(부하 27–39). 타입 검사 exit 0. Story 검사기 exit 0. kit 시험 세 파일은 coordinator 24/24·kit-role-runs 10/10·planning-coordinator 34/34이다.
 - 336초는 kit 검사 하나의 상한(300초)을 넘는다. 그래서 이 repo의 검사 프로필은 시험을 3묶음으로 나눴다(`scripts/kit-test-shard.mjs`). 프로필이 바뀌어 run을 `U30-kit5-upgrade-replan.json`으로 새로 시작했다.
-- 독립 리뷰 1차(3명: 정확성·복구, 격리·무결성, 시험·이전·문서): Critical 0, Important 4, Minor 여러 건이었다. Important 4건은 모두 고쳤다(리뷰 2차에서 같은 리뷰어들이 Fixed로 확인).
+- 독립 리뷰 1차(3명: 정확성·복구, 격리·무결성, 시험·이전·문서): Critical 0, Important 4, Minor 여러 건이었다. Important 4건을 고쳤다. 리뷰 2차에서 같은 리뷰어들은 3건을 Fixed, 1건(`KIT_UPGRADE_REQUIRED`)을 Partly로 봤다. 남은 부분은 아래 "받아들이고 고치지 않은 것"에 적었다.
   - git 차단: `GIT_DIR`(없는 경로)를 더했다. 경로의 대소문자가 다르거나 `:`가 있으면 ceiling만으로는 막지 못했다.
   - 같은 V의 검사 둘: kit 검사 id를 `V1-2`처럼 나눈다.
   - kit 4 작업: 실행기 자리를 잡기 전에 확인하고, round 사유로 남긴다.

@@ -138,7 +138,7 @@ const directory = `${PLAN_ROOT}/${basename(mkdtempSync(join(plans, "plan-")))}`;
 - [Reject FIFO contract inputs before they can block the controller](../runtime-errors/nonblocking-contract-file-validation.md): 같은 `read()`의 다른 안전 규칙(regular file, `O_NONBLOCK`)이다.
 - [Record why planning output was rejected before spending recoveries](record-planning-rejection-cause.md): Office 소유 파일을 `.pazmo-office/` 아래에 둔 선례다.
 - [Bind the original baseline to the Engineer attempt](bind-engineer-baseline-to-attempt.md): 이번 수정이 의존하는 Engineer baseline 동작을 다룬다.
-- [Root tests that start Office fail in a fresh worktree until the Office UI is built](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): 새 worktree에서 이번 검증을 돌릴 때 필요한 준비다.
+- [Root tests that start Office fail in a fresh worktree until the root dependencies are installed](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): 새 worktree에서 이번 검증을 돌릴 때 필요한 준비다.
 - Story와 검증 기록:
   - `docs/understanding/office-plan-placement-contract.md` (G1/G4)
   - `docs/verification/2026-10-13-office-plan-placement.md`

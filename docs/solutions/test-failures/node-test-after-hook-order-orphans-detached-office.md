@@ -1,6 +1,7 @@
 ---
 title: node:test after-hook order orphaned a detached Office on every test run
 date: "2026-10-06"
+last_updated: "2026-11-03"
 category: test-failures
 module: Test fixtures and Office lifecycle
 problem_type: test_failure
@@ -20,6 +21,8 @@ tags: [node-test, t-after, teardown, fixture, detached-process, orphan-process, 
 ## Problem
 
 The delivery test that drives the real operator CLI ("real operator CLI delivers once, survives restart…" in `tests/delivery.test.mjs`) starts a detached Office service and registers a `t.after` hook to stop it. That hook ran after the shared fixture had already deleted the temporary project, so `stop` failed and the service was never stopped. One orphan was left behind per full `npm test` run, on the passing path too. 24 orphans were observed on one developer machine on 2026-10-06.
+
+That test and the legacy engine it started were removed in D33 (PR #56, 2026-10-30). The ordering rule and the fixes below still govern every test that starts an Office: `fixture().defer` in `tests/contract-fixture.mjs`, and the pid guard in `tests/office-process.mjs`, which `tests/lifecycle.test.mjs`, `tests/lean-lifecycle.test.mjs`, `tests/team-lifecycle.test.mjs` and `tests/team-registry.test.mjs` use.
 
 ## Symptoms
 
@@ -90,7 +93,7 @@ The leak was invisible because `start` deliberately outlives its caller: it spaw
 - In tests built on `fixture()`/`officeFixture()`, register any cleanup that needs the project or data directory with `f.defer(...)`, never with a later `t.after(...)`.
 - Any test that starts a detached Office should record the started pids (`officePid`) and assert they exited (`assertOfficesExited`) in teardown, so a missed `stop` fails the test instead of orphaning a process.
 - Helpers that own their whole lifecycle can keep a single `t.after` that runs `stop` and then removes the temp dir, like `setup()` in `tests/lifecycle.test.mjs`. The ordering problem only appears when stop and removal are registered by different parties.
-- After touching lifecycle tests, check for leaks after a full run. Use `pgrep -f 'src/runtime/(claw-)?service\.ts'` together with `lsof -a -p <pid> -d cwd`, and skip the real Office's data dir under `~/.local/share/pazmo-agent-office/`.
+- After touching lifecycle tests, check for leaks after a full run. Use `pgrep -f 'src/runtime/(lean|team)-service\.ts'` together with `lsof -a -p <pid> -d cwd`. A test Office's cwd is under a `pazmo-contract-`, `pazmo-service-`, `pazmo-lean-life-`, `pazmo-team-life-` or `pazmo-team-reg-` temp root. Skip the real Office's data dir under `~/.local/share/pazmo-agent-office/`.
 
 ## Related Issues
 

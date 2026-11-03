@@ -45,7 +45,7 @@
     - 연결됨이면 `허브 호스트 · 내 이름 · 레포`, [연결 해제]
     - [허브 열기]
   - 해제와 다른 허브로 교체할 때는 **화면 안** 확인 칸을 쓴다. `window.confirm`/`alert` 금지(DialogProvider나 인라인).
-  - 색은 밝은 테마 규칙이 있는 기존 클래스만 쓴다(`docs/solutions/ui-bugs/match-light-theme-remapped-classes.md`).
+  - 색은 밝은 테마 규칙이 있는 기존 클래스만 쓴다(해결 문서 `match-light-theme-remapped-classes.md`는 Claw 화면과 함께 D33 뒤 지웠다).
 - 각 Office는 `127.0.0.1`에만 열리고, 허브는 Office로 접속하지 않는다. 연결은 사람이 붙여넣고 누를 때만 일어난다. 토큰은 Office 서버 데이터 디렉터리에만 0600으로 저장한다.
 - 커밋·푸시는 사용자 요청 시에만. 실행 중인 Office·허브는 확인 없이 재시작하지 않는다. kit 패키지 원본은 건드리지 않는다.
 - 테스트: `export PATH=$HOME/.nvm/versions/node/v24.19.0/bin:$PATH; node --test tests/<file>.test.mjs`, `npm test`, `npm run typecheck`, vendor `cd vendor/claw-empire && npx vitest run --config vitest.config.ts`(sprite-avatar 2건은 이전부터 실패), `node node_modules/typescript/bin/tsc -p tsconfig.app.json --noEmit`, root `npm run build:office`.

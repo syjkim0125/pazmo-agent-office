@@ -1,7 +1,7 @@
 ---
 title: Preserve intake drafts without inventing workflow state in the UI
 date: "2026-09-22"
-last_updated: "2026-10-02"
+last_updated: "2026-11-03"
 module: Office chat and observation
 problem_type: ui_bug
 component: assistant
@@ -19,7 +19,7 @@ tags: ["intake", "drafts", "state", "credentials", "async", "decision-inbox", "a
 
 # Preserve intake drafts without inventing workflow state in the UI
 
-The original operator form was retired by the chat/observation change (pending main merge). The historical fix below explains the state and recovery invariant; the current application is recorded at the end.
+The original operator form was retired by the chat/observation change. D33 (PR #56, 2026-10-30) then removed the chat bridge and the Claw screen that the later sections describe. The history below explains the state and recovery invariant. Where the lean screen applies it today is in the last section.
 
 ## Problem and cause
 
@@ -44,6 +44,8 @@ Review a mutation's list, detail, draft and pending-request lifetimes together. 
 - [Ledger-side expiry and request identity for G4](../logic-errors/g4-answer-evaluation-binding.md)
 
 ## Applying the lesson when control moves to chat
+
+The chat bridge was removed in D33 (`docs/CHAT-CONTROL.md` records it as retired), and people now answer in the Office screen. This section is history.
 
 Moving input out of the browser does not remove the approval and recovery boundary. The chat host retains the actual human answer and addresses the current Office request; the viewer never creates an answer. A failed or timed-out write is followed by a read to establish whether it committed, not an automatic retry. The bridge reuses the existing authenticated API and does not introduce another workflow state store.
 
@@ -127,3 +129,11 @@ The reply callback returns `"sent" | "stale" | "failed"`. `sent` clears the draf
 **Evidence.** RED→GREEN: two native-office tests (reading replaces an expired G1 with a new unconsumed challenge for the same task and gate, approves nothing, rejects a late reply to the old ID and does not reissue again; three unchanged reissues produce one chat notice and a `task_update` each), modal tests (draft moves on reissue; note kept after STALE and resubmitted only on click; note visible with no replacement; delivered answer not carried forward; deadline warning) and action tests (STALE reloads without replay; gate and deadline mapped). After rebase: root 369/369, vendor server 203/203, vendor web 102/104 (two pre-existing, unrelated sprite-avatar failures). In an isolated `--claw` preview browser a reissue within one poll kept the note, a 409 to the expired ID recorded no approval, the explicit resubmit returned 200 and consumed exactly one challenge, and the deadline warning appeared. Failures under shell Node 22.3 and `NOT_BUILT` in a fresh worktree were environment issues (use Node 24.19 and build the vendor UI). Not a model pilot and not human G4. [Verification](../../verification/2026-09-29-native-claw-preview.md).
 
 **Prevention.** Key a draft's lifetime to the human's intent (task, gate, action), never to a server row ID that can rotate. Any expiring authority shown in the UI needs reconciliation on read or an explicit expired state; event-only reconciliation leaves a reading human looking at dead authority. Make the submit path report its own outcome, because list removal cannot distinguish success from replacement. Never auto-replay an approval into a replacement. Exclude rotating secrets and IDs from notice identities, or every renewal becomes a new announcement. Keep tests that rotate the ID under an open draft and that return `STALE_APPROVAL` with a typed note.
+
+## Lean Office (since D33)
+
+The lean screen (`src/lean`) keeps two of these invariants:
+- **Expiry is reconciled on read.** Listing decisions starts the reissue of any expired challenge, because nothing else reissues while the Office is idle (`listDecisions`, `src/lean/office.ts:320-334`). A reply to an id that expired or was just renewed renews it and fails with `STALE_APPROVAL` and "결정이 갱신되었습니다. 다시 답해 주세요." It is not replayed onto the new id (`reply`, `:337-351`).
+- **A typed note holds the screen.** While a field holds text the person typed, a poll that fetched new content only says that new content waits and does not redraw (`holdReason` and `pollStep`, `src/lean/web/view.js:697-726`).
+
+Not checked here: whether the lean screen moves a typed note onto the reissued request the way the Claw modal did.
