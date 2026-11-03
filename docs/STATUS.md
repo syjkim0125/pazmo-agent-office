@@ -21,7 +21,7 @@
 
 [G3 결정](understanding/kit5-upgrade-decision.md) · [계획](plans/2026-11-03-1200-feat-kit5-upgrade-plan.md) · [검증 기록](verification/2026-11-03-kit5-upgrade.md)
 
-# 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 전)
+# 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 1차 끝·2차 전)
 
 - 팀 Office가 가져온 Story Task를 실제로 돌린다(M16·V18·D24·D34). repo마다 Story 엔진을 **Office 전용 체크아웃**(repo의 git worktree, Office 데이터 폴더의 `story-checkout/`)에 두고 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh`로 Task 브랜치 push → Story base로 PR → Hub 머지 잠금 → 최신 base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub 보고(PR 주소·머지 커밋·3줄 요약·`ASSUMED:` 판단 기록)를 한다.
 - `./office --team`이나 `start --team --live`로 켜고, 모든 repo 엔진의 실행기가 준비되고 열린 기록이 없을 때만 가져간다. 실행기는 켤 때 한 번, 준비돼 있으면 5분마다, 아니면 가져가기마다 확인한다(가져갈 수 없는 동안은 확인하지 않는다). `--live` 없이 켜면 아무것도 가져가지 않고 repo에 git을 돌리지 않으며, 열린 기록은 진행하지 않는다(`verified`·`merging` 기록은 하트비트도 보내지 않고 `--live` 시작에 남긴다). 등록한 repo 폴더는 바뀌지 않는다(worktree 등록과 로컬 Task 브랜치만 생김). push는 `feature/story-<N>/task-<M>` 하나뿐이고 머지는 Story base로만 한다. repo의 기존 lean 데이터는 열지 않는다.
