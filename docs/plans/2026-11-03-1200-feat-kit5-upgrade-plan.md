@@ -30,7 +30,7 @@ Run: `.ai-workflow/runs/U30-kit5-upgrade-replan.json` (기본 계획 `-`: implem
   - `.ai-workflow/verification.json`: 등록 검사마다 `{ id, covers:[V], argv:["node","office-check.mjs",id], timeoutMs:5000 }`이고, `inputs:["candidate.json","office-check.mjs"]`다. 같은 V의 검사가 여럿이면 id는 `V1`, `V1-2`다(`kitCheckIds`).
   - `candidate.json`: `{ digest, round }`
 - 이 파일들은 처음 한 번만 쓴다(`wx`). 다시 열 때 내용이 다르면 `KIT_SOURCE_CHANGED`로 멈춘다. 그래서 중계나 프로필 모양을 바꾸는 Office 업데이트는, 이미 kit 폴더가 있는 작업 개정을 멈춘다. `candidate.json`만 round마다 임시 파일을 쓴 뒤 이름 바꾸기로 통째 바꾼다.
-- `KitRoleRun`이 `root`를 받는다. 이 경우 cwd는 kit 폴더다. 환경은 `PATH=/usr/bin:/bin:<node dir>`, `GIT_DIR=<kit 폴더>/.no-git`(없는 경로라서 모든 git 호출이 실패하고, kit는 선언한 입력만 본다), `GIT_CEILING_DIRECTORIES=<부모>`다. `verify`의 CLI 제한은 30초, 나머지는 15초다. 완료 증거 경로는 프로젝트 기준이다.
+- `KitRoleRun`이 `root`를 받는다. 이 경우 cwd는 kit 폴더다. 환경은 `PATH=<Office node dir>:/usr/bin:/bin`, `GIT_DIR=<kit 폴더>/.no-git`(없는 경로라서 모든 git 호출이 실패하고, kit는 선언한 입력만 본다), `GIT_CEILING_DIRECTORIES=<부모>`다. `verify`의 CLI 제한은 30초, 나머지는 15초다. 완료 증거 경로는 프로젝트 기준이다.
 - run 폴더: PM·Lead는 `.pazmo-office/kit-runs/<digest(id)>/`, 개발자·리뷰어는 `<kit 폴더>/runs/<digest(id)>/`다. 옛 `role-runs/`는 증거로 남는다.
 
 ## 5. Office: self-check 중계, 리뷰어 바인딩 (`kit-delivery.ts`, `coordinator.ts`)

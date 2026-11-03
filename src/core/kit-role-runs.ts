@@ -331,9 +331,9 @@ export class KitRoleRun {
         {
           cwd: this.#cwd,
           env: {
-            // The relay of a kit folder's checks runs as `node`: this Office's own Node, after the system
-            // folders so nothing beside it shadows `git`.
-            PATH: `/usr/bin:/bin:${dirname(process.execPath)}`,
+            // The relay of a kit folder's checks runs as `node`: this Office's own Node, first even where the
+            // system has one. No git found here can reach a repository in a kit folder (GIT_DIR below).
+            PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
             LANG: "en_US.UTF-8",
             // A kit folder lies inside the project's checkout. Git must not find that repository, or kit
             // would snapshot the person's checkout (HEAD, index, files) instead of the folder's declared
