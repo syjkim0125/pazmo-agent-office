@@ -1,6 +1,7 @@
 ---
 title: A same-name hub CA made without key identifiers failed with a raw certificate signature failure instead of the reconnect guidance
 date: "2026-10-28"
+last_updated: "2026-11-03"
 category: integration-issues
 module: Team hub link TLS pinning (hub-link)
 problem_type: integration_issue
@@ -43,7 +44,7 @@ The Bearer token was never exposed: the TLS handshake fails before any request h
 - **Adding key identifiers in `tls.ts`.** This adds `-addext subjectKeyIdentifier=hash -addext authorityKeyIdentifier=keyid:always` to the CA `req -x509` (`src/hub/tls.ts:55`), and `subjectKeyIdentifier=hash` and `authorityKeyIdentifier=keyid` to `server.ext` (`src/hub/tls.ts:92`). It was verified with LibreSSL 3.3.6: pinned A → hub B then gives `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. It was rejected because it only helps CAs made after the change. A member pinned to an existing LibreSSL CA (no SKID) would still get `CERT_SIGNATURE_FAILURE`, because OpenSSL skips the keyid comparison when the candidate issuer has no SKID. That last point is reasoning from OpenSSL's issuer check and was not tested.
 
 ## Solution
-Map `CERT_SIGNATURE_FAILURE` to `HUB_TLS_UNTRUSTED` like the other untrusted-certificate codes. The fix is in PR #39 (open, not yet merged as of this writing).
+Map `CERT_SIGNATURE_FAILURE` to `HUB_TLS_UNTRUSTED` like the other untrusted-certificate codes. The fix is PR syjkim0125/pazmo-agent-office#39 (merged 2026-10-28).
 
 ```ts
 // before (src/runtime/hub-link.ts)

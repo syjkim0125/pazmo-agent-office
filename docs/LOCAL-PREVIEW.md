@@ -71,7 +71,7 @@ oc logs deploy/pazmo-hub | head -1   # 첫 줄 JSON의 adminInvite가 관리자 
 node bin/pazmo-office.mjs hub --host <사내망 IPv4> [--name <이름>] [--port 8443] [--data-dir /absolute/path]
 ```
 
-- `--host`는 이 Mac의 사설 IPv4(10/8, 172.16/12, 192.168/16)여야 한다. Office와 달리 사내망에 열리며 HTTP는 없다.
+- `--host`는 이 Mac의 사설 IPv4(10/8, 172.16/12, 192.168/16)여야 한다. Office와 달리 사내망에 열리며 HTTP는 없다. 루프백(127/8)도 받지만 이 Mac에서만 닿으므로 혼자 하는 시험용이다([로컬 Hub로 하는 실제 확인](solutions/workflow-issues/run-a-team-stage-real-check-on-a-local-hub.md)).
 - **`--name`을 쓰면 다시 시작할 때마다 같은 값을 줘야 한다.** 다르면 `HUB_CA_NAME_CHANGED`로 멈춘다(허브 인증서 디렉터리를 지우고 모두 다시 신뢰해야 한다).
 - 첫 줄에 JSON이 출력된다: `url`, `fingerprint`(CA 지문), `trust`, 팀원이 아직 한 명도 없을 때만 `adminInvite`(관리자 입장 링크, 1회용, 72시간). **관리자가 한 번 입장하면 이후에는 출력되지 않는다.** 입장 전에 다시 시작하면 새 관리자 링크가 나오고 이전 링크는 무효가 된다.
 - 데이터는 `<데이터 루트>/team-hub/`에 있다. 기본 데이터 루트는 `~/.local/share/pazmo-agent-office`다. Office의 프로젝트 데이터와 분리되어 있다.
@@ -177,7 +177,7 @@ pazmo-office hub-unlink --project <레포 로컬 경로>
 
 ## 팀 Office (3단계, 시험)
 
-팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜고, 담당 repo의 Story Task를 가져와 실제로 돌리는 단계다. 가져온 Task는 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh` 로그인으로 다음을 차례로 한다: Task 브랜치에 커밋·push → Story base로 PR → Hub 머지 잠금 → 최신 Story base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub에 PR 주소·머지 커밋·3줄 요약·판단 기록 보고. **자동 시험만 마쳤고 실제 확인(로컬 Hub, 시험 repo 두 개, GitHub 시험 repo)은 아직이다.** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [3단계 검증 기록](verification/2026-11-02-team-story-task-mode.md)과 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
+팀 Story 보드에서 한 사람이 Office 하나에 repo 여러 개를 등록해 켜고, 담당 repo의 Story Task를 가져와 실제로 돌리는 단계다. 가져온 Task는 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh` 로그인으로 다음을 차례로 한다: Task 브랜치에 커밋·push → Story base로 PR → Hub 머지 잠금 → 최신 Story base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub에 PR 주소·머지 커밋·3줄 요약·판단 기록 보고. **실제 확인 1차(정상 흐름, 로컬 Hub·GitHub 시험 repo 두 개·VM)는 2026-11-02–03에 했고, 이 단계는 PR syjkim0125/pazmo-agent-office#59로 main에 들어왔다. 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, 최종 리뷰 수정의 실제 확인)는 아직이다.** 그래서 팀이 쓰는 단계가 아니라 시험 단계다. 화면도 없다(5단계). 결정은 [team-story-board-decision.md](understanding/team-story-board-decision.md), 검증은 [3단계 검증 기록](verification/2026-11-02-team-story-task-mode.md), [실제 확인 1차 기록](verification/2026-11-03-team-story-task-mode-real-check.md)과 [2단계 검증 기록](verification/2026-10-29-team-story-office-repos.md)이다.
 
 ```sh
 # `pazmo-office`는 `node bin/pazmo-office.mjs`와 같다

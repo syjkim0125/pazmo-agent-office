@@ -17,7 +17,7 @@ A human must settle it, or the Story keeps it visible as open blocking; it is ne
 ### Candidate
 A frozen snapshot of proposed project changes that checks, review and a human Gate all judge as one exact subject.
 
-A candidate is never the user's project itself: roles work on isolated copies, and nothing reaches the project until the same candidate has passed its checks and human understanding. Any change produces a new candidate, so evidence gathered on an earlier one no longer counts.
+A candidate is never the user's project itself: roles work on isolated copies, and nothing reaches the project until the same candidate has passed its checks and human understanding. Any change produces a new candidate, so evidence gathered on an earlier one no longer counts. A candidate's diff is always taken against the baseline, the snapshot of the project frozen before implementation started; an automatic fix starts from the previous candidate but keeps that baseline, so G4 shows the whole change rather than only the last fix.
 
 ### Office metadata area
 The one folder Office owns inside each user project for its own records — installation files, published Lead proposals, approval views and role-run evidence — kept apart from the project's own content.
