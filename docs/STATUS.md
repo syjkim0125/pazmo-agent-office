@@ -1,3 +1,10 @@
+# 2026-11-03 3줄 요약: 따옴표(비ASCII) 경로
+
+- 바뀐 파일 이름이 모두 한글 같은 비ASCII이면 3줄 요약(Hub 보고·단일 Office G4 질문)이 `2. 변경 파일: 변경 없음`으로 나오던 것을 고쳤다(M16·V18, #59 후속). 후보 diff는 전역 Git 설정을 버려 `core.quotePath`가 켜져 있고, Git은 그런 경로의 머리줄을 따옴표와 8진수로 쓴다. 이제 `changeSummary`가 그 줄을 읽고 이름을 풀어 보인다. `\t`·`\n` 같은 글자 이스케이프는 그대로 둬 요약은 늘 3줄이다.
+- 자동 검사: 실제 생산자(`captureCandidateDiff`)로 만든 diff의 짝 시험과 실제 Git 패치 단위 시험이 고치기 전에 실패했다. root `npm test` **1278/1278** exit 0, 타입 검사·Story 검사기 exit 0. 독립 리뷰 두 번(머지 가능, Minor 5개 고침).
+- PR syjkim0125/pazmo-agent-office#62. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-quoted-path-change-summary-g4.md)
+- **남은 것:** 한글 이름 파일을 바꾸는 실제 Story Task 실행(실제 확인 2차 때), 다른 Git 버전. 첫 전체 실행에서 한 번 실패한 `tests/team-gh.test.mjs` "a gh that hangs times out"은 이 변경과 무관하며 원인을 별도로 찾고 있다.
+
 # 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 1차 끝·2차 전)
 
 - 팀 Office가 가져온 Story Task를 실제로 돌린다(M16·V18·D24·D34). repo마다 Story 엔진을 **Office 전용 체크아웃**(repo의 git worktree, Office 데이터 폴더의 `story-checkout/`)에 두고 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh`로 Task 브랜치 push → Story base로 PR → Hub 머지 잠금 → 최신 base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub 보고(PR 주소·머지 커밋·3줄 요약·`ASSUMED:` 판단 기록)를 한다.
