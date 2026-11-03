@@ -1,3 +1,8 @@
+# 2026-11-03 로컬 원본 Claw 브랜치 삭제 (D38)
+
+- 원본 그대로의 Claw-Empire v2.0.4 가져오기를 담던 로컬 브랜치 `codex/local-original-claw-v2.0.4`를 지웠다(사용자가 직접 지움). 원본은 upstream 태그 `v2.0.4`(commit `5c928b24ffa55b403fe7c5521d4ac3ac49516137`)가 그대로 가리켜 다시 받을 수 있다(2026-11-03 확인).
+- AGENTS.md, LICENSING.md, Story M1, D33 결정 문서, `upstream/`의 출처 기록(CHANGES.md, lock 파일의 `original_import_local_ref`)을 그에 맞게 고쳤다. 지난 계획·검증 기록은 그때의 사실이라 그대로 둔다. 제품 코드는 바꾸지 않았다.
+
 # 2026-11-03 3줄 요약: 따옴표(비ASCII) 경로
 
 - 바뀐 파일 이름이 모두 한글 같은 비ASCII이면 3줄 요약(Hub 보고·단일 Office G4 질문)이 `2. 변경 파일: 변경 없음`으로 나오던 것을 고쳤다(M16·V18, #59 후속). 후보 diff는 전역 Git 설정을 버려 `core.quotePath`가 켜져 있고, Git은 그런 경로의 머리줄을 따옴표와 8진수로 쓴다. 이제 `changeSummary`가 그 줄을 읽고 이름을 풀어 보인다. `\t`·`\n` 같은 글자 이스케이프는 그대로 둬 요약은 늘 3줄이다.
@@ -32,7 +37,7 @@
 # 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D33, A안)
 
 - `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D33, G3 2026-10-30 "A로 해").
-- 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 가져오기는 로컬 브랜치 `codex/local-original-claw-v2.0.4`에 남는다.
+- 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 그대로의 가져오기는 upstream 태그 `v2.0.4`에서 다시 받는다(2026-11-03에 로컬 원본 브랜치를 지움, D38).
 - `ws`·TypeScript는 루트 의존성이다. `up`은 켜진 Office를 다시 쓰거나 새로 켜기 전에 `ws`가 없거나 다른 버전일 때만 `npm ci --omit=dev --prefer-offline`을 한다. 예전 버전이 켠 Claw·legacy Office는 `status`로 보이고 `stop`으로 멈추며, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다.
 - 엔진 코드(`native-office.ts`의 Claw용 API, 역할별 실행기 경로, 옛 허브 요청 흐름)는 D24 3단계와 충돌하지 않도록 남겼다. Story는 M7·M9·M10·M13·M14와 V7·V11·V12·V15·V16을 폐기하고 Goal·M1·M2·M3·M8·M12·M15·O2와 V1·V8·V9·V10·V14·V17을 고쳤다(M8·M12·V9·V10·V14는 승인 뒤 찾아 ASSUMED).
 - 자동 검사:
