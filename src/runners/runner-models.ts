@@ -11,7 +11,7 @@ import {
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { digest } from "../core/candidates.ts";
-import { runCommand } from "./command.ts";
+import { runCommand, signalGroup } from "./command.ts";
 import { runnerEnv } from "./runner-discovery.ts";
 
 export type RunnerModel = {
@@ -121,7 +121,7 @@ export async function claudeModels(
   };
   const signal = (name: NodeJS.Signals) => {
     try {
-      if (child.pid) process.kill(-child.pid, name);
+      if (child.pid) signalGroup(child.pid, name);
     } catch {}
   };
   // A login refresh the CLI started holds ~/.claude/.oauth_refresh.lock until

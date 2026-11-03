@@ -8,7 +8,7 @@ import {
   writeCodexCatalog,
 } from "../src/runners/runner-models.ts";
 import { digest } from "../src/core/candidates.ts";
-import { fakeNative, tempRoot } from "./runner-fixture.mjs";
+import { fakeNative, forkLoop, leftInGroups, tempRoot } from "./runner-fixture.mjs";
 
 const catalog = {
   models: [
@@ -287,6 +287,31 @@ test("a claude that ignores SIGTERM too is killed once its 12 s grace runs out",
   t.mock.timers.tick(1);
   assert.deepEqual((await found).models, [{ slug: "default" }]);
   assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });
+});
+
+// Its SIGKILL comes only after 15 s of grace, so unlike tests/command.test.mjs
+// this caller is the test itself, with the grace ticked: ten claudes that
+// ignore the end of their input and SIGTERM fork children until it runs out,
+// so the kill lands mid-fork.
+test("a claude killed after its grace while it forks leaves no process in its group", { timeout: 15000 }, async (t) => {
+  const fakes = Array.from({ length: 10 }, () =>
+    refreshingClaude(
+      t,
+      `cat >/dev/null
+touch "$HOME/eof"
+${forkLoop("sleep 5 >/dev/null")}`,
+      `touch "$HOME/term"`,
+    ),
+  );
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const found = Promise.all(fakes.map((fx) => claudeModels(fx.binary, fx.root)));
+  for (const fx of fakes) await fx.reached("eof");
+  t.mock.timers.tick(3000);
+  for (const fx of fakes) await fx.reached("term");
+  t.mock.timers.tick(12000);
+  for (const { models } of await found) assert.deepEqual(models, [{ slug: "default" }]);
+  const groups = new Set(fakes.map((fx) => String(fx.pid())));
+  assert.equal(await leftInGroups(groups), 0, "no forked child may outlive the stopped claude");
 });
 
 test("a single-model codex catalog is written once and identified by digest", () => {

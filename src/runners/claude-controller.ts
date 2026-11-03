@@ -12,7 +12,7 @@ import {
   normalizeClaudeStream,
 } from "./claude-profile.ts";
 import { openExecRelay } from "./exec-relay.ts";
-import type { CommandResult } from "./command.ts";
+import { signalGroup, type CommandResult } from "./command.ts";
 import type { RemoteJob } from "./remote-job.ts";
 
 export type ClaudeSelection = {
@@ -63,7 +63,7 @@ function runClaude(
       stopping: NodeJS.Timeout | undefined;
     const kill = (signal: NodeJS.Signals) => {
       try {
-        if (child.pid) process.kill(-child.pid, signal);
+        if (child.pid) signalGroup(child.pid, signal);
       } catch {}
     };
     // A login refresh the CLI started holds ~/.claude/.oauth_refresh.lock until
