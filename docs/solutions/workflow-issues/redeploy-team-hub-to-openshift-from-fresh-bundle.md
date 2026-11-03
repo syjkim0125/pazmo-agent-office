@@ -148,6 +148,6 @@ Stop here. Creating a project, a Story or a request on the shared hub to "test e
 - [docs/LOCAL-PREVIEW.md, "OpenShift에 허브 띄우기"](../../LOCAL-PREVIEW.md#openshift에-허브-띄우기): first-deploy commands (Template, `local.env`, first `adminInvite`).
 - [docs/understanding/team-hub-openshift-decision.md](../../understanding/team-hub-openshift-decision.md): why one pod, `Recreate`, PVC and an edge route.
 - [keep-internal-cluster-hosts-out-of-a-public-repo](../security-issues/keep-internal-cluster-hosts-out-of-a-public-repo.md): keep real hosts out of commands and examples like the ones above.
-- [fresh-worktree-tests-fail-without-office-ui-build](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): Node 24 and vendor setup for a fresh worktree.
+- [fresh-worktree-tests-fail-without-office-ui-build](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): Node 24 and `npm ci` for a fresh worktree.
 - [Hub stage verification record](../../verification/2026-10-22-team-story-board-hub.md): the dated evidence for this redeploy.
 - syjkim0125/pazmo-agent-office#29 (team Story board, the change that was redeployed).

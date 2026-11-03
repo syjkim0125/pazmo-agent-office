@@ -1,6 +1,7 @@
 ---
 title: Classify a review runner failure as unknown, not as a review fail
 date: "2026-10-27"
+last_updated: "2026-11-03"
 category: integration-issues
 module: Office verification ledger
 problem_type: integration_issue
@@ -94,9 +95,9 @@ Inside `classify()` the termination conditions in the predicate repeat the block
 ```
 Taking the reason from the receipt being recorded is safe for three reasons. The first unknown closes the round. `record()` re-checks `checking` inside a `BEGIN IMMEDIATE` transaction (`src/core/verification.ts:400-403`, `src/core/approvals.ts:17`). The ledger runs on a synchronous `DatabaseSync`, so a concurrent check and review cannot interleave. Consequence: after the stop, `begin()` refuses another round with `HUMAN_REQUIRED` (`src/core/verification.ts:332-336`): no rebuild, no fix spent, no automatic retry. One edge case: if a check fails first and the review runner then fails, the round stops as `REVIEW_RUNNER_FAILED` rather than `CHECK_FAILED`. That is a conservative outcome, and the failed check result stays on the round.
 
-**3. Nothing downstream changes.** Kit already sends an unknown review to a person (`action: "human"`, `src/runners/kit-delivery.ts:198`, `:207-213`). Lean Office's `stopOf` shows the round reason as "하위 작업이 멈췄습니다: REVIEW_RUNNER_FAILED (<title>). 자동으로 다시 실행하지 않습니다." (`src/lean/office.ts:391-407`). Claw Office shows the review verification with `"verdict": "unknown"`, and the task stays `pending` because `human_required` maps to `pending` (`src/core/verification.ts:62`). Story D26 records the user's choice.
+**3. Nothing downstream changes.** Kit already sends an unknown review to a person (`action: "human"`, `src/runners/kit-delivery.ts:198`, `:207-213`). Lean Office's `stopOf` shows the round reason as "하위 작업이 멈췄습니다: REVIEW_RUNNER_FAILED (<title>). 자동으로 다시 실행하지 않습니다." (`src/lean/office.ts:407-423`; it reads the round's reason because `human_required` leaves the child task `pending`). Claw Office, removed in D33, showed the review verification with `"verdict": "unknown"`. Story D26 records the user's choice.
 
-Cost the user accepted: a transient runner error now stops the task. In lean Office the stopped task can be rerun as a new task from its detail page ([다시 실행], #37, merged before this fix), because a round stopped this way is one `stopOf` reports. Claw Office has no rerun yet: cancel the task and create it again.
+Cost the user accepted: a transient runner error now stops the task. In lean Office the stopped task can be rerun as a new task from its detail page ([다시 실행], #37, merged before this fix), because a round stopped this way is one `stopOf` reports. (Claw Office, removed in D33, had no rerun: the task had to be cancelled and created again.)
 
 ## Why This Works
 The question a review node answers is "what did an independent reviewer find about this candidate?", and only the report carries the answer. `ContainerReviewer` reads the report only after exit 0. A cleanly terminated non-zero exit therefore means, by construction, that no answer exists. That is `unknown`, the same class as a timeout or a signal. It is not `fail`, which asserts a defect and triggers a fix. A test check is different, because its process exit is its verdict, so `fail` on a non-zero exit stays for `kind: "test"`. The whole fix is to split the shared rule by what carries the verdict.
@@ -118,7 +119,7 @@ The rule is deliberately coarser than #12's stream inspection. #12 had to tell a
   - `tests/budgets.test.mjs:169` "one initial implementation and at most one fix per failed round survive reconstruction". Its fixture changed and the rule it checks did not.
   - The existing `tests/verification.test.mjs:199` "timeout, signal, malformed review and review findings never count as pass" still holds unchanged.
 - Verification per this session: with the source change reverted on `main`, the three related test files ran 56/58, with only the two new tests failing; with the fix applied, 58/58. The full suite ran 929/929 before review and 927/929 after it. The two failures were Office startup timeouts in `tests/claw-lifecycle.test.mjs` and `tests/lean-lifecycle.test.mjs`, at a load average of 24–33, and both files passed 15/15 when rerun alone. Typecheck and the Story checker exited 0. Before treating a full-suite timeout under load as a regression, rerun the lifecycle files alone.
-- Not proven: a live runner failure going through the new path (a safeguard refusal cannot be reproduced on demand); the codex reviewer's exit code on an API error (expected to be non-zero, not checked live); a rerun of a Claw Office task stopped this way. G4 for #35 was recorded on 2026-10-28 as an approved controller draft (`docs/verification/2026-10-27-review-runner-failure-g4.md`).
+- Not proven: a live runner failure going through the new path (a safeguard refusal cannot be reproduced on demand); the codex reviewer's exit code on an API error (expected to be non-zero, not checked live). G4 for #35 was recorded on 2026-10-28 as an approved controller draft (`docs/verification/2026-10-27-review-runner-failure-g4.md`).
 - Leftover from #35, fixed in the follow-up (Story D27, 2026-10-29): kit `finishReview` used to record any unknown review, even one that never ran, as `verdict: "needs_changes"` with `action: "human"`. It now records no `verdict` and no `reviewedRevision` for an unknown result (summary "No review verdict for the submitted snapshot."), and the feedback names `REVIEW_RUNNER_FAILED` when the runner failed. Kit checks a Reviewer's pass/needs_changes only on a passing record (`.ai-workflow/graph/cli.mjs:104`), so the kit files did not change. Evidence: `docs/verification/2026-10-29-kit-review-without-verdict.md`.
 
 ## Related Issues

@@ -45,7 +45,7 @@
   - **다른 원점(origin)** 허브로 연결이 **성공한 뒤에만** 한다.
   - 대상은 `pazmo_hub_requests`에 있고 작업 상태가 `done`/`cancelled`가 아닌 것이다.
   - 같은 원점이거나 실패하면 취소하지 않는다.
-- 화면은 화면 안 확인(`useDialog`)만 쓴다. `window.confirm`/`alert`/`prompt`는 금지다. 색은 밝은 테마 규칙이 있는 클래스만 쓴다(`docs/solutions/ui-bugs/match-light-theme-remapped-classes.md`).
+- 화면은 화면 안 확인(`useDialog`)만 쓴다. `window.confirm`/`alert`/`prompt`는 금지다. 색은 밝은 테마 규칙이 있는 클래스만 쓴다(해결 문서 `match-light-theme-remapped-classes.md`는 Claw 화면과 함께 D33 뒤 지웠다).
 - Office는 `127.0.0.1`만 연다. 허브 토큰은 서버에만 둔다. 커밋·푸시는 사용자 요청 시에만 한다. 실행 중인 Office는 확인 없이 재시작하지 않는다.
 - 테스트에는 예시 호스트만 쓴다. 공개 레포다.
 
