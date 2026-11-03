@@ -1,6 +1,7 @@
 ---
 title: Replay frozen diffs before binding them to approval
 date: "2026-09-21"
+last_updated: "2026-11-03"
 category: integration-issues
 module: Candidate diff and G4 evidence
 problem_type: integration_issue
@@ -36,10 +37,12 @@ The completion ledger picks the target from the current verification round. Afte
 - Test empty/add/delete/no-change, binary and legacy text, symlink/file/directory replacement, and permission-only changes with real Git.
 - Recheck cancellation and current evidence after asynchronous capture, before any write transaction.
 - Keep exact bytes until replay is complete; rendering is a separate concern.
-- Do not equate comparison proof with baseline provenance. The controller must capture the complete approved baseline before the Engineer starts; that coordinator is still pending here.
+- Do not equate comparison proof with baseline provenance. The controller must capture the complete approved baseline before the Engineer starts. [Bind the original baseline to the Engineer attempt](bind-engineer-baseline-to-attempt.md) added that coordinator: the handoff ledger freezes the baseline before launch and keeps the first one across fix attempts (`src/core/handoffs.ts:185-189`), and G4 accepts only a diff whose baseline digest and handoff match that record (`src/core/completion.ts:161-169`).
 
 ## Related
 
 - [Mechanical diff evidence](../../verification/2026-09-21-candidate-diff.md)
 - [G4 answer identity](../logic-errors/g4-answer-evaluation-binding.md)
 - [Readonly VM candidate preparation](prepare-readonly-container-candidates.md)
+- [Bind the original baseline to the Engineer attempt](bind-engineer-baseline-to-attempt.md): where the compared baseline comes from.
+- [Count added and deleted files in a no-index, no-prefix folder diff](count-added-and-deleted-files-in-no-index-no-prefix-diffs.md): how the three-line change summary reads the headers of the patch this preparer writes.
