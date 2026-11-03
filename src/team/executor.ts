@@ -6,6 +6,7 @@ import { PLAN_ROOT } from "../core/contracts.ts";
 import { LIMITS, prUrlOf } from "../hub/story-protocol.ts";
 import type { ClaimedTask } from "../hub/story-store.ts";
 import type { LeanOffice } from "../lean/office.ts";
+import type { RunnerAccountProblem } from "../runners/runner-account.ts";
 import * as branch from "./branch.ts";
 import type { GitEnv } from "./branch.ts";
 import * as pulls from "./pr.ts";
@@ -13,7 +14,7 @@ import type { GhEnv, PullRequest } from "./pr.ts";
 import type { Stage } from "./scheduler.ts";
 import { CONFLICT_PATH_MAX, CONFLICT_PATHS_MAX } from "./store.ts";
 import type { OpenClaim, TeamStore } from "./store.ts";
-import { assumedLines, storySummary, writeStoryContract } from "./story-contract.ts";
+import { assumedLines, contractFolder, storySummary, writeStoryContract } from "./story-contract.ts";
 import { classifyLinkError } from "./story-link.ts";
 import type { StoryLink } from "./story-link.ts";
 
@@ -26,6 +27,12 @@ const BUILD_DEADLINE_MS = 5400000;
 /** How long a claim waits before asking for a busy merge lock again. */
 const LOCK_RETRY_MS = 30000;
 const TITLE_MAX = 200;
+/** How long a runner account problem may hold the Task before it is reported failed (D37). */
+const RUNNER_WAIT_MAX_MS = 21600000;
+/** When an attempt the runner's account stopped runs again, if the runner named no reset time. */
+const RUNNER_RETRY_MS = 1800000;
+const ACCOUNT_CODES = { limit: "RUNNER_LIMIT", billing: "RUNNER_BILLING", login: "RUNNER_LOGIN" } as const;
+const ACCOUNT_WORDS = { limit: "usage limit", billing: "billing or credits", login: "login" } as const;
 /** "Not now", not a failed step: another run, an Office without a runtime or stopping, a cancelled verify. */
 const WAITS = new Set(["BUSY", "EXECUTION_LOCKED", "STOPPING", "CANCELLED"]);
 
@@ -242,11 +249,12 @@ export function createExecutor(d: {
     };
     const owed = lockHeld ? { unlockOwed: true } : {};
     if (attempts < MAX_ATTEMPTS) {
-      store.setPhase(open.taskId, "claimed", { attempts, lastFailure, buildingSince: null, ...owed });
+      // A counted attempt ends any runner wait: the next one starts afresh.
+      store.setPhase(open.taskId, "claimed", { attempts, lastFailure, buildingSince: null, runnerWait: null, ...owed });
       say(open, `attempt ${attempts} of ${MAX_ATTEMPTS} failed (${firstLine(reason)}); starting again from implementation`);
     } else {
       store.setReport(open.taskId, { kind: "failed", reason: lastFailure.reason });
-      store.setPhase(open.taskId, "reporting", { attempts, lastFailure, buildingSince: null, ...owed });
+      store.setPhase(open.taskId, "reporting", { attempts, lastFailure, buildingSince: null, runnerWait: null, ...owed });
       say(open, `attempt ${attempts} of ${MAX_ATTEMPTS} failed (${firstLine(reason)}); reporting the Task as failed`);
     }
     forget(open.claimId);
@@ -267,8 +275,32 @@ export function createExecutor(d: {
     say(open, `${reason}; reporting the Task as failed`);
   }
 
-  /** claimed: the checkout on the Task branch, this attempt's contract, and the engine task built from it. */
+  /** The run stopped on its runner's account, not on the work (D37): no attempt is counted, and the same attempt
+   * runs again at the runner's reset time, else after RUNNER_RETRY_MS, never later than RUNNER_WAIT_MAX_MS after
+   * the first such stop. One at or past that is reported failed with the runner's own words. */
+  function waitForRunner(open: OpenClaim, problem: RunnerAccountProblem): void {
+    if (!current(open)) return;
+    const at = now();
+    const since = open.runnerWait?.since ?? at;
+    const { runner, kind, message } = problem;
+    const what = `${runner} account problem (${ACCOUNT_WORDS[kind]}: ${message})`;
+    if (at - since >= RUNNER_WAIT_MAX_MS) {
+      store.setReport(open.taskId, { kind: "failed", reason: clip(`${ACCOUNT_CODES[kind]} ${runner}: ${message}`, LIMITS.failureReasonMax) });
+      store.setPhase(open.taskId, "reporting", { buildingSince: null, runnerWait: null });
+      forget(open.claimId);
+      return say(open, `${what} for ${RUNNER_WAIT_MAX_MS / 3600000} hours; reporting the Task as failed`);
+    }
+    const reset = problem.resetsAt !== null && problem.resetsAt > at ? problem.resetsAt : at + RUNNER_RETRY_MS;
+    const retryAt = Math.min(reset, since + RUNNER_WAIT_MAX_MS);
+    const runs = (open.runnerWait?.runs ?? 0) + 1;
+    store.setPhase(open.taskId, "claimed", { buildingSince: null, runnerWait: { runner, kind, message, since, retryAt, runs } });
+    say(open, `${what}; not counted as an attempt; running it again at ${new Date(retryAt).toISOString()}`);
+  }
+
+  /** claimed: the checkout on the Task branch, this attempt's contract, and the engine task built from it. A
+   * runner account problem is waited out first. */
   async function prepare(open: OpenClaim): Promise<void> {
+    if (open.runnerWait && now() < open.runnerWait.retryAt) return;
     const f = facts(open);
     const { task } = open;
     // The engine already took this attempt (the Office stopped before it wrote building): carry on with it.
@@ -284,7 +316,9 @@ export function createExecutor(d: {
     // Keeps a merge in progress on this branch: the attempt after a conflict resolves it.
     await git.startTaskBranch(f.checkout, { branch: f.branch, storyBase: f.storyBase, repo: open.project });
     const attempt = open.attempts + 1;
-    removeUnsubmitted(f.checkout, task, attempt);
+    // A run again after a runner account problem gets its own folder; the refused run's stays.
+    const run = open.runnerWait?.runs ?? 0;
+    removeUnsubmitted(f.checkout, task, attempt, run);
     // Attempt 1 after a rerun gets the Hub's last failure and memo from the Task itself.
     const failure =
       attempt > 1
@@ -294,7 +328,7 @@ export function createExecutor(d: {
             conflict: open.lastFailure?.conflict ?? [],
           }
         : null;
-    const input = writeStoryContract(f.checkout, task, attempt, failure);
+    const input = writeStoryContract(f.checkout, task, attempt, failure, run);
     if (!current(open)) return;
     // On file before the submit, so a restart that adopts this engine task keeps its build clock.
     const submittedAt = now();
@@ -314,12 +348,12 @@ export function createExecutor(d: {
     say(open, `attempt ${attempt} of ${MAX_ATTEMPTS} is building (engine task ${id})`);
   }
 
-  /** A folder of this attempt with no engine task behind it: the Office stopped while writing it. */
-  function removeUnsubmitted(checkout: string, task: ClaimedTask, attempt: number): void {
+  /** A folder of this run with no engine task behind it: the Office stopped while writing it. */
+  function removeUnsubmitted(checkout: string, task: ClaimedTask, attempt: number, run: number): void {
     if (!Number.isSafeInteger(task.story?.number) || !Number.isSafeInteger(task.number)) return;
     const plans = join(realpathSync(checkout), PLAN_ROOT);
     noSymlinks(plans);
-    rmSync(join(plans, `story-${task.story.number}-task-${task.number}-a${attempt}`), { recursive: true, force: true });
+    rmSync(join(plans, contractFolder(task.story.number, task.number, attempt, run)), { recursive: true, force: true });
   }
 
   /** building: waits for the engine; a verified change is committed, pushed and put up as the PR. */
@@ -337,6 +371,9 @@ export function createExecutor(d: {
       await f.engine.cancelStoryTask(id);
       return failAttempt(open, `BUILD_TIMEOUT: engine task ${id} ran for more than ${BUILD_DEADLINE_MS / 60000} minutes.`, [], false);
     }
+    if (outcome.kind === "stopped" && outcome.runnerAccount) return waitForRunner(open, outcome.runnerAccount);
+    // The runner got through: a wait it ended is over.
+    if (open.runnerWait) store.setPhase(open.taskId, "building", { runnerWait: null });
     if (outcome.kind === "stopped") return failAttempt(open, outcome.reason, [], false);
     // Read before anything touches the attempt's contract folder: the engine checks it to keep its conclusion.
     const ev = f.engine.storyEvidence(id);

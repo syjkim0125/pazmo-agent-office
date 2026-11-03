@@ -142,11 +142,19 @@ const resultText = (content: unknown): string =>
       ? content.map((c) => (typeof c?.text === "string" ? c.text : "")).join("")
       : "";
 
+/** Epoch seconds stay below this until the year 33658; epoch ms are past it. */
+const EPOCH_MS_FLOOR = 1e12;
+
 /** Maps a claude stream onto the controller's single-turn event shape so the
- * existing role report readers stay runner-independent. */
+ * existing role report readers stay runner-independent. A failed turn keeps
+ * the error kind claude put on the reply it made up itself when the API
+ * refused the turn (`rate_limit`, `billing_error`, `authentication_failed`,
+ * ...), that reply's text, and when a refused limit resets (epoch ms) (D37). */
 export function normalizeClaudeStream(stdout: string): string {
   const out: unknown[] = [{ type: "turn.started" }];
   let completed = false;
+  let refusal: { kind: string; message: string } | null = null;
+  let resetsAt: number | null = null;
   try {
     const events = stdout
       .split("\n")
@@ -156,6 +164,19 @@ export function normalizeClaudeStream(stdout: string): string {
     const uses = new Map<string, { name?: string; input?: { command?: unknown } }>();
     for (const e of events) {
       const content = Array.isArray(e?.message?.content) ? e.message.content : [];
+      // Only a refusal that is claude's last reply ended the turn; one it went on from did not, nor did the
+      // limit it reported before that.
+      if (e?.type === "assistant") {
+        refusal =
+          typeof e.error === "string" && /^[a-z_]{1,40}$/.test(e.error)
+            ? { kind: e.error, message: resultText(e.message?.content) }
+            : null;
+        if (!refusal) resetsAt = null;
+      }
+      const limit = e?.type === "rate_limit_event" ? e.rate_limit_info : null;
+      // The API's reset headers give seconds; a value already past EPOCH_MS_FLOOR is taken as ms.
+      if (limit?.status === "rejected" && Number.isFinite(limit.resetsAt) && limit.resetsAt > 0)
+        resetsAt = Math.ceil(limit.resetsAt < EPOCH_MS_FLOOR ? limit.resetsAt * 1000 : limit.resetsAt);
       if (e?.type === "assistant")
         for (const block of content) {
           if (block?.type === "tool_use" && typeof block.id === "string") uses.set(block.id, block);
@@ -180,6 +201,7 @@ export function normalizeClaudeStream(stdout: string): string {
   } catch {
     completed = false;
   }
-  out.push({ type: completed ? "turn.completed" : "turn.failed" });
+  const failed = refusal ? { type: "turn.failed", error: { ...refusal, resetsAt } } : { type: "turn.failed" };
+  out.push(completed ? { type: "turn.completed" } : failed);
   return out.map((e) => JSON.stringify(e)).join("\n") + "\n";
 }

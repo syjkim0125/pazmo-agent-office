@@ -27,7 +27,7 @@ const mineOf = (n, state = "claimed") => ({ taskId: `task-${n}`, claimId: `claim
 /** The open record of a Task just taken: not started, no attempts, nothing to report. */
 const openOf = (project, n) => ({
   taskId: `task-${n}`, claimId: `claim-${n}`, project, task: taskOf(n),
-  phase: "claimed", attempts: 0, engineTask: null, report: null, rerunMemo: null, buildingSince: null, lastFailure: null, unlockOwed: false, pushedSha: null,
+  phase: "claimed", attempts: 0, engineTask: null, report: null, rerunMemo: null, buildingSince: null, lastFailure: null, unlockOwed: false, pushedSha: null, runnerWait: null,
 });
 const emptyInbox = { mine: null, alerts: [], verifyReady: [] };
 /** A merged report the Hub has not been told yet, as the executor leaves it in the record. */

@@ -1,0 +1,1 @@
+{"token":"344ca0c29b4d0bdd1875354935afd3671f7acea978465ebe18912ab39edfa83f","output":{"summary":"Fresh: npm test 1292/1292 exit 0; typecheck exit 0; check.mjs story exit 0; gate G1 exit 0. Automated only; no real limited account.","evidence":[".ai-workflow/runs/U31-verify-1.md"]},"evaluation":{"passed":true}}

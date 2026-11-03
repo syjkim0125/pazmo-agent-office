@@ -71,9 +71,14 @@ const labelled = (label: string, text: string) => [label, text].filter(Boolean).
 
 const positive = (value: number) => Number.isSafeInteger(value) && value >= 1;
 
+/** The folder, under the plan root, of one run of one attempt of a Story Task. */
+export const contractFolder = (story: number, task: number, attempt: number, run: number) =>
+  `story-${story}-task-${task}-a${attempt}${run ? `-r${run}` : ""}`;
+
 /**
  * Writes the four contract documents of one attempt of a Hub Story Task into the Office checkout, where the
- * engine reads them (`.pazmo-office/plans/story-<N>-task-<M>-a<K>/`), and returns the input to register.
+ * engine reads them (`.pazmo-office/plans/story-<N>-task-<M>-a<K>/`, and `-r<R>` after it for the R-th run
+ * again of that attempt after a runner account problem, D37), and returns the input to register.
  * Story and Task lines are single-line summaries; everything the Hub holds in free form (Story body, Task spec,
  * upstream decisions, the last failure) goes to plan.md. Verification checks are numbered V1..Vn here: the
  * Hub's own check ids are not trusted as Story V ids. An existing attempt folder is an error, never reused.
@@ -83,16 +88,17 @@ export function writeStoryContract(
   task: ClaimedTask,
   attempt: number,
   failure: { reason: string; memo: string | null; conflict: string[] } | null,
+  run = 0,
 ): ContractInput {
   const { story } = task;
-  if (![story.number, task.number, attempt].every(positive))
+  if (![story.number, task.number, attempt].every(positive) || !(Number.isSafeInteger(run) && run >= 0))
     fail("INVALID_CONTRACT", "A Story Task contract needs positive Story, Task and attempt numbers.");
   if (!task.verify.length) fail("INVALID_CONTRACT", "A Story Task needs at least one verification check.");
 
   const root = realpathSync(checkout);
   const metadata = join(root, ".pazmo-office");
   const plans = join(root, PLAN_ROOT);
-  const folder = `${PLAN_ROOT}/story-${story.number}-task-${task.number}-a${attempt}`;
+  const folder = `${PLAN_ROOT}/${contractFolder(story.number, task.number, attempt, run)}`;
   noSymlinks(plans);
   mkdirSync(plans, { recursive: true, mode: 0o700 });
   // Hidden from git before any document (which names machine-local paths) is written. Only `directory` is read.
