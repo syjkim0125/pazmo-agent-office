@@ -34,6 +34,16 @@ test("partial failures, many files and missing review are stated plainly", () =>
   assert.match(text, /^3\. 확인: 검사 1\/2 통과 · 리뷰 없음$/m);
 });
 
+test("added and deleted files are counted in the diff git writes for two folders", () => {
+  // `git diff --no-index --no-prefix -- a b` heads an added file with its b/ path twice and a deleted one
+  // with its a/ path twice.
+  const rawDiff =
+    "diff --git b/src/greet.js b/src/greet.js\nnew file mode 100644\nindex 0000000..a106507\n--- /dev/null\n+++ b/src/greet.js\n@@ -0,0 +1,3 @@\n+export function greet(name) {\n+  return `Hello, ${name}!`;\n+}\n" +
+    "diff --git a/old.js a/old.js\ndeleted file mode 100644\nindex 1111111..0000000\n--- a/old.js\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-one\n-two\n";
+  const text = changeSummary({ contract: { title: "greet 함수 추가" }, diff: { rawDiff, rawDiffEncoding: "utf8" } });
+  assert.match(text, /^2\. 변경 파일: src\/greet\.js, old\.js \(\+3 −2줄\)$/m);
+});
+
 test("binary changes and a failed review are summarised without line counts", () => {
   const text = changeSummary({
     contract: { title: "아이콘 교체" },
