@@ -1,0 +1,8 @@
+{
+  "token": "bcaed2680b84b85b03533e50ed16957eb5d092244aa4f6ce8b10e3924960162c",
+  "output": {
+    "summary": "Two bounded reviewers: 4 P2 and 5 P3 accepted (a failed claude hook listing during the new rediscovery unblocks a hooked claude; a rejected rediscovery ends closed:false; real refresh wiring, refusal-format-to-parser link and not_ready status untested; docs). Fix required in implement.",
+    "evidence": [".ai-workflow/runs/U32-review-1.md"]
+  },
+  "evaluation": { "passed": false, "action": "fix", "feedback": "implement: keep a claude block found on the same binary when a rediscovery cannot list claude's hooks; fall back to a clean refusal when rediscovery rejects; add tests for the real refresh wiring, the refusal format through runnerNotReady, not_ready in claim.waiting, no rediscovery when ready, hint out of the next contract; fix LOCAL-PREVIEW waiting text and the change record's limits." }
+}

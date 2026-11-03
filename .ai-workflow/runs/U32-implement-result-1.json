@@ -1,0 +1,8 @@
+{
+  "token": "a7874f64a4fafd44c0c4f410d30f64f3deec456350e8c35d1c20615b81d2f305",
+  "output": {
+    "summary": "D39: RUNNER_NOT_READY refusals name the runner and wait like D37 (Engineer receipt error and refused review read by storyOutcome; not_ready kind stored; RUNNER_NOT_READY failure code); the engine discovers a not-ready runner again before refusing. RED 8 failing, GREEN 114/114 on the touched test files, typecheck exit 0.",
+    "evidence": [".ai-workflow/runs/U32-implement-1.md"]
+  },
+  "evaluation": { "passed": true }
+}
