@@ -54,12 +54,14 @@ export async function runCommand(
       err: Buffer[] = [];
     let size = 0,
       done = false,
-      grace: NodeJS.Timeout | undefined;
+      grace: NodeJS.Timeout | undefined,
+      rekill: NodeJS.Timeout | undefined;
     const finish = (code: number | null, signal: string | null) => {
       if (done) return;
       done = true;
       clearTimeout(timer);
       clearTimeout(grace);
+      clearInterval(rekill);
       options.signal?.removeEventListener("abort", cancel);
       const stdout = Buffer.concat(out);
       resolve({
@@ -75,8 +77,18 @@ export async function runCommand(
       if (base.error) return;
       base.error = reason;
       if (child.pid) {
+        const group = -child.pid;
         try {
-          process.kill(-child.pid, "SIGKILL");
+          process.kill(group, "SIGKILL");
+          // A process that is still being forked when the signal lands misses it
+          // (seen on macOS) and keeps the pipes open, so kill until the group is empty.
+          rekill = setInterval(() => {
+            try {
+              process.kill(group, "SIGKILL");
+            } catch {
+              clearInterval(rekill);
+            }
+          }, 20);
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ESRCH")
             base.error += ":KILL_FAILED";

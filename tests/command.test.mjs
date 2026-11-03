@@ -41,6 +41,26 @@ test("timeouts and output limits never look like successful completion", async (
   assert.equal(flood.error, "OUTPUT_LIMIT");
   assert.ok(Buffer.byteLength(flood.stdout) <= 1024);
 });
+test("a timeout also kills a child that was being forked when the group was killed", async () => {
+  // Each shell forks `sleep 5` back to back, so the group SIGKILL lands mid-fork. On macOS a
+  // process still being created misses that one signal and holds the pipes open for 5 s.
+  const forking = "i=0; while [ $i -lt 50 ]; do sleep 5 & i=$((i+1)); done; wait";
+  const started = Date.now();
+  const results = await Promise.all(
+    Array.from({ length: 10 }, () =>
+      runCommand("/bin/sh", ["-c", forking], {
+        timeoutMs: 30,
+        maxBytes: 1024,
+        env: { PATH: "/usr/bin:/bin" },
+      }),
+    ),
+  );
+  assert.deepEqual(
+    results.map((r) => r.error),
+    Array(10).fill("TIMEOUT"),
+  );
+  assert.ok(Date.now() - started < 4000, "every forked child must be cut off");
+});
 test("missing executable and pre-cancelled work fail without a successful exit", async () => {
   const missing = await runCommand("/pazmo-does-not-exist", [], {
     timeoutMs: 1000,
