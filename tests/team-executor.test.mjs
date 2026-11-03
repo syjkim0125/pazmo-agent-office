@@ -1084,6 +1084,40 @@ test("a runner still refused 6 hours after the first refusal reports the Task fa
   }
 });
 
+test("a run refused because its runner was not ready waits the same way, across a restart; 6 hours on it is reported as RUNNER_NOT_READY with the hint (D39)", async (t) => {
+  const HINT = "터미널에서 claude auth login을 실행하세요.";
+  const notReady = limited({ kind: "not_ready", message: HINT });
+  const w = await world(t);
+  const task = await w.claim();
+  await w.ex.drive();
+  w.engine.refuse(notReady);
+  await w.ex.drive();
+  let open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.lastFailure, open.report], ["claimed", 0, null, null]);
+  assert.deepEqual(open.runnerWait, { runner: "claude", kind: "not_ready", message: HINT, since: T0, retryAt: T0 + HOUR / 2, runs: 1 });
+  assert.match(
+    w.lines.at(-1),
+    new RegExp(`claude is not ready \\(${HINT}\\); not counted as an attempt; running it again at ${new Date(T0 + HOUR / 2).toISOString()}$`),
+  );
+
+  w.restart();
+  w.tick(HOUR / 2);
+  await w.ex.drive();
+  assert.deepEqual([w.open().phase, w.engine.submits.length], ["building", 2], "the wait survives a restart and ends on time");
+  assert.doesNotMatch(planOf(w, task, "1-r1"), /Reason:|auth login/, "the hint never reaches the Engineer");
+  assert.equal(w.engine.last().input.story, `${planDir(task, 1)}-r1/story.md`);
+
+  w.tick(6 * HOUR);
+  w.engine.refuse(notReady);
+  await w.ex.drive();
+  open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.runnerWait], ["reporting", 0, null]);
+  assert.deepEqual(open.report, { kind: "failed", reason: `RUNNER_NOT_READY claude: ${HINT}` });
+  assert.match(w.lines.at(-1), new RegExp(`claude is not ready \\(${HINT}\\) for 6 hours; reporting the Task as failed$`));
+  await w.ex.drive();
+  assert.equal(w.view(task.taskId).failure, `RUNNER_NOT_READY claude: ${HINT}`, "the PL sees the runner and what to do");
+});
+
 test("a run after a wait that runs past its deadline counts the attempt and ends the wait: the next attempt's refusal starts a new one", async (t) => {
   const w = await world(t);
   const task = await w.claim();

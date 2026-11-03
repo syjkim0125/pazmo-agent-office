@@ -1,3 +1,25 @@
+# 2026-11-03 실행기 준비 안 됨도 시도로 세지 않고 기다린다 (D39)
+
+- D37의 후속이다. 팀 Office가 Story Task를 다시 돌릴 때 엔진이 실행기를 준비 안 됨(로그아웃·설치 없음·지원 안 되는 설치본·개인 설정으로 막힘)으로 보면, 실행 전에 `RUNNER_NOT_READY`로 거절했다. 출력이 비어 D37이 알아보지 못했고, 몇 초 만에 시도 3개를 쓸 수 있었다(코드로 추론, 관찰은 안 함).
+- 팀 Office에서 엔진의 실행기 목록 사본은 켤 때와 CLI 업데이트 때만 새로 받는다(단일 Office는 화면의 몇 동작도 새로 받음). 그래서 사람이 로그인해도 엔진은 옛 로그아웃 상태로 거절할 수 있었다(로그아웃으로 켠 뒤 로그인한 경우 포함, 임시 시험으로 확인).
+- 사용자 선택(2026-11-03, 설명 페이지를 본 뒤 1-A·2-A·3-A, Story 초안에 "맞아, 진행해"):
+  - 엔진은 준비 안 됨으로 거절하기 직전에 실행기를 한 번 새로 확인하고, 준비됐으면 그대로 돈다(팀·단일 Office).
+  - 그래도 준비 안 됨이면 원인·단계(구현·리뷰)를 가리지 않고 D37처럼 기다린다. 30분마다 다시 하고, 6시간 뒤에는 `RUNNER_NOT_READY <실행기>: <안내>`로 Hub에 실패 보고한다. `claim.waiting`의 종류는 `not_ready`다.
+- G1은 `.ai-workflow/approvals/pazmo-agent-office-g1.json`에 새로 묶었다. main의 기록이 D37 전 Story에 묶여 있어서, D36·D37·D38에 D39를 더한 Story로 묶었다. kit 실행은 `.ai-workflow/runs/U32-runner-not-ready-wait.json`(최소 계획)이다.
+- 자동 검사:
+  - kit verify 시험 438/438 + 445/445 + 429/429 = **1312/1312**, 타입 검사·Story 검사 exit 0.
+  - 독립 리뷰 2차 시도의 지적 9건을 반영했고, 3차(마지막)는 머지 가능이었다(Critical·Important 0).
+- 처음 세션은 구현 2차 도중 계정 사용 한도에 걸렸고, 다른 계정의 세션이 인계 노트대로 이어서 했다.
+- G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 그룹 kill 후속과 함께 "둘 다 ① 승인 후 머지"를 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/runner-not-ready-wait-g4.md)
+- **남은 것:**
+  - 실제로 로그아웃·막힌 CLI로 돌려 보기(실제 확인 2차와 함께). [변경 기록](verification/2026-11-03-runner-not-ready-wait.md)
+  - 마지막 리뷰의 Minor 5건은 머지 뒤 별도 변경으로 한다([기록](../.ai-workflow/runs/U32-review-2.md)).
+    - 답은 왔는데 claude 모델 목록이 빈 경우도 조회 실패로 보아 hook 막힘을 유지한다.
+    - 막힘을 유지할 때 안내 문구도 예전 것이라, 그 사이 로그인 상태가 바뀌면 로그인 안내가 빠지거나 낡는다.
+    - `live.ts`에서 엔진에 다시 확인을 잇는 줄을 시험이 직접 지키지 않는다.
+    - 바이너리가 바뀌었는데 확인이 실패한 경우(`UNVERIFIED_CONTROLLER_BINARY`)의 시험이 없다.
+    - `runner-jobs.ts` 주석의 "어떤 프로세스도 띄우기 전에"가 느슨하다(확인용으로 CLI를 잠깐 띄움).
+
 # 2026-11-03 kit 4.1.0 → 5.0.3, Office 역할 run v3 (D36, ①)
 
 - Office가 직접 부르는 kit를 공식 npm 5.0.3으로 올렸다(사용자 선택 ①, "①로 진행"). 새 역할 run은 kit 5의 v3다.
@@ -38,7 +60,7 @@
 - PR syjkim0125/pazmo-agent-office#66. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ②("② 승인 후 머지")를 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-runner-account-wait-g4.md) · 학습 문서 [detect-runner-account-limits-from-the-cli-error-kind.md](solutions/integration-issues/detect-runner-account-limits-from-the-cli-error-kind.md)
 - **남은 것:**
   - 한도에 걸린 실제 계정으로 다시 확인(실제 확인 2차와 함께).
-  - 후속: 기다리는 동안 Office의 실행기 탐색이 로그아웃으로 보면, 다시 하는 실행이 `RUNNER_NOT_READY`로 시도를 쓴다. D37의 신호 밖이라 별도 세션에서 사용자 결정을 받는다. [변경 기록](verification/2026-11-03-runner-account-wait.md)
+  - 후속: 기다리는 동안 Office의 실행기 탐색이 로그아웃으로 보면, 다시 하는 실행이 `RUNNER_NOT_READY`로 시도를 쓴다. → D39에서 고친다(맨 위 항목). [변경 기록](verification/2026-11-03-runner-account-wait.md)
 
 # 2026-11-03 로컬 원본 Claw 브랜치 삭제 (D38)
 

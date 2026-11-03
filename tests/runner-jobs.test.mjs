@@ -3,6 +3,7 @@ import test from "node:test";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { roleJobFactory } from "../src/runtime/runner-jobs.ts";
+import { runnerNotReady } from "../src/runners/runner-account.ts";
 import { digest } from "../src/core/candidates.ts";
 import { tempRoot } from "./runner-fixture.mjs";
 
@@ -110,9 +111,59 @@ test("a logged-out runner fails before qualification or any model process", asyn
   const h = harness({ loggedIn: false });
   const out = await supervise(h.factory("pm", "t", "x"));
   assert.equal(out.closed, true, "nothing started, so no recovery is needed");
-  assert.match(out.result.error, /^RUNNER_NOT_READY: login claude/);
+  assert.equal(out.result.error, "RUNNER_NOT_READY claude: login claude", "names the runner, then its hint");
+  // The team Office reads this very refusal as a runner to wait for.
+  assert.deepEqual(runnerNotReady(out.result.error), { runner: "claude", kind: "not_ready", message: "login claude", resetsAt: null });
   assert.equal(h.calls.qualify.length, 0);
   assert.equal(h.calls.claude.length, 0);
+});
+
+test("a runner the last discovery saw not ready is discovered again first: logged in since, it runs (D39)", async () => {
+  let discoveries = 0;
+  const h = harness({
+    loggedIn: false,
+    rediscover: (install) => async () => {
+      discoveries++;
+      return { codex: install("codex"), claude: { ...install("claude"), loggedIn: true, hint: "준비됨" } };
+    },
+  });
+  const out = await supervise(h.factory("engineer", "t", "x"));
+  assert.equal(out.result.error, null);
+  assert.equal(discoveries, 1);
+  assert.equal(h.calls.claude.length, 1);
+});
+
+test("a runner still not ready after that discovery is refused with the fresh hint, before qualification (D39)", async () => {
+  let discoveries = 0;
+  const h = harness({
+    loggedIn: false,
+    rediscover: (install) => async () => {
+      discoveries++;
+      return { codex: install("codex"), claude: { ...install("claude"), status: "missing", path: undefined, hint: "install claude" } };
+    },
+  });
+  const out = await supervise(h.factory("reviewer", "t", "x"));
+  assert.equal(out.closed, true);
+  assert.equal(out.result.error, "RUNNER_NOT_READY claude: install claude");
+  assert.equal(discoveries, 1, "one discovery per refused run");
+  assert.equal(h.calls.qualify.length, 0);
+  assert.equal(h.calls.claude.length, 0);
+});
+
+test("a discovery that fails ends in a clean refusal from the last one, not a run of unknown state (D39)", async () => {
+  const h = harness({ loggedIn: false, rediscover: () => async () => { throw new Error("CANDIDATE_CHANGED"); } });
+  const out = await supervise(h.factory("engineer", "t", "x"));
+  assert.equal(out.closed, true);
+  assert.equal(out.result.error, "RUNNER_NOT_READY claude: login claude");
+  assert.equal(h.calls.qualify.length, 0);
+});
+
+test("a runner that is ready and unchanged is not discovered again (D39)", async () => {
+  let discoveries = 0;
+  const h = harness({ rediscover: (install) => async () => (discoveries++, { codex: install("codex"), claude: install("claude") }) });
+  const out = await supervise(h.factory("engineer", "t", "x"));
+  assert.equal(out.result.error, null);
+  assert.equal(discoveries, 0);
 });
 
 test("a binary changed since discovery is refused before qualification", async () => {
@@ -192,6 +243,6 @@ test("a blocked codex install is refused before qualification", async () => {
     })("engineer", "t", "x"),
   );
   assert.equal(out.closed, true);
-  assert.match(out.result.error, /^RUNNER_NOT_READY: move ~\/\.codex\/AGENTS\.md/);
+  assert.match(out.result.error, /^RUNNER_NOT_READY codex: move ~\/\.codex\/AGENTS\.md/);
   void base;
 });

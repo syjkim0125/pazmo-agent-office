@@ -14,7 +14,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
 import { teamDir } from "../src/team/registry.ts";
-import { localDay, openTeamStore } from "../src/team/store.ts";
+import { localDay, openTeamStore, waitingOf } from "../src/team/store.ts";
 
 const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
 const MINUTE = 60 * 1000;
@@ -588,8 +588,18 @@ test("setPhase records the runner wait until a patch clears it, across a reopen;
   store.setPhase("task-1", "claimed", { buildingSince: null });
   assert.deepEqual(store.openClaim().runnerWait, wait, "a key that is not in the patch stays as it was");
   store.close();
-  const again = f.open();
+  let again = f.open();
   assert.deepEqual(again.openClaim().runnerWait, wait, "a restart still waits");
+  // A runner that was not ready waits the same way (D39).
+  const notReady = { ...wait, kind: "not_ready", message: "터미널에서 claude auth login을 실행하세요." };
+  again.setPhase("task-1", "claimed", { runnerWait: notReady });
+  again.close();
+  const third = f.open();
+  assert.deepEqual(third.openClaim().runnerWait, notReady, "a restart still waits for a runner that was not ready");
+  assert.equal(waitingOf(third.openClaim()).kind, "not_ready", "status shows it as claim.waiting");
+  third.setPhase("task-1", "claimed", { runnerWait: wait });
+  third.close();
+  again = f.open();
   for (const runnerWait of [
     "limit",
     {},

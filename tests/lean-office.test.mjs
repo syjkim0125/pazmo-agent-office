@@ -986,6 +986,25 @@ test("a CLI logged in after startup runs the reviewer job of a task created afte
   );
 });
 
+test("a job whose runner the engine last saw logged out discovers it again: logged in since, the Engineer runs (D39)", async (t) => {
+  const f = await fixture(t, { catalog: (root) => installedCatalog(root) });
+  const { runners } = f.captured;
+  const dev = await f.office.agents.create({ name: "Dev", work: claude("sonnet"), review: codex() });
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: dev.id, risk: "normal" });
+  engineChild(f, "child-1", id);
+  // The engine's copy saw claude logged out (as the rediscovery after a CLI update does) …
+  f.state.catalog = installedCatalog(f.root, { claudeLoggedIn: false });
+  await runners.settings.refresh();
+  // … and the person logged in again; nothing refreshed that copy (a team Office's claim check uses its own).
+  f.state.catalog = installedCatalog(f.root);
+  assert.equal(runners.settings.catalog.installs.claude.loggedIn, false);
+  const jobs = engineJobs(runners);
+  const out = await jobs.run("engineer", "child-1");
+  assert.equal(out.result.error, null, "not refused from the stale copy");
+  assert.deepEqual(jobs.calls.map((c) => [c.runner, c.options.selection.model]), [["claude", "sonnet"]]);
+  assert.equal(runners.settings.catalog.installs.claude.loggedIn, true);
+});
+
 test("the engine's loader discovers afresh inside the 5 s window, shares a discovery in flight and refreshes the cache", async (t) => {
   const f = await fixture(t);
   const { settings } = f.captured.runners;

@@ -60,10 +60,19 @@ export function roleJobFactory(d: RoleJobDependencies) {
           }
         };
         let install = d.installs()[choice.runner];
-        if (!ready(install)) return refused(`RUNNER_NOT_READY: ${install.hint}`);
-        // An updated CLI is a new binary: rediscover it and qualify it afresh.
-        if (!unchanged(install) && d.rediscover) install = (await d.rediscover())[choice.runner];
-        if (!ready(install)) return refused(`RUNNER_NOT_READY: ${install.hint}`);
+        // The last discovery may be stale: a CLI logged in since then is not refused (D39), and an updated CLI is a
+        // new binary, qualified afresh.
+        // A discovery that fails leaves the last one: the run is refused cleanly below, before any process starts.
+        if (d.rediscover && (!ready(install) || !unchanged(install)))
+          install =
+            (
+              await d.rediscover().catch((error) => {
+                console.error("Runner discovery failed:", error instanceof Error ? error.message : String(error));
+                return null;
+              })
+            )?.[choice.runner] ?? install;
+        // The runner first: the team Office waits on this refusal and names the runner (runner-account.ts).
+        if (!ready(install)) return refused(`RUNNER_NOT_READY ${choice.runner}: ${install.hint}`);
         if (!unchanged(install)) return refused("UNVERIFIED_CONTROLLER_BINARY");
         let q: Awaited<ReturnType<RoleJobDependencies["qualify"]>>;
         try {

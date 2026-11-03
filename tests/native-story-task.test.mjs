@@ -128,9 +128,9 @@ async function submit(f, attempt = 1, extra = {}) {
   const id = await f.office.submitStoryTask(input, meta(f, extra));
   return { id, input };
 }
-/** One Engineer run of the task: it writes src/a and exits with `exitCode`. */
+/** One Engineer run of the task: it writes src/a and exits with `exitCode` (or ends on the supervisor's `error`). */
 let runs = 0;
-function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "after" } = {}) {
+function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "after", error = null } = {}) {
   const { handoffs } = f.ledgers;
   // Short leases: three rounds stay inside the task's reserved-time budget.
   const attempt = handoffs.prepare(id, 60000);
@@ -139,7 +139,7 @@ function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "af
   writeFileSync(join(attempt.workspace, "src/a"), content);
   return handoffs.finish(attempt.leaseId, handle, {
     closed: true,
-    observation: { exitCode, signal: null, timedOut: false, error: null, output },
+    observation: { exitCode, signal: null, timedOut: false, error, output },
   });
 }
 /** Every node of the round: the checks exit with `check`, the review reports `verdict` (or ends as `review`). */
@@ -349,6 +349,33 @@ test("a Story Task stopped by its runner's account names the problem, from the E
   const plain = await submit(f, 3);
   engineer(f, plain.id, { exitCode: 1, output: refusedRun("server_error", "API Error: 500") });
   assert.deepEqual(f.office.storyOutcome(plain.id), { kind: "stopped", reason: "구현이 멈췄습니다: ENGINEER_FAILED" });
+});
+
+/** What a role run the engine refused before starting its runner leaves (runner-jobs.ts): no exit, no output. */
+const notReady = (runner, hint) => ({ exitCode: null, error: `RUNNER_NOT_READY ${runner}: ${hint}`, output: "" });
+const LOGIN = "터미널에서 claude auth login을 실행하세요.";
+
+test("a Story Task refused before its runner started names the runner not ready, from the Engineer's run or the review's (D39)", async (t) => {
+  const f = await fixture(t);
+  const built = await submit(f, 1);
+  engineer(f, built.id, notReady("claude", LOGIN));
+  assert.deepEqual(f.office.storyOutcome(built.id), {
+    kind: "stopped",
+    reason: "구현이 멈췄습니다: ENGINEER_FAILED",
+    runnerAccount: { runner: "claude", kind: "not_ready", message: LOGIN, resetsAt: null },
+  });
+  // The Engineer's run went through; the review's runner was refused: an unknown review, not a failed one.
+  const reviewed = await submit(f, 2);
+  const round = judge(f, engineer(f, reviewed.id).round, { review: { ...notReady("codex", "move ~/.codex/AGENTS.md"), report: null } });
+  assert.equal(round.reason, "UNKNOWN_RESULT");
+  const review = f.office.storyOutcome(reviewed.id);
+  assert.equal(review.kind, "stopped");
+  assert.match(review.reason, /UNKNOWN_RESULT/);
+  assert.deepEqual(review.runnerAccount, { runner: "codex", kind: "not_ready", message: "move ~/.codex/AGENTS.md", resetsAt: null });
+  // Any other refusal before the runner started still counts.
+  const changed = await submit(f, 3);
+  engineer(f, changed.id, { exitCode: null, error: "UNVERIFIED_CONTROLLER_BINARY", output: "" });
+  assert.deepEqual(f.office.storyOutcome(changed.id), { kind: "stopped", reason: "구현이 멈췄습니다: ENGINEER_FAILED" });
 });
 
 test("a Story Task whose run failed or was cancelled is stopped, not running", async (t) => {
