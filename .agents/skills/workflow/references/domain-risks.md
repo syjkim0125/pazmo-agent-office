@@ -18,9 +18,9 @@ Check: identity source; protected action; permission owner; token/session expiry
 
 Check: source of truth; timeout; retry/backoff; duplicate side effects; callback ordering; partial success; reconciliation; manual recovery.
 
-## Data migration / deletion
+## Data or system migration / deletion
 
-Check: compatibility window; backfill owner; rollback; partial progress; irreversible loss; verification before cleanup; observability and stop conditions.
+Check: compatibility window; backfill owner; rollback; partial progress; irreversible loss; verification before cleanup; observability and stop conditions. For a system, vendor or provider switch also check: how long old and new paths coexist and who switches them; cutover and rollback trigger; whether an unavailable new path fails open (old behavior stays) or closed (the feature disappears); which side wins when old and new data disagree; deploy order across owning teams.
 
 ## Sensitive data
 

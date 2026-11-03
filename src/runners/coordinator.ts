@@ -104,6 +104,8 @@ export class OfficeCoordinator {
           await d.roles.verifyCompletion(round);
         if (round && !["checking", "fix_required"].includes(round.state))
           return result(round.state, round.reason);
+        // Before any lease: a kit 4 task stops with its own reason, not as an unknown process.
+        d.roles?.assertCurrent(taskId);
         if (abort.signal.aborted)
           return result("human_required", "COORDINATOR_ABORTED");
         const leases = d.execution.list(taskId);
@@ -253,7 +255,9 @@ export class OfficeCoordinator {
           round.id,
           code === "TIME_BUDGET"
             ? "EXECUTION_BUDGET_EXHAUSTED"
-            : "DISPATCH_FAILED",
+            : code === "KIT_UPGRADE_REQUIRED"
+              ? code
+              : "DISPATCH_FAILED",
         );
       return result(capacity.has(code) ? "deferred" : "human_required", code);
     } finally {

@@ -4,7 +4,7 @@ import { fail, noSymlinks } from "../cli/project.ts";
 import { digest, readStable, verifyCandidate } from "../core/candidates.ts";
 import type { Candidate } from "../core/candidates.ts";
 import type { IntakeLedger } from "../core/intake.ts";
-import { KitRoleRun } from "../core/kit-role-runs.ts";
+import { KitRoleRun, kitG1 } from "../core/kit-role-runs.ts";
 import type { KitNode, KitStatus } from "../core/kit-role-runs.ts";
 import { PlanningInvalid, acceptPlanning } from "./planning.ts";
 import type { PlanningPacket } from "./planning.ts";
@@ -111,11 +111,17 @@ export class KitPlanning {
         candidate,
         guard,
       };
+      // A kit 4 run of this planning step is read-only under kit 5; keep it as evidence.
+      if (existsSync(join(this.project, KitRoleRun.legacyRunFile(base))))
+        fail(
+          "KIT_UPGRADE_REQUIRED",
+          "This task's planning began under kit 4, which kit 5 keeps read-only; Office kept it as evidence. Create the task again to plan it under kit 5.",
+        );
       // Kit forbids resetting action=human. Explicit recovery uses its supported
       // new-run protocol, linked to immutable predecessors and Office's budget.
       let identity = base;
       for (const retry of retries) {
-        const priorFile = `.pazmo-office/role-runs/${digest(identity)}/run.json`;
+        const priorFile = `${KitRoleRun.projectRunDirectory(identity)}/run.json`;
         if (!existsSync(join(this.project, priorFile)))
           fail(
             "KIT_RECOVERY_REQUIRED",
@@ -141,7 +147,7 @@ export class KitPlanning {
               runId: status.runId,
               revisionToken: status.revisionToken,
             },
-            successor: `.pazmo-office/role-runs/${digest(identity)}/run.json`,
+            successor: `${KitRoleRun.projectRunDirectory(identity)}/run.json`,
           }),
         );
       }
@@ -153,16 +159,16 @@ export class KitPlanning {
       // Inspect the actual completed PM run, not an independently copied status.
       await (await open("pm", request, [])).completionProof();
       const approved = this.intake.storyApproval(taskId);
-      const evidence = immutable("g1.json", JSON.stringify(approved));
-      const source = immutable(
-        "story.md",
-        approved.story
-          .replace(/^Status: Draft$/m, "Status: Approved")
-          .replace(
-            /^Understanding gate \(G1\): pending$/m,
-            `Understanding gate (G1): ${evidence} · ${new Date(approved.acceptedAt).toISOString().slice(0, 10)} · Check-in: accepted`,
-          ),
-      );
+      // kit 5 names: the kit 4 `story.md`/`g1.json` of an older run stay unchanged.
+      const evidence = `${directory}/g1.v3.json`;
+      const view = approved.story
+        .replace(/^Status: Draft$/m, "Status: Approved")
+        .replace(
+          /^Understanding gate \(G1\): pending$/m,
+          `Understanding gate (G1): ${evidence} · ${new Date(approved.acceptedAt).toISOString().slice(0, 10)} · Check-in: accepted`,
+        );
+      immutable("g1.v3.json", kitG1(view, approved.challengeId, approved));
+      const source = immutable("story.v3.md", view);
       const scope = [
         ...packet.story!.must.map((_, i) => `M${i + 1}`),
         ...packet.story!.verify.map((_, i) => `V${i + 1}`),

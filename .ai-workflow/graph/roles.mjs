@@ -51,7 +51,7 @@ export function assertRoleRun(run) {
 }
 
 export function assertRoleOutput(run, nodeId, output) {
-  if (run.version !== 2 || nodeId !== run.graph.nodes.at(-1).id) return;
+  if ((run.version !== 2 && run.kind !== 'role') || nodeId !== run.graph.nodes.at(-1).id) return;
   const assignment = run.assignment.value;
   if (assignment.role === 'developer' && (typeof output.producedRevision !== 'string' || !output.producedRevision.trim())) {
     throw new Error('Developer submission needs producedRevision covering actual changes.');

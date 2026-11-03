@@ -8,7 +8,8 @@ import { VerificationLedger } from "../src/core/verification.ts";
 import { ExecutionLedger } from "../src/core/budgets.ts";
 import { HandoffLedger } from "../src/core/handoffs.ts";
 
-export async function officeFixture(t, approved = true, kit = false) {
+/** `edit` may change the fixture files before the task is registered. */
+export async function officeFixture(t, approved = true, kit = false, edit) {
   const f = fixture(t),
     db = new DatabaseSync(join(f.root, "office.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
@@ -61,6 +62,7 @@ export async function officeFixture(t, approved = true, kit = false) {
     f.project,
     storage,
   );
+  edit?.(f);
   const task = await store.register(token, f.input);
   if (approved)
     for (const gate of ["G1", "G3"]) {

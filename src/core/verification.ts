@@ -471,7 +471,10 @@ export class VerificationLedger {
   }
   requireHuman(
     id: string,
-    reason: "EXECUTION_BUDGET_EXHAUSTED" | "DISPATCH_FAILED",
+    reason:
+      | "EXECUTION_BUDGET_EXHAUSTED"
+      | "DISPATCH_FAILED"
+      | "KIT_UPGRADE_REQUIRED",
   ): void {
     transaction(this.#db, () => {
       const row = this.#refresh(this.#row(id));

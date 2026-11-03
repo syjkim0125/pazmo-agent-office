@@ -1,0 +1,119 @@
+{
+  "version": 1,
+  "recipe": "docs/verification/kit-checks.md",
+  "checks": [
+    {
+      "id": "tests-1of3",
+      "covers": [
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6",
+        "V8",
+        "V9",
+        "V10",
+        "V13",
+        "V14",
+        "V17",
+        "V18"
+      ],
+      "argv": [
+        "node",
+        "scripts/kit-test-shard.mjs",
+        "0",
+        "3"
+      ],
+      "timeoutMs": 300000
+    },
+    {
+      "id": "tests-2of3",
+      "covers": [
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6",
+        "V8",
+        "V9",
+        "V10",
+        "V13",
+        "V14",
+        "V17",
+        "V18"
+      ],
+      "argv": [
+        "node",
+        "scripts/kit-test-shard.mjs",
+        "1",
+        "3"
+      ],
+      "timeoutMs": 300000
+    },
+    {
+      "id": "tests-3of3",
+      "covers": [
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6",
+        "V8",
+        "V9",
+        "V10",
+        "V13",
+        "V14",
+        "V17",
+        "V18"
+      ],
+      "argv": [
+        "node",
+        "scripts/kit-test-shard.mjs",
+        "2",
+        "3"
+      ],
+      "timeoutMs": 300000
+    },
+    {
+      "id": "typecheck",
+      "covers": [
+        "V1",
+        "V2",
+        "V3",
+        "V4",
+        "V5",
+        "V6",
+        "V8",
+        "V9",
+        "V10",
+        "V13",
+        "V14",
+        "V17",
+        "V18"
+      ],
+      "argv": [
+        "npm",
+        "run",
+        "typecheck"
+      ],
+      "timeoutMs": 180000
+    },
+    {
+      "id": "story",
+      "covers": [
+        "V2"
+      ],
+      "argv": [
+        "node",
+        ".ai-workflow/bin/check.mjs",
+        "story",
+        "docs/understanding/pazmo-agent-office-contract.md"
+      ],
+      "timeoutMs": 30000
+    }
+  ],
+  "requiresG3": false
+}

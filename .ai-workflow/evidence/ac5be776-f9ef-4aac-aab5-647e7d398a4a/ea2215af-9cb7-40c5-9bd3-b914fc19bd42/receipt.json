@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "runId": "ac5be776-f9ef-4aac-aab5-647e7d398a4a",
+  "storyHash": "3329bb486b11fe15cecd3a24a738b0f32bdaa1827e9c4a7c158efe87786e03e4",
+  "nodeId": "workflow-verify",
+  "token": "053ce56ef5892724368d495ad6ebb5e18d3d1fc3281d041a107c1ab4d0113e0f",
+  "checkId": "story",
+  "covers": [
+    "V2"
+  ],
+  "recipe": {
+    "path": "docs/verification/kit-checks.md",
+    "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+  },
+  "argv": [
+    "node",
+    ".ai-workflow/bin/check.mjs",
+    "story",
+    "docs/understanding/pazmo-agent-office-contract.md"
+  ],
+  "cwd": ".",
+  "startedAt": "2026-11-03T05:22:19.798Z",
+  "finishedAt": "2026-11-03T05:22:19.836Z",
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "truncated": false,
+  "outputIncomplete": false,
+  "stdout": ".ai-workflow/evidence/ac5be776-f9ef-4aac-aab5-647e7d398a4a/ea2215af-9cb7-40c5-9bd3-b914fc19bd42/stdout.log",
+  "stderr": ".ai-workflow/evidence/ac5be776-f9ef-4aac-aab5-647e7d398a4a/ea2215af-9cb7-40c5-9bd3-b914fc19bd42/stderr.log",
+  "stdoutHash": "df42daa83775a9902bca01c8248a61120ba126a1b46d0915a34efa2998f44ac5",
+  "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "snapshotBefore": "e78f5219806ca33368598d7ad8e514211166e590fe47c3fec1426846455d1815",
+  "snapshotAfter": "e78f5219806ca33368598d7ad8e514211166e590fe47c3fec1426846455d1815",
+  "passed": true
+}

@@ -5,9 +5,13 @@ import { descendantIds, nodeById } from './task-graph.mjs';
 import { resetAffectedSubgraph } from './scheduler.mjs';
 import { digest, readJson, readProjectFile, updateRun } from './storage.mjs';
 import { assertAssignment, assertRoleOutput, createRoleGraph } from './roles.mjs';
+import { approvalPath, boundApproval } from './approvals.mjs';
+import { createSnapshot } from './snapshot.mjs';
+import { PROFILE, checkExecutions, needsExecution, runVerification, verificationProfile } from './verification.mjs';
+import { normalizeExecutionMetadata } from './execution-metadata.mjs';
 import {
   MAX_ATTEMPTS, MAX_QUESTIONS, assertWorkflowRun, checkRunEvidence, createWorkflowGraph, evidenceHashes,
-  newWorkflowRun, requireReady, revisionToken, storyContract, taskInput, taskToken, workflowStatus,
+  isRoleRun, newWorkflowRun, requireReady, revisionToken, storyContract, taskInput, taskToken, workflowStatus,
 } from './workflow.mjs';
 
 export const GRAPH_HELP = `Graph commands (run from project root):
@@ -16,6 +20,8 @@ export const GRAPH_HELP = `Graph commands (run from project root):
   graph.mjs status <run.json>
   graph.mjs start <run.json> <node-id> <ready-token>
   graph.mjs record <run.json> <node-id> <result.json>
+  graph.mjs verify <run.json> <node-id> <task-token> <check-id>
+  graph.mjs delivery <run.json>
   graph.mjs reset <run.json> <node-id> <reason>
   graph.mjs question <run.json> <node-id> <question.json>
   graph.mjs answer <run.json> <node-id> <answer.json>
@@ -26,7 +32,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
   root = await fs.realpath(root);
   const [command, ...values] = args;
   if (!command || command === '--help') return { help: GRAPH_HELP };
-  const counts = { init: 3, 'init-role': 2, status: 1, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3 };
+  const counts = { init: 3, 'init-role': 2, status: 1, delivery: 1, verify: 4, start: 3, record: 3, reset: 3, question: 3, answer: 3, feedback: 3 };
   if (!Object.hasOwn(counts, command) || values.length !== counts[command]) throw new Error(GRAPH_HELP);
 
   const loadStory = async file => {
@@ -48,15 +54,59 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
 
   const validate = async (run, { evidence = true } = {}) => {
     assertWorkflowRun(run);
-    if (run.version === 2) {
+    if (run.version < 3) return run;
+    if (isRoleRun(run)) {
       const current = await readJson(root, run.assignment.file);
       if (digest(JSON.stringify(current)) !== run.assignment.fingerprint) throw new Error('Assignment changed; create a new run.');
     }
-    const contract = run.version === 2 ? await loadSource(run.assignment.value) : await loadStory(run.story.path);
-    if (run.version === 2) assertAssignment(run.assignment.value, contract.ids);
+    const contract = isRoleRun(run) ? await loadSource(run.assignment.value) : await loadStory(run.story.path);
+    if (isRoleRun(run)) assertAssignment(run.assignment.value, contract.ids);
     if (contract.fingerprint !== run.story.fingerprint) throw new Error('Story requirements changed; replan in a new run.');
-    if (evidence) await checkRunEvidence(root, run);
+    await bindings(run, contract);
+    if (evidence) {
+      await checkRunEvidence(root, run);
+      for (const node of run.graph.nodes) await checkExecutions(root, run, node.id, {
+        requirePass: needsExecution(run, node.id) && run.state.nodes[node.id].status === 'completed',
+      });
+    }
     return run;
+  };
+
+  const bindings = async (run, contract, initialize = false) => {
+    if (isRoleRun(run) && run.assignment.value.role === 'pm') return;
+    const g1 = await boundApproval({ root, story: run.story.path, gate: 'G1', expected: { storyHash: contract.fingerprint }, checkGate });
+    if (!initialize && JSON.stringify(run.approval) !== JSON.stringify(g1)) throw new Error('G1 approval changed; create a new run.');
+    run.approval = g1;
+    if (isRoleRun(run) && run.assignment.value.role === 'team-lead') return;
+    const profile = await verificationProfile(root, contract.ids);
+    if (!initialize && profile.fingerprint !== run.verification?.fingerprint) throw new Error('Verification profile changed; replan in a new run.');
+    run.verification = profile;
+    if (profile.value.requiresG3) {
+      const decisionHash = digest(await readProjectFile(root, profile.value.design));
+      const g3 = await boundApproval({ root, story: run.story.path, gate: 'G3', expected: { storyHash: contract.fingerprint, decisionHash }, checkGate });
+      if (!initialize && JSON.stringify(run.designApproval) !== JSON.stringify(g3)) throw new Error('G3 decision changed; replan in a new run.');
+      run.designApproval = g3;
+    }
+  };
+
+  const snapshot = async run => {
+    const text = await readProjectFile(root, run.story.path);
+    const extra = run.verification ? [PROFILE, ...(run.verification.recipe ? [run.verification.recipe.path] : []),
+      ...(run.verification.value.requiresG3 ? [run.verification.value.design] : [])] : [];
+    const runFile = command === 'init' || command === 'init-role' ? values[1] : values[0];
+    return createSnapshot({ root, inputs: run.verification?.value.inputs, additionalInputs: extra,
+      story: run.story.path, exclude: [runFile, `${runFile}.lock`, ...['G1', 'G3', 'G4'].map(gate => approvalPath(text, gate)).filter(Boolean)] });
+  };
+  const status = async run => {
+    const current = workflowStatus(run);
+    if (run.version < 3 || !run.verification) return current;
+    const code = await snapshot(run);
+    const stale = run.graph.nodes.filter(node => {
+      const state = run.state.nodes[node.id];
+      return state.snapshot && ['running', 'completed'].includes(state.status) && state.snapshot !== code.fingerprint;
+    }).map(node => node.id);
+    if (run.assignment?.targetSnapshot && code.fingerprint !== run.assignment.targetSnapshot && !stale.includes('review')) stale.push('review');
+    return { ...current, snapshot: code.fingerprint, ...(stale.length ? { action: 'stale', stale, ready: [] } : {}) };
   };
 
   if (command === 'init-role') {
@@ -66,11 +116,17 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const contract = await loadSource(value);
     assertAssignment(value, contract.ids);
     const graph = createRoleGraph(value);
-    const run = await updateRun(root, runFile, async () => ({
-      ...newWorkflowRun(graph, value.source, contract), version: 2,
-      assignment: { file, fingerprint: digest(JSON.stringify(value)), value },
-    }), { create: true });
-    return workflowStatus(run);
+    const run = await updateRun(root, runFile, async () => {
+      const next = { ...newWorkflowRun(graph, value.source, contract), kind: 'role',
+        assignment: { file, fingerprint: digest(JSON.stringify(value)), value } };
+      await bindings(next, contract, true);
+      if (next.verification) {
+        const code = await snapshot(next);
+        if (value.role === 'reviewer') next.assignment.targetSnapshot = code.fingerprint;
+      }
+      return next;
+    }, { create: true });
+    return status(run);
   }
 
   if (command === 'init') {
@@ -78,21 +134,43 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     const contract = await loadStory(story);
     const plan = planFile === '-' ? undefined : await readJson(root, planFile);
     const graph = createWorkflowGraph(plan, contract.ids);
-    const run = await updateRun(root, runFile, async () => newWorkflowRun(graph, story, contract), { create: true });
-    return workflowStatus(run);
+    const run = await updateRun(root, runFile, async () => {
+      const next = newWorkflowRun(graph, story, contract);
+      await bindings(next, contract, true);
+      await snapshot(next);
+      return next;
+    }, { create: true });
+    return status(run);
   }
-  if (command === 'status') return workflowStatus(await validate(await readJson(root, values[0])));
+  if (command === 'status' || command === 'delivery') {
+    const run = await validate(await readJson(root, values[0]));
+    const current = await status(run);
+    if (command === 'status') return current;
+    if (current.action !== 'g4' || run.kind !== 'delivery') throw new Error('Delivery requires fresh, completed v3 Graph verification.');
+    await boundApproval({ root, story: run.story.path, gate: 'G4', expected: {
+      storyHash: run.story.fingerprint, snapshot: current.snapshot, runId: run.runId,
+    }, checkGate });
+    return { ...current, action: 'delivered' };
+  }
+  if (command === 'verify') {
+    const [runFile, nodeId, token, checkId] = values;
+    const result = await runVerification({ root, runFile, nodeId, token, checkId, validate, snapshot });
+    return { ...await status(result.run), verification: result.verification };
+  }
 
   const [runFile, nodeId, argument] = values;
   const run = await updateRun(root, runFile, async previous => {
     // Work on a copy so the optimistic edit check still compares original bytes/data.
     const next = structuredClone(previous);
     await validate(next, { evidence: command !== 'reset' });
+    if (next.version < 3) throw new Error('Legacy run is read-only; create a new v3 run and rerun review/verification.');
     nodeById(next.graph, nodeId);
     if (command === 'start') {
+      if ((await status(next)).action === 'stale') throw new Error('Code snapshot changed; reset stale review/verification first.');
       requireReady(next, nodeId, argument);
       next.state.nodes[nodeId].status = 'running';
       next.state.nodes[nodeId].attempts += 1;
+      if (next.verification && nodeById(next.graph, nodeId).access === 'read') next.state.nodes[nodeId].snapshot = (await snapshot(next)).fingerprint;
       next.history.push({ event: 'start', nodeId, at: new Date().toISOString() });
     } else if (command === 'record') {
       if (next.question?.nodeId === nodeId) throw new Error('Answer the pending question before recording this node.');
@@ -100,13 +178,18 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
       if (result.token !== taskToken(next, nodeId)) throw new Error('Stale or missing task token; read fresh status.');
       if (next.state.nodes[nodeId].status !== 'running') throw new Error(`Node must be started before recording: ${nodeId}`);
       if (typeof result.output?.summary !== 'string' || !result.output.summary.trim()) throw new Error('Node output needs a summary.');
+      result.output.execution = normalizeExecutionMetadata(result.output.execution);
       const evaluation = normalizeEvaluation(result.evaluation);
+      if (evaluation.passed && (await status(next)).action === 'stale') throw new Error('Code snapshot changed during review/verification; reset affected work.');
+      if (evaluation.passed && needsExecution(next, nodeId)) await checkExecutions(root, next, nodeId, { requirePass: true });
       if (evaluation.passed) assertRoleOutput(next, nodeId, result.output);
       if (!evaluation.passed && (typeof evaluation.feedback !== 'string' || !evaluation.feedback.trim())) throw new Error('Failed evaluation needs feedback.');
       const hashes = await evidenceHashes(root, result.output.evidence);
       const current = next.state.nodes[nodeId];
+      if (current.snapshot) result.output.snapshot = current.snapshot;
       next.state.nodes[nodeId] = {
-        status: evaluation.passed ? 'completed' : 'failed', attempts: current.attempts, revision: current.revision,
+        ...current,
+        status: evaluation.passed ? 'completed' : 'failed',
         output: result.output, evaluation, evidenceHashes: hashes,
         ...(!evaluation.passed ? { error: evaluation.feedback } : {}),
       };
@@ -118,6 +201,7 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
       if (typeof request.text !== 'string' || !request.text.trim()) throw new Error('Question needs text.');
       if (next.history.filter(entry => entry.event === 'question' && entry.nodeId === nodeId).length >= MAX_QUESTIONS) throw new Error('Question limit reached; report the unresolved blocker with action human.');
       next.state.nodes[nodeId].revision += 1;
+      delete next.state.nodes[nodeId].executions;
       next.question = { id: randomUUID(), nodeId, text: request.text, token: taskToken(next, nodeId) };
       next.history.push({ event: 'question', nodeId, questionId: next.question.id, text: request.text, at: new Date().toISOString() });
     } else if (command === 'answer') {
@@ -152,6 +236,6 @@ export async function runGraphCommand(args, { root = process.cwd(), checkArtifac
     }
     return next;
   });
-  return { ...workflowStatus(run), ...(command === 'start' ? { started: taskInput(run, nodeId) } : {}),
+  return { ...await status(run), ...(command === 'start' ? { started: taskInput(run, nodeId) } : {}),
     ...(command === 'answer' ? { resumed: taskInput(run, nodeId) } : {}) };
 }

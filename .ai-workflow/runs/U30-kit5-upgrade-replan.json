@@ -1,0 +1,680 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "1e012d0e-08e6-4d7a-84bc-382c740c6e74",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review round 2 Minor items: PATH order restored, records corrected. kit tests 69/69, typecheck 0.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-implement-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-implement-3.md": "d08c4b4b4b18848612614e665514cfda7447579f3ea6f101f2d437e4b46d871e"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840",
+        "output": {
+          "summary": "Review round 3 passes the code and the decision/plan text. One overclaiming sentence in two records (Important 4 all fixed -> 3 Fixed, 1 Partly) is corrected in the post-delivery records commit; see U30-replan-review-3.md.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-review-1.md",
+            ".ai-workflow/runs/U30-replan-review-2.md",
+            ".ai-workflow/runs/U30-replan-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-review-1.md": "2a4f1bf788205488520298b59c4b2bf822c5cad134d18bbf1d7c16aea81a0d7e",
+          ".ai-workflow/runs/U30-replan-review-2.md": "572889888d9f52f060acd04b278e134f99cb4525fade01407e6206edd3408355",
+          ".ai-workflow/runs/U30-replan-review-3.md": "4b6c7169e1e65deb324a955b3de5f88f214173c7d304a17ef8013d2bc9eb7f37"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/ec219507-7be8-4227-9e56-84317b124648/receipt.json",
+            "hash": "d1bbaa83d29dad94c15101a6df10a0754bcdbf5fde4270810e66a13221262e7b"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/c9c2653a-edf8-4f3f-982c-81f8d457726f/receipt.json",
+            "hash": "25337e20a55442698a374f95d9e1bf989b1f3005f8ca8c37fe133e546d8ed19b"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/a4fe2df4-10bd-497f-a948-7f30a1e9ede8/receipt.json",
+            "hash": "030dcfe7e778df66154b3090aeb0e234589dc8788d70e26f44f503cbc08d3b06"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/b6b276ba-ff6c-4978-8c6d-596a57e64da1/receipt.json",
+            "hash": "19cb8c5c93317bf86183f4f36346b28a9c84d7d421dd2b00a0cbb7b2f6849276"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/4fc9e056-7d58-4fc4-8dd4-05e4c12b1a08/receipt.json",
+            "hash": "40a4feb664dd40a686733627df139590977d768837378b3761a5bf5714ad2dab"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify: tests 451/451 + 455/455 + 379/379 = 1285/1285, typecheck exit 0, story exit 0; all receipts passed on snapshot of 25d3df7.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-verify-1.md": "6c97beef692f0f310ac8ee361f2053c8aaf238112ebeb7a06fba2eae05aec008"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "e75400f587d9a90eadfab52a74bf715e805e3c0ec65d793cca32fe30ddf2cd3d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T01:58:45.523Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T01:59:43.119Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "kit 5.0.3 installed; Office role runs moved to kit 5 v3 with per-task kit folders, VM-only checks reported through the Office relay, kit 5 G1 JSON, and KIT_UPGRADE_REQUIRED for kit 4 tasks. npm test 1284/1284, typecheck 0, story check 0.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-implement-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-implement-1.md": "60bfab4d670e224e34d7b353fe54e1437622bcf5a9801167f860073e7fdc44bf"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T01:59:48.531Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T04:45:51.048Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "eb725f0565ac347cd6d927eb535250bc9862e131135f13051fc94d7a17109bc8",
+        "output": {
+          "summary": "Three independent reviews: no Critical, four Important (git barrier bypass, duplicate V checks, lost KIT_UPGRADE_REQUIRED, unreachable resume skip) and several Minor; changes required.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "eb725f0565ac347cd6d927eb535250bc9862e131135f13051fc94d7a17109bc8"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix the four Important findings and the accepted Minor ones listed in U30-replan-review-1.md, then review again."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-review-1.md": "2a4f1bf788205488520298b59c4b2bf822c5cad134d18bbf1d7c16aea81a0d7e"
+        },
+        "error": "Fix the four Important findings and the accepted Minor ones listed in U30-replan-review-1.md, then review again."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review round 1 requires code changes (U30-replan-review-1.md)",
+      "at": "2026-11-03T04:45:51.468Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T04:45:57.267Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T04:56:13.878Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review round 1 findings fixed (git barrier, unique check ids, early kit 4 stop, removed unreachable resume, minor hardening, docs). kit tests 69/69; npm test 1284/1285 with one unrelated timing flake (file alone 15/15 x3); typecheck 0; story 0.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-implement-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-implement-2.md": "43b07fdee450a1113d9410ff3db2f9cb7fc3b522cb06710d977e3c3179892ee0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T04:56:14.594Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:00:06.479Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "45c6e1701e5e9789b3cd60f256f5b7d6e133494d8c8629a7cf6feca7b2bdb19b",
+        "output": {
+          "summary": "Round-1 Important findings all fixed; two Minor items to change (PATH order, verification record overclaims); others accepted with reasons.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "45c6e1701e5e9789b3cd60f256f5b7d6e133494d8c8629a7cf6feca7b2bdb19b"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Put the Office Node folder first on PATH and correct the verification record (three mutations; list the accepted Minor items)."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-review-2.md": "572889888d9f52f060acd04b278e134f99cb4525fade01407e6206edd3408355"
+        },
+        "error": "Put the Office Node folder first on PATH and correct the verification record (three mutations; list the accepted Minor items)."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review round 2 PATH order and verification record, see U30-replan-review-2.md",
+      "at": "2026-11-03T05:00:06.797Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:00:07.380Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:01:30.349Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review round 2 Minor items: PATH order restored, records corrected. kit tests 69/69, typecheck 0.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-implement-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-implement-3.md": "d08c4b4b4b18848612614e665514cfda7447579f3ea6f101f2d437e4b46d871e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:01:31.152Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:02:31.879Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840",
+        "output": {
+          "summary": "Review round 3 passes the code and the decision/plan text. One overclaiming sentence in two records (Important 4 all fixed -> 3 Fixed, 1 Partly) is corrected in the post-delivery records commit; see U30-replan-review-3.md.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-review-1.md",
+            ".ai-workflow/runs/U30-replan-review-2.md",
+            ".ai-workflow/runs/U30-replan-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-review-1.md": "2a4f1bf788205488520298b59c4b2bf822c5cad134d18bbf1d7c16aea81a0d7e",
+          ".ai-workflow/runs/U30-replan-review-2.md": "572889888d9f52f060acd04b278e134f99cb4525fade01407e6206edd3408355",
+          ".ai-workflow/runs/U30-replan-review-3.md": "4b6c7169e1e65deb324a955b3de5f88f214173c7d304a17ef8013d2bc9eb7f37"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:02:41.319Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:07:05.219Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/ec219507-7be8-4227-9e56-84317b124648/receipt.json",
+            "hash": "d1bbaa83d29dad94c15101a6df10a0754bcdbf5fde4270810e66a13221262e7b"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/c9c2653a-edf8-4f3f-982c-81f8d457726f/receipt.json",
+            "hash": "25337e20a55442698a374f95d9e1bf989b1f3005f8ca8c37fe133e546d8ed19b"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/a4fe2df4-10bd-497f-a948-7f30a1e9ede8/receipt.json",
+            "hash": "030dcfe7e778df66154b3090aeb0e234589dc8788d70e26f44f503cbc08d3b06"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/b6b276ba-ff6c-4978-8c6d-596a57e64da1/receipt.json",
+            "hash": "19cb8c5c93317bf86183f4f36346b28a9c84d7d421dd2b00a0cbb7b2f6849276"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/1e012d0e-08e6-4d7a-84bc-382c740c6e74/4fc9e056-7d58-4fc4-8dd4-05e4c12b1a08/receipt.json",
+            "hash": "40a4feb664dd40a686733627df139590977d768837378b3761a5bf5714ad2dab"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify: tests 451/451 + 455/455 + 379/379 = 1285/1285, typecheck exit 0, story exit 0; all receipts passed on snapshot of 25d3df7.",
+          "evidence": [
+            ".ai-workflow/runs/U30-replan-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c3754693f5262ca3dffcb8518080cecaff5ed3f2be49f7112b96cd8b6c2ea840"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-replan-verify-1.md": "6c97beef692f0f310ac8ee361f2053c8aaf238112ebeb7a06fba2eae05aec008"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "1372f5a680fdb417caf09728005e525719a72b9503a81bc94f82775692940da3"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}
