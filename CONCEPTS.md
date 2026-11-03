@@ -31,6 +31,11 @@ One attempt to verify a Candidate: every registered check and one independent re
 
 A verdict is pass, fail or unknown. Fail means a defect was found (a check failed, or the review reported findings) and sends the work back to the implementer for one of a small fixed number of automatic fixes, each producing a new candidate and a new round. Unknown means there is no verdict: the process timed out or was interrupted, the review report was missing or unreadable, or the review runner ended without giving one. An unknown verdict stops the round for a person at once and spends no fix. A round also stops for a person when its contract or candidate changes or its deadline passes. A stopped round is never retried automatically: its request becomes a Stopped request.
 
+### Real check
+A run of a finished change against the real things it will meet — the real CLIs, hub, Git hosts and VM — done after its automated tests and reviews pass, with what was checked and what was found written into its own dated verification record.
+
+Unlike a Verification round, a real check is not a verdict inside Office's flow: a person, or an agent on their behalf, runs it from outside, and what it finds becomes follow-up work or a fix before the result is merged. It uses throwaway repos, a local hub and test data rather than a shared hub or a real team project, so it can write freely. A stage's real check may be split into rounds, each with its own record.
+
 ### Gate
 A point where work stops until a human records an understanding or approval answer bound to an exact subject (a Story, a contract or a verified result). A Gate is passed by recorded evidence, never by a model's claim that it was approved.
 
@@ -42,6 +47,11 @@ A point where work stops until a human records an understanding or approval answ
 A pending human answer that Office shows in its Decisions inbox: a Gate approval, answers to role questions, or a planning recovery request. Its display text is a readable projection; the answer is bound to the underlying subject, never to the text shown, and the complete subject stays available for inspection.
 
 A Decision is identified to the human by its task and gate, not by its inbox entry: when its Approval challenge expires, Office replaces the entry with a new one, and an unsent answer may follow it to any replacement for the same task and gate as text, but is never submitted automatically; the human re-reads before submitting.
+
+### Change summary
+Three plain lines that say what a verified result is: its task, the files it changed with added and removed line counts, and how its checks and review ended. They stand above the evidence in every G4 Decision and go to the hub in a team Story task's report.
+
+The summary is derived only from the stored evidence of that exact Candidate, never written by a model, so it cannot disagree with the evidence printed beneath it. When a task's diff evidence cannot be read, its report falls back to the task title and a file count. Korean documents call it the 3줄 요약.
 
 ### Approval challenge
 The one-time authority a Gate Decision carries: a human answer is accepted only against a live challenge for that exact subject.
