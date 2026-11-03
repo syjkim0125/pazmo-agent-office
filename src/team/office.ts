@@ -17,8 +17,8 @@ import type { GhResult } from "./gh.ts";
 import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
-import { openTeamStore } from "./store.ts";
-import type { ClaimPhase, TeamStore } from "./store.ts";
+import { openTeamStore, waitingOf } from "./store.ts";
+import type { ClaimPhase, RunnerWaiting, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
 import type { OpenTaskRef, StoryLink } from "./story-link.ts";
 
@@ -51,6 +51,8 @@ export type TeamStatus = {
     project: string;
     phase: ClaimPhase;
     attempts: number;
+    /** The runner account problem the attempt waits out (D37), or null. */
+    waiting: RunnerWaiting | null;
   } | null;
   /** The open Task of this person's that the latest claim reply named as keeping the Hub from giving another. */
   blockedBy: OpenTaskRef | null;
@@ -598,6 +600,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
           project: open.project,
           phase: open.phase,
           attempts: open.attempts,
+          waiting: waitingOf(open),
         },
         blockedBy: scheduler.blockedBy(),
         busy: gate.busy(),

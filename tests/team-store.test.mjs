@@ -285,6 +285,7 @@ test("the open claim comes back whole after a reopen, project and Task included"
     lastFailure: null,
     unlockOwed: false,
     pushedSha: null,
+    runnerWait: null,
   });
 });
 
@@ -376,7 +377,7 @@ test("CLI: status shows today's claims, the open claim and the registered repos"
     paused: false,
     dailyCap: 5,
     today: 1,
-    claim: { taskId: "task-1", claimId: "claim-1", project: repo, title: "Task 1", phase: "claimed", attempts: 0 },
+    claim: { taskId: "task-1", claimId: "claim-1", project: repo, title: "Task 1", phase: "claimed", attempts: 0, waiting: null },
     repos: [{ project: realpathSync(repo), remote: "github.example.com/team/app-be" }],
   });
   assert.equal(JSON.stringify(status.value).includes("Add the endpoint."), false, "the Task spec is not printed");
@@ -395,7 +396,7 @@ test("a stage-2 team.sqlite opens and gains the new columns with phase claimed",
   const f = fixture(t);
   const file = writeStage2File(f, { openTask: task(3) });
   const before = columnsOf(file).map((c) => c.name);
-  const stage3 = ["phase", "attempts", "engine_task", "report_json", "rerun_memo", "building_since", "last_failure_json", "unlock_owed", "pushed_sha"];
+  const stage3 = ["phase", "attempts", "engine_task", "report_json", "rerun_memo", "building_since", "last_failure_json", "unlock_owed", "pushed_sha", "runner_wait_json"];
   for (const name of stage3) assert.equal(before.includes(name), false, `${name} is stage 3's`);
 
   const store = f.open();
@@ -414,6 +415,7 @@ test("a stage-2 team.sqlite opens and gains the new columns with phase claimed",
     lastFailure: null,
     unlockOwed: false,
     pushedSha: null,
+    runnerWait: null,
   });
   assert.deepEqual(store.settings(), { paused: true, dailyCap: 7 }, "the settings row is untouched");
   assert.equal(store.claimedToday(), 3, "the old records still count as before");
@@ -574,6 +576,42 @@ test("setPhase records the Task branch head the Office pushed until a patch chan
   assert.equal(again.openClaim().pushedSha, "d".repeat(64));
   again.setPhase("task-1", "claimed", { pushedSha: null });
   assert.equal(again.openClaim().pushedSha, null, "null clears it");
+});
+
+test("setPhase records the runner wait until a patch clears it, across a reopen; a bad one is INVALID and an unreadable copy is none", (t) => {
+  const f = fixture(t);
+  const store = f.open();
+  store.recordClaim("/repo/a", task(1), "claim");
+  assert.equal(store.openClaim().runnerWait, null);
+  const wait = { runner: "claude", kind: "limit", message: "You've hit your limit", since: 1000, retryAt: 1_801_000, runs: 1 };
+  store.setPhase("task-1", "claimed", { runnerWait: wait });
+  store.setPhase("task-1", "claimed", { buildingSince: null });
+  assert.deepEqual(store.openClaim().runnerWait, wait, "a key that is not in the patch stays as it was");
+  store.close();
+  const again = f.open();
+  assert.deepEqual(again.openClaim().runnerWait, wait, "a restart still waits");
+  for (const runnerWait of [
+    "limit",
+    {},
+    { ...wait, runner: "gemini" },
+    { ...wait, kind: "crash" },
+    { ...wait, message: 5 },
+    { ...wait, message: "x".repeat(301) },
+    { ...wait, since: -1 },
+    { ...wait, retryAt: 1.5 },
+    { ...wait, runs: 0 },
+    { ...wait, extra: true },
+  ])
+    assert.throws(() => again.setPhase("task-1", "claimed", { runnerWait }), { code: "INVALID" }, JSON.stringify(runnerWait));
+  assert.deepEqual(again.openClaim().runnerWait, wait);
+  again.setPhase("task-1", "building", { runnerWait: null });
+  assert.equal(again.openClaim().runnerWait, null, "null clears it");
+  // An unreadable copy is no wait, not an error: the next run finds out again.
+  again.setPhase("task-1", "claimed", { runnerWait: wait });
+  const raw = new DatabaseSync(join(f.dir, "team.sqlite"));
+  t.after(() => raw.close());
+  raw.prepare("UPDATE team_claims SET runner_wait_json = '{not json' WHERE state = 'open'").run();
+  assert.equal(again.openClaim().runnerWait, null);
 });
 
 test("setPhase refuses a bad build start or last failure as INVALID and changes nothing", (t) => {
@@ -860,6 +898,7 @@ test("replaceClaim keeps one open record, resets attempts and leaves claimedToda
     lastFailure: null,
     unlockOwed: false,
     pushedSha: null,
+    runnerWait: null,
   });
   assert.equal(store.claimedToday(), 1, "a rerun is not a new take");
   assert.equal(rowsOf(f).filter((r) => r.state === "open").length, 1, "exactly one open record");

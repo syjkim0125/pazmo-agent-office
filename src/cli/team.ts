@@ -1,6 +1,6 @@
 import { dataRoot, fail } from "./project.ts";
 import { addTeamRepo, readTeam, removeTeamRepo, teamDir } from "../team/registry.ts";
-import { openTeamStore } from "../team/store.ts";
+import { openTeamStore, waitingOf } from "../team/store.ts";
 
 export const TEAM_ACTIONS: readonly string[] = [
   "add",
@@ -69,6 +69,7 @@ export async function teamCommand(
           // `failed` is what team rerun asks to run again.
           phase: claim.phase,
           attempts: claim.attempts,
+          waiting: waitingOf(claim),
         },
         repos: readTeam(root).repos,
       };

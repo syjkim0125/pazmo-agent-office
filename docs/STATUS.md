@@ -22,7 +22,24 @@
 
 - PR syjkim0125/pazmo-agent-office#65. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문에는 직접 답하지 않았다. kit 5 절차대로 G4 JSON을 merge-2 run의 snapshot(`7628011`)에 묶었다. 결과: `check.mjs story` exit 0, `gate G4` exit 0, `graph.mjs delivery` exit 0(`delivered`). [G4 기록](../.ai-workflow/approvals/kit5-upgrade-g4.md)
 
+- G4 뒤 머지 전에 main(#66, D37)을 합쳤다. 충돌은 Story(D36·D37·D38 순서)와 STATUS뿐이었다. 합친 상태에서 전체 `npm test` **1303/1303** exit 0, 타입 검사 exit 0, Story 검사기 exit 0이었다. G4와 `delivery`는 #66을 합치기 전 `7628011`에 묶여 있다. **D37이 들어와 Story 해시가 바뀌었으므로, Story G1 JSON은 D36·D38까지의 Story에 묶인 채 남는다. 다음 kit run을 시작하기 전에 G1을 다시 받아야 한다.**
+
 [G3 결정](understanding/kit5-upgrade-decision.md) · [계획](plans/2026-11-03-1200-feat-kit5-upgrade-plan.md) · [검증 기록](verification/2026-11-03-kit5-upgrade.md)
+# 2026-11-03 실행기 계정 문제는 시도로 세지 않고 기다린다 (D37)
+
+- 3단계 실제 확인 1차의 찾은 것 1·2를 고친다. 그때는 사용 한도에 걸린 claude가 로그인 확인을 통과해 Task를 가져갔고, Engineer가 바로 끝나 시도를 몇 초에 썼으며, 이유는 `ENGINEER_FAILED`로만 보였다.
+- 사용자 선택(2026-11-03, 설명 페이지를 본 뒤 1-A·2-A·3-A, Story 초안에 "맞아, 진행해"):
+  - 계정 문제는 사용 한도·결제·로그인 만료다. claude는 실패 답에 스스로 붙이는 오류 종류(`rate_limit`·`billing_error`·`authentication_failed`)로, codex는 실패 이벤트 문구로 알아본다.
+  - 구현·리뷰 어느 단계든 시도로 세지 않고 Task를 쥔 채 기다린다. claude가 준 리셋 시각에, 없으면 30분 뒤에 같은 시도를 다시 한다. 첫 발견부터 6시간이 지나도 계정 문제면 `RUNNER_LIMIT`·`RUNNER_BILLING`·`RUNNER_LOGIN`과 실행기 이름·메시지로 실패 보고한다.
+  - `status --team`·`team status`의 `claim.waiting`, Office 로그 한 줄, Hub 실패 이유로 보인다. Hub·프로토콜은 그대로다.
+- 그 밖의 실패는 지금처럼 센다. 한도는 첫 실행에서야 안다(가져가기 전에 실제 모델을 부르지 않는다). 다시 하는 실행은 계약 폴더를 따로 둔다(`…-a<시도>-r<번째>`).
+- 신호 근거: 실제 확인 1차 DB의 출력, claude 2.1.280 설치본(stream의 `error` 필드, `rate_limit_event.resetsAt`), codex 0.155.1 설치본(`turn.failed`·`error` 이벤트와 계정 문구).
+- 자동 검사: 전체 `npm test` **1292/1292** exit 0(main #60–#64를 합친 뒤 **1294/1294** exit 0), 타입 검사·Story 검사기·G1 검사 exit 0. 리뷰어 8개(`ce-code-review`)와 독립 재확인 2번을 거쳤다. 거기서 찾은 P2 2건과 P3 이하 4건은 시험과 함께 고쳤다. 대표 결함은 시간 초과 뒤 기다림이 남는 것이었다. kit 실행 `.ai-workflow/runs/U31-runner-account-wait.json`(최소 계획, kit 5 올리기 작업이 U30을 써서 U31)을 main을 합친 뒤 `U31-runner-account-wait-merge.json`이 이었다. 다음은 G4다.
+- PR syjkim0125/pazmo-agent-office#66. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ②("② 승인 후 머지")를 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-runner-account-wait-g4.md) · 학습 문서 [detect-runner-account-limits-from-the-cli-error-kind.md](solutions/integration-issues/detect-runner-account-limits-from-the-cli-error-kind.md)
+- **남은 것:**
+  - 한도에 걸린 실제 계정으로 다시 확인(실제 확인 2차와 함께).
+  - 후속: 기다리는 동안 Office의 실행기 탐색이 로그아웃으로 보면, 다시 하는 실행이 `RUNNER_NOT_READY`로 시도를 쓴다. D37의 신호 밖이라 별도 세션에서 사용자 결정을 받는다. [변경 기록](verification/2026-11-03-runner-account-wait.md)
+
 # 2026-11-03 로컬 원본 Claw 브랜치 삭제 (D38)
 
 - 원본 그대로의 Claw-Empire v2.0.4 가져오기를 담던 로컬 브랜치 `codex/local-original-claw-v2.0.4`를 지웠다(사용자가 직접 지움). 원본은 upstream 태그 `v2.0.4`(commit `5c928b24ffa55b403fe7c5521d4ac3ac49516137`)가 그대로 가리켜 다시 받을 수 있다(2026-11-03 확인).
@@ -46,7 +63,7 @@
 - 자동 검사: root `npm test` **1275/1275** exit 0(최종 리뷰 수정 뒤; Task 9 수정 뒤 1258/1258, Task 8 끝은 1247/1247), 팀 시험 300/300, 타입 검사 exit 0, Story 검사기 exit 0. git은 로컬 repo·bare repo, `gh`는 가짜 실행 파일, VM은 가짜 실행 환경이다. 최종 리뷰의 재현 시험 4개는 저장소 시험으로 옮겨 고치기 전에 실패하는 것을 봤다.
 - 실제 확인 1차(2026-11-02–03, 로컬 Hub·GitHub private 시험 repo 두 개·VM·claude): Story 하나의 Task 3개가 가져가기 → VM 구현·리뷰·검증 → push → PR → 머지 커밋 → Hub 보고까지 Task마다 약 1.5분에 끝났다. 등록한 repo 폴더는 그대로였고 원격에는 Task 브랜치만 생겼다. `gh`는 설정 폴더 환경 변수 없이 로그인을 찾았다. 잠긴 시작은 ready Task를 가져가지 않았고, 할 일 없는 live Office는 실행기를 약 5분에 한 번 확인했다. **찾은 것:** 사용 한도에 걸린 claude도 가져가기를 막지 못하고 시도를 몇 초 만에 쓰며, 그 이유는 `ENGINEER_FAILED`로만 보인다. 새 파일만 바뀐 Task의 3줄 요약이 "변경 없음"으로 나온다(main부터 있던 `changeSummary`의 diff 머리줄 해석). [실제 확인 기록](verification/2026-11-03-team-story-task-mode-real-check.md)
 - PR syjkim0125/pazmo-agent-office#59. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-team-story-task-mode-g4.md)
-- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 사용 한도에 걸린 실행기 처리(별도 작업), 4단계(PL)·5단계(화면). 팀원에게 쓰라고 안내하는 것은 2차 확인 뒤다.** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
+- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 사용 한도에 걸린 실행기 처리(D37, 바로 위), 4단계(PL)·5단계(화면). 팀원에게 쓰라고 안내하는 것은 2차 확인 뒤다.** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
 
 # 2026-11-02 팀 Story 보드 보완 (D35, A)
 

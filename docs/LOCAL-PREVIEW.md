@@ -222,6 +222,11 @@ pazmo-office status --team
   - 엔진이 충돌 표시를 그대로 둔 채 검증을 마친 시도도 한 번으로 센다. 다음 시도가 그 파일 목록을 받아 푼다.
   - 한 단계(push 거부, `gh` 오류 등)가 세 번 연속 실패해도 Task를 실패로 보고한다. GitHub가 PR을 머지됨으로 보이는데 머지 커밋을 아직 주지 않으면 실패로 세지 않고 다음 구동에 다시 본다.
   - 사람이 Task의 PR을 머지하지 않고 닫으면, 그것을 멈춤으로 본다. Office는 새 PR을 열지 않고 Task를 바로 실패로 보고한다(시도로 세지 않음, 이유 `PR #<N> was closed on GitHub; reopen it, then run team rerun`). PR을 다시 열고 `team rerun`하면 그 PR로 이어 간다. 그만두려면 PL이 취소한다. GitHub가 브랜치 삭제 때문에 닫은 PR도 같다.
+  - 실행기 계정 문제(D37)로 구현·리뷰가 멈추면 시도로 세지 않고 기다린다. 계정 문제는 사용 한도·결제(크레딧)·로그인 만료다. claude는 실패 답에 스스로 붙이는 오류 종류(`rate_limit`·`billing_error`·`authentication_failed`)로, codex는 실패 이벤트 문구("usage limit", "Quota exceeded", 토큰 갱신 실패 등)로 알아본다. claude의 `rate_limit`에는 잠깐의 과부하도 들어간다.
+    - 같은 시도를 claude가 알려 준 리셋 시각에, 없으면 30분 뒤에 구현부터 다시 한다. 다시 하는 실행은 계약 폴더를 따로 둔다(`…-a<시도>-r<번째>`).
+    - 첫 발견부터 6시간이 지나도 계정 문제면 그 이유로 실패를 보고한다. 이유는 `RUNNER_LIMIT`·`RUNNER_BILLING`·`RUNNER_LOGIN` 중 하나에 실행기 이름과 그 실행기의 메시지 한 줄을 붙인 것이다(예: `RUNNER_LIMIT claude: You've hit your org's monthly spend limit …`).
+    - 기다리는 동안 새 Task는 가져가지 않고, Hub에는 하트비트를 그대로 보낸다(PL에게는 진행 중으로 보인다). 기다림은 기록에 남아 Office를 껐다 켜도 이어진다. 로그에는 발견할 때마다 한 줄 남는다(`claude account problem (usage limit: …); not counted as an attempt; running it again at <시각>`).
+    - 한도는 첫 실행에서야 안다. 가져가기 전 확인은 로그인만 본다.
   - 실패로 보고한 Task는 기록이 `failed`로 남고, Hub에서도 이 사람의 열린 Task다(그동안 뒤 Task는 막힌다). 원인을 보고 메모와 함께 다시 실행한다:
 
 ```sh
@@ -233,7 +238,7 @@ pazmo-office team rerun --memo "v2 엔드포인트로 바꿔서 다시"   # 메�
 - **상태(`status --team`):**
   - repo마다 `state`와 `gh` 결과가 나온다. `state`는 `ready`, `no-link`(Hub 연결 없음), `gh`(로그인 안 됨), `relink`(Hub가 연결을 거절함, 다시 연결), `hub-too-old`(Hub가 Story 경로를 모름) 중 하나다. ready가 아닌 repo는 5분마다 다시 확인한다. 연결하거나 로그인한 뒤 재시작할 필요는 없다.
   - `execution`: `--live`(또는 `./office --team`)로 켰으면 `ready`, 아니면 `locked`다.
-  - `claim`: 지금 가진 Task의 Story·Task 번호, 제목, repo, 그리고 `phase`와 `attempts`다. `phase`는 `claimed`(시도 준비), `building`(VM에서 구현·리뷰·검증), `verified`(push와 PR 끝), `merging`(머지 잠금·base 합치기·머지), `reporting`(Hub에 보고 중), `failed`(실패로 보고함, `team rerun`을 기다림) 중 하나다. `attempts`는 이 claim에서 실패한 시도 수다.
+  - `claim`: 지금 가진 Task의 Story·Task 번호, 제목, repo, 그리고 `phase`와 `attempts`다. `phase`는 `claimed`(시도 준비), `building`(VM에서 구현·리뷰·검증), `verified`(push와 PR 끝), `merging`(머지 잠금·base 합치기·머지), `reporting`(Hub에 보고 중), `failed`(실패로 보고함, `team rerun`을 기다림) 중 하나다. `attempts`는 이 claim에서 실패한 시도 수다. `waiting`은 시도가 실행기 계정 문제를 기다리는 동안(`phase`가 `claimed`)에만 `runner`·`kind`(`limit`·`billing`·`login`)·`message`(실행기의 말 한 줄)·`since`·`retryAt`(ISO 시각)을 보이고, 그 밖에는 `null`이다. `team status`도 같다.
   - `blockedBy`: **마지막으로 Hub에 가져가기를 물었을 때** 줄 Task가 없던 이유인 이 사람의 열린 Task(`storyNumber`, `taskNumber`, `repoName`, `state`는 `claimed` 또는 `failed`)다. 그 답에 열린 Task가 없었거나 Hub가 Task를 줬으면 `null`이다. 가져가기를 묻지 않는 동안(열린 기록, 멈춤, 상한, 실행 중, 실행 잠김)에는 마지막 값이 그대로 남는다. 바뀔 때마다 Office 로그에도 한 줄 남는다(`team: blocked by story-<N> task-<M> (…)`). 2단계 실제 확인의 찾은 것 1(가져가지 않는 이유가 안 보임)을 이것으로 보인다. Hub가 보고를 끝내 거절한 claim은 가져가기를 묻지 않는 동안에도 여기에 나온다. 그때 `repoName`은 다음 가져가기 답이 채울 때까지 `null`이다.
   - 그 밖에 `paused`, `dailyCap`, `today`(오늘 새로 가져온 수), `busy`(실행 중인 엔진이 있는지)가 나온다.
 - **가져가기 설정**(팀 Office가 꺼져 있어도 된다):
