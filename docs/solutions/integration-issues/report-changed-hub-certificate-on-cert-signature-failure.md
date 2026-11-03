@@ -1,6 +1,7 @@
 ---
 title: A same-name hub CA made without key identifiers failed with a raw certificate signature failure instead of the reconnect guidance
 date: "2026-10-28"
+last_updated: "2026-11-03"
 category: integration-issues
 module: Team hub link TLS pinning (hub-link)
 problem_type: integration_issue
@@ -38,12 +39,12 @@ The Bearer token was never exposed: the TLS handshake fails before any request h
 ## What Didn't Work
 - **Reading it as load flakiness or as caused by the change under test** (session history). Two earlier sessions met this failure while verifying unrelated changes. One ran the test alone on the unchanged baseline, saw the same failure there and set it aside as pre-existing. Unlike the load-related failures of the same days (startup and git timeouts that cleared on a solo run), it is deterministic and follows PATH order.
 - **Putting Homebrew OpenSSL first on PATH** (session history). This made the suite pass (943/943 and 947/947 in those sessions) but only hid the environment dependence. It also left the member-facing guidance gap in place.
-- **The first full run in the fresh worktree was 913/944.** Thirty-one Office-start tests failed with `NOT_BUILT` because the Office UI had not been built. This had nothing to do with the TLS failure; see Related Issues. After `npm run build:office` the only remaining failure was the one above.
+- **The first full run in the fresh worktree was 913/944.** Thirty-one Office-start tests failed with `NOT_BUILT` because the Office UI had not been built. This had nothing to do with the TLS failure; see Related Issues. After `npm run build:office` the only remaining failure was the one above. (D33 removed that build; a fresh worktree now needs only `npm ci`.)
 - **Giving each hub CA a unique name** was considered and rejected. It has the same limit as the next item: CAs that already exist keep the shared name. It also changes the CA name that members see.
 - **Adding key identifiers in `tls.ts`.** This adds `-addext subjectKeyIdentifier=hash -addext authorityKeyIdentifier=keyid:always` to the CA `req -x509` (`src/hub/tls.ts:55`), and `subjectKeyIdentifier=hash` and `authorityKeyIdentifier=keyid` to `server.ext` (`src/hub/tls.ts:92`). It was verified with LibreSSL 3.3.6: pinned A → hub B then gives `UNABLE_TO_VERIFY_LEAF_SIGNATURE`. It was rejected because it only helps CAs made after the change. A member pinned to an existing LibreSSL CA (no SKID) would still get `CERT_SIGNATURE_FAILURE`, because OpenSSL skips the keyid comparison when the candidate issuer has no SKID. That last point is reasoning from OpenSSL's issuer check and was not tested.
 
 ## Solution
-Map `CERT_SIGNATURE_FAILURE` to `HUB_TLS_UNTRUSTED` like the other untrusted-certificate codes. The fix is in PR #39 (open, not yet merged as of this writing).
+Map `CERT_SIGNATURE_FAILURE` to `HUB_TLS_UNTRUSTED` like the other untrusted-certificate codes. The fix is PR syjkim0125/pazmo-agent-office#39 (merged 2026-10-28).
 
 ```ts
 // before (src/runtime/hub-link.ts)
@@ -92,6 +93,6 @@ Both errors mean the same thing to a pinned member: this hub's certificate is no
 - **Map the error codes for a meaning, not for one reproduction.** "This is not the certificate you pinned" can arrive as no issuer, a self-signed chain, a hostname mismatch or a bad signature, depending on how the certificates were built. The code-list test "TLS failures that mean an untrusted hub are all reported as HUB_TLS_UNTRUSTED" in `tests/hub-link.test.mjs` checks the set itself; the forged-signature test checks this code end to end.
 
 ## Related Issues
-- [fresh-worktree-tests-fail-without-office-ui-build.md](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md) explains the cause of the 31 `NOT_BUILT` failures in the first fresh-worktree run.
+- [fresh-worktree-tests-fail-without-office-ui-build.md](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md) explains the cause of the 31 `NOT_BUILT` failures in the first fresh-worktree run, and the setup a fresh worktree needs since D33 (`npm ci`).
 - [classify-review-runner-failure-as-unknown.md](classify-review-runner-failure-as-unknown.md) has the same shape in another module: a classifier missing one input class, so an infrastructure condition reached the user as the wrong outcome.
 - `docs/verification/2026-10-27-lean-rerun.md` first recorded this failure as a follow-up. It is hash-pinned graph evidence, so it stays as written (see [keep-workflow-graph-evidence-files-immutable.md](../workflow-issues/keep-workflow-graph-evidence-files-immutable.md)); this doc closes that follow-up.

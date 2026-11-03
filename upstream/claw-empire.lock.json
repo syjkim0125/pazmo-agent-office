@@ -37,7 +37,6 @@
   "import_verified_at": "2026-09-18",
   "import_evidence": "docs/verification/2026-09-18-source-import.md",
   "original_source_tree_verified_locally": true,
-  "original_import_local_ref": "codex/local-original-claw-v2.0.4",
   "published_tree": "d1263143c625cf5270a9cf5eaa1c70d3d7025bcd",
   "published_tree_matches_original": false,
   "modifications": "upstream/CHANGES.md",

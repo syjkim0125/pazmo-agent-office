@@ -26,7 +26,7 @@ D23은 Claw Empire를 없애는 일을 네 단계로 나눴다. 이 문서는 3�
 
 - `vendor/claw-empire`: 추적 파일 708개(42MB), 설치하면 의존성 540MB다. Pazmo가 고친 vendor 파일은 107개다(호스트 연결, 화면).
 - 하위 모듈 gitlink 2개(`.gitmodules`: playwright-mcp, ppt_team_agent).
-- 원본 그대로의 가져오기 커밋은 로컬 브랜치 `codex/local-original-claw-v2.0.4`에만 있다(push 금지, D4).
+- 원본 그대로의 가져오기 커밋은 로컬 브랜치 `codex/local-original-claw-v2.0.4`에만 있었다(push 금지, D4). 2026-11-03에 그 브랜치를 지웠고, 원본은 upstream 태그 `v2.0.4`에서 다시 받는다(D38).
 - 출처 기록: `upstream/claw-empire.lock.json`·`upstream/CHANGES.md`, `LICENSING.md`·`THIRD_PARTY_NOTICES.md`의 Claw 항목(Apache-2.0).
 
 ### lean·team이 아직 vendor에서 빌려 쓰는 것
@@ -122,7 +122,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 
 ## 무엇이 되돌릴 수 없나
 
-- **git 안에서는 되돌릴 수 있다.** 삭제는 보통 커밋이고 `git revert`로 돌아온다. 이력 재작성과 강제 push는 하지 않는다. 원본 그대로의 가져오기는 로컬 브랜치 `codex/local-original-claw-v2.0.4`에 남는다.
+- **git 안에서는 되돌릴 수 있다.** 삭제는 보통 커밋이고 `git revert`로 돌아온다. 이력 재작성과 강제 push는 하지 않는다. 원본 그대로의 가져오기는 upstream 태그 `v2.0.4`에서 다시 받는다(D38에서 로컬 브랜치를 지움).
 - **사용자 데이터는 건드리지 않는다.** `claw/`, `lean/`, `team/`, 허브 DB 모두 그대로다.
 - **실제로 되돌리기 어려워지는 것:**
   - D24 3단계가 삭제 뒤의 코드 위에 쌓이면, Claw를 다시 살릴 때 그 변경을 Claw에 다시 맞춰야 한다. 시간이 갈수록 비싸진다.
@@ -132,7 +132,7 @@ D24에서 사용자는 보내기·수락·거절을 보드로 대체하고 "기�
 ## 절대 일어나면 안 되는 것
 
 - 사용자 데이터(`claw/`, `lean/`, `team/`, 허브)의 삭제·이동·변환
-- `codex/local-original-claw-v2.0.4`의 push나 삭제, 이력 재작성, 강제 push
+- 이력 재작성, 강제 push(로컬 원본 브랜치는 D38에서 지움)
 - lean·team 엔진 동작의 변화: 결정·격리·검증·인도 규칙, `127.0.0.1` 경계, M4의 잘못된 완료 차단
 - 엔진 시험이 말없이 줄어드는 것. 지우는 시험은 하나씩 이유(Claw·legacy·bridge 전용)를 적는다. 엔진과 무관한 경계 시험은 lean으로 옮긴다(아래)
 

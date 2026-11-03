@@ -1,0 +1,1 @@
+{"token":"803a357de3b277e001b62ccab9b835529dbb6bfaf32aaa259e6d4c10269e015e","output":{"summary":"Independent read-only reviewer, two passes: Ready to merge, Critical 0, Important 0; all 5 Minor findings fixed (control-escape hardening, real-patch fixture, doc wording).","evidence":[".ai-workflow/runs/quoted-path-change-summary-review-1.md"]},"evaluation":{"passed":true}}

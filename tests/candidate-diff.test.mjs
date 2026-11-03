@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import test from "node:test";
 import { freezeCandidate, verifyCandidate } from "../src/core/candidates.ts";
 import { captureCandidateDiff } from "../src/runners/candidate-diff.ts";
+import { changeSummary } from "../src/runtime/decision-summary.ts";
 
 function fixture(t) {
   const root = mkdtempSync(join(tmpdir(), "pazmo-diff-test-"));
@@ -192,5 +193,33 @@ test("file-directory and symlink-file replacements reproduce the exact target sh
   assert.equal(
     (await captureCandidateDiff(after, before)).roundTripVerified,
     true,
+  );
+});
+
+test("the change summary names every added, modified and deleted file in a real candidate diff", async (t) => {
+  // Git heads an added file b/… b/… and a deleted one a/… a/…, and quotes a path with non-ASCII bytes or `"`.
+  const f = fixture(t);
+  f.put("kept.txt", "old\n");
+  f.put("gone.txt", "bye\n");
+  f.put('한글 " space.txt', "old\n");
+  f.put("지울.txt", "bye\n");
+  const plain = f.freeze(["kept.txt", "gone.txt"]),
+    quoted = f.freeze(['한글 " space.txt', "지울.txt"]);
+  f.put("kept.txt", "new\n");
+  f.put("src/greet.js", "a\nb\n");
+  f.put('한글 " space.txt', "new\n");
+  f.put("src/인사.js", "a\nb\n");
+  const files = async (before, after) =>
+    changeSummary({
+      contract: { title: "t" },
+      diff: await captureCandidateDiff(before, after),
+    }).split("\n")[2];
+  assert.equal(
+    await files(plain, f.freeze(["kept.txt", "src/greet.js"])),
+    "2. 변경 파일: gone.txt, kept.txt, src/greet.js (+3 −2줄)",
+  );
+  assert.equal(
+    await files(quoted, f.freeze(['한글 " space.txt', "src/인사.js"])),
+    '2. 변경 파일: src/인사.js, 지울.txt, 한글 " space.txt (+3 −2줄)',
   );
 });

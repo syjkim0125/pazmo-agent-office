@@ -1,7 +1,7 @@
 ---
 title: Pin bounded role instructions and separate role from project authority
 date: "2026-09-21"
-last_updated: "2026-09-29"
+last_updated: "2026-11-03"
 category: architecture-patterns
 module: Office role profiles
 problem_type: architecture_pattern
@@ -65,9 +65,13 @@ The actual README pilot's model Reviewer passed an ambiguous authentication sent
 
 ## Restoring upstream execution without bypassing role boundaries
 
-Original Claw workflow factories capture provider functions in closures. Replacing only the exported runtime-context function does not intercept those internal calls. Guard the concrete CLI, one-shot meeting, API/OAuth, task-start and merge entries before activating the original server, then connect the qualified adapter explicitly. Tests invoke these entries with missing dependencies and require the boundary error before any tool, credential, file or task-state access. HTTP-only blocking is not sufficient for timers or internal delegation.
+This section is history: D33 (PR #56, 2026-10-30) removed the original Claw server it describes. The rule it found still applies to any code Office hosts but did not write.
 
-Keep native data separate from preserved legacy data until a reviewed migration exists; do not run two authoritative coordinators for one task. The locked native startup and HTTP/DB/WebSocket tests are integration evidence, not proof of a working kit/model workflow. [Native restoration evidence](../../verification/2026-09-29-native-claw-preview.md).
+Original Claw workflow factories captured provider functions in closures, so replacing only the exported runtime-context function did not intercept those internal calls. Office guarded the concrete CLI, one-shot meeting, API/OAuth, task-start and merge entries before activating the original server, then connected the qualified adapter explicitly. Tests invoked these entries with missing dependencies and required the boundary error before any tool, credential, file or task-state access. HTTP-only blocking is not sufficient for timers or internal delegation.
+
+The same held for the Claw CLI Usage panel (PR #6), which read CLI login files to fetch usage numbers. The guard went on the one function every caller went through, not on its HTTP route, because task completion also called that function. The isolated service `HOME` was not a guard: it only made the reads find nothing, which showed as a false "not signed in". The macOS keychain lookup did not depend on `HOME` at all.
+
+Native data was kept separate from preserved legacy data until a reviewed migration existed; do not run two authoritative coordinators for one task. [Native restoration evidence](../../verification/2026-09-29-native-claw-preview.md).
 
 ## Human-routed planning recovery is not a reset
 
