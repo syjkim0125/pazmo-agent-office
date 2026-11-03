@@ -9,6 +9,7 @@
 - 자동 검사:
   - kit verify 시험 438/438 + 445/445 + 429/429 = **1312/1312**, 타입 검사·Story 검사 exit 0.
   - 독립 리뷰 2차 시도의 지적 9건을 반영했고, 3차(마지막)는 머지 가능이었다(Critical·Important 0).
+  - G4 뒤 main `b03e249`(#70 포함)을 합쳤다. merge run `U32-runner-not-ready-wait-merge.json`의 kit verify는 440/440 + 448/448 + 429/429 = **1317/1317**, 타입 검사·Story 검사 exit 0이다. Story 해시는 그대로(`b005160e`)라 G1을 다시 받지 않았다.
 - 처음 세션은 구현 2차 도중 계정 사용 한도에 걸렸고, 다른 계정의 세션이 인계 노트대로 이어서 했다.
 - G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 그룹 kill 후속과 함께 "둘 다 ① 승인 후 머지"를 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/runner-not-ready-wait-g4.md)
 - **남은 것:**
