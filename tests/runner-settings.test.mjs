@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { RunnerSettings, validateRunnerChoice, defaultRunnerChoice, loadRunnerCatalog } from "../src/runtime/runner-settings.ts";
 import { RunnerEvidence } from "../src/core/runner-evidence.ts";
-import { fakeNative, fakeRunners, listing } from "./runner-fixture.mjs";
+import { fakeRunners, listing } from "./runner-fixture.mjs";
 
 const catalog = () => ({
   installs: {
@@ -185,12 +186,13 @@ test("a refresh that could not list claude's hooks keeps the block an earlier di
   assert.equal((await settings.refresh()).installs.claude.blocked, undefined);
 });
 
-/** Rewrites the fake claude under `bin` in place; its native file, and so its sha256, stay the same. `answer` is
- * what it prints for discovery's model and hook listing, and null makes that listing fail. */
+/** Rewrites the script the fake claude under `bin` runs. Its native file, and so its sha256, stay the same: a
+ * native file that already ran and is copied over in place is sometimes SIGKILLed by macOS at its next start.
+ * `answer` is what it prints for discovery's model and hook listing, and null makes that listing fail. */
 function rewriteClaude(bin, { loggedIn = true, answer }) {
   const listed = answer ? `read line\nread second\n${answer.map((e) => `echo '${JSON.stringify(e)}'`).join("\n")}\ncat >/dev/null` : "exit 1";
-  fakeNative(
-    join(bin, "claude"),
+  writeFileSync(
+    join(bin, "claude.sh"),
     `case "$1 $2" in
   "--version ") echo "2.1.280 (Claude Code)"; exit 0;;
   "auth status") echo '{"loggedIn":${loggedIn}}'; exit 0;;

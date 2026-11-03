@@ -65,11 +65,12 @@ D39 마지막 리뷰([U32-review-2.md](../../.ai-workflow/runs/U32-review-2.md))
   - `liveRunnerWiring`에서 `rediscover`를 빼거나, 다시 보지 않고 옛 목록을 돌려주게 하면 live-runtime 시험과 lean-office D39 시험이 실패한다.
   - `live.ts`에서 펼치는 줄을 지우면 타입 검사가 실패한다.
 - `keptClaudeBlock` 변이 5개를 시험이 모두 잡았다: 실패 표시 무시, 표시 안 함, 옛 안내 유지, 바이너리 비교 빼기, 옛 로그인으로 안내 만들기.
-- 관련 시험 파일 11개(바꾼 모듈을 직접·간접으로 쓰는 것)는 238/238, 타입 검사는 exit 0이다. 전체 시험의 결과는 U33 실행의 검증 기록에 있다.
+- 관련 시험 파일 11개는 238/238, 타입 검사는 exit 0이다. 바꾼 모듈을 쓰는 시험 파일은 이보다 많다(리뷰어가 import를 따라가 25개를 셌다). 나머지는 전체 시험이 덮는다. 전체 시험의 결과는 U33 실행의 검증 기록에 있다.
+- kit 검증 1차에서 새 시험 하나가 시험 조각 안에서만 실패했다(431/432). 원인은 시험 helper였다. 이미 실행한 가짜 claude 실행 파일을 같은 자리에 덮어써서, macOS가 다음 `--version` 실행을 가끔 SIGKILL로 죽였다. 그러면 claude가 지원 안 되는 설치본으로 보이고 시험의 전제가 깨진다. helper가 이제 가짜가 실행하는 스크립트(`claude.sh`)만 바꾼다. 같은 부하 재현에서 60번 중 4번 실패하던 것이 0번이 됐다. [학습 문서](../solutions/test-failures/rewrite-a-fake-cli-script-not-its-executed-binary.md)
 
 남은 것:
 - `createLiveRuntime`의 `roleJobFactory` 호출에서 `rediscover`를 빠뜨리거나 덮어쓰는 변경은 시험도 타입 검사도 잡지 못한다. 예를 들어 펼치지 않고 `choice`·`installs`만 넘기거나, 펼친 뒤 `rediscover: undefined`를 적는 경우다. `rediscover`가 선택 항목이라서다. `createLiveRuntime`의 역할 실행은 VM이 있어야 돌아서 시험하지 않았다.
-- lean Office의 실행기 화면은 자기 목록 사본(`src/lean/office.ts`의 `catalog`)을 읽는데, 거기에는 `keptClaudeBlock`이 적용되지 않는다. 그래서 조회가 실패하면 화면에는 claude가 막히지 않은 것으로 보일 수 있다. 엔진의 역할 실행은 여전히 거절된다. 리뷰어가 코드로 찾았고 돌려 보지는 않았다. 이 변경 전부터 있던 것이라 따로 다룬다.
+- lean Office는 자기 목록 사본(`src/lean/office.ts`의 `catalog`)을 읽는데, 거기에는 `keptClaudeBlock`이 적용되지 않는다. 이 사본을 읽는 곳은 세 군데다: 실행기 화면, agent 저장 검사(`LeanAgents`의 만들기·고치기, 모델을 고르지 않은 경우), 기본 실행기 고르기(`chooseRunner`·`ensureDefault`의 `defaultRunnerChoice`). 그래서 조회가 실패하면 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다. 엔진의 역할 실행은 여전히 거절된다. 리뷰어가 코드로 찾았고 돌려 보지는 않았다. 이 변경 전부터 있던 것이라 따로 다룬다.
 - 실제 claude로는 "답은 왔는데 모델 없음"이나, 조회 실패 중 로그인 변경을 재현하지 않았다. 가짜 CLI로만 확인했다.
 
 ## 확인하지 않은 것과 남은 위험
