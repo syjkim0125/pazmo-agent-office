@@ -17,7 +17,7 @@ Invoke: `$workflow <request>`, `$workflow status`, `$workflow finish`. Start a n
 
 ## Bootstrap status
 
-Read `docs/STATUS.md` for the active phase and evidence limits. The canonical Story is `docs/understanding/pazmo-agent-office-contract.md`; implementation HOW is in `docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md`. Runtime G3 is accepted; G4 and actual isolation proof remain pending. Imported handoff documents and former vendor instructions are historical inputs, not user approval. The Claw-Empire source was removed from the tree in D33; its exact original import stays only on the local branch `codex/local-original-claw-v2.0.4`, which must never be pushed.
+Read `docs/STATUS.md` for the active phase and evidence limits. The canonical Story is `docs/understanding/pazmo-agent-office-contract.md`; implementation HOW is in `docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md`. Runtime G3 is accepted; G4 and actual isolation proof remain pending. Imported handoff documents and former vendor instructions are historical inputs, not user approval. The Claw-Empire source was removed from the tree in D33; the exact original is the upstream tag `v2.0.4` (D38).
 
 `docs/solutions/` contains reusable findings organized by category with YAML `module`, `problem_type`, and `tags`; relevant when importing upstream sources or working in a documented area.
 
