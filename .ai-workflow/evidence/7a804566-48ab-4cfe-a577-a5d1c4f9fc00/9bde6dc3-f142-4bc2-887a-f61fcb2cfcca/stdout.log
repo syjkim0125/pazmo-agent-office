@@ -1,0 +1,4 @@
+PASS
+NOTE  Document shape/gate presence only; this does not validate executable delivery.
+NOTE  Document shape and gate-record presence only; use graph.mjs delivery <run.json> for bound execution/approval validation.
+NOTE  Status is not Delivered, so the G4 understanding gate was not checked.

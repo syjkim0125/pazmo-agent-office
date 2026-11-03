@@ -1,10 +1,10 @@
-# 2026-11-03 프로세스 그룹 kill 경합 G4
+# 2026-11-03 프로세스 그룹 kill 경합 G4 (PR #67)
 
 Story: M3·M4(멈춘 실행기가 끝난 것처럼 보이지 않고 실제로 멈춤)와 M16(팀 Office의 `gh` 로그인 확인). PR syjkim0125/pazmo-agent-office#67.
 
-- 커밋: `c6c67e4`·`6ab8aa2`·`a963036`(수정), `44a19b6`(시험), `9e3dfa8`(kit 기록), `70b8ff3`(학습 문서), `3dfbd2d`(main `e8380d9` 합치기).
-- kit graph: `.ai-workflow/runs/run-command-group-kill-race.json`(상태 `g4`). 이 실행은 main을 합치기 전에 끝났고, 합친 뒤에는 `.ai-workflow/runs/run-command-group-kill-race-merge.json`이 이었다.
-- 학습 문서: [macos-fork-escapes-one-shot-process-group-sigkill.md](../solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md).
+- 커밋: `c6c67e4`·`6ab8aa2`·`a963036`(수정), `44a19b6`(시험), `9e3dfa8`(kit 기록), `70b8ff3`(학습 문서), `3dfbd2d`(main `e8380d9` 합치기), `91a4b8c`(main `1047da4`, #65 합치기), `0e57363`(G1 다시 받기).
+- kit graph: kit 4.1.0 run `.ai-workflow/runs/run-command-group-kill-race.json`과 `run-command-group-kill-race-merge.json`(main #62–#66 뒤)이 있다. 둘 다 kit 5가 들어온 뒤 읽기 전용이 됐다. 최종 run은 kit 5 v3 `.ai-workflow/runs/run-command-group-kill-race-v3.json`이다(`delivered`).
+- 학습 문서: [macos-fork-escapes-one-shot-process-group-sigkill.md](../../docs/solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md).
 
 ## 보인 증거
 
@@ -18,7 +18,7 @@ Story: M3·M4(멈춘 실행기가 끝난 것처럼 보이지 않고 실제로 �
   - 새 시험 2개가 고치기 전 코드와 중간 수정 두 버전에서 먼저 실패했다(각 3/3회). 최종 코드에서는 6/6을 3번 연속 통과했다.
   - 관련 시험 20개 파일 337/337.
   - 합치기 전 최종 트리(`44a19b6`)의 전체 `npm test` 1278/1278 exit 0. 타입 검사·Story 검사기 exit 0.
-- 리뷰: 독립 리뷰 세 번(Critical 0). 1차 Important 1, 2차 머지 가능(Minor 4), 3차 Important 1. 모두 고쳤고, 3차 수정(시험만)은 다시 리뷰받지 않았다. [리뷰 기록](../../.ai-workflow/runs/run-command-group-kill-race-review-1.md)
+- 리뷰: 독립 리뷰 세 번(Critical 0). 1차 Important 1, 2차 머지 가능(Minor 4), 3차 Important 1. 모두 고쳤고, 3차 수정(시험만)은 다시 리뷰받지 않았다. [리뷰 기록](../runs/run-command-group-kill-race-review-1.md)
 
 ## 질문과 답 (2026-11-03)
 
@@ -59,11 +59,23 @@ Story: M3·M4(멈춘 실행기가 끝난 것처럼 보이지 않고 실제로 �
 
 ## 선택 뒤에 한 일
 
-`docs/STATUS.md` 충돌 없이 머지하려고 main `e8380d9`(#62–#66)을 브랜치에 합쳤다(`3dfbd2d`, 충돌 없음, 이 변경의 파일은 그대로).
-
-- main의 Story 변경(D37·D38)으로 앞 실행의 명령은 더 쓸 수 없다. 그래서 #66처럼 `-merge` 실행을 이었다: 합치기 기록, 합친 결과 자체 리뷰(지적 없음), 합친 트리의 새 검증.
-- main이 바꾼 runner 파일 6개는 `runCommand`·`process.kill`을 쓰지 않는다.
-- 합친 트리의 검증: `npm test` 1296/1296 exit 0(main의 1294개 + 이 변경의 시험 2개), 타입 검사·Story 검사기 exit 0. [합친 트리 검증 기록](../../.ai-workflow/runs/run-command-group-kill-race-merge-verify-1.md)
+1. 첫 번째 합치기. `docs/STATUS.md` 충돌 없이 머지하려고 main `e8380d9`(#62–#66)를 합쳤다(`3dfbd2d`, 충돌 없음).
+   - main의 Story 변경(D37·D38) 때문에 첫 run의 명령은 더 쓸 수 없게 됐다. 그래서 kit 4.1.0 `-merge` run을 이었다.
+   - 합친 트리의 `npm test`는 1296/1296 exit 0이었다.
+2. 두 번째 합치기. 그사이 main에 #65(kit 5)가 머지돼 STATUS가 다시 충돌했다. main `1047da4`를 합치고(`91a4b8c`), STATUS는 양쪽 항목을 모두 살렸다.
+   - kit 5에서는 main을 합친 브랜치의 kit 4.1.0 run이 읽기 전용이 된다. 새 v3 run은 지금 Story에 묶인 G1이 있어야 시작된다.
+   - 마지막 G1 뒤로 Story에 바뀐 것은 D37(#66)뿐이었다.
+3. G1. 컨트롤러는 같은 설명 페이지의 2판에 "지금 정할 것"을 더해 보였다. 선택지는 A(G1 다시 승인 → v3 run → G4 묶기 → 머지), B(kit 4 기록으로 머지), C(보류)였다.
+   - 사용자의 답: "A. G1 승인 후 진행 (Recommended)".
+   - 컨트롤러가 그 답으로 `.ai-workflow/approvals/pazmo-agent-office-g1.json`을 새로 썼다(`0e57363`). D36·D37·D38이 든 Story에 묶인다.
+4. v3 run `run-command-group-kill-race-v3.json`.
+   - implement: 코드는 `44a19b6`과 같다.
+   - review: 세 번의 독립 리뷰가 그대로 유효하다. 두 합치기는 컨트롤러가 스스로 검토했고 독립 리뷰는 아니다. 지적은 없었다.
+   - workflow-verify: kit 검사 다섯 개. 시험은 434/434 + 447/447 + 424/424 = **1305/1305**이고, 타입 검사와 Story 검사는 exit 0이었다. snapshot은 검사 전후가 같았다.
+5. G4.
+   - 사용자가 고른 ①을 v3 run의 snapshot(`064b3a28…`, HEAD `0e57363`)에 묶었다: `.ai-workflow/approvals/run-command-group-kill-race-g4.json`.
+   - 사용자가 ①을 고를 때 본 트리는 main을 합치기 전이었다. 코드는 같다.
+   - 결과: `check.mjs story` exit 0, `gate G4` exit 0, `graph.mjs delivery` exit 0(`delivered`).
 
 ## 평가
 

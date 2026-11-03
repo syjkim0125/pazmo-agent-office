@@ -1,0 +1,1 @@
+{"token":"9a23bfd497d578e64df698c245af5fff0d8eda6cb96080d9268c75ef71bb334e","output":{"summary":"kit graph verify on 0e57363 (this change + main #65/#66): tests 434/434 + 447/447 + 424/424 = 1305/1305, typecheck exit 0, story exit 0; snapshot unchanged across checks.","evidence":[".ai-workflow/runs/run-command-group-kill-race-v3-verify-1.md"]},"evaluation":{"passed":true}}

@@ -12,6 +12,7 @@
 - kit: 처음 두 run(`.ai-workflow/runs/run-command-group-kill-race.json`, main #62–#66을 합친 뒤 `run-command-group-kill-race-merge.json`)은 kit 4.1.0 run이다. 그래서 main #65(kit 5)를 합친 뒤 읽기 전용이 됐다.
   - D37이 든 Story의 G1을 다시 받았다(2026-11-03 "A. G1 승인 후 진행").
   - v3 run `run-command-group-kill-race-v3.json`을 새로 돌렸다.
+- PR syjkim0125/pazmo-agent-office#67. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문에는 직접 답하지 않았다. kit 5 절차대로 G4 JSON을 v3 run의 snapshot(`0e57363`)에 묶었다. 결과: kit 검사 **1305/1305**, `check.mjs story`·`gate G4` exit 0, `graph.mjs delivery` exit 0(`delivered`). [G4 기록](../.ai-workflow/approvals/run-command-group-kill-race-g4.md)
 - **남은 것:**
   - 같은 한 번짜리 그룹 신호가 `exec-relay.ts`·`claude-controller.ts`·`runner-models.ts`에 남아 있다(별도 세션에서 작업 중).
   - 원래 실패와의 연결은 추론이다. Linux와 실제 CLI는 확인하지 않았다.
