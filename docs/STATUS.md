@@ -1,3 +1,20 @@
+# 2026-11-03 멈춘 명령의 프로세스 그룹을 빌 때까지 kill한다 (gh 시험 깜빡임)
+
+- `tests/team-gh.test.mjs` "a gh that hangs times out"이 가끔 5.2초 걸려 실패하던 원인을 찾아 고쳤다(M3·M4·M16, #62 검증 기록에 남은 일).
+  - `runCommand`는 멈출 때 프로세스 그룹에 SIGKILL을 한 번만 보냈다. macOS에서는 그 순간 fork되던 자식이 신호를 받지 못하고 살아남는다.
+  - 그 자식이 파이프를 쥐고 있으면 결과가 5초 늦게 `CLI_CLOSE_UNCONFIRMED`로 끝났다. 쥐지 않았으면 결과는 평범한 `TIMEOUT`인데 자식이 뒤에서 계속 돌았다.
+  - 이제 첫 kill 뒤 20 ms마다 다시 kill한다. 결과를 돌려준 뒤에도 계속하고, kill이 실패하거나 250번이 되면 멈춘다.
+- 자동 검사:
+  - fork 경합 시험 2개가 고치기 전 코드와 중간 수정 두 버전에서 먼저 실패했다.
+  - 원래 형태의 표본은 22/2000 느림에서 0/10000이 됐다.
+  - 합치기 전 `npm test` 1278/1278, main을 합친 뒤 **1296/1296** exit 0. 타입 검사·Story 검사기 exit 0.
+  - 독립 리뷰 세 번(Critical 0), 지적은 모두 고쳤다.
+  - kit 실행 `.ai-workflow/runs/run-command-group-kill-race.json`을 main을 합친 뒤 `run-command-group-kill-race-merge.json`이 이었다.
+- PR syjkim0125/pazmo-agent-office#67. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-run-command-group-kill-race-g4.md) · 학습 문서 [macos-fork-escapes-one-shot-process-group-sigkill.md](solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md)
+- **남은 것:**
+  - 같은 한 번짜리 그룹 신호가 `exec-relay.ts`·`claude-controller.ts`·`runner-models.ts`에 남아 있다(별도 세션에서 작업 중).
+  - 원래 실패와의 연결은 추론이다. Linux와 실제 CLI는 확인하지 않았다.
+
 # 2026-11-03 실행기 계정 문제는 시도로 세지 않고 기다린다 (D37)
 
 - 3단계 실제 확인 1차의 찾은 것 1·2를 고친다. 그때는 사용 한도에 걸린 claude가 로그인 확인을 통과해 Task를 가져갔고, Engineer가 바로 끝나 시도를 몇 초에 썼으며, 이유는 `ENGINEER_FAILED`로만 보였다.
