@@ -2,11 +2,11 @@ import type { RunnerName } from "./runner-discovery.ts";
 
 /** The runners and kinds of a runner account problem, as stored records check them. */
 export const ACCOUNT_RUNNERS = ["claude", "codex"] as const satisfies readonly RunnerName[];
-export const ACCOUNT_KINDS = ["limit", "billing", "login"] as const;
+export const ACCOUNT_KINDS = ["limit", "billing", "login", "not_ready"] as const;
 
 /** A runner run that ended because of the person's runner account, not the work: a usage limit, billing or
- * credits, or a login that no longer holds (D37). Another attempt at the work cannot fix it; time or the person
- * can. */
+ * credits, or a login that no longer holds (D37); or one the engine refused before starting it because the
+ * runner was not ready (D39). Another attempt at the work cannot fix it; time or the person can. */
 export type RunnerAccountProblem = {
   runner: (typeof ACCOUNT_RUNNERS)[number];
   kind: (typeof ACCOUNT_KINDS)[number];
@@ -37,6 +37,17 @@ const CODEX_WORDS: [RegExp, RunnerAccountProblem["kind"]][] = [
 
 /** Free text as one bounded line: no control characters, runs of space folded. */
 const oneLine = (text: string) => text.replace(/[\s\x00-\x1f\x7f]+/g, " ").trim().slice(0, MESSAGE_MAX);
+
+/** How runner-jobs.ts refuses a run whose runner is not ready, before any process starts. */
+const NOT_READY = /^RUNNER_NOT_READY (claude|codex): ([\s\S]*)$/;
+
+/** Whether a run's supervisor error is the engine's refusal of a runner that was not ready (logged out, missing,
+ * unsupported or blocked), with the runner's hint as the message (D39). Any other refusal is the work's. */
+export function runnerNotReady(error: string | null): RunnerAccountProblem | null {
+  const match = error === null ? null : NOT_READY.exec(error);
+  if (!match) return null;
+  return { runner: match[1] as RunnerAccountProblem["runner"], kind: "not_ready", message: oneLine(match[2]) || "RUNNER_NOT_READY", resetsAt: null };
+}
 
 /**
  * Whether a runner process's captured output (a claude stream as `normalizeClaudeStream` leaves it, or codex's

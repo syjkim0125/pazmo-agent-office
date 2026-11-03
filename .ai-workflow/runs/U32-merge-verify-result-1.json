@@ -1,0 +1,1 @@
+{"token": "cb0a64da4ad8e086518ff99514b35d308ab003da75bd227768eaf62f99ee682c", "output": {"summary": "kit graph verify on the merged tree 17b50ac (D39 + main b03e249): tests 440/440 + 448/448 + 429/429 = 1317/1317, typecheck exit 0, story exit 0; same snapshot for every check.", "evidence": [".ai-workflow/runs/U32-merge-verify-1.md"]}, "evaluation": {"passed": true}}

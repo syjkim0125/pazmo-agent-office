@@ -157,6 +157,33 @@ test("a login made after startup is picked up when saving and on refresh", async
   assert.equal(loads, 3);
 });
 
+test("a refresh that could not list claude's hooks keeps the block an earlier discovery found on the same binary (D39)", async () => {
+  const HOOK = "SessionEnd hook (policySettings)";
+  const found = ({ blocked, models = true, sha256 = "b".repeat(64) } = {}) => {
+    const c = catalog();
+    c.installs.claude = { ...c.installs.claude, sha256, loggedIn: true, hint: blocked ? "hook을 지우거나 codex를 고르세요." : "준비됨" };
+    if (blocked) c.installs.claude.blocked = blocked;
+    // loadRunnerCatalog lists claude's hooks with its models: a failed listing leaves no models and judges nothing.
+    if (!models) c.models.claude = [];
+    return c;
+  };
+  let next = found({ blocked: HOOK });
+  const { settings } = fixture(() => next);
+  await settings.refresh();
+  next = found({ models: false });
+  const kept = (await settings.refresh()).installs.claude;
+  assert.deepEqual([kept.blocked, kept.hint], [HOOK, "hook을 지우거나 codex를 고르세요."], "a failed listing never unblocks claude");
+  assert.equal(settings.catalog.installs.claude.blocked, HOOK);
+  // A listing that went through decides again.
+  next = found();
+  assert.equal((await settings.refresh()).installs.claude.blocked, undefined);
+  // A new binary is not judged by the old one's hooks.
+  next = found({ blocked: HOOK });
+  await settings.refresh();
+  next = found({ models: false, sha256: "c".repeat(64) });
+  assert.equal((await settings.refresh()).installs.claude.blocked, undefined);
+});
+
 test("a blocked codex is not selectable and unchosen roles move to a logged-in claude", async () => {
   const { db, settings } = fixture(() => {
     const c = catalog();

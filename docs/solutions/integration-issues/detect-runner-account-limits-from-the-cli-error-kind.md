@@ -14,7 +14,7 @@ symptoms:
   - "The stored output had no structured signal left: `agent_message` + bare `turn.failed`"
 root_cause: logic_error
 resolution_type: code_fix
-tags: [runner-account, usage-limit, rate-limit, claude-cli, codex-cli, stream-json, story-task, attempt-budget, team-office]
+tags: [runner-account, usage-limit, rate-limit, claude-cli, codex-cli, stream-json, story-task, attempt-budget, team-office, runner-not-ready, stale-discovery]
 ---
 
 # Detect a runner account limit from the CLI's error kind, not its words
@@ -57,9 +57,10 @@ The CLI knows why it refused the turn, and it says so in a field the model canno
 - **A normalizer that maps a CLI's stream onto Office's event shape must carry over failure metadata.** Without it every caller is left with free text.
 - **For codex, order patterns from most specific to most general and test the HTTP status overlaps** (429 is both a rate limit and a quota refusal). Test cases live in `tests/runner-account.test.mjs`.
 - **Any new state that suspends the attempt counter must be cleared on every path that counts an attempt.** That includes the timeout and missing-engine-task paths, not only the path that saw the outcome. Test the wait -> retry -> `BUILD_TIMEOUT` -> next-attempt-refusal sequence (`tests/team-executor.test.mjs`).
-- **Still open (outside D37):**
-  - A runner that the Office's own discovery sees as logged out during a wait is refused before start as `RUNNER_NOT_READY` with empty output, and still counts an attempt.
-  - No real limited, billing-blocked or logged-out account has been run through this path yet.
+- **A refusal the engine makes before any process starts is a signal too, and it lives in the run's error, not its output.** D39: `RUNNER_NOT_READY <runner>: <hint>` is read from the Engineer receipt's `observation.error` and from the review node's (a refused review is `UNKNOWN_RESULT`, not `REVIEW_RUNNER_FAILED`), by `runnerNotReady` (`src/runners/runner-account.ts`), and waits as kind `not_ready`.
+- **A check that gates work and the code that runs it must read the same discovery.** The team Office's claim check (`agents.runnersReady`) discovers afresh, but the engine's role jobs read `runners.settings.catalog`, refreshed only at start, on a binary change, or by a few single-Office actions. A runner seen logged out once stayed refused after the person logged in, so a wait could never end. D39 discovers again right before a not-ready refusal (`src/runtime/runner-jobs.ts`). When a gate and an executor keep separate caches, test the sequence "cache stale → state fixed → gate passes → executor runs".
+- **Still open:**
+  - No real limited, billing-blocked, logged-out or blocked runner has been run through these paths yet.
   - claude's `rate_limit_event` and codex's wording were taken from the installed binaries, not observed live.
 
 ## Related
@@ -67,3 +68,4 @@ The CLI knows why it refused the turn, and it says so in a field the model canno
 - `docs/solutions/integration-issues/classify-review-runner-failure-as-unknown.md`: a review runner's clean non-zero exit stops as `REVIEW_RUNNER_FAILED`. D37 reads that stop's output for an account problem.
 - `docs/solutions/workflow-issues/run-a-team-stage-real-check-on-a-local-hub.md`, item 3: the real-check notes on the same limit (weekly vs 5-hour line, terminal login).
 - `docs/verification/2026-11-03-runner-account-wait.md`: the change record, review findings and evidence limits.
+- `docs/verification/2026-11-03-runner-not-ready-wait.md`: D39, the not-ready refusal and the engine's stale runner list.

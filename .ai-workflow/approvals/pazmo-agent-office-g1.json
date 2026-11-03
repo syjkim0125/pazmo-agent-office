@@ -1,13 +1,13 @@
 {
   "gate": "G1",
-  "storyHash": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61",
-  "responseRef": "Claude Code conversation 2026-11-03 (PR #67): after reading the G4 explainer https://claude.ai/artifact/Lzgw6WcGnf9uVrpQKJaj12 (version 2), which said that merging main #65 (kit 5) needs a G1 bound to the current Story and that the only change since the last G1 is D37 from #66 (D37 with its M16 and V18 text, chosen there), the user answered \"A. G1 승인 후 진행 (Recommended)\"",
+  "storyHash": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e",
+  "responseRef": "Claude Code conversation 2026-11-03: after reading the decision explainer https://claude.ai/artifact/FQmjsJozgCNYT81EiKD9n3 (version 4) the user chose \"1-A 2-A 3-A\"; shown the Story draft (M16 sentence, D39, V18 additions) and asked \"이 내용이 이번 구현의 범위와 완료 조건으로 맞나요?\", the user answered \"맞아, 진행해\"",
   "story": "docs/understanding/pazmo-agent-office-contract.md",
   "date": "2026-11-03",
-  "scope": "Canonical Story including D36 (kit 5.0.3, Office role runs v3), D37 (runner account problems wait instead of using attempts) and D38 (Claw-Empire original referenced by the upstream tag). Earlier decisions keep their own approval records.",
+  "scope": "Canonical Story with D36, D37 and D38 (approved on main in PR #67, below) plus D39 (RUNNER_NOT_READY refusals wait like D37; the engine checks its runners again right before such a refusal). Merging main after PR #70 changed only the Story's progress lines, so the hash is the same. Earlier decisions keep their own approval records.",
   "supersedes": {
-    "storyHash": "3329bb486b11fe15cecd3a24a738b0f32bdaa1827e9c4a7c158efe87786e03e4",
-    "responseRef": "Claude Code conversation 2026-11-03: after being told that merging main #64 (D38) changes the Story hash and needs a fresh G1 for the Story with both D36 and D38 (their texts unchanged), the user answered \"합치고 G1 승인\""
+    "storyHash": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61",
+    "responseRef": "Claude Code conversation 2026-11-03 (PR #67): after reading the G4 explainer https://claude.ai/artifact/Lzgw6WcGnf9uVrpQKJaj12 (version 2), which said that merging main #65 (kit 5) needs a G1 bound to the current Story and that the only change since the last G1 is D37 from #66 (D37 with its M16 and V18 text, chosen there), the user answered \"A. G1 승인 후 진행 (Recommended)\""
   },
   "previous": "docs/understanding/pazmo-agent-office-g1.md (2026-09-17, original Story approval)"
 }

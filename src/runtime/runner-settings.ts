@@ -44,6 +44,18 @@ export async function loadRunnerCatalog(
   return { installs, models };
 }
 
+/** loadRunnerCatalog lists claude's hooks with its models, and a failed
+ * listing judges nothing. Before a refusal the engine discovers again (D39), so
+ * a listing that fails then must not unblock a claude an earlier discovery
+ * blocked: the same binary keeps that block until a listing goes through. */
+function keptClaudeBlock(before: RunnerCatalog | undefined, after: RunnerCatalog): RunnerCatalog {
+  const was = before?.installs.claude,
+    now = after.installs.claude;
+  if (!was?.blocked || now.blocked || now.status !== "ready" || now.sha256 !== was.sha256 || after.models.claude?.length)
+    return after;
+  return { ...after, installs: { ...after.installs, claude: { ...now, blocked: was.blocked, hint: was.hint } } };
+}
+
 /** SessionEnd hooks never show in a role run's stream, so the run's own hook
  * guard cannot stop them: a claude that lists any hook, or will not list them
  * (`null`), is blocked. */
@@ -149,7 +161,7 @@ export class RunnerSettings {
     db.exec("CREATE TABLE IF NOT EXISTS pazmo_runner_choices (agent_id TEXT PRIMARY KEY, at INTEGER NOT NULL)");
   }
   async refresh() {
-    this.#catalog = await this.#load();
+    this.#catalog = keptClaudeBlock(this.#catalog, await this.#load());
     return this.#catalog;
   }
   get catalog() {

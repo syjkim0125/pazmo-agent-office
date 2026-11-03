@@ -1,0 +1,496 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "4aaa3084-4ec3-4cca-96a1-5ddae296b3e6",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merge of origin/main b03e249 (#67, #70, #68, docs) into D39 (7c3cc8d, 60b1d56) as 17b50ac: STATUS, Story progress lines and G1 record resolved; Story hash unchanged (b005160e); every src/tests file byte-identical to one parent; no dependency, kit or profile change on main.",
+          "evidence": [
+            ".ai-workflow/runs/U32-merge-implement-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U32-merge-implement-1.md": "58ae72e9d2e5e4d7cf6d560d7f28a04ee97978dfc321bed8086954d1cd042e9f"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492",
+        "output": {
+          "summary": "Controller review of the merge delta (not independent): conflict resolutions limited to STATUS entries, Story progress lines and the G1 record's scope/supersedes; Story fingerprint b005160e equals G1; no code overlap, every src/tests file identical to one parent; only touch point is #70's repeated SIGKILL in claudeModels, which D39's rediscovery calls. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U32-merge-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U32-merge-review-1.md": "057ebf70e9e0777f97e19ba219e210073f6b1fe23a0bfc8108e6755c54c90d20"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/d70ae97a-c6d5-4153-8169-f338b8d39b6e/receipt.json",
+            "hash": "40e84e9cd3364379a1089a0c91e26dd8c31db6febd3e2a780750625aa89abe1b"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/19ba334a-0bd4-43c5-86fb-15e33365b040/receipt.json",
+            "hash": "cfa24071b7b3e4ed32c735ee96a4feb9cba4fcb395c0dde41bfef19fe71253b0"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/63f127fc-d337-49e6-9976-23b3837a4771/receipt.json",
+            "hash": "c1f14068024302b4b247aa01f6cd7173da8f46d1846bd0f9756b25d41a93dee6"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/8a13ea57-a8fd-49ec-a895-f07b165944df/receipt.json",
+            "hash": "73aaf3c5287f0667ecf0669f3290fa36d86fc002bff0b52b62429c9914b8bc01"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/ee6626a0-a7c6-4c84-9550-2fc8e4f8089e/receipt.json",
+            "hash": "03f07873d4498b8451d041c5f6f4bbbee94fb66c84ea6942695a1e932230340e"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on the merged tree 17b50ac (D39 + main b03e249): tests 440/440 + 448/448 + 429/429 = 1317/1317, typecheck exit 0, story exit 0; same snapshot for every check.",
+          "evidence": [
+            ".ai-workflow/runs/U32-merge-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U32-merge-verify-1.md": "d05421aa5078e8fa0c453a0aae1d4579809a53e42c41061719753a862415bdcb"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T07:13:22.880Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T07:13:23.468Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merge of origin/main b03e249 (#67, #70, #68, docs) into D39 (7c3cc8d, 60b1d56) as 17b50ac: STATUS, Story progress lines and G1 record resolved; Story hash unchanged (b005160e); every src/tests file byte-identical to one parent; no dependency, kit or profile change on main.",
+          "evidence": [
+            ".ai-workflow/runs/U32-merge-implement-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U32-merge-implement-1.md": "58ae72e9d2e5e4d7cf6d560d7f28a04ee97978dfc321bed8086954d1cd042e9f"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T07:13:37.528Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T07:13:38.201Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492",
+        "output": {
+          "summary": "Controller review of the merge delta (not independent): conflict resolutions limited to STATUS entries, Story progress lines and the G1 record's scope/supersedes; Story fingerprint b005160e equals G1; no code overlap, every src/tests file identical to one parent; only touch point is #70's repeated SIGKILL in claudeModels, which D39's rediscovery calls. No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U32-merge-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U32-merge-review-1.md": "057ebf70e9e0777f97e19ba219e210073f6b1fe23a0bfc8108e6755c54c90d20"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T07:13:43.878Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T07:16:53.452Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/d70ae97a-c6d5-4153-8169-f338b8d39b6e/receipt.json",
+            "hash": "40e84e9cd3364379a1089a0c91e26dd8c31db6febd3e2a780750625aa89abe1b"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/19ba334a-0bd4-43c5-86fb-15e33365b040/receipt.json",
+            "hash": "cfa24071b7b3e4ed32c735ee96a4feb9cba4fcb395c0dde41bfef19fe71253b0"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/63f127fc-d337-49e6-9976-23b3837a4771/receipt.json",
+            "hash": "c1f14068024302b4b247aa01f6cd7173da8f46d1846bd0f9756b25d41a93dee6"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/8a13ea57-a8fd-49ec-a895-f07b165944df/receipt.json",
+            "hash": "73aaf3c5287f0667ecf0669f3290fa36d86fc002bff0b52b62429c9914b8bc01"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/4aaa3084-4ec3-4cca-96a1-5ddae296b3e6/ee6626a0-a7c6-4c84-9550-2fc8e4f8089e/receipt.json",
+            "hash": "03f07873d4498b8451d041c5f6f4bbbee94fb66c84ea6942695a1e932230340e"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on the merged tree 17b50ac (D39 + main b03e249): tests 440/440 + 448/448 + 429/429 = 1317/1317, typecheck exit 0, story exit 0; same snapshot for every check.",
+          "evidence": [
+            ".ai-workflow/runs/U32-merge-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d2f4c51f260a01047e30732e13832af42b211bd6e023f014308c05654a6a7492"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U32-merge-verify-1.md": "d05421aa5078e8fa0c453a0aae1d4579809a53e42c41061719753a862415bdcb"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "1a2145ec80cbcc69d56cdeb929594c5edd82eb3b4b9e0e09874f0ff843bd7056"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}

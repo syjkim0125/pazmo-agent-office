@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { normalizeClaudeStream } from "../src/runners/claude-profile.ts";
-import { runnerAccountProblem } from "../src/runners/runner-account.ts";
+import { runnerAccountProblem, runnerNotReady } from "../src/runners/runner-account.ts";
 
 const lines = (...events) => events.map((e) => JSON.stringify(e)).join("\n") + "\n";
 // What claude 2.1.280 said on 2026-11-02 when the account had hit its limit (the real check's Engineer runs).
@@ -140,4 +140,20 @@ test("the shown message is one line of at most 300 characters without control ch
   assert.match(message, /^Usage limit reached\. x+$/);
   assert.equal(runnerAccountProblem("not json\n"), null);
   assert.equal(runnerAccountProblem(""), null);
+});
+
+test("a run refused before its runner started because the runner was not ready names the runner and its hint (D39)", () => {
+  const hint = "터미널에서 claude auth login을 실행하세요.";
+  assert.deepEqual(runnerNotReady(`RUNNER_NOT_READY claude: ${hint}`), { runner: "claude", kind: "not_ready", message: hint, resetsAt: null });
+  assert.deepEqual(runnerNotReady("RUNNER_NOT_READY codex: move\n~/.codex/AGENTS.md"), {
+    runner: "codex",
+    kind: "not_ready",
+    message: "move ~/.codex/AGENTS.md",
+    resetsAt: null,
+  });
+  assert.equal(runnerNotReady(`RUNNER_NOT_READY claude: ${"x".repeat(400)}`).message.length, 300);
+  assert.equal(runnerNotReady("RUNNER_NOT_READY claude: ").message, "RUNNER_NOT_READY", "an empty hint still says why");
+  // Any other refusal or failure is counted as before.
+  for (const error of [null, "", "UNVERIFIED_CONTROLLER_BINARY", "RUNNER_QUALIFICATION_FAILED: turn-completed", "TIMEOUT", "RUNNER_NOT_READY gemini: x", "RUNNER_NOT_READY: login claude"])
+    assert.equal(runnerNotReady(error), null, String(error));
 });

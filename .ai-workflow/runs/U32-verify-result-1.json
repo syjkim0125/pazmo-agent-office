@@ -1,0 +1,1 @@
+{"token": "fdbeab2887d723ea103f9c36b066d00a995d9eaf65e127afa2065f8cdf61acc0", "output": {"summary": "kit graph verify on snapshot 2bd45e71 (HEAD 1047da4 plus D39's uncommitted change): tests 438/438 + 445/445 + 429/429 = 1312/1312, typecheck exit 0, story exit 0; same snapshot for every check.", "evidence": [".ai-workflow/runs/U32-verify-1.md"]}, "evaluation": {"passed": true}}

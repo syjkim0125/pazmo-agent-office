@@ -31,7 +31,7 @@ const TITLE_MAX = 200;
 const RUNNER_WAIT_MAX_MS = 21600000;
 /** When an attempt the runner's account stopped runs again, if the runner named no reset time. */
 const RUNNER_RETRY_MS = 1800000;
-const ACCOUNT_CODES = { limit: "RUNNER_LIMIT", billing: "RUNNER_BILLING", login: "RUNNER_LOGIN" } as const;
+const ACCOUNT_CODES = { limit: "RUNNER_LIMIT", billing: "RUNNER_BILLING", login: "RUNNER_LOGIN", not_ready: "RUNNER_NOT_READY" } as const;
 const ACCOUNT_WORDS = { limit: "usage limit", billing: "billing or credits", login: "login" } as const;
 /** "Not now", not a failed step: another run, an Office without a runtime or stopping, a cancelled verify. */
 const WAITS = new Set(["BUSY", "EXECUTION_LOCKED", "STOPPING", "CANCELLED"]);
@@ -275,15 +275,17 @@ export function createExecutor(d: {
     say(open, `${reason}; reporting the Task as failed`);
   }
 
-  /** The run stopped on its runner's account, not on the work (D37): no attempt is counted, and the same attempt
-   * runs again at the runner's reset time, else after RUNNER_RETRY_MS, never later than RUNNER_WAIT_MAX_MS after
-   * the first such stop. One at or past that is reported failed with the runner's own words. */
+  /** The run stopped on its runner's account, or on a runner that was not ready, not on the work (D37, D39): no
+   * attempt is counted, and the same attempt runs again at the runner's reset time, else after RUNNER_RETRY_MS,
+   * never later than RUNNER_WAIT_MAX_MS after the first such stop. One at or past that is reported failed with the
+   * runner's own words or the Office's hint. */
   function waitForRunner(open: OpenClaim, problem: RunnerAccountProblem): void {
     if (!current(open)) return;
     const at = now();
     const since = open.runnerWait?.since ?? at;
     const { runner, kind, message } = problem;
-    const what = `${runner} account problem (${ACCOUNT_WORDS[kind]}: ${message})`;
+    const what =
+      kind === "not_ready" ? `${runner} is not ready (${message})` : `${runner} account problem (${ACCOUNT_WORDS[kind]}: ${message})`;
     if (at - since >= RUNNER_WAIT_MAX_MS) {
       store.setReport(open.taskId, { kind: "failed", reason: clip(`${ACCOUNT_CODES[kind]} ${runner}: ${message}`, LIMITS.failureReasonMax) });
       store.setPhase(open.taskId, "reporting", { buildingSince: null, runnerWait: null });

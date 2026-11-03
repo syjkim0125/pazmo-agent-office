@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e",
+  "snapshot": "2bd45e717c12812cb17e692b48a40b9806cac99174c93dcb49b9cd2f3f9a8e69",
+  "runId": "c9f836b7-916e-4dd9-a4af-22a6da38643d",
+  "responseRef": "Claude Code conversation 2026-11-03 (a second session that took over after the first hit its usage limit): after reading the G4 explainer https://claude.ai/artifact/J1evPRF9es755rfeJKdFw9 (version 1) and the group-kill follow-up's explainer, the user answered \"둘 다 ① 승인 후 머지\". Option ① said main is merged next with a merge run and full verify, and the five Minor follow-ups are done after merge. Record: .ai-workflow/approvals/runner-not-ready-wait-g4.md",
+  "branch": "claude/cool-ritchie-8caf49",
+  "head": "1047da4",
+  "date": "2026-11-03"
+}
