@@ -1,3 +1,30 @@
+# 2026-11-03 실행기 계정 문제는 시도로 세지 않고 기다린다 (D37)
+
+- 3단계 실제 확인 1차의 찾은 것 1·2를 고친다. 그때는 사용 한도에 걸린 claude가 로그인 확인을 통과해 Task를 가져갔고, Engineer가 바로 끝나 시도를 몇 초에 썼으며, 이유는 `ENGINEER_FAILED`로만 보였다.
+- 사용자 선택(2026-11-03, 설명 페이지를 본 뒤 1-A·2-A·3-A, Story 초안에 "맞아, 진행해"):
+  - 계정 문제는 사용 한도·결제·로그인 만료다. claude는 실패 답에 스스로 붙이는 오류 종류(`rate_limit`·`billing_error`·`authentication_failed`)로, codex는 실패 이벤트 문구로 알아본다.
+  - 구현·리뷰 어느 단계든 시도로 세지 않고 Task를 쥔 채 기다린다. claude가 준 리셋 시각에, 없으면 30분 뒤에 같은 시도를 다시 한다. 첫 발견부터 6시간이 지나도 계정 문제면 `RUNNER_LIMIT`·`RUNNER_BILLING`·`RUNNER_LOGIN`과 실행기 이름·메시지로 실패 보고한다.
+  - `status --team`·`team status`의 `claim.waiting`, Office 로그 한 줄, Hub 실패 이유로 보인다. Hub·프로토콜은 그대로다.
+- 그 밖의 실패는 지금처럼 센다. 한도는 첫 실행에서야 안다(가져가기 전에 실제 모델을 부르지 않는다). 다시 하는 실행은 계약 폴더를 따로 둔다(`…-a<시도>-r<번째>`).
+- 신호 근거: 실제 확인 1차 DB의 출력, claude 2.1.280 설치본(stream의 `error` 필드, `rate_limit_event.resetsAt`), codex 0.155.1 설치본(`turn.failed`·`error` 이벤트와 계정 문구).
+- 자동 검사: 전체 `npm test` **1292/1292** exit 0(main #60–#64를 합친 뒤 **1294/1294** exit 0), 타입 검사·Story 검사기·G1 검사 exit 0. 리뷰어 8개(`ce-code-review`)와 독립 재확인 2번을 거쳤다. 거기서 찾은 P2 2건과 P3 이하 4건은 시험과 함께 고쳤다. 대표 결함은 시간 초과 뒤 기다림이 남는 것이었다. kit 실행 `.ai-workflow/runs/U31-runner-account-wait.json`(최소 계획, kit 5 올리기 작업이 U30을 써서 U31)을 main을 합친 뒤 `U31-runner-account-wait-merge.json`이 이었다. 다음은 G4다.
+- PR syjkim0125/pazmo-agent-office#66. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ②("② 승인 후 머지")를 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-runner-account-wait-g4.md) · 학습 문서 [detect-runner-account-limits-from-the-cli-error-kind.md](solutions/integration-issues/detect-runner-account-limits-from-the-cli-error-kind.md)
+- **남은 것:**
+  - 한도에 걸린 실제 계정으로 다시 확인(실제 확인 2차와 함께).
+  - 후속: 기다리는 동안 Office의 실행기 탐색이 로그아웃으로 보면, 다시 하는 실행이 `RUNNER_NOT_READY`로 시도를 쓴다. D37의 신호 밖이라 별도 세션에서 사용자 결정을 받는다. [변경 기록](verification/2026-11-03-runner-account-wait.md)
+
+# 2026-11-03 로컬 원본 Claw 브랜치 삭제 (D38)
+
+- 원본 그대로의 Claw-Empire v2.0.4 가져오기를 담던 로컬 브랜치 `codex/local-original-claw-v2.0.4`를 지웠다(사용자가 직접 지움). 원본은 upstream 태그 `v2.0.4`(commit `5c928b24ffa55b403fe7c5521d4ac3ac49516137`)가 그대로 가리켜 다시 받을 수 있다(2026-11-03 확인).
+- AGENTS.md, LICENSING.md, Story M1, D33 결정 문서, `upstream/`의 출처 기록(CHANGES.md, lock 파일의 `original_import_local_ref`)을 그에 맞게 고쳤다. 지난 계획·검증 기록은 그때의 사실이라 그대로 둔다. 제품 코드는 바꾸지 않았다.
+
+# 2026-11-03 3줄 요약: 따옴표(비ASCII) 경로
+
+- 바뀐 파일 이름이 모두 한글 같은 비ASCII이면 3줄 요약(Hub 보고·단일 Office G4 질문)이 `2. 변경 파일: 변경 없음`으로 나오던 것을 고쳤다(M16·V18, #59 후속). 후보 diff는 전역 Git 설정을 버려 `core.quotePath`가 켜져 있고, Git은 그런 경로의 머리줄을 따옴표와 8진수로 쓴다. 이제 `changeSummary`가 그 줄을 읽고 이름을 풀어 보인다. `\t`·`\n` 같은 글자 이스케이프는 그대로 둬 요약은 늘 3줄이다.
+- 자동 검사: 실제 생산자(`captureCandidateDiff`)로 만든 diff의 짝 시험과 실제 Git 패치 단위 시험이 고치기 전에 실패했다. root `npm test` **1278/1278** exit 0, 타입 검사·Story 검사기 exit 0. 독립 리뷰 두 번(머지 가능, Minor 5개 고침).
+- PR syjkim0125/pazmo-agent-office#62. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-quoted-path-change-summary-g4.md)
+- **남은 것:** 한글 이름 파일을 바꾸는 실제 Story Task 실행(실제 확인 2차 때), 다른 Git 버전. 첫 전체 실행에서 한 번 실패한 `tests/team-gh.test.mjs` "a gh that hangs times out"은 이 변경과 무관하며 원인을 별도로 찾고 있다.
+
 # 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 1차 끝·2차 전)
 
 - 팀 Office가 가져온 Story Task를 실제로 돌린다(M16·V18·D24·D34). repo마다 Story 엔진을 **Office 전용 체크아웃**(repo의 git worktree, Office 데이터 폴더의 `story-checkout/`)에 두고 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh`로 Task 브랜치 push → Story base로 PR → Hub 머지 잠금 → 최신 base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub 보고(PR 주소·머지 커밋·3줄 요약·`ASSUMED:` 판단 기록)를 한다.
@@ -9,7 +36,7 @@
 - 자동 검사: root `npm test` **1275/1275** exit 0(최종 리뷰 수정 뒤; Task 9 수정 뒤 1258/1258, Task 8 끝은 1247/1247), 팀 시험 300/300, 타입 검사 exit 0, Story 검사기 exit 0. git은 로컬 repo·bare repo, `gh`는 가짜 실행 파일, VM은 가짜 실행 환경이다. 최종 리뷰의 재현 시험 4개는 저장소 시험으로 옮겨 고치기 전에 실패하는 것을 봤다.
 - 실제 확인 1차(2026-11-02–03, 로컬 Hub·GitHub private 시험 repo 두 개·VM·claude): Story 하나의 Task 3개가 가져가기 → VM 구현·리뷰·검증 → push → PR → 머지 커밋 → Hub 보고까지 Task마다 약 1.5분에 끝났다. 등록한 repo 폴더는 그대로였고 원격에는 Task 브랜치만 생겼다. `gh`는 설정 폴더 환경 변수 없이 로그인을 찾았다. 잠긴 시작은 ready Task를 가져가지 않았고, 할 일 없는 live Office는 실행기를 약 5분에 한 번 확인했다. **찾은 것:** 사용 한도에 걸린 claude도 가져가기를 막지 못하고 시도를 몇 초 만에 쓰며, 그 이유는 `ENGINEER_FAILED`로만 보인다. 새 파일만 바뀐 Task의 3줄 요약이 "변경 없음"으로 나온다(main부터 있던 `changeSummary`의 diff 머리줄 해석). [실제 확인 기록](verification/2026-11-03-team-story-task-mode-real-check.md)
 - PR syjkim0125/pazmo-agent-office#59. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-team-story-task-mode-g4.md)
-- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 사용 한도에 걸린 실행기 처리(별도 작업), 4단계(PL)·5단계(화면). 팀원에게 쓰라고 안내하는 것은 2차 확인 뒤다.** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
+- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 사용 한도에 걸린 실행기 처리(D37, 바로 위), 4단계(PL)·5단계(화면). 팀원에게 쓰라고 안내하는 것은 2차 확인 뒤다.** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
 
 # 2026-11-02 팀 Story 보드 보완 (D35, A)
 
@@ -25,7 +52,7 @@
 # 2026-10-30 새 Office 기본 전환과 Claw Empire 삭제 (D33, A안)
 
 - `./office`·`start`가 새 최소 Office(Tasks·작업 상세·Decisions·Agents)를 켠다. `--lean`은 받아들이고 같은 Office를 켜며, `--claw`는 `CLAW_REMOVED`다(M15·D33, G3 2026-10-30 "A로 해").
-- 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 가져오기는 로컬 브랜치 `codex/local-original-claw-v2.0.4`에 남는다.
+- 지운 것: `vendor/claw-empire`(추적 파일 708개, gitlink 2개), `.gitmodules`, `build:office`, claw·legacy 엔진, 채팅 `bridge`와 operator 명령(`contract`·`intake-*`·`approval-*`·`verification`·`delivery`·`deliver`·`operator-key`), Office의 허브 요청 보내기·받기·연결 창, 캐릭터·픽셀 화면. 허브 서버, 팀 Office, 사용자 데이터(옛 `claw/` 포함)는 그대로다. 원본 그대로의 가져오기는 upstream 태그 `v2.0.4`에서 다시 받는다(2026-11-03에 로컬 원본 브랜치를 지움, D38).
 - `ws`·TypeScript는 루트 의존성이다. `up`은 켜진 Office를 다시 쓰거나 새로 켜기 전에 `ws`가 없거나 다른 버전일 때만 `npm ci --omit=dev --prefer-offline`을 한다. 예전 버전이 켠 Claw·legacy Office는 `status`로 보이고 `stop`으로 멈추며, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다.
 - 엔진 코드(`native-office.ts`의 Claw용 API, 역할별 실행기 경로, 옛 허브 요청 흐름)는 D24 3단계와 충돌하지 않도록 남겼다. Story는 M7·M9·M10·M13·M14와 V7·V11·V12·V15·V16을 폐기하고 Goal·M1·M2·M3·M8·M12·M15·O2와 V1·V8·V9·V10·V14·V17을 고쳤다(M8·M12·V9·V10·V14는 승인 뒤 찾아 ASSUMED).
 - 자동 검사:
@@ -35,7 +62,7 @@
   - vendor를 설치·빌드했던 checkout을 옮겨도 `git status`가 깨끗하고, `claw/` 데이터의 해시·수정 시각이 그대로다
 - 업데이트 뒤 첫 역할 실행 전에 실행기 자격 검사가 한 번 다시 돈다(경계 파일 `exec-relay.ts`·`claude-tool-bridge.mjs`가 바뀜).
 - PR syjkim0125/pazmo-agent-office#56. G4는 2026-10-30에 기록했다. 사용자가 선택 ②("2", 승인 후 머지)를 고른 뒤, 컨트롤러가 쓴 답 초안과 사전 확인 두 개를 보고 "확인했어 승인"이라고 답했다(승인 후 머지). 세 질문의 답은 컨트롤러가 썼다. [G4 기록](verification/2026-10-30-lean-office-default-g4.md)
-- **남은 것: app-be 실제 확인(V17), 엔진 코드 정리(D24 3단계 뒤), 오래된 해결 문서 약 10개 정리(`/ce-compound-refresh`, 목록은 검증 기록), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
+- **남은 것: app-be 실제 확인(V17), 엔진 코드 정리(D24 3단계 뒤), 채팅 조작 재개(새 Office의 operator API, 별도 G3), 허브 웹의 요청 "내가 맡기" 정리(실행하는 Office가 없음).** [G3 결정](understanding/lean-office-default-decision.md) · [구현 계획](plans/2026-10-30-1500-feat-lean-office-default-plan.md) · [검증 기록](verification/2026-10-30-lean-office-default.md)
 
 # 2026-10-30 `--codex-runtime pinned` 시작 검사를 1단계와 Office에서 같게
 

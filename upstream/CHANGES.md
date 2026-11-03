@@ -7,7 +7,7 @@ Original tree: `3ca77ccbebc879fa80997a374288285531aa6b26`.
 
 `vendor/claw-empire/server/oauth/helpers.ts`: remove the built-in Google OAuth client ID and secret. The existing `OAUTH_GOOGLE_CLIENT_ID` and `OAUTH_GOOGLE_CLIENT_SECRET` environment variables remain supported; absent variables now yield empty strings. GitHub configuration and the remaining OAuth implementation are unchanged. A modification notice is included in the changed file.
 
-GitHub push protection rejected the exact original snapshot because of these embedded values. The exact import commit `8e25d7c5ea42d03e202d1599338f3a76d61d05fe` is retained locally under `codex/local-original-claw-v2.0.4`; that branch must not be pushed. Published history starts from the project's existing initial commit and contains only the sanitized source. The lock file distinguishes original and published source trees. No protection exception was used.
+GitHub push protection rejected the exact original snapshot because of these embedded values. The exact import commit `8e25d7c5ea42d03e202d1599338f3a76d61d05fe` was kept on a local, never-pushed branch until 2026-11-03 (D38); the exact original is the upstream tag `v2.0.4`. Published history starts from the project's existing initial commit and contains only the sanitized source. The lock file distinguishes original and published source trees. No protection exception was used.
 
 Approval: [publication decision](../docs/understanding/source-publication-decision.md).
 Verification: [focused test and publication checks](../docs/verification/2026-09-18-publication.md).
@@ -24,7 +24,7 @@ Verification: [runtime baseline](../docs/verification/2026-09-18-runtime-baselin
 
 ## 2026-10-30 — Removed from the tree (D33)
 
-The whole `vendor/claw-empire/` tree (last on main at `f5687342f90d063baf90dc7cbdb4e18a30ddda2b`), its two gitlinks (`tools/playwright-mcp`, `tools/ppt_team_agent`), `.gitmodules` and the `build:office` script were removed. Office now runs only the lean and team engines, which never loaded Claw-Empire code; `ws` and TypeScript come from root dependencies. History is not rewritten: earlier versions keep the sanitized source with its license, notices and the modification notices listed above, and the exact original import stays on the local branch `codex/local-original-claw-v2.0.4`, which must not be pushed.
+The whole `vendor/claw-empire/` tree (last on main at `f5687342f90d063baf90dc7cbdb4e18a30ddda2b`), its two gitlinks (`tools/playwright-mcp`, `tools/ppt_team_agent`), `.gitmodules` and the `build:office` script were removed. Office now runs only the lean and team engines, which never loaded Claw-Empire code; `ws` and TypeScript come from root dependencies. History is not rewritten: earlier versions keep the sanitized source with its license, notices and the modification notices listed above, and the exact original is the upstream tag `v2.0.4` (the local copy was deleted in D38).
 
 Approval: [D33 decision](../docs/understanding/lean-office-default-decision.md).
 Verification: [removal checks](../docs/verification/2026-10-30-lean-office-default.md).

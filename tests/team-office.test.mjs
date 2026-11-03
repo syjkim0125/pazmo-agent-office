@@ -488,7 +488,7 @@ test("the claim tick runs every 30000 ms and the heartbeat every 60000 ms; statu
   await flush();
   assert.deepEqual(f.calls, [["a", "inbox"], ["a", "claim"]]);
   const status = office.status();
-  assert.deepEqual(status.claim, { storyNumber: 7, taskNumber: 3, title: "Task t1", project: a, phase: "claimed", attempts: 0 });
+  assert.deepEqual(status.claim, { storyNumber: 7, taskNumber: 3, title: "Task t1", project: a, phase: "claimed", attempts: 0, waiting: null });
   assert.equal(status.today, 1);
 
   f.calls.length = 0;
@@ -646,9 +646,23 @@ test("status --team shows phase, attempts and blockedBy", async (t) => {
   await flush();
   const status = office.status();
   assert.equal(status.blockedBy, null);
-  assert.deepEqual(status.claim, { storyNumber: 7, taskNumber: 3, title: "Task t1", project: a, phase: "claimed", attempts: 0 });
+  assert.deepEqual(status.claim, { storyNumber: 7, taskNumber: 3, title: "Task t1", project: a, phase: "claimed", attempts: 0, waiting: null });
   const store = storeOf(f);
-  store.setPhase("t1", "failed", { attempts: 3 });
+  // A runner account problem the attempt waits out (D37): which runner, why, its words, since when and until when.
+  const message = "You've hit your org's monthly spend limit · your weekly limit resets 4am (Asia/Seoul)";
+  const since = Date.UTC(2026, 10, 2, 9, 0);
+  store.setPhase("t1", "claimed", { runnerWait: { runner: "claude", kind: "limit", message, since, retryAt: since + 1800000, runs: 1 } });
+  assert.deepEqual(office.status().claim.waiting, {
+    runner: "claude",
+    kind: "limit",
+    message,
+    since: "2026-11-02T09:00:00.000Z",
+    retryAt: "2026-11-02T09:30:00.000Z",
+  });
+  // Running it again is no longer waiting.
+  store.setPhase("t1", "building");
+  assert.equal(office.status().claim.waiting, null);
+  store.setPhase("t1", "failed", { attempts: 3, runnerWait: null });
   assert.deepEqual(
     { phase: office.status().claim.phase, attempts: office.status().claim.attempts },
     { phase: "failed", attempts: 3 },

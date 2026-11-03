@@ -11,6 +11,7 @@ import { classifyObservation } from "../src/core/verification.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
 import { continuePlanning } from "../src/runners/planning.ts";
 import { writeStoryContract } from "../src/team/story-contract.ts";
+import { normalizeClaudeStream } from "../src/runners/claude-profile.ts";
 
 const TOKEN = "a".repeat(64);
 const HUB_TASK = "hub-task-7";
@@ -141,8 +142,8 @@ function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "af
     observation: { exitCode, signal: null, timedOut: false, error: null, output },
   });
 }
-/** Every node of the round: the checks exit with `check`, the review reports `verdict`. */
-function judge(f, round, { verdict = "pass", check = 0 } = {}) {
+/** Every node of the round: the checks exit with `check`, the review reports `verdict` (or ends as `review`). */
+function judge(f, round, { verdict = "pass", check = 0, review = null } = {}) {
   const { execution } = f.ledgers;
   for (const node of round.nodes) {
     const lease = execution.reserveNode(round.id, node.id, [], 60000);
@@ -153,6 +154,7 @@ function judge(f, round, { verdict = "pass", check = 0 } = {}) {
         ...ok(`${node.kind} output`, node.kind),
         ...(node.kind === "test" ? { exitCode: check } : {}),
         ...(node.kind === "review" ? { report: { verdict, findings: verdict === "fail" ? ["Wrong"] : [], summary: "Fixture" } } : {}),
+        ...(node.kind === "review" ? review : {}),
       },
     });
   }
@@ -310,6 +312,43 @@ test("a stopped Story Task reports stopped with its reason", async (t) => {
   assert.deepEqual(f.office.storyOutcome(failed.id).kind, "stopped");
   assert.match(f.office.storyOutcome(failed.id).reason, /ENGINEER_FAILED/);
   assert.deepEqual(f.state.verified, []);
+});
+
+/** What a claude run refused by its account leaves as output (claude 2.1.280's stream, normalized). */
+const LIMIT = "You've hit your org's monthly spend limit · your weekly limit resets 4am (Asia/Seoul)";
+const refusedRun = (error, text = LIMIT) =>
+  normalizeClaudeStream(
+    [
+      { type: "system", subtype: "init" },
+      { type: "assistant", message: { model: "<synthetic>", content: [{ type: "text", text }] }, error },
+      { type: "result", subtype: "success", is_error: true, result: text },
+    ]
+      .map((e) => JSON.stringify(e))
+      .join("\n") + "\n",
+  );
+
+test("a Story Task stopped by its runner's account names the problem, from the Engineer's run or the review's", async (t) => {
+  const f = await fixture(t);
+  const built = await submit(f, 1);
+  engineer(f, built.id, { exitCode: 1, output: refusedRun("rate_limit") });
+  assert.deepEqual(f.office.storyOutcome(built.id), {
+    kind: "stopped",
+    reason: "구현이 멈췄습니다: ENGINEER_FAILED",
+    runnerAccount: { runner: "claude", kind: "limit", message: LIMIT, resetsAt: null },
+  });
+  // The Engineer's run went through; the review's runner was logged out.
+  const reviewed = await submit(f, 2);
+  judge(f, engineer(f, reviewed.id).round, {
+    review: { exitCode: 1, output: refusedRun("authentication_failed", "OAuth token has expired"), report: undefined },
+  });
+  const review = f.office.storyOutcome(reviewed.id);
+  assert.equal(review.kind, "stopped");
+  assert.match(review.reason, /REVIEW_RUNNER_FAILED/);
+  assert.deepEqual(review.runnerAccount, { runner: "claude", kind: "login", message: "OAuth token has expired", resetsAt: null });
+  // A failure of the work's own names none.
+  const plain = await submit(f, 3);
+  engineer(f, plain.id, { exitCode: 1, output: refusedRun("server_error", "API Error: 500") });
+  assert.deepEqual(f.office.storyOutcome(plain.id), { kind: "stopped", reason: "구현이 멈췄습니다: ENGINEER_FAILED" });
 });
 
 test("a Story Task whose run failed or was cancelled is stopped, not running", async (t) => {

@@ -53,3 +53,14 @@ test("binary changes and a failed review are summarised without line counts", ()
   assert.match(text, /^2\. 변경 파일: 바이너리 변경$/m);
   assert.match(text, /^3\. 확인: 검사 없음 · 리뷰 실패$/m);
 });
+
+test("quoted header paths are decoded and their control characters stay escaped", () => {
+  // The patch Git 2.50.1 writes for these three names (candidate paths reject `\` and the control characters 0x00–0x1f).
+  const rawDiff =
+    'diff --git "a/back\\\\slash.txt" "b/back\\\\slash.txt"\nindex 587be6b..975fbec 100644\n--- "a/back\\\\slash.txt"\n+++ "b/back\\\\slash.txt"\n@@ -1 +1 @@\n-x\n+y\n' +
+    'diff --git "a/new\\nline.txt" "b/new\\nline.txt"\nindex 587be6b..975fbec 100644\n--- "a/new\\nline.txt"\n+++ "b/new\\nline.txt"\n@@ -1 +1 @@\n-x\n+y\n' +
+    'diff --git "a/tab\\tname \\"\\354\\235\\270\\".txt" "b/tab\\tname \\"\\354\\235\\270\\".txt"\nindex 587be6b..975fbec 100644\n--- "a/tab\\tname \\"\\354\\235\\270\\".txt"\t\n+++ "b/tab\\tname \\"\\354\\235\\270\\".txt"\t\n@@ -1 +1 @@\n-x\n+y\n';
+  const text = changeSummary({ contract: { title: "t" }, diff: { rawDiff, rawDiffEncoding: "utf8" } });
+  assert.equal(text.split("\n").length, 4);
+  assert.match(text, /^2\. 변경 파일: back\\slash\.txt, new\\nline\.txt, tab\\tname "인"\.txt \(\+3 −3줄\)$/m);
+});

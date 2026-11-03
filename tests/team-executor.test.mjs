@@ -105,6 +105,10 @@ function fakeEngine() {
     stop(reason, id = e.last().id) {
       e.outcomes.set(id, { kind: "stopped", reason });
     },
+    /** The run stopped on its runner's account (D37), as the engine reads it from the run's output. */
+    refuse(problem, id = e.last().id) {
+      e.outcomes.set(id, { kind: "stopped", reason: "구현이 멈췄습니다: ENGINEER_FAILED", runnerAccount: problem });
+    },
   };
   return e;
 }
@@ -977,6 +981,171 @@ test("a merged report waiting with an unlock still owed goes out without the unl
   assert.equal(w.hub.count("mergeUnlock"), 0);
   assert.equal(w.open(), null);
   assert.equal(w.view(task.taskId).state, "merged");
+});
+
+const T0 = 1_700_000_000_000;
+const HOUR = 3_600_000;
+const LIMIT = "You've hit your org's monthly spend limit · your weekly limit resets 4am (Asia/Seoul)";
+const limited = (extra = {}) => ({ runner: "claude", kind: "limit", message: LIMIT, resetsAt: null, ...extra });
+
+test("a run stopped by its runner's account is not an attempt: the Task waits 30 minutes, across a restart, and runs the same attempt again in its own folder", async (t) => {
+  const w = await world(t);
+  const task = await w.claim();
+  await w.ex.drive();
+  w.engine.refuse(limited());
+  await w.ex.drive();
+  let open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.lastFailure, open.report, open.buildingSince], ["claimed", 0, null, null, null]);
+  assert.deepEqual(open.runnerWait, { runner: "claude", kind: "limit", message: LIMIT, since: T0, retryAt: T0 + HOUR / 2, runs: 1 });
+  assert.match(
+    w.lines.at(-1),
+    new RegExp(`claude account problem \\(usage limit: You've hit your org's monthly spend limit .*\\); not counted as an attempt; running it again at ${new Date(T0 + HOUR / 2).toISOString()}$`),
+  );
+  assert.equal(w.ex.stageOf(open), "build", "the heartbeat goes on as building");
+
+  w.tick(HOUR / 2 - 1);
+  w.restart();
+  await w.ex.drive();
+  assert.equal(w.engine.submits.length, 1, "nothing runs before its time, a restart included");
+  assert.equal(w.open().phase, "claimed");
+
+  w.tick(1);
+  await w.ex.drive();
+  open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.engineTask], ["building", 0, "engine-2"]);
+  assert.equal(w.engine.submits[1].input.story, `${planDir(task, 1)}-r1/story.md`, "its own contract folder");
+  assert.ok(existsSync(join(w.checkout, planDir(task, 1), "story.md")), "the refused run's folder stays");
+  assert.doesNotMatch(planOf(w, task, "1-r1"), /Reason:/, "the runner's words never reach the Engineer");
+
+  // The runner works again: the wait is over and the attempt goes on.
+  w.engine.verify();
+  await w.ex.drive();
+  open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.runnerWait], ["verified", 0, null]);
+});
+
+test("the next run of a waiting Task is at the runner's reset time, never more than 6 hours after the first refusal", async (t) => {
+  const w = await world(t);
+  await w.claim();
+  await w.ex.drive();
+  // A reset time already past is no time at all: 30 minutes.
+  w.engine.refuse(limited({ resetsAt: T0 - 1 }));
+  await w.ex.drive();
+  assert.equal(w.open().runnerWait.retryAt, T0 + HOUR / 2);
+
+  w.tick(HOUR / 2);
+  await w.ex.drive();
+  w.engine.refuse(limited({ resetsAt: T0 + 2 * HOUR }));
+  await w.ex.drive();
+  assert.equal(w.open().runnerWait.retryAt, T0 + 2 * HOUR);
+
+  w.tick(HOUR + HOUR / 2);
+  await w.ex.drive();
+  // A reset days away: the wait still ends 6 hours after the first refusal.
+  w.engine.refuse(limited({ resetsAt: T0 + 72 * HOUR }));
+  await w.ex.drive();
+  const open = w.open();
+  assert.deepEqual([open.phase, open.attempts], ["claimed", 0]);
+  assert.deepEqual([open.runnerWait.since, open.runnerWait.retryAt, open.runnerWait.runs], [T0, T0 + 6 * HOUR, 3]);
+  assert.equal(w.engine.submits.length, 3);
+});
+
+test("a runner still refused 6 hours after the first refusal reports the Task failed with its own words; a rerun starts clean", async (t) => {
+  for (const [problem, reason] of [
+    [limited(), `RUNNER_LIMIT claude: ${LIMIT}`],
+    [limited({ runner: "codex", kind: "billing", message: "Quota exceeded. Check your plan and billing details." }), "RUNNER_BILLING codex: Quota exceeded. Check your plan and billing details."],
+    [limited({ kind: "login", message: "OAuth token has expired" }), "RUNNER_LOGIN claude: OAuth token has expired"],
+  ]) {
+    const w = await world(t);
+    const task = await w.claim();
+    await w.ex.drive();
+    w.engine.refuse(problem);
+    await w.ex.drive();
+    w.tick(6 * HOUR);
+    await w.ex.drive();
+    assert.equal(w.engine.submits.length, 2);
+    w.engine.refuse(problem);
+    await w.ex.drive();
+    let open = w.open();
+    assert.deepEqual([open.phase, open.attempts, open.runnerWait], ["reporting", 0, null], reason);
+    assert.deepEqual(open.report, { kind: "failed", reason });
+    assert.match(w.lines.at(-1), /account problem .* for 6 hours; reporting the Task as failed$/);
+
+    await w.ex.drive();
+    assert.equal(w.view(task.taskId).state, "failed");
+    assert.equal(w.view(task.taskId).failure, reason, "the PL sees why");
+
+    w.store.requestRerun("");
+    await w.ex.drive();
+    open = w.open();
+    assert.deepEqual([open.phase, open.attempts, open.runnerWait], ["claimed", 0, null]);
+    await w.ex.drive();
+    assert.equal(w.engine.last().input.story, `${planDir(task, 1)}/story.md`);
+  }
+});
+
+test("a run after a wait that runs past its deadline counts the attempt and ends the wait: the next attempt's refusal starts a new one", async (t) => {
+  const w = await world(t);
+  const task = await w.claim();
+  await w.ex.drive();
+  w.engine.refuse(limited());
+  await w.ex.drive();
+  w.tick(HOUR / 2);
+  await w.ex.drive();
+  assert.equal(w.open().phase, "building");
+  w.tick(5_400_001);
+  await w.ex.drive();
+  let open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.runnerWait], ["claimed", 1, null]);
+  assert.match(open.lastFailure.reason, /^BUILD_TIMEOUT/);
+
+  await w.ex.drive();
+  assert.equal(w.engine.last().input.story, `${planDir(task, 2)}/story.md`, "a plain folder for the next attempt");
+  const at = T0 + HOUR / 2 + 5_400_001;
+  w.engine.refuse(limited());
+  await w.ex.drive();
+  open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.report], ["claimed", 1, null], "a new wait, not the old one's 6 hours");
+  assert.deepEqual([open.runnerWait.since, open.runnerWait.retryAt, open.runnerWait.runs], [at, at + HOUR / 2, 1]);
+});
+
+test("a crash after a run again is submitted adopts it; a leftover folder of that run is replaced and the refused run's stays", async (t) => {
+  const w = await world(t);
+  const task = await w.claim();
+  await w.ex.drive();
+  w.engine.refuse(limited());
+  await w.ex.drive();
+  w.tick(HOUR / 2);
+  mkdirSync(join(w.checkout, `${planDir(task, 1)}-r1`), { recursive: true });
+  writeFileSync(join(w.checkout, `${planDir(task, 1)}-r1`, "stale.md"), "half written\n");
+  w.engine.onSubmit = () => {
+    w.engine.onSubmit = null;
+    throw new Error("the Office stopped right after submitting");
+  };
+  await w.ex.drive();
+  assert.deepEqual(readdirSync(join(w.checkout, `${planDir(task, 1)}-r1`)).sort(), ["plan.md", "story.md", "task-1.md", "verify-1.json"]);
+  assert.ok(existsSync(join(w.checkout, planDir(task, 1), "story.md")));
+  w.restart();
+  await w.ex.drive();
+  assert.deepEqual([w.open().phase, w.open().engineTask, w.engine.submits.length], ["building", "engine-2", 2]);
+});
+
+test("a run after a wait that fails on the work counts the attempt as before and ends the wait", async (t) => {
+  const w = await world(t);
+  const task = await w.claim();
+  await w.ex.drive();
+  w.engine.refuse(limited());
+  await w.ex.drive();
+  w.tick(HOUR / 2);
+  await w.ex.drive();
+  w.engine.stop("구현이 멈췄습니다: ENGINEER_FAILED");
+  await w.ex.drive();
+  const open = w.open();
+  assert.deepEqual([open.phase, open.attempts, open.runnerWait], ["claimed", 1, null]);
+  assert.equal(open.lastFailure.reason, "구현이 멈췄습니다: ENGINEER_FAILED");
+  await w.ex.drive();
+  assert.equal(w.engine.last().input.story, `${planDir(task, 2)}/story.md`);
+  assert.match(planOf(w, task, 2), /Reason: 구현이 멈췄습니다: ENGINEER_FAILED/);
 });
 
 test("the third failed attempt reports failed; team rerun --memo reruns with the memo and attempts back at 0", async (t) => {
