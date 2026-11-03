@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -41,25 +42,38 @@ test("timeouts and output limits never look like successful completion", async (
   assert.equal(flood.error, "OUTPUT_LIMIT");
   assert.ok(Buffer.byteLength(flood.stdout) <= 1024);
 });
-test("a timeout also kills a child that was being forked when the group was killed", async () => {
-  // Each shell forks `sleep 5` back to back, so the group SIGKILL lands mid-fork. On macOS a
-  // process still being created misses that one signal and holds the pipes open for 5 s.
-  const forking = "i=0; while [ $i -lt 50 ]; do sleep 5 & i=$((i+1)); done; wait";
-  const started = Date.now();
-  const results = await Promise.all(
-    Array.from({ length: 10 }, () =>
-      runCommand("/bin/sh", ["-c", forking], {
-        timeoutMs: 30,
-        maxBytes: 1024,
-        env: { PATH: "/usr/bin:/bin" },
-      }),
+// Each shell forks `child` back to back, so the group SIGKILL lands mid-fork. On macOS a
+// process still being created misses that one signal (Linux closes this race in fork).
+const forkingShells = (child) =>
+  Promise.all(
+    Array.from({ length: 5 }, () =>
+      runCommand(
+        "/bin/sh",
+        ["-c", `echo $$; i=0; while [ $i -lt 40 ]; do ${child} & i=$((i+1)); done; wait`],
+        { timeoutMs: 30, maxBytes: 1024, env: { PATH: "/usr/bin:/bin" } },
+      ),
     ),
   );
+test("a timeout also kills a child that was being forked when the group was killed", async () => {
+  const started = Date.now();
+  const results = await forkingShells("sleep 5");
   assert.deepEqual(
     results.map((r) => r.error),
-    Array(10).fill("TIMEOUT"),
+    Array(5).fill("TIMEOUT"),
   );
   assert.ok(Date.now() - started < 4000, "every forked child must be cut off");
+});
+test("a stop leaves no process in the group, even one that does not hold the pipes", async () => {
+  const results = await forkingShells("sleep 5 >/dev/null 2>&1");
+  const groups = new Set(results.map((r) => r.stdout.trim()).filter(Boolean));
+  const left = () =>
+    execFileSync("ps", ["-A", "-o", "pgid="], { encoding: "utf8" })
+      .split("\n")
+      .filter((pgid) => groups.has(pgid.trim())).length;
+  const deadline = Date.now() + 2000;
+  while (left() && Date.now() < deadline)
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(left(), 0, "no forked child may outlive the stopped command");
 });
 test("missing executable and pre-cancelled work fail without a successful exit", async () => {
   const missing = await runCommand("/pazmo-does-not-exist", [], {

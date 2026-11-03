@@ -61,7 +61,7 @@ export async function runCommand(
       done = true;
       clearTimeout(timer);
       clearTimeout(grace);
-      clearInterval(rekill);
+      rekill?.unref();
       options.signal?.removeEventListener("abort", cancel);
       const stdout = Buffer.concat(out);
       resolve({
@@ -81,13 +81,16 @@ export async function runCommand(
         try {
           process.kill(group, "SIGKILL");
           // A process that is still being forked when the signal lands misses it
-          // (seen on macOS) and keeps the pipes open, so kill until the group is empty.
+          // (seen on macOS), so the group is killed again, also after the result is
+          // finished, until kill fails (no process left, or only the unreaped leader:
+          // EPERM on macOS) or for at most 5 s.
+          const until = Date.now() + 5000;
           rekill = setInterval(() => {
             try {
               process.kill(group, "SIGKILL");
-            } catch {
-              clearInterval(rekill);
-            }
+              if (Date.now() < until) return;
+            } catch {}
+            clearInterval(rekill);
           }, 20);
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ESRCH")
