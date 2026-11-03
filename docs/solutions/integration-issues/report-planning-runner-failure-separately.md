@@ -1,6 +1,7 @@
 ---
 title: Report planning runner failures as runner failures, not plan-format rejections
 date: "2026-10-08"
+last_updated: "2026-11-03"
 category: integration-issues
 module: Office planning validation
 problem_type: integration_issue
@@ -38,7 +39,7 @@ When the PM planning role's runner failed before the model produced anything (he
 - **Echoing the runner's message into `detail`.** An earlier fix established that `PlanningInvalid.detail` never carries model-authored text (see `record-planning-rejection-cause.md`). In normalized stdout a CLI diagnostic is just an `agent_message`, indistinguishable from model text, so it cannot be shown as-is.
 - **Classifying by exit code.** Wrong in both directions: a turn that did return a plan can still exit 1, and claude can emit `turn.failed` with exit 0. The new tests cover both (`tests/planning-runner-failure.test.mjs` in #12: exit-0 `turn.failed` is still a runner failure; a plan-shaped message with exit 1 stays an output failure).
 - **Trusting an auth-like sentence anywhere in the turn.** If a plan-shaped response plus an appended "Failed to refresh OAuth token" counted as a runner failure, a model could move its own format failure into the runner budget.
-- **Environment traps while verifying.** The shell's default Node was v22, so `.ts` imports failed with `ERR_UNKNOWN_FILE_EXTENSION`; the repo needs Node 24.19 (`.node-version`, `package.json` engines). `npx tsc` fetches an unrelated npm package; use `npm run typecheck`. A fresh worktree also needs the `vendor/claw-empire` build (see `fresh-worktree-tests-fail-without-office-ui-build.md`).
+- **Environment traps while verifying.** The shell's default Node was v22, so `.ts` imports failed with `ERR_UNKNOWN_FILE_EXTENSION`; the repo needs Node 24.19 (`.node-version`, `package.json` engines). `npx tsc` fetches an unrelated npm package; use `npm run typecheck`. A fresh worktree also needed the `vendor/claw-empire` build then; since D33 it needs `npm ci` (see `fresh-worktree-tests-fail-without-office-ui-build.md`).
 
 ## Solution
 Fixed in #12 (merged 2026-10-12). Line numbers cited "in #12" match `main` after that merge.
@@ -94,6 +95,6 @@ The question that matters is whether a model response exists to validate, and th
 - [pin-bounded-role-instructions.md](../architecture-patterns/pin-bounded-role-instructions.md) — why planning recovery creates a successor kit run and keeps a host-level budget across successors; #12 splits that budget per failure origin.
 - [historical-round-queue-mutation.md](../logic-errors/historical-round-queue-mutation.md) — keeps "process stopped" separate from "output admissible"; this fix adds "runner failed before any output" as a further distinction.
 - [remote-codex-cwd-and-tool-evidence.md](remote-codex-cwd-and-tool-evidence.md) — another case where a CLI exit code described the turn, not the thing being judged.
-- [claw-cli-usage-panel-reads-cli-login-credentials-under-office.md](../security-issues/claw-cli-usage-panel-reads-cli-login-credentials-under-office.md) — Office never reads CLI login files, which is why the runner Decision asks the user to sign in again instead of Office handling the token.
-- [fresh-worktree-tests-fail-without-office-ui-build.md](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md) — worktree setup needed to run the suite for this change.
+- [codex-home-agents-md-leaks-into-isolated-runs.md](../security-issues/codex-home-agents-md-leaks-into-isolated-runs.md) — Office uses the CLI's own login and never copies or reads it, which is why the runner Decision asks the user to sign in again instead of Office handling the token.
+- [fresh-worktree-tests-fail-without-office-ui-build.md](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md) — worktree setup needed to run the suite (`npm ci` since D33).
 - PR: https://github.com/syjkim0125/pazmo-agent-office/pull/12 (merged 2026-10-12).
