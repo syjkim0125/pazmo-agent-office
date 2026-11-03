@@ -292,25 +292,32 @@ test("a claude that ignores SIGTERM too is killed once its 12 s grace runs out",
 // Its SIGKILL comes only after 15 s of grace, so unlike tests/command.test.mjs
 // this caller is the test itself, with the grace ticked: ten claudes that
 // ignore the end of their input and SIGTERM fork children until it runs out,
-// so the kill lands mid-fork.
+// so the kill lands mid-fork. They share one binary in ten homes: each new
+// copy of the native shim takes about 0.2 s to start the first time, one copy
+// after another, so the first fakes could end their loops before the last
+// one got going.
 test("a claude killed after its grace while it forks leaves no process in its group", { timeout: 15000 }, async (t) => {
-  const fakes = Array.from({ length: 10 }, () =>
-    refreshingClaude(
-      t,
-      `cat >/dev/null
+  const binary = fakeNative(
+    join(tempRoot(), "claude"),
+    `echo $$ > "$HOME/pid"
+trap 'touch "$HOME/term"' TERM
+read line
+read second
+echo '${JSON.stringify(modelsResponse)}'
+echo '${JSON.stringify(noHooks)}'
+cat >/dev/null
 touch "$HOME/eof"
-${forkLoop("sleep 5 >/dev/null")}`,
-      `touch "$HOME/term"`,
-    ),
+${forkLoop("sleep 5 >/dev/null")}\n`,
   );
+  const homes = Array.from({ length: 10 }, () => tempRoot());
   t.mock.timers.enable({ apis: ["setTimeout"] });
-  const found = Promise.all(fakes.map((fx) => claudeModels(fx.binary, fx.root)));
-  for (const fx of fakes) await fx.reached("eof");
+  const found = Promise.all(homes.map((home) => claudeModels(binary, home)));
+  for (const home of homes) await reached(join(home, "eof"), t.signal);
   t.mock.timers.tick(3000);
-  for (const fx of fakes) await fx.reached("term");
+  for (const home of homes) await reached(join(home, "term"), t.signal);
   t.mock.timers.tick(12000);
   for (const { models } of await found) assert.deepEqual(models, [{ slug: "default" }]);
-  const groups = new Set(fakes.map((fx) => String(fx.pid())));
+  const groups = new Set(homes.map((home) => readFileSync(join(home, "pid"), "utf8").trim()));
   assert.equal(await leftInGroups(groups), 0, "no forked child may outlive the stopped claude");
 });
 
