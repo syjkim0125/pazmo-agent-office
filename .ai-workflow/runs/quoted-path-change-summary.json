@@ -1,0 +1,271 @@
+{
+  "version": 1,
+  "runId": "eaf12701-6cbc-4fea-89a1-01d3e588da94",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "changeSummary lists files whose diff header Git quotes (non-ASCII or \"): escape-aware quoted alternative plus unquote (octal as UTF-8 bytes, \\\" and \\\\ literal, letter escapes kept). Pair test on the real producer and a real-patch unit test failed first, then GREEN 40/40; typecheck exit 0; learning doc updated (e0245fd).",
+          "evidence": [
+            ".ai-workflow/runs/quoted-path-change-summary-implement-1.md",
+            "src/runtime/decision-summary.ts",
+            "tests/candidate-diff.test.mjs",
+            "tests/decision-summary.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/quoted-path-change-summary-implement-1.md": "85cecd2941b9a6b9dfef8739cd4b15f87347de8b23dcd7836a0136b8175df6b9",
+          "src/runtime/decision-summary.ts": "3d2e2c146b3ec016fd05e0c7efc720e4d63db71a869d0931e6d6324de3a102be",
+          "tests/candidate-diff.test.mjs": "8b345b6f446fb72cfe11d334fcd36b0e224be14da96f943652c4050eb997b4a1",
+          "tests/decision-summary.test.mjs": "2829c6efffad3a53e811f6263a6c26d57de51c20d091997ce98376479bfaf078"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only reviewer, two passes: Ready to merge, Critical 0, Important 0; all 5 Minor findings fixed (control-escape hardening, real-patch fixture, doc wording).",
+          "evidence": [
+            ".ai-workflow/runs/quoted-path-change-summary-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/quoted-path-change-summary-review-1.md": "d08575176eadf046a34d16579a41d1014b5fe46933f69090ee51e55c95a1ad75"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh on e0245fd's tree: full suite 1278/1278 exit 0, typecheck exit 0, Story checker exit 0, related files 40/40. An earlier run's unrelated gh-timeout failure passed alone 3/3 and in two later full runs (cause not diagnosed). Real non-ASCII Task run and G4 not verified.",
+          "evidence": [
+            ".ai-workflow/runs/quoted-path-change-summary-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/quoted-path-change-summary-verify-1.md": "117bdd59c8261a3ee6536ea0c0f3329b938123f9e136ff6b0a63d61ca584d849"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0924c359a1ee815adbed487ebc527ff8be6176d95acdc31424fd5a5a606ca85d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T01:40:40.464Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T01:59:58.008Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "changeSummary lists files whose diff header Git quotes (non-ASCII or \"): escape-aware quoted alternative plus unquote (octal as UTF-8 bytes, \\\" and \\\\ literal, letter escapes kept). Pair test on the real producer and a real-patch unit test failed first, then GREEN 40/40; typecheck exit 0; learning doc updated (e0245fd).",
+          "evidence": [
+            ".ai-workflow/runs/quoted-path-change-summary-implement-1.md",
+            "src/runtime/decision-summary.ts",
+            "tests/candidate-diff.test.mjs",
+            "tests/decision-summary.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/quoted-path-change-summary-implement-1.md": "85cecd2941b9a6b9dfef8739cd4b15f87347de8b23dcd7836a0136b8175df6b9",
+          "src/runtime/decision-summary.ts": "3d2e2c146b3ec016fd05e0c7efc720e4d63db71a869d0931e6d6324de3a102be",
+          "tests/candidate-diff.test.mjs": "8b345b6f446fb72cfe11d334fcd36b0e224be14da96f943652c4050eb997b4a1",
+          "tests/decision-summary.test.mjs": "2829c6efffad3a53e811f6263a6c26d57de51c20d091997ce98376479bfaf078"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T02:00:03.952Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T02:00:04.073Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only reviewer, two passes: Ready to merge, Critical 0, Important 0; all 5 Minor findings fixed (control-escape hardening, real-patch fixture, doc wording).",
+          "evidence": [
+            ".ai-workflow/runs/quoted-path-change-summary-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/quoted-path-change-summary-review-1.md": "d08575176eadf046a34d16579a41d1014b5fe46933f69090ee51e55c95a1ad75"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T02:00:10.810Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T02:00:10.911Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Fresh on e0245fd's tree: full suite 1278/1278 exit 0, typecheck exit 0, Story checker exit 0, related files 40/40. An earlier run's unrelated gh-timeout failure passed alone 3/3 and in two later full runs (cause not diagnosed). Real non-ASCII Task run and G4 not verified.",
+          "evidence": [
+            ".ai-workflow/runs/quoted-path-change-summary-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/quoted-path-change-summary-verify-1.md": "117bdd59c8261a3ee6536ea0c0f3329b938123f9e136ff6b0a63d61ca584d849"
+        }
+      }
+    }
+  ]
+}
