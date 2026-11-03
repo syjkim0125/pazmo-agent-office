@@ -20,11 +20,16 @@ A frozen snapshot of proposed project changes that checks, review and a human Ga
 A candidate is never the user's project itself: roles work on isolated copies, and nothing reaches the project until the same candidate has passed its checks and human understanding. Any change produces a new candidate, so evidence gathered on an earlier one no longer counts. A candidate's diff is always taken against the baseline, the snapshot of the project frozen before implementation started; an automatic fix starts from the previous candidate but keeps that baseline, so G4 shows the whole change rather than only the last fix.
 
 ### Office metadata area
-The one folder Office owns inside each user project for its own records — installation files, published Lead proposals, approval views and role-run evidence — kept apart from the project's own content.
+The one folder Office owns inside each user project for its own records — installation files, published Lead proposals, approval views, role-run evidence and Kit folders — kept apart from the project's own content.
 
 It is never part of a Candidate or of a planning role's view of the project, and a role result that touches it is rejected, so anything Office generates in a project belongs there rather than beside the user's files. Documents Office relies on there, such as a published Story, are re-read and checked against their approved bytes, so Office does not delete them on its own.
 
 The area also hides itself from the project's version control, because its files hold machine-local paths and records that must never be committed, and Office does this without editing any file the user tracks. Removing Office keeps that hiding in place for as long as any Office record is left behind.
+
+### Kit folder
+The place inside the Office metadata area, one per task revision, where Office keeps the Developer and Reviewer records the workflow kit requires, bound to the Candidate under check rather than to the user's own files.
+
+Its inputs are written once, and the kit judges a review or self-check only against the Candidate it currently names: the user's own edits never invalidate a review, while pointing it at a new Candidate makes earlier review and checks stale. Checks still run only in the isolated environment; the kit records each through Office's relay, which reports the isolated result and passes only when that result passed for the same Candidate and Verification round.
 
 ### Verification round
 One attempt to verify a Candidate: every registered check and one independent review each give a verdict on that exact candidate, and only a round whose verdicts are all pass reaches the G4 Gate.
