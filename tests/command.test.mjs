@@ -5,6 +5,7 @@ import { mkdtempSync, rmSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { runCommand } from "../src/runners/command.ts";
+import { forkLoop, leftInGroups } from "./runner-fixture.mjs";
 
 test("capture actual status and both streams without inheriting ambient credentials", async (t) => {
   const previous = process.env.PAZMO_TEST_SECRET;
@@ -49,7 +50,7 @@ test("timeouts and output limits never look like successful completion", async (
 // process with nothing left to do once the results are back, so only runCommand's
 // own timers keep it alive.
 function stopForkingShells(child) {
-  const shell = `exec 2>/dev/null; echo $$; i=0; while [ $i -lt 5000 ]; do ${child} & kill $!; i=$((i+1)); done`;
+  const shell = `exec 2>/dev/null; echo $$; ${forkLoop(child)}`;
   const caller = `import { runCommand } from ${JSON.stringify(import.meta.resolve("../src/runners/command.ts"))};
 const started = Date.now();
 const results = await Promise.all(Array.from({ length: 10 }, () =>
@@ -69,14 +70,7 @@ test("a timeout also kills a child that was being forked when the group was kill
 });
 test("a stop leaves no process in the group, even one without the pipes in a caller that exits", async () => {
   const groups = new Set(stopForkingShells("sleep 5 >/dev/null").groups.filter(Boolean));
-  const left = () =>
-    execFileSync("ps", ["-A", "-o", "pgid="], { encoding: "utf8" })
-      .split("\n")
-      .filter((pgid) => groups.has(pgid.trim())).length;
-  const deadline = Date.now() + 2000;
-  while (left() && Date.now() < deadline)
-    await new Promise((resolve) => setTimeout(resolve, 50));
-  assert.equal(left(), 0, "no forked child may outlive the stopped command");
+  assert.equal(await leftInGroups(groups), 0, "no forked child may outlive the stopped command");
 });
 test("missing executable and pre-cancelled work fail without a successful exit", async () => {
   const missing = await runCommand("/pazmo-does-not-exist", [], {

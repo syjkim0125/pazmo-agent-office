@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { claudeJob } from "../src/runners/claude-controller.ts";
 import { terminalReport } from "../src/runners/terminal-report.ts";
 import { digest } from "../src/core/candidates.ts";
-import { fakeNative, tempRoot } from "./runner-fixture.mjs";
+import { fakeNative, forkLoop, leftInGroups, tempRoot } from "./runner-fixture.mjs";
 
 const fakeClaude = fileURLToPath(new URL("./fixtures/fake-claude.mjs", import.meta.url));
 const fakeExec = fileURLToPath(new URL("./fixtures/fake-exec-server.mjs", import.meta.url));
@@ -268,6 +268,36 @@ function gone(pid) {
     return error.code === "ESRCH";
   }
 }
+
+// Ten claudes fork children and, 200 ms in, print a line that Office refuses,
+// so the kill lands mid-fork. The caller is its own node process with nothing
+// left to do once the jobs are back, so only the controller's own timers keep
+// it alive.
+test("a claude killed while it forks leaves no process in its group, in a caller that exits", async () => {
+  // One binary in ten homes: each new copy of the native shim takes about
+  // 0.2 s to start the first time, one copy after another.
+  const binary = fakeNative(
+    join(tempRoot(), "claude"),
+    `exec 2>/dev/null; echo $$ > "$HOME/pid"; (sleep 0.2; echo '{"type":"assistant"}') & ${forkLoop("sleep 5 >/dev/null")}\n`,
+  );
+  const selection = { binary, sha256: digest(readFileSync(binary)), model: "haiku" };
+  const homes = Array.from({ length: 10 }, () => tempRoot());
+  const caller = `import { claudeJob } from ${JSON.stringify(import.meta.resolve("../src/runners/claude-controller.ts"))};
+const runs = await Promise.all(${JSON.stringify(homes)}.map((home) =>
+  claudeJob({ selection: ${JSON.stringify(selection)}, binary: "/qualified/executor", home, timeoutMs: 20000,
+    openExecutor: () => { throw new Error("no tool call was made"); } }, "Bounded task")
+    .supervise("a".repeat(64), 20000, new AbortController().signal)));
+console.log(JSON.stringify(runs.map(({ closed, result }) => ({ closed, error: result.error }))));`;
+  const runs = JSON.parse(
+    execFileSync(process.execPath, ["--input-type=module", "-e", caller], {
+      encoding: "utf8",
+      timeout: 30000,
+    }),
+  );
+  assert.deepEqual(runs, Array(10).fill({ closed: true, error: "CLAUDE_INIT_MISSING" }));
+  const groups = new Set(homes.map((home) => readFileSync(join(home, "pid"), "utf8").trim()));
+  assert.equal(await leftInGroups(groups), 0, "no forked child may outlive the stopped claude");
+});
 
 // On SIGTERM the CLI runs its shutdown, SessionEnd hooks included, so a stop
 // for something Office refuses must not give it that chance.

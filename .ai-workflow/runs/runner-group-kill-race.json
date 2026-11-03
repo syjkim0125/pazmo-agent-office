@@ -1,0 +1,262 @@
+{
+  "version": 1,
+  "runId": "7220945b-0349-42e2-8583-290fab16390b",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "exec-relay, claude-controller and runner-models stop paths now send their group SIGKILL through a shared signalGroup (command.ts), which repeats a successful SIGKILL every 20 ms until kill fails or 250 tries on a ref'd timer, as runCommand did; SIGTERM steps stay one-shot and in place. New fork-race tests per path failed first (exec-relay 3/3, claude-controller 3/3, runner-models 3/3), then GREEN 3/3 each; command tests on the shared fixture still fail on bf3f31c, c6c67e4, 6ab8aa2 and pass 6/6 x3; 25 related files 364/364; typecheck exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-implement-1.md",
+            "src/runners/command.ts",
+            "src/runners/exec-relay.ts",
+            "src/runners/claude-controller.ts",
+            "src/runners/runner-models.ts",
+            "tests/runner-fixture.mjs",
+            "tests/command.test.mjs",
+            "tests/exec-relay.test.mjs",
+            "tests/claude-controller.test.mjs",
+            "tests/runner-models.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-implement-1.md": "03d7ac1dbc24acac9bd2837aed358f418efa17003e853d4f3fa7911d06d30925",
+          "src/runners/command.ts": "936dff522d6e8b24ff3669b650b59a9543613cfd8afb09e2a884723d072600df",
+          "src/runners/exec-relay.ts": "c4744db2ca9b882a70868298aea35af4fe8588d368fcf2550c238d2c75973a62",
+          "src/runners/claude-controller.ts": "17add1c16859f636e773a84309704547e9246273800b086daf06031c201ce9d0",
+          "src/runners/runner-models.ts": "664a7e2b96ec3400652f7450c32d9ec586d578c71c7d43cc74b671584633b124",
+          "tests/runner-fixture.mjs": "e31efafc3841fd8d7c88507e1a73ee481dd2f2675658b716c209741b409b8354",
+          "tests/command.test.mjs": "26af3257a83822bc4e2eda1a36c0ba32010dbb96fc10d6e21eca3a9de142b127",
+          "tests/exec-relay.test.mjs": "0d1be113229c8b1f42fc4536b7c9711439a4827ac50d20a9a5f9422fd5996bab",
+          "tests/claude-controller.test.mjs": "91d367fe7798f32134aafd1a7d6b749282671cf3f95d4a8300a5c235bb972b16",
+          "tests/runner-models.test.mjs": "b2e95990cfb3849cab02c9fdfbb7b28b12de7e847ecb4b6cb67d6e8df2a2f839"
+        }
+      },
+      "workflow-review": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only review of 43c81f1: With fixes. Critical 0. signalGroup and all four call sites correct, stop sequences kept, RED confirmed for all three new tests and an unref mutation caught by the two separate-caller tests. Important 1: solutions doc still lists the three call sites as open and points at the old code. Minor 2: runner-models test margin depends on ten serially started shim copies. Minor 3: note requalification in the PR.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: update docs/solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md (follow-up resolved via signalGroup, current line refs, why forkLoop uses kill -9) and make the runner-models fork-race test use one binary in ten homes so no loop can end before the kill."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-review-1.md": "3f56f7dd5b7bd03423e62b6926b949c590aa1593ce4ae4f4f8f4815a573ed1be"
+        },
+        "error": "implement: update docs/solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md (follow-up resolved via signalGroup, current line refs, why forkLoop uses kill -9) and make the runner-models fork-race test use one binary in ten homes so no loop can end before the kill."
+      },
+      "workflow-verify": {
+        "status": "pending",
+        "attempts": 0,
+        "revision": 0
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "0924c359a1ee815adbed487ebc527ff8be6176d95acdc31424fd5a5a606ca85d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:45:55.580Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:02:35.141Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "exec-relay, claude-controller and runner-models stop paths now send their group SIGKILL through a shared signalGroup (command.ts), which repeats a successful SIGKILL every 20 ms until kill fails or 250 tries on a ref'd timer, as runCommand did; SIGTERM steps stay one-shot and in place. New fork-race tests per path failed first (exec-relay 3/3, claude-controller 3/3, runner-models 3/3), then GREEN 3/3 each; command tests on the shared fixture still fail on bf3f31c, c6c67e4, 6ab8aa2 and pass 6/6 x3; 25 related files 364/364; typecheck exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-implement-1.md",
+            "src/runners/command.ts",
+            "src/runners/exec-relay.ts",
+            "src/runners/claude-controller.ts",
+            "src/runners/runner-models.ts",
+            "tests/runner-fixture.mjs",
+            "tests/command.test.mjs",
+            "tests/exec-relay.test.mjs",
+            "tests/claude-controller.test.mjs",
+            "tests/runner-models.test.mjs"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-implement-1.md": "03d7ac1dbc24acac9bd2837aed358f418efa17003e853d4f3fa7911d06d30925",
+          "src/runners/command.ts": "936dff522d6e8b24ff3669b650b59a9543613cfd8afb09e2a884723d072600df",
+          "src/runners/exec-relay.ts": "c4744db2ca9b882a70868298aea35af4fe8588d368fcf2550c238d2c75973a62",
+          "src/runners/claude-controller.ts": "17add1c16859f636e773a84309704547e9246273800b086daf06031c201ce9d0",
+          "src/runners/runner-models.ts": "664a7e2b96ec3400652f7450c32d9ec586d578c71c7d43cc74b671584633b124",
+          "tests/runner-fixture.mjs": "e31efafc3841fd8d7c88507e1a73ee481dd2f2675658b716c209741b409b8354",
+          "tests/command.test.mjs": "26af3257a83822bc4e2eda1a36c0ba32010dbb96fc10d6e21eca3a9de142b127",
+          "tests/exec-relay.test.mjs": "0d1be113229c8b1f42fc4536b7c9711439a4827ac50d20a9a5f9422fd5996bab",
+          "tests/claude-controller.test.mjs": "91d367fe7798f32134aafd1a7d6b749282671cf3f95d4a8300a5c235bb972b16",
+          "tests/runner-models.test.mjs": "b2e95990cfb3849cab02c9fdfbb7b28b12de7e847ecb4b6cb67d6e8df2a2f839"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:02:59.738Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:18:11.837Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Independent read-only review of 43c81f1: With fixes. Critical 0. signalGroup and all four call sites correct, stop sequences kept, RED confirmed for all three new tests and an unref mutation caught by the two separate-caller tests. Important 1: solutions doc still lists the three call sites as open and points at the old code. Minor 2: runner-models test margin depends on ten serially started shim copies. Minor 3: note requalification in the PR.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: update docs/solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md (follow-up resolved via signalGroup, current line refs, why forkLoop uses kill -9) and make the runner-models fork-race test use one binary in ten homes so no loop can end before the kill."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-review-1.md": "3f56f7dd5b7bd03423e62b6926b949c590aa1593ce4ae4f4f8f4815a573ed1be"
+        },
+        "error": "implement: update docs/solutions/runtime-errors/macos-fork-escapes-one-shot-process-group-sigkill.md (follow-up resolved via signalGroup, current line refs, why forkLoop uses kill -9) and make the runner-models fork-race test use one binary in ten homes so no loop can end before the kill."
+      }
+    }
+  ]
+}

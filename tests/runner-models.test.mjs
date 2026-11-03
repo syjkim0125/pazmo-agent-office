@@ -8,7 +8,7 @@ import {
   writeCodexCatalog,
 } from "../src/runners/runner-models.ts";
 import { digest } from "../src/core/candidates.ts";
-import { fakeNative, tempRoot } from "./runner-fixture.mjs";
+import { fakeNative, forkLoop, leftInGroups, tempRoot } from "./runner-fixture.mjs";
 
 const catalog = {
   models: [
@@ -287,6 +287,38 @@ test("a claude that ignores SIGTERM too is killed once its 12 s grace runs out",
   t.mock.timers.tick(1);
   assert.deepEqual((await found).models, [{ slug: "default" }]);
   assert.throws(() => process.kill(fx.pid(), 0), { code: "ESRCH" });
+});
+
+// Its SIGKILL comes only after 15 s of grace, so unlike tests/command.test.mjs
+// this caller is the test itself, with the grace ticked: ten claudes that
+// ignore the end of their input and SIGTERM fork children until it runs out,
+// so the kill lands mid-fork. They share one binary in ten homes: each new
+// copy of the native shim takes about 0.2 s to start the first time, one copy
+// after another, so the first fakes could end their loops before the last
+// one got going.
+test("a claude killed after its grace while it forks leaves no process in its group", { timeout: 15000 }, async (t) => {
+  const binary = fakeNative(
+    join(tempRoot(), "claude"),
+    `echo $$ > "$HOME/pid"
+trap 'touch "$HOME/term"' TERM
+read line
+read second
+echo '${JSON.stringify(modelsResponse)}'
+echo '${JSON.stringify(noHooks)}'
+cat >/dev/null
+touch "$HOME/eof"
+${forkLoop("sleep 5 >/dev/null")}\n`,
+  );
+  const homes = Array.from({ length: 10 }, () => tempRoot());
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const found = Promise.all(homes.map((home) => claudeModels(binary, home)));
+  for (const home of homes) await reached(join(home, "eof"), t.signal);
+  t.mock.timers.tick(3000);
+  for (const home of homes) await reached(join(home, "term"), t.signal);
+  t.mock.timers.tick(12000);
+  for (const { models } of await found) assert.deepEqual(models, [{ slug: "default" }]);
+  const groups = new Set(homes.map((home) => readFileSync(join(home, "pid"), "utf8").trim()));
+  assert.equal(await leftInGroups(groups), 0, "no forked child may outlive the stopped claude");
 });
 
 test("a single-model codex catalog is written once and identified by digest", () => {

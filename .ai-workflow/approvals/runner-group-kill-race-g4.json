@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61",
+  "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04",
+  "runId": "cd6a38c4-fd7b-4719-a507-d56a83d63638",
+  "responseRef": "Claude Code conversation 2026-11-03 (a second session that took over after the first hit its usage limit): after reading the G4 explainer https://claude.ai/artifact/1UAfG94c4BVErALtVwJjrH (version 1) and the D39 explainer, the user answered \"둘 다 ① 승인 후 머지\". Record: .ai-workflow/approvals/runner-group-kill-race-g4.md",
+  "branch": "claude/runner-group-kill-race",
+  "head": "d05d554",
+  "date": "2026-11-03"
+}
