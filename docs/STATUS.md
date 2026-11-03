@@ -8,7 +8,8 @@
 - kit 실행 `.ai-workflow/runs/U29-team-story-task-mode-merge.json`(main #57을 합친 뒤, 앞선 `U29-team-story-task-mode-replan.json`을 이음): implement·workflow-review·workflow-verify 기록, 다음은 G4다. 10-30에 시작한 U26 실행은 main의 #51과 번호가 겹쳐 U29로 옮겼고, main을 합치며 Story가 바뀌어 새 실행으로 대신했다.
 - 자동 검사: root `npm test` **1275/1275** exit 0(최종 리뷰 수정 뒤; Task 9 수정 뒤 1258/1258, Task 8 끝은 1247/1247), 팀 시험 300/300, 타입 검사 exit 0, Story 검사기 exit 0. git은 로컬 repo·bare repo, `gh`는 가짜 실행 파일, VM은 가짜 실행 환경이다. 최종 리뷰의 재현 시험 4개는 저장소 시험으로 옮겨 고치기 전에 실패하는 것을 봤다.
 - 실제 확인 1차(2026-11-02–03, 로컬 Hub·GitHub private 시험 repo 두 개·VM·claude): Story 하나의 Task 3개가 가져가기 → VM 구현·리뷰·검증 → push → PR → 머지 커밋 → Hub 보고까지 Task마다 약 1.5분에 끝났다. 등록한 repo 폴더는 그대로였고 원격에는 Task 브랜치만 생겼다. `gh`는 설정 폴더 환경 변수 없이 로그인을 찾았다. 잠긴 시작은 ready Task를 가져가지 않았고, 할 일 없는 live Office는 실행기를 약 5분에 한 번 확인했다. **찾은 것:** 사용 한도에 걸린 claude도 가져가기를 막지 못하고 시도를 몇 초 만에 쓰며, 그 이유는 `ENGINEER_FAILED`로만 보인다. 새 파일만 바뀐 Task의 3줄 요약이 "변경 없음"으로 나온다(main부터 있던 `changeSummary`의 diff 머리줄 해석). [실제 확인 기록](verification/2026-11-03-team-story-task-mode-real-check.md)
-- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 1차에서 찾은 것의 처리, G4, 4단계(PL)·5단계(화면).** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
+- PR syjkim0125/pazmo-agent-office#59. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-team-story-task-mode-g4.md)
+- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 사용 한도에 걸린 실행기 처리(별도 작업), 4단계(PL)·5단계(화면). 팀원에게 쓰라고 안내하는 것은 2차 확인 뒤다.** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
 
 # 2026-11-02 팀 Story 보드 보완 (D35, A)
 
