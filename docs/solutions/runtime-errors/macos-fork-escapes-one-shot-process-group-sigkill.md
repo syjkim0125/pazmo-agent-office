@@ -62,7 +62,7 @@ Details that matter:
 - **Pid reuse is not widened.** The timer keeps going only while a kill succeeds, which means the group still exists and its id cannot be reused. Once the group is gone, the next tick fails and the timer stops.
 - **Repeat only SIGKILL.** A claude role run's cancel or timeout, and model discovery after it closes stdin, send SIGTERM first, so that the CLI's exit handler releases its OAuth refresh lock ([stop-claude-model-discovery-without-sigkill.md](../integration-issues/stop-claude-model-discovery-without-sigkill.md)). Stops that Office refuses, and stops after the CLI has exited, SIGKILL at once. `signalGroup` sends any other signal once, and those stops keep their order.
 
-After the fix, the original shape through `runCommand` gave 0 slow of 10000 runs. The full suite passed 1278/1278. The `runCommand` fix was merged in syjkim0125/pazmo-agent-office#67. The other three stops followed on branch `claude/runner-group-kill-race`.
+After the fix, the original shape through `runCommand` gave 0 slow of 10000 runs. The full suite passed 1278/1278. The `runCommand` fix was merged in syjkim0125/pazmo-agent-office#67. The other three stops followed in syjkim0125/pazmo-agent-office#70.
 
 ## Why This Works
 `kill(-pgid, sig)` signals the processes that are in the group at that instant. A child still being created when the signal is delivered is not reached (seen on macOS; the reviewer notes that Linux's fork checks for a pending group signal, which was not tested here). Once created, the child is an ordinary group member, so the next group kill reaches it. Repeating until `kill` fails ends exactly when the group is empty. That also covers an escapee that forks again, at the cost of one more tick per generation.

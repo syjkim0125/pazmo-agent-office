@@ -16,7 +16,7 @@
   - 독립 리뷰 2차도 With fixes였다(Critical·Important 0). 2차를 처음 맡은 리뷰어는 세션이 사용 한도에 걸려 끊겨서, 다른 계정의 세션이 새 리뷰어에게 맡겼다. 문서 Minor 3건을 고쳤다: 낡은 줄 번호, 리베이스 전 시험 수, SIGTERM을 먼저 보내는 경우를 넓게 쓴 문구, 근거 없던 시간 수치(잰 반복 횟수로 바꿈).
   - 고친 문서만 본 리뷰는 STATUS 문구 Minor 2건을 짚었고, 리뷰 시도를 아끼려고 전달 커밋에서 고쳤다.
 - kit: 처음 run `runner-group-kill-race.json`(kit 4.1.0, implement·리뷰 1차)은 main #65(kit 5)를 합친 뒤 읽기 전용이 됐다. v3 run `runner-group-kill-race-v3.json`으로 다시 돈다.
-- G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 D39와 함께 "둘 다 ① 승인 후 머지"를 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/runner-group-kill-race-g4.md)
+- PR syjkim0125/pazmo-agent-office#70. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 D39와 함께 "둘 다 ① 승인 후 머지"를 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/runner-group-kill-race-g4.md)
 - **남은 것:**
   - SIGTERM은 여전히 한 번만 보낸다. 그래서 그 순간 fork되던 자식은 SIGTERM을 받지 못한다. 역할 실행에서는 뒤따르는 SIGKILL이 그 자식을 죽인다. 모델 조회는 claude가 유예 시간 안에 끝나면 SIGKILL을 보내지 않는다(전부터 그랬다).
   - Linux와 실제 CLI는 확인하지 않았다.
