@@ -1,20 +1,26 @@
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { fail, locate } from "../cli/project.ts";
+import { OfficeError, fail, locate } from "../cli/project.ts";
 import { createLeanOffice } from "../lean/office.ts";
 import type { LeanConfig, LeanOffice } from "../lean/office.ts";
 import { openLeanDb } from "../lean/schema.ts";
 import { readLinkConfig } from "../runtime/hub-link.ts";
+import type { LiveConfig } from "../runtime/live.ts";
+import { loadRunnerCatalog } from "../runtime/runner-settings.ts";
+import type { RunnerCatalog } from "../runtime/runner-settings.ts";
+import { STORY_CHECKOUT } from "./branch.ts";
+import { branchOps, createExecutor, prOps } from "./executor.ts";
+import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
 import type { GhResult } from "./gh.ts";
 import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
 import { openTeamStore } from "./store.ts";
-import type { TeamStore } from "./store.ts";
+import type { ClaimPhase, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
-import type { StoryLink } from "./story-link.ts";
+import type { OpenTaskRef, StoryLink } from "./story-link.ts";
 
 /** How often the Office tries to claim a Task. */
 const CLAIM_MS = 30000;
@@ -22,15 +28,40 @@ const CLAIM_MS = 30000;
 const BEAT_MS = 60000;
 /** How often a repo that is not ready (no link, gh, a link the Hub refused) is checked again. */
 const RECHECK_MS = 300000;
+/** How often the open record is taken one phase further, besides each settle of a repo engine. */
+const DRIVE_MS = 10000;
+/** Where a repo's Story engine works, in the repo's data directory: the Office's own checkout of the repo
+ * (a linked worktree) and the engine's data. The repo's `lean/` data is never opened. */
+const CHECKOUT_DIR = STORY_CHECKOUT;
+const STORY_DIR = "story";
+/** How long one runner discovery serves every repo engine, as one engine reuses its own. */
+const DISCOVERY_TTL_MS = 5000;
 
 export type TeamStatus = {
   repos: { project: string; remote: string; state: RepoLane["state"]; gh: GhResult | null }[];
+  /** `live` once started with `--live` (or `up --team`): only then are Tasks claimed and run. */
+  execution: "live" | "locked";
   paused: boolean;
   dailyCap: number | null;
   today: number;
-  claim: { storyNumber: number; taskNumber: number; title: string; project: string } | null;
+  claim: {
+    storyNumber: number;
+    taskNumber: number;
+    title: string;
+    project: string;
+    phase: ClaimPhase;
+    attempts: number;
+  } | null;
+  /** The open Task of this person's that the latest claim reply named as keeping the Hub from giving another. */
+  blockedBy: OpenTaskRef | null;
   busy: boolean;
 };
+
+/** The status in the lifecycle's own words for execution (`status --team`): a live team Office is `ready`, as
+ * `up --team` (its reuse check) and a later `start --team --live` (its EXECUTION_LOCKED check) compare it. */
+export function lifecycleView(status: TeamStatus): Omit<TeamStatus, "execution"> & { execution: "ready" | "locked" } {
+  return { ...status, execution: status.execution === "live" ? "ready" : "locked" };
+}
 
 export type TeamOffice = {
   status(): TeamStatus;
@@ -46,20 +77,29 @@ export type TeamConfig = {
   /** The canonical data root (`dataRoot`): the registry and `<root>/team` live there. */
   root: string;
   token: string;
-  /** Tests only: a runtime for the repo engines, so the shared gate can be
-   * exercised. There is no live configuration here: stage 2 opens every repo
-   * engine locked, even under `start --team --live` / `up --team`; stage 3
-   * turns execution on together with the Story Task mode. */
+  /** What `start --team --live` and `up --team` run with. Every repo's Story engine gets it, and only then
+   * does the Office claim and run Tasks. Without it every engine opens locked, no git runs on the repos and
+   * nothing is claimed. */
+  live?: LiveConfig;
+  /** Tests only: the engines' runtime in place of the live one (the shared gate and the Story engine are
+   * exercised with a fake). It does not unlock execution: that is `live`. */
   createRuntime?: LeanConfig["createRuntime"];
   runnerCatalog?: LeanConfig["runnerCatalog"];
   now?: () => number;
   /** The Story link of a repo from its data directory; default: its hub-link.json. */
   linkOf?: (dataDir: string) => StoryLink | null;
-  /** The gh login for a Git host; default: `gh auth status --hostname` with this process's PATH and HOME. */
+  /** The gh login for a Git host; default: `gh auth status --hostname` with `host`'s PATH and HOME. */
   ghOf?: (host: string) => Promise<GhResult>;
+  /** The person's own HOME and PATH (and ssh agent) for the host git and gh of a Story Task; default: this
+   * process's. */
+  host?: { home: string; pathEnv: string; sshAuthSock?: string };
+  /** Tests only: the host git and gh steps; default: `branchOps(host)` and `prOps(host)`. */
+  git?: BranchOps;
+  pr?: PrOps;
   claimMs?: number;
   beatMs?: number;
   recheckMs?: number;
+  driveMs?: number;
   /** Where the Office's lines go; default: stderr (the Office log). */
   log?: (line: string) => void;
 };
@@ -142,6 +182,38 @@ export function sharedGate(log: (line: string) => void) {
   };
 }
 
+/** One runner discovery at a time for every repo engine, reused for DISCOVERY_TTL_MS: they all ask about the
+ * same CLIs on this Mac, and a live start would otherwise run one per repo (seconds each) before it is ready.
+ * While `hold(true)` (the start), a kept discovery is reused however old, so one serves the whole start. A
+ * failed discovery is neither kept nor reused. */
+function sharedDiscovery(
+  discover: (home?: string, pathEnv?: string) => Promise<RunnerCatalog>,
+  now: () => number,
+) {
+  let kept: { at: number; catalog: RunnerCatalog } | undefined;
+  let flight: Promise<RunnerCatalog> | undefined;
+  let held = false;
+  return {
+    load(home?: string, pathEnv?: string): Promise<RunnerCatalog> {
+      if (flight) return flight;
+      if (kept && (held || now() - kept.at < DISCOVERY_TTL_MS)) return Promise.resolve(kept.catalog);
+      const started = discover(home, pathEnv).then((catalog) => {
+        kept = { at: now(), catalog };
+        return catalog;
+      });
+      flight = started;
+      const settled = () => {
+        if (flight === started) flight = undefined;
+      };
+      started.then(settled, settled);
+      return started;
+    },
+    hold(on: boolean): void {
+      held = on;
+    },
+  };
+}
+
 function defaultLinkOf(dataDir: string): StoryLink | null {
   const config = readLinkConfig(dataDir);
   return config ? storyLink(config) : null;
@@ -150,12 +222,18 @@ function defaultLinkOf(dataDir: string): StoryLink | null {
 const stateOf = (lane: RepoLane): RepoLane["state"] => (!lane.link ? "no-link" : lane.gh?.ok ? "ready" : "gh");
 
 /**
- * The team Office: one lean engine per registered repo, on that repo's own
- * lean data, tied to one run at a time; and the claim scheduler over one lane
- * per repo. Claims every `claimMs`, sends the open claim's heartbeat every
- * `beatMs`, and checks the repos that are not ready again every `recheckMs`.
- * Stage 2 records a claimed Task and keeps it alive; it does not run it, and
- * every repo engine opens locked (no live runtime, no default agent).
+ * The team Office: one Story engine per registered repo, on the Office's own
+ * checkout of that repo (`<repo dataDir>/story-checkout`, data in
+ * `<repo dataDir>/story`), tied to one run at a time; the claim scheduler over
+ * one lane per repo; and the executor that runs the claimed Task. Claims every
+ * `claimMs` (only when live, with every engine's runners ready and no open
+ * record), sends the open claim's heartbeat every `beatMs`, checks the repos
+ * that are not ready again every `recheckMs`, and drives the open record when an
+ * engine settles and every `driveMs`. A live start drives the open record at
+ * once; until that first drive settles, a heartbeat answered NOT_YOURS does not
+ * drop a verified or merging record. Without `live` the engines open locked and the
+ * open record, if any, waits: only its heartbeat goes on (a failed one is read
+ * instead), and a verified or merging one gets neither heartbeat nor drop.
  */
 export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   const sink = c.log ?? ((line: string) => console.error(line));
@@ -173,11 +251,29 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   // Before anything opens: `locate` would fail on a missing folder with a bare ENOENT.
   assertReposPresent(repos);
   const linkOf = c.linkOf ?? defaultLinkOf;
-  const ghOf =
-    c.ghOf ?? ((host: string) => ghStatus(host, { pathEnv: process.env.PATH ?? "", home: homedir() }));
+  const hostEnv = c.host ?? { home: homedir(), pathEnv: process.env.PATH ?? "" };
+  const ghOf = c.ghOf ?? ((gitHost: string) => ghStatus(gitHost, hostEnv));
+  const git = c.git ?? branchOps(hostEnv);
+  const pr = c.pr ?? prOps(hostEnv);
+  const live = c.live !== undefined;
+  const clock = c.now ?? Date.now;
+  const recheckMs = c.recheckMs ?? RECHECK_MS;
+  const discovery = sharedDiscovery(c.runnerCatalog ?? loadRunnerCatalog, clock);
+  // Released once the start has checked the runners.
+  discovery.hold(true);
 
   const gate = sharedGate(log);
-  type Engine = { project: string; member: GateMember; db: DatabaseSync; office?: LeanOffice };
+  type Engine = {
+    /** The registered repo. */
+    project: string;
+    remote: string;
+    checkout: string;
+    member: GateMember;
+    db: DatabaseSync;
+    office?: LeanOffice;
+    /** The engine's default agent, which runs its Story Tasks (live only). */
+    agentId?: string;
+  };
   const engines: Engine[] = [];
   const lanes: RepoLane[] = [];
   /** Where each lane's link file is, and its Git host (null when gh cannot be asked about it). */
@@ -186,6 +282,10 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let stopped = false;
   let store: TeamStore | undefined;
   let closing: Promise<void> | undefined;
+  /** Made once the engines are open: their settle drives it. */
+  let executor: Executor | undefined;
+  /** Whether the first drive after a live start has settled (a locked Office drives nothing). */
+  let firstDriven = !live;
 
   function stopTimers() {
     stopped = true;
@@ -258,26 +358,41 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     const checks = new Map<string, Promise<GhResult | null>>();
     for (const { host } of located) if (host && !checks.has(host)) checks.set(host, checkGh(host));
 
-    for (const { p } of located) {
+    for (const { p, remote } of located) {
+      const checkout = join(p.dataDir, CHECKOUT_DIR);
+      const data = join(p.dataDir, STORY_DIR);
+      // A live engine's runtime checks that its project is a git top level, so the checkout comes first. A
+      // locked Office runs no git on the repos: its engines only read their data.
+      // One repo whose checkout cannot be made (no commit yet, git not on the person's PATH) fails the start.
+      if (live)
+        await git.ensureCheckout(p.project, checkout).catch((error: unknown) =>
+          fail(
+            error instanceof OfficeError ? error.code : "GIT_FAILED",
+            `The Story checkout of ${p.project} could not be made: ${error instanceof Error ? error.message : String(error)}`,
+          ),
+        );
       const member = gate.join(p.project);
-      const engine: Engine = { project: p.project, member, db: openLeanDb(p.dataDir, p.project) };
+      const engine: Engine = { project: p.project, remote, checkout, member, db: openLeanDb(data, checkout) };
       engines.push(engine);
       engine.office = await createLeanOffice({
         db: engine.db,
-        project: p.project,
-        // The repo's own lean data, as its single lean Office uses it.
-        dataDir: join(p.dataDir, "lean"),
+        project: checkout,
+        dataDir: data,
         token: c.token,
-        // No live runtime and no default agent: stage 2 opens every engine
-        // locked, so lean work left in a registered repo waits untouched
-        // instead of running where nobody can see, cancel or answer it.
+        live: c.live,
         createRuntime: c.createRuntime,
-        runnerCatalog: c.runnerCatalog,
+        runnerCatalog: (home, pathEnv) => discovery.load(home, pathEnv),
         now: c.now,
         othersActive: member.othersActive,
-        onSettled: () => void member.onSettled(),
+        // The other engines' turn and the drive start together; the gate's othersActive keeps one run at a time.
+        onSettled: () => {
+          void member.onSettled();
+          if (live && !stopped) void executor?.drive();
+        },
       });
       member.attach(engine.office);
+      // A Story Task needs an agent; the engine's runners are checked against it before each claim.
+      if (live) engine.agentId = (await engine.office.agents.ensureDefault()).id;
     }
 
     const gh = new Map<string, GhResult | null>();
@@ -301,7 +416,86 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   }
   const teamStore = store;
 
-  const scheduler = createClaimScheduler({ lanes, store: teamStore, busy: () => gate.busy(), log });
+  function engineOf(project: string): Engine {
+    return (
+      engines.find((engine) => engine.project === project) ??
+      fail("NOT_FOUND", "The open Story Task's repo is not registered in the team Office.")
+    );
+  }
+  const ex = createExecutor({
+    store: teamStore,
+    engineOf: (project) => engineOf(project).office!,
+    linkOf: (project) => lanes.find((lane) => lane.project === project)?.link ?? null,
+    git,
+    pr,
+    checkoutOf: (project) => engineOf(project).checkout,
+    remoteOf: (project) => engineOf(project).remote,
+    agentOf: (project) =>
+      engineOf(project).agentId ?? fail("EXECUTION_LOCKED", "Start the team Office with --live to run Story Tasks."),
+    log,
+    now: c.now,
+  });
+  executor = ex;
+
+  /** Whether every repo engine's agent has its runners logged in and installed, as of the last check, and when
+   * that was. */
+  let runnersReady = false;
+  let runnersCheckedAt: number | null = null;
+  let runnersNote: string | null = null;
+  /** Asks every engine whether its agent's runners pass today's discovery (one discovery serves them all). One
+   * line each time the answer changes, naming the runners that are not ready. */
+  async function checkRunners(): Promise<void> {
+    const waiting: string[] = [];
+    for (const engine of engines) {
+      let ready = false;
+      try {
+        ready = engine.agentId !== undefined && (await engine.office!.agents.runnersReady(engine.agentId));
+      } catch (error) {
+        log(`team: ${engine.project}: its runners could not be checked (${describe(error)})`);
+      }
+      if (ready) continue;
+      // The agent is the engine's default one, fixed when it was made: name its runners, to log in to.
+      const agent = engine.office!.agents.list().find((a) => a.id === engine.agentId);
+      waiting.push(agent ? `${engine.project} (work ${agent.work.runner}, review ${agent.review.runner})` : engine.project);
+    }
+    runnersReady = waiting.length === 0;
+    runnersCheckedAt = clock();
+    const note = runnersReady
+      ? "team: every repo's runners are ready; claiming again"
+      : `team: not claiming: the runners of ${waiting.join(", ")} are not ready; log in to those CLIs on this Mac`;
+    // The first ready answer says nothing: claiming is what a live Office does.
+    if (note !== runnersNote && !(runnersNote === null && runnersReady)) log(note);
+    runnersNote = note;
+  }
+  /** Whether the scheduler would ask the Hub for a claim now, the runners aside: the same order of checks. */
+  function claimCouldFollow(): boolean {
+    if (teamStore.openClaim() !== null) return false;
+    const { paused, dailyCap } = teamStore.settings();
+    if (paused || (dailyCap !== null && teamStore.claimedToday() >= dailyCap)) return false;
+    if (gate.busy()) return false;
+    return lanes.some((lane) => lane.state === "ready" && lane.link !== null);
+  }
+  /** Before a claim tick: the runners are checked only when a claim could follow, and then at once while they
+   * were last found not ready, else once every `recheckMs` (a discovery starts the codex and claude CLIs). */
+  async function runnersBeforeTick(): Promise<void> {
+    if (!live || !claimCouldFollow()) return;
+    if (runnersReady && runnersCheckedAt !== null && clock() - runnersCheckedAt < recheckMs) return;
+    await checkRunners();
+  }
+
+  // A Task is claimed only when it can run here: live, every engine's runners ready, and no record open.
+  const scheduler = createClaimScheduler({
+    lanes,
+    store: teamStore,
+    busy: () => gate.busy(),
+    canExecute: () => live && runnersReady && teamStore.openClaim() === null,
+    stageOf: (open) => ex.stageOf(open),
+    onDropped: (open, reason) => ex.onDropped(open, reason),
+    // Until the start's first drive has settled, a verified or merging record may hold a merged PR whose claim the
+    // PL released: that drive's late report needs the record, so a heartbeat NOT_YOURS leaves it in place.
+    keepOnNotYours: (open) => !firstDriven && (open.phase === "verified" || open.phase === "merging"),
+    log,
+  });
 
   /** The lanes that are not ready, worked out again in place (the scheduler
    * holds these same objects): the link file is read again, gh is asked again
@@ -346,9 +540,46 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     timer.unref();
     timers.push(timer);
   }
-  every(c.claimMs ?? CLAIM_MS, "claim tick", () => scheduler.tick());
-  every(c.beatMs ?? BEAT_MS, "heartbeat", () => scheduler.beat());
-  every(c.recheckMs ?? RECHECK_MS, "repo check", recheck);
+  // The start's own runner check, on the start's one discovery; later checks run their own.
+  if (live) await checkRunners();
+  discovery.hold(false);
+
+  /** A locked Office leaves a record that may hold a merged PR (verified, merging) for a live start: a heartbeat
+   * answered NOT_YOURS would drop it with nothing pending, and the merge would never be reported. A live
+   * start drives it at once and keeps it through a NOT_YOURS until that drive settles. One line per claim. */
+  const leftForLive = new Set<string>();
+  function holdsForLive(): boolean {
+    if (live) return false;
+    const open = teamStore.openClaim();
+    if (!open || (open.phase !== "verified" && open.phase !== "merging")) return false;
+    if (!leftForLive.has(open.claimId)) {
+      leftForLive.add(open.claimId);
+      log(
+        `team: ${open.project}: story-${open.task.story?.number} task-${open.task.number} is ${open.phase}; no heartbeat and no drop until a start with --live finishes it`,
+      );
+    }
+    return true;
+  }
+
+  // At once, the open record left by the last run (if any) is taken one phase further. Heartbeats do not wait for
+  // it (a re-verify can take the checks' whole time limits, and a Task without heartbeats shows held): until it
+  // settles, `keepOnNotYours` keeps a record left verified or merging whose claim the PL released, so it still
+  // reaches its late merged report; a cancel is honoured by the merge step's own second lock ask.
+  if (live)
+    void ex.drive().then(() => {
+      firstDriven = true;
+    });
+  every(c.claimMs ?? CLAIM_MS, "claim tick", async () => {
+    await runnersBeforeTick();
+    if (stopped) return;
+    return scheduler.tick();
+  });
+  every(c.beatMs ?? BEAT_MS, "heartbeat", async () => {
+    if (stopped || holdsForLive()) return;
+    return scheduler.beat();
+  });
+  every(recheckMs, "repo check", recheck);
+  if (live) every(c.driveMs ?? DRIVE_MS, "drive", () => ex.drive());
 
   return {
     status() {
@@ -356,6 +587,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       const open = teamStore.openClaim();
       return {
         repos: lanes.map(({ project, remote, state, gh }) => ({ project, remote, state, gh })),
+        execution: live ? "live" : "locked",
         paused,
         dailyCap,
         today: teamStore.claimedToday(),
@@ -364,7 +596,10 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
           taskNumber: open.task.number,
           title: open.task.title,
           project: open.project,
+          phase: open.phase,
+          attempts: open.attempts,
         },
+        blockedBy: scheduler.blockedBy(),
         busy: gate.busy(),
       };
     },

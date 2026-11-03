@@ -1,3 +1,16 @@
+# 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 전)
+
+- 팀 Office가 가져온 Story Task를 실제로 돌린다(M16·V18·D24·D34). repo마다 Story 엔진을 **Office 전용 체크아웃**(repo의 git worktree, Office 데이터 폴더의 `story-checkout/`)에 두고 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh`로 Task 브랜치 push → Story base로 PR → Hub 머지 잠금 → 최신 base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub 보고(PR 주소·머지 커밋·3줄 요약·`ASSUMED:` 판단 기록)를 한다.
+- `./office --team`이나 `start --team --live`로 켜고, 모든 repo 엔진의 실행기가 준비되고 열린 기록이 없을 때만 가져간다. 실행기는 켤 때 한 번, 준비돼 있으면 5분마다, 아니면 가져가기마다 확인한다(가져갈 수 없는 동안은 확인하지 않는다). `--live` 없이 켜면 아무것도 가져가지 않고 repo에 git을 돌리지 않으며, 열린 기록은 진행하지 않는다(`verified`·`merging` 기록은 하트비트도 보내지 않고 `--live` 시작에 남긴다). 등록한 repo 폴더는 바뀌지 않는다(worktree 등록과 로컬 Task 브랜치만 생김). push는 `feature/story-<N>/task-<M>` 하나뿐이고 머지는 Story base로만 한다. repo의 기존 lean 데이터는 열지 않는다.
+- 실패: 한 Task는 최대 3번 시도한다(충돌·남은 충돌 표시·재검증 실패·엔진 멈춤·90분 초과·Office 밖에서 바뀐 Task 브랜치가 한 번씩). 한 단계가 3번 연속 실패해도 Hub에 실패로 보고한다. 사람이 PR을 닫으면 새 PR을 열지 않고 바로 실패로 보고한다. 담당자는 `team rerun --memo "<메모>"`로 다시 실행한다(꺼져 있어도 됨, 실패한 기록이 없으면 `NO_FAILED_CLAIM`). 다시 켜면 바로 기록의 단계부터 이어 하고, 보고는 Hub가 받을 때까지 다시 보낸다. Hub가 끝내 거절한 보고의 claim은 다시 가져오지 않고 PL에게 맡긴다.
+- `status --team`에 `claim.phase`·`attempts`와 `blockedBy`(Hub가 새 Task를 주지 않게 막는 이 사람의 열린 Task)가 나온다. 2단계 실제 확인의 찾은 것 1이 이것으로 보인다.
+- 리뷰: Task 1–8은 Task별 독립 리뷰를 마쳤다(1·2·5는 한 번에, 3·4·6·7은 수정 1회, 8은 수정 2회 뒤 통과). Task 9는 수정 1회 뒤 통과했다. 최종 전체 브랜치 리뷰는 Critical 0, Important 4, Minor 7이었고 모두 고쳤다: 검증·push한 head에서만 머지(다른 사람이 Task 브랜치에 push하면 시도 실패), 사람이 닫은 PR은 멈춤(새 PR 없이 실패 보고), 재검증 중 PL 취소·풀기는 머지 직전 잠금 재확인으로 막고 하트비트는 첫 구동을 기다리지 않음, Hub가 끝내 거절한 보고의 claim을 다시 가져오지 않음(끝없는 고리 제거). 그 수정의 재리뷰(2026-11-02)는 모든 지적을 해결로 판정했다(재현 시험 4/4·변형 8/8 통과, 고치기 전 실패 확인, 새 Critical·Important 없음).
+- kit 실행 `.ai-workflow/runs/U29-team-story-task-mode-merge.json`(main #57을 합친 뒤, 앞선 `U29-team-story-task-mode-replan.json`을 이음): implement·workflow-review·workflow-verify 기록, 다음은 G4다. 10-30에 시작한 U26 실행은 main의 #51과 번호가 겹쳐 U29로 옮겼고, main을 합치며 Story가 바뀌어 새 실행으로 대신했다.
+- 자동 검사: root `npm test` **1275/1275** exit 0(최종 리뷰 수정 뒤; Task 9 수정 뒤 1258/1258, Task 8 끝은 1247/1247), 팀 시험 300/300, 타입 검사 exit 0, Story 검사기 exit 0. git은 로컬 repo·bare repo, `gh`는 가짜 실행 파일, VM은 가짜 실행 환경이다. 최종 리뷰의 재현 시험 4개는 저장소 시험으로 옮겨 고치기 전에 실패하는 것을 봤다.
+- 실제 확인 1차(2026-11-02–03, 로컬 Hub·GitHub private 시험 repo 두 개·VM·claude): Story 하나의 Task 3개가 가져가기 → VM 구현·리뷰·검증 → push → PR → 머지 커밋 → Hub 보고까지 Task마다 약 1.5분에 끝났다. 등록한 repo 폴더는 그대로였고 원격에는 Task 브랜치만 생겼다. `gh`는 설정 폴더 환경 변수 없이 로그인을 찾았다. 잠긴 시작은 ready Task를 가져가지 않았고, 할 일 없는 live Office는 실행기를 약 5분에 한 번 확인했다. **찾은 것:** 사용 한도에 걸린 claude도 가져가기를 막지 못하고 시도를 몇 초 만에 쓰며, 그 이유는 `ENGINEER_FAILED`로만 보인다. 새 파일만 바뀐 Task의 3줄 요약이 "변경 없음"으로 나온다(main부터 있던 `changeSummary`의 diff 머리줄 해석). [실제 확인 기록](verification/2026-11-03-team-story-task-mode-real-check.md)
+- PR syjkim0125/pazmo-agent-office#59. G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문의 답은 컨트롤러가 썼다(사용자는 기록 전에 보지 않음). [G4 기록](verification/2026-11-03-team-story-task-mode-g4.md)
+- **남은 것: 실제 확인 2차(충돌·재검증 실패, 단계 사이 끄고 켜기, ssh push·커밋 서명, PR의 "Commit suggestion", 닫은 PR, 재검증 중 취소, 머지 커밋을 막은 repo), 사용 한도에 걸린 실행기 처리(별도 작업), 4단계(PL)·5단계(화면). 팀원에게 쓰라고 안내하는 것은 2차 확인 뒤다.** [검증 기록](verification/2026-11-02-team-story-task-mode.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-30-1500-feat-team-story-task-mode-plan.md)
+
 # 2026-11-02 팀 Story 보드 보완 (D35, A)
 
 - 제품 코드는 바꾸지 않았다. 끝난 사내 이관 작업 한 단계로 PL planning을 블라인드 시험했다. 결과에 따라 보완 다섯 가지를 정했다(사용자 선택 A, "A로 가자"). [결정 10장](understanding/team-story-board-decision.md#10-보완-2026-11-02-d35-사용자-선택-a)
@@ -123,7 +136,7 @@
 - G4는 2026-10-29 "피드백 확인 후 승인"으로 기록했다(초안 승인, ① 푸시·PR, 머지는 사용자가 정함). [G4 기록](verification/2026-10-29-team-story-office-repos-g4.md)
 - **팀이 아직 쓸 수 없다.** 가져온 Task를 실행하지 않는다(3단계). PL의 Story 올리기(4단계)와 화면(5단계)도 없다.
 - 실제 확인(2026-10-30, main `ebef236`): 로컬 Hub와 시험 repo 세 개(github.com, 회사 GHE, gh 로그인 없는 호스트)로 16개를 확인했고, 모두 기대대로 동작했다. 등록·중복 거절, 상태, 가져가기 순서, 하트비트, 재시작과 응답을 잃은 경우의 이어 받기, PL 취소, 멈춤, 하루 상한, 켜진 동안의 연결과 5분 재확인, `REPO_MISSING`·`REPO_REMOVED`, 보류 뒤 PL 풀기, 하트비트 404다. **찾은 것:** repo 빼기(`REPO_REMOVED`)나 하트비트 404는 로컬 기록만 버리고 Hub에는 그 Task가 이 사람의 claim으로 남는다. 그래서 PL이 풀거나 취소할 때까지(풀기는 10분 보류 뒤) 팀 Office가 다른 Task도 가져가지 않는다. 그동안 `status --team`과 로그에 이유가 나오지 않는다. app-be는 실제 데이터와 OpenShift 연결을 건드리지 않으려고 쓰지 않았다. [실제 확인 기록](verification/2026-10-30-team-story-office-real-check.md)
-- **남은 것:** 위 찾은 것을 어떻게 다룰지 결정, `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-2단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
+- **남은 것:** 위 찾은 것을 어떻게 다룰지 결정, `up --team` 실제 실행, 다른 PC. [검증 기록](verification/2026-10-29-team-story-office-repos.md) · [사용 안내](LOCAL-PREVIEW.md#팀-office-3단계-시험) · [구현 계획](plans/2026-10-27-1730-feat-team-story-office-repos-plan.md)
 
 # 2026-10-28 claude 역할을 멈출 때 보안 검사 멈춤은 바로 끝내기
 

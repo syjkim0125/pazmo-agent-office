@@ -1,12 +1,15 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { handleOperator } from "./operator.ts";
 import { randomUUID } from "node:crypto";
-import { realpathSync } from "node:fs";
+import { mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
-import { fail } from "../cli/project.ts";
+import { OfficeError, fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
 import { digest } from "../core/candidates.ts";
+import type { Candidate } from "../core/candidates.ts";
+import type { ContractInput } from "../core/contracts.ts";
+import { freezeWorkspace } from "../core/workspace.ts";
 import { OfficeStore } from "../core/store.ts";
 import { IntakeLedger, planningRetryBudget } from "../core/intake.ts";
 import { VerificationLedger } from "../core/verification.ts";
@@ -25,6 +28,18 @@ import type { HubGateway } from "./hub-outgoing.ts";
 
 /** Shared with WorkflowDecisionContent: text after it is the full record. */
 const DETAIL_MARKER = "\n상세 원문:\n";
+/** The engine's notices that it stopped a task's run and will not start it
+ * again by itself (the texts message() posts below). */
+export const STOP_NOTICES = [
+  /^실행이 멈췄습니다: /, // runtime-error: a run failed
+  /^이 단계는 이미 실행 요청이 기록되어 있습니다\./, // dispatch-held: a run recorded before a restart
+  /^실행을 멈췄습니다: /, // error: starting the run (or ending a Story Task) threw
+  /^작업이 멈췄습니다: /, // blocked: planning stopped with no decision
+];
+type StoryOutcome =
+  | { kind: "running"; stage: "build" | "review" | "verify" }
+  | { kind: "verified"; roundId: string }
+  | { kind: "stopped"; reason: string };
 
 type Task = {
   id: string;
@@ -69,6 +84,11 @@ type Config = {
    * promise is not awaited. A throw is logged here and never reaches the
    * runtime. */
   onSettled?: () => void;
+  /** A Story Task reached its verified candidate and is done (no G4); called
+   * once per round, after its run settled, and not awaited (the engine goes
+   * on). A throw or rejection is logged here: the team Office also reads
+   * storyOutcome. */
+  onVerified?: (taskId: string, round: { id: string; candidate: Candidate }) => void | Promise<void>;
 };
 
 /** Reuses the qualified kit/VM implementation against Claw's original task DB.
@@ -86,13 +106,14 @@ export async function createNativeOffice(c: Config) {
     Date.now,
     intake,
   );
+  const candidates = join(c.dataDir, "candidates");
   const handoffs = new HandoffLedger(
     db,
     store,
     verification,
     execution,
     project,
-    join(c.dataDir, "candidates"),
+    candidates,
   );
   const completion = new CompletionLedger(
     db,
@@ -122,6 +143,7 @@ export async function createNativeOffice(c: Config) {
       binding TEXT NOT NULL UNIQUE,payload TEXT NOT NULL,summary TEXT NOT NULL,created_at INTEGER NOT NULL
     );
     CREATE TABLE IF NOT EXISTS pazmo_hub_requests (hub_key TEXT PRIMARY KEY,task_id TEXT NOT NULL UNIQUE REFERENCES tasks(id),requester TEXT NOT NULL);
+    CREATE TABLE IF NOT EXISTS pazmo_story_tasks (task_id TEXT PRIMARY KEY REFERENCES tasks(id),hub_task_id TEXT NOT NULL,claim_id TEXT NOT NULL);
     CREATE TABLE IF NOT EXISTS pazmo_hub_answers (
       answer_id TEXT PRIMARY KEY,decision_id TEXT NOT NULL,task_id TEXT NOT NULL,member_id TEXT NOT NULL,
       member_name TEXT NOT NULL,note TEXT NOT NULL,at INTEGER NOT NULL,
@@ -257,7 +279,8 @@ export async function createNativeOffice(c: Config) {
     broadcast("task_update", task(id));
   }
   function dispatch(id: string, identity: string, run: () => unknown) {
-    if (!live || closing || live.status().active.length >= 1 || c.othersActive?.()) return;
+    if (!live || closing || live.status().active.length >= 1 || live.status().verifying || c.othersActive?.())
+      return;
     if (
       db
         .prepare("INSERT OR IGNORE INTO pazmo_native_dispatches VALUES (?,?)")
@@ -437,6 +460,24 @@ export async function createNativeOffice(c: Config) {
       }
       for (const item of store.list()) {
         if (["done", "cancelled"].includes(item.status)) continue;
+        if (isStory(item.id)) {
+          // Its G1 was recorded at submission: no G1 or G3 card. It starts at
+          // the Engineer and ends at its verified candidate, never at G4.
+          if (item.ready && item.status === "planned")
+            dispatch(
+              item.id,
+              `implementation:${item.id}:${item.contract.digest}`,
+              () => live!.startImplementation(item.id, item.contract.digest),
+            );
+          const round = verification.latest(item.id);
+          publishVerification(item.id, round);
+          if (
+            round?.state === "awaiting_g4" &&
+            !live?.status().active.some((a) => a.taskId === item.id)
+          )
+            await concludeStory(item.id, round);
+          continue;
+        }
         if (item.blocker === "G1_REQUIRED" || item.blocker === "G3_REQUIRED") {
           const gate = item.blocker === "G1_REQUIRED" ? "G1" : "G3";
           const old = db
@@ -1264,6 +1305,186 @@ export async function createNativeOffice(c: Config) {
     broadcast("task_update", task(id));
     return { ok: true };
   }
+  function seen(identity: string) {
+    return !!db.prepare("SELECT 1 FROM pazmo_native_events WHERE identity=?").get(identity);
+  }
+  /** A Story Task is marked by its pazmo_story_tasks row; a task without an
+   * intake is not one by itself (the operator registers contracts that way). */
+  function isStory(id: string) {
+    return !!db.prepare("SELECT 1 FROM pazmo_story_tasks WHERE task_id=?").get(id);
+  }
+  function storyOf(id: string) {
+    if (!isStory(id)) fail("NOT_FOUND", "Story Task not found.");
+  }
+  /** A Hub Story Task, as the team Office submits it. The contract, its Story
+   * row, the G1 that the PL's Story approval stands for and its agent are
+   * written in the registration's one transaction: a refused submission
+   * leaves nothing, and a half-made task can never be taken for a normal lean
+   * task (which would open a G1 card and, later, G4). Then the Engineer
+   * starts; no PM, no Lead, no decision card. */
+  async function submitStoryTask(
+    input: ContractInput,
+    meta: { hubTaskId: string; claimId: string; agentId: string; g1Note: string },
+  ): Promise<string> {
+    if (!live) fail("EXECUTION_LOCKED", "실제 실행 설정으로 Office를 시작해주세요.");
+    if (input?.risk !== "normal")
+      fail("INVALID_CONTRACT", "A Story Task contract is normal risk; a high-risk Story has its G3 before the PL opens it.");
+    if (![meta?.hubTaskId, meta?.claimId].every((v) => typeof v === "string" && v.trim()))
+      fail("INVALID_REQUEST", "A Story Task needs its Hub task and claim ids.");
+    const agentKnown = () => {
+      if (!db.prepare("SELECT 1 FROM agents WHERE id=?").get(meta.agentId)) fail("NOT_FOUND", "Agent not found.");
+    };
+    agentKnown();
+    const [item] = await store.registerBatch(token, [input], ([registered]) => {
+      agentKnown(); // Removed while the contract was read.
+      db.prepare("INSERT INTO pazmo_story_tasks VALUES (?,?,?)").run(registered.id, meta.hubTaskId, meta.claimId);
+      const challenge = store.requestApproval(token, registered.id, "G1");
+      store.decide(token, challenge.id, { decision: "approve", note: meta.g1Note });
+      // The lean column chooseRunner reads: the Story engine is a lean engine.
+      db.prepare("UPDATE tasks SET agent_id=? WHERE id=?").run(meta.agentId, registered.id);
+      return undefined;
+    });
+    message(item.id, `accepted:${item.id}`, `Hub Story Task를 접수했습니다. ${project}에서 Engineer가 구현합니다.`);
+    try {
+      await pump();
+    } catch (error) {
+      // Accepted, so it is kept and its id returned (a retry would submit it twice).
+      console.error("Story Task accepted but its continuation stopped:", error instanceof Error ? error.message : String(error));
+    }
+    return item.id;
+  }
+  /** The newest engine task submitted for this claim of a Hub Story Task, or
+   * null. Every attempt of a claim is a new engine task under the same ids, so
+   * a caller tells one it never recorded (a crash right after submitting) from
+   * the attempt before by the engine task it did record. */
+  function storyTaskFor(hubTaskId: string, claimId: string): string | null {
+    const row = db
+      .prepare("SELECT task_id FROM pazmo_story_tasks WHERE hub_task_id=? AND claim_id=? ORDER BY rowid DESC LIMIT 1")
+      .get(hubTaskId, claimId) as { task_id: string } | undefined;
+    return row?.task_id ?? null;
+  }
+  /** A verified Story Task once its run settled: its round is concluded in
+   * place of G4, assessment and delivery, and the team Office is told once.
+   * A conclusion the engine refuses (an Office error) stops the task for good
+   * (its error identity); any other error is logged and tried by the next pump,
+   * as the G4 path does. */
+  async function concludeStory(id: string, round: NonNullable<ReturnType<VerificationLedger["latest"]>>) {
+    const identity = `verified:${round.id}`;
+    if (seen(identity) || seen(`error:${identity}`)) return;
+    try {
+      // Also done after the run (live.ts); the 3-line summary comes from it.
+      await completion.prepare(id);
+      transaction(db, () => {
+        verification.conclude(round.id);
+        message(id, identity, "검증을 통과했습니다. 팀 Office가 이 변경본을 이어받습니다.");
+      });
+    } catch (error) {
+      if (!(error instanceof OfficeError)) {
+        console.error("Story Task conclusion failed; the next pump tries again:", error);
+        return;
+      }
+      message(id, `error:${identity}`, `실행을 멈췄습니다: ${error.code}`);
+      return;
+    }
+    // Recorded above, so told at most once. Not awaited: pump is serialized and
+    // the host's onSettled follows it, so a callback that takes long (the team
+    // Office pushes and merges) must not hold this engine or the others.
+    void Promise.resolve()
+      .then(() => c.onVerified?.(id, { id: round.id, candidate: round.candidate }))
+      .catch((error) =>
+        console.error("Story Task verified but onVerified failed:", error instanceof Error ? error.message : String(error)),
+      );
+  }
+  /** The Hub stage of a running Story Task, as the lean board reads a subtask:
+   * build, then review; only the registered checks left, or a verified
+   * candidate not yet handed over, is verify. */
+  function storyStage(status: string, round: ReturnType<VerificationLedger["latest"]>) {
+    if (status !== "review" || !round) return "build" as const;
+    return round.state === "checking" && round.nodes.some((n) => n.kind === "review" && !n.result)
+      ? ("review" as const)
+      : ("verify" as const);
+  }
+  /** Where a Story Task is for the team Office. Stopped is final: the engine
+   * starts nothing for it again by itself (lean's stopOf, for one task). */
+  function storyOutcome(id: string): StoryOutcome {
+    storyOf(id);
+    // The round first: reading it records an invalidation, and the status with it.
+    const round = verification.latest(id),
+      item = store.get(id);
+    if (item.status === "done" && round?.state === "awaiting_g4") return { kind: "verified", roundId: round.id };
+    if (item.status === "cancelled") return { kind: "stopped", reason: "작업이 취소됐습니다." };
+    if (live?.status().active.some((a) => a.taskId === id))
+      return { kind: "running", stage: storyStage(item.status, round) };
+    // Verification or the Engineer's handoff gave it to a person.
+    if (item.status === "pending") {
+      if (round?.state === "human_required") {
+        const failed = round.nodes.flatMap((n) =>
+          n.result && n.result.verdict !== "pass"
+            ? [`${n.kind === "test" ? n.check.id : "review"} ${n.result.verdict}`]
+            : [],
+        );
+        return {
+          kind: "stopped",
+          reason: `검증이 멈췄습니다: ${round.reason}${failed.length ? ` (${failed.join(", ")})` : ""}`,
+        };
+      }
+      const handoff = db
+        .prepare("SELECT reason FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1")
+        .get(id) as { reason: string | null } | undefined;
+      return { kind: "stopped", reason: `구현이 멈췄습니다: ${handoff?.reason ?? "HUMAN_REQUIRED"}` };
+    }
+    if (item.blocker) return { kind: "stopped", reason: `작업이 멈췄습니다: ${item.blocker}` };
+    const last = db
+      .prepare("SELECT content FROM messages WHERE task_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1")
+      .get(id) as { content: string } | undefined;
+    if (last && STOP_NOTICES.some((notice) => notice.test(last.content))) return { kind: "stopped", reason: last.content };
+    return { kind: "running", stage: storyStage(item.status, round) };
+  }
+  /** What the team Office commits and reports for a verified Story Task: the
+   * project its first Engineer round started from, the verified candidate,
+   * every Engineer run's output, oldest first (its ASSUMED lines are the
+   * Task's decisions), and the evidence bundle G4 would have shown. */
+  function storyEvidence(id: string) {
+    storyOf(id);
+    const round = verification.latest(id);
+    if (round?.state !== "awaiting_g4") fail("EVIDENCE_REQUIRED", "The Story Task has no verified candidate.");
+    const { baseline, candidate } = handoffs.forRound(round.id);
+    const evidence: unknown = completion.evidence(token, id).evidence;
+    const engineerOutputs = handoffs.list(id).flatMap((h) => (h.receipt ? [h.receipt.observation.output] : []));
+    return { baseline, candidate, engineerOutputs, evidence };
+  }
+  /** The engine's project (the Story checkout) frozen as it is now, every file
+   * but protected metadata, into the store handoffs freeze baselines into:
+   * what a verify after a base merge runs on. */
+  async function freezeProject(): Promise<Candidate> {
+    const snapshots = join(candidates, "snapshots");
+    mkdirSync(snapshots, { recursive: true, mode: 0o700 });
+    return freezeWorkspace(project, { include: ["."], exclude: [] }, snapshots);
+  }
+  /** cancel() for a Story Task; one already done or cancelled is left as it is. */
+  async function cancelStoryTask(id: string): Promise<void> {
+    storyOf(id);
+    if (["done", "cancelled"].includes(task(id).status)) return;
+    // With no runtime nothing runs: the ledgers cancel it, as cancelImplementation does.
+    if (!live) {
+      store.cancelExecution(id);
+      const round = verification.latest(id);
+      if (round) verification.cancel(round.id);
+    }
+    await cancel(id);
+  }
+  /** A Story Task's checks again on a frozen candidate (after its base moved):
+   * the live verify. A run in another engine of the host is BUSY too, as it
+   * would keep a run of this engine from starting. */
+  async function verifyCandidate(
+    candidate: Candidate,
+    checks: { id: string; argv: string[]; timeoutMs: number }[],
+    signal?: AbortSignal,
+  ) {
+    if (!live) fail("EXECUTION_LOCKED", "실제 실행 설정으로 Office를 시작해주세요.");
+    if (c.othersActive?.()) fail("BUSY", "Another engine has a run; verify after it settles.");
+    return live.verify(candidate, checks, signal);
+  }
   return {
     ledgers,
     live,
@@ -1327,6 +1548,13 @@ export async function createNativeOffice(c: Config) {
     submitFromHub,
     replyFromHub,
     cancel,
+    submitStoryTask,
+    storyTaskFor,
+    storyOutcome,
+    storyEvidence,
+    freezeProject,
+    cancelStoryTask,
+    verifyCandidate,
     status: () => live?.status() ?? { execution: "locked", active: [] },
     async checkAgentMutation(id: string, patch?: unknown) {
       await runners.settings.checkAgentMutation(id, patch);

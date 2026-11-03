@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { OfficeError, fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
-import { createNativeOffice } from "../runtime/native-office.ts";
+import { STOP_NOTICES, createNativeOffice } from "../runtime/native-office.ts";
 import type { NativeOffice } from "../runtime/native-office.ts";
 import { defaultRunnerChoice, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog, RunnerChoice } from "../runtime/runner-settings.ts";
@@ -22,6 +22,7 @@ export type LeanConfig = Pick<
   | "runnerCatalog"
   | "othersActive"
   | "onSettled"
+  | "onVerified"
 > & {
   /** The clock the discovery cache reads (ms); tests inject one. */
   now?: () => number;
@@ -109,13 +110,23 @@ export type LeanOffice = {
   /** Runs the engine's continuation once, as a finished job does. */
   refresh(): Promise<void>;
   status(): ReturnType<NativeOffice["status"]>;
-  /** This engine has at least one run now (what another engine's `othersActive` asks). */
+  /** This engine has at least one run now, a verify included (what another engine's `othersActive` asks). */
   busy(): boolean;
   close(): Promise<void>;
   assertIdle(): void;
   /** A stop was accepted (or the process is closing): from here on no task is
    * created, including one whose runner check is still running. Irreversible. */
   beginStop(): void;
+  /** The Story engine's side of a Hub Story Task, which the team Office drives
+   * (see the NativeOffice functions of the same names). Submitting is refused
+   * once a stop was accepted, as createTask is. */
+  submitStoryTask: NativeOffice["submitStoryTask"];
+  storyTaskFor: NativeOffice["storyTaskFor"];
+  storyOutcome: NativeOffice["storyOutcome"];
+  storyEvidence: NativeOffice["storyEvidence"];
+  freezeProject: NativeOffice["freezeProject"];
+  cancelStoryTask: NativeOffice["cancelStoryTask"];
+  verifyCandidate: NativeOffice["verifyCandidate"];
 };
 
 type TaskRow = {
@@ -142,14 +153,6 @@ const ALREADY_RERUN = "이미 다시 실행한 작업입니다.";
 const NOT_STOPPED = "멈춘 작업만 다시 실행할 수 있습니다.";
 const BUILDING = ["planned", "in_progress", "pending"];
 const CLOSED = ["done", "cancelled"];
-/** The engine's notices that it stopped a task's run and will not start it
- * again by itself (the texts native-office.ts posts with message()). */
-const STOP_NOTICES = [
-  /^실행이 멈췄습니다: /, // runtime-error: a run failed
-  /^이 단계는 이미 실행 요청이 기록되어 있습니다\./, // dispatch-held: a run recorded before a restart
-  /^실행을 멈췄습니다: /, // error: starting the run threw
-  /^작업이 멈췄습니다: /, // blocked: planning stopped with no decision
-];
 /** The change summary under every G4 question (decision-summary.ts
  * changeSummary); hub-snapshot.ts reads the same block. */
 const CHANGES = /\[변경사항\]\n1\. [^\n]*\n2\. [^\n]*\n3\. [^\n]*/;
@@ -277,6 +280,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     chooseRunner,
     othersActive: c.othersActive,
     onSettled: c.onSettled,
+    onVerified: c.onVerified,
   });
   const { intake, verification } = native.ledgers;
 
@@ -680,11 +684,24 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     chooseRunner,
     refresh: () => native.refresh(),
     status: () => native.status(),
-    busy: () => native.status().active.length > 0,
+    busy: () => {
+      const status = native.status();
+      return status.active.length > 0 || ("verifying" in status && status.verifying);
+    },
     close: () => native.close(),
     assertIdle: () => native.assertIdle(),
     beginStop() {
       stopping = true;
     },
+    async submitStoryTask(input, meta) {
+      if (stopping) fail("STOPPING", STOPPING_MESSAGE);
+      return native.submitStoryTask(input, meta);
+    },
+    storyTaskFor: (hubTaskId, claimId) => native.storyTaskFor(hubTaskId, claimId),
+    storyOutcome: (id) => native.storyOutcome(id),
+    storyEvidence: (id) => native.storyEvidence(id),
+    freezeProject: () => native.freezeProject(),
+    cancelStoryTask: (id) => native.cancelStoryTask(id),
+    verifyCandidate: (candidate, checks, signal) => native.verifyCandidate(candidate, checks, signal),
   };
 }

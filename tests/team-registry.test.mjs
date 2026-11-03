@@ -293,9 +293,11 @@ test("a repo that holds the open claim cannot be removed (OPEN_CLAIM) until the 
   const cli = team(f, "remove", a.project);
   assert.equal(cli.status, 1);
   assert.equal(cli.value.code, "OPEN_CLAIM");
-  // A running team Office heartbeats every 60 s, so the Task never goes held and the PL cannot release it: only a cancel frees it.
+  // A running team Office heartbeats every 60 s, so the Task never goes held and the PL cannot release it: only a
+  // cancel frees it. A failed Task gets no heartbeat: the Office reads it instead, and the PL may release it too.
   assert.match(cli.value.error, /cancel/);
-  assert.doesNotMatch(cli.value.error, /release/);
+  assert.match(cli.value.error, /next heartbeat or, for a failed Task, its next read of it/);
+  assert.match(cli.value.error, /merged and reported/);
   assert.deepEqual(readTeam(f.data).repos, [a, b], "a refused remove leaves the registry as it was");
   // Another repo is not held up by it.
   await removeTeamRepo(f.data, b.project);

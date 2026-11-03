@@ -106,7 +106,11 @@ async function storyRoute(board: StoryBoard, link: Link, req: IncomingMessage, u
     case "POST /api/link/story/open": return board.openStory(link, str(body, "storyId"));
     case "POST /api/link/story/add-tasks": return board.addTasks(link, str(body, "storyId"), str(body, "key"), body.graph);
     case "POST /api/link/story/cancel": return board.cancelStory(link, str(body, "storyId"));
-    case "POST /api/link/story/claim": return { task: board.claimNext(link) };
+    case "POST /api/link/story/claim": {
+      const task = board.claimNext(link);
+      // No Task: say whether the member's own open Task is the reason, so the Office can tell that from an empty board.
+      return task ? { task } : { task: null, open: board.openTaskOf(link) };
+    }
     case "POST /api/link/story/claim-verify": return { task: board.claimVerify(link, str(body, "storyId")) };
     case "POST /api/link/story/heartbeat":
       // The board refuses a stage it does not know.

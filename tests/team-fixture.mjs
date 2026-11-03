@@ -9,7 +9,8 @@ const node = (id, repoId, files) => ({ id, repoId, title: id, spec: `${id} ì„¤ëª
  * `be` has two Tasks (be-1, then be-2 after it), `fe` has one (fe-1). The PL publishes the Story.
  * `cfgOf(name)` is A's Office link config for that repo, so Office code under test goes through the real
  * `hubCall`. The Story board runs on a fake clock: `tick(ms)` ages claims, `release(taskId)` is the PL's
- * release (only allowed once a Task shows held or failed).
+ * release (only allowed once a Task shows held or failed), `cancel(taskId)` the PL's cancel. `plLink` is the PL's
+ * own board link (repo `be`), for what the PL does on the board directly.
  */
 export async function hubWithStory(t) {
   let now = Date.now();
@@ -52,5 +53,7 @@ export async function hubWithStory(t) {
     },
     tick: (ms) => (now += ms),
     release: (taskId) => board.releaseTask(plLink, taskId),
+    cancel: (taskId) => board.cancelTask(plLink, taskId),
+    plLink,
   };
 }

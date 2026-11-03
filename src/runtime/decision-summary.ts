@@ -17,7 +17,8 @@ export function changeSummary(evidence: Evidence): string {
     let added = 0,
       removed = 0;
     for (const line of raw.split("\n")) {
-      const header = /^diff --git a\/.+ b\/(.+)$/.exec(line);
+      // The candidate diff compares folders a and b, so an added file is headed b/… b/… and a deleted one a/… a/….
+      const header = /^diff --git [ab]\/.+ [ab]\/(.+)$/.exec(line);
       if (header) paths.push(header[1]);
       else if (line.startsWith("+") && !line.startsWith("+++")) added++;
       else if (line.startsWith("-") && !line.startsWith("---")) removed++;

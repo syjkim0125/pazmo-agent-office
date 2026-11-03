@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, relative as relativePath } from "node:path";
 import test from "node:test";
-import { ghStatus, remoteHost } from "../src/team/gh.ts";
+import { findOnPath, ghStatus, remoteHost } from "../src/team/gh.ts";
 
 const HOST = "github.example.com";
 const OTHER = "ghe.example.com";
@@ -244,4 +244,20 @@ test("remoteHost rejects anything that is not a plain host", () => {
       (error) => error.code === "INVALID",
       JSON.stringify(bad),
     );
+});
+
+test("findOnPath returns the first executable on an absolute entry and skips relative entries", async () => {
+  const { root } = fixture();
+  const relative = fakeGh(root, "exit 0", "relative");
+  const absolute = fakeGh(root, "exit 0", "absolute");
+  // A relative entry would run whatever file the current folder holds, so it is never a candidate.
+  const rel = relativePath(process.cwd(), relative);
+  assert.equal(findOnPath(rel, "gh"), null);
+  assert.equal(findOnPath(`.:${rel}:${absolute}`, "gh"), join(absolute, "gh"));
+  assert.equal(findOnPath(absolute, "gh"), join(absolute, "gh"));
+  assert.equal(findOnPath(absolute, "git-not-here"), null);
+  const { home } = fixture();
+  const result = await ghStatus(HOST, { pathEnv: rel, home });
+  assert.equal(result.ok, false);
+  assert.equal(result.reason, "missing");
 });
