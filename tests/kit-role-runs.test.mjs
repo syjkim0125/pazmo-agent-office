@@ -1,31 +1,45 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fixture } from "./contract-fixture.mjs";
 import { freezeCandidate } from "../src/core/candidates.ts";
 
-async function setup(t, role = "developer") {
-  const { KitRoleRun } = await import("../src/core/kit-role-runs.ts");
+const kitModule = () => import("../src/core/kit-role-runs.ts");
+
+/** A Developer or Reviewer run in a kit 5 task folder, as KitDelivery prepares it (D36). */
+async function setup(t, role = "developer", { git = false } = {}) {
+  const { KitRoleRun, kitWorkspace, kitG1, kitCandidate } = await kitModule();
   const f = fixture(t);
-  f.put(
-    "story.md",
-    f.story.replace(
-      "Status: Draft",
-      "Status: Approved\nUnderstanding gate (G1): approval.md · 2026-09-23 · Check-in: accepted",
-    ),
-  );
-  f.put(
-    "approval.md",
-    "Synthetic G1 for adapter tests only; no real user approval.",
-  );
   f.put("source.txt", "before");
+  if (git) {
+    const run = (...args) =>
+      execFileSync("git", args, { cwd: f.project, stdio: "ignore" });
+    run("init", "-q");
+    run("add", "-A");
+    run("-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qm", "x");
+  }
   mkdirSync(join(f.root, "snapshots"));
   const candidate = freezeCandidate(
     f.project,
     ["source.txt"],
     join(f.root, "snapshots"),
   );
+  const view = f.story.replace(
+    "Status: Draft",
+    "Status: Approved\nUnderstanding gate (G1): g1.json · 2026-11-03 · Check-in: accepted",
+  );
+  const { root: kit, source } = kitWorkspace({
+    project: f.project,
+    key: "task-1:1:fixture",
+    story: view,
+    g1: kitG1(view, "challenge-1", {
+      synthetic: "Adapter tests only; no real user approval.",
+    }),
+    checks: ["V1"],
+  });
+  kitCandidate(f.project, kit, candidate.digest, "round-1");
   let cancelled = false;
   const guard = () => {
     if (cancelled) throw Error("CANCELLED");
@@ -34,20 +48,22 @@ async function setup(t, role = "developer") {
     version: 1,
     taskId: "task-1",
     role,
-    source: "story.md",
+    source,
     scope: ["M1", "V1"],
     targetRevision: candidate.digest,
   };
-  const open = () =>
+  const open = (assignmentId = "work-1") =>
     KitRoleRun.open({
       project: f.project,
-      assignmentId: "work-1",
+      root: kit,
+      assignmentId,
       assignment,
       candidate,
       guard,
     });
   return {
     ...f,
+    kit,
     candidate,
     assignment,
     guard,
@@ -56,7 +72,31 @@ async function setup(t, role = "developer") {
     cancel: () => {
       cancelled = true;
     },
+    /** Office's VM observation of V1, as KitDelivery writes it before kit runs the relay. */
+    observe: async (fields = {}) =>
+      (await kitModule()).kitObservation(f.project, kit, {
+        round: "round-1",
+        check: "V1",
+        candidate: candidate.digest,
+        verdict: "pass",
+        exitCode: 0,
+        signal: null,
+        timedOut: false,
+        error: null,
+        output: "ok 1 - fixture\n",
+        ...fields,
+      }),
   };
+}
+
+/** Records implement and starts self-check, so a test can verify and record it. */
+async function selfCheck(run) {
+  let ready = (await run.status()).ready[0];
+  let { started } = await run.start(ready.id, ready.token);
+  await run.record(started, { summary: "implemented" }, { passed: true }, "Fixture evidence.");
+  ready = (await run.status()).ready[0];
+  assert.equal(ready.id, "self-check");
+  return (await run.start(ready.id, ready.token)).started;
 }
 
 test("Office dispatch uses persistent kit readiness and cannot launch the same node twice", async (t) => {
@@ -108,7 +148,9 @@ test("Office routes question answers with the resumed token and rejects duplicat
     "Fixture implementation evidence.",
   );
   assert.equal((await f.run.status()).ready[0].id, "self-check");
-  const raw = JSON.parse(readFileSync(join(f.project, f.run.runFile), "utf8"));
+  const raw = JSON.parse(
+    readFileSync(join(f.project, f.run.projectRunFile), "utf8"),
+  );
   assert.equal(raw.state.nodes.implement.attempts, 1);
 });
 
@@ -134,6 +176,8 @@ test("role completion needs an actual matching snapshot and feedback reopens the
     ),
     /revision|candidate/i,
   );
+  await f.observe();
+  assert.equal((await f.run.verify(started, "V1")).verification.passed, true);
   const done = await f.run.record(
     started,
     { summary: "checked", producedRevision: f.candidate.digest },
@@ -183,23 +227,144 @@ test("cancelled Office work rejects late results before changing its kit run", a
   const f = await setup(t);
   const ready = (await f.run.status()).ready[0];
   const { started } = await f.run.start(ready.id, ready.token);
-  const before = readFileSync(join(f.project, f.run.runFile), "utf8");
+  const before = readFileSync(join(f.project, f.run.projectRunFile), "utf8");
   f.cancel();
   await assert.rejects(
     f.run.record(started, { summary: "late" }, { passed: true }, "late"),
     /CANCELLED/,
   );
-  assert.equal(readFileSync(join(f.project, f.run.runFile), "utf8"), before);
+  assert.equal(
+    readFileSync(join(f.project, f.run.projectRunFile), "utf8"),
+    before,
+  );
 });
 
 test("reopening preserves changed-source rejection rather than silently creating a replacement run", async (t) => {
   const f = await setup(t);
-  f.put(
-    "story.md",
-    readFileSync(join(f.project, "story.md"), "utf8").replace(
-      "M1. Reject",
-      "M1. Allow",
-    ),
+  const view = join(f.project, f.kit, "story.md");
+  writeFileSync(
+    view,
+    readFileSync(view, "utf8").replace("M1. Reject", "M1. Allow"),
   );
-  await assert.rejects(f.open(), /requirements changed/i);
+  await assert.rejects(f.open(), /requirements changed|approval binding/i);
+});
+
+test("the kit 5 G1 record binds the view's canonical text exactly as kit hashes it", async () => {
+  const { kitStoryHash, kitG1 } = await kitModule();
+  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
+  for (const text of [
+    "# Story: a\nStatus: Approved\nUnderstanding gate (G1): g1.json · 2026-11-03 · Check-in: accepted\n## MUST\n- M1. x\n",
+    "# Story: a\r\nStatus: Draft\r\nG4: PASS — fixture\r\nUnderstanding gate (G4): pending\r\n\r\n## Verify\r\n- V1 [M1]. y\r\n",
+  ])
+    assert.equal(kitStoryHash(text), storyContract(text).fingerprint);
+  const record = JSON.parse(kitG1("# Story: a\n", "c-9", { taskId: "t" }));
+  assert.deepEqual(
+    [record.gate, record.responseRef, record.taskId],
+    ["G1", "office-approval:c-9", "t"],
+  );
+});
+
+test("new runs are kit 5 role runs in kit-runs, and a kit 4 run file is never touched", async (t) => {
+  const { KitRoleRun } = await kitModule();
+  const f = fixture(t);
+  f.put("request.json", JSON.stringify({ request: "fixture" }));
+  mkdirSync(join(f.root, "snapshots"));
+  const candidate = freezeCandidate(f.project, ["request.json"], join(f.root, "snapshots"));
+  const legacy = join(f.project, KitRoleRun.legacyRunFile("pm-1"));
+  mkdirSync(join(legacy, ".."), { recursive: true });
+  writeFileSync(legacy, '{"version":2}');
+  const run = await KitRoleRun.open({
+    project: f.project,
+    assignmentId: "pm-1",
+    assignment: {
+      version: 1,
+      taskId: "task-1",
+      role: "pm",
+      source: "request.json",
+      scope: [],
+      targetRevision: candidate.digest,
+    },
+    candidate,
+    guard: () => {},
+  });
+  assert.equal(run.projectRunFile, `${KitRoleRun.projectRunDirectory("pm-1")}/run.json`);
+  assert.match(run.projectRunFile, /^\.pazmo-office\/kit-runs\//);
+  const raw = JSON.parse(readFileSync(join(f.project, run.projectRunFile), "utf8"));
+  assert.deepEqual([raw.version, raw.kind], [3, "role"]);
+  assert.equal(readFileSync(legacy, "utf8"), '{"version":2}');
+});
+
+test("a self-check passes only with a relay receipt of the VM observation of this candidate and round", async (t) => {
+  const f = await setup(t);
+  // No receipt: kit refuses the pass Office would otherwise just claim.
+  let started = await selfCheck(f.run);
+  await assert.rejects(
+    f.run.record(started, { summary: "checked", producedRevision: f.candidate.digest }, { passed: true }, "claim", f.candidate),
+    /Verification execution required for V1/,
+  );
+  // No observation yet: the relay fails, and its failed receipt cannot carry a pass.
+  let ran = await f.run.verify(started, "V1");
+  assert.equal(ran.verification.passed, false);
+  assert.match(
+    readFileSync(join(f.project, f.kit, ran.verification.stderr), "utf8"),
+    /no VM observation of V1 in round round-1/,
+  );
+  await assert.rejects(
+    f.run.record(started, { summary: "checked", producedRevision: f.candidate.digest }, { passed: true }, "claim", f.candidate),
+    /failed|snapshot/i,
+  );
+  assert.deepEqual(f.run.executed("self-check"), ["V1"]);
+  // An observation of another candidate, and a failed one, are refused by the relay too.
+  for (const [id, fields, why] of [
+    ["work-2", { candidate: "another" }, /another candidate or round/],
+    ["work-3", { verdict: "fail", exitCode: 1 }, /did not pass/],
+  ]) {
+    const { kitCandidate } = await kitModule();
+    const round = `round-${id}`;
+    kitCandidate(f.project, f.kit, f.candidate.digest, round);
+    const other = await f.open(id);
+    started = await selfCheck(other);
+    await f.observe({ round, ...fields });
+    ran = await other.verify(started, "V1");
+    assert.equal(ran.verification.passed, false);
+    assert.match(readFileSync(join(f.project, f.kit, ran.verification.stderr), "utf8"), why);
+  }
+  // The passing observation of this candidate and round: the relay prints its output and kit records the pass.
+  const { kitCandidate } = await kitModule();
+  kitCandidate(f.project, f.kit, f.candidate.digest, "round-work-4");
+  const good = await f.open("work-4");
+  started = await selfCheck(good);
+  await f.observe({ round: "round-work-4", output: "ok 1 - real VM output\n" });
+  ran = await good.verify(started, "V1");
+  assert.equal(ran.verification.passed, true);
+  assert.equal(
+    readFileSync(join(f.project, f.kit, ran.verification.stdout), "utf8"),
+    "ok 1 - real VM output\n",
+  );
+  const done = await good.record(started, { summary: "checked", producedRevision: f.candidate.digest }, { passed: true }, "VM checks", f.candidate);
+  assert.equal(done.action, "role-complete");
+  const proof = await good.completionProof();
+  assert.ok(proof.files.every((file) => file.path.startsWith(`${f.kit}/`)));
+  assert.ok(proof.files.some((file) => file.path.endsWith("/stdout.log")));
+  assert.ok(proof.files.some((file) => file.path === `${f.kit}/g1.json`));
+});
+
+test("a Reviewer is bound to the candidate it reviews, not to the person's checkout", async (t) => {
+  const f = await setup(t, "reviewer", { git: true });
+  assert.equal((await f.run.status()).action, "execute");
+  // The person edits and commits in their own checkout: the review stays valid.
+  f.put("source.txt", "edited by the person");
+  execFileSync("git", ["-c", "user.email=t@example.com", "-c", "user.name=t", "commit", "-qam", "edit"], { cwd: f.project });
+  const ready = (await f.run.status()).ready[0];
+  assert.equal(ready.id, "review");
+  const { started } = await f.run.start(ready.id, ready.token);
+  // Office points the folder at another candidate: this review is stale and cannot pass.
+  const { kitCandidate } = await kitModule();
+  kitCandidate(f.project, f.kit, "another-candidate", "round-2");
+  assert.equal((await f.run.status()).action, "stale");
+  await assert.rejects(
+    f.run.record(started, { summary: "ok", reviewedRevision: f.candidate.digest, verdict: "pass" }, { passed: true }, "review", f.candidate),
+    /snapshot changed/i,
+  );
+  assert.ok(!existsSync(join(f.project, ".ai-workflow")));
 });

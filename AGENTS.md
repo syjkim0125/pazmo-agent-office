@@ -9,9 +9,10 @@ Invoke: `$workflow <request>`, `$workflow status`, `$workflow finish`. Start a n
 - Keep Tasks at most 30 non-empty lines and reference Story M/V IDs; HOW belongs to the repository-grounded plan.
 - After G1, automatically initialize/resume the installed graph with `node .ai-workflow/bin/graph.mjs`. Follow the workflow graph reference; record node evidence, route failures and require graph readiness before G4. No separate npm dependency or Graph opt-in is needed.
 - Within an assigned kit graph node, apply only its role/task procedure and return evidence to that run. Office assigns roles and launches agents; the kit graph still controls readiness, joins and failure routing. Do not recursively start full delivery workflows.
-- Use compatible Superpowers focused TDD, diagnosis and fresh-verification skills with CE caller-owned planning, `ce-simplify-code`, report-only review and verified learning capture. Read the workflow skill-integration reference for exact modes, direct fallback and host limits. Do not nest end-to-end workflows or repeat approved plans. High-risk work retains G3.
+- Use compatible Superpowers focused TDD, diagnosis and fresh-verification skills with CE caller-owned planning, bounded review and verified learning capture. Simplify inline by default; optional `ce-simplify-code` workers share the review allocation. Read skill-integration for exact modes, fallback and host limits. Do not nest end-to-end workflows or repeat approved plans. High-risk work retains G3.
 - Do not merge non-trivial changes until the workflow's G4 question gate records that a human understands behavior, an invariant/failure path, and the evidence boundary.
-- Gates are satisfied by evidence, not by assertion. Verify with `node .ai-workflow/bin/check.mjs story <story-file>` and report the exit code; exit 0 is the only pass.
+- Configure the project verification profile using the workflow verification reference. Run required checks through Graph `verify`; inspect actual exit results/logs. Code changes make review/checks stale. Host model selection follows the workflow model policy; unknown actual model/cost stay unknown.
+- `node .ai-workflow/bin/check.mjs story <story-file>` checks document shape/gate presence only. Report its exit code, and require `node .ai-workflow/bin/graph.mjs delivery <run.json>` after real G4 for bound execution/approval validation.
 <!-- END ai-workflow-kit -->
 
 ## Bootstrap status

@@ -3,12 +3,26 @@ import type { OfficeStore } from "../core/store.ts";
 import type { HandoffLedger } from "../core/handoffs.ts";
 import type { VerificationLedger } from "../core/verification.ts";
 import type { Candidate } from "../core/candidates.ts";
-import { KitRoleRun } from "../core/kit-role-runs.ts";
+import {
+  KitRoleRun,
+  kitCandidate,
+  kitObservation,
+} from "../core/kit-role-runs.ts";
 import type { KitNode, RoleAssignment } from "../core/kit-role-runs.ts";
 import type { RolePacket } from "./role-context.ts";
 
 type Stage = { run: KitRoleRun; node: KitNode };
 type Round = NonNullable<ReturnType<VerificationLedger["latest"]>>;
+
+/** kit 5 assignment identities. A kit 4 assignment of the same task revision has no prefix: its run is read-only
+ * under kit 5 (`upgrade-required`) and stays where it is as evidence. */
+const KIT5 = "kit5:";
+/** The Office reviewer is one runner; kit's default budget of three reviewers does not apply (D36). */
+const REVIEW_BUDGET = {
+  agents: 1,
+  nestedDelegation: false,
+  dispatchOwner: "office",
+};
 
 /** Maps native role results to Office handoffs; does not implement kit transitions. */
 export class KitDelivery {
@@ -27,27 +41,42 @@ export class KitDelivery {
     this.#handoffs = handoffs;
     this.#verification = verification;
   }
+  /** Kit 4 role runs of the current task revision: work begun before the kit 5 upgrade. */
+  #legacy(taskId: string) {
+    return this.#store
+      .kitAssignments(taskId)
+      .some((a) => !a.assignment_id.startsWith(KIT5));
+  }
+  #upgradeRequired(): never {
+    fail(
+      "KIT_UPGRADE_REQUIRED",
+      "This task's role runs began under kit 4, which kit 5 keeps read-only; Office kept them as evidence. Cancel the task and create it again to continue under kit 5.",
+    );
+  }
   async #open(
     taskId: string,
     role: RoleAssignment["role"],
     candidate: Candidate,
     suffix = "",
   ) {
+    if (this.#legacy(taskId)) this.#upgradeRequired();
     const { item, documents } = this.#store.roleContext(taskId);
     const task =
       documents.find((d) => d.path === item.contract.input.task)?.content ?? "";
     const covers =
       task.split(/^## Covers[^\n]*\n/m)[1]?.split(/^## /m)[0] ?? "";
     const scope = [...new Set(covers.match(/\b[MV]-?\d+\b/g) ?? [])];
-    const assignmentId = `${taskId}:${item.revision}:${role}:${suffix}`;
+    const assignmentId = `${KIT5}${taskId}:${item.revision}:${role}:${suffix}`;
+    const workspace = this.#store.kitWorkspace(taskId);
     const run = await KitRoleRun.open({
       project: this.#project,
+      root: workspace.root,
       assignmentId,
       assignment: {
         version: 1,
         taskId,
         role,
-        source: this.#store.kitSource(taskId),
+        source: workspace.source,
         scope,
         targetRevision: candidate.digest,
       },
@@ -70,10 +99,20 @@ export class KitDelivery {
       taskId,
       assignmentId,
       role,
-      run.runFile,
+      run.projectRunFile,
       candidate.digest,
     );
     return run;
+  }
+  /** Names the round's candidate as the kit folder's snapshot input, before kit binds a snapshot to it. */
+  #point(round: Round) {
+    if (this.#legacy(round.taskId)) this.#upgradeRequired();
+    kitCandidate(
+      this.#project,
+      this.#store.kitWorkspace(round.taskId).root,
+      round.candidate.digest,
+      round.id,
+    );
   }
   developer(taskId: string, origin: Candidate) {
     return this.#open(taskId, "developer", origin);
@@ -97,12 +136,19 @@ export class KitDelivery {
     return { run, node: result.started };
   }
   packet(packet: RolePacket, stage: Stage): RolePacket {
+    const node =
+      "reviewBudget" in stage.node.input
+        ? {
+            ...stage.node,
+            input: { ...stage.node.input, reviewBudget: REVIEW_BUDGET },
+          }
+        : stage.node;
     return {
       ...packet,
       kit: {
-        version: "4.1.0",
+        version: "5.0.3",
         assignment: stage.run.assignment,
-        node: stage.node,
+        node,
       },
     };
   }
@@ -156,12 +202,35 @@ export class KitDelivery {
       status.failed.some((n) => n.id === "self-check")
     )
       return null;
+    this.#point(round);
     return this.#start(run, "self-check");
   }
+  /** kit 5 records a passing self-check only with a successful receipt for every registered check. The checks
+   * ran once, in the VM; for each one Office writes that observation to the kit folder and has kit execute the
+   * relay, which reports it and passes only when it passed. */
   async finishSelfCheck(stage: Stage, round: Round) {
     const checks = round.nodes.filter((n) => n.kind === "test");
     if (!checks.length || checks.some((n) => !n.result))
       fail("KIT_ROLE_WAIT", "Self-check awaits actual verifier results.");
+    const root = this.#store.kitWorkspace(round.taskId).root;
+    const executed = stage.run.executed(stage.node.id);
+    for (const node of checks) {
+      if (node.kind !== "test" || !node.result) continue;
+      const { verdict, observation } = node.result;
+      kitObservation(this.#project, root, {
+        round: round.id,
+        check: node.check.id,
+        candidate: round.candidate.digest,
+        verdict,
+        exitCode: observation.exitCode,
+        signal: observation.signal,
+        timedOut: observation.timedOut,
+        error: observation.error,
+        output: observation.output,
+      });
+      if (!executed.includes(node.check.id))
+        await stage.run.verify(stage.node, node.check.id);
+    }
     const passed = checks.every((n) => n.result?.verdict === "pass");
     await stage.run.record(
       stage.node,
@@ -184,6 +253,7 @@ export class KitDelivery {
     );
   }
   async beginReview(round: Round) {
+    this.#point(round);
     const run = await this.#open(
       round.taskId,
       "reviewer",
@@ -224,6 +294,13 @@ export class KitDelivery {
     );
   }
   async verifyCompletion(round: Round) {
+    // Completion evidence recorded under kit 4 stays the record of that round; kit 5 cannot reopen its runs.
+    if (
+      this.#legacy(round.taskId) &&
+      this.#store.kitReceiptRecorded(round.taskId, round.candidate.digest)
+    )
+      return;
+    this.#point(round);
     const developer = await this.developer(
       round.taskId,
       this.#handoffs.forRound(round.id).baseline,

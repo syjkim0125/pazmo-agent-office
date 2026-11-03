@@ -11,7 +11,7 @@ Read `skill-integration.md` before selecting skills. Prefer Superpowers focused 
 ## Size first
 
 - **Small/reversible:** one reviewable outcome, local effect. Record `Plan source: N/A — small and reversible`; use test-first implementation and review.
-- **Normal:** use `ce-plan` in caller-owned pipeline context → Superpowers focused TDD/diagnosis → `ce-simplify-code` → `ce-code-review mode:agent` when compatible skills are available; simplify only after related tests pass. Otherwise perform equivalent repository-grounded stages directly.
+- **Normal:** use `ce-plan` in caller-owned pipeline context → Superpowers focused TDD/diagnosis → inline simplification → bounded review when compatible skills are available; simplify only after related tests pass. Apply the shared review allocation in `skill-integration.md` (default 3, adaptive 0–5). Otherwise perform equivalent repository-grounded stages directly.
 - **High-risk/hard to reverse:** add G3. Present the key design decision, alternatives, invariant, rollback/recovery path, and evidence plan; end the turn for human approval before work. Save that decision to `docs/understanding/<slug>-plan.md` and record `Understanding gate (G3): <artifact> · <YYYY-MM-DD> · Check-in: accepted`.
 
 High-risk signals: money/payment, authentication/authorization, concurrency, destructive migration, sensitive data, data loss, and irreversible external side effects.
@@ -33,13 +33,13 @@ Create Tasks only when the approved Story cannot be reviewed as one PR. Each Tas
 For user-authorized optional Jira publication after G1, follow `jira.md`. Without a connector or authorized target, produce a preview only; the Story remains canonical.
 
 1. Read the approved Story, relevant code, tests, repository instructions, and prior learnings.
-2. Make a plan that maps every M/V ID to code and evidence. Do not create a second requirement source.
+2. Make a plan that maps every M/V ID to code and evidence. Use `verification.md` for a runnable project recipe; assert the actual user path and failure cases, rather than treating exit 0 from a no-op as behavioral proof. Do not create a second requirement source.
    Automatically initialize/resume the installed graph as described in `graph-engineering.md`. Use `-` for small work; otherwise supply the reviewed task DAG. The CLI adds final review and fresh verification. Complete any required G3 before implementation nodes run.
 3. Use compatible `superpowers:test-driven-development` for implementation and `superpowers:systematic-debugging` for unexplained failures. For new behavior or a bug fix, demonstrate RED before production code, then GREEN after the minimum change. Proceed when related tests pass.
-4. Refactor while green: perform the simplification pass below. If `ce-simplify-code` is available, read its `SKILL.md` and execute it; naming the skill is not execution. If unavailable, apply the same criteria below directly; do not require installation or stop the workflow.
-5. Review the final diff after simplification against the Story, including failure paths and what tests do not prove. Use `ce-code-review mode:agent` when available; let its risk-based scope choose depth and resolve material findings. Do not apply fixes from a read-only review assignment.
-6. Apply compatible `superpowers:verification-before-completion`. Revalidate affected behavior after simplify/review edits before G4. If review edits affect previously simplified code, recheck only the affected scope; do not restart the whole pipeline automatically. Broaden tests when impact warrants it; never claim old results cover new edits.
-7. Record the evidence in the graph, run its `status` command, and require `action: g4` before continuing to `understanding-gate.md`; passing tests alone are not completion.
+4. Refactor while green: main performs the simplification pass below. Use `ce-simplify-code` only when its actual dispatch fits the same round's allocation; otherwise apply the criteria directly.
+5. Review the final diff against the Story, failure paths and testing limits. Allocate reviewers before dispatch using `skill-integration.md`; use compatible bounded `ce-code-review mode:agent` or direct review. Resolve material findings and state independence/coverage limits. Do not apply fixes from a read-only review assignment.
+6. Apply compatible `superpowers:verification-before-completion`, using Graph `verify` on the current started token to execute the configured checks. Pstack recipe material defines the user journeys; SP governs fresh execution and evidence inspection. Read receipts and raw logs from that same execution; do not run a second verification pass solely to satisfy both names. Revalidate affected behavior after simplify/review edits before G4. If review edits affect previously simplified code, recheck only the affected scope; do not restart the whole pipeline automatically. Broaden tests when impact warrants it; never claim old results cover new edits.
+7. Record the verified evidence in the graph, run its `status` command, and require `action: g4` before continuing to `understanding-gate.md`; passing tests alone are not completion.
 
 ## Simplification pass
 
@@ -47,7 +47,7 @@ For user-authorized optional Jira publication after G1, follow `jira.md`. Withou
 - Limit scope to the current task's changed code and necessary related seams. Avoid unrelated refactoring, new abstractions or packages, and edits made just to fill a diff.
 - Reduce duplication, unnecessary state, branches and complexity to improve understanding. Fewer lines or replacing `for` with a stream is not evidence of improvement; chaining operations does not necessarily reduce traversals. Check actual iteration and evaluation behavior before claiming efficiency.
 - Preserve behavior, result order, side effects, domain boundaries, failure handling and safety checks. A proposal that changes them belongs to the existing design or scope-change process, not a silent simplification.
-- Follow the invoked skill and applicable repository/runtime instructions for execution and agent use; this kit sets no fixed agent count. Do not copy the skill's orchestration into this workflow.
+- Main simplifies inline by default. Any simplify workers consume the shared review allocation in `skill-integration.md`; select only skill modes that fit host limits.
 - Include changes (or no-change outcome), review scope and fresh checks briefly in existing review/verification evidence. Add no separate approval gate, mandatory document or Jira Task.
 
 

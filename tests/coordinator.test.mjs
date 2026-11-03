@@ -348,7 +348,7 @@ test("kit self-check continues its existing token after transient capacity short
     f.handoffs.forRound(done.round.id).baseline,
   );
   const raw = JSON.parse(
-    readFileSync(join(f.project, developer.runFile), "utf8"),
+    readFileSync(join(f.project, developer.projectRunFile), "utf8"),
   );
   assert.equal(raw.state.nodes["self-check"].attempts, 1);
 });
@@ -460,13 +460,114 @@ test("kit consumes an immutable view of the real Office G1 event without rewriti
   const done = await r.c.run(f.task.id);
   assert.equal(done.state, "awaiting_g4");
   assert.equal(readFileSync(join(f.project, "story.md"), "utf8"), before);
-  const source = r.packets.find((p) => p.role === "engineer").kit.assignment
-    .source;
-  assert.match(source, /^\.pazmo-office\/approved-contracts\//);
-  const approved = readFileSync(join(f.project, source), "utf8");
+  const packet = r.packets.find((p) => p.role === "engineer").kit;
+  assert.equal(packet.version, "5.0.3");
+  assert.equal(packet.assignment.source, "story.md");
+  const { root } = f.store.kitWorkspace(f.task.id);
+  assert.match(root, /^\.pazmo-office\/kit\/[0-9a-f]{64}$/);
+  const approved = readFileSync(join(f.project, root, "story.md"), "utf8");
   assert.match(approved, /Status: Approved/);
+  assert.match(approved, /Understanding gate \(G1\): g1\.json · /);
   assert.match(approved, /Canonical source: story.md/);
   assert.match(approved, /M1\. Reject invalid input/);
+  // kit 5 binds the G1 record to this view's canonical text (its own storyContract).
+  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
+  const g1 = JSON.parse(readFileSync(join(f.project, root, "g1.json"), "utf8"));
+  assert.equal(g1.gate, "G1");
+  assert.equal(g1.storyHash, storyContract(approved).fingerprint);
+  assert.match(g1.responseRef, /^office-approval:/);
+  // Every check of the kit folder is the Office relay, never project code.
+  const profile = JSON.parse(
+    readFileSync(join(f.project, root, ".ai-workflow/verification.json"), "utf8"),
+  );
+  assert.deepEqual(profile.inputs, ["candidate.json"]);
+  assert.ok(
+    profile.checks.every(
+      (c) => c.argv.join(" ") === `node office-check.mjs ${c.id}`,
+    ),
+  );
+  const runs = f.store.kitAssignments(f.task.id);
+  assert.ok(runs.length >= 2);
+  for (const run of runs) {
+    assert.match(run.assignment_id, /^kit5:/);
+    const raw = JSON.parse(readFileSync(join(f.project, run.run_file), "utf8"));
+    assert.equal(raw.version, 3);
+    assert.equal(raw.kind, "role");
+  }
+  // Self-check passed only with a successful relay receipt for each registered check.
+  const developer = runs.find((run) => run.role === "developer");
+  const raw = JSON.parse(
+    readFileSync(join(f.project, developer.run_file), "utf8"),
+  );
+  const executions = raw.state.nodes["self-check"].executions;
+  assert.deepEqual(Object.keys(executions), ["V1"]);
+  const receipt = JSON.parse(
+    readFileSync(join(f.project, root, executions.V1.file), "utf8"),
+  );
+  assert.equal(receipt.passed, true);
+  assert.deepEqual(receipt.argv, ["node", "office-check.mjs", "V1"]);
+  // The single Office reviewer gets Office's budget, not kit's default of three.
+  assert.deepEqual(
+    r.packets.find((p) => p.role === "reviewer").kit.node.input.reviewBudget,
+    { agents: 1, nestedDelegation: false, dispatchOwner: "office" },
+  );
+});
+
+test("the kit view keeps a Verify line outside the Task without its ID, so the Task's checks cover kit's V", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, false, (f) =>
+    f.put(
+      "story.md",
+      f.story.replace(
+        "- V1 [M1]. Check invalid input.\n",
+        "- V1 [M1]. Check invalid input.\n- V2 [M1]. Another Task's check.\n",
+      ),
+    ),
+  );
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const done = await runner(f, { kit }).c.run(f.task.id);
+  assert.equal(done.state, "awaiting_g4");
+  const { root } = f.store.kitWorkspace(f.task.id);
+  const view = readFileSync(join(f.project, root, "story.md"), "utf8");
+  assert.match(view, /^- \(outside this Task\) V2 \[M1\]\. Another Task's check\.$/m);
+  assert.match(view, /^- V1 \[M1\]\. Check invalid input\.$/m);
+  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
+  assert.deepEqual(
+    storyContract(view).ids.filter((id) => id.startsWith("V")),
+    ["V1"],
+  );
+  // The canonical Story is untouched.
+  assert.match(readFileSync(join(f.project, "story.md"), "utf8"), /^- V2 \[M1\]/m);
+});
+
+test("a task whose role runs began under kit 4 stops for a person and keeps them", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const legacy = `.pazmo-office/role-runs/${"0".repeat(64)}/run.json`;
+  f.store.bindKitRole(f.task.id, `${f.task.id}:1:developer:`, "developer", legacy, "kit4-origin");
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const r = runner(f, { kit });
+  const stopped = await r.c.run(f.task.id);
+  assert.equal(stopped.state, "human_required");
+  assert.equal(stopped.reason, "KIT_UPGRADE_REQUIRED");
+  assert.equal(r.engineers, 0);
+  assert.deepEqual(
+    f.store.kitAssignments(f.task.id).map((a) => a.run_file),
+    [legacy],
+  );
+});
+
+test("completion evidence recorded under kit 4 stays the record of its round awaiting G4", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true);
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const done = await runner(f, { kit }).c.run(f.task.id);
+  assert.equal(done.state, "awaiting_g4");
+  // A kit 4 assignment of this revision (as an upgraded Office would find it beside the recorded evidence).
+  f.store.bindKitRole(f.task.id, `${f.task.id}:1:reviewer:${done.round.id}`, "reviewer", ".pazmo-office/role-runs/x/run.json", done.round.candidate.digest);
+  const again = await runner(f, { kit }).c.run(f.task.id);
+  assert.equal(again.state, "awaiting_g4");
+  assert.ok(f.store.kitReceipt(f.task.id, done.round.candidate.digest));
 });
 
 test("already aborted work is cancelled without constructing a role job", async (t) => {
@@ -568,7 +669,7 @@ test("kit-backed Office execution preserves one Developer run through feedback a
     result.round.candidate.digest,
   );
   const raw = JSON.parse(
-    readFileSync(join(f.project, developer.runFile), "utf8"),
+    readFileSync(join(f.project, developer.projectRunFile), "utf8"),
   );
   assert.equal(raw.state.nodes.implement.attempts, 2);
   assert.equal(raw.history.filter((e) => e.event === "feedback").length, 1);
