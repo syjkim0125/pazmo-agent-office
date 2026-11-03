@@ -13,13 +13,14 @@ symptoms:
 root_cause: incomplete_setup
 resolution_type: code_fix
 tags: [pazmo-office, gitignore, init, remove, manifest, user-repo, untracked-files, compatibility]
+last_refreshed: "2026-11-03"
 ---
 
 # Office metadata hides itself from Git with a self-ignoring .pazmo-office/.gitignore
 
 ## Problem
 
-PR #19([Publish Lead proposals under .pazmo-office/plans](publish-lead-proposals-under-pazmo-office-plans.md))로 Office가 만드는 파일은 모두 `.pazmo-office/` 아래로 모였지만, 그 폴더 자체는 `.pazmo-office/`를 gitignore하지 않은 사용자 repo(예: app-be)에서 여전히 `?? .pazmo-office/`로 보였다. 이 폴더에는 machine-local 절대경로(`project`, `dataDir`)가 든 `config.json`/`manifest.json`(`src/cli/project.ts:180-185`, `src/cli/project.ts:201-213`), STORY.md/TASK.md 템플릿, 그리고 runtime 기록(`plans/`, `approved-contracts/`, `role-runs/`, `planning/`)이 쌓인다. 수정은 branch `codex/pazmo-office-gitignore`에 있으며, 이 문서를 쓰는 시점에는 commit/push/PR/merge 전이다(머지 후 PR 번호로 갱신).
+PR #19([Publish Lead proposals under .pazmo-office/plans](publish-lead-proposals-under-pazmo-office-plans.md))로 Office가 만드는 파일은 모두 `.pazmo-office/` 아래로 모였지만, 그 폴더 자체는 `.pazmo-office/`를 gitignore하지 않은 사용자 repo(예: app-be)에서 여전히 `?? .pazmo-office/`로 보였다. 이 폴더에는 machine-local 절대경로(`project`, `dataDir`)가 든 `config.json`/`manifest.json`(`src/cli/project.ts:180-185`, `src/cli/project.ts:201-213`), STORY.md/TASK.md 템플릿, 그리고 runtime 기록(`plans/`, `approved-contracts/`, `role-runs/`, `planning/`)이 쌓인다. kit 5(D36, PR #65)부터는 kit 역할 run이 `kit-runs/`(PM·Lead)와 작업별 `kit/<digest>/`(개발자·리뷰어)에 쌓이고, `approved-contracts/`·`role-runs/`는 kit 4 시절 기록으로만 남는다. 수정은 branch `codex/pazmo-office-gitignore`에 있으며, 이 문서를 쓰는 시점에는 commit/push/PR/merge 전이다(머지 후 PR 번호로 갱신).
 
 ## Symptoms
 
@@ -110,7 +111,7 @@ manifest 밖에 둔 덕분에 `readManifest()`의 정확한 집합 비교가 그
 ## Related Issues
 
 - [Publish Lead proposals under .pazmo-office/plans, not the project root](publish-lead-proposals-under-pazmo-office-plans.md): 이 문서가 닫는 "남은 한계"를 남긴 선행 작업이다.
-- [Record why planning output was rejected before spending recoveries](record-planning-rejection-cause.md): `.pazmo-office/role-runs/` 기록의 출처다.
+- [Record why planning output was rejected before spending recoveries](record-planning-rejection-cause.md): kit 역할 run 기록의 출처다(kit 4는 `.pazmo-office/role-runs/`, kit 5부터 `kit-runs/`·`kit/<digest>/`; [kit 5 배치](run-office-roles-on-kit5-through-a-vm-result-relay.md)).
 - [Root tests that start Office fail in a fresh worktree until the root dependencies are installed](../test-failures/fresh-worktree-tests-fail-without-office-ui-build.md): `start()` 테스트를 새 worktree에서 돌릴 때 필요한 준비다.
 - Story와 검증 기록:
   - `docs/understanding/pazmo-office-gitignore-contract.md`
