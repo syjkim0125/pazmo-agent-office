@@ -1,3 +1,26 @@
+# 2026-11-03 kit 4.1.0 → 5.0.3, Office 역할 run v3 (D36, ①)
+
+- Office가 직접 부르는 kit를 공식 npm 5.0.3으로 올렸다(사용자 선택 ①, "①로 진행"). 새 역할 run은 kit 5의 v3다.
+  - PM·Lead run은 `.pazmo-office/kit-runs/`에 있다.
+  - 개발자·리뷰어 run은 작업마다 따로 둔 kit 폴더(`.pazmo-office/kit/<digest>/`)에서 돈다. 그 폴더의 코드 스냅샷은 candidate 지문 파일 하나라서, kit가 묶는 대상이 실제로 검사·검토한 candidate다. 사람이 자기 checkout을 고치거나 커밋해도 리뷰가 무효가 되지 않는다.
+- 등록 검사는 지금처럼 VM에서 한 번만 돈다. kit 5가 요구하는 실행 기록은 중계(`node office-check.mjs V1`)로 채운다. 중계는 같은 candidate·같은 round의 VM 결과가 통과했을 때만 성공한다. 그래서 kit가 호스트에서 돌리는 것은 이 중계뿐이다.
+- G1 기록에 kit 5가 요구하는 `gate`·`storyHash`·`responseRef`(Office 승인 이벤트)가 들어간다. Task가 덮지 않는 V는 kit 보기에서 `(outside this Task)`로 표시한다.
+- **바뀐 동작:** kit 4로 시작한 작업은 `KIT_UPGRADE_REQUIRED`로 멈추고, 옛 run과 기록은 그대로 둔다. 취소하고 다시 만들면 kit 5로 진행한다. G3 때 기본값으로 적은 "v3에서 리뷰·검증을 다시"와 다르다. Office에는 사람 확인 상태에서 자동으로 다시 도는 길이 없고, 리뷰를 다시 하려면 새 복구 경로가 필요하기 때문이다. 완료 증거를 kit 4로 이미 기록한 round는 그대로 G4를 기다린다.
+- 팀 모드의 머지 직전 재검증은 Office가 맡는다(D34, 바꾸지 않음). P4는 다음 PR이다. 5.0.2의 intake 위험 렌즈(D35 P2)가 이번에 들어왔다.
+- 이 repo의 절차도 kit 5를 따른다.
+  - `.ai-workflow/verification.json`(시험 3묶음·타입 검사·Story 검사)과 [검사 절차](verification/kit-checks.md)를 둔다.
+  - Story G1을 JSON(`.ai-workflow/approvals/pazmo-agent-office-g1.json`)으로 바꿨다. **Story를 고칠 때마다 G1을 새로 받는다.**
+  - G4 뒤에는 `graph.mjs delivery`를 확인한다.
+  - kit 실행은 `.ai-workflow/runs/U30-kit5-upgrade-replan.json`(v3)이다. 처음 run(`U30-kit5-upgrade.json`)은 시험 검사를 3묶음으로 나누기 전 프로필에 묶여 있어 그대로 남겼다.
+- 자동 검사(구현 끝, 리뷰 전): root `npm test` **1284/1284** exit 0(부하 27–39에서 336초), 타입 검사 exit 0, Story 검사기 exit 0. 실험 사본의 바꾸기 전 값은 1254/1276이었다. 돌연변이 3개(git 경계, kit 4 완료 기록, Task 밖 V 표시)를 모두 잡았다. kit `graph verify` 결과는 U30 run에 있다.
+- **남은 것:**
+  - 실제 Office(실제 VM·CLI)로 v3 역할 run 확인
+  - P4
+  - 머지 뒤 main을 합치는 다른 브랜치의 4.1.0 kit run은 읽기 전용이 되므로, 그 브랜치는 v3 run을 새로 시작해야 한다
+  - `docs/solutions`의 옛 `kitSource`·`role-runs` 언급 정리
+
+[G3 결정](understanding/kit5-upgrade-decision.md) · [계획](plans/2026-11-03-1200-feat-kit5-upgrade-plan.md) · [검증 기록](verification/2026-11-03-kit5-upgrade.md)
+
 # 2026-11-02 팀 Story 보드 3단계: Story Task 모드 (시험, 실제 확인 전)
 
 - 팀 Office가 가져온 Story Task를 실제로 돌린다(M16·V18·D24·D34). repo마다 Story 엔진을 **Office 전용 체크아웃**(repo의 git worktree, Office 데이터 폴더의 `story-checkout/`)에 두고 VM에서 구현 → 리뷰 → 검증을 돈다. 통과하면 VM 밖에서 그 사람의 git·`gh`로 Task 브랜치 push → Story base로 PR → Hub 머지 잠금 → 최신 base 합치기(바뀌었으면 검증 명령만 다시) → PR 머지 → Hub 보고(PR 주소·머지 커밋·3줄 요약·`ASSUMED:` 판단 기록)를 한다.

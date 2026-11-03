@@ -25,7 +25,7 @@ Office 저장소의 `main` 브랜치를 받아 Office 저장소 디렉터리에�
 - `./office`(= `up`)는 실제 역할 실행(live)으로 켠다. 사용자가 설치·로그인한 codex 또는 claude CLI와 검증된 전용 VM을 쓴다. 준비 여부와 설치 과정은 [실행 환경 기록](verification/2026-09-28-runtime-setup.md)을 따른다.
 - `node bin/pazmo-office.mjs start --project /absolute/path/to/project --port 0`은 화면 미리보기다. 모델 호출은 막혀 있다. `start --live`는 고정 실행 파일 두 개(`--controller`·`--executor`)를 직접 줄 때 쓴다.
 - `--lean`은 예전 명령과 호환을 위해 받아들이며 같은 Office를 켠다. `--claw`는 `CLAW_REMOVED`로 거부한다.
-- 한 Office는 시작할 때 지정한 프로젝트만 실행하고, 한 번에 한 작업을 진행한다. 결과는 로컬 인도 디렉터리에 저장하며 원본 프로젝트나 main을 자동 덮어쓰지 않는다. kit 4.1.0이 각 역할의 전이를 소유한다.
+- 한 Office는 시작할 때 지정한 프로젝트만 실행하고, 한 번에 한 작업을 진행한다. 결과는 로컬 인도 디렉터리에 저장하며 원본 프로젝트나 main을 자동 덮어쓰지 않는다. kit 5.0.3이 각 역할의 전이를 소유한다. kit 4로 시작한 작업은 `KIT_UPGRADE_REQUIRED`로 멈추므로, 취소하고 다시 만든다(D36).
 - 예전 버전이 켠 Claw Office가 아직 켜져 있으면 `status`가 보여 주고, `start`·`up`·`monitor`는 `ENGINE_MISMATCH`로 거부한다. `node bin/pazmo-office.mjs stop --project …`로 멈춘 뒤 다시 켠다.
 
 ## 팀 허브

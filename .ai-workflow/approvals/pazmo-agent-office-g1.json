@@ -1,0 +1,9 @@
+{
+  "gate": "G1",
+  "storyHash": "e75400f587d9a90eadfab52a74bf715e805e3c0ec65d793cca32fe30ddf2cd3d",
+  "responseRef": "Claude Code conversation 2026-11-03, the user answered \"①로 진행\" after reading the G3 explainer https://claude.ai/artifact/TgVDwL5CSjBtqysv59AWFX, which said the answer is also recorded as G1 of the Story with D36; record: docs/understanding/kit5-upgrade-decision.md",
+  "story": "docs/understanding/pazmo-agent-office-contract.md",
+  "date": "2026-11-03",
+  "scope": "Canonical Story including D36 (kit 4.1.0 -> 5.0.3, Office role runs v3). Earlier decisions D1-D35 keep their own approval records.",
+  "previous": "docs/understanding/pazmo-agent-office-g1.md (2026-09-17, original Story approval)"
+}
