@@ -4,6 +4,18 @@ type Evidence = {
   results?: { kind?: string; result?: { verdict?: string } }[];
 };
 
+/** Undo Git's C-style path quoting: octal escapes are the path's UTF-8 bytes
+ * and \" \\ are literal. Letter escapes (\t, \n, …) stay as Git wrote them;
+ * Git always writes LF and CR that way, so a path cannot add a line. */
+function unquote(path: string): string {
+  const bytes: number[] = [];
+  for (const [, octal, literal, plain] of path.matchAll(/\\([0-7]{3})|\\(["\\])|(\\.|[^\\]+)/g))
+    if (octal) bytes.push(Number.parseInt(octal, 8));
+    else if (literal) bytes.push(literal.charCodeAt(0));
+    else bytes.push(...Buffer.from(plain));
+  return Buffer.from(bytes).toString();
+}
+
 /** Three plain lines under the G4 questions saying what the change is. Built
  * only from the stored evidence (no model call), so it can never disagree
  * with the verbatim evidence printed below it. */
@@ -18,8 +30,12 @@ export function changeSummary(evidence: Evidence): string {
       removed = 0;
     for (const line of raw.split("\n")) {
       // The candidate diff compares folders a and b, so an added file is headed b/… b/… and a deleted one a/… a/….
-      const header = /^diff --git [ab]\/.+ [ab]\/(.+)$/.exec(line);
-      if (header) paths.push(header[1]);
+      // Git quotes both sides when a path has non-ASCII bytes or `"`: "b/\354\235\270.js".
+      const header =
+        /^diff --git "[ab]\/(?:[^"\\]|\\.)*" "[ab]\/((?:[^"\\]|\\.)*)"$|^diff --git [ab]\/.+ [ab]\/(.+)$/.exec(
+          line,
+        );
+      if (header) paths.push(header[2] ?? unquote(header[1]));
       else if (line.startsWith("+") && !line.startsWith("+++")) added++;
       else if (line.startsWith("-") && !line.startsWith("---")) removed++;
     }
