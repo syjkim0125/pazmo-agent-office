@@ -229,11 +229,22 @@ test("team rerun --memo writes the request; NO_FAILED_CLAIM without a failed rec
   store.recordClaim(a, task, "claim");
   assert.deepEqual(refused(call(f, "team", "rerun", "--memo", "try again")), [1, "NO_FAILED_CLAIM"], "a record that did not fail");
   assert.equal(store.openClaim().rerunMemo, null);
+  // A runner account problem the attempt waits out shows with the runner's words and times (D37).
+  const since = Date.UTC(2026, 10, 2, 9, 0);
+  const login = "Your access token could not be refreshed. Please log out and sign in again.";
+  store.setPhase("t1", "claimed", { runnerWait: { runner: "codex", kind: "login", message: login, since, retryAt: since + 1800000, runs: 1 } });
+  assert.deepEqual(call(f, "team", "status").value.claim.waiting, {
+    runner: "codex",
+    kind: "login",
+    message: login,
+    since: "2026-11-02T09:00:00.000Z",
+    retryAt: "2026-11-02T09:30:00.000Z",
+  });
 
   // The Office reported the Task failed; it is stopped now, and the request waits for its next start.
   store.setPhase("t1", "failed", { attempts: 3 });
   const status = call(f, "team", "status").value;
-  assert.deepEqual(status.claim, { taskId: "t1", claimId: "c1", project: a, title: "Endpoint", phase: "failed", attempts: 3 });
+  assert.deepEqual(status.claim, { taskId: "t1", claimId: "c1", project: a, title: "Endpoint", phase: "failed", attempts: 3, waiting: null });
   assert.deepEqual(call(f, "team", "rerun", "--memo", "use the v2 endpoint"), { status: 0, value: { requested: true } });
   assert.equal(store.openClaim().rerunMemo, "use the v2 endpoint");
   assert.equal(existsSync(f.running), false, "no Office was started");

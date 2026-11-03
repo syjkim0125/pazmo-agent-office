@@ -103,6 +103,12 @@ An agent's runner choice for the review stage, including the G4 evaluation, so t
 
 A review runner that ends without a report (an API error or refusal, for example) gives the review an unknown verdict in its Verification round, never a fail.
 
+### Runner account problem
+A run that ended because the person's Runner account cannot run now (a usage limit, billing or credits, or a login that no longer holds), as the runner tool itself reports it, rather than because the work failed.
+*Avoid:* rate limit (only one of the three kinds)
+
+Only the runner tool's own signal counts, never words that appear in a model's message. A Team Office does not spend one of a Claim's limited retries on it. It waits until the runner's reset time, or a fixed interval when none is given, and then runs the same work again. After a longer cap it reports the task failed with the runner's own words. A retry that the work itself uses up ends the wait.
+
 ## Hosting
 
 ### Managed mode

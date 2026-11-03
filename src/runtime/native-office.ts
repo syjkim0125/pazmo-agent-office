@@ -20,6 +20,8 @@ import { createLiveRuntime, type LiveConfig } from "./live.ts";
 import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
 import type { RunnerCatalog, RunnerChoice } from "./runner-settings.ts";
 import type { ExecutingRole } from "../runners/role-profiles.ts";
+import { runnerAccountProblem } from "../runners/runner-account.ts";
+import type { RunnerAccountProblem } from "../runners/runner-account.ts";
 import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { changeSummary } from "./decision-summary.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
@@ -39,7 +41,8 @@ export const STOP_NOTICES = [
 type StoryOutcome =
   | { kind: "running"; stage: "build" | "review" | "verify" }
   | { kind: "verified"; roundId: string }
-  | { kind: "stopped"; reason: string };
+  /** `runnerAccount`: the run stopped on the runner's account, not on the work (D37). */
+  | { kind: "stopped"; reason: string; runnerAccount?: RunnerAccountProblem };
 
 type Task = {
   id: string;
@@ -1404,6 +1407,11 @@ export async function createNativeOffice(c: Config) {
       ? ("review" as const)
       : ("verify" as const);
   }
+  /** A stop, with the runner account problem its runner's output ended on, if any. */
+  function withAccount(reason: string, output: string | undefined): StoryOutcome {
+    const problem = typeof output === "string" ? runnerAccountProblem(output) : null;
+    return problem ? { kind: "stopped", reason, runnerAccount: problem } : { kind: "stopped", reason };
+  }
   /** Where a Story Task is for the team Office. Stopped is final: the engine
    * starts nothing for it again by itself (lean's stopOf, for one task). */
   function storyOutcome(id: string): StoryOutcome {
@@ -1423,15 +1431,19 @@ export async function createNativeOffice(c: Config) {
             ? [`${n.kind === "test" ? n.check.id : "review"} ${n.result.verdict}`]
             : [],
         );
-        return {
-          kind: "stopped",
-          reason: `검증이 멈췄습니다: ${round.reason}${failed.length ? ` (${failed.join(", ")})` : ""}`,
-        };
+        const review = round.reason === "REVIEW_RUNNER_FAILED" ? round.nodes.find((n) => n.kind === "review")?.result : null;
+        return withAccount(
+          `검증이 멈췄습니다: ${round.reason}${failed.length ? ` (${failed.join(", ")})` : ""}`,
+          review?.observation.output,
+        );
       }
+      // Only a failed Engineer run's output can name a runner account problem.
       const handoff = db
-        .prepare("SELECT reason FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1")
-        .get(id) as { reason: string | null } | undefined;
-      return { kind: "stopped", reason: `구현이 멈췄습니다: ${handoff?.reason ?? "HUMAN_REQUIRED"}` };
+        .prepare(
+          "SELECT reason, CASE WHEN reason='ENGINEER_FAILED' THEN json_extract(receipt_json,'$.observation.output') END AS output FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1",
+        )
+        .get(id) as { reason: string | null; output: string | null } | undefined;
+      return withAccount(`구현이 멈췄습니다: ${handoff?.reason ?? "HUMAN_REQUIRED"}`, handoff?.output ?? undefined);
     }
     if (item.blocker) return { kind: "stopped", reason: `작업이 멈췄습니다: ${item.blocker}` };
     const last = db

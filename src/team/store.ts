@@ -4,6 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { fail, noSymlinks } from "../cli/project.ts";
 import { LIMITS, prUrlOf } from "../hub/story-protocol.ts";
 import type { ClaimedTask } from "../hub/story-store.ts";
+import { ACCOUNT_KINDS, ACCOUNT_RUNNERS } from "../runners/runner-account.ts";
+import type { RunnerAccountProblem } from "../runners/runner-account.ts";
 
 /** How the Office came to hold a Task: `claim` is a new take from the Hub (the
  * only kind the daily cap counts), `recovered` is a claim the Hub already had
@@ -26,6 +28,23 @@ export type PendingReport =
 /** Why an attempt of the Task failed, kept for the next attempt's contract: the reason and the files a
  * merge of the Story base left in conflict. */
 export type AttemptFailure = { reason: string; conflict: string[] };
+
+/** A runner account problem the Task waits out instead of counting an attempt (D37): the runner's words, when
+ * the wait began, when the same attempt runs again, and how many runs it has refused (each run after the first
+ * gets its own contract folder). */
+export type RunnerWait = Omit<RunnerAccountProblem, "resetsAt"> & { since: number; retryAt: number; runs: number };
+
+/** What `status --team` and `team status` show of a record's runner wait, with its times as ISO dates. */
+export type RunnerWaiting = Omit<RunnerWait, "since" | "retryAt" | "runs"> & { since: string; retryAt: string };
+
+/** The record's runner wait as status shows it: only while the attempt waits (phase `claimed`), not while it runs
+ * again. */
+export function waitingOf(claim: OpenClaim): RunnerWaiting | null {
+  const wait = claim.runnerWait;
+  if (!wait || claim.phase !== "claimed") return null;
+  const { runner, kind, message } = wait;
+  return { runner, kind, message, since: new Date(wait.since).toISOString(), retryAt: new Date(wait.retryAt).toISOString() };
+}
 
 /** The Story Task the Office holds right now, with the Hub's own claim id so a
  * restart can keep sending heartbeats for it. */
@@ -52,6 +71,8 @@ export type OpenClaim = {
   /** The Task branch head the Office last pushed, after its checks passed: the PR is merged only at this head, so
    * a commit someone else pushes to the Task branch is never merged unchecked. */
   pushedSha: string | null;
+  /** The runner account problem the attempt waits out, or null. */
+  runnerWait: RunnerWait | null;
 };
 
 export type TeamSettings = { paused: boolean; dailyCap: number | null };
@@ -77,8 +98,9 @@ export type TeamStore = {
    * `buildingSince` or `lastFailure`. An unknown phase, an attempts count or
    * build start that is not a whole number from 0, a failure that is not a
    * reason of up to 4000 characters with up to 1000 conflict paths, an
-   * `unlockOwed` that is not a boolean, or a `pushedSha` that is not a full
-   * lowercase commit id (40 or 64 hex) or null, is `INVALID`. */
+   * `unlockOwed` that is not a boolean, a `pushedSha` that is not a full
+   * lowercase commit id (40 or 64 hex) or null, or a `runnerWait` that is not
+   * one (see `waitOf`) or null, is `INVALID`. */
   setPhase(
     taskId: string,
     phase: ClaimPhase,
@@ -89,6 +111,7 @@ export type TeamStore = {
       lastFailure?: AttemptFailure | null;
       unlockOwed?: boolean;
       pushedSha?: string | null;
+      runnerWait?: RunnerWait | null;
     },
   ): void;
   /** Sets or, with `null`, clears the report the Hub still has to hear; a report
@@ -174,6 +197,7 @@ const EXECUTION_COLUMNS: readonly (readonly [name: string, definition: string])[
   ["last_failure_json", "TEXT"],
   ["unlock_owed", "INTEGER NOT NULL DEFAULT 0 CHECK(unlock_owed IN (0, 1))"],
   ["pushed_sha", "TEXT"],
+  ["runner_wait_json", "TEXT"],
 ];
 
 function addMissingColumns(db: DatabaseSync): void {
@@ -198,6 +222,7 @@ type ClaimRow = {
   last_failure_json: string | null;
   unlock_owed: number;
   pushed_sha: string | null;
+  runner_wait_json: string | null;
 };
 
 const withinText = (value: unknown, max: number): value is string =>
@@ -237,6 +262,36 @@ function failureOf(value: unknown): AttemptFailure | null {
     conflict.every((path) => withinText(path, CONFLICT_PATH_MAX))
     ? { reason, conflict: [...conflict] }
     : null;
+}
+
+const WAIT_MESSAGE_MAX = 300;
+const time = (value: unknown): value is number => Number.isSafeInteger(value) && (value as number) >= 0;
+
+/** A wait with only its own fields, or `null` if `value` is not one: a known runner and kind, a message of up to
+ * 300 characters, two times in ms and at least one refused run. */
+function waitOf(value: unknown): RunnerWait | null {
+  if (typeof value !== "object" || value === null) return null;
+  const { runner, kind, message, since, retryAt, runs, ...rest } = value as Record<string, unknown>;
+  return Object.keys(rest).length === 0 &&
+    ACCOUNT_RUNNERS.includes(runner as RunnerWait["runner"]) &&
+    ACCOUNT_KINDS.includes(kind as RunnerWait["kind"]) &&
+    withinText(message, WAIT_MESSAGE_MAX) &&
+    time(since) &&
+    time(retryAt) &&
+    Number.isSafeInteger(runs) &&
+    (runs as number) >= 1
+    ? { runner: runner as RunnerWait["runner"], kind: kind as RunnerWait["kind"], message, since, retryAt, runs: runs as number }
+    : null;
+}
+
+/** The stored wait of a record; an unreadable copy is none: the next run finds the problem again. */
+function storedWait(text: string | null): RunnerWait | null {
+  if (text === null) return null;
+  try {
+    return waitOf(JSON.parse(text));
+  } catch {
+    return null;
+  }
 }
 
 /** The stored failure of a record. Unlike a report, an unreadable copy is read as none: it only adds notes to
@@ -358,7 +413,7 @@ export function openTeamStore(
     openClaim() {
       const row = db
         .prepare(
-          "SELECT task_id, claim_id, project, task_json, phase, attempts, engine_task, report_json, rerun_memo, building_since, last_failure_json, unlock_owed, pushed_sha FROM team_claims WHERE state = 'open'",
+          "SELECT task_id, claim_id, project, task_json, phase, attempts, engine_task, report_json, rerun_memo, building_since, last_failure_json, unlock_owed, pushed_sha, runner_wait_json FROM team_claims WHERE state = 'open'",
         )
         .get() as ClaimRow | undefined;
       if (!row) return null;
@@ -376,6 +431,7 @@ export function openTeamStore(
         lastFailure: storedFailure(row.last_failure_json),
         unlockOwed: row.unlock_owed === 1,
         pushedSha: row.pushed_sha,
+        runnerWait: storedWait(row.runner_wait_json),
       };
     },
     recordClaim(project, task, source) {
@@ -403,7 +459,7 @@ export function openTeamStore(
       return JSON.parse(row.task_json) as ClaimedTask;
     },
     setPhase(taskId, phase, patch) {
-      const { engineTask, attempts, buildingSince, lastFailure, unlockOwed, pushedSha } = patch ?? {};
+      const { engineTask, attempts, buildingSince, lastFailure, unlockOwed, pushedSha, runnerWait } = patch ?? {};
       if (!PHASES.includes(phase))
         fail("INVALID", `A phase is one of ${PHASES.join(", ")}.`);
       if (attempts !== undefined && !(Number.isInteger(attempts) && attempts >= 0))
@@ -422,6 +478,9 @@ export function openTeamStore(
           "INVALID",
           `A failure is a reason of up to ${LIMITS.failureReasonMax} characters and up to ${CONFLICT_PATHS_MAX} conflict paths, or null to clear it.`,
         );
+      const wait = runnerWait === undefined || runnerWait === null ? runnerWait : waitOf(runnerWait);
+      if (wait === null && runnerWait !== null)
+        fail("INVALID", "A runner wait is a runner, kind, message, two times and a run count, or null to clear it.");
       const sets = ["phase = ?", "at = ?"];
       const values: (string | number | null)[] = [phase, now()];
       if (attempts !== undefined) {
@@ -447,6 +506,10 @@ export function openTeamStore(
       if (pushedSha !== undefined) {
         sets.push("pushed_sha = ?");
         values.push(pushedSha);
+      }
+      if (wait !== undefined) {
+        sets.push("runner_wait_json = ?");
+        values.push(wait && JSON.stringify(wait));
       }
       db.prepare(
         `UPDATE team_claims SET ${sets.join(", ")} WHERE task_id = ? AND state = 'open'`,

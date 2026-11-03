@@ -1,0 +1,259 @@
+{
+  "version": 1,
+  "runId": "98e28131-f5ce-41f6-ac48-18710adf7936",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D37 implementation as recorded in U31 (9e1eda8) plus the merge e0c7bbb of origin/main 7a60282 (#60-#64); conflicts in the Story (D37 then D38) and STATUS resolved keeping both; no code of this change edited in the merge.",
+          "evidence": [
+            ".ai-workflow/runs/U31-merge-implement-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U31-merge-implement-1.md": "20ea2be57da7a756e9bf57b7867b65c8c624179b9415b8b87d9bc3c38d5084db"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the merge e0c7bbb: main brought no change to this change's files; Story D35/D37/D38 in order; STATUS and LOCAL-PREVIEW keep both sides. D37 code review stands (U31-review-2.md). No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U31-merge-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U31-merge-review-1.md": "10e397ae0f1cb8dc1f7556009599cdebb748c6472349c83dd12e9f80059b3d4a"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merged tree e0c7bbb: npm test 1294/1294 exit 0; typecheck, check.mjs story and gate G1 exit 0. Automated only.",
+          "evidence": [
+            ".ai-workflow/runs/U31-merge-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U31-merge-verify-1.md": "fcce13225bbcfa53085de28d343fec7dc79ec130be47c394886b585fef4ef657"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "ae166a9066baf7222703c10dd3ddf300f8386d6d86f5e5e5f8859c1ee7d62515"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:16:56.816Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:16:57.184Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D37 implementation as recorded in U31 (9e1eda8) plus the merge e0c7bbb of origin/main 7a60282 (#60-#64); conflicts in the Story (D37 then D38) and STATUS resolved keeping both; no code of this change edited in the merge.",
+          "evidence": [
+            ".ai-workflow/runs/U31-merge-implement-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U31-merge-implement-1.md": "20ea2be57da7a756e9bf57b7867b65c8c624179b9415b8b87d9bc3c38d5084db"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:17:09.637Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:17:10.474Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Self-review of the merge e0c7bbb: main brought no change to this change's files; Story D35/D37/D38 in order; STATUS and LOCAL-PREVIEW keep both sides. D37 code review stands (U31-review-2.md). No findings.",
+          "evidence": [
+            ".ai-workflow/runs/U31-merge-review-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U31-merge-review-1.md": "10e397ae0f1cb8dc1f7556009599cdebb748c6472349c83dd12e9f80059b3d4a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:19:18.595Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:19:18.697Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merged tree e0c7bbb: npm test 1294/1294 exit 0; typecheck, check.mjs story and gate G1 exit 0. Automated only.",
+          "evidence": [
+            ".ai-workflow/runs/U31-merge-verify-1.md"
+          ]
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U31-merge-verify-1.md": "fcce13225bbcfa53085de28d343fec7dc79ec130be47c394886b585fef4ef657"
+        }
+      }
+    }
+  ]
+}
