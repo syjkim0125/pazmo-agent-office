@@ -1,0 +1,614 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "cd6a38c4-fd7b-4719-a507-d56a83d63638",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review pass 2 doc fixes (docs only, uncommitted until after verify): solutions doc drops the stale command.ts line number, scopes SIGTERM-first to claude role-run cancel/timeout and model discovery, and cites the measured pass counts at SIGTERM; STATUS gets the same SIGTERM scope, labels 364/364 as pre-rebase and points at the verify record. PR number and run files deferred to delivery.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-implement-2.md",
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-implement-2.md": "2dfd6a665bb71d05fd0b204cffa2bde1278ba97da8db5da2f0276da7956f495d",
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md": "1e9fc673e27373ac5bd2822a990b5a41e97301c7db9e23594c2712237d2263b8"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04",
+        "output": {
+          "summary": "Docs-only review of implement attempt 2: every edited sentence matches the code (claude-controller and runner-models stop sequences, command.ts:70) and the recorded measurements; no internal names. Two Minor STATUS wording gaps and two nits, carried into the G4 delivery commit (STATUS is edited there anyway); no behavior, test or measurement claim affected.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-2.md",
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-2.md": "fc8f43666ded5132b4765db0a1e930cde9e713e261bc16b120c5b7918e679dac",
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md": "1e9fc673e27373ac5bd2822a990b5a41e97301c7db9e23594c2712237d2263b8"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/39e9151c-a8ec-4389-ac56-9bffb8ac7b81/receipt.json",
+            "hash": "f1cd2565bf8f530cb37bf3c41a5b38339287219f03b65e86ba767f8fc338b8a6"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/81df43dc-2034-4ad0-9861-bd0eb9df761c/receipt.json",
+            "hash": "6688af9974d373c0e68a6422f22c88f04141e3e5798a93c7ba22cfa089d79865"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/f992d83f-2897-4f38-9d33-4e0e1e11bf2f/receipt.json",
+            "hash": "e7059ee63090fa104f4296cb543074a59cff771dcc21f81ab8f7ee1b0d1f9c48"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/45bbda0f-8c9e-4669-854f-3210ce4337eb/receipt.json",
+            "hash": "301da576847e0193724698b9ec33a396ee5c48d7d65a1454abd5b25a94dee59a"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/3e0ed122-2ed3-46b0-b788-41e675ee5630/receipt.json",
+            "hash": "6aecbb70ea9c15cbe89788b6fc889c43e19688d9e96f31ec02bb1c81dd5ed934"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on snapshot eb64ec53 (HEAD d05d554 on main 4a6d6ed plus the uncommitted doc edits): tests 436/436 + 448/448 + 424/424 = 1308/1308, typecheck exit 0, story exit 0; same snapshot for every check.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-verify-1.md": "85a5e66567381da3e51cb84b8a332c706a6eccb292147e2b24e41f67f35059cd"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:25:18.254Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:25:50.109Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Rebased onto main 4a6d6ed (#67 merged; files byte-identical) as d46cfba, plus review pass 1 fixes: runner-models fork-race test runs one native fake in ten homes (RED 3/3 on main's runner-models.ts, GREEN 3/3 in 0.7-1.0 s, fakes ready within 44 ms, file 17/17), and the solutions doc and STATUS describe signalGroup and its four callers (dfb171d, d05d554). Typecheck exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-implement-1.md",
+            ".ai-workflow/runs/runner-group-kill-race-implement-1.md",
+            ".ai-workflow/runs/runner-group-kill-race-review-1.md",
+            "src/runners/command.ts",
+            "src/runners/exec-relay.ts",
+            "src/runners/claude-controller.ts",
+            "src/runners/runner-models.ts",
+            "tests/runner-fixture.mjs",
+            "tests/command.test.mjs",
+            "tests/exec-relay.test.mjs",
+            "tests/claude-controller.test.mjs",
+            "tests/runner-models.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-implement-1.md": "6e9038440d35884f46f586c9456e570347927f57499f1ccd158e64e122e992ba",
+          ".ai-workflow/runs/runner-group-kill-race-implement-1.md": "03d7ac1dbc24acac9bd2837aed358f418efa17003e853d4f3fa7911d06d30925",
+          ".ai-workflow/runs/runner-group-kill-race-review-1.md": "3f56f7dd5b7bd03423e62b6926b949c590aa1593ce4ae4f4f8f4815a573ed1be",
+          "src/runners/command.ts": "936dff522d6e8b24ff3669b650b59a9543613cfd8afb09e2a884723d072600df",
+          "src/runners/exec-relay.ts": "c4744db2ca9b882a70868298aea35af4fe8588d368fcf2550c238d2c75973a62",
+          "src/runners/claude-controller.ts": "17add1c16859f636e773a84309704547e9246273800b086daf06031c201ce9d0",
+          "src/runners/runner-models.ts": "664a7e2b96ec3400652f7450c32d9ec586d578c71c7d43cc74b671584633b124",
+          "tests/runner-fixture.mjs": "e31efafc3841fd8d7c88507e1a73ee481dd2f2675658b716c209741b409b8354",
+          "tests/command.test.mjs": "26af3257a83822bc4e2eda1a36c0ba32010dbb96fc10d6e21eca3a9de142b127",
+          "tests/exec-relay.test.mjs": "0d1be113229c8b1f42fc4536b7c9711439a4827ac50d20a9a5f9422fd5996bab",
+          "tests/claude-controller.test.mjs": "91d367fe7798f32134aafd1a7d6b749282671cf3f95d4a8300a5c235bb972b16",
+          "tests/runner-models.test.mjs": "3c37d89e251e1259766cfb6fe40015cb029158d865be1612bbcbb8bc7eb6632e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:25:58.321Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:53:25.679Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "af497b61770eeed9a10c789b86840705e99a6f0fdd621db5aad75f5490bcd0d1",
+        "output": {
+          "summary": "Pass 2 (fresh independent reviewer; pass 1's reviewer was cut off by a usage limit): rebase clean (range-diff =), signalGroup and call sites correct, dfb171d gives a large margin (0-14 of 5000 passes at SIGTERM, RED 0/1 x3 on main's runner-models.ts), single files 17/17, 7/7, 6/6, 21/21, typecheck exit 0. With fixes: 3 Minor doc findings (stale line reference, pre-rebase test count in STATUS, over-broad SIGTERM wording and an unsupported timing figure).",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "af497b61770eeed9a10c789b86840705e99a6f0fdd621db5aad75f5490bcd0d1"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: in the solutions doc fix the command.ts line reference (70), say only a claude cancel or timeout (and discovery after stdin) sends SIGTERM first, cite the measured pass counts at SIGTERM instead of 1.6-2.1 s; in STATUS say the same about SIGTERM and replace the pre-rebase 364/364 with a pointer to the verify record. Defer the PR number and committing the run files to delivery."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md": "1e9fc673e27373ac5bd2822a990b5a41e97301c7db9e23594c2712237d2263b8"
+        },
+        "error": "implement: in the solutions doc fix the command.ts line reference (70), say only a claude cancel or timeout (and discovery after stdin) sends SIGTERM first, cite the measured pass counts at SIGTERM instead of 1.6-2.1 s; in STATUS say the same about SIGTERM and replace the pre-rebase 364/364 with a pointer to the verify record. Defer the PR number and committing the run files to delivery."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "workflow-review pass 2: three Minor doc fixes",
+      "at": "2026-11-03T06:53:29.932Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:53:33.966Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T06:54:19.482Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review pass 2 doc fixes (docs only, uncommitted until after verify): solutions doc drops the stale command.ts line number, scopes SIGTERM-first to claude role-run cancel/timeout and model discovery, and cites the measured pass counts at SIGTERM; STATUS gets the same SIGTERM scope, labels 364/364 as pre-rebase and points at the verify record. PR number and run files deferred to delivery.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-implement-2.md",
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-implement-2.md": "2dfd6a665bb71d05fd0b204cffa2bde1278ba97da8db5da2f0276da7956f495d",
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md": "1e9fc673e27373ac5bd2822a990b5a41e97301c7db9e23594c2712237d2263b8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:54:34.151Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T06:56:27.979Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04",
+        "output": {
+          "summary": "Docs-only review of implement attempt 2: every edited sentence matches the code (claude-controller and runner-models stop sequences, command.ts:70) and the recorded measurements; no internal names. Two Minor STATUS wording gaps and two nits, carried into the G4 delivery commit (STATUS is edited there anyway); no behavior, test or measurement claim affected.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-2.md",
+            ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-2.md": "fc8f43666ded5132b4765db0a1e930cde9e713e261bc16b120c5b7918e679dac",
+          ".ai-workflow/runs/runner-group-kill-race-v3-review-1.md": "1e9fc673e27373ac5bd2822a990b5a41e97301c7db9e23594c2712237d2263b8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T06:56:53.693Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T07:00:28.955Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/39e9151c-a8ec-4389-ac56-9bffb8ac7b81/receipt.json",
+            "hash": "f1cd2565bf8f530cb37bf3c41a5b38339287219f03b65e86ba767f8fc338b8a6"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/81df43dc-2034-4ad0-9861-bd0eb9df761c/receipt.json",
+            "hash": "6688af9974d373c0e68a6422f22c88f04141e3e5798a93c7ba22cfa089d79865"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/f992d83f-2897-4f38-9d33-4e0e1e11bf2f/receipt.json",
+            "hash": "e7059ee63090fa104f4296cb543074a59cff771dcc21f81ab8f7ee1b0d1f9c48"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/45bbda0f-8c9e-4669-854f-3210ce4337eb/receipt.json",
+            "hash": "301da576847e0193724698b9ec33a396ee5c48d7d65a1454abd5b25a94dee59a"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/cd6a38c4-fd7b-4719-a507-d56a83d63638/3e0ed122-2ed3-46b0-b788-41e675ee5630/receipt.json",
+            "hash": "6aecbb70ea9c15cbe89788b6fc889c43e19688d9e96f31ec02bb1c81dd5ed934"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on snapshot eb64ec53 (HEAD d05d554 on main 4a6d6ed plus the uncommitted doc edits): tests 436/436 + 448/448 + 424/424 = 1308/1308, typecheck exit 0, story exit 0; same snapshot for every check.",
+          "evidence": [
+            ".ai-workflow/runs/runner-group-kill-race-v3-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "eb64ec53048d258d6b94a7d699ad2c3c174a197690a2d5961153f4cfc85b8e04"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/runner-group-kill-race-v3-verify-1.md": "85a5e66567381da3e51cb84b8a332c706a6eccb292147e2b24e41f67f35059cd"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "7d6542ce07fdc436ab46dc98a5fe0d29d4c5f4d47a848a1b7254b0e8aab0c8da"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}
