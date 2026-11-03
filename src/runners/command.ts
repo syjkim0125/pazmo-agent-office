@@ -75,8 +75,22 @@ export async function runCommand(
       if (base.error) return;
       base.error = reason;
       if (child.pid) {
+        const group = -child.pid;
         try {
-          process.kill(-child.pid, "SIGKILL");
+          process.kill(group, "SIGKILL");
+          // A process that is still being forked when the signal lands misses it
+          // (seen on macOS), so the group is killed again, also after the result is
+          // finished, until kill fails (no process left, or only the unreaped leader:
+          // EPERM on macOS) or for at most 250 tries (about 5 s). The timer keeps a
+          // caller that is about to exit alive until then.
+          let tries = 0;
+          const rekill = setInterval(() => {
+            try {
+              process.kill(group, "SIGKILL");
+              if (++tries < 250) return;
+            } catch {}
+            clearInterval(rekill);
+          }, 20);
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ESRCH")
             base.error += ":KILL_FAILED";

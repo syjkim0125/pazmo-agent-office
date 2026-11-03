@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61",
+  "snapshot": "064b3a289eecdac368aaca176f6d9b42d285e0ec2d9dcec7441dbd04ace4e85a",
+  "runId": "7a804566-48ab-4cfe-a577-a5d1c4f9fc00",
+  "responseRef": "Claude Code conversation 2026-11-03 (PR #67): after reading the G4 explainer https://claude.ai/artifact/Lzgw6WcGnf9uVrpQKJaj12 (version 1) the user chose \"① 승인 후 머지 (Recommended)\". After main #65 (kit 5) arrived, the user read version 2 and answered \"A. G1 승인 후 진행 (Recommended)\". Option A said the fresh G1 would be recorded and the ① choice bound to the v3 run snapshot, with the code unchanged. Record: .ai-workflow/approvals/run-command-group-kill-race-g4.md",
+  "pr": "syjkim0125/pazmo-agent-office#67",
+  "head": "0e57363",
+  "date": "2026-11-03"
+}
