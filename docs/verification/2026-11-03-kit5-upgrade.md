@@ -39,7 +39,19 @@
 
 - 구현 끝(리뷰 전): root `npm test` **1284/1284** exit 0, 336초(부하 27–39). 타입 검사 exit 0. Story 검사기 exit 0. kit 시험 세 파일은 coordinator 24/24·kit-role-runs 10/10·planning-coordinator 34/34이다.
 - 336초는 kit 검사 하나의 상한(300초)을 넘는다. 그래서 이 repo의 검사 프로필은 시험을 3묶음으로 나눴다(`scripts/kit-test-shard.mjs`). 프로필이 바뀌어 run을 `U30-kit5-upgrade-replan.json`으로 새로 시작했다.
-- 리뷰 뒤 최종 값과 kit `graph verify` 실행 기록은 U30 replan run의 `workflow-verify`에 있다.
+- 독립 리뷰 1차(3명: 정확성·복구, 격리·무결성, 시험·이전·문서): Critical 0, Important 4, Minor 여러 건이었다. 모두 고쳤다.
+  - git 차단: `GIT_DIR`(없는 경로)를 더했다. 경로의 대소문자가 다르거나 `:`가 있으면 ceiling만으로는 막지 못했다.
+  - 같은 V의 검사 둘: kit 검사 id를 `V1-2`처럼 나눈다.
+  - kit 4 작업: 실행기 자리를 잡기 전에 확인하고, round 사유로 남긴다.
+  - `executed()` 재개 분기: 실제로 닿지 않아서 지웠다. 끊긴 self-check는 사람에게 간다.
+  - 그 밖에 중계 파일을 스냅샷 입력에 넣었다. `candidate.json`은 원자적으로 바꾼다. 중계 5초, `verify` CLI 30초로 시간을 맞췄다. PATH 순서를 바꿨다. 증거 목록에 이전 attempt의 실행 기록을 넣었다.
+- 새 시험은 다섯이다: 같은 V의 검사 둘, kit 4 두 번째 실행, 중계의 시간 초과·오류 결과, 같은 검사의 두 번째 실행 거부.
+- 돌연변이 4개를 모두 잡았다.
+  - `GIT_DIR`만 남기면 통과하고, 둘 다 빼면 실패한다.
+  - id 번호를 끄면 실패한다.
+  - 자리 잡기 전 확인을 끄면 실패한다.
+- 수정 뒤: kit 시험 세 파일 69/69. root `npm test` **1284/1285** exit 1(184초). 실패 1건은 `tests/team-gh.test.mjs`의 4초 상한 시간 단언이고, 이번 변경과 무관하다. 그 파일만 3번 다시 돌리면 15/15였다. 타입 검사 exit 0, Story 검사기 exit 0.
+- kit `graph verify` 실행 기록은 U30 replan run의 `workflow-verify`에 남는다.
 
 ## 경계
 

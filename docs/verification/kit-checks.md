@@ -22,7 +22,7 @@ node .ai-workflow/bin/graph.mjs verify <run.json> workflow-verify <started-token
 ```
 
 - `tests-1of3`·`tests-2of3`·`tests-3of3`: 시험 파일 전체를 세 묶음으로 나눈 것이다. 셋을 합치면 `npm test`와 같은 파일을 돌리며, 모든 V의 자동 부분을 덮는다. 각 stdout의 `ℹ tests`·`ℹ pass`·`ℹ fail` 줄을 더해 X/X를 적는다.
-- `typecheck`: `npm run typecheck`(`tsc -p tsconfig.json`).
+- `typecheck`: `npm run typecheck`(`tsc -p tsconfig.json`). kit는 검사마다 V를 하나 이상 요구하므로 모든 V를 적었다. 이 검사는 코드 전체의 타입 검사일 뿐, 어느 V의 동작도 증명하지 않는다.
 - `story`: canonical Story의 모양·게이트 기록 검사(V2의 서식·ID·승인 게이트). 이 검사의 exit 0은 실행 가능한 인도를 뜻하지 않는다. 인도는 G4 뒤의 `graph.mjs delivery`로 확인한다.
 
 ## Evidence

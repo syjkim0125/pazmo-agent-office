@@ -12,7 +12,7 @@
   - Story G1을 JSON(`.ai-workflow/approvals/pazmo-agent-office-g1.json`)으로 바꿨다. **Story를 고칠 때마다 G1을 새로 받는다.**
   - G4 뒤에는 `graph.mjs delivery`를 확인한다.
   - kit 실행은 `.ai-workflow/runs/U30-kit5-upgrade-replan.json`(v3)이다. 처음 run(`U30-kit5-upgrade.json`)은 시험 검사를 3묶음으로 나누기 전 프로필에 묶여 있어 그대로 남겼다.
-- 자동 검사(구현 끝, 리뷰 전): root `npm test` **1284/1284** exit 0(부하 27–39에서 336초), 타입 검사 exit 0, Story 검사기 exit 0. 실험 사본의 바꾸기 전 값은 1254/1276이었다. 돌연변이 3개(git 경계, kit 4 완료 기록, Task 밖 V 표시)를 모두 잡았다. kit `graph verify` 결과는 U30 run에 있다.
+- 자동 검사(리뷰 1차 수정 뒤): root `npm test` **1284/1285** exit 1(184초, 부하 11–14)이다. 실패 1건은 `tests/team-gh.test.mjs`의 "a gh that hangs times out"이다. 이 시험은 실행 시간이 4초 미만이어야 하는데 5212ms가 걸렸고, 이번 변경과 무관하다. 그 파일만 다시 돌리면 3번 모두 15/15였다(흔들림은 다른 세션이 조사 중). 타입 검사 exit 0, Story 검사기 exit 0. 리뷰 전 값은 1284/1284(336초)였다. 실험 사본의 바꾸기 전 값은 1254/1276이었다. 돌연변이 3개(git 경계, kit 4 완료 기록, Task 밖 V 표시)를 모두 잡았다. 독립 리뷰 1차(3명)의 Important 4건(git 차단 우회, 같은 V의 검사 둘, `KIT_UPGRADE_REQUIRED`가 두 번째 실행에서 사라짐, 닿지 않는 재개 분기)과 Minor를 고쳤다. kit `graph verify` 실행 기록은 U30 replan run의 `workflow-verify`에 남는다.
 - **남은 것:**
   - 실제 Office(실제 VM·CLI)로 v3 역할 run 확인
   - P4

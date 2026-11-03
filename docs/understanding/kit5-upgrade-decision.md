@@ -60,7 +60,9 @@ Office 제품 코드는 이 repo에 설치된 kit 파일(`.ai-workflow/bin/graph
 - Office는 사람 확인으로 멈춘 round를 자동으로 다시 돌리지 않는다("Explicit recovery is required").
 - 리뷰를 다시 하려면 Office 장부에 있는 그 round의 리뷰 결과를 비워야 하는데, 그런 길이 없다. 만들면 새 복구 경로가 되어 이번 범위를 넘는다.
 
-멈춘 작업은 취소하고 다시 만들면 kit 5로 진행한다. 이미 G4를 기다리며 완료 증거를 kit 4로 기록한 round는 그 기록을 그대로 쓰고 멈추지 않는다.
+멈춘 작업은 취소하고 다시 만들면 kit 5로 진행한다. 멈춘 사유는 round에 `KIT_UPGRADE_REQUIRED`로 남고, 다시 실행해도 같다(실행기 자리를 잡기 전에 확인한다).
+
+리뷰 1차 뒤에 더한 것: git 차단에 `GIT_DIR`(없는 경로)를 더했다. 경로의 대소문자가 다르거나 `:`가 있으면 ceiling만으로는 사람의 checkout을 막지 못했기 때문이다. 같은 V에 등록 검사가 여럿이면 kit 검사 id를 `V1-2`처럼 나눈다. 중계 파일도 스냅샷 입력이다. kit 폴더 파일은 한 번만 쓰므로, 중계나 프로필 모양을 바꾸는 Office 업데이트는 이미 kit 폴더가 있는 작업을 `KIT_SOURCE_CHANGED`로 멈춘다. 이미 G4를 기다리며 완료 증거를 kit 4로 기록한 round는 그 기록을 그대로 쓰고 멈추지 않는다.
 
 ## 이 repo의 개발 절차에 생기는 변화
 

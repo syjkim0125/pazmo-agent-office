@@ -82,7 +82,8 @@ function runner(
     },
     verifier: {
       async run(candidate, check, start, signal) {
-        const handle = "test-" + engineers + "-" + candidate.digest;
+        // One handle per check process, as the real verifier gives (a task may register several checks).
+        const handle = "test-" + engineers + "-" + candidate.digest + "-" + calls.length;
         start(handle);
         calls.push("test");
         enter();
@@ -480,7 +481,7 @@ test("kit consumes an immutable view of the real Office G1 event without rewriti
   const profile = JSON.parse(
     readFileSync(join(f.project, root, ".ai-workflow/verification.json"), "utf8"),
   );
-  assert.deepEqual(profile.inputs, ["candidate.json"]);
+  assert.deepEqual(profile.inputs, ["candidate.json", "office-check.mjs"]);
   assert.ok(
     profile.checks.every(
       (c) => c.argv.join(" ") === `node office-check.mjs ${c.id}`,
@@ -540,6 +541,29 @@ test("the kit view keeps a Verify line outside the Task without its ID, so the T
   assert.match(readFileSync(join(f.project, "story.md"), "utf8"), /^- V2 \[M1\]/m);
 });
 
+test("two registered checks of one V get their own kit check ids and relay receipts", async (t) => {
+  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+  const f = await officeFixture(t, true, true, (f) => {
+    const verification = JSON.parse(readFileSync(join(f.project, "verify.json"), "utf8"));
+    verification.checks.push({ ...verification.checks[0] });
+    f.put("verify.json", JSON.stringify(verification));
+  });
+  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+  const done = await runner(f, { kit }).c.run(f.task.id);
+  assert.deepEqual([done.state, done.reason], ["awaiting_g4", null]);
+  const { root } = f.store.kitWorkspace(f.task.id);
+  const profile = JSON.parse(
+    readFileSync(join(f.project, root, ".ai-workflow/verification.json"), "utf8"),
+  );
+  assert.deepEqual(
+    profile.checks.map((c) => [c.id, c.covers]),
+    [["V1", ["V1"]], ["V1-2", ["V1"]]],
+  );
+  const developer = f.store.kitAssignments(f.task.id).find((a) => a.role === "developer");
+  const raw = JSON.parse(readFileSync(join(f.project, developer.run_file), "utf8"));
+  assert.deepEqual(Object.keys(raw.state.nodes["self-check"].executions).sort(), ["V1", "V1-2"]);
+});
+
 test("a task whose role runs began under kit 4 stops for a person and keeps them", async (t) => {
   const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
   const f = await officeFixture(t, true, true);
@@ -551,6 +575,10 @@ test("a task whose role runs began under kit 4 stops for a person and keeps them
   assert.equal(stopped.state, "human_required");
   assert.equal(stopped.reason, "KIT_UPGRADE_REQUIRED");
   assert.equal(r.engineers, 0);
+  // Nothing was reserved, so the next run reports the same reason, not an unknown process.
+  const again = await r.c.run(f.task.id);
+  assert.deepEqual([again.state, again.reason], ["human_required", "KIT_UPGRADE_REQUIRED"]);
+  assert.deepEqual(f.execution.list(f.task.id), []);
   assert.deepEqual(
     f.store.kitAssignments(f.task.id).map((a) => a.run_file),
     [legacy],

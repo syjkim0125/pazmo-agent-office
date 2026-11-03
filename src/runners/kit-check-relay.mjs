@@ -14,7 +14,7 @@ const read = (file) => {
 };
 
 function report() {
-  if (!/^V-?\d+$/.test(id)) return { why: "a Story V check id is required" };
+  if (!/^V-?\d+(?:-\d+)?$/.test(id)) return { why: "a kit check id (V1, V1-2) is required" };
   const current = read("candidate.json");
   if (!current || typeof current.digest !== "string" || !/^[\w-]+$/.test(current.round ?? ""))
     return { why: "candidate.json does not name a candidate and round" };

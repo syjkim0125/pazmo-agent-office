@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   realpathSync,
+  renameSync,
   writeFileSync,
 } from "node:fs";
 import { dirname, join } from "node:path";
@@ -67,17 +68,31 @@ export function writeOnce(base: string, relative: string, content: string) {
   return relative;
 }
 
+/** The kit profile id of each registered check, in contract order: its V id, numbered when one V has more
+ * than one check (`V1`, `V1-2`). kit requires unique check ids; a contract may register several per V. */
+export function kitCheckIds(ids: string[]): string[] {
+  const seen = new Map<string, number>();
+  return ids.map((id) => {
+    const n = (seen.get(id) ?? 0) + 1;
+    seen.set(id, n);
+    return n === 1 ? id : `${id}-${n}`;
+  });
+}
+
 /**
  * The kit root of one Office task revision's Developer and Reviewer runs (D36): the task's approval view and G1
- * record, a verification profile whose every check is the Office relay, and `candidate.json`, the only snapshot
- * input. kit 5 binds review and self-check to that snapshot, so it names the candidate Office actually checked
- * and reviewed, not the person's checkout. The folder is not a Git work tree for kit (see `#invoke`).
+ * record, a verification profile whose every check is the Office relay, `candidate.json` and the relay itself,
+ * the only snapshot inputs. kit 5 binds review and self-check to that snapshot, so it names the candidate
+ * Office actually checked and reviewed, not the person's checkout. The folder is not a Git work tree for kit
+ * (see `#invoke`). The files are written once: an Office update that changes the relay or the profile stops
+ * the task revisions already in a kit folder with `KIT_SOURCE_CHANGED`.
  */
 export function kitWorkspace(d: {
   project: string;
   key: string;
   story: string;
   g1: string;
+  /** The V id of each registered check, in contract order. */
   checks: string[];
 }): { root: string; source: string } {
   const root = `.pazmo-office/kit/${digest(d.key)}`;
@@ -89,17 +104,19 @@ export function kitWorkspace(d: {
     "office-check.mjs",
     readFileSync(join(packageRoot, "src/runners/kit-check-relay.mjs"), "utf8"),
   );
+  const ids = kitCheckIds(d.checks);
   writeOnce(
     base,
     ".ai-workflow/verification.json",
     JSON.stringify({
       version: 1,
-      inputs: ["candidate.json"],
-      checks: d.checks.map((id) => ({
-        id,
-        covers: [id],
-        argv: ["node", "office-check.mjs", id],
-        timeoutMs: 20000,
+      inputs: ["candidate.json", "office-check.mjs"],
+      checks: d.checks.map((v, i) => ({
+        id: ids[i],
+        covers: [v],
+        argv: ["node", "office-check.mjs", ids[i]],
+        // Well inside the CLI's own limit for `verify` (#invoke), so kit, not Office, ends a stalled relay.
+        timeoutMs: 5000,
       })),
       requiresG3: false,
     }),
@@ -108,7 +125,7 @@ export function kitWorkspace(d: {
 }
 
 /** Points the kit root at the candidate and round now being checked or reviewed. Changing it makes earlier
- * review and self-check of another candidate `stale`, as kit 5 intends. */
+ * review and self-check of another candidate `stale`, as kit 5 intends. Replaced whole, never half written. */
 export function kitCandidate(
   project: string,
   root: string,
@@ -116,10 +133,13 @@ export function kitCandidate(
   round: string,
 ) {
   const path = join(realpathSync(project), root, "candidate.json");
+  const next = `${path}.${randomUUID()}`;
   noSymlinks(path);
-  writeFileSync(path, JSON.stringify({ digest: candidate, round }), {
+  writeFileSync(next, JSON.stringify({ digest: candidate, round }), {
+    flag: "wx",
     mode: 0o600,
   });
+  renameSync(next, path);
 }
 
 /** The VM observation of one registered check that the relay reports to kit. Written once per round. */
@@ -138,8 +158,11 @@ export function kitObservation(
     output: string;
   },
 ) {
-  if (!/^[\w-]+$/.test(observation.round) || !/^V-?\d+$/.test(observation.check))
-    fail("KIT_PROTOCOL", "Observation needs a round id and a Story V check id.");
+  if (
+    !/^[\w-]+$/.test(observation.round) ||
+    !/^V-?\d+(?:-\d+)?$/.test(observation.check)
+  )
+    fail("KIT_PROTOCOL", "Observation needs a round id and a kit check id.");
   writeOnce(
     join(realpathSync(project), root),
     `.ai-workflow/evidence/office/${observation.round}/${observation.check}.json`,
@@ -308,16 +331,23 @@ export class KitRoleRun {
         {
           cwd: this.#cwd,
           env: {
-            // The relay of a kit folder's checks runs as `node`: this Office's own Node.
-            PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
+            // The relay of a kit folder's checks runs as `node`: this Office's own Node, after the system
+            // folders so nothing beside it shadows `git`.
+            PATH: `/usr/bin:/bin:${dirname(process.execPath)}`,
             LANG: "en_US.UTF-8",
-            // A kit folder lies inside the project's checkout. Stop Git there, or kit would snapshot the
-            // person's checkout (HEAD, index, files) instead of the folder's declared candidate.
+            // A kit folder lies inside the project's checkout. Git must not find that repository, or kit
+            // would snapshot the person's checkout (HEAD, index, files) instead of the folder's declared
+            // inputs. A missing GIT_DIR makes every git call fail, whatever the path's case or characters;
+            // the ceiling is a second stop.
             ...(this.#root === "."
               ? {}
-              : { GIT_CEILING_DIRECTORIES: dirname(this.#cwd) }),
+              : {
+                  GIT_DIR: join(this.#cwd, ".no-git"),
+                  GIT_CEILING_DIRECTORIES: dirname(this.#cwd),
+                }),
           },
-          timeout: 15000,
+          // A verify runs the relay (kit's limit 5 s) and snapshots twice.
+          timeout: args[0] === "verify" ? 30000 : 15000,
           maxBuffer: 4 * 1024 * 1024,
           encoding: "utf8",
         },
@@ -483,23 +513,6 @@ export class KitRoleRun {
       checkId,
     ])) as KitStatus & { verification: { passed: boolean } };
   }
-  /** The checks kit already executed for `nodeId` in its current attempt; kit refuses a second execution. A
-   * pending one means a verify was cut short, and only a reset may follow. */
-  executed(nodeId: string): string[] {
-    const raw = JSON.parse(
-      readStable(join(this.#cwd, this.runFile), 4 * 1024 * 1024).toString(),
-    );
-    const executions = (raw.state.nodes[nodeId]?.executions ?? {}) as Record<
-      string,
-      { pending?: string }
-    >;
-    if (Object.values(executions).some((e) => e.pending))
-      fail(
-        "KIT_RECOVERY_REQUIRED",
-        "A kit check execution of this attempt never finished; inspect the run before resetting it.",
-      );
-    return Object.keys(executions);
-  }
   async completionProof() {
     const status = await this.status();
     if (status.action !== "role-complete")
@@ -515,20 +528,31 @@ export class KitRoleRun {
       raw.assignment.file,
       raw.story.path,
       ...(raw.approval?.file ? [raw.approval.file] : []),
-      ...(raw.verification ? [".ai-workflow/verification.json"] : []),
+      ...(raw.verification
+        ? [".ai-workflow/verification.json", ...raw.verification.value.inputs]
+        : []),
     ]);
+    type Executions = Record<string, { file?: string }>;
     for (const value of [...Object.values(raw.state.nodes), ...raw.history] as {
       evidenceHashes?: Record<string, string>;
-      result?: { evidenceHashes?: Record<string, string> };
-      executions?: Record<string, { file?: string }>;
+      executions?: Executions;
+      result?: {
+        evidenceHashes?: Record<string, string>;
+        executions?: Executions;
+      };
     }[]) {
       for (const path of Object.keys(value.evidenceHashes ?? {}))
         paths.add(path);
       for (const path of Object.keys(value.result?.evidenceHashes ?? {}))
         paths.add(path);
-      // A check receipt and the raw output it hashes.
-      for (const { file } of Object.values(value.executions ?? {})) {
+      // A check receipt, of this attempt or a recorded earlier one, and the raw output it hashes.
+      for (const { file } of [
+        ...Object.values(value.executions ?? {}),
+        ...Object.values(value.result?.executions ?? {}),
+      ]) {
         if (!file) continue;
+        validPath(file, true);
+        noSymlinks(join(this.#cwd, file));
         paths.add(file);
         const receipt = JSON.parse(
           readStable(join(this.#cwd, file), 1024 * 1024).toString(),

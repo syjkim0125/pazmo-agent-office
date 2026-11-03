@@ -313,11 +313,14 @@ test("a self-check passes only with a relay receipt of the VM observation of thi
     f.run.record(started, { summary: "checked", producedRevision: f.candidate.digest }, { passed: true }, "claim", f.candidate),
     /failed|snapshot/i,
   );
-  assert.deepEqual(f.run.executed("self-check"), ["V1"]);
+  // kit runs a check once per attempt: a second execution needs a reset first.
+  await assert.rejects(f.run.verify(started, "V1"), /already executed/);
   // An observation of another candidate, and a failed one, are refused by the relay too.
   for (const [id, fields, why] of [
     ["work-2", { candidate: "another" }, /another candidate or round/],
     ["work-3", { verdict: "fail", exitCode: 1 }, /did not pass/],
+    ["work-5", { timedOut: true }, /did not pass/],
+    ["work-6", { error: "VM lost" }, /did not pass/],
   ]) {
     const { kitCandidate } = await kitModule();
     const round = `round-${id}`;

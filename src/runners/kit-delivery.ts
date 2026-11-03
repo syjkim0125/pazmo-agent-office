@@ -6,6 +6,7 @@ import type { Candidate } from "../core/candidates.ts";
 import {
   KitRoleRun,
   kitCandidate,
+  kitCheckIds,
   kitObservation,
 } from "../core/kit-role-runs.ts";
 import type { KitNode, RoleAssignment } from "../core/kit-role-runs.ts";
@@ -52,6 +53,10 @@ export class KitDelivery {
       "KIT_UPGRADE_REQUIRED",
       "This task's role runs began under kit 4, which kit 5 keeps read-only; Office kept them as evidence. Cancel the task and create it again to continue under kit 5.",
     );
+  }
+  /** Refuses role work on a task revision begun under kit 4. */
+  assertCurrent(taskId: string) {
+    if (this.#legacy(taskId)) this.#upgradeRequired();
   }
   async #open(
     taskId: string,
@@ -207,19 +212,22 @@ export class KitDelivery {
   }
   /** kit 5 records a passing self-check only with a successful receipt for every registered check. The checks
    * ran once, in the VM; for each one Office writes that observation to the kit folder and has kit execute the
-   * relay, which reports it and passes only when it passed. */
+   * relay, which reports it and passes only when it passed. kit refuses a second execution of a check in one
+   * attempt, so a self-check cut short between its executions and its record stays with a person. */
   async finishSelfCheck(stage: Stage, round: Round) {
     const checks = round.nodes.filter((n) => n.kind === "test");
     if (!checks.length || checks.some((n) => !n.result))
       fail("KIT_ROLE_WAIT", "Self-check awaits actual verifier results.");
     const root = this.#store.kitWorkspace(round.taskId).root;
-    const executed = stage.run.executed(stage.node.id);
-    for (const node of checks) {
+    const ids = kitCheckIds(
+      checks.map((n) => (n.kind === "test" ? n.check.id : "")),
+    );
+    for (const [i, node] of checks.entries()) {
       if (node.kind !== "test" || !node.result) continue;
       const { verdict, observation } = node.result;
       kitObservation(this.#project, root, {
         round: round.id,
-        check: node.check.id,
+        check: ids[i],
         candidate: round.candidate.digest,
         verdict,
         exitCode: observation.exitCode,
@@ -228,8 +236,7 @@ export class KitDelivery {
         error: observation.error,
         output: observation.output,
       });
-      if (!executed.includes(node.check.id))
-        await stage.run.verify(stage.node, node.check.id);
+      await stage.run.verify(stage.node, ids[i]);
     }
     const passed = checks.every((n) => n.result?.verdict === "pass");
     await stage.run.record(
