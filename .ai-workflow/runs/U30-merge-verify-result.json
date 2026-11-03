@@ -1,0 +1,1 @@
+{"token":"99cd91a84bff0f436ae76a86264f0e6be53c1de984669bfeedc13887c0503d95","output":{"summary":"kit graph verify on merge c0bfef5: tests 452/452 + 455/455 + 380/380 = 1287/1287, typecheck exit 0, story exit 0.","evidence":[".ai-workflow/runs/U30-merge-verify-1.md"]},"evaluation":{"passed":true}}

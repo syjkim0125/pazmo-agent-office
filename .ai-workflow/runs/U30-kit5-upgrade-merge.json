@@ -1,0 +1,496 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "0bb6b13e-e34b-48ae-ab43-c3ba3330f453",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merged origin/main f4478f3; STATUS conflict resolved keeping both entries; review-3 record overclaim corrected; no overlap with main code; G1 binding holds.",
+          "evidence": [
+            ".ai-workflow/runs/U30-merge-implement-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-merge-implement-1.md": "74726fa9e4cfd77716d0001d46ab61d84c3fa8cfccad645c6c2fc05626ddee61"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08",
+        "output": {
+          "summary": "Merge delta reviewed (not independent): STATUS keeps both entries, overclaim corrected, no overlap with main code.",
+          "evidence": [
+            ".ai-workflow/runs/U30-merge-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-merge-review-1.md": "08440082e38c9996764d673bfccce2d311a302f2c8b8f8c0370fbaef079869bc"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/fb240d52-7c62-4d96-bc2a-d8176b512601/receipt.json",
+            "hash": "18f865e2bbc9979adaba9ef7d4ae249ed8815d9196fc35e372a61fab6fdeafb2"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/7ac47be3-78f9-4bbb-898f-3c5b06fb83fa/receipt.json",
+            "hash": "138702bfd745052b52532e135090609e42ccd57287f6d8699b1d47095a7e70e9"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/f8293083-b001-41a4-a12a-957156e74a93/receipt.json",
+            "hash": "6a34b2ae61b666575793501e6e409d1f8bee21d4a18c2a4807ff8822c032fa04"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/cab21afc-995c-4019-a7ed-ab3a599761e7/receipt.json",
+            "hash": "dff55b145b2be51a8d55bf6be928439bee22d805b6539bf5f3b379c2121d8c91"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/57d3f0a4-d901-46bc-814f-33a053a7f222/receipt.json",
+            "hash": "aa932ecb21fd3b54bbcbf68fe53c9112d33fd6d142bba9fdf80936ba4101b8a1"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on merge c0bfef5: tests 452/452 + 455/455 + 380/380 = 1287/1287, typecheck exit 0, story exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U30-merge-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-merge-verify-1.md": "2296790dfcd9028b58896a9e19a25d9063bf65db8ca8932b519f8b36357539cd"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "e75400f587d9a90eadfab52a74bf715e805e3c0ec65d793cca32fe30ddf2cd3d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:08:22.882Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-03T05:08:35.414Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Merged origin/main f4478f3; STATUS conflict resolved keeping both entries; review-3 record overclaim corrected; no overlap with main code; G1 binding holds.",
+          "evidence": [
+            ".ai-workflow/runs/U30-merge-implement-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-merge-implement-1.md": "74726fa9e4cfd77716d0001d46ab61d84c3fa8cfccad645c6c2fc05626ddee61"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:08:36.155Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-03T05:08:50.566Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08",
+        "output": {
+          "summary": "Merge delta reviewed (not independent): STATUS keeps both entries, overclaim corrected, no overlap with main code.",
+          "evidence": [
+            ".ai-workflow/runs/U30-merge-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-merge-review-1.md": "08440082e38c9996764d673bfccce2d311a302f2c8b8f8c0370fbaef079869bc"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:08:51.289Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-03T05:12:35.916Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/fb240d52-7c62-4d96-bc2a-d8176b512601/receipt.json",
+            "hash": "18f865e2bbc9979adaba9ef7d4ae249ed8815d9196fc35e372a61fab6fdeafb2"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/7ac47be3-78f9-4bbb-898f-3c5b06fb83fa/receipt.json",
+            "hash": "138702bfd745052b52532e135090609e42ccd57287f6d8699b1d47095a7e70e9"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/f8293083-b001-41a4-a12a-957156e74a93/receipt.json",
+            "hash": "6a34b2ae61b666575793501e6e409d1f8bee21d4a18c2a4807ff8822c032fa04"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/cab21afc-995c-4019-a7ed-ab3a599761e7/receipt.json",
+            "hash": "dff55b145b2be51a8d55bf6be928439bee22d805b6539bf5f3b379c2121d8c91"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/0bb6b13e-e34b-48ae-ab43-c3ba3330f453/57d3f0a4-d901-46bc-814f-33a053a7f222/receipt.json",
+            "hash": "aa932ecb21fd3b54bbcbf68fe53c9112d33fd6d142bba9fdf80936ba4101b8a1"
+          }
+        },
+        "output": {
+          "summary": "kit graph verify on merge c0bfef5: tests 452/452 + 455/455 + 380/380 = 1287/1287, typecheck exit 0, story exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U30-merge-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "8d4b941d4c2ce47b804451993e6b3effee1257ad48d771e7620ec6bd364ecb08"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U30-merge-verify-1.md": "2296790dfcd9028b58896a9e19a25d9063bf65db8ca8932b519f8b36357539cd"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "1372f5a680fdb417caf09728005e525719a72b9503a81bc94f82775692940da3"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}
