@@ -508,15 +508,18 @@
 **Interfaces:**
 - Consumes: Task 5 `readMacLink`·`macClient`, Task 6 `syncMacRepos(…, "links-only")`, Task 8 `mac restart`.
 - Produces:
-  - `export const RESTART_HOLD_MS = 600_000`
+  - `export const RESTART_HOLD_MS = 600_000; export const RESTART_RETRY_MS = 3_600_000`
   - `export type Presence = { state: MacState; detail: string | null }`
-  - `createMacWatch(d: { linkOf: () => MacLinkFile | null; clientFor: (file: MacLinkFile) => Pick<MacClient, "heartbeat" | "repos" | "link">; presence: () => Presence; idle: () => boolean; sync: (file: MacLinkFile, client: Pick<MacClient, "repos" | "link">) => Promise<{ add: string[]; remove: string[] }>; restart: () => void; log: (line: string) => void; now?: () => number }): { beat(): Promise<void>; check(): Promise<void>; holding(): boolean }`
+  - `createMacWatch(d: { linkOf: () => MacLinkFile | null; clientFor: (file: MacLinkFile) => Pick<MacClient, "heartbeat" | "repos" | "link">; presence: () => Presence; idle: () => boolean; sync: (file: MacLinkFile, client: Pick<MacClient, "repos" | "link">) => Promise<{ add: string[]; remove: string[] }>; restart: () => void; log: (line: string) => void; now?: () => number; root?: string }): { beat(): Promise<void>; check(): Promise<void>; holding(): boolean }`
     - `beat`: 링크 없음 → 아무것도 하지 않음. 있으면 `heartbeat(presence())`. 401이면 그 `macId`를 해제됨으로 기억하고 로그 한 줄, 그 뒤 그 `macId`로는 부르지 않는다(파일이 다른 `macId`가 되면 다시 부른다).
     - `check`: 해제됨이나 대기 중이면 아무것도 하지 않음. `sync` 결과에 add·remove가 없으면 끝. 있고 `idle()`이 아니면 "repo 변경이 열린 Task를 기다림" 로그를 바뀔 때만 남긴다. `idle()`이면 대기를 잡고, 로그를 남기고, `restart()`를 한 번 부른다.
+      - 다시 켜기로 정한 `{add, remove}`(정렬한 집합)와 그 시각을 `restart()` 전에 `<root>/team/mac-restart.json`(0600, `root`가 없으면 메모리만)에 기억한다. `links-only`의 `pending.add`에는 전체 맞추기도 못 하는 repo(`CLONE_DIR_TAKEN`, gh 로그인 없음 등)가 들어 있어서, 다시 켠 Office가 같은 집합을 또 찾으면 다시 켜기를 되풀이하게 되기 때문이다.
+      - 같은 집합이고 기억한 지 `RESTART_RETRY_MS`(3600000 ms)가 안 됐으면 다시 켜지 않고 로그를 한 번만 남긴다(이유는 `launchd.log`). 한 시간이 지나면 한 번 더 켠다(맞추지 못한 이유가 잠깐의 것이었을 수 있다). 다른 집합이면 다시 켜고, 빈 집합이면 기억을 지운다.
+      - 대기(600000 ms)가 끝났는데도 이 Office가 그대로면 기억을 지우고 다음 확인에서 다시 켠다. 기억을 쓰지 못하면 다시 켜지 않는다.
     - `holding`: 대기를 잡은 지 600000 ms 안이면 true다.
-  - `spawnMacRestart(root: string, host: { pathEnv: string; home: string; sshAuthSock?: string }, spawnFn?: typeof spawn): void`
-    - `process.execPath [<packageRoot>/bin/pazmo-office.mjs, "mac", "restart", "--data-dir", root]`, `detached:true`
-    - env `{PATH, HOME, LANG:"en_US.UTF-8"}` + `SSH_AUTH_SOCK`
+  - `spawnMacRestart(root: string, host: { pathEnv: string; home: string; sshAuthSock?: string }, spawnFn?: typeof spawn, o?: { execPath?: string; stableNode?: string; env?: NodeJS.ProcessEnv }): void`(`o`는 시험용)
+    - `restartNode() [<packageRoot>/bin/pazmo-office.mjs, "mac", "restart", "--data-dir", root]`, `detached:true`. `restartNode()`는 `process.execPath`가 있는 동안 그것(또는 같은 실행 파일이면 Homebrew의 안정 경로 `STABLE_NODE`)이고, `brew upgrade`가 지웠으면 `STABLE_NODE`다.
+    - env `{PATH, HOME, LANG:"en_US.UTF-8"}` + `SSH_AUTH_SOCK` + `NODE_EXTRA_CA_CERTS`(이 프로세스 값이 절대 경로일 때만)
     - stdout·stderr는 `<root>/team/launchd.log`에 이어 쓴다. `unref()`
   - TeamConfig에 다음을 더한다(모두 시험용 주입이고, 기본값으로 실제 동작한다).
     - `macLinkOf?: () => MacLinkFile | null`: 기본 `readMacLink(root)`. 오류는 로그를 남기고 null이다.
@@ -601,3 +604,14 @@
 - `.dmg` 앱, 비밀번호·SSO, Windows·Linux·Intel Mac은 하지 않는다.
 - LAN(사내 자체 인증서) 허브의 설치 한 줄은 하지 않는다(지금의 `/start` 흐름).
 - 사내 OpenShift 허브 재배포와 두 사람 Mac 실제 확인은 네 묶음 뒤 중간점검에서 한다.
+
+## 구현 중 바뀐 것
+
+Task 1–9를 만들면서 컨트롤러가 정한 판정(`Ruling`)과 리뷰가 찾은 것으로 위 계획이 코드와 달라졌다. 위 Task 본문은 처음 계획 그대로 두고, Task 9의 인터페이스(스스로 다시 켜기의 기억과 한 시간 재시도, `spawnMacRestart`의 node와 환경)만 코드에 맞게 고쳤다. 바뀐 것의 전부와 이유, 영향은 [검증 기록](../verification/2026-11-04-mac-connect.md)의 "판정 적용"에 있다. 큰 것은 다음과 같다.
+
+- `GET /mac/approve`로 없는 코드를 여는 것도 허용·거절과 같은 사람별 제한에 센다(Task 4, 판정 표의 요청 제한기).
+- LaunchAgent는 `bootout` 뒤에 `enable`을 하고 `bootstrap`을 500·1500 ms 간격으로 3번까지 시도한다(Task 7).
+- `NODE_EXTRA_CA_CERTS`(절대 경로일 때만)가 LaunchAgent뿐 아니라 팀 서비스와 스스로 다시 켜기의 환경에도 들어간다(Task 9).
+- 스스로 다시 켜기는 `process.execPath`가 `brew upgrade`로 사라졌으면 Homebrew의 안정 경로 node로 켜고, 다시 켜도 맞추지 못한 같은 집합은 한 시간에 한 번만 다시 켠다(`mac-restart.json`, Task 9).
+- 설치기의 마지막 단계(`mac connect`)도 `run_step`을 거친다(Task 3).
+- `.ai-workflow/verification.json`의 `V19`와 kit-checks 경계 줄은 Task 10이 아니라 설정 커밋 `e1e7f64`에서 했다.

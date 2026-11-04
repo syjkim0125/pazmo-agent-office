@@ -1,3 +1,29 @@
+# 2026-11-04 브라우저 팀 흐름 묶음 1: 팀원이 한 줄과 웹 허용 한 번으로 이 Mac을 연결한다 (U36, D41·V19)
+
+- D41(G3·G1 2026-11-04)의 네 묶음 중 첫째다. 계획은 [2026-11-04-1500-feat-mac-connect-plan.md](plans/2026-11-04-1500-feat-mac-connect-plan.md), kit 실행은 `.ai-workflow/runs/U36-mac-connect.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 더하기만 했다. 프로토콜 1·2·3, `/api/link/*`, 연결 문자열, `hub-link`, `team add|remove`, `start --team`은 그대로다.
+- 범위(OpenShift 허브, Apple Silicon Mac):
+  - **허브:** 기기 코드로 Mac을 사람 단위로 연결한다(`/api/mac/*`, 프로토콜 4, 코드는 10분·한 번·해시만). 한 사람에 Mac 하나이고, Mac을 해제하면 그 Mac이 받은 repo 연결도 멈춘다. 요청 제한기를 새로 두었다.
+  - **허브 웹·설치기:** `/mac`(설치 한 줄과 내 Mac 표), 허용 화면, 머리글 "내 Mac" 상태, 첫 방문 안내, `GET /install.sh`.
+  - **Office:** `mac connect|status|disconnect|restart`. 담당 repo를 `<데이터 루트>/repos/<이름>`에 clone·등록·연결하고(자기 폴더로 등록한 repo는 그대로), 로그인 때 저절로 켜지게 LaunchAgent를 올리고, 60초마다 상태를 보내고, 담당 repo가 바뀌면 열린 Task가 없을 때 스스로 맞추고 다시 켠다.
+  - 사용 안내는 [LOCAL-PREVIEW.md](LOCAL-PREVIEW.md#이-mac-연결-openshift-허브)다.
+- Task별 커밋(기준 `e1e7f64`):
+  - 1 Hub 저장소 `0e0151b`, 2 Hub Mac API `df84ff8`·`9f1ca6b`, 3 설치기 `25f990e`·`b37bb90`, 4 Hub 웹 `9c402ec`·`076922d`
+  - 5 Office 클라이언트 `55929d9`, 6 repo 맞추기 `87f4a3d`, 7 LaunchAgent `05e4e3f`·`fe1a80e`, 8 CLI `92b9ea0`, 9 접속 상태·다시 켜기 `ca51b9b`·`5e258b0`
+  - 10 문서 `docs: record the Mac connect bundle`
+  - 리뷰는 Task마다 했고 Task 2·3·4·7·9가 한 번씩 수정을 거쳤다.
+- 구현 중 계획에서 바뀐 것(컨트롤러 판정과 리뷰, 전부는 [검증 기록](verification/2026-11-04-mac-connect.md)의 "판정 적용"):
+  - 없는 코드를 여는 `GET /mac/approve`도 허용·거절과 같은 사람별 제한에 센다.
+  - LaunchAgent는 `bootout` 뒤에 `enable`을 하고 `bootstrap`을 3번까지 시도한다(실제 확인 전에는 맞는지 모른다).
+  - `NODE_EXTRA_CA_CERTS`(절대 경로일 때만)가 팀 서비스와 스스로 다시 켜기의 환경에도 들어간다.
+  - 스스로 다시 켜기는 `brew upgrade`가 지운 node 대신 Homebrew의 안정 경로 node를 쓰고, 다시 켜도 맞추지 못한 같은 변경은 한 시간에 한 번만 다시 켠다.
+  - 설치기의 마지막 단계도 `run_step`을 거친다. gh 로그인이 없는 호스트는 `mac connect`가 터미널에 붙어 있을 때만 그 자리에서 로그인을 띄우고, clone 전에 `gh auth setup-git`을 부른다.
+- 자동 검사: (전체 검사 뒤 채움)
+  - 아직 한 것: Task별 시험(그 Task의 시험 묶음 21/21, 19/19, 22/22, 17/17, 27/27, 18/18, 23/23, 56/56, 59/59)과 Task별 독립 리뷰다. 브랜치 전체 리뷰, main 합치기, kit 검증, G4는 아직이다.
+- **남은 것:**
+  - **실제 확인 전부.** 자동 시험만 마쳤다. 그래서 팀원에게 쓰라고 안내하지 않는다. 이번 묶음의 확인은 로컬 LAN 허브와 `NODE_EXTRA_CA_CERTS`로 `mac connect`, 실제 `launchctl`과 재로그인 자동 실행, 상태 다섯 가지, 해제, 담당자 추가 뒤 5분 안에 스스로 다시 켜기다. 사내 OpenShift 허브와 두 사람의 Mac으로 깨끗한 Mac에서 설치 한 줄을 하는 것은 네 묶음 뒤 중간점검이다. 계획은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "실제 확인 계획"이다.
+  - 묶음 2(팀원 웹: 내 할 일·보드·Task 상세·자동으로 일하기·작업하기·다시 시도), 묶음 3(PL 기획), 묶음 4(Story 마무리).
+  - 사람에게 보이는 한계(리뷰가 미룸, 마지막 리뷰가 가린다): 허브가 잠깐 응답하지 않을 때 `mac connect`를 다시 실행하면 새로 짝짓고 앞의 연결이 해제된다. Rosetta 터미널은 거절된다. 라우터 앞에 로드밸런서가 있으면 팀 전체가 시작 요청 10번/10분을 나눠 쓴다. 허브 `/mac` 화면의 "관리자 암호는 필요 없습니다"는 근거가 없다. OpenShift Template에 `PAZMO_OFFICE_REPO`·`PAZMO_OFFICE_REF` 매개변수가 없다.
+
 # 2026-11-04 lean Office와 팀 Office의 목록 사본도 claude hook 막힘을 유지한다 (U34)
 
 - 바로 아래 U33 항목의 "남은 것"이다(M16·V18, D29·D39). 사용자는 설명 페이지를 본 뒤 "Story 그대로"를 골랐다. 그래서 lean 화면과 팀 Office가 이미 있는 규칙을 따르게 하는 수정으로 보았다. Story 해시 `b005160e`가 G1 기록과 같아 G1을 다시 받지 않았다. kit 실행은 `.ai-workflow/runs/U34-lean-kept-hook-block.json`(최소 계획)이다.

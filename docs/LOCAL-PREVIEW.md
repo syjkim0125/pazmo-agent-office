@@ -30,11 +30,13 @@ Office 저장소의 `main` 브랜치를 받아 Office 저장소 디렉터리에�
 
 ## 팀 허브
 
-초대받은 팀원이 레포 목록과 담당자를 함께 관리하는 서버다. 팀 일은 팀 Story 보드(아래 [팀 Office](#팀-office-3단계-시험))로 Hub에서 나눠 가진다. 허브는 AI를 실행하지 않는다. 결정은 [team-hub-decision.md](understanding/team-hub-decision.md)와 [team-story-board-decision.md](understanding/team-story-board-decision.md)이다. **한 Mac 확인만 마쳤고 다른 사람 PC와 회사 IT 정책 확인은 남아 있다.**
+초대받은 팀원이 레포 목록과 담당자를 함께 관리하는 서버다. 팀 일은 팀 Story 보드(아래 [팀 Office](#팀-office-3단계-시험))로 Hub에서 나눠 가진다. 허브는 AI를 실행하지 않는다. 결정은 [team-hub-decision.md](understanding/team-hub-decision.md)와 [team-story-board-decision.md](understanding/team-story-board-decision.md)이다. **한 Mac 확인만 마쳤고 다른 사람 PC와 회사 IT 정책 확인은 남아 있다.** OpenShift 허브의 "이 Mac 연결"([아래](#이-mac-연결-openshift-허브))은 자동 시험만 마쳤고 실제 Mac으로는 아직 확인하지 않았다.
 
 Office에서 허브 요청을 보내고 받던 화면(상단 팀 허브 버튼, 보내기, 받은 요청 수락·거절, 보낸 요청 취소)은 Claw Office와 함께 지웠다(D33). 허브 웹의 요청 게시판은 남아 있지만 수락한 요청을 실행하는 Office가 없다.
 
 ### 팀원의 가장 짧은 순서
+
+OpenShift 허브라면 아래 [이 Mac 연결](#이-mac-연결-openshift-허브)이 이 순서를 대신한다(설치 한 줄과 웹 허용 한 번). 이 순서는 LAN(자체 인증서) 허브와, repo마다 직접 연결하는 방법이다.
 
 1. 관리자에게 받은 **초대 링크**를 연다. 사내망 허브라면 먼저 아래 "인증서를 한 번 신뢰하기"를 한다(OpenShift 허브는 필요 없다).
 2. 합류하면 허브의 **내 Office 연결** 화면이 열린다. **연결 문자열 만들기 → 복사**를 누른다.
@@ -103,6 +105,127 @@ security add-trusted-cert -r trustRoot -p ssl -k ~/Library/Keychains/login.keych
 
 - **레포** 화면에서 이름과 git origin 주소로 등록한다. Office를 처음 연결할 때 허브에 없는 레포는 자동 등록된다. 등록한 사람이 첫 담당자다. 담당자나 관리자가 담당자를 더하거나 뺀다(마지막 담당자는 뺄 수 없다).
 - 요청은 누구나 올린다. **수락·거절과 그 레포의 Office 연결은 담당자만** 한다. 수락·거절은 허브 웹에서 한다. 허브는 정규화한 origin 주소로 레포와 Office를 묶는다.
+
+### 이 Mac 연결 (OpenShift 허브)
+
+팀원이 설치 명령 한 줄과 웹의 "이 Mac 허용" 한 번으로 자기 Mac을 **사람 단위**로 허브에 연결하는 흐름이다. 연결하면 Office가 내가 담당하는 repo를 스스로 clone·등록·연결하고, Mac에 로그인할 때마다 저절로 켜지고, 허브 머리글에 내 Mac의 상태가 보인다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)(D41·V19)이고, 구현 판정과 검증은 [Mac 연결 검증 기록](verification/2026-11-04-mac-connect.md)이다.
+
+**자동 시험만 마쳤다. 실제 Mac과 사내 OpenShift 허브로는 돌려 보지 않았으므로, 팀원에게 쓰라고 안내하지 않는다.**
+
+**대상과 준비**
+
+- Apple Silicon Mac과 OpenShift 허브(공인 인증서)다. LAN(자체 인증서) 허브에는 설치 한 줄이 없다(`/install.sh`는 404이고, `/mac` 화면이 위의 "팀원의 가장 짧은 순서"와 아래 "Office 연결"을 쓰라고 안내한다).
+- Homebrew가 먼저 있어야 한다. 설치기는 Homebrew를 설치하지 않고, 없으면 설치 명령을 보여 주고 멈춘다.
+- 터미널에서 실행한다. 설치기는 로그인 같은 질문을 터미널에서 받는다.
+
+**한 줄**
+
+허브 웹의 **이 Mac 연결**(머리글의 "내 Mac"을 누르면 열리는 `/mac`)에서 명령을 복사해 Mac 터미널에 붙여넣는다. 연결된 Mac이 없는 팀원의 "내 Office 연결" 화면(초대로 들어오면 처음 열리는 화면) 위에도 같은 안내가 나온다.
+
+```sh
+curl -fsSL https://<허브 주소>/install.sh | sh
+```
+
+설치기는 단계마다 이름을 보이고, 이미 된 것은 건너뛴다. 어느 단계에서 멈춰도 그 단계 이름과 다시 실행할 같은 명령이 나온다. 하는 일은 이 순서다.
+
+1. Apple Silicon Mac인지, Homebrew가 있는지 본다. Rosetta로 연 터미널은 Intel로 보여 거절된다(터미널을 Rosetta 없이 다시 연다).
+2. `node@24`, `git`, `gh`, `colima`, `docker` 중 없는 것을 `brew install`로 설치하고, `claude`가 없으면 Claude Code를 설치한다.
+3. Office를 `~/.pazmo/office`에 받고(이미 있으면 새 버전으로) 의존성을 설치한다.
+4. GitHub 로그인이 없으면 브라우저로 로그인하고, Claude 로그인이 없으면 로그인한다.
+5. `mac connect --hub <허브 주소>`를 실행한다.
+
+**허용 화면에서 확인할 것**
+
+`mac connect`는 터미널에 허용 주소와 코드(`ABCD-1234` 꼴, 10분 안에)를 보이고 브라우저를 연다. 브라우저가 열리지 않으면 터미널에 나온 주소를 직접 연다. 허용 화면에서 다음을 본다.
+
+- 화면의 **코드**가 터미널의 코드와 같은지.
+- **Mac 이름**이 지금 쓰는 이 Mac인지(기본은 이 Mac의 이름에서 `.local`을 뺀 것. `--name`으로 바꾼다).
+- 지금 내 앞의 Mac이 맞는지.
+
+맞으면 **이 Mac 허용**, 아니면 **거절**을 누른다. 코드는 한 번만 쓸 수 있다. 터미널은 3초마다 허용 여부를 묻다가 허용되면 이어 간다. 이 브라우저로 허브에 아직 들어오지 않았다면 안내 화면이 나온다. 초대 링크(이미 팀원이면 새 기기 링크)를 먼저 열어 들어온 뒤 같은 주소를 다시 열면 된다. 그동안 코드는 그대로 10분 유지된다.
+
+**연결 뒤**
+
+`mac connect`는 세 단계를 보이고 끝난다: 허브와 짝짓기, 담당 repo 맞추기, 로그인할 때 Office 자동 실행 등록. Office가 켜지기를 기다리지 않는다. 처음 켜기는 VM과 이미지를 준비하느라 몇 분 걸리므로, 몇 분 뒤 허브의 **내 Mac**에서 상태를 본다. 같은 명령을 다시 실행해도 된다. 허브가 이 Mac의 연결을 아직 인정하면 다시 짝짓지 않고, 담당 repo와 자동 실행만 다시 맞춘다.
+
+**한 사람에 Mac 하나**
+
+연결된 Mac은 한 사람에 하나다. 새 Mac을 허용하면(Mac이 토큰을 받는 순간) 그 사람의 이전 Mac과, 그 Mac이 받은 repo 연결이 해제된다. 허용 화면이 이것을 미리 알려 준다. 해제된 Mac의 Office는 허브에서 거절당하면 로그 한 줄만 남기고 허브 호출을 멈추고, 그 Mac에서 설치 명령을 다시 실행하면 새로 연결된다. 허용 뒤 터미널이 응답을 받지 못하면(토큰은 한 번만 준다) 설치 명령을 다시 실행한다.
+
+**담당 repo를 받는 곳**
+
+- 위치는 `<데이터 루트>/repos/<이름>`이다. 기본 데이터 루트는 `~/.local/share/pazmo-agent-office`다. 허브 repo 이름에서 영문·숫자·`.`·`_`·`-` 밖의 글자는 `-`로 바꾸고 앞의 `.`는 뺀다(80자까지). 담당 repo 둘의 이름이 같으면 뒤에 repo id 앞 8자를 붙인다.
+- clone 주소는 `https://<허브가 아는 git 원격>.git`이고 인증은 내 git 설정(gh의 credential helper)이다. 중간에 끊긴 clone은 최종 이름의 폴더를 남기지 않는다(`.partial`로 받은 뒤 이름을 바꾸고, 남은 것은 다음 실행에서 지운다).
+- 그 자리에 이미 폴더가 있으면 origin이 같은 repo일 때만 쓰고, 다르면 `CLONE_DIR_TAKEN`으로 건너뛰며 손대지 않는다.
+- **자기 폴더로 이미 등록한 repo는 그대로 쓴다.** 같은 원격의 repo를 `team add`로 등록해 두었으면 clone하지 않고 그 등록을 쓴다. 연결 문자열로 만든 그 폴더의 연결 파일(`hub-link.json`)은 Mac이 건드리지 않는다. Mac이 만든 연결 파일에만 `macId`가 있고, 그것만 Mac이 새로 받거나 지운다.
+- 담당이 아니게 된 repo 중 Mac이 clone한 것은 팀 Office 등록만 빼고 폴더는 남긴다. 그 repo에 열린 Task가 있으면 끝난 뒤의 다음 맞추기에서 뺀다. 자기 폴더로 등록한 repo는 담당이 아니게 되어도 그대로다.
+
+**gh 로그인과 git 인증**
+
+- repo가 github.com이 아닌 Git 호스트(회사 GitHub Enterprise 등)에 있고 그 호스트의 gh 로그인이 없으면, `mac connect`가 터미널에서 돌 때 그 자리에서 `gh auth login --hostname <호스트> --web --git-protocol https`를 띄우고 끝나면 이어 간다.
+- 터미널이 없을 때(로그인 때 자동 실행, 켜진 Office)는 로그인을 띄우지 않는다. 그 호스트의 repo는 건너뛰고 같은 명령을 안내한다.
+- clone 전에 호스트마다 한 번 `gh auth setup-git --hostname <호스트>`를 불러 gh를 git의 자격 도우미로 맞춘다. 실패하거나, clone이 자격 문제로 실패하면 repo 이름과 함께 그 명령을 안내한다. 한 repo의 실패가 다른 repo를 막지 않는다.
+
+**자동 실행(LaunchAgent)**
+
+- 파일은 `~/Library/LaunchAgents/com.pazmo.office.plist`다. Mac에 로그인할 때 `up --team --no-open`을 한 번 돌린다(토큰은 들어 있지 않다). 로그는 `<데이터 루트>/team/launchd.log`다.
+- Node는 Homebrew의 `/opt/homebrew/opt/node@24/bin/node`다(지금 쓰는 node와 같은 실행 파일일 때). 그래서 `brew upgrade`를 해도 경로가 깨지지 않는다.
+- 켜기 전에 담당 repo를 한 번 맞춘다. 로그인 직후 VPN이 아직 없어 허브에 닿지 않으면 로그 한 줄만 남기고, 이미 등록된 repo로 켠다.
+- 꺼짐으로 보이면(아래 상태) Mac에서 설치 명령을 다시 실행한다. 자동 실행 파일과 연결을 다시 올린다.
+- 담당 repo가 하나도 없어도 Mac 연결이 있으면 Office는 켜진다. 상태만 보내고 담당 repo를 5분마다 본다.
+
+**허브에서 보이는 것**
+
+머리글 "내 Mac: …"과 `/mac`의 표(관리자는 팀원·초대에도)에 마지막으로 연락한 Mac이 다음 중 하나로 보인다. Office가 60초마다 상태를 보내고, 180초를 넘게 소식이 없으면 꺼짐이다.
+
+| 보이는 말 | 뜻 |
+|---|---|
+| 일하는 중 | 실행 중인 엔진이 있거나 열린 Task 기록이 진행 중이다 |
+| 대기 중 | 켜져 있고 지금 하는 일이 없다 |
+| 쉬는 중(한도) | 열린 Task가 실행기 계정(한도·결제·로그인)을 기다리거나, 실행기(codex·claude)가 준비되지 않았다. 실행기 이름과 이유가 붙는다 |
+| 잠김 | `--live` 없이 켜서 가져가지 않는다 |
+| 꺼짐(N분 전) / 꺼짐(아직 연락 없음) | 마지막 소식이 180초보다 오래됐거나, Office가 아직 한 번도 연락하지 않았다 |
+| 연결된 Mac 없음 | 이 사람의 연결된 Mac이 없다 |
+
+웹의 **해제**(`/mac`, 관리자는 팀원·초대의 "Mac 해제")는 그 Mac의 허브 접근과 그 Mac이 받은 repo 연결을 함께 끊는다. 연결 문자열로 만든 연결은 그대로다.
+
+**담당 repo가 바뀌면**
+
+켜진 Office가 5분마다 허브에 담당 repo를 묻는다. 허브에서 담당자로 추가되거나 빠지면 이렇게 맞춘다.
+
+- 연결만 죽은 repo(해제 뒤 다시 연결, 담당자가 빠졌다 다시 듦)는 켜진 Office가 그 자리에서 새로 받는다. 다시 켜지 않는다.
+- 팀 Office 등록을 바꿔야 하면(담당 repo가 새로 생기거나 빠짐) Office를 다시 켜야 한다. 열린 Task와 실행 중인 엔진이 없을 때만 다시 켠다. 있으면 로그 한 줄로 기다리고, 끝난 다음 확인에서 한 번 다시 켠다. 다시 켜기로 정한 뒤 멈출 때까지는 새 Task를 가져가지 않는다. 10분 안에 멈추지 않으면 다시 가져가기 시작하고 다음 확인에서 다시 시도한다.
+- 다시 켜도 맞추지 못한 repo(clone 실패, gh 로그인 없음 등)가 있어 같은 변경이 그대로면, 다시 켜기를 반복하지 않고 1시간에 한 번만 다시 시도한다. 이유는 `launchd.log`의 맞추기 줄에 있다.
+
+**명령**
+
+`pazmo-office`는 `node bin/pazmo-office.mjs`와 같다. `--data-dir PATH`로 다른 데이터 루트를 쓸 수 있다. `connect`와 `restart`는 Apple Silicon macOS에서만 실행된다.
+
+```sh
+pazmo-office mac connect --hub https://<허브 주소> [--name <Mac 이름>]   # 설치기가 부르는 명령
+pazmo-office mac status        # 연결·허브 상태(ok·revoked·unreachable)·담당 repo(등록·연결)·자동 실행·팀 Office
+pazmo-office mac disconnect    # 이 Mac 연결 끊기
+pazmo-office mac restart       # 팀 Office를 멈추고 up --team으로 다시 켜기
+```
+
+- `mac status`는 JSON을 낸다. 허브에 닿지 않으면 `hubState`가 `unreachable`이고, 허브가 이 Mac을 해제했으면 `revoked`다.
+- `mac disconnect`는 팀 Office를 먼저 멈추고(Task가 실행 중이면 `TASK_ACTIVE`로 거절하고 아무것도 바꾸지 않는다), 자동 실행을 내리고, 허브에서 이 Mac을 해제하고, Mac이 만든 repo 연결 파일과 `mac-link.json`을 지운다. 팀 Office 등록과 clone한 폴더는 남는다. 허브에 닿지 않으면 이 Mac 쪽만 정리하고 `hubRevoked: false`와 "허브의 /mac에서 해제하라"는 안내를 낸다.
+- `mac restart`는 `TASK_ACTIVE`이면 멈추지 않고 다시 켜지도 않는다. 담당 repo가 바뀌어 스스로 다시 켤 때도 같은 명령을 쓴다.
+- 비밀: Mac 토큰은 `<데이터 루트>/team/mac-link.json`(0600)에만 있다. 허브에는 해시만 있고, 토큰은 로그·명령줄·출력에 나오지 않는다. 허용 주소에는 코드만 들어 있다.
+
+**허브 운영자**
+
+- 설치기는 OpenShift 모드의 허브만 준다. 설치기가 받는 Office 저장소와 브랜치는 허브 컨테이너의 환경 변수 `PAZMO_OFFICE_REPO`(기본: 이 Office의 공개 저장소, `https://…` 주소)와 `PAZMO_OFFICE_REF`(기본 `main`, 브랜치나 태그 이름)다. 형식이 틀리면 허브가 시작할 때 멈춘다(`hub --public-url`로 직접 띄운 허브는 기본값만 쓴다). 지금의 OpenShift Template(`deploy/openshift/pazmo-hub.json`)에는 이 두 값의 매개변수가 없다. 바꾸려면 Deployment의 환경 변수에 직접 더한다.
+- 기기 코드를 받는 `POST /api/mac/start`는 로그인 없이 부를 수 있어서, 클라이언트마다 10분에 10번으로 제한한다. 클라이언트는 OpenShift 라우터가 덧붙인 `x-forwarded-for`의 **마지막** 값으로 구분한다. 라우터 앞에 회사 로드밸런서가 더 있으면 모두가 같은 값으로 보여 팀 전체가 10분에 10번을 나눠 쓴다. 배포 전에 확인한다.
+- 개발·시험용으로 LAN(자체 인증서) 허브에 `mac connect --hub`를 직접 부르는 방법은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "실제 확인 계획"에 있다(아직 해 보지 않았다). 자체 CA는 `NODE_EXTRA_CA_CERTS`(절대 경로)로 주고, 이 값은 자동 실행과 팀 Office, 스스로 다시 켜기의 환경에도 넘어간다. 팀원이 쓰는 흐름이 아니다.
+
+**알려진 한계**
+
+- Apple Silicon Mac과 Homebrew만 된다(Windows·Linux·Intel Mac 없음). 비밀번호·SSO 로그인과 터미널 없는 앱(.dmg)도 없다.
+- 한 사람에 Mac 하나다. 두 번째 Mac을 쓰려면 사람이 다르거나, 첫 Mac이 해제되는 것을 받아들여야 한다.
+- 허브가 5xx나 시간 초과로 잠깐 대답하지 않을 때 설치 명령을 다시 실행하면, 기존 연결을 못 쓰는 것으로 보고 새로 짝짓는다. 그러면 앞의 연결이 해제되어 돌고 있던 Office의 Story 연결이 끊길 수 있다. 허브가 정상일 때 다시 실행한다.
+- `mac disconnect`는 Task가 실행 중이면 거절한다. Task가 끝난 뒤 다시 한다.
+- 사람이 `gh`와 git 로그인을 한 Git 호스트의 repo만 clone된다. 로그인이 없는 호스트의 repo는 건너뛰고 안내만 한다.
 
 ### Office 연결
 
@@ -265,6 +388,12 @@ pazmo-office team status     # 설정과 열린 기록(단계·시도 수 포함
 - **repo 폴더를 옮기거나 지웠을 때:** `start --team`·`./office --team`이 `REPO_MISSING`으로 멈추고 그 경로와 `pazmo-office team remove --project <경로>`를 알려 준다. 폴더를 제자리에 돌려놓거나, 그 명령으로 뺀다. 폴더가 없는 repo는 가진 Task가 있어도 빠지고, 그 로컬 기록은 버린다(`REPO_REMOVED`). Hub의 그 Task는 하트비트가 끊겨 10분 뒤 보류되고, 그다음은 PL이 정한다. **그동안 팀 Office는 다른 repo의 Task도 가져가지 않는다.** Hub에는 그 Task가 아직 이 사람의 claim으로 남아 있기 때문이다. 빼기 전에 PL에게 그 Task를 취소해 달라고 하면 바로 풀린다.
 - **repo에 남은 lean 작업:** 팀 Office는 repo의 기존 lean 데이터(`lean/`)를 열지 않는다. 등록 전에 그 repo의 단일 lean Office에서 하던 작업은 손대지 않고 그대로 기다린다. 그 repo를 `team remove`하고 단일 Office로 켜면 다시 보인다.
 - **데이터:** 팀 Office 자신의 데이터는 데이터 루트의 `team/`이다(기록 `team.sqlite`, 로그 `office.log`). repo마다 Office 데이터 폴더에 `story/`(Story 엔진)와 `story-checkout/`(체크아웃)이 생긴다. 등록된 repo는 단일 Office로 켤 수 없다(`IN_TEAM_OFFICE`).
+- **Mac 연결과의 관계:** [이 Mac 연결](#이-mac-연결-openshift-허브)을 하면 팀 Office는 `team add`·`hub-link`로 repo마다 하던 일을 스스로 하고, 위의 흐름(가져가기·실행·PR·보고)은 그대로다. 위의 명령도 그대로 쓸 수 있다.
+  - 연결 정보는 데이터 루트의 `team/mac-link.json`(0600)이다. 있으면 등록된 repo가 0개여도 팀 Office가 켜진다(`NO_REPOS`는 Mac 연결이 없을 때만 난다). 그때는 허브에 상태를 보내고 담당 repo를 5분마다 확인하기만 한다.
+  - `up --team`은 팀 Office가 꺼져 있으면 켜기 전에 담당 repo를 한 번 맞춘다(clone·등록·연결). 허브에 닿지 않는 등의 실패는 한 줄만 남기고 켜기를 막지 않으며, 질문은 하지 않는다. 팀 Office가 켜져 있으면 등록을 바꾸지 않는다.
+  - 팀 Office는 60초마다 이 Mac의 상태(일하는 중·대기 중·쉬는 중(한도)·잠김)를 허브에 보낸다. 담당 repo의 연결이 죽었으면 5분 안에 새로 받고, 등록을 바꿔야 하면 열린 Task가 없을 때 스스로 `mac restart`로 다시 켠다. 그동안 새 Task는 가져가지 않는다.
+  - 자기 폴더로 `team add`·`hub-link`를 한 repo는 Mac이 고치지 않는다. 같은 원격의 repo는 clone하지 않고 그 등록을 쓴다.
+  - Mac 연결을 끊으려면 `mac disconnect`다. 등록과 clone은 남는다. Mac이 clone한 repo를 `team remove`로 빼도 내가 담당이면 다음 맞추기(`up --team`, `mac connect`, 스스로 다시 켜기)에서 다시 등록된다.
 - **없는 것:** PL의 Story 올리기(4단계), Story 검증 Task(PL만 가져간다), 화면(`monitor --team`은 `UNSUPPORTED`, 5단계)
 
 ## 검증
