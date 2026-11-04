@@ -1,0 +1,13 @@
+{
+  "token": "6544b56aee272a4fc0bde218e70bf911040b1ac077300dff9ae59c3b479d832d",
+  "output": {
+    "summary": "Docs only: review-2 wording fixes (cancel guard scope, cancel-delay bound), review section, STATUS pointers to review 3 and kit verification. src/ and tests/ unchanged since attempt 2.",
+    "evidence": [
+      ".ai-workflow/runs/U35-implement-3.md",
+      "src/runtime/runner-jobs.ts",
+      "tests/runner-jobs.test.mjs",
+      "tests/lean-office.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

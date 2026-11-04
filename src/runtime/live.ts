@@ -77,7 +77,7 @@ const roleNames = ["pm", "lead", "engineer", "reviewer"] as const;
  * per-role choice has fixed runners to qualify ahead of time and to report in
  * status, so `prequalify` and `roles` are false under `choose`. `factory` is
  * the role job factory's part that reads the runners: they are checked against
- * the settings' catalog, which is discovered again before a refusal (D39). */
+ * the settings' catalog, which is discovered again before a refusal and before every claude job (D39, D40). */
 export function liveRunnerWiring(runners: LiveRunners) {
   return {
     factory: {

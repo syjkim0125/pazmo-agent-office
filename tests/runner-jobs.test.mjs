@@ -158,12 +158,77 @@ test("a discovery that fails ends in a clean refusal from the last one, not a ru
   assert.equal(h.calls.qualify.length, 0);
 });
 
-test("a runner that is ready and unchanged is not discovered again (D39)", async () => {
+test("a codex runner that is ready and unchanged is not discovered again (D39, D40)", async () => {
   let discoveries = 0;
-  const h = harness({ rediscover: (install) => async () => (discoveries++, { codex: install("codex"), claude: install("claude") }) });
+  const h = harness({
+    choice: { runner: "codex", model: "gpt-5.5", reasoning: null },
+    rediscover: (install) => async () => (discoveries++, { codex: install("codex"), claude: install("claude") }),
+  });
   const out = await supervise(h.factory("engineer", "t", "x"));
   assert.equal(out.result.error, null);
   assert.equal(discoveries, 0);
+  assert.equal(h.calls.codex.length, 1);
+});
+
+test("a claude job is discovered again though the last discovery saw it ready: a hook listed since refuses it (D29, D40)", async () => {
+  let discoveries = 0;
+  const h = harness({
+    rediscover: (install) => async () => {
+      discoveries++;
+      return { codex: install("codex"), claude: { ...install("claude"), blocked: "SessionEnd hook (policySettings)", hint: "remove the hook" } };
+    },
+  });
+  for (const role of ["pm", "lead", "engineer", "reviewer"]) {
+    const out = await supervise(h.factory(role, "t", "x"));
+    assert.equal(out.closed, true);
+    assert.equal(out.result.error, "RUNNER_NOT_READY claude: remove the hook", role);
+    // The team Office waits on this refusal like D39's (runner-account.ts).
+    assert.equal(runnerNotReady(out.result.error)?.runner, "claude");
+  }
+  assert.equal(discoveries, 4);
+  assert.equal(h.calls.qualify.length, 0);
+  assert.equal(h.calls.claude.length, 0);
+  assert.equal(h.calls.evidence.length, 0);
+});
+
+test("a claude job cancelled while its rediscovery runs is refused as CANCELLED, before qualification (D40)", async () => {
+  for (const blocked of [null, "SessionEnd hook (policySettings)"]) {
+    let release;
+    const h = harness({
+      rediscover: (install) => () =>
+        new Promise((resolve) => {
+          const claude = blocked ? { ...install("claude"), blocked, hint: "remove the hook" } : install("claude");
+          release = () => resolve({ codex: install("codex"), claude });
+        }),
+    });
+    const abort = new AbortController();
+    const pending = h.factory("engineer", "t", "x").supervise("a".repeat(64), 1000, abort.signal);
+    abort.abort();
+    release();
+    const out = await pending;
+    assert.equal(out.closed, true);
+    assert.equal(out.result.error, "CANCELLED", `blocked: ${blocked}`);
+    assert.equal(h.calls.qualify.length, 0);
+    assert.equal(h.calls.claude.length, 0);
+  }
+});
+
+test("a claude job still ready after that discovery runs, one discovery per job (D40)", async () => {
+  let discoveries = 0;
+  const h = harness({ rediscover: (install) => async () => (discoveries++, { codex: install("codex"), claude: install("claude") }) });
+  assert.equal((await supervise(h.factory("engineer", "t", "x"))).result.error, null);
+  assert.equal((await supervise(h.factory("reviewer", "t", "x"))).result.error, null);
+  assert.equal(discoveries, 2);
+  assert.equal(h.calls.claude.length, 2);
+});
+
+test("a claude job whose fresh discovery fails runs from the last one: a failed discovery judges nothing (D29, D40)", async () => {
+  let discoveries = 0;
+  const h = harness({ rediscover: () => async () => (discoveries++, Promise.reject(new Error("CANDIDATE_CHANGED"))) });
+  const out = await supervise(h.factory("engineer", "t", "x"));
+  assert.equal(discoveries, 1);
+  assert.equal(out.result.error, null);
+  assert.equal(h.calls.claude.length, 1);
 });
 
 test("a binary changed since discovery is refused before qualification", async () => {

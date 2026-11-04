@@ -1083,6 +1083,38 @@ test("a claude role job is refused when only the lean Office's discovery saw the
   assert.deepEqual(jobs.calls, [], "the hooked claude never starts");
 });
 
+for (const screen of [true, false])
+  test(`a claude role job is refused for a hook that appeared while the engine's copy said ready: ${screen ? "only the runners screen listed it" : "nothing listed it"} (D29, D40)`, async (t) => {
+    const f = await fixture(t, { catalog: (root) => installedCatalog(root) });
+    const { runners } = f.captured;
+    const dev = await f.office.agents.create({ name: "Dev", work: claude("sonnet"), review: codex() });
+    const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: dev.id, risk: "normal" });
+    engineChild(f, "child-1", id);
+    assert.equal(runners.settings.catalog.installs.claude.blocked, undefined, "the engine's copy says ready");
+    // A SessionEnd hook appears while the task runs.
+    f.state.catalog = hookedClaude(installedCatalog(f.root));
+    if (screen) assert.equal((await claudeView(f)).blocked, true);
+    const jobs = engineJobs(runners);
+    const out = await jobs.run("engineer", "child-1");
+    assert.equal(out.result.error, `RUNNER_NOT_READY claude: ${hookedClaude().installs.claude.hint}`);
+    assert.deepEqual(jobs.calls, [], "the hooked claude never starts");
+  });
+
+test("a codex role job whose runner the engine's copy says ready runs no discovery; a claude one runs one (D39, D40)", async (t) => {
+  const f = await fixture(t, { catalog: (root) => installedCatalog(root) });
+  const { runners } = f.captured;
+  const dev = await f.office.agents.create({ name: "Dev", work: codex(), review: claude("sonnet") });
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: dev.id, risk: "normal" });
+  engineChild(f, "child-1", id);
+  const jobs = engineJobs(runners);
+  const before = f.discoveries.count;
+  assert.equal((await jobs.run("engineer", "child-1")).result.error, null);
+  assert.equal(f.discoveries.count, before, "codex: the engine's copy is enough");
+  assert.equal((await jobs.run("reviewer", "child-1")).result.error, null);
+  assert.equal(f.discoveries.count, before + 1, "claude: one fresh discovery before the job");
+  assert.deepEqual(jobs.calls.map((c) => c.runner), ["codex", "claude"]);
+});
+
 test("the engine's loader discovers afresh inside the 5 s window, shares a discovery in flight and refreshes the cache", async (t) => {
   const f = await fixture(t);
   const { settings } = f.captured.runners;

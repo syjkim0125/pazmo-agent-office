@@ -1,3 +1,32 @@
+# 2026-11-04 claude 역할 실행마다 실행 직전에 실행기를 새로 확인한다 (D40, U35)
+
+- U34 항목의 "남은 것" 첫째(엔진 사본이 준비됨인 동안 생긴 hook)다. 사용자는 [설명 페이지](https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD)를 본 뒤 "B + D40 승인"이라고 답했다. 다른 안 A는 엔진 사본이 lean 사본의 탐색을 따르게 하는 것이었다(Story 그대로, 화면이 본 hook만 막음).
+- Story에 D40과 M16 문장을 페이지의 초안대로 넣었다. V18의 같은 뜻 구절은 컨트롤러가 더했다(ASSUMED, G1 기록에 적음). G1은 새 Story 해시 `1b507999`로 다시 기록했다(이전 `b005160e`). kit 실행은 `.ai-workflow/runs/U35-claude-job-recheck-committed.json`(최소 계획, 커밋된 트리)이다.
+- 무엇이 문제였나:
+  - 엔진은 자기 실행기 목록 사본이 준비됨이고 바이너리가 같으면 다시 탐색하지 않았다.
+  - 그래서 작업이 도는 사이 claude에 hook이 생기면 다음 claude 역할 실행이 그대로 시작됐다. lean 실행기 화면이 그 hook을 보고 막힘을 보였어도 그랬다(U34 리뷰 2차의 임시 시험). 아무도 조회하지 않았으면 hook을 아는 사본이 없었다.
+- 고친 것:
+  - 엔진은 claude 역할 실행마다 프로세스를 띄우기 전에 다시 탐색한다(`src/runtime/runner-jobs.ts`의 조건 한 줄).
+  - hook으로 막혔으면 D39와 같은 `RUNNER_NOT_READY claude: <hook 안내>`로 거절한다. 팀 Office는 D39처럼 기다린다.
+  - 다시 탐색하는 동안 취소된 실행은 자격 검사 없이 `CANCELLED`로 끝난다.
+  - 조회 실패는 D29·U34 그대로다. codex 역할 실행은 그대로다.
+- 자동 검사:
+  - 새 시험 7개와 고친 시험 1개다. 새 시험은 고치기 전에 모두 실패했다(처음 6개: runner-jobs 17/20, lean-office 51/54; 리뷰 1차 뒤의 취소 시험 1개). 변이 6개를 시험이 모두 잡았다.
+  - 관련 시험 파일 10개 222/222, 타입 검사 exit 0.
+  - 독립 리뷰 1차는 머지 가능이었다(Critical·Important 0, Minor 6). 취소 처리, pm·lead 시험, 이 항목의 시험 개수를 고쳤고, 나머지는 아래 남은 것에 적었다. 수정분만 본 2차도 머지 가능이었다(Minor 2, 문서만 고침). 문서만 본 3차도 머지 가능이었다(`.ai-workflow/runs/U35-review-3.md`).
+  - 첫 kit 실행(`.ai-workflow/runs/U35-claude-job-recheck.json`)은 커밋 전 트리에서 1333/1333까지 갔다. 그런데 kit 스냅샷에 git HEAD가 들어가서 커밋하자 낡았다. 그래서 커밋된 트리로 두 번째 kit 실행의 리뷰 2번(둘 다 머지 가능)과 검증을 다시 했다.
+  - kit 검증(커밋된 트리 `2d4d921`): 시험 448/448 + 449/449 + 436/436 = **1333/1333**, 타입 검사·Story 검사 exit 0. [기록](../.ai-workflow/runs/U35-committed-verify-1.md)
+  - 커밋된 트리 리뷰 2차의 Minor(검증 기록의 한 문장이 바뀐 줄을 다 적지 않음)는 이 전달 커밋에서 고쳤다(kit 리뷰·검증 밖).
+- PR syjkim0125/pazmo-agent-office#74. G4는 2026-11-04에 기록했다. 사용자가 "피드백 보고 승인할게. 머지도해"라고 쓴 뒤 G4 설명 페이지를 보고 "피드백 확인 후 승인·머지"를 골랐다(D13). 세 질문에는 직접 답하지 않았다. 페이지가 보인 ASSUMED V18 구절도 받아들였다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/claude-job-recheck-g4.md)
+- **남은 것:**
+  - 실제 claude로 재현하지 않았다. 비용(claude 조회 약 1–2초)은 D30에서 잰 값이고, 새로 재지 않았다.
+  - 탐색이 끝난 뒤 실행 전까지, 그리고 실행 도중에 생긴 hook은 실행 중 감시가 맡는다(지금과 같음, SessionEnd hook은 막지 못함).
+  - lean Office는 진행 중인 탐색을 함께 쓴다. hook이 생기기 직전에 시작된 탐색에 끼면 hook 전 결과로 실행될 수 있다(틈은 탐색 한 번, 리뷰 1차가 임시 시험으로 확인).
+  - 팀 Office의 "새로 확인"은 함께 쓰는 탐색을 5초 안이면, 켜는 동안에는 나이와 상관없이 다시 쓴다(코드로만 확인).
+  - 다시 탐색은 취소를 기다리지 않아, 취소·멈춤이 탐색이 끝날 때까지 늦는다. CLI가 멈춰 18초 안에 끝나지 않으면 깨끗한 취소가 아니라 `PROCESS_LIVENESS_UNKNOWN`으로 끝난다(코드로만 확인).
+  - hook이 있으면 시도마다 조회 한 번에 SessionStart·SessionEnd hook이 한 번 돈다(D29와 같음).
+  - [변경 기록](verification/2026-11-04-claude-job-recheck.md)
+
 # 2026-11-04 lean Office와 팀 Office의 목록 사본도 claude hook 막힘을 유지한다 (U34)
 
 - 바로 아래 U33 항목의 "남은 것"이다(M16·V18, D29·D39). 사용자는 설명 페이지를 본 뒤 "Story 그대로"를 골랐다. 그래서 lean 화면과 팀 Office가 이미 있는 규칙을 따르게 하는 수정으로 보았다. Story 해시 `b005160e`가 G1 기록과 같아 G1을 다시 받지 않았다. kit 실행은 `.ai-workflow/runs/U34-lean-kept-hook-block.json`(최소 계획)이다.
@@ -17,7 +46,7 @@
   - [학습 문서](solutions/logic-errors/keep-a-remembered-runner-block-in-every-catalog-copy.md): 이력에 기대는 규칙은 결과를 저장하는 곳마다 적용하고, 증거를 위 사본만 본 경우를 맨 아래 읽는 곳에서 시험한다.
 - G4는 2026-11-04에 기록했다. 사용자가 설명 페이지를 본 뒤 선택 ①("① 승인 후 머지")을 골랐고, 세 질문에는 직접 답하지 않았다. 처음 설명 페이지는 다른 Claude 조직에서 만들어 이 조직에서 열 수 없어서 새로 만들었다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/lean-kept-hook-block-g4.md)
 - **남은 것:**
-  - **엔진 사본이 준비됨인 동안 생긴 hook(이 변경 전부터 있음):** 엔진은 자기 사본이 준비됨이면 다시 탐색하지 않는다. 작업이 도는 사이 hook이 생기고 그 조회를 lean 사본(실행기 화면)만 봤으면, 화면은 막힘인데 다음 claude 역할 실행이 시작된다(리뷰 2차가 임시 시험으로 확인). 팀 Office에서는 작업이 도는 동안 실행 중인 엔진 말고는 탐색하지 않아(`claimCouldFollow`) 이 경우가 없다. 별도 후속이다.
+  - **엔진 사본이 준비됨인 동안 생긴 hook(이 변경 전부터 있음):** 엔진은 자기 사본이 준비됨이면 다시 탐색하지 않는다. 작업이 도는 사이 hook이 생기고 그 조회를 lean 사본(실행기 화면)만 봤으면, 화면은 막힘인데 다음 claude 역할 실행이 시작된다(리뷰 2차가 임시 시험으로 확인). 팀 Office에서는 작업이 도는 동안 실행 중인 엔진 말고는 탐색하지 않아(`claimCouldFollow`) 이 경우가 없다. 별도 후속이다. → 맨 위 항목(D40·U35)에서 고친다.
   - 아래 사본(엔진, 팀 Office의 repo별 lean 사본)은 자기가 본 더 오래된 막힘을 계속 쓸 수 있다(더 조심하는 쪽, 다음 성공한 조회에서 맞춰짐).
   - 직전 사본에 막힘이 없었으면(성공한 조회가 없었거나, 마지막 성공한 조회에 hook이 없었음) 조회 실패는 막지 않는다(D29 그대로, 이 변경 전과 같음).
   - 실제 claude로 재현하지 않았다(손으로 만든 목록으로만 확인). [변경 기록](verification/2026-11-04-lean-kept-hook-block.md)

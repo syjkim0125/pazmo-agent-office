@@ -1,0 +1,14 @@
+{
+  "token": "093e6b3fc04f3bd59a43a5363d10c1f462a975d8c16598d675824dacd490a612",
+  "output": {
+    "summary": "roleJobFactory rediscovers before every claude role job (D40); a hook that appeared while the engine's copy said ready refuses the job with RUNNER_NOT_READY claude whether only the runners screen or nothing had listed it. RED 17/20 and 51/54 before, GREEN 20/20 and 54/54 after, related 221/221, typecheck 0, 4/4 mutants caught.",
+    "evidence": [
+      ".ai-workflow/runs/U35-implement-1.md",
+      "src/runtime/runner-jobs.ts",
+      "src/runtime/live.ts",
+      "tests/runner-jobs.test.mjs",
+      "tests/lean-office.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

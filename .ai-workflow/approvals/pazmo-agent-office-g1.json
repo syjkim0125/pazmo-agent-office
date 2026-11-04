@@ -1,13 +1,13 @@
 {
   "gate": "G1",
-  "storyHash": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e",
-  "responseRef": "Claude Code conversation 2026-11-03: after reading the decision explainer https://claude.ai/artifact/FQmjsJozgCNYT81EiKD9n3 (version 4) the user chose \"1-A 2-A 3-A\"; shown the Story draft (M16 sentence, D39, V18 additions) and asked \"이 내용이 이번 구현의 범위와 완료 조건으로 맞나요?\", the user answered \"맞아, 진행해\"",
+  "storyHash": "1b507999c54e75d8cb53f106bf491f22e9e6b566cc0d6f49fdf122239f1ea963",
+  "responseRef": "Claude Code conversation 2026-11-04: after reading the decision explainer https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD (version 1), which showed options A and B, the D40 draft and the M16 sentence, the user answered \"B + D40 승인\"",
   "story": "docs/understanding/pazmo-agent-office-contract.md",
-  "date": "2026-11-03",
-  "scope": "Canonical Story with D36, D37 and D38 (approved on main in PR #67, below) plus D39 (RUNNER_NOT_READY refusals wait like D37; the engine checks its runners again right before such a refusal). Merging main after PR #70 changed only the Story's progress lines, so the hash is the same. Earlier decisions keep their own approval records.",
+  "date": "2026-11-04",
+  "scope": "Canonical Story with D39 (approved below) plus D40 (before every claude role job the engine checks its runners again, even when its copy says ready) and its M16 sentence, both as shown in the explainer. ASSUMED (controller, not in the shown draft): V18 got the matching clause 'claude 역할 실행마다 실행 직전에 실행기를 새로 확인함(준비됨 사본이어도 그 사이 생긴 hook으로 거절, D40)'; the D40 line names the explainer as a link instead of '이 설명 페이지'. Earlier decisions keep their own approval records.",
   "supersedes": {
-    "storyHash": "cda46b412786308b55ce5f387032c0a395cac38ccbc9f75543b61d8621c4fd61",
-    "responseRef": "Claude Code conversation 2026-11-03 (PR #67): after reading the G4 explainer https://claude.ai/artifact/Lzgw6WcGnf9uVrpQKJaj12 (version 2), which said that merging main #65 (kit 5) needs a G1 bound to the current Story and that the only change since the last G1 is D37 from #66 (D37 with its M16 and V18 text, chosen there), the user answered \"A. G1 승인 후 진행 (Recommended)\""
+    "storyHash": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e",
+    "responseRef": "Claude Code conversation 2026-11-03: after reading the decision explainer https://claude.ai/artifact/FQmjsJozgCNYT81EiKD9n3 (version 4) the user chose \"1-A 2-A 3-A\"; shown the Story draft (M16 sentence, D39, V18 additions) and asked \"이 내용이 이번 구현의 범위와 완료 조건으로 맞나요?\", the user answered \"맞아, 진행해\""
   },
   "previous": "docs/understanding/pazmo-agent-office-g1.md (2026-09-17, original Story approval)"
 }
