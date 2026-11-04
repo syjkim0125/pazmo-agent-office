@@ -1,7 +1,7 @@
 # Story: Jira 없이 운영하는 Pazmo Agent Office
 Status: Approved
 Owner: JongKun Kim
-Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-03 · Check-in: accepted
+Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-04 · Check-in: accepted
 Understanding gate (G3): docs/understanding/pazmo-agent-office-plan.md · 2026-09-18 · Check-in: accepted
 Understanding gate (G4): .ai-workflow/approvals/lean-kept-hook-block-g4.json · 2026-11-04 · Check-in: accepted
 G4: PASS — U34(lean·팀 Office 목록 사본도 claude hook 막힘 유지): 사용자가 G4 설명 페이지를 본 뒤 "① 승인 후 머지"를 골랐다. 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/lean-kept-hook-block-g4.md).
