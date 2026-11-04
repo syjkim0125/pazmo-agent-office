@@ -93,14 +93,36 @@ export function assertNotInTeam(p: Project): void {
     );
 }
 
+/** Whether a team Office start is under way: its `start.lock`, unless the pid
+ * its maker wrote in it is gone (`kill(pid, 0)` is ESRCH: an `up` killed
+ * outright, a reboot). The pid is only checked, never signalled, and the lock is
+ * left for the lifecycle to clear. A lock without a readable pid (an earlier
+ * version's, or one whose maker is writing it now) counts. */
+function startUnderWay(root: string): boolean {
+  const lock = join(teamDir(root), "start.lock");
+  noSymlinks(lock);
+  if (!existsSync(lock)) return false;
+  let pid: number;
+  try {
+    pid = Number(readFileSync(join(lock, "pid"), "utf8"));
+  } catch {
+    return true;
+  }
+  if (!Number.isInteger(pid) || pid <= 0) return true;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ESRCH";
+  }
+}
+
 /** Whether a team Office process is up: its running.json names a live pid. A
  * pid owned by someone else (EPERM) is still a live process. A start still
  * under way (its `start.lock`, for up to 15 s before running.json is written)
  * counts too: that Office has already read the registry. */
 export function teamRunning(root: string): boolean {
-  const lock = join(teamDir(root), "start.lock");
-  noSymlinks(lock);
-  if (existsSync(lock)) return true;
+  if (startUnderWay(root)) return true;
   const file = join(teamDir(root), "running.json");
   noSymlinks(file);
   if (!existsSync(file)) return false;
