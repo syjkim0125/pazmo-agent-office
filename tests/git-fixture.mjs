@@ -60,3 +60,49 @@ export function gitWorld(t) {
 
   return { root, home, bare, repo, push, git };
 }
+
+/**
+ * Bare origins for the repos a Mac clones, in a temp folder removed after the test:
+ * - one bare repo per name (default branch `main`, one commit adding `README.md` = `# <name>`);
+ * - `home`: a HOME whose `.gitconfig` sends `https://github.example.com/team/<name>.git` to that bare repo
+ *   (`url.<file://bare>.insteadOf`), so an https clone of `remote(name)` never leaves the machine;
+ * - `remote(name)`: `github.example.com/team/<name>`, the way the Hub names the repo; `bare(name)`: its path;
+ * - `git(cwd, ...args)`: real git over that HOME, returning stdout.
+ */
+export function gitOrigins(t, names) {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-origins-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const home = join(root, "home");
+  mkdirSync(home);
+  writeFileSync(
+    join(home, ".gitconfig"),
+    "[user]\n\tname = Test Person\n\temail = person@example.com\n[init]\n\tdefaultBranch = main\n",
+  );
+  const env = { HOME: home, PATH: process.env.PATH, LANG: "C", GIT_TERMINAL_PROMPT: "0" };
+  const git = (cwd, ...args) =>
+    execFileSync("git", args, { cwd, env, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+
+  const bares = new Map();
+  for (const name of names) {
+    const bare = join(root, "origins", `${name}.git`);
+    git(root, "init", "-q", "--bare", bare);
+    const seed = join(root, "seeds", name);
+    mkdirSync(seed, { recursive: true });
+    git(seed, "init", "-q");
+    writeFileSync(join(seed, "README.md"), `# ${name}\n`);
+    git(seed, "add", "-A");
+    git(seed, "commit", "-q", "-m", "initial");
+    git(seed, "push", "-q", bare, "main");
+    bares.set(name, bare);
+  }
+  for (const [name, bare] of bares)
+    git(root, "config", "--global", `url.file://${bare}.insteadOf`, `https://github.example.com/team/${name}.git`);
+
+  return {
+    root,
+    home,
+    bare: (name) => bares.get(name),
+    remote: (name) => `github.example.com/team/${name}`,
+    git,
+  };
+}

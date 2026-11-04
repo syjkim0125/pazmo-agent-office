@@ -18,6 +18,9 @@ export type HubLinkConfig = {
   repoId: string;
   /** The repository as the hub names it; absent in files written before connection strings. */
   repoName?: string;
+  /** The Mac whose `mac connect` minted this link. Absent in a link the person made from a connection string:
+   * the Mac only ever rewrites or removes link files that carry a macId. */
+  macId?: string;
 };
 const FILE = "hub-link.json";
 
