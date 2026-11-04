@@ -3,6 +3,8 @@
 export const HUB_PROTOCOL = "2";
 /** Phase-1 Offices and hubs; the hub still serves their routes. */
 export const HUB_LEGACY_PROTOCOL = "1";
+/** Wire version for /api/mac/*, the member-level Mac routes; it overlaps no other version, so a hub without them is told apart. */
+export const HUB_MAC_PROTOCOL = "4";
 
 /** Decisions the requester answers on the hub. G4 stays in the assignee's Office. */
 export const HUB_ANSWERABLE = ["questions", "story", "planning-retry"] as const;

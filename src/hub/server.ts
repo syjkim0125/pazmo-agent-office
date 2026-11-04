@@ -6,6 +6,8 @@ import { HubError, type HubStore } from "./store.ts";
 import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
+import { macApi } from "./mac-api.ts";
+import { createRateLimit } from "./rate-limit.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
@@ -14,6 +16,9 @@ export type HubServerConfig = { store: HubStore; listen: HubListen };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;
+/** POST /api/mac/start, per client: it needs no credential, and every start holds one of the hub's pending codes. */
+const START_LIMIT = 10;
+const START_WINDOW_MS = 600_000;
 const COOKIE = "pazmo_hub";
 const COOKIE_AGE = 30 * 86400;
 const ID = "([0-9a-f-]{36})";
@@ -77,6 +82,14 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     origins = new Set<string>(),
     base = "";
   const link = linkApi?.(() => base);
+  // The address a per-client limit counts by. Behind the router the router appends the peer it saw as the LAST
+  // X-Forwarded-For value, while anything before it is whatever the client sent; with no router the header is not trusted.
+  const clientKey = (req: IncomingMessage) =>
+    (c.listen.kind === "proxy" ? String(req.headers["x-forwarded-for"] ?? "").split(",").pop()?.trim() : "") ||
+    req.socket.remoteAddress ||
+    "unknown";
+  // One limiter per hub: two hubs in a process never share a client's count.
+  const mac = macApi(c.store, { base: () => base, clientKey, startLimit: createRateLimit(START_LIMIT, START_WINDOW_MS) });
   // Only the self-CA mode has a certificate to show; behind the router the router's certificate is the public one.
   const tls = c.listen.kind === "tls" ? c.listen.tls : null;
   async function browser(req: IncomingMessage, res: ServerResponse, url: URL) {
@@ -200,12 +213,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (!link) return json(res, 404, { error: "NOT_FOUND" });
       return link(req, res, url);
     }
+    if (url.pathname.startsWith("/api/mac/")) return mac(req, res, url);
     return browser(req, res, url);
   }
   const onRequest = (req: IncomingMessage, res: ServerResponse) => {
     handle(req, res).catch((error: unknown) => {
       if (res.headersSent) return void res.destroy();
-      const api = (req.url ?? "").startsWith("/api/link/");
+      const api = ["/api/link/", "/api/mac/"].some((prefix) => (req.url ?? "").startsWith(prefix));
       if (error instanceof HubError)
         return api
           ? json(res, error.status, { error: error.code, message: error.message })
