@@ -301,6 +301,13 @@ export async function syncMacRepos(d: MacSyncDeps, mode: "full" | "links-only"):
     try {
       minted = await d.client.link(repo.repoId);
     } catch (error) {
+      // The member's live connection-string link to this repo (another Office) stands: the Hub does not let a Mac
+      // revoke it, and no retry here would change that. Office's own words, once per check.
+      if (codeOf(error) === "LINKED_ELSEWHERE")
+        return problem(
+          r,
+          "다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면에서 그 연결을 해제하세요",
+        );
       return problem(r, `허브 연결을 받지 못했습니다 — ${hubReason(error)}`);
     }
     if (minted.member.id !== d.member.id)

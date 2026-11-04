@@ -515,10 +515,13 @@ test("links-only mints a link for a registered repo whose Mac link died, changes
   const be = cloneOf(m, "app-be"),
     fe = cloneOf(m, "app-fe");
   const old = readLinkConfig(locate(be, m.root).dataDir);
-  const live = m.ctx.store.repos(m.member.id).find((r) => r.name === "app-be").links[0];
-  m.ctx.store.revokeLink(m.member, live.id);
-  m.ctx.store.addRepo(m.member, "app-ops", url("app-ops"));
   const other = m.ctx.store.acceptInvite(m.ctx.store.createInvite(m.member, "다른 사람"), "b").member;
+  // An owner change ends the member's links to app-be (a Mac link is not revoked on its own): this Mac's dies.
+  m.ctx.store.addOwner(m.member, m.id("app-be"), other.id);
+  m.ctx.store.removeOwner(m.member, m.id("app-be"), m.member.id);
+  m.ctx.store.addOwner(m.member, m.id("app-be"), m.member.id);
+  assert.equal(m.ctx.store.link(old.token), null, "the Mac's app-be link is dead");
+  m.ctx.store.addRepo(m.member, "app-ops", url("app-ops"));
   m.ctx.store.addOwner(m.member, m.id("app-fe"), other.id);
   m.ctx.store.removeOwner(m.member, m.id("app-fe"), m.member.id);
   const registry = readFileSync(join(teamDir(m.root), "team.json"));
@@ -567,6 +570,44 @@ test("a link file with another Mac's macId, or one this Mac holds no live link f
   assert.equal(second.macId, m.file.macId);
   assert.deepEqual(m.lines, ["app-be: 허브 연결을 받았습니다"]);
   assert.equal(m.ctx.store.link(first.token), null, "the earlier link stops");
+});
+
+test("a link the Hub refuses with LINKED_ELSEWHERE is one Office line, asked once per sync, and writes no link file", async (t) => {
+  const m = await macWorld(t, ["app-be"]);
+  await syncMacRepos(deps(m), "full");
+  const be = cloneOf(m, "app-be");
+  const file = linkFile(m, be);
+  // This Mac's link died (another Office linked the repo with a connection string, which revoked it).
+  writeLinkConfig(locate(be, m.root).dataDir, { ...readLinkConfig(locate(be, m.root).dataDir), macId: "an-older-mac" });
+  const before = readFileSync(file);
+  const hubText = "허브가 보낸 문장\u0007 Bearer xyz";
+  let asks = 0;
+  const client = {
+    repos: m.client.repos,
+    async link() {
+      asks++;
+      throw Object.assign(new Error(hubText), { status: 409, code: "LINKED_ELSEWHERE" });
+    },
+  };
+  const line =
+    "app-be: 다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면에서 그 연결을 해제하세요";
+  for (const mode of ["links-only", "full"]) {
+    m.lines.length = 0;
+    asks = 0;
+    const result = await syncMacRepos(deps(m, { client }), mode);
+    assert.equal(asks, 1, `${mode}: one ask, no loop`);
+    assert.deepEqual(result.repos.map((r) => [r.name, r.registered, r.linked, r.problem]), [["app-be", true, false, line]]);
+    assert.deepEqual(m.lines, [line]);
+    assert.deepEqual(readFileSync(file), before, "the link file is left as it was");
+  }
+
+  // The real Hub, with a connection-string link to app-be made elsewhere: its 409 reaches the same line.
+  m.ctx.store.connect(m.ctx.store.createConnectCode(m.member), url("app-be"));
+  m.lines.length = 0;
+  const real = await syncMacRepos(deps(m), "links-only");
+  assert.deepEqual(real.repos.map((r) => r.problem), [line]);
+  assert.deepEqual(m.lines, [line]);
+  assert.deepEqual(readFileSync(file), before);
 });
 
 test("a clone refused for credentials says gh auth setup-git --hostname <host>", async (t) => {
