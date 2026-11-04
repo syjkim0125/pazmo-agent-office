@@ -1,0 +1,12 @@
+{
+  "token": "113277c4291f25607712af34b686178e316d6602eb94fda39b84275b4f0b6fae",
+  "output": {
+    "summary": "Independent review 1: Ready to merge Yes, Critical 0, Important 0, Minor 6. Controller fixes Minor 3 (CANCELLED after an aborted rediscovery), 4 (pin pm/lead) and 5 (STATUS count) before verification; 1, 2 and 6 are documented or shown at G4.",
+    "evidence": [".ai-workflow/runs/U35-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement: return CANCELLED when the job's signal is aborted after the claude rediscovery (test-first); run the hook-refusal unit test for pm, lead, engineer and reviewer; fix the STATUS test count; document the in-flight sharing, team TTL/hold and non-abortable discovery residuals."
+  }
+}

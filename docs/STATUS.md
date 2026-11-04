@@ -1,7 +1,7 @@
 # 2026-11-04 claude 역할 실행마다 실행 직전에 실행기를 새로 확인한다 (D40, U35)
 
 - U34 항목의 "남은 것" 첫째(엔진 사본이 준비됨인 동안 생긴 hook)다. 사용자는 [설명 페이지](https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD)를 본 뒤 "B + D40 승인"이라고 답했다. 다른 안 A는 엔진 사본이 lean 사본의 탐색을 따르게 하는 것이었다(Story 그대로, 화면이 본 hook만 막음).
-- Story에 D40과 M16 문장을 페이지의 초안대로 넣었다. V18의 같은 뜻 구절은 컨트롤러가 더했다(ASSUMED, G1 기록에 적음). G1은 새 Story 해시 `1b507999`로 다시 기록했다(이전 `b005160e`). kit 실행은 `.ai-workflow/runs/U35-claude-job-recheck.json`(최소 계획)이다.
+- Story에 D40과 M16 문장을 페이지의 초안대로 넣었다. V18의 같은 뜻 구절은 컨트롤러가 더했다(ASSUMED, G1 기록에 적음). G1은 새 Story 해시 `1b507999`로 다시 기록했다(이전 `b005160e`). kit 실행은 `.ai-workflow/runs/U35-claude-job-recheck-committed.json`(최소 계획, 커밋된 트리)이다.
 - 무엇이 문제였나:
   - 엔진은 자기 실행기 목록 사본이 준비됨이고 바이너리가 같으면 다시 탐색하지 않았다.
   - 그래서 작업이 도는 사이 claude에 hook이 생기면 다음 claude 역할 실행이 그대로 시작됐다. lean 실행기 화면이 그 hook을 보고 막힘을 보였어도 그랬다(U34 리뷰 2차의 임시 시험). 아무도 조회하지 않았으면 hook을 아는 사본이 없었다.
@@ -14,8 +14,10 @@
   - 새 시험 7개와 고친 시험 1개다. 새 시험은 고치기 전에 모두 실패했다(처음 6개: runner-jobs 17/20, lean-office 51/54; 리뷰 1차 뒤의 취소 시험 1개). 변이 6개를 시험이 모두 잡았다.
   - 관련 시험 파일 10개 222/222, 타입 검사 exit 0.
   - 독립 리뷰 1차는 머지 가능이었다(Critical·Important 0, Minor 6). 취소 처리, pm·lead 시험, 이 항목의 시험 개수를 고쳤고, 나머지는 아래 남은 것에 적었다. 수정분만 본 2차도 머지 가능이었다(Minor 2, 문서만 고침). 문서만 본 3차도 머지 가능이었다(`.ai-workflow/runs/U35-review-3.md`).
-  - kit 검증(시험 3묶음·타입 검사·Story 검사)은 커밋 전 트리에서 `.ai-workflow/runs/U35-verify-1.md`에 있다. kit 스냅샷에 git HEAD가 들어가서, 커밋된 트리로 두 번째 kit 실행(`.ai-workflow/runs/U35-claude-job-recheck-committed.json`)의 리뷰와 검증을 다시 한다.
-  - G1이 묶은 Story에는 사용자가 보지 않은 V18 구절(ASSUMED)이 있다. G4에서 보인다.
+  - 첫 kit 실행(`.ai-workflow/runs/U35-claude-job-recheck.json`)은 커밋 전 트리에서 1333/1333까지 갔다. 그런데 kit 스냅샷에 git HEAD가 들어가서 커밋하자 낡았다. 그래서 커밋된 트리로 두 번째 kit 실행의 리뷰 2번(둘 다 머지 가능)과 검증을 다시 했다.
+  - kit 검증(커밋된 트리 `2d4d921`): 시험 448/448 + 449/449 + 436/436 = **1333/1333**, 타입 검사·Story 검사 exit 0. [기록](../.ai-workflow/runs/U35-committed-verify-1.md)
+  - 커밋된 트리 리뷰 2차의 Minor(검증 기록의 한 문장이 바뀐 줄을 다 적지 않음)는 이 전달 커밋에서 고쳤다(kit 리뷰·검증 밖).
+- PR syjkim0125/pazmo-agent-office#74. G4는 2026-11-04에 기록했다. 사용자가 "피드백 보고 승인할게. 머지도해"라고 쓴 뒤 G4 설명 페이지를 보고 "피드백 확인 후 승인·머지"를 골랐다(D13). 세 질문에는 직접 답하지 않았다. 페이지가 보인 ASSUMED V18 구절도 받아들였다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/claude-job-recheck-g4.md)
 - **남은 것:**
   - 실제 claude로 재현하지 않았다. 비용(claude 조회 약 1–2초)은 D30에서 잰 값이고, 새로 재지 않았다.
   - 탐색이 끝난 뒤 실행 전까지, 그리고 실행 도중에 생긴 hook은 실행 중 감시가 맡는다(지금과 같음, SessionEnd hook은 막지 못함).

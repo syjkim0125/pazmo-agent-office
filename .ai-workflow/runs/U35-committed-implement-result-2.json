@@ -1,0 +1,8 @@
+{
+  "token": "58bf91e812b393e492d87eea773b8bd26a87cee47d547cba145d2294799d613e",
+  "output": {
+    "summary": "Docs only: the second-run paragraph names every line that differs from run 1's reviewed tree (commit 2d4d921); src/tests unchanged.",
+    "evidence": [".ai-workflow/runs/U35-committed-implement-2.md", "src/runtime/runner-jobs.ts", "tests/runner-jobs.test.mjs", "tests/lean-office.test.mjs"]
+  },
+  "evaluation": { "passed": true }
+}

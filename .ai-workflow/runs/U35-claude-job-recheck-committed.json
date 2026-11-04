@@ -1,0 +1,602 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "bc3aaa84-a1b1-4bff-9317-8eaca6df73ab",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Docs only: the second-run paragraph names every line that differs from run 1's reviewed tree (commit 2d4d921); src/tests unchanged.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-implement-2.md",
+            "src/runtime/runner-jobs.ts",
+            "tests/runner-jobs.test.mjs",
+            "tests/lean-office.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-implement-2.md": "6c62cb9d5905c805dcbe409f22772926b141f502bab01d27320d1607dc0fc3f8",
+          "src/runtime/runner-jobs.ts": "5a26942cea88e82a9252d0e1360223ebe3659b22088a6e80ee2990af370ec52a",
+          "tests/runner-jobs.test.mjs": "6efb0dcf4ffb4b0f2767d412b6f54ef6cd12fb9a58397a4fa07bc758b49a7378",
+          "tests/lean-office.test.mjs": "f31f67f768f31dfb0390d4ce677579ede77bbbb91c2d466489c0ed765a3d04a0"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116",
+        "output": {
+          "summary": "Review of 2d4d921: Ready to merge Yes; only the intended sentence changed; src/tests identical; one Minor (the enumeration omits two review-3 result lines) disclosed for a post-G4 doc edit.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-review-2.md": "647ea1f57235d0cea47e54c0775d6ae2d7a10e2edc3ffcf01fe9972280d1df7a"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/d81d37c0-05f3-4d61-a507-e447d08d5799/receipt.json",
+            "hash": "85b64fa73d4ed6ef55b955917a624134d7d09e010260301dec3ec7367a464bb8"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/21eb1177-ed9d-45cd-837c-6021cbccfdca/receipt.json",
+            "hash": "955e51b3338710d0d748babff9320bb54056371079725c5bffbdd47828f3b4e0"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/5cfe0aa2-5814-4409-87ff-af97f92c8e0e/receipt.json",
+            "hash": "3fb8e2bec57508cb60d0c04f6aab882699d92cdd73b645361af42e9f71cd6499"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/5fbab0b2-bf79-4490-817c-fc02d2835b86/receipt.json",
+            "hash": "c6b1242920d96d733f0fdd8768bceea3acbb2cf245167bed1da4df5c195638c3"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/0f0ebb40-d8af-41a8-b91e-34989b8960cd/receipt.json",
+            "hash": "13c470364cb45afa86bf9d7560e928887773470b2be3c89d019c57130e064b51"
+          }
+        },
+        "output": {
+          "summary": "Kit verification on the committed tree: tests 448/448 + 449/449 + 436/436 = 1333/1333, typecheck exit 0, story check PASS exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-verify-1.md": "96065f5bd213c754858883b96caf3fb7c589b39f093c6f09d2669499c6a7c73a"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "1b507999c54e75d8cb53f106bf491f22e9e6b566cc0d6f49fdf122239f1ea963"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-04T04:52:05.690Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-04T04:52:06.344Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Committed the run-1 implementation (1e6e440, 17b0104, bd0f1fe); src/tests identical to run 1's reviewed tree, two doc passages differ (review-3 Minor 2 fix, pointers to this run).",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-implement-1.md",
+            "src/runtime/runner-jobs.ts",
+            "tests/runner-jobs.test.mjs",
+            "tests/lean-office.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-implement-1.md": "61e4e1651a8644e940afb5edfad24416fe4090c6069af8c148fb3831627da6de",
+          "src/runtime/runner-jobs.ts": "5a26942cea88e82a9252d0e1360223ebe3659b22088a6e80ee2990af370ec52a",
+          "tests/runner-jobs.test.mjs": "6efb0dcf4ffb4b0f2767d412b6f54ef6cd12fb9a58397a4fa07bc758b49a7378",
+          "tests/lean-office.test.mjs": "f31f67f768f31dfb0390d4ce677579ede77bbbb91c2d466489c0ed765a3d04a0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T04:52:10.485Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T04:53:30.614Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "7788b71c999243bcdf9538e44a8471932d1e8d364f5fb9d66997dcebb62d5fbb",
+        "output": {
+          "summary": "Review of the committed tree: Ready to merge Yes; src/tests identical to run 1's reviewed tree; Minor 1 (a doc sentence understates which lines differ) is corrected in implement attempt 2; Minor 2 forward references are satisfied by this run's files.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "7788b71c999243bcdf9538e44a8471932d1e8d364f5fb9d66997dcebb62d5fbb"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: correct the sentence in docs/verification/2026-11-04-claude-job-recheck.md that says only the summary phrase and the paragraph differ from round 3's tree (the verification pointers in the record and STATUS differ too)."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-review-1.md": "42f77aa92b94d21ee35ee9a1890ed4d5e2fd972af74b59ead5a4dd08aa2472d6"
+        },
+        "error": "implement: correct the sentence in docs/verification/2026-11-04-claude-job-recheck.md that says only the summary phrase and the paragraph differ from round 3's tree (the verification pointers in the record and STATUS differ too)."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1 Minor 1: correct the sentence about which doc lines differ from run 1's reviewed tree",
+      "at": "2026-11-04T04:53:31.059Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-04T04:53:42.526Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-04T04:53:43.439Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Docs only: the second-run paragraph names every line that differs from run 1's reviewed tree (commit 2d4d921); src/tests unchanged.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-implement-2.md",
+            "src/runtime/runner-jobs.ts",
+            "tests/runner-jobs.test.mjs",
+            "tests/lean-office.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-implement-2.md": "6c62cb9d5905c805dcbe409f22772926b141f502bab01d27320d1607dc0fc3f8",
+          "src/runtime/runner-jobs.ts": "5a26942cea88e82a9252d0e1360223ebe3659b22088a6e80ee2990af370ec52a",
+          "tests/runner-jobs.test.mjs": "6efb0dcf4ffb4b0f2767d412b6f54ef6cd12fb9a58397a4fa07bc758b49a7378",
+          "tests/lean-office.test.mjs": "f31f67f768f31dfb0390d4ce677579ede77bbbb91c2d466489c0ed765a3d04a0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T04:53:47.928Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T04:54:32.548Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116",
+        "output": {
+          "summary": "Review of 2d4d921: Ready to merge Yes; only the intended sentence changed; src/tests identical; one Minor (the enumeration omits two review-3 result lines) disclosed for a post-G4 doc edit.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-review-2.md": "647ea1f57235d0cea47e54c0775d6ae2d7a10e2edc3ffcf01fe9972280d1df7a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-04T04:54:37.051Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-04T04:57:38.712Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/d81d37c0-05f3-4d61-a507-e447d08d5799/receipt.json",
+            "hash": "85b64fa73d4ed6ef55b955917a624134d7d09e010260301dec3ec7367a464bb8"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/21eb1177-ed9d-45cd-837c-6021cbccfdca/receipt.json",
+            "hash": "955e51b3338710d0d748babff9320bb54056371079725c5bffbdd47828f3b4e0"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/5cfe0aa2-5814-4409-87ff-af97f92c8e0e/receipt.json",
+            "hash": "3fb8e2bec57508cb60d0c04f6aab882699d92cdd73b645361af42e9f71cd6499"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/5fbab0b2-bf79-4490-817c-fc02d2835b86/receipt.json",
+            "hash": "c6b1242920d96d733f0fdd8768bceea3acbb2cf245167bed1da4df5c195638c3"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/bc3aaa84-a1b1-4bff-9317-8eaca6df73ab/0f0ebb40-d8af-41a8-b91e-34989b8960cd/receipt.json",
+            "hash": "13c470364cb45afa86bf9d7560e928887773470b2be3c89d019c57130e064b51"
+          }
+        },
+        "output": {
+          "summary": "Kit verification on the committed tree: tests 448/448 + 449/449 + 436/436 = 1333/1333, typecheck exit 0, story check PASS exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U35-committed-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "799d502e95b658cad8685f7b11a91245d0a1d3bd4a349d2d9c56b665abdc1116"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U35-committed-verify-1.md": "96065f5bd213c754858883b96caf3fb7c589b39f093c6f09d2669499c6a7c73a"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "8db83a1f0717c00235038ced9fb0e4603f857d161e0617573464612629d28db3"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "token": "761c0b13c7c599d8970bc678423da0483a1a32222d9f2237721b50899c500c93",
+  "output": {
+    "summary": "Review of 2d4d921: Ready to merge Yes; only the intended sentence changed; src/tests identical; one Minor (the enumeration omits two review-3 result lines) disclosed for a post-G4 doc edit.",
+    "evidence": [".ai-workflow/runs/U35-committed-review-2.md"]
+  },
+  "evaluation": { "passed": true }
+}
