@@ -33,7 +33,7 @@ import {
   writeMacLink,
 } from "../team/mac.ts";
 import type { MacCall, MacLinkFile } from "../team/mac.ts";
-import { reposDir, syncMacRepos } from "../team/mac-sync.ts";
+import { reposDir, SYNC_BUSY, syncMacRepos } from "../team/mac-sync.ts";
 import type { MacRepoResult } from "../team/mac-sync.ts";
 import { macRestartPath } from "../team/mac-watch.ts";
 import { readTeam, teamRunning as registryTeamRunning } from "../team/registry.ts";
@@ -299,23 +299,24 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
   } else {
     note = `Office를 켭니다. 처음에는 VM과 이미지를 준비하느라 몇 분 걸립니다. 몇 분 뒤 허브의 '내 Mac'에서 확인하세요. 기록: ${log}`;
     try {
-      repos = (
-        await syncMacRepos(
-          {
-            root: e.root,
-            hub,
-            macId: file.macId,
-            member: { id: file.memberId, name: file.memberName },
-            client: macClient(file, e.call),
-            git: d.git ?? hostGit(),
-            gh: d.gh,
-            ghLogin: d.ghLogin === undefined ? ttyGhLogin() : d.ghLogin,
-            setupGit: d.setupGit,
-            say: e.say,
-          },
-          "full",
-        )
-      ).repos;
+      const synced = await syncMacRepos(
+        {
+          root: e.root,
+          hub,
+          macId: file.macId,
+          member: { id: file.memberId, name: file.memberName },
+          client: macClient(file, e.call),
+          git: d.git ?? hostGit(),
+          gh: d.gh,
+          ghLogin: d.ghLogin === undefined ? ttyGhLogin() : d.ghLogin,
+          setupGit: d.setupGit,
+          say: e.say,
+        },
+        "full",
+      );
+      repos = synced.repos;
+      // Another full sync (the agent's own `up`) is doing it: no rerun needed, the Office starts with its result.
+      if (synced.skipped) problems.push(SYNC_BUSY);
     } catch (error) {
       // The pairing stands; the LaunchAgent's own start syncs again.
       const reason = error instanceof OfficeError ? printable(error.message) : hubFailure(error, hub).message;

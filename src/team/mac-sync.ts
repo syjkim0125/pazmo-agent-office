@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { existsSync, lstatSync, mkdirSync, readdirSync, realpathSync, renameSync, rmSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import type { Stats } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join } from "node:path";
@@ -15,7 +15,7 @@ import { findOnPath, ghStatus, remoteHost } from "./gh.ts";
 import type { GhResult } from "./gh.ts";
 import { macClient, readMacLink } from "./mac.ts";
 import type { MacClient } from "./mac.ts";
-import { MAX_REPOS, addTeamRepo, readTeam, removeTeamRepo, teamRunning } from "./registry.ts";
+import { MAX_REPOS, addTeamRepo, readTeam, removeTeamRepo, teamDir, teamRunning } from "./registry.ts";
 import type { Team } from "./registry.ts";
 
 const NAME_MAX = 80;
@@ -76,7 +76,79 @@ export type MacSyncResult = {
   removed: string[];
   pending: { add: string[]; remove: string[] };
   minted: string[];
+  /** A full sync that found another one under way did nothing at all. */
+  skipped?: true;
 };
+
+/** What a full sync says when another one holds the lock. */
+export const SYNC_BUSY = "담당 repo 맞추기가 이미 진행 중이라 이번 맞추기는 건너뜁니다 — 진행 중인 맞추기가 끝나면 그 결과를 씁니다";
+const SYNC_LOCK = "sync.lock";
+/** A lock without a pid this old lost its maker between making it and writing the pid (a moment). */
+const PIDLESS_STALE_MS = 60_000;
+/** Longer than any full sync runs (each clone stops at 10 minutes): a lock this old names a pid reused since. */
+const SYNC_LOCK_MAX_MS = 6 * 3_600_000;
+
+/** Whether the full-sync lock at `lock` was left by a sync that is gone: its pid is gone (`kill(pid, 0)` is ESRCH;
+ * nothing is signalled), it has no pid long after it was made, or it is older than any sync runs. */
+function syncLockStale(lock: string): boolean {
+  let made: number;
+  try {
+    made = statSync(lock).mtimeMs;
+  } catch {
+    return false;
+  }
+  const age = Date.now() - made;
+  if (age > SYNC_LOCK_MAX_MS) return true;
+  let pid: number;
+  try {
+    pid = Number(readFileSync(join(lock, "pid"), "utf8"));
+  } catch {
+    return age > PIDLESS_STALE_MS;
+  }
+  if (!Number.isInteger(pid) || pid <= 0) return age > PIDLESS_STALE_MS;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+
+/** Takes `<root>/team/sync.lock` (a folder, made atomically, with this process's pid in it); a stale one is taken
+ * over by renaming it aside first, so of two takers only one wins. Null while another sync holds it. The result
+ * releases it, only while it still names this process. */
+function takeSyncLock(root: string): (() => void) | null {
+  const dir = teamDir(root);
+  noSymlinks(dir);
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const lock = join(dir, SYNC_LOCK);
+  noSymlinks(lock);
+  for (let tries = 0; tries < 2; tries++) {
+    try {
+      mkdirSync(lock, { mode: 0o700 });
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "EEXIST" || tries > 0 || !syncLockStale(lock)) return null;
+      const aside = `${lock}.${randomUUID()}.stale`;
+      try {
+        renameSync(lock, aside);
+      } catch {
+        return null;
+      }
+      rmSync(aside, { recursive: true, force: true });
+      continue;
+    }
+    const pidFile = join(lock, "pid");
+    writeFileSync(pidFile, String(process.pid), { flag: "wx", mode: 0o600 });
+    return () => {
+      try {
+        if (readFileSync(pidFile, "utf8") === String(process.pid)) rmSync(lock, { recursive: true, force: true });
+      } catch {
+        // Gone already, or taken over: not this sync's to remove.
+      }
+    };
+  }
+  return null;
+}
 
 const login = (host: string) => `gh auth login --hostname ${host} --web --git-protocol https`;
 const setupCommand = (host: string) => `gh auth setup-git --hostname ${host}`;
@@ -172,8 +244,31 @@ function ghProblem(host: string, status: Extract<GhResult, { ok: false }>): stri
  * Both mint a repo link when its hub-link.json is missing, or carries a macId that is not this Mac's (or this Mac holds
  * no live link for the repo). A link file without macId is the person's own and is never rewritten.
  * Only a failed `repos()` or an unreadable registry throws.
+ *
+ * A full sync holds `<root>/team/sync.lock` while it runs; one that finds it held says `SYNC_BUSY` and returns
+ * `skipped` having touched nothing. links-only takes no lock: it changes no registry or folder.
  */
 export async function syncMacRepos(d: MacSyncDeps, mode: "full" | "links-only"): Promise<MacSyncResult> {
+  if (mode === "links-only") return syncUnlocked(d, mode);
+  // One full sync at a time (an interval `up --team` can land in a self-restart's stop-to-start window): a second one
+  // would clear the first one's `.partial` clone and write the registry under it.
+  const release = takeSyncLock(d.root);
+  if (!release) {
+    try {
+      d.say(SYNC_BUSY);
+    } catch {
+      // A log line never stops the sync.
+    }
+    return { repos: [], removed: [], pending: { add: [], remove: [] }, minted: [], skipped: true };
+  }
+  try {
+    return await syncUnlocked(d, mode);
+  } finally {
+    release();
+  }
+}
+
+async function syncUnlocked(d: MacSyncDeps, mode: "full" | "links-only"): Promise<MacSyncResult> {
   const full = mode === "full";
   const say = (line: string) => {
     try {

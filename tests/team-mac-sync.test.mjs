@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -9,6 +10,7 @@ import {
   realpathSync,
   rmSync,
   statSync,
+  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -652,6 +654,67 @@ test("a repo past the team Office's 20-repo limit is not cloned or registered, i
   m.ctx.store.addOwner(m.member, m.id("app-be"), m.member.id);
   writeRegistry([...own.slice(1), { project: be, remote: "github.example.com/team/app-be" }]);
   assert.deepEqual((await syncMacRepos(deps(m), "links-only")).pending, { add: ["app-fe"], remove: [] });
+});
+
+test("a full sync that finds another one's lock skips with one line and touches nothing, its .partial included; links-only takes no lock", async (t) => {
+  const m = await macWorld(t, ["app-be"]);
+  // Another full sync (an interval `up` during a self-restart, say) is cloning app-be right now.
+  const lock = join(teamDir(m.root), "sync.lock");
+  mkdirSync(lock, { recursive: true });
+  writeFileSync(join(lock, "pid"), String(process.pid));
+  const partial = join(reposDir(m.root), `.app-be.${randomUUID()}.partial`);
+  mkdirSync(partial, { recursive: true });
+  let asked = 0;
+  const client = { repos: async () => (asked++, m.client.repos()), link: m.client.link };
+
+  const skipped = await syncMacRepos(deps(m, { client }), "full");
+  assert.equal(skipped.skipped, true);
+  assert.deepEqual([skipped.repos, skipped.removed, skipped.pending, skipped.minted], [[], [], { add: [], remove: [] }, []]);
+  assert.equal(m.lines.length, 1, m.lines.join("\n"));
+  assert.match(m.lines[0], /맞추기/);
+  assert.ok(existsSync(partial), "the other sync's clone is left alone");
+  assert.equal(asked, 0, "the Hub is not asked");
+  assert.deepEqual(readTeam(m.root).repos, []);
+  assert.equal(readFileSync(join(lock, "pid"), "utf8"), String(process.pid), "the lock stays the other sync's");
+
+  // links-only changes no registry or folder: it runs under the lock.
+  const links = await syncMacRepos(deps(m, { client }), "links-only");
+  assert.deepEqual(links.pending, { add: ["app-be"], remove: [] });
+  assert.equal(links.skipped, undefined);
+});
+
+test("a sync lock whose maker is gone, a pid-less one older than 60 s, or one older than 6 h is taken over; a fresh pid-less one is not; the lock goes after the sync, also when it fails", async (t) => {
+  const m = await macWorld(t, ["app-be"]);
+  const lock = join(teamDir(m.root), "sync.lock");
+  const make = (pid, ageMs = 0) => {
+    rmSync(lock, { recursive: true, force: true });
+    mkdirSync(lock, { recursive: true });
+    if (pid !== null) writeFileSync(join(lock, "pid"), String(pid));
+    const at = new Date(Date.now() - ageMs);
+    utimesSync(lock, at, at);
+  };
+  const dead = spawnSync(process.execPath, ["-e", ""]).pid;
+
+  make(null);
+  assert.equal((await syncMacRepos(deps(m), "full")).skipped, true, "a lock whose maker is writing its pid now");
+
+  for (const [what, pid, age] of [
+    ["maker gone", dead, 0],
+    ["pid-less, 2 minutes old", null, 120_000],
+    ["live pid, 7 hours old", process.pid, 7 * 3_600_000],
+  ]) {
+    make(pid, age);
+    m.lines.length = 0;
+    const result = await syncMacRepos(deps(m), "full");
+    assert.equal(result.skipped, undefined, what);
+    assert.deepEqual(result.repos.map((r) => [r.name, r.registered, r.problem]), [["app-be", true, null]], what);
+    assert.equal(existsSync(lock), false, `${what}: released`);
+  }
+
+  // A sync that throws (the Hub cannot list the repos) releases it too.
+  const down = { repos: async () => { throw Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" }); }, link: m.client.link };
+  await assert.rejects(syncMacRepos(deps(m, { client: down }), "full"), { code: "ECONNREFUSED" });
+  assert.equal(existsSync(lock), false);
 });
 
 test("a clone refused for credentials says gh auth setup-git --hostname <host>", async (t) => {

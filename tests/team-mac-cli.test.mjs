@@ -238,6 +238,19 @@ test("mac connect while the team Office runs changes no registry and says the Of
   assert.deepEqual(launchArgs(m), loaded(m));
 });
 
+test("mac connect while another full sync runs (the agent's own up) says it skipped as a problem, clones nothing and still loads the agent", async (t) => {
+  const m = await world(t, ["app-be"]);
+  const lock = join(teamDir(m.root), "sync.lock");
+  mkdirSync(lock, { recursive: true });
+  writeFileSync(join(lock, "pid"), String(process.pid));
+  const result = await m.connect();
+  assert.deepEqual(result.repos, []);
+  assert.equal(result.problems.length, 1, result.problems.join("\n"));
+  assert.match(result.problems[0], /이미 진행 중이라 이번 맞추기는 건너뜁니다/);
+  assert.equal(existsSync(reposDir(m.root)), false, "nothing was cloned");
+  assert.equal(result.launchAgent, "loaded");
+});
+
 test("the default ghLogin is a prompt only when stdin is a TTY, and mac restart never passes one", async (t) => {
   assert.equal(ttyGhLogin({ isTTY: false }), null);
   assert.equal(ttyGhLogin({}), null);
