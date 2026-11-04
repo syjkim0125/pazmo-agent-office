@@ -89,7 +89,7 @@ Story: D40 · M16 · V18 · D29 · D39. 근거: U34 리뷰 2차의 Important(`.a
   - 리뷰어는 취소 확인이 맞고, 팀 Office의 `CANCELLED`·`RUNNER_NOT_READY` 처리에 영향이 없다고 봤다.
   - codex 쪽 취소 확인은 시험하지 않음, 취소가 늦는 시간의 한도 → 이 기록과 STATUS의 문구를 고쳤다.
 - 문서는 kit의 코드 스냅샷에 들어간다. 그래서 2차의 문구 수정 뒤에 문서만 본 3차를 했다(`.ai-workflow/runs/U35-review-3.md`). 머지 가능이었다(Minor 2: 아직 없던 기록 파일을 가리킴, 2차 요약 문구 하나 → 고침).
-- 1–3차와 첫 검증은 커밋하기 전의 트리에서 했다. kit의 스냅샷에는 git HEAD도 들어가서, 커밋하면 그 실행(`.ai-workflow/runs/U35-claude-job-recheck.json`)은 낡는다. 그래서 커밋된 트리로 두 번째 kit 실행(`.ai-workflow/runs/U35-claude-job-recheck-committed.json`)을 하고, 리뷰(`U35-committed-review-1.md`)와 검증을 다시 한다. 커밋된 내용은 3차가 본 트리에서 위 요약 문구와 이 단락만 다르다.
+- 1–3차와 첫 검증은 커밋하기 전의 트리에서 했다. kit의 스냅샷에는 git HEAD도 들어가서, 커밋하면 그 실행(`.ai-workflow/runs/U35-claude-job-recheck.json`)은 낡는다. 그래서 커밋된 트리로 두 번째 kit 실행(`.ai-workflow/runs/U35-claude-job-recheck-committed.json`)을 하고, 리뷰(`U35-committed-review-1.md`)와 검증을 다시 한다. 커밋된 내용은 3차가 본 트리와 문서 몇 줄만 다르다: 위 2차 요약 문구, 검증 기록을 가리키는 줄(이 기록의 "시험" 끝과 STATUS), 이 단락. `src/`와 `tests/`는 같다.
 
 ## 확인하지 않은 것과 남은 위험
 
