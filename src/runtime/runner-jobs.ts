@@ -38,7 +38,7 @@ const refused = (error: string) => ({
 
 /** Role and task → runner choice → qualified user CLI job. Refusals happen before
  * the role's runner process starts and never fall back to another runner or an
- * API key. A discovery before a refusal starts the CLIs briefly (D39). */
+ * API key. A discovery before a refusal, and before every claude job, starts the CLIs briefly (D39, D40). */
 export function roleJobFactory(d: RoleJobDependencies) {
   const jobs = d.jobs ?? { codex: codexJob, claude: claudeJob };
   return (role: ExecutingRole, taskId: string, prompt: string): RemoteJob => {
@@ -61,11 +61,12 @@ export function roleJobFactory(d: RoleJobDependencies) {
           }
         };
         let install = d.installs()[choice.runner];
-        // The last discovery may be stale: a CLI logged in since then is not refused (D39), and an updated CLI is a
-        // new binary, qualified afresh.
+        // The last discovery may be stale: a CLI logged in since then is not refused (D39), an updated CLI is a
+        // new binary, qualified afresh, and a claude found ready may have a hook since (D29), so claude is
+        // discovered again before every job (D40).
         // A discovery that fails leaves the last one: the run is refused cleanly below, before the role's runner
-        // process starts.
-        if (d.rediscover && (!ready(install) || !unchanged(install)))
+        // process starts, or goes on from a last one that was ready.
+        if (d.rediscover && (choice.runner === "claude" || !ready(install) || !unchanged(install))) {
           install =
             (
               await d.rediscover().catch((error) => {
@@ -73,6 +74,9 @@ export function roleJobFactory(d: RoleJobDependencies) {
                 return null;
               })
             )?.[choice.runner] ?? install;
+          // The discovery does not stop for a cancel; a job cancelled meanwhile is cancelled, not refused.
+          if (signal.aborted) return refused("CANCELLED");
+        }
         // The runner first: the team Office waits on this refusal and names the runner (runner-account.ts).
         if (!ready(install)) return refused(`RUNNER_NOT_READY ${choice.runner}: ${install.hint}`);
         if (!unchanged(install)) return refused("UNVERIFIED_CONTROLLER_BINARY");
