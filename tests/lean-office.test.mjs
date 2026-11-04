@@ -11,6 +11,7 @@ import { OfficeError } from "../src/cli/project.ts";
 import { digest } from "../src/core/candidates.ts";
 import { roleJobFactory } from "../src/runtime/runner-jobs.ts";
 import { liveRunnerWiring } from "../src/runtime/live.ts";
+import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
 
 const TOKEN = "a".repeat(64);
 const STORY = {
@@ -1001,6 +1002,85 @@ test("a job whose runner the engine last saw logged out discovers it again: logg
   assert.equal(out.result.error, null, "not refused from the stale copy");
   assert.deepEqual(jobs.calls.map((c) => [c.runner, c.options.selection.model]), [["claude", "sonnet"]]);
   assert.equal(runners.settings.catalog.installs.claude.loggedIn, true);
+});
+
+/** A listing that found a SessionEnd hook: discovery blocks claude (D29). */
+function hookedClaude(c = readyCatalog()) {
+  c.installs.claude = blockHookedClaude(c.installs.claude, [{ event: "SessionEnd", source: "policySettings" }]);
+  return c;
+}
+/** The same binary's model and hook listing failed: no models, nothing judged. */
+function unlistedClaude(c = readyCatalog()) {
+  c.models.claude = [];
+  c.claudeUnlisted = true;
+  return c;
+}
+const claudeView = async (f) => (await f.office.runners()).runners.find((r) => r.runner === "claude");
+
+test("the runners screen keeps a hook block across a failed listing of the same claude, with the hint for the login now (D29, D39)", async (t) => {
+  const f = await fixture(t);
+  f.state.catalog = hookedClaude();
+  const blocked = await claudeView(f);
+  assert.equal(blocked.blocked, true);
+  f.state.catalog = unlistedClaude();
+  assert.deepEqual(await claudeView(f), { ...blocked, models: [] });
+  // Logged out since: the kept block's hint carries the login cue, as a fresh listing's would.
+  f.state.catalog = unlistedClaude(loggedOut("claude"));
+  const kept = await claudeView(f);
+  assert.equal(kept.blocked, true);
+  assert.equal(kept.hint, hookedClaude(loggedOut("claude")).installs.claude.hint);
+  // A listing that goes through judges the hooks again: none now, no block.
+  f.state.catalog = readyCatalog();
+  const cleared = await claudeView(f);
+  assert.equal(cleared.blocked, false);
+  assert.equal(cleared.hint, "준비됨");
+});
+
+test("an agent save with claude and no model is refused while a failed listing keeps its hook block", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  // Only the facade's discovery sees the hook; the engine's copy last saw claude ready.
+  f.state.catalog = hookedClaude();
+  await f.office.runners();
+  f.state.catalog = unlistedClaude();
+  const refused = { code: "RUNNER_NOT_READY", message: hookedClaude().installs.claude.hint };
+  const noModel = { runner: "claude", model: null, effort: null };
+  await assert.rejects(f.office.agents.create({ name: "Bob", work: codex(), review: noModel }), refused);
+  await assert.rejects(f.office.agents.update(alice.id, { work: noModel }), refused);
+  assert.deepEqual(f.office.agents.list().map((a) => [a.name, a.work.runner]), [["기본 agent", "codex"], ["Alice", "codex"]]);
+  // The save's fresh discovery gave the engine the block the facade kept.
+  assert.equal(f.captured.runners.settings.catalog.installs.claude.hint, refused.message);
+});
+
+test("the default runner passes over a claude whose hook block a failed listing kept: no agent, and the first agent", async (t) => {
+  // The startup discovery saw the hook.
+  const f = await fixture(t, { catalog: hookedClaude(loggedOut("codex")) });
+  f.state.catalog = unlistedClaude(loggedOut("codex"));
+  await f.office.runners();
+  assert.equal(f.office.agents.list().length, 0);
+  assert.deepEqual(f.office.chooseRunner("engineer", "unknown-task"), { runner: "codex", model: "gpt-5.5", reasoning: null });
+  const first = await f.office.agents.ensureDefault();
+  assert.deepEqual([first.work.runner, first.review.runner], ["codex", "codex"]);
+});
+
+test("a claude role job is refused when only the lean Office's discovery saw the hook and the engine's rediscovery meets a failed listing (D29, D39)", async (t) => {
+  const f = await fixture(t, { catalog: (root) => installedCatalog(root) });
+  const { runners } = f.captured;
+  const dev = await f.office.agents.create({ name: "Dev", work: claude("sonnet"), review: codex() });
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: dev.id, risk: "normal" });
+  engineChild(f, "child-1", id);
+  // The engine's copy last saw claude logged out …
+  f.state.catalog = installedCatalog(f.root, { claudeLoggedIn: false });
+  await runners.settings.refresh();
+  // … then only the facade's discovery (the runners screen) saw it logged in with a SessionEnd hook …
+  f.state.catalog = hookedClaude(installedCatalog(f.root));
+  assert.equal((await claudeView(f)).blocked, true);
+  // … and the listing fails at the engine's rediscovery before its not-ready refusal.
+  f.state.catalog = unlistedClaude(installedCatalog(f.root));
+  const jobs = engineJobs(runners);
+  const out = await jobs.run("engineer", "child-1");
+  assert.equal(out.result.error, `RUNNER_NOT_READY claude: ${hookedClaude().installs.claude.hint}`);
+  assert.deepEqual(jobs.calls, [], "the hooked claude never starts");
 });
 
 test("the engine's loader discovers afresh inside the 5 s window, shares a discovery in flight and refreshes the cache", async (t) => {

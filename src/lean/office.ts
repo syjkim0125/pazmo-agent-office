@@ -3,7 +3,7 @@ import { OfficeError, fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
 import { STOP_NOTICES, createNativeOffice } from "../runtime/native-office.ts";
 import type { NativeOffice } from "../runtime/native-office.ts";
-import { defaultRunnerChoice, loadRunnerCatalog } from "../runtime/runner-settings.ts";
+import { defaultRunnerChoice, keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog, RunnerChoice } from "../runtime/runner-settings.ts";
 import type { ExecutingRole } from "../runners/role-profiles.ts";
 import type { RunnerInstall, RunnerName } from "../runners/runner-discovery.ts";
@@ -199,14 +199,17 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
   }
   /** A discovery now, never a reused result; one already in flight is shared.
    * The engine loads its catalog this way: its jobs check runners against it.
-   * The result is the cached catalog too. A failed discovery is neither kept
+   * The result is the cached catalog too, with a hook block a failed claude
+   * listing kept (D29/D39), so the screen, the agent checks and the default
+   * runner judge claude as the engine does. A failed discovery is neither kept
    * nor reused. */
   function discoverNow(): Promise<RunnerCatalog> {
     if (flight) return flight;
     const started = discover(c.live?.userHome, c.live?.searchPath).then((found) => {
-      catalog = found;
+      const kept = keptClaudeBlock(catalog, found);
+      catalog = kept;
       loadedAt = now();
-      return found;
+      return kept;
     });
     flight = started;
     const settled = () => {

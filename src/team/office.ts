@@ -7,7 +7,7 @@ import type { LeanConfig, LeanOffice } from "../lean/office.ts";
 import { openLeanDb } from "../lean/schema.ts";
 import { readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
-import { loadRunnerCatalog } from "../runtime/runner-settings.ts";
+import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
 import { STORY_CHECKOUT } from "./branch.ts";
 import { branchOps, createExecutor, prOps } from "./executor.ts";
@@ -187,7 +187,8 @@ export function sharedGate(log: (line: string) => void) {
 /** One runner discovery at a time for every repo engine, reused for DISCOVERY_TTL_MS: they all ask about the
  * same CLIs on this Mac, and a live start would otherwise run one per repo (seconds each) before it is ready.
  * While `hold(true)` (the start), a kept discovery is reused however old, so one serves the whole start. A
- * failed discovery is neither kept nor reused. */
+ * failed discovery is neither kept nor reused. Every repo's discovery passes here, so a hook block that any
+ * of them found survives a failed claude listing for all of them (D29/D39), not only for the repo that saw it. */
 function sharedDiscovery(
   discover: (home?: string, pathEnv?: string) => Promise<RunnerCatalog>,
   now: () => number,
@@ -199,7 +200,8 @@ function sharedDiscovery(
     load(home?: string, pathEnv?: string): Promise<RunnerCatalog> {
       if (flight) return flight;
       if (kept && (held || now() - kept.at < DISCOVERY_TTL_MS)) return Promise.resolve(kept.catalog);
-      const started = discover(home, pathEnv).then((catalog) => {
+      const started = discover(home, pathEnv).then((found) => {
+        const catalog = keptClaudeBlock(kept?.catalog, found);
         kept = { at: now(), catalog };
         return catalog;
       });

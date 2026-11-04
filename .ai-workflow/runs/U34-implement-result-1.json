@@ -1,0 +1,14 @@
+{
+  "token": "88e8f75bff3c7993e8ff6a72fad8c8c51149b6b458eaaf52b049cc300b295b87",
+  "output": {
+    "summary": "The lean Office's discoverNow passes each discovery through keptClaudeBlock and returns that result, so the runners screen, the agent save checks and the default runner keep a same-binary claude hook block across a failed listing, like the engine. RED 0/3 before, GREEN 3/3 after, 4 mutants caught, related 7 files 170/170, tsc exit 0.",
+    "evidence": [
+      ".ai-workflow/runs/U34-implement-1.md",
+      "src/lean/office.ts",
+      "src/runtime/runner-settings.ts",
+      "tests/lean-office.test.mjs",
+      "docs/verification/2026-11-04-lean-kept-hook-block.md"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

@@ -1,0 +1,15 @@
+{
+  "token": "896e004c450a2c9785223df2877253cc6294332831adbf67a982ed9d551ca7c3",
+  "output": {
+    "summary": "Review 1 fixes: the team Office's sharedDiscovery also keeps the claude hook block; a lean job-level test pins the engine refusal (RED: the hooked claude job started) and a two-repo team test pins the team path (RED: beta 준비됨); docs corrected and a learning doc added. Related 7 files 172/172, tsc exit 0, all mutants caught.",
+    "evidence": [
+      ".ai-workflow/runs/U34-implement-2.md",
+      "src/team/office.ts",
+      "src/lean/office.ts",
+      "src/runtime/runner-settings.ts",
+      "tests/lean-office.test.mjs",
+      "tests/team-office.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

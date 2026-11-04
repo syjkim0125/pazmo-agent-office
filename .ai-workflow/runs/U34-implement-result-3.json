@@ -1,0 +1,13 @@
+{
+  "token": "7fb263051dc030db6590014a6eab67be343cb717d009a46b0afda2a5df53d437",
+  "output": {
+    "summary": "Review 2 fixes (docs and one test): the stale-ready engine copy residual is stated in the record, STATUS and learning doc, STATUS's engine claim is scoped to failed listings, the no-block condition and the learning doc's single-Office line are corrected, and the team test fails the listing twice so all three shared-discovery mutants fail. Related 7 files 172/172, tsc exit 0.",
+    "evidence": [
+      ".ai-workflow/runs/U34-implement-3.md",
+      "tests/team-office.test.mjs",
+      "src/team/office.ts",
+      "src/lean/office.ts"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

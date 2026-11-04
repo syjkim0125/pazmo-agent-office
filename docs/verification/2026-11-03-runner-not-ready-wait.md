@@ -70,7 +70,7 @@ D39 마지막 리뷰([U32-review-2.md](../../.ai-workflow/runs/U32-review-2.md))
 
 남은 것:
 - `createLiveRuntime`의 `roleJobFactory` 호출에서 `rediscover`를 빠뜨리거나 덮어쓰는 변경은 시험도 타입 검사도 잡지 못한다. 예를 들어 펼치지 않고 `choice`·`installs`만 넘기거나, 펼친 뒤 `rediscover: undefined`를 적는 경우다. `rediscover`가 선택 항목이라서다. `createLiveRuntime`의 역할 실행은 VM이 있어야 돌아서 시험하지 않았다.
-- lean Office는 자기 목록 사본(`src/lean/office.ts`의 `catalog`)을 읽는데, 거기에는 `keptClaudeBlock`이 적용되지 않는다. 이 사본을 읽는 곳은 세 군데다: 실행기 화면, agent 저장 검사(`LeanAgents`의 만들기·고치기, 모델을 고르지 않은 경우), 기본 실행기 고르기(`chooseRunner`·`ensureDefault`의 `defaultRunnerChoice`). 그래서 조회가 실패하면 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다. 엔진의 역할 실행은 여전히 거절된다. 리뷰어가 코드로 찾았고 돌려 보지는 않았다. 이 변경 전부터 있던 것이라 따로 다룬다.
+- lean Office는 자기 목록 사본(`src/lean/office.ts`의 `catalog`)을 읽는데, 거기에는 `keptClaudeBlock`이 적용되지 않는다. 이 사본을 읽는 곳은 세 군데다: 실행기 화면, agent 저장 검사(`LeanAgents`의 만들기·고치기, 모델을 고르지 않은 경우), 기본 실행기 고르기(`chooseRunner`·`ensureDefault`의 `defaultRunnerChoice`). 그래서 조회가 실패하면 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다. 엔진의 역할 실행은 여전히 거절된다. 리뷰어가 코드로 찾았고 돌려 보지는 않았다. 이 변경 전부터 있던 것이라 따로 다룬다. → U34에서 고쳤다. 그때 엔진도 늘 거절하지는 않았음을 찾았다. 엔진 사본이 hook을 찾은 조회를 못 봤으면, D39의 다시 탐색에서 조회가 실패할 때 hook 걸린 claude가 시작됐다([변경 기록](2026-11-04-lean-kept-hook-block.md)).
 - 실제 claude로는 "답은 왔는데 모델 없음"이나, 조회 실패 중 로그인 변경을 재현하지 않았다. 가짜 CLI로만 확인했다.
 
 ## 확인하지 않은 것과 남은 위험

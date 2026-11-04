@@ -1,0 +1,702 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "3b3269fe-68f6-4d2f-9a78-58b586221056",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "124ecaff049165e13a860a87d2befd2ccd52a445d49e9798c433ea8bc22b46e5",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes (docs and one test): the stale-ready engine copy residual is stated in the record, STATUS and learning doc, STATUS's engine claim is scoped to failed listings, the no-block condition and the learning doc's single-Office line are corrected, and the team test fails the listing twice so all three shared-discovery mutants fail. Related 7 files 172/172, tsc exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U34-implement-3.md",
+            "tests/team-office.test.mjs",
+            "src/team/office.ts",
+            "src/lean/office.ts"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-implement-3.md": "fb0c58baff852167bbdedf3f8a3d15d90580b0a3c20c9c4c97d13d9ab48a150c",
+          "tests/team-office.test.mjs": "70daf39f4d61b8354c897934a8c22692332dcfadab9a5cccd28091966b33d4d2",
+          "src/team/office.ts": "0cc7bc8766bfe07f503a149a5110db2973d369b69eefd6a961a27be16ffb4a86",
+          "src/lean/office.ts": "07140c1a9f969eb34584f53dcfbf8d59802ca45536c274773ac8fcd686a247b8"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938",
+        "output": {
+          "summary": "Independent review attempt 3: Ready to merge Yes (Critical 0, Important 0, Minor 2 wording carried to the delivery commit). All review-2 findings resolved; test 5 fails under all three shared-discovery mutants; no src change in the delta.",
+          "evidence": [
+            ".ai-workflow/runs/U34-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-review-3.md": "220929e95a24452160486bfec95ae4a2d094a702e4ac77a6d3272839dd2dfa7d"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/ab7d1bb2-197c-4d95-8cb4-dc6ee6fe1ddf/receipt.json",
+            "hash": "da4853ce2adc275c0e9be0af92c3c27e1399ed7b9863a452860b44a24367054a"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/45a54c7d-746b-4855-b470-67e3a8eaae97/receipt.json",
+            "hash": "e9d70ebbaab3f70f9391df4a0e51ed059dda26fd0d94062584b5c6b621cb5a96"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/c6487a1d-c790-47d2-9835-cf137dadc102/receipt.json",
+            "hash": "3fb3c3e02ec08c04f03598a2a07984d971ee40097e5a5ceebf691a2bfe2dbb30"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/65d25d12-c8e2-4137-8c4a-3fbe6f8a79f0/receipt.json",
+            "hash": "03e9ac11f48192e0b9879fdfff06e615149f781c0477e4ca48b8df3cfd7ed0a9"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/2ac5d277-40e3-49ef-bac7-efbb2ed25e24/receipt.json",
+            "hash": "9e055ac6bc229f011a335810e5ce4efc057898622e51324cf99ff3c1982cdc34"
+          }
+        },
+        "output": {
+          "summary": "kit verify on snapshot 1e0a8521 (HEAD aca6be8): tests 445/445 + 449/449 + 432/432 = 1326/1326, typecheck exit 0, story PASS; no signal, timeout or truncation; snapshot unchanged across checks.",
+          "evidence": [
+            ".ai-workflow/runs/U34-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-verify-1.md": "214ebd031ab52b28f3afdb8b71e00794fb48311f78463802452107a4e210a72b"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-04T01:55:59.914Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-04T02:00:20.235Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The lean Office's discoverNow passes each discovery through keptClaudeBlock and returns that result, so the runners screen, the agent save checks and the default runner keep a same-binary claude hook block across a failed listing, like the engine. RED 0/3 before, GREEN 3/3 after, 4 mutants caught, related 7 files 170/170, tsc exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U34-implement-1.md",
+            "src/lean/office.ts",
+            "src/runtime/runner-settings.ts",
+            "tests/lean-office.test.mjs",
+            "docs/verification/2026-11-04-lean-kept-hook-block.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-implement-1.md": "234625fb5c76070ac4403b2adcd23e70cfaf49fe676ed5c7794783ea86139dd3",
+          "src/lean/office.ts": "07140c1a9f969eb34584f53dcfbf8d59802ca45536c274773ac8fcd686a247b8",
+          "src/runtime/runner-settings.ts": "f8e95491949f4bb8dd9bea6fe34bad5c032f3e4139a0ecdf77b35a6f0f82321b",
+          "tests/lean-office.test.mjs": "ab13ece60bda49c8a8bf13da267f00a37ad1a2b8dc3c229fc2368db158a5b030",
+          "docs/verification/2026-11-04-lean-kept-hook-block.md": "4a3676592d49219c48ce51acb6d276100841c8c45363367d7a12290bf05b36cd"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T02:00:26.401Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T02:10:31.489Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "f39f460e53350a3e5d0f6f0059f8c179243e4b4058d6afe42203d72a9e594f61",
+        "output": {
+          "summary": "Independent review attempt 1: not ready (Critical 0, Important 2, Minor 3). Code and tests correct; the change record understates the old failure (a hooked claude could start through D39 rediscovery) and the team Office residual (another repo's engine can start it).",
+          "evidence": [
+            ".ai-workflow/runs/U34-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "f39f460e53350a3e5d0f6f0059f8c179243e4b4058d6afe42203d72a9e594f61"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: pin the engine refusal with a job-level test; keep the claude hook block in the team Office's shared discovery with a two-repo test; drop the no-op runners() call; correct the change record and STATUS (old path could start a hooked claude; team residual)."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-review-1.md": "d4a434da05221b07a54c64f1b4ea72a1dd1638699d0551e51991d78a4cec3daf"
+        },
+        "error": "implement: pin the engine refusal with a job-level test; keep the claude hook block in the team Office's shared discovery with a two-repo test; drop the no-op runners() call; correct the change record and STATUS (old path could start a hooked claude; team residual)."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1: add job-level and team shared-discovery fixes, correct docs",
+      "at": "2026-11-04T02:10:31.927Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-04T02:10:36.097Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-04T02:16:13.301Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: the team Office's sharedDiscovery also keeps the claude hook block; a lean job-level test pins the engine refusal (RED: the hooked claude job started) and a two-repo team test pins the team path (RED: beta 준비됨); docs corrected and a learning doc added. Related 7 files 172/172, tsc exit 0, all mutants caught.",
+          "evidence": [
+            ".ai-workflow/runs/U34-implement-2.md",
+            "src/team/office.ts",
+            "src/lean/office.ts",
+            "src/runtime/runner-settings.ts",
+            "tests/lean-office.test.mjs",
+            "tests/team-office.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-implement-2.md": "6081a22e9b6d61c30059cbae58dd3a2ddddd59982996cbae7c5a29a26061de84",
+          "src/team/office.ts": "0cc7bc8766bfe07f503a149a5110db2973d369b69eefd6a961a27be16ffb4a86",
+          "src/lean/office.ts": "07140c1a9f969eb34584f53dcfbf8d59802ca45536c274773ac8fcd686a247b8",
+          "src/runtime/runner-settings.ts": "feb099009aec26068e26c20977b590458d9220cfdf4dd2b9a33d13b70a312a9e",
+          "tests/lean-office.test.mjs": "5a97011f750d5b286430900ea9e41031796e2debfdec3f7fe854f6c7ba65a320",
+          "tests/team-office.test.mjs": "8f9411593d893aaa5bc67899bbb3ce45636a17648842dd4b7c51303d4c6d45d9"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T02:16:17.924Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T02:23:09.358Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "1ecd15fbc34ea10dfb7b20cadd800fe3735606db36680e2c2b8b1b5240bb4719",
+        "output": {
+          "summary": "Independent review attempt 2: not ready (Important 1, Minor 3), docs only block. All attempt-1 findings resolved; sharedDiscovery change correct. Missing residual: a hook seen only by the lean copy while the engine copy says ready starts the claude job (pre-existing); STATUS claim too broad; no-block wording; learning doc single-Office line; test 5 lets one mutant survive.",
+          "evidence": [
+            ".ai-workflow/runs/U34-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "1ecd15fbc34ea10dfb7b20cadd800fe3735606db36680e2c2b8b1b5240bb4719"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: scope STATUS's engine claim to failed listings; add the stale-ready engine copy residual to the record, STATUS and learning doc; fix the no-block wording and the learning doc's single-Office line; add a second failed listing to the team test."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-review-2.md": "dee8c37a2074081b1fc154251be5c017dc1f7de88f0e1e3790ed17a00edb3a32"
+        },
+        "error": "implement: scope STATUS's engine claim to failed listings; add the stale-ready engine copy residual to the record, STATUS and learning doc; fix the no-block wording and the learning doc's single-Office line; add a second failed listing to the team test."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 2: docs residual and wording, second failed listing in the team test",
+      "at": "2026-11-04T02:23:09.847Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-04T02:23:21.966Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-04T02:26:29.510Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes (docs and one test): the stale-ready engine copy residual is stated in the record, STATUS and learning doc, STATUS's engine claim is scoped to failed listings, the no-block condition and the learning doc's single-Office line are corrected, and the team test fails the listing twice so all three shared-discovery mutants fail. Related 7 files 172/172, tsc exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U34-implement-3.md",
+            "tests/team-office.test.mjs",
+            "src/team/office.ts",
+            "src/lean/office.ts"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-implement-3.md": "fb0c58baff852167bbdedf3f8a3d15d90580b0a3c20c9c4c97d13d9ab48a150c",
+          "tests/team-office.test.mjs": "70daf39f4d61b8354c897934a8c22692332dcfadab9a5cccd28091966b33d4d2",
+          "src/team/office.ts": "0cc7bc8766bfe07f503a149a5110db2973d369b69eefd6a961a27be16ffb4a86",
+          "src/lean/office.ts": "07140c1a9f969eb34584f53dcfbf8d59802ca45536c274773ac8fcd686a247b8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T02:26:33.933Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-04T02:30:17.207Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938",
+        "output": {
+          "summary": "Independent review attempt 3: Ready to merge Yes (Critical 0, Important 0, Minor 2 wording carried to the delivery commit). All review-2 findings resolved; test 5 fails under all three shared-discovery mutants; no src change in the delta.",
+          "evidence": [
+            ".ai-workflow/runs/U34-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-review-3.md": "220929e95a24452160486bfec95ae4a2d094a702e4ac77a6d3272839dd2dfa7d"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-04T02:30:23.541Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-04T02:34:26.398Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/ab7d1bb2-197c-4d95-8cb4-dc6ee6fe1ddf/receipt.json",
+            "hash": "da4853ce2adc275c0e9be0af92c3c27e1399ed7b9863a452860b44a24367054a"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/45a54c7d-746b-4855-b470-67e3a8eaae97/receipt.json",
+            "hash": "e9d70ebbaab3f70f9391df4a0e51ed059dda26fd0d94062584b5c6b621cb5a96"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/c6487a1d-c790-47d2-9835-cf137dadc102/receipt.json",
+            "hash": "3fb3c3e02ec08c04f03598a2a07984d971ee40097e5a5ceebf691a2bfe2dbb30"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/65d25d12-c8e2-4137-8c4a-3fbe6f8a79f0/receipt.json",
+            "hash": "03e9ac11f48192e0b9879fdfff06e615149f781c0477e4ca48b8df3cfd7ed0a9"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/3b3269fe-68f6-4d2f-9a78-58b586221056/2ac5d277-40e3-49ef-bac7-efbb2ed25e24/receipt.json",
+            "hash": "9e055ac6bc229f011a335810e5ce4efc057898622e51324cf99ff3c1982cdc34"
+          }
+        },
+        "output": {
+          "summary": "kit verify on snapshot 1e0a8521 (HEAD aca6be8): tests 445/445 + 449/449 + 432/432 = 1326/1326, typecheck exit 0, story PASS; no signal, timeout or truncation; snapshot unchanged across checks.",
+          "evidence": [
+            ".ai-workflow/runs/U34-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U34-verify-1.md": "214ebd031ab52b28f3afdb8b71e00794fb48311f78463802452107a4e210a72b"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "1a2145ec80cbcc69d56cdeb929594c5edd82eb3b4b9e0e09874f0ff843bd7056"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "3b3ab584a5862658701ec1445495e2d1d86fcb6f3458665f67abd01bd234d518",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "cb135df89beab7a052dcd42c4463ebb0533e53ec4dab4de147608b68db8fb6cf"
+    }
+  }
+}
