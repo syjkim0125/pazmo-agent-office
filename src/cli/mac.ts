@@ -219,7 +219,10 @@ function nameOf(entry: TeamRepo, cfg: HubLinkConfig | null): string {
   return printable(typeof name === "string" && name ? name : basename(entry.project));
 }
 
-/** The existing link when it is for this Hub and the Hub still answers it; null means pair. */
+/** The existing link when it is for this Hub and the Hub still answers it; null means pair. Only a 401 (the Hub ended
+ * this Mac) pairs again: pairing revokes this Mac and every repo link it minted, which would cut a running Office's
+ * Story link. Any other failure (a 5xx, a router page, a timeout) keeps the file and is the Hub failure, with the
+ * command to run again. */
 async function reusable(e: Env, hub: string): Promise<MacLinkFile | null> {
   let file: MacLinkFile | null;
   try {
@@ -238,7 +241,8 @@ async function reusable(e: Env, hub: string): Promise<MacLinkFile | null> {
     await macClient(file, e.call).repos();
     return file;
   } catch (error) {
-    if (fields(error).status === 401) e.say("허브에서 이 Mac 연결이 해제됐습니다 — 새로 연결합니다");
+    if (fields(error).status !== 401) throw hubFailure(error, hub);
+    e.say("허브에서 이 Mac 연결이 해제됐습니다 — 새로 연결합니다");
     return null;
   }
 }

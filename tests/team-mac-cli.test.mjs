@@ -272,6 +272,38 @@ test("the default ghLogin is a prompt only when stdin is a TTY, and mac restart 
   assert.deepEqual(calls, [["stop", m.root], ["up", m.root]]);
 });
 
+test("a connected Mac whose reuse check meets a 5xx, a router page or a timeout does not pair again, keeps mac-link.json and says to rerun", async (t) => {
+  const m = await world(t, ["app-be"]);
+  await m.connect();
+  const macLink = readFileSync(macLinkPath(m.root));
+  const links = liveLinks(m);
+  for (const [error, text] of [
+    [hubError(503, "HUB_503"), /준비되지 않았습니다\(503\)/],
+    [new Error("HUB_BAD_RESPONSE_502"), /준비되지 않았습니다\(502\)/],
+    [new Error("HUB_TIMEOUT"), /닿지 않습니다\(HUB_TIMEOUT\)/],
+  ]) {
+    m.paths.length = 0;
+    m.launches.length = 0;
+    const flaky = async (target, method, path, body) => {
+      m.paths.push(path);
+      if (path === "/api/mac/repos") throw error;
+      // A pairing would revoke this Mac and its links: stop it here rather than wait out a code.
+      if (path === "/api/mac/start") throw new OfficeError("PAIRED_AGAIN", "paired again");
+      return m.real(target, method, path, body);
+    };
+    await assert.rejects(m.connect({ call: flaky, open: async () => assert.fail("no new pairing") }), (e) => {
+      assert.match(e.message, text);
+      assert.ok(e.message.includes(rerun(m.hub)), e.message);
+      return true;
+    });
+    assert.deepEqual(m.paths, ["/api/mac/repos"], `${error.message}: neither /api/mac/start nor /api/mac/token`);
+    assert.deepEqual(readFileSync(macLinkPath(m.root)), macLink, "mac-link.json is byte for byte the same");
+    assert.deepEqual(m.launches, [], "the agent is left as it is");
+  }
+  assert.equal(m.opened.length, 1, "paired once, at the first connect");
+  assert.deepEqual(liveLinks(m), links, "the Mac's links stand");
+});
+
 test("after a web revoke, mac connect pairs again and re-mints every Mac link; the old per-repo tokens stay 401", async (t) => {
   const m = await world(t, ["app-be", "app-fe"]);
   await m.connect();
