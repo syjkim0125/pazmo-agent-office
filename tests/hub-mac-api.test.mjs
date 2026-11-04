@@ -323,6 +323,23 @@ test("link is NOT_OWNER and NOT_FOUND as JSON; heartbeat with state sleeping is 
   assert.equal((await mac("POST", "/api/mac/heartbeat", { token: macToken, body: { state: "locked", detail: "a".repeat(200) } })).status, 200, "200 characters is fine");
 });
 
+test("link is 409 LINKED_ELSEWHERE as JSON while the member's connection-string link to the repo is live, and mints once that link is revoked", async (t) => {
+  const { mac, pair, be, b, store } = await seeded(t);
+  const { macToken } = await pair();
+  const byString = store.connect(store.createConnectCode(b), "https://github.example.com/team/app-be.git").token;
+  const refused = await mac("POST", "/api/mac/link", { token: macToken, body: { repoId: be } });
+  assert.deepEqual([refused.status, refused.headers["content-type"], refused.json], [409, JSON_TYPE, {
+    error: "LINKED_ELSEWHERE",
+    message: "이 레포는 다른 곳의 Office가 연결 문자열로 연결해 쓰고 있습니다. 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요.",
+  }]);
+  assert.equal(store.link(byString)?.repoId, be, "the other Office keeps the repo");
+  assert.deepEqual((await mac("GET", "/api/mac/repos", { token: macToken })).json.repos.map((r) => [r.name, r.linked]), [["app-be", false], ["app-ops", false]]);
+  store.revokeLink(b, store.repos(b.id).find((r) => r.id === be).links[0].id);
+  const minted = await mac("POST", "/api/mac/link", { token: macToken, body: { repoId: be } });
+  assert.equal(minted.status, 200);
+  assert.equal(store.link(minted.json.token)?.repoId, be);
+});
+
 test("Mac calls need a well-formed Bearer Mac token; cookies and other headers do not count", async (t) => {
   const { mac, call, store, admin, enter, pair } = await seeded(t);
   const { macToken } = await pair();

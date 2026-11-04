@@ -12,6 +12,9 @@ import { startTestHub } from "./hub-fixture.mjs";
 const USER_CODE = /^[BCDFGHJKLMNPQRSTVWXZ]{4}-\d{4}$/;
 const SECRET = /^[A-Za-z0-9_-]{43}$/;
 const INVALID = "코드가 만료됐거나 이미 쓰였습니다. Mac 터미널에서 설치 명령을 다시 실행하세요.";
+const LINKED_ELSEWHERE =
+  "이 레포는 다른 곳의 Office가 연결 문자열로 연결해 쓰고 있습니다. 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요.";
+const MAC_LINK = "Mac이 만든 연결은 여기서 해제할 수 없습니다. 내 Mac 화면(/mac)에서 Mac을 해제하세요. 관리자는 팀원·초대 화면(/members)에서 해제할 수 있습니다.";
 const sha = (value) => createHash("sha256").update(value).digest("hex");
 
 function setup() {
@@ -253,23 +256,24 @@ test("macRepos lists only owned repos; linked is true only for a live link this 
   // A connection-string link was not minted by this Mac.
   store.connect(store.createConnectCode(b), "https://github.example.com/team/zeta");
   assert.deepEqual(linkedOf(), { alpha: true, zeta: false });
-  // A link that stopped, or an owner who left, is not linked.
-  store.revokeLink(b, store.repos(b.id).find((r) => r.id === alpha).links[0].id);
+  // A link that stopped (here: replaced by a connection string), or an owner who left, is not linked.
+  const byString = store.connect(store.createConnectCode(b), "https://github.example.com/team/alpha");
   assert.equal(store.link(link.token), null);
   assert.deepEqual(linkedOf(), { alpha: false, zeta: false });
+  store.revokeLink(b, store.repos(b.id).find((r) => r.id === alpha).links.find((l) => l.mac === null).id);
+  assert.equal(store.link(byString.token), null);
   store.macLink(auth, alpha);
   assert.equal(linkedOf().alpha, true);
   store.removeOwner(admin, alpha, b.id);
   assert.deepEqual(store.macRepos(auth).map((r) => r.name), ["zeta"]);
 });
 
-test("macLink revokes the member's earlier link to the repo, marks the new one with the Mac, is NOT_OWNER for a repo not owned and NOT_FOUND for an unknown one", () => {
+test("macLink marks the new link with the Mac, replaces the Mac's own earlier link, is NOT_OWNER for a repo not owned and NOT_FOUND for an unknown one", () => {
   const { store, admin, join, db } = setup();
   const b = join("B");
   const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
   const theirs = store.addRepo(admin, "ai-service", "https://github.example.com/team/ai-service");
   store.addOwner(admin, repo, b.id);
-  const earlier = store.connect(store.createConnectCode(b), "https://github.example.com/team/app-be");
   const { auth } = pairMac(store, b);
   const minted = store.macLink(auth, repo);
   assert.deepEqual(Object.keys(minted).sort(), ["member", "repoId", "repoName", "token"]);
@@ -277,7 +281,6 @@ test("macLink revokes the member's earlier link to the repo, marks the new one w
   assert.deepEqual(minted.member, { id: b.id, name: "B" });
   assert.equal(minted.repoId, repo);
   assert.equal(minted.repoName, "app-be");
-  assert.equal(store.link(earlier.token), null, "the earlier link to this repo is revoked");
   assert.deepEqual(store.link(minted.token), { id: store.link(minted.token).id, repoId: repo, member: b });
   assert.deepEqual(
     db.prepare("SELECT mac_id FROM hub_links WHERE revoked_at IS NULL").all().map((r) => r.mac_id),
@@ -289,6 +292,74 @@ test("macLink revokes the member's earlier link to the repo, marks the new one w
   assert.ok(store.link(again.token));
   assert.throws(() => store.macLink(auth, theirs), { code: "NOT_OWNER", status: 403 });
   assert.throws(() => store.macLink(auth, "00000000-0000-4000-8000-000000000000"), { code: "NOT_FOUND", status: 404 });
+});
+
+test("a connection string replaces the Mac's link as before; then macLink is 409 LINKED_ELSEWHERE and changes nothing, and another owner's connection-string link does not count", () => {
+  const { store, admin, join, rows } = setup();
+  const b = join("B"), c = join("C");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
+  store.addOwner(admin, repo, b.id);
+  store.addOwner(admin, repo, c.id);
+  const { auth } = pairMac(store, b);
+  store.connect(store.createConnectCode(c), "https://github.example.com/team/app-be");
+  const minted = store.macLink(auth, repo);
+  assert.ok(store.link(minted.token), "C's own link to the repo is not B's");
+  const byString = store.connect(store.createConnectCode(b), "https://github.example.com/team/app-be");
+  assert.equal(store.link(minted.token), null, "the connection string ends the Mac's link");
+  const before = rows("hub_links", "hub_macs");
+  assert.throws(() => store.macLink(auth, repo), { code: "LINKED_ELSEWHERE", status: 409, message: LINKED_ELSEWHERE });
+  assert.equal(rows("hub_links", "hub_macs"), before, "nothing revoked and nothing minted");
+  assert.equal(store.link(byString.token)?.repoId, repo, "the other Office keeps its link");
+  assert.deepEqual(store.macRepos(auth).map((r) => r.linked), [false]);
+});
+
+test("once the member ends the connection-string link on the web, macLink mints again", () => {
+  const { store, admin, join } = setup();
+  const b = join("B");
+  const repo = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
+  store.addOwner(admin, repo, b.id);
+  const { auth } = pairMac(store, b);
+  const byString = store.connect(store.createConnectCode(b), "https://github.example.com/team/app-be");
+  assert.throws(() => store.macLink(auth, repo), { code: "LINKED_ELSEWHERE" });
+  store.revokeLink(b, store.repos(b.id)[0].links[0].id);
+  assert.equal(store.link(byString.token), null);
+  const minted = store.macLink(auth, repo);
+  assert.equal(store.link(minted.token)?.repoId, repo);
+  assert.deepEqual(store.macRepos(auth).map((r) => r.linked), [true]);
+});
+
+test("revokeLink of a link a Mac minted is 409 MAC_LINK and the link stays live; FORBIDDEN still comes first; a connection-string link revokes as before", () => {
+  const { store, admin, join, rows } = setup();
+  const b = join("B"), c = join("C");
+  const be = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
+  const fe = store.addRepo(admin, "app-fe", "https://github.example.com/team/app-fe");
+  for (const id of [be, fe]) store.addOwner(admin, id, b.id);
+  const { auth } = pairMac(store, b);
+  const minted = store.macLink(auth, be);
+  const byString = store.connect(store.createConnectCode(b), "https://github.example.com/team/app-fe");
+  const linkOf = (repo) => store.repos(b.id).find((r) => r.id === repo).links[0];
+  const before = rows("hub_links");
+  for (const by of [b, admin])
+    assert.throws(() => store.revokeLink(by, linkOf(be).id), { code: "MAC_LINK", status: 409, message: MAC_LINK });
+  assert.throws(() => store.revokeLink(c, linkOf(be).id), { code: "FORBIDDEN", status: 403 });
+  assert.equal(rows("hub_links"), before, "nothing changed");
+  assert.equal(store.link(minted.token)?.repoId, be);
+  store.revokeLink(b, linkOf(fe).id);
+  assert.equal(store.link(byString.token), null);
+});
+
+test("RepoView names the Mac behind a link it minted and null for a connection-string link", () => {
+  const { store, admin, join } = setup();
+  const b = join("B");
+  const be = store.addRepo(admin, "app-be", "https://github.example.com/team/app-be");
+  const fe = store.addRepo(admin, "app-fe", "https://github.example.com/team/app-fe");
+  for (const id of [be, fe]) store.addOwner(admin, id, b.id);
+  const { auth } = pairMac(store, b, "B의 맥북");
+  store.macLink(auth, be);
+  store.connect(store.createConnectCode(b), "https://github.example.com/team/app-fe");
+  const macOf = (repo) => store.repos(admin.id).find((r) => r.id === repo).links.map((l) => l.mac);
+  assert.deepEqual(macOf(be), [{ id: auth.id, name: "B의 맥북" }]);
+  assert.deepEqual(macOf(fe), [null]);
 });
 
 test("revokeMac revokes the Mac and every link it minted; link() refuses them; the same member's connection-string link to another repo still works", () => {
@@ -412,8 +483,11 @@ test("an old hub.sqlite gains hub_links.mac_id and its links keep working", () =
     assert.equal(db.prepare("PRAGMA table_info(hub_links)").all().some((c) => c.name === "mac_id"), true);
     assert.equal(reopened.link(token)?.repoId, repo, "the old link still works");
     const { auth } = pairMac(reopened, admin);
+    // An old link is a connection-string link: it holds the repo until the member ends it on the web.
+    assert.throws(() => reopened.macLink(auth, repo), { code: "LINKED_ELSEWHERE" });
+    assert.equal(reopened.link(token)?.repoId, repo);
+    reopened.revokeLink(admin, reopened.repos(admin.id)[0].links[0].id);
     assert.equal(reopened.macLink(auth, repo).repoId, repo);
-    assert.equal(reopened.link(token), null, "and is replaced like any link");
     new HubStore(db); // opening twice is quiet
     db.close();
   } finally {

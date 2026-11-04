@@ -58,7 +58,8 @@ export type RepoView = {
   remote: string;
   isOwner: boolean;
   owners: { id: string; name: string }[];
-  links: { id: string; memberId: string; memberName: string; lastSeen: number | null }[];
+  /** `mac` names the Mac that minted the link; such a link ends only with its Mac, on /mac or /members. */
+  links: { id: string; memberId: string; memberName: string; lastSeen: number | null; mac: { id: string; name: string } | null }[];
 };
 export type MacState = (typeof MAC_STATES)[number];
 export type MacAuth = { id: string; member: Member };
@@ -397,8 +398,11 @@ export class HubStore {
     const owners = this.#all<{ repo_id: string; id: string; name: string }>(
       "SELECT o.repo_id,m.id,m.name FROM hub_repo_owners o JOIN hub_members m ON m.id=o.member_id ORDER BY m.name",
     );
-    const links = this.#all<{ id: string; repo_id: string; member_id: string; name: string; last_seen: number | null }>(
-      "SELECT l.id,l.repo_id,l.member_id,m.name,l.last_seen FROM hub_links l JOIN hub_members m ON m.id=l.member_id WHERE l.revoked_at IS NULL",
+    const links = this.#all<{
+      id: string; repo_id: string; member_id: string; name: string; last_seen: number | null; mac_id: string | null; mac_name: string | null;
+    }>(
+      `SELECT l.id,l.repo_id,l.member_id,m.name,l.last_seen,l.mac_id,k.name mac_name FROM hub_links l
+       JOIN hub_members m ON m.id=l.member_id LEFT JOIN hub_macs k ON k.id=l.mac_id WHERE l.revoked_at IS NULL`,
     );
     return this.#all<{ id: string; name: string; remote: string }>("SELECT id,name,remote FROM hub_repos ORDER BY name").map(
       (r) => ({
@@ -407,7 +411,13 @@ export class HubStore {
         owners: owners.filter((o) => o.repo_id === r.id).map(({ id, name }) => ({ id, name })),
         links: links
           .filter((l) => l.repo_id === r.id)
-          .map((l) => ({ id: l.id, memberId: l.member_id, memberName: l.name, lastSeen: l.last_seen })),
+          .map((l) => ({
+            id: l.id,
+            memberId: l.member_id,
+            memberName: l.name,
+            lastSeen: l.last_seen,
+            mac: l.mac_id ? { id: l.mac_id, name: l.mac_name ?? "" } : null,
+          })),
       }),
     );
   }
@@ -824,11 +834,14 @@ export class HubStore {
     this.#run("UPDATE hub_assignments SET end_acked=1 WHERE id=?", a.id);
     return { ok: true };
   }
+  /** A link a Mac minted is refused: the Mac's next sync would mint it again, so it ends only with its Mac. */
   revokeLink(by: Member, id: string) {
     const l =
-      this.#get<{ member_id: string }>("SELECT member_id FROM hub_links WHERE id=?", id) ??
+      this.#get<{ member_id: string; mac_id: string | null }>("SELECT member_id,mac_id FROM hub_links WHERE id=?", id) ??
       fail("NOT_FOUND", 404, "연결을 찾을 수 없습니다.");
     if (!by.admin && l.member_id !== by.id) fail("FORBIDDEN", 403, "자기 Office 연결만 해제할 수 있습니다.");
+    if (l.mac_id !== null)
+      fail("MAC_LINK", 409, "Mac이 만든 연결은 여기서 해제할 수 없습니다. 내 Mac 화면(/mac)에서 Mac을 해제하세요. 관리자는 팀원·초대 화면(/members)에서 해제할 수 있습니다.");
     this.#run("UPDATE hub_links SET revoked_at=? WHERE id=? AND revoked_at IS NULL", this.#now(), id);
   }
 
@@ -936,7 +949,8 @@ export class HubStore {
       m.member.id, m.id, m.member.id,
     ).map((r) => ({ ...r, linked: r.linked === 1 }));
   }
-  /** Mints the repo link for this Mac, replacing the member's earlier link to the repo. */
+  /** Mints the repo link for this Mac, replacing the Mac's earlier one. A live link the member made with a connection string wins:
+   * the Mac is refused and nothing changes, so the two never take the repo from each other. */
   macLink(m: MacAuth, repoId: string): { token: string; member: { id: string; name: string }; repoId: string; repoName: string } {
     return transaction(this.#db, () => {
       const repo =
@@ -944,6 +958,12 @@ export class HubStore {
         fail("NOT_FOUND", 404, "레포를 찾을 수 없습니다.");
       if (!this.#owner(m.member.id, repoId))
         fail("NOT_OWNER", 403, "이 레포의 담당자나 관리자에게 담당자 추가를 요청하세요.");
+      if (this.#get("SELECT 1 FROM hub_links WHERE member_id=? AND repo_id=? AND mac_id IS NULL AND revoked_at IS NULL", m.member.id, repoId))
+        fail(
+          "LINKED_ELSEWHERE",
+          409,
+          "이 레포는 다른 곳의 Office가 연결 문자열로 연결해 쓰고 있습니다. 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요.",
+        );
       return {
         token: this.#issueLink(m.member.id, repoId, m.id),
         member: { id: m.member.id, name: m.member.name },

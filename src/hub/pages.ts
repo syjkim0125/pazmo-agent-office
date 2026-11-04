@@ -156,9 +156,20 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
       const add = manage && candidates.length
         ? `<form class="row" method="post" action="/repos/${esc(r.id)}/owners">${csrfField(csrf)}<select name="member" aria-label="담당자로 추가할 팀원">${candidates.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("")}</select><button class="secondary">담당자 추가</button></form>`
         : "";
+      // A Mac's link ends only with its Mac (its next sync would mint it again), so it points to where the Mac is ended.
+      const release = (l: RepoView["links"][number]) =>
+        l.mac
+          ? l.memberId === me.id
+            ? ' <a href="/mac">내 Mac에서 해제</a>'
+            : me.admin
+              ? ' <a href="/members">팀원·초대에서 Mac 해제</a>'
+              : ""
+          : l.memberId === me.id || me.admin
+            ? button(`/links/${l.id}/revoke`, csrf, "연결 해제", "secondary")
+            : "";
       const links = r.links.length
         ? r.links
-            .map((l) => `${esc(l.memberName)} (확인 ${ago(l.lastSeen)})${l.memberId === me.id || me.admin ? button(`/links/${l.id}/revoke`, csrf, "연결 해제", "secondary") : ""}`)
+            .map((l) => `${esc(l.memberName)} (${l.mac ? `Mac: ${esc(l.mac.name)}, ` : ""}확인 ${ago(l.lastSeen)})${release(l)}`)
             .join("<br>")
         : '<span class="muted">연결된 Office 없음</span>';
       const link = r.isOwner ? '<a href="/start">내 Office 연결</a>' : "";

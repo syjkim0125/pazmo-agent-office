@@ -430,6 +430,43 @@ test("a member revokes their own Mac; another member's revoke is 403; an admin r
   assert.equal((await h.get("/members", c)).status, 404, "a plain member has no /members");
 });
 
+test("/repos shows a Mac's link as that Mac's with no 연결 해제, pointing to /mac (an admin to /members); a POST revoke of it is 409 and the link stays live; a connection-string link keeps its button", async (t) => {
+  const h = await lan(t);
+  const { admin, b } = await twoMembers(h);
+  const be = h.store.addRepo(admin.member, "app-be", "https://github.example.com/team/app-be");
+  const fe = h.store.addRepo(admin.member, "app-fe", "https://github.example.com/team/app-fe");
+  for (const id of [be, fe]) h.store.addOwner(admin.member, id, b.member.id);
+  const paired = h.pair(b.member, "B의 <맥북>");
+  const minted = h.store.macLink(h.store.mac(paired.macToken), be);
+  const byString = h.store.connect(h.store.createConnectCode(b.member), "https://github.example.com/team/app-fe");
+  const linkOf = (repo) => h.store.repos(b.member.id).find((r) => r.id === repo).links[0];
+  const macLink = linkOf(be),
+    stringLink = linkOf(fe);
+  const revokeForm = (id) => `action="/links/${id}/revoke"`;
+
+  const mine = (await h.get("/repos", b)).text;
+  assert.ok(mine.includes("B (Mac: B의 &#60;맥북&#62;, 확인 아직 없음)"), "the Mac's name, escaped");
+  assert.ok(!mine.includes(revokeForm(macLink.id)), "no per-link revoke for the Mac's link");
+  assert.ok(mine.includes('<a href="/mac">내 Mac에서 해제</a>'));
+  assert.ok(mine.includes(revokeForm(stringLink.id)), "a connection-string link keeps its button");
+
+  const asAdmin = (await h.get("/repos", admin)).text;
+  assert.ok(!asAdmin.includes(revokeForm(macLink.id)));
+  assert.ok(asAdmin.includes('<a href="/members">팀원·초대에서 Mac 해제</a>'), "an admin ends another member's Mac on /members");
+  assert.ok(!asAdmin.includes('<a href="/mac">내 Mac에서 해제</a>'));
+  assert.ok(asAdmin.includes(revokeForm(stringLink.id)));
+
+  for (const who of [b, admin]) {
+    const res = await h.post(`/links/${macLink.id}/revoke`, who);
+    assert.equal(res.status, 409);
+    assert.match(res.text, /Mac이 만든 연결은 여기서 해제할 수 없습니다/);
+  }
+  assert.equal(h.store.link(minted.token)?.repoId, be, "the Mac's link is still live");
+  const res = await h.post(`/links/${stringLink.id}/revoke`, b);
+  assert.deepEqual([res.status, res.headers.location], [303, "/repos"]);
+  assert.equal(h.store.link(byString.token), null);
+});
+
 test("a Mac name with <script> is escaped on the approve page, /mac and /members", async (t) => {
   const h = await lan(t);
   const { admin, b } = await twoMembers(h);
