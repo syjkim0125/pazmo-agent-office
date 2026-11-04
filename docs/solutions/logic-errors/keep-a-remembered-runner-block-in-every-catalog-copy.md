@@ -39,15 +39,19 @@ Only the engine's copy kept the block. The others stored each discovery as is.
 - Apply the same pure function (`keptClaudeBlock`) at every place that stores a discovery, and hand the kept result down instead of the raw one.
   - `sharedDiscovery` keeps against the shared history, so a block one repo found reaches every repo.
   - `discoverNow()` keeps against the lean history and returns the kept result, so the engine receives it.
-  - `RunnerSettings.refresh()` still keeps against its own history (single Office has no other copy).
+  - `RunnerSettings.refresh()` still keeps against its own history. In production the engine always loads through a lean Office (`createNativeOffice` is called only from `src/lean/office.ts`), so this keep matters for the engine's own older block and for tests that build a native Office directly.
 - Re-applying the function lower down is safe: on a catalog that already carries the block it only rebuilds the same hint. At worst, a lower copy keeps its own older block, which errs toward blocked.
 
 ## Prevention
 - When a rule depends on history ("keep X across a failed check"), list every place that stores the checked result. Follow the loader's callers (`runnerCatalog`, `discover`), not only the class that first got the rule.
 - Test at the lowest reader, with the evidence seen only by an upper copy:
   - lean: only `runners()` sees the hooked listing; the engine's job then rediscovers into a failed listing and must be refused (`tests/lean-office.test.mjs`).
-  - team: only repo A's engine sees it; repo B's engine then rediscovers into a failed listing and must hold the block (`tests/team-office.test.mjs`; the fake runtime keeps the engine's `runners`).
+  - team: only repo A's engine sees it; the listing then fails twice, at A's next look and at B's, and B's engine must hold the block (`tests/team-office.test.mjs`; the fake runtime keeps the engine's `runners`). One failure is not enough: a layer that stores the raw result but returns the kept one passes it, and loses the block on the second failure.
 - When a record says "the engine still refuses", name which copy must have seen the evidence for that to hold, and check it with a job-level test, not by reading.
+
+## Still open
+- Keeping a block across failures does not make the copies agree on fresh evidence. The engine rediscovers only when its install is not ready or its binary changed (`src/runtime/runner-jobs.ts`). If a hook appears while the engine's copy says ready, and only the lean copy sees the successful listing (the runners screen, the team Office's claim check), the next claude role job still starts (U34 review 2, by probe; not fixed in U34).
+- The same rule applies: a check that guards a run must read a copy that has seen every discovery, or refresh first.
 
 ## Related
 - `docs/verification/2026-11-04-lean-kept-hook-block.md`: the change (U34), its tests, mutants and residual risks.

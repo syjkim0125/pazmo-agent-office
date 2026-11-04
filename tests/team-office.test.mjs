@@ -692,8 +692,11 @@ test("a hook block one repo's discovery found survives a failed claude listing f
   await engine(a).refresh();
   assert.equal(engine(a).catalog.installs.claude.blocked, "SessionEnd hook (policySettings)");
   assert.equal(engine(b).catalog.installs.claude.blocked, undefined);
-  // … then beta's engine looks again, and the same claude's model and hook listing fails.
+  // … then the same claude's model and hook listing fails, at alpha's next look and again at beta's.
   catalog = { ...readyCatalog(), models: { ...readyCatalog().models, claude: [] }, claudeUnlisted: true };
+  clock += 5000;
+  await engine(a).refresh();
+  assert.equal(engine(a).catalog.installs.claude.hint, hooked().installs.claude.hint);
   clock += 5000;
   await engine(b).refresh();
   assert.equal(engine(b).catalog.installs.claude.hint, hooked().installs.claude.hint);
