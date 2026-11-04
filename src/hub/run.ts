@@ -75,8 +75,8 @@ export async function startHub(input: RunHubInput) {
     const board = new StoryBoard(db);
     hub = await startHubServer(
       input.mode === "lan"
-        ? { store, listen: { kind: "tls", tls: tls!, host: input.host, port: input.port, names: [input.name, input.host].filter((n): n is string => !!n) } }
-        : { store, listen: { kind: "proxy", publicUrl: publicUrl!.origin, host: input.listenHost, port: input.listenPort }, installer },
+        ? { store, board, listen: { kind: "tls", tls: tls!, host: input.host, port: input.port, names: [input.name, input.host].filter((n): n is string => !!n) } }
+        : { store, board, listen: { kind: "proxy", publicUrl: publicUrl!.origin, host: input.listenHost, port: input.listenPort }, installer },
       linkApi(store, board),
     );
     admin = store.bootstrapAdmin();

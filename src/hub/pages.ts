@@ -1,5 +1,6 @@
 import { HUB_ANSWERABLE } from "./protocol.ts";
 import type { MacBadge, MacView, Member, MemberView, RepoView, RequestRow, RequestView } from "./store.ts";
+import type { OpenTaskRef } from "./story-store.ts";
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 const STYLE = `:root{--bg:#f6f7f5;--fg:#1c2320;--muted:#5e6964;--line:#d6dcd8;--panel:#fff;--accent:#2b5d8a;--bad:#a8332b;color-scheme:light}
@@ -209,8 +210,12 @@ export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: str
 }
 const macForm = (action: string, csrf: string, code: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${action}">${csrfField(csrf)}<input type="hidden" name="code" value="${esc(code)}"><button${cls ? ` class="${cls}"` : ""}>${label}</button></form>`;
-export function macApprove(me: Member, csrf: string, code: string, info: { name: string; createdAt: number }, chrome: Chrome = {}) {
-  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(new Date(info.createdAt).toLocaleString("ko-KR"))} (${ago(info.createdAt)})</p><p>Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.</p><div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
+/** `held`: a Task the member holds while an earlier Mac is live; allowing strands it, so the page says so. */
+export function macApprove(me: Member, csrf: string, code: string, info: { name: string; createdAt: number }, held: OpenTaskRef | null, chrome: Chrome = {}) {
+  const task = held
+    ? `<p><b>이전 Mac이 맡은 Task가 있습니다: Story #${held.storyNumber} Task #${held.taskNumber}${held.repoName ? ` (${esc(held.repoName)})` : ""}. 이 Mac을 허용하면 그 Task는 PL이 풀어 줘야 합니다.</b></p>`
+    : "";
+  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(new Date(info.createdAt).toLocaleString("ko-KR"))} (${ago(info.createdAt)})</p><p>Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
 }
 export function macCodeGone(me: Member, chrome: Chrome = {}) {
   return layout("코드 만료", me, `<section><h1>이 코드는 쓸 수 없습니다</h1><p>코드가 만료됐거나 이미 쓰였거나 잘못된 코드입니다. Mac 터미널에서 설치 명령을 다시 실행하면 새 코드가 나옵니다.</p><p><a href="/mac">내 Mac</a></p></section>`, chrome);

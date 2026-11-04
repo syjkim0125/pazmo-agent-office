@@ -17,7 +17,7 @@ export async function startTestHub(t, { now, storeNow } = {}) {
   const db = new DatabaseSync(":memory:");
   const store = new HubStore(db, storeNow);
   const board = new StoryBoard(db, now);
-  const hub = await startHubServer({ store, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store, board));
+  const hub = await startHubServer({ store, board, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store, board));
   t.after(async () => {
     await hub.close();
     rmSync(dir, { recursive: true, force: true });

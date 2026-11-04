@@ -9,12 +9,14 @@ import { COPY_SCRIPT } from "./copy-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
 import { installScript, type InstallerConfig } from "./installer.ts";
+import type { StoryBoard } from "./story-store.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
   | { kind: "proxy"; publicUrl: string; host: string; port: number };
-/** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404. */
-export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig };
+/** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404.
+ * `board` lets the Mac approve page name a Task the member's earlier Mac holds; without it the page says nothing about Tasks. */
+export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;
@@ -180,7 +182,9 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         if (info.state !== "pending") throw new HubError("MAC_CODE_USED", 409, "이미 허용하거나 거절한 코드입니다. 새 코드가 필요하면 Mac 터미널에서 설치 명령을 다시 실행하세요.");
         // macCode accepted it, so it reads as four letters and four digits however it was typed; the page shows that form.
         const code = typed.toUpperCase().replace(/[\s-]/g, "");
-        return html(res, 200, page.macApprove(me, s.csrf, `${code.slice(0, 4)}-${code.slice(4)}`, info, chrome()));
+        // Allowing revokes the earlier Mac and its links, but its claim is the member's and stays until the PL releases it.
+        const held = c.store.macs(me.id).length > 0 ? (c.board?.openTaskOfMember(me.id) ?? null) : null;
+        return html(res, 200, page.macApprove(me, s.csrf, `${code.slice(0, 4)}-${code.slice(4)}`, info, held, chrome()));
       }
       return html(res, 404, page.error("페이지를 찾을 수 없습니다."));
     }

@@ -18,7 +18,7 @@ const INSTALLER = { officeRepo: DEFAULT_OFFICE_REPO, officeRef: DEFAULT_OFFICE_R
 const PILL = (label) => `<a class="pill" href="/mac">내 Mac: ${label}</a>`;
 
 /** Browser-side helpers over one hub: `enter` joins through a real invite, `get`/`post` act as that browser. */
-function harness({ store, origin, call, api }) {
+function harness({ store, board, origin, call, api }) {
   async function enter(raw) {
     const res = await call("POST", `/invite/${raw}`, { body: "label=t", headers: { origin } });
     assert.equal(res.status, 303);
@@ -42,13 +42,13 @@ function harness({ store, origin, call, api }) {
     assert.equal(polled.state, "approved");
     return polled;
   }
-  return { store, origin, call, api, enter, get, post, pair };
+  return { store, board, origin, call, api, enter, get, post, pair };
 }
 
 /** A hub on its own certificate (LAN mode): no installer. */
 async function lan(t, options) {
   const h = await startTestHub(t, options);
-  return harness({ store: h.store, origin: h.hub.url, call: h.call, api: h.api });
+  return harness({ store: h.store, board: h.board, origin: h.hub.url, call: h.call, api: h.api });
 }
 /** A hub behind the OpenShift router: plain HTTP on the public host, with the installer when given. */
 async function openshift(t, installer) {
@@ -135,6 +135,36 @@ test("the approve page shows the Mac, its code and when it asked, with the warni
     assert.doesNotMatch(gone.text, /<script/i);
   }
   assert.equal((await h.get("/mac/approve", admin)).status, 410, "no code at all");
+});
+
+test("the approve page says an earlier Mac holds an open Task, and only when the member has an earlier live Mac and an open Task", async (t) => {
+  const h = await lan(t);
+  const { admin, b } = await twoMembers(h);
+  const remote = "https://github.example.com/team/app-be";
+  const be = h.store.addRepo(admin.member, "app-be", remote);
+  h.store.addOwner(admin.member, be, b.member.id);
+  const plLink = h.store.link(h.store.connect(h.store.createConnectCode(admin.member), remote).token);
+  const { projectId } = h.board.createProject(plLink, "쿠폰 개편", [{ repoId: be, baseBranch: "main" }]);
+  const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
+  const node = (id) => ({ id, repoId: be, title: id, spec: `${id} 설명`, files: [`src/${id}.ts`], verify: [check] });
+  const { storyId } = h.board.publishStory(plLink, {
+    projectId, title: "쿠폰 발급", body: "# Story", risk: "normal", key: "k1",
+    graph: { nodes: [node("api"), node("copy")], edges: [] }, storyVerify: [{ repoId: be, checks: [check] }],
+  });
+  h.board.openStory(plLink, storyId);
+  const page = async (who) => (await h.get(`/mac/approve?code=${h.store.startMac("새 Mac").userCode}`, who)).text;
+
+  const first = h.pair(b.member, "첫 Mac");
+  const bLink = h.store.link(h.store.macLink(h.store.mac(first.macToken), be).token);
+  assert.ok(!(await page(b)).includes("이전 Mac이 맡은 Task"), "an earlier Mac with no open Task: nothing to say");
+  const held = h.board.claimNext(bLink);
+  assert.ok((await page(b)).includes(
+    `이전 Mac이 맡은 Task가 있습니다: Story #${held.story.number} Task #${held.number} (app-be). 이 Mac을 허용하면 그 Task는 PL이 풀어 줘야 합니다.`,
+  ));
+
+  // The PL holds the other Task through a connection string and has no Mac: pairing one strands nothing.
+  assert.ok(h.board.claimNext(plLink));
+  assert.ok(!(await page(admin)).includes("이전 Mac이 맡은 Task"));
 });
 
 test("approving binds the Mac to the signed-in member; a second approve is 409 and the token still names the first member; an approve after 600000 ms is 410", async (t) => {
