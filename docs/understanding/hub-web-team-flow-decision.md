@@ -1,6 +1,6 @@
 # 결정: 브라우저 하나로 쓰는 팀 흐름 (Hub 웹 중심, 실행은 각자 Mac)
 
-상태: 초안(2026-11-04, G3 전). Story 결정 번호는 Story 계약에 반영할 때 origin/main을 보고 정한다.
+상태: G3 승인(2026-11-04, 사용자 "① 이대로 승인", 설명 페이지 https://claude.ai/artifact/9UGi8rPk9ADHyPcB7prD5F 1판). Story 결정 D41.
 
 ## 왜
 
