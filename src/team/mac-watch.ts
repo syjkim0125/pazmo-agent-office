@@ -31,6 +31,10 @@ export type MacWatchDeps = {
   presence: () => Presence;
   /** No record is open and no engine runs: the team Office can be stopped now. */
   idle: () => boolean;
+  /** Whether the team Office could start again once stopped (a live Office's runners are ready), asked only right
+   * before a restart; a failure counts as no. Without it, always: a restart that cannot start again leaves the Office
+   * off until the next login. */
+  startable?: () => boolean | Promise<boolean>;
   /** A links-only sync: repo links are fixed in place; what only a full sync can do (registry changes) comes back. */
   sync: (file: MacLinkFile, client: Pick<MacClient, "repos" | "link">) => Promise<Pending>;
   /** Starts the restart (`mac restart`) apart from this Office; it does not wait for it. */
@@ -111,7 +115,8 @@ const reasonOf = (error: unknown): string => printable(error instanceof Error ? 
  * restarts the Office when the registry must change (it may only change while the Office is stopped).
  *
  * A 401 means the Hub revoked this Mac: one line, then no Mac call under that macId until the link file names
- * another. A restart is asked for only while nothing is open; until then one line says it waits. From the
+ * another. A restart is asked for only while nothing is open and the Office could start again (`startable`); until
+ * then one line says what it waits for. From the
  * restart on, claims are held (`holding`) for RESTART_HOLD_MS. The pending set a restart was asked for is
  * remembered with its time (0600, before the restart): the restarted Office that finds the same set again (a repo a
  * full sync could not add) says so once and does not restart for it until RESTART_RETRY_MS have passed; a different
@@ -134,8 +139,17 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
   let restartedFor: Remembered | null = d.root === undefined ? null : readRemembered(d.root);
   /** Lines said once until what they say changes. */
   let waitingSaid: string | null = null;
+  let runnersSaid: string | null = null;
   let stuckSaid: string | null = null;
   let unsavedSaid: string | null = null;
+  async function startable(): Promise<boolean> {
+    if (!d.startable) return true;
+    try {
+      return (await d.startable()) === true;
+    } catch {
+      return false;
+    }
+  }
 
   const holding = (): boolean => heldAt !== null && now() - heldAt < RESTART_HOLD_MS;
   function revoke(file: MacLinkFile): void {
@@ -196,7 +210,7 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
         throw printableError(error);
       }
       if (pending.add.length === 0 && pending.remove.length === 0) {
-        waitingSaid = stuckSaid = unsavedSaid = null;
+        waitingSaid = runnersSaid = stuckSaid = unsavedSaid = null;
         if (restartedFor !== null) forget();
         return;
       }
@@ -213,13 +227,26 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
         return;
       }
       stuckSaid = null;
-      if (!d.idle()) {
+      const busy = (): boolean => {
+        if (d.idle()) return false;
         if (waitingSaid !== key)
           log(`team: 담당 repo가 바뀌었습니다(${what}) — 팀 Office를 다시 켜야 맞출 수 있어 열린 Task와 실행이 끝나기를 기다립니다`);
         waitingSaid = key;
+        return true;
+      };
+      if (busy()) return;
+      if (!(await startable())) {
+        // Stopped now, the Office would not start again (`up` refuses without a logged-in runner) and stay off.
+        if (runnersSaid !== key)
+          log(
+            `team: 담당 repo가 바뀌었습니다(${what}) — 이 Mac의 실행 CLI(codex·claude)가 준비되지 않아 지금 다시 켜면 켜지지 않으므로 켜진 채로 기다립니다. CLI에 로그인하면 다시 켜서 맞춥니다`,
+          );
+        runnersSaid = key;
         return;
       }
-      waitingSaid = null;
+      // The runners were asked: a claim tick may have taken a Task meanwhile.
+      if (busy()) return;
+      waitingSaid = runnersSaid = null;
       const at = now();
       if (d.root !== undefined)
         try {

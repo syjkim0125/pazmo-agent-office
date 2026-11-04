@@ -1295,6 +1295,42 @@ test("while a restart is held the Office claims nothing", async (t) => {
   assert.equal(mac.restarts, 1);
 });
 
+test("a live Office whose runners are not ready is not restarted for a changed repo set, until they are; a locked one is", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  f.link(await f.repo("alpha"), "a");
+  const mac = fakeMac();
+  mac.pending = { add: ["beta"], remove: [] };
+  let catalog = loggedOutCatalog;
+  let clock = 1_700_000_000_000;
+  await f.open(f.live({ ...mac.config, runnerCatalog: async () => catalog(), recheckMs: 10000, driveMs: 1e9, now: () => clock }));
+  const tick = async (ms) => {
+    clock += ms;
+    t.mock.timers.tick(ms);
+    await flush();
+  };
+  for (let at = 10000; at <= 30000; at += 10000) await tick(10000);
+  assert.equal(mac.restarts, 0, "stopped now, up would refuse with no logged-in runner and leave it off");
+  const waiting = f.logs.filter((line) => line.includes("beta"));
+  assert.equal(waiting.length, 1, f.logs.join("\n"));
+  assert.match(waiting[0], /CLI/);
+
+  // The person logs in: the next check finds the runners ready and restarts.
+  catalog = readyCatalog;
+  await tick(10000);
+  assert.equal(mac.restarts, 1);
+
+  // Locked: today's behaviour, whatever the runners.
+  const locked = fixture(t);
+  locked.link(await locked.repo("alpha"), "a");
+  const lockedMac = fakeMac();
+  lockedMac.pending = { add: ["beta"], remove: [] };
+  await locked.open({ ...lockedMac.config, runnerCatalog: async () => loggedOutCatalog(), recheckMs: 10000 });
+  t.mock.timers.tick(10000);
+  await flush();
+  assert.equal(lockedMac.restarts, 1);
+});
+
 test("a claim under way counts as open: the repo check waits for it and the Office is not restarted", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const f = fixture(t);

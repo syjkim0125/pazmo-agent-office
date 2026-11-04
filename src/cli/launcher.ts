@@ -278,14 +278,13 @@ type UpOptions = {
   engine?: Engine;
 };
 
-/** Steps 1–3 of `up` for an Office it starts, the same for both engines: the
- * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
- * runtime, the dedicated VM and its isolation probe. Returns the live
- * configuration step 4 starts the Office with. */
-async function prepareMachine(
-  options: UpOptions,
-  prepare: () => Promise<unknown>,
-): Promise<LiveConfig> {
+/** The start of step 1 of `up`, which needs no install, VM or network: colima
+ * and docker are installed and one runner is logged in. `mac restart` runs it
+ * before it stops a running Office, so a start that would fail here never
+ * leaves the Office off. */
+export async function machinePreflight(
+  options: Pick<UpOptions, "codexRuntime"> = {},
+): Promise<void> {
   for (const name of ["colima", "docker"])
     if (!existsSync(`/opt/homebrew/bin/${name}`))
       fail(
@@ -300,6 +299,17 @@ async function prepareMachine(
     }),
     runnerLoginOptions(options.codexRuntime, homedir()),
   );
+}
+
+/** Steps 1–3 of `up` for an Office it starts, the same for both engines: the
+ * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
+ * runtime, the dedicated VM and its isolation probe. Returns the live
+ * configuration step 4 starts the Office with. */
+async function prepareMachine(
+  options: UpOptions,
+  prepare: () => Promise<unknown>,
+): Promise<LiveConfig> {
+  await machinePreflight(options);
   await prepare();
   console.error("[2/4] 고정된 Codex 실행 파일 확인");
   await setupRuntime(options.dataDir, true);

@@ -59,6 +59,9 @@ function world(t, root = tempRoot(t)) {
     clock: 1_700_000_000_000,
     presence: { state: "idle", detail: null },
     idle: true,
+    /** What the Office answers when asked whether it could start again (its runners are ready). */
+    startable: () => true,
+    startableAsks: 0,
     pending: { add: [], remove: [] },
     beatError: null,
     syncError: null,
@@ -84,6 +87,10 @@ function world(t, root = tempRoot(t)) {
       }),
       presence: () => w.presence,
       idle: () => w.idle,
+      startable: () => {
+        w.startableAsks++;
+        return w.startable();
+      },
       sync: async (file, client) => {
         assert.equal(typeof client.repos, "function");
         w.syncs.push(file.macId);
@@ -206,6 +213,55 @@ test("with an open claim or a busy engine, check waits, logs once, and restarts 
   assert.equal(w.restarts.length, 1);
   assert.equal(watch.holding(), true);
   assert.equal(w.logs.length, 2);
+});
+
+test("while the Office could not start again (its runners are not ready) check does not restart, logs once, and restarts once they are ready", async (t) => {
+  const w = world(t);
+  const watch = w.watch();
+  w.pending = { add: ["beta"], remove: [] };
+  w.startable = async () => false;
+  for (let i = 0; i < 3; i++) await watch.check();
+  assert.deepEqual(w.restarts, []);
+  assert.equal(watch.holding(), false, "claims are not held while it waits");
+  assert.equal(w.logs.length, 1, w.logs.join("\n"));
+  assert.match(w.logs[0], /beta/);
+  assert.match(w.logs[0], /CLI/);
+  assert.doesNotMatch(w.logs[0], /열린 Task/);
+  assert.equal(existsSync(macRestartPath(w.root)), false, "nothing is remembered before a restart");
+
+  // A check that throws counts as not ready, and says nothing more.
+  w.startable = async () => {
+    throw new Error("discovery failed");
+  };
+  await watch.check();
+  assert.deepEqual([w.restarts.length, w.logs.length], [0, 1]);
+
+  w.startable = async () => true;
+  await watch.check();
+  assert.equal(w.restarts.length, 1);
+  assert.equal(watch.holding(), true);
+  assert.equal(w.logs.length, 2);
+});
+
+test("with an open claim the runners are not asked; a claim that opens while they are asked is waited for", async (t) => {
+  const w = world(t);
+  const watch = w.watch();
+  w.pending = { add: ["beta"], remove: [] };
+  w.idle = false;
+  await watch.check();
+  assert.equal(w.startableAsks, 0, "nothing to ask while a Task is open");
+  assert.match(w.logs.at(-1), /열린 Task/);
+
+  // Idle when asked, but a claim tick takes a Task while the runners are checked.
+  w.idle = true;
+  w.startable = async () => {
+    w.idle = false;
+    return true;
+  };
+  await watch.check();
+  assert.equal(w.startableAsks, 1);
+  assert.deepEqual(w.restarts, [], "not restarted under a claim that opened meanwhile");
+  assert.equal(watch.holding(), false);
 });
 
 test("the hold ends after 600000 ms if this Office was never stopped, and the next check tries again", async (t) => {

@@ -11,6 +11,8 @@ export const LAUNCH_LABEL = "com.pazmo.office";
 /** Homebrew's version-independent node path: it survives `brew upgrade`, which renames the Cellar folder. */
 export const STABLE_NODE = "/opt/homebrew/opt/node@24/bin/node";
 
+/** How often launchd runs `up --team` again after the login: a failed start retries within half an hour. */
+const START_INTERVAL_S = 1800;
 const LAUNCHCTL = "/bin/launchctl";
 const LAUNCHCTL_TIMEOUT_MS = 30000;
 const LAUNCHCTL_MAX_BYTES = 1024 * 1024;
@@ -62,9 +64,11 @@ function absolute(name: string, value: string): string {
 
 type PlistValues = { node: string; cli: string; root: string; home: string; extraCa?: string };
 
-/** The LaunchAgent property list: run `up --team --no-open` once at login (`RunAtLoad`, no `KeepAlive`: `up` starts
- * a detached service and exits, and `AbandonProcessGroup` keeps launchd from killing what it left behind). There is
- * no token in it: the Mac token stays in `mac-link.json`. Every value is XML-escaped. */
+/** The LaunchAgent property list: run `up --team --no-open` at login (`RunAtLoad`) and every `START_INTERVAL_S`
+ * after, so an `up` that failed (at login, or after a self-restart stopped the Office) is tried again without a
+ * re-login; on a running Office `up --team` only finds it and returns. No `KeepAlive`: `up` starts a detached service
+ * and exits, and `AbandonProcessGroup` keeps launchd from killing what it left behind. There is no token in it: the
+ * Mac token stays in `mac-link.json`. Every value is XML-escaped. */
 export function launchAgentPlist(o: PlistValues): string {
   const node = absolute("node", o.node);
   const cli = absolute("cli", o.cli);
@@ -96,6 +100,8 @@ export function launchAgentPlist(o: PlistValues): string {
     `  </dict>`,
     `  <key>RunAtLoad</key>`,
     `  <true/>`,
+    `  <key>StartInterval</key>`,
+    `  <integer>${START_INTERVAL_S}</integer>`,
     `  <key>KeepAlive</key>`,
     `  <false/>`,
     `  <key>AbandonProcessGroup</key>`,

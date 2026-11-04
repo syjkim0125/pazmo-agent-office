@@ -84,6 +84,8 @@ test("the plist parses (plutil) to exactly the keys above, with no token anywher
       LANG: "en_US.UTF-8",
     },
     RunAtLoad: true,
+    // A failed `up --team` (at login, or after a self-restart) is tried again every half hour, with no re-login.
+    StartInterval: 1800,
     KeepAlive: false,
     AbandonProcessGroup: true,
     StandardOutPath: `${ROOT}/team/launchd.log`,

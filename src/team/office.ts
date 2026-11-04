@@ -553,6 +553,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     presence: presenceOf,
     // A stopping Office is not restarted (the stop is the person's), nor one whose claim is under way.
     idle: () => !stopped && !claimTicking && teamStore.openClaim() === null && !gate.busy(),
+    // Nor a live one whose runners are not ready (asked afresh, a restart is rare): its `up` would refuse and leave
+    // it off, where in place it waits, limited, until the person logs in. A locked Office never checks its runners.
+    startable: async () => {
+      if (!live) return true;
+      await checkRunners();
+      return runnersReady;
+    },
     sync: c.macSync ?? linksOnlySync,
     restart: c.restartSelf ?? (() => spawnMacRestart(c.root, hostEnv)),
     log,

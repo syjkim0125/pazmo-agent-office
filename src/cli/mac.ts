@@ -3,7 +3,7 @@ import type { StdioOptions } from "node:child_process";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { dataRoot, fail, locate, OfficeError, packageRoot } from "./project.ts";
-import { up } from "./launcher.ts";
+import { machinePreflight, up } from "./launcher.ts";
 import { statusTeam as lifecycleStatusTeam, stopTeam as lifecycleStopTeam } from "./lifecycle.ts";
 import type { MacRepo } from "../hub/store.ts";
 import { printable, readLinkConfig, removeLinkConfig } from "../runtime/hub-link.ts";
@@ -56,6 +56,8 @@ export type MacCliDeps = {
   stopTeam?: (root: string) => Promise<unknown>;
   upTeam?: (root: string) => Promise<unknown>;
   statusTeam?: (root: string) => Promise<{ status: string }>;
+  /** `mac restart`'s check that `up` could start the Office; default `machinePreflight()`. */
+  preflight?: () => Promise<unknown>;
 };
 
 type HubState = "ok" | "revoked" | "unreachable";
@@ -488,9 +490,19 @@ async function disconnect(e: Env, d: MacCliDeps) {
   return result;
 }
 
-/** `mac restart`: what the team Office runs to restart itself for a changed repo set. Stop (a running Task refuses
- * it, and nothing starts), then the same start as `up --team --no-open`, with no prompt. */
+/** `mac restart`: what the team Office runs to restart itself for a changed repo set. First the checks of `up` that
+ * need no VM (colima and docker installed, a logged-in runner): when they fail, the running Office is left on (it
+ * waits, limited, until the person logs in) rather than stopped for a start that cannot happen. Then stop (a running
+ * Task refuses it, and nothing starts), then the same start as `up --team --no-open`, with no prompt. */
 async function restart(e: Env, d: MacCliDeps) {
+  try {
+    await (d.preflight ?? (() => machinePreflight()))();
+  } catch (error) {
+    if (!(error instanceof OfficeError)) throw error;
+    const line = `팀 Office를 다시 켤 수 없는 상태라 멈추지 않고 켜진 채로 둡니다 — ${printable(error.message)}`;
+    e.say(line);
+    fail(error.code, line);
+  }
   e.say("팀 Office를 멈춥니다");
   await (d.stopTeam ?? lifecycleStopTeam)(e.root);
   e.say("팀 Office를 다시 켭니다");

@@ -275,6 +275,7 @@ test("the default ghLogin is a prompt only when stdin is a TTY, and mac restart 
   try {
     await macCommand("restart", { dataDir: m.root }, {
       ghLogin: async () => assert.fail("restart never prompts"),
+      preflight: async () => {},
       stopTeam: async (root) => calls.push(["stop", root]),
       upTeam: async (...args) => calls.push(["up", ...args]),
       say: () => {},
@@ -632,9 +633,43 @@ test("mac disconnect with a mac-link.json it cannot use still cleans up locally 
   m.noSecret(JSON.stringify(result) + m.lines.join("\n"), "disconnect");
 });
 
+test("mac restart checks that up could start the Office (a logged-in runner, colima) before it stops it; a failed check stops nothing and says why", async (t) => {
+  const order = [];
+  const lines = [];
+  const deps = (preflight) => ({
+    preflight,
+    stopTeam: async () => order.push("stop"),
+    upTeam: async () => {
+      order.push("up");
+      return { status: "running", engine: "team", reused: false };
+    },
+    say: (line) => lines.push(line),
+  });
+  await macCommand("restart", { dataDir: "/tmp/pazmo-restart-data" }, deps(async () => order.push("preflight")));
+  assert.deepEqual(order, ["preflight", "stop", "up"]);
+
+  for (const code of ["LOGIN_REQUIRED", "RUNNER_BLOCKED", "PREREQUISITE"]) {
+    order.length = 0;
+    lines.length = 0;
+    const refuse = async () => {
+      order.push("preflight");
+      throw new OfficeError(code, "최초 준비: codex 또는 claude 중 하나를 설치하고 로그인한 뒤 다시 실행해주세요.");
+    };
+    await assert.rejects(macCommand("restart", { dataDir: "/tmp/pazmo-restart-data" }, deps(refuse)), (e) => {
+      assert.equal(e.code, code);
+      assert.match(e.message, /켜진 채로 둡니다/);
+      assert.match(e.message, /codex 또는 claude/, "the reason is kept");
+      return true;
+    });
+    assert.deepEqual(order, ["preflight"], `${code}: the running Office is not stopped`);
+    assert.ok(lines.some((line) => /켜진 채로 둡니다/.test(line)), lines.join("\n"));
+  }
+});
+
 test("mac restart stops the team Office before up; a TASK_ACTIVE stop runs no up", async (t) => {
   const order = [];
   const result = await macCommand("restart", { dataDir: "/tmp/pazmo-restart-data" }, {
+    preflight: async () => {},
     stopTeam: async () => order.push("stop"),
     upTeam: async () => {
       order.push("up");
@@ -648,6 +683,7 @@ test("mac restart stops the team Office before up; a TASK_ACTIVE stop runs no up
   order.length = 0;
   await assert.rejects(
     macCommand("restart", { dataDir: "/tmp/pazmo-restart-data" }, {
+      preflight: async () => {},
       stopTeam: async () => {
         order.push("stop");
         throw new OfficeError("TASK_ACTIVE", "busy");
