@@ -226,15 +226,19 @@ test("install says loaded when it loads the agent, and kept when the same plist 
   assert.equal(await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: again.run, sleep: sleeper().sleep }), "kept");
   assert.deepEqual(again.calls, [
     [LAUNCHCTL, ["print", "gui/501/com.pazmo.office"]],
+    // A label left disabled while loaded would not load at the next login: enable is a no-op otherwise.
+    [LAUNCHCTL, ["enable", "gui/501/com.pazmo.office"]],
     [LAUNCHCTL, ["kickstart", "gui/501/com.pazmo.office"]],
   ]);
   assert.deepEqual(readFileSync(file), before);
   assert.equal(statSync(file).mtimeMs, mtime, "the file is not rewritten");
 
-  // A kickstart that fails changes nothing: the agent stays loaded.
-  const refused = recorder((args) => (args[0] === "kickstart" ? { exitCode: 5, stdout: "", stderr: "failed\n" } : { exitCode: 0, stdout: "", stderr: "" }));
+  // An enable or kickstart that fails changes nothing: the agent stays loaded.
+  const refused = recorder((args) =>
+    args[0] === "kickstart" || args[0] === "enable" ? { exitCode: 5, stdout: "", stderr: "failed\n" } : { exitCode: 0, stdout: "", stderr: "" },
+  );
   assert.equal(await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: refused.run }), "kept");
-  assert.deepEqual(refused.calls.map(([, args]) => args[0]), ["print", "kickstart"]);
+  assert.deepEqual(refused.calls.map(([, args]) => args[0]), ["print", "enable", "kickstart"]);
 });
 
 test("install reloads as before when the plist on disk differs, or is the same but not loaded", async () => {
@@ -370,19 +374,48 @@ test("a write that cannot finish leaves no temporary file and does not call laun
   assert.deepEqual(calls, []);
 });
 
-test("remove boots out and deletes the file; removing twice is harmless", async () => {
+/** launchd after a bootout that worked: `print` no longer finds the agent. */
+const unloaded = (args) =>
+  args[0] === "print" ? { exitCode: 113, stdout: "", stderr: "Could not find service\n" } : { exitCode: 0, stdout: "", stderr: "" };
+
+test("remove boots out, checks with print that launchd let go, and deletes the file; removing twice is harmless", async () => {
   const { home, root } = fixture();
   const file = launchAgentPath(home);
   await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: recorder().run });
   assert.ok(existsSync(file));
-  const first = recorder();
-  await removeLaunchAgent({ home, uid: UID_, run: first.run });
-  assert.deepEqual(first.calls, [[LAUNCHCTL, ["bootout", "gui/501/com.pazmo.office"]]]);
+  const first = recorder(unloaded);
+  assert.equal(await removeLaunchAgent({ home, uid: UID_, run: first.run }), "removed");
+  assert.deepEqual(first.calls, [
+    [LAUNCHCTL, ["bootout", "gui/501/com.pazmo.office"]],
+    [LAUNCHCTL, ["print", "gui/501/com.pazmo.office"]],
+  ]);
   assert.equal(existsSync(file), false);
-  const second = recorder(() => ({ exitCode: 3, stdout: "", stderr: "Boot-out failed: 3: No such process\n" }));
-  await removeLaunchAgent({ home, uid: UID_, run: second.run });
-  assert.equal(second.calls.length, 1);
+  const second = recorder((args) =>
+    args[0] === "bootout" ? { exitCode: 3, stdout: "", stderr: "Boot-out failed: 3: No such process\n" } : unloaded(args),
+  );
+  assert.equal(await removeLaunchAgent({ home, uid: UID_, run: second.run }), "removed");
+  assert.deepEqual(second.calls.map(([, args]) => args[0]), ["bootout", "print"]);
   assert.equal(existsSync(file), false);
+});
+
+test("an agent launchd still holds after the bootout is still-loaded, after two more looks 500 ms and 1500 ms apart; one that lets go late is removed", async () => {
+  const { home, root } = fixture();
+  const file = launchAgentPath(home);
+  await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: recorder().run });
+  // A bootout that failed: print keeps finding the agent (the recorder answers 0).
+  const held = recorder((args) => (args[0] === "bootout" ? { exitCode: 5, stdout: "", stderr: "Boot-out failed: 5\n" } : { exitCode: 0, stdout: "", stderr: "" }));
+  const { waits, sleep } = sleeper();
+  assert.equal(await removeLaunchAgent({ home, uid: UID_, run: held.run, sleep }), "still-loaded");
+  assert.deepEqual(held.calls.map(([, args]) => args[0]), ["bootout", "print", "print", "print"]);
+  assert.deepEqual(waits, [500, 1500]);
+  assert.equal(existsSync(file), false, "the file goes anyway: the next login does not load it");
+
+  // launchd still tearing the job down at the first look.
+  let prints = 0;
+  const late = recorder((args) => (args[0] === "print" && ++prints > 1 ? unloaded(args) : { exitCode: 0, stdout: "", stderr: "" }));
+  const slow = sleeper();
+  assert.equal(await removeLaunchAgent({ home, uid: UID_, run: late.run, sleep: slow.sleep }), "removed");
+  assert.deepEqual(slow.waits, [500]);
 });
 
 test("remove works when the LaunchAgents folder never existed, and when bootout throws", async () => {

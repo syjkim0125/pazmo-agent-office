@@ -13,6 +13,7 @@ import { runCommand } from "../runners/command.ts";
 import type { GitEnv } from "../team/branch.ts";
 import type { GhResult } from "../team/gh.ts";
 import {
+  bootoutCommand,
   installLaunchAgent,
   launchAgentState,
   launchLogPath,
@@ -439,17 +440,25 @@ async function disconnect(e: Env, d: MacCliDeps) {
   }
   // The restart-loop guard of this Mac's Office: left, it would hold back a reconnect's restart for up to an hour.
   const dropGuard = () => rmSync(macRestartPath(e.root), { force: true });
+  /** Takes the agent down; when launchd keeps it (a bootout it did not take), says so with what to do, and returns
+   * that line: until logout the job would run `up --team` every half hour. */
+  const dropAgent = async (): Promise<string | null> => {
+    if ((await removeLaunchAgent({ home: e.home, uid: e.uid, run: e.launch, sleep: d.sleep })) === "removed") return null;
+    const line = `로그인할 때 Office 자동 실행 파일은 지웠지만 launchd가 아직 붙들고 있어, 로그아웃할 때까지 30분마다 Office를 켤 수 있습니다 — 로그아웃했다가 다시 로그인하거나 터미널에서 실행하세요: ${bootoutCommand(e.uid)}`;
+    e.say(line);
+    return line;
+  };
   if (!file && !unreadable) {
     // Not connected: only an agent and a guard an earlier run may have left go.
-    await removeLaunchAgent({ home: e.home, uid: e.uid, run: e.launch });
+    const agentLeft = await dropAgent();
     dropGuard();
-    return { disconnected: true, hubRevoked: false };
+    return { disconnected: true, hubRevoked: false, ...(agentLeft ? { launchAgent: "still-loaded", note: agentLeft } : {}) };
   }
 
   e.say("팀 Office를 멈춥니다");
   await (d.stopTeam ?? lifecycleStopTeam)(e.root);
   e.say("로그인할 때 Office 자동 실행을 지웁니다");
-  await removeLaunchAgent({ home: e.home, uid: e.uid, run: e.launch });
+  const agentLeft = await dropAgent();
   let hubRevoked = false;
   if (file)
     try {
@@ -481,18 +490,26 @@ async function disconnect(e: Env, d: MacCliDeps) {
   removeMacLink(e.root);
   dropGuard();
 
-  const result: { disconnected: true; hubRevoked: boolean; clonesKept: string; note?: string } = {
+  const result: { disconnected: true; hubRevoked: boolean; clonesKept: string; launchAgent?: "still-loaded"; note?: string } = {
     disconnected: true,
     hubRevoked,
     clonesKept: reposDir(e.root),
   };
+  const notes: string[] = [];
   if (!hubRevoked) {
     const page = file ? `${file.hub}/mac` : "허브의 /mac";
-    result.note = file
-      ? `허브에 닿지 않아 허브에서는 이 Mac을 해제하지 못했습니다. 이 Mac의 연결 파일과 자동 실행은 지웠습니다. ${page} 화면에서 이 Mac을 해제하세요.`
-      : `Mac 연결 파일을 읽을 수 없어 허브에서는 이 Mac을 해제하지 못했습니다. 이 Mac의 연결 파일과 자동 실행은 지웠습니다. ${page} 화면에서 이 Mac을 해제하세요.`;
-    e.say(result.note);
+    const removed = agentLeft ? "이 Mac의 연결 파일은 지웠습니다." : "이 Mac의 연결 파일과 자동 실행은 지웠습니다.";
+    const line = file
+      ? `허브에 닿지 않아 허브에서는 이 Mac을 해제하지 못했습니다. ${removed} ${page} 화면에서 이 Mac을 해제하세요.`
+      : `Mac 연결 파일을 읽을 수 없어 허브에서는 이 Mac을 해제하지 못했습니다. ${removed} ${page} 화면에서 이 Mac을 해제하세요.`;
+    e.say(line);
+    notes.push(line);
   }
+  if (agentLeft) {
+    result.launchAgent = "still-loaded";
+    notes.push(agentLeft);
+  }
+  if (notes.length) result.note = notes.join(" ");
   return result;
 }
 

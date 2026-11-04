@@ -60,9 +60,14 @@ async function world(t, names) {
     for (const key of ["macToken", "token", "deviceCode"]) if (typeof reply?.[key] === "string") m.secrets.add(reply[key]);
     return reply;
   };
+  // launchd as far as print can tell: it knows the agent (as an earlier install would leave it) until a bootout.
+  m.agentLoaded = true;
   m.launch = async (exe, args) => {
     m.launches.push([exe, args]);
     m.order.push(`launchctl ${args[0]}`);
+    if (args[0] === "bootout") m.agentLoaded = false;
+    if (args[0] === "bootstrap") m.agentLoaded = true;
+    if (args[0] === "print" && !m.agentLoaded) return { exitCode: 113, stdout: "", stderr: "Could not find service" };
     return { exitCode: 0, stdout: "", stderr: "" };
   };
   m.open = async (address) => {
@@ -203,6 +208,7 @@ test("mac connect again with a live link does not pair, clone, register or mint 
   // The same plist, loaded: no bootout (it would kill an `up` still starting the Office), only a kickstart.
   assert.deepEqual(launchArgs(m), [
     ["/bin/launchctl", "print", `gui/${UID_}/com.pazmo.office`],
+    ["/bin/launchctl", "enable", `gui/${UID_}/com.pazmo.office`],
     ["/bin/launchctl", "kickstart", `gui/${UID_}/com.pazmo.office`],
   ]);
   assert.ok(m.lines.some((line) => line.includes("다시 짝짓지 않습니다")), m.lines.join("\n"));
@@ -558,7 +564,7 @@ test("mac disconnect stops the team Office, removes the agent, revokes on the Hu
   };
   const result = await macCommand("disconnect", { dataDir: m.root }, m.deps({ stopTeam, call }));
   assert.deepEqual(result, { disconnected: true, hubRevoked: true, clonesKept: reposDir(m.root) });
-  assert.deepEqual(m.order, ["stopTeam", "launchctl bootout", "revoke"]);
+  assert.deepEqual(m.order, ["stopTeam", "launchctl bootout", "launchctl print", "revoke"]);
   assert.equal(existsSync(m.plist()), false);
   assert.equal(m.ctx.store.mac(link.macToken), null, "revoked on the Hub");
   assert.equal((await m.ctx.api("GET", "/api/link/work", { token: minted })).status, 401);
@@ -577,6 +583,35 @@ test("mac disconnect stops the team Office, removes the agent, revokes on the Hu
   assert.equal(stops, 1, "no Mac link: the team Office is not stopped");
   assert.ok(!m.order.includes("revoke"));
   assert.equal(existsSync(macRestartPath(m.root)), false);
+});
+
+test("mac disconnect whose bootout launchd does not take says so with what to do, and does not call the agent gone", async (t) => {
+  const m = await world(t, ["app-be"]);
+  await m.connect();
+  m.lines.length = 0;
+  // A bootout that fails: launchd keeps the agent, which would start an Office every half hour until logout.
+  const stuck = async (exe, args) => {
+    m.launches.push([exe, args]);
+    return args[0] === "bootout" ? { exitCode: 5, stdout: "", stderr: "Boot-out failed: 5: Input/output error" } : { exitCode: 0, stdout: "", stderr: "" };
+  };
+  const command = `launchctl bootout gui/${UID_}/com.pazmo.office`;
+  const result = await macCommand("disconnect", { dataDir: m.root }, m.deps({ launch: stuck, stopTeam: async () => ({ status: "stopped" }) }));
+  assert.equal(result.launchAgent, "still-loaded");
+  assert.equal(result.hubRevoked, true, "the rest of the disconnect still happens");
+  assert.equal(existsSync(macLinkPath(m.root)), false);
+  assert.equal(existsSync(m.plist()), false);
+  assert.ok(result.note.includes(command), result.note);
+  assert.match(result.note, /로그아웃/);
+  const said = m.lines.find((line) => line.includes(command));
+  assert.ok(said, m.lines.join("\n"));
+  assert.doesNotMatch(m.lines.join("\n"), /자동 실행을 지웠습니다/);
+
+  // Not connected any more, and the agent is still held: the same line.
+  m.lines.length = 0;
+  const again = await macCommand("disconnect", { dataDir: m.root }, m.deps({ launch: stuck }));
+  assert.deepEqual([again.disconnected, again.hubRevoked, again.launchAgent], [true, false, "still-loaded"]);
+  assert.ok(again.note.includes(command), again.note);
+  assert.ok(m.lines.some((line) => line.includes(command)), m.lines.join("\n"));
 });
 
 test("mac disconnect with a Task running is TASK_ACTIVE and changes nothing", async (t) => {

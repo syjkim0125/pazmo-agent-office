@@ -171,9 +171,10 @@ function holds(file: string, text: string): boolean {
  * next login. `sleep` is for tests.
  *
  * `kept` instead when the plist on disk is already this one and launchd knows the agent (`print` exits 0): a bootout
- * would kill an `up --team` it may still be running (minutes, the first time). The agent is only kickstarted, without
- * `-k`: launchd starts `up --team` when it is not running (it reuses a running Office), and leaves a running one
- * alone. A kickstart that fails changes nothing; the agent's own interval tries again. */
+ * would kill an `up --team` it may still be running (minutes, the first time). The agent is only enabled (a label left
+ * disabled while loaded would not load at the next login; a no-op otherwise) and kickstarted, without `-k`: launchd
+ * starts `up --team` when it is not running (it reuses a running Office), and leaves a running one alone. An enable or
+ * kickstart that fails changes nothing; the agent's own interval tries again. */
 export async function installLaunchAgent(o: {
   home: string;
   uid: number;
@@ -192,6 +193,7 @@ export async function installLaunchAgent(o: {
   // launchd opens the log file when it starts the job; without its folder the job does not start at all.
   mkdirSync(teamDir(o.root), { recursive: true, mode: 0o700 });
   if (holds(file, text) && (await attempt(run, ["print", `${target}/${LAUNCH_LABEL}`])).exitCode === 0) {
+    await attempt(run, ["enable", `${target}/${LAUNCH_LABEL}`]);
     await attempt(run, ["kickstart", `${target}/${LAUNCH_LABEL}`]);
     return "kept";
   }
@@ -209,12 +211,35 @@ export async function installLaunchAgent(o: {
   fail("LAUNCHD_FAILED", `launchctl bootstrap failed: ${reason ?? `exit ${result.exitCode ?? "none"}`}`);
 }
 
+/** Waits before the second and third look after a bootout: launchd may still be tearing the job down. */
+const UNLOAD_WAITS_MS = [500, 1500];
+
+/** The command that unloads the agent by hand, for a person to run when launchd kept it. */
+export const bootoutCommand = (uid: number): string => `launchctl bootout ${domain(uid)}/${LAUNCH_LABEL}`;
+
 /** Unloads the LaunchAgent and deletes its file. Safe to repeat: an agent that is not loaded, or no file, is not an
- * error. */
-export async function removeLaunchAgent(o: { home: string; uid: number; run?: LaunchRun }): Promise<void> {
-  const target = domain(o.uid);
-  await attempt(o.run ?? launchRun, ["bootout", `${target}/${LAUNCH_LABEL}`]);
+ * error. `removed` once `print` no longer finds the agent (a print that cannot run tells nothing and counts as
+ * gone). `still-loaded` when launchd still holds it after the bootout and two more looks, 500 ms and 1500 ms apart:
+ * until the person logs out, it then runs `up --team` at its interval. The file goes either way, so the next login
+ * does not load it. `sleep` is for tests. */
+export async function removeLaunchAgent(o: {
+  home: string;
+  uid: number;
+  run?: LaunchRun;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<"removed" | "still-loaded"> {
+  const service = `${domain(o.uid)}/${LAUNCH_LABEL}`;
+  const run = o.run ?? launchRun;
+  const sleep = o.sleep ?? realSleep;
+  await attempt(run, ["bootout", service]);
   rmSync(launchAgentPath(o.home), { force: true });
+  let loaded = (await attempt(run, ["print", service])).exitCode === 0;
+  for (const wait of UNLOAD_WAITS_MS) {
+    if (!loaded) return "removed";
+    await sleep(wait);
+    loaded = (await attempt(run, ["print", service])).exitCode === 0;
+  }
+  return loaded ? "still-loaded" : "removed";
 }
 
 /** `loaded`: launchd knows the agent. `installed`: only its file exists (it loads at the next login). `missing`:
