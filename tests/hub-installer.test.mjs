@@ -59,6 +59,12 @@ case "$name" in
       -s) echo Darwin ;;
       -m) echo "\${FAKE_ARCH:-arm64}" ;;
     esac ;;
+  sysctl)
+    # Without FAKE_HW_ARM64 it fails like an older Intel Mac's "unknown oid".
+    if [ "$*" = "-n hw.optional.arm64" ] && [ -n "\${FAKE_HW_ARM64:-}" ]; then echo "$FAKE_HW_ARM64"; else exit 1; fi ;;
+  arch)
+    shift
+    exec "$@" ;;
   brew)
     if [ "$1 $2" = "list --versions" ]; then
       case " \${FAKE_HAVE:-} " in
@@ -94,7 +100,7 @@ writeFileSync(FAKE_FILE, FAKE);
 chmodSync(FAKE_FILE, 0o755);
 process.once("exit", () => rmSync(SHARED, { recursive: true, force: true }));
 
-/** A temp world: a fake Homebrew prefix, a fake uname first on PATH, an empty HOME. */
+/** A temp world: a fake Homebrew prefix, a fake uname, sysctl and arch first on PATH, an empty HOME. */
 function world(t) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "hub-installer-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
@@ -106,7 +112,7 @@ function world(t) {
   const put = (path) => symlinkSync(FAKE_FILE, path);
   for (const name of ["brew", "git", "gh", "colima", "docker", "claude", "npm"]) put(join(prefix, "bin", name));
   put(join(prefix, "opt", "node@24", "bin", "node"));
-  put(join(fakebin, "uname"));
+  for (const name of ["uname", "sysctl", "arch"]) put(join(fakebin, name));
   writeFileSync(log, "");
   const office = join(home, ".pazmo", "office");
   const calls = () => readFileSync(log, "utf8").split("\n").filter(Boolean);
@@ -202,6 +208,28 @@ test("on an Intel Mac it stops with exit 1 and runs no brew", async (t) => {
   assert.equal(w.calls().some((c) => /^(brew|git|npm|gh|claude|node) /.test(c)), false, w.calls().join("\n"));
 });
 
+test("a Rosetta terminal on Apple Silicon (uname x86_64, hw.optional.arm64 1) installs and runs every brew as arm64; an Intel Mac answering 0 still stops", async (t) => {
+  const w = world(t);
+  const brew = join(w.prefix, "bin", "brew");
+  const r = await w.run(script(), { env: { ...READY, FAKE_HAVE: "git node@24 docker", FAKE_ARCH: "x86_64", FAKE_HW_ARM64: "1" } });
+  assert.equal(r.code, 0, r.text);
+  const calls = w.calls();
+  assert.ok(calls.includes(`arch -arm64 ${brew} install gh colima`), calls.join("\n"));
+  const lists = calls.filter((c) => c.startsWith("arch -arm64") && c.includes(" list --versions "));
+  assert.equal(lists.length, 5, "brew list runs as arm64 too");
+  assert.ok(calls.some((c) => c.startsWith("node ") && c.includes(" mac connect ")), "it runs to the end");
+
+  const native = world(t);
+  await native.run(script(), { env: { ...READY, FAKE_HAVE: "git node@24 docker" } });
+  assert.equal(native.calls().some((c) => /^(arch|sysctl) /.test(c)), false, "a native terminal needs neither");
+
+  const intel = world(t);
+  const refused = await intel.run(script(), { env: { ...READY, FAKE_ARCH: "x86_64", FAKE_HW_ARM64: "0" } });
+  assert.equal(refused.code, 1);
+  assert.match(refused.text, /Apple Silicon Mac에서만 설치할 수 있습니다/);
+  assert.equal(intel.calls().some((c) => /^(brew|arch|git|npm|gh|claude|node) /.test(c)), false, intel.calls().join("\n"));
+});
+
 test("without Homebrew it prints the official install command and stops with exit 1", async (t) => {
   const w = world(t);
   rmSync(join(w.prefix, "bin", "brew"));
@@ -235,7 +263,7 @@ test("only missing formulae are installed, and claude-code only when claude is m
   assert.deepEqual(cask.calls().filter((c) => c.startsWith("brew install")), ["brew install --cask claude-code"], noClaude.text);
 });
 
-test("a fresh Mac clones the Office at the served ref; an existing one fetches and checks out FETCH_HEAD; npm ci --omit=dev runs in it", async (t) => {
+test("a fresh Mac clones the Office at the served ref; an existing one fetches the served repo and ref, not its stored origin, and checks out FETCH_HEAD; npm ci --omit=dev runs in it", async (t) => {
   const fresh = world(t);
   const done = await fresh.run(script(), { env: READY });
   assert.equal(done.code, 0, done.text);
@@ -258,10 +286,18 @@ test("a fresh Mac clones the Office at the served ref; an existing one fetches a
   const second = await again.run(script(), { env: READY });
   assert.equal(second.code, 0, second.text);
   const lines = again.calls();
-  assert.ok(lines.includes(`git -C ${again.office} fetch --depth 1 origin main`), lines.join("\n"));
+  assert.ok(lines.includes(`git -C ${again.office} fetch --depth 1 ${DEFAULT_OFFICE_REPO} main`), lines.join("\n"));
+  assert.equal(lines.some((c) => / fetch .*\borigin\b/.test(c)), false, "never the clone's stored origin");
   assert.ok(lines.includes(`git -C ${again.office} checkout --detach FETCH_HEAD`));
   assert.equal(lines.some((c) => c.startsWith("git clone")), false, "an existing Office is not cloned again");
   assert.ok(lines.includes("npm ci --omit=dev --ignore-scripts --no-audit --no-fund"));
+
+  // The operator moved PAZMO_OFFICE_REPO (say, to a mirror): an existing install follows it.
+  const moved = world(t);
+  mkdirSync(join(moved.office, ".git"), { recursive: true });
+  const third = await moved.run(script({ officeRepo: "https://github.example.com/team/office.git", officeRef: "release/1.2" }), { env: READY });
+  assert.equal(third.code, 0, third.text);
+  assert.ok(moved.calls().includes(`git -C ${moved.office} fetch --depth 1 https://github.example.com/team/office.git release/1.2`), moved.calls().join("\n"));
 });
 
 test("gh auth login and claude auth login run only when logged out", async (t) => {

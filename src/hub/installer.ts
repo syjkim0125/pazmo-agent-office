@@ -66,6 +66,13 @@ main() {
 
   OS="$(uname -s)"
   ARCH="$(uname -m)"
+  # A terminal under Rosetta says x86_64 on an Apple Silicon Mac, whose hardware still answers 1 here (an Intel Mac answers
+  # 0 or nothing). Homebrew refuses to install into /opt/homebrew from such a shell, so every brew then runs as arm64.
+  NATIVE=""
+  if [ "$OS" = Darwin ] && [ "$ARCH" = x86_64 ] && [ "$(sysctl -n hw.optional.arm64 2>/dev/null)" = 1 ]; then
+    ARCH=arm64
+    NATIVE="arch -arm64"
+  fi
   if [ "$OS" != Darwin ] || [ "$ARCH" != arm64 ]; then
     echo "Apple Silicon Mac에서만 설치할 수 있습니다. (이 컴퓨터: $OS $ARCH)" >&2
     exit 1
@@ -84,22 +91,23 @@ main() {
 
   MISSING=""
   for f in node@24 git gh colima docker; do
-    if ! "$BREW/bin/brew" list --versions "$f" >/dev/null 2>&1 </dev/null; then
+    if ! $NATIVE "$BREW/bin/brew" list --versions "$f" >/dev/null 2>&1 </dev/null; then
       MISSING="$MISSING $f"
     fi
   done
   if [ -n "$MISSING" ]; then
-    run_step "필요한 프로그램 설치" "$BREW/bin/brew" install $MISSING </dev/null
+    run_step "필요한 프로그램 설치" $NATIVE "$BREW/bin/brew" install $MISSING </dev/null
   else
     echo "필요한 프로그램이 이미 설치되어 있습니다."
   fi
 
   if ! command -v claude >/dev/null 2>&1; then
-    run_step "Claude Code 설치" "$BREW/bin/brew" install --cask claude-code </dev/null
+    run_step "Claude Code 설치" $NATIVE "$BREW/bin/brew" install --cask claude-code </dev/null
   fi
 
+  # An existing Office fetches the served repository by URL, not its stored origin, so a moved PAZMO_OFFICE_REPO reaches it.
   if [ -e "$OFFICE/.git" ]; then
-    run_step "Office 새 버전 받기" env GIT_TERMINAL_PROMPT=0 git -C "$OFFICE" fetch --depth 1 origin "$REF" </dev/null
+    run_step "Office 새 버전 받기" env GIT_TERMINAL_PROMPT=0 git -C "$OFFICE" fetch --depth 1 "$REPO" "$REF" </dev/null
     run_step "Office 새 버전 받기" git -C "$OFFICE" checkout --detach FETCH_HEAD </dev/null
   else
     run_step "Office 내려받기" env GIT_TERMINAL_PROMPT=0 git clone --depth 1 --branch "$REF" "$REPO" "$OFFICE" </dev/null
