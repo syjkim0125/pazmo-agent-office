@@ -264,10 +264,11 @@ test("with an open claim the runners are not asked; a claim that opens while the
   assert.equal(watch.holding(), false);
 });
 
-test("the hold ends after 600000 ms if this Office was never stopped, and the next check tries again", async (t) => {
+test("the hold ends after 600000 ms if this Office was never stopped: claims resume, the same set waits out the hour, a changed set restarts", async (t) => {
   assert.equal(RESTART_HOLD_MS, 600000);
   const w = world(t);
   const watch = w.watch();
+  const t0 = w.clock;
   w.pending = { add: ["beta"], remove: [] };
   await watch.check();
   assert.equal(w.restarts.length, 1);
@@ -277,25 +278,54 @@ test("the hold ends after 600000 ms if this Office was never stopped, and the ne
   assert.equal(w.restarts.length, 1);
   w.clock += 1;
   assert.equal(watch.holding(), false, "claims are taken again");
-  // The restart never happened (this Office still runs): the same set is tried again, and the line says where the
-  // restart wrote why.
+  // The restart never happened (`mac restart` refused before stopping, say): the guard stays, so the same set is not
+  // tried every check, and the line says where the restart wrote why.
   const said = w.logs.length;
   await watch.check();
-  assert.equal(w.restarts.length, 2);
-  assert.equal(watch.holding(), true);
+  assert.equal(w.restarts.length, 1, "no new restart for the same set within the hour");
+  assert.equal(watch.holding(), false);
   const expired = w.logs.slice(said).find((line) => line.includes("10분"));
   assert.ok(expired?.includes(launchLogPath(w.root)), w.logs.join("\n"));
+  assert.doesNotMatch(expired, /다음 확인에서 다시 켭니다/);
+  assert.ok(existsSync(macRestartPath(w.root)), "the guard is kept");
+  const lines = w.logs.length;
+  for (let i = 0; i < 3; i++) {
+    w.clock += 300000;
+    await watch.check();
+  }
+  assert.equal(w.restarts.length, 1);
+  assert.equal(w.logs.length, lines, "said once");
+  // A new Office (this one restarted by hand, say) reads the same guard.
+  await w.watch().check();
+  assert.equal(w.restarts.length, 1);
 
-  // Run out again, with the Hub out of reach at the next check: the set is no longer remembered as restarted for,
-  // so a later Office does not take it for one its restart already tried.
+  // An hour after the restart was asked for, the same set is tried once more.
+  w.clock = t0 + RESTART_RETRY_MS;
+  await watch.check();
+  assert.equal(w.restarts.length, 2);
+
+  // Run out again; meanwhile the member got another repo: a changed set restarts at once.
   w.clock += RESTART_HOLD_MS;
-  w.syncError = Object.assign(new Error("connect ETIMEDOUT"), { code: "ETIMEDOUT" });
-  await assert.rejects(watch.check(), { code: "ETIMEDOUT" });
+  w.pending = { add: ["beta", "gamma"], remove: [] };
+  await watch.check();
+  assert.equal(w.restarts.length, 3);
+});
+
+test("a Mac revoked while its runners are asked is not restarted", async (t) => {
+  const w = world(t);
+  const watch = w.watch();
+  w.pending = { add: ["beta"], remove: [] };
+  // The heartbeat meets a 401 during the runner check.
+  w.startable = async () => {
+    w.beatError = unauthorized();
+    await watch.beat();
+    return true;
+  };
+  await watch.check();
+  assert.deepEqual(w.restarts, []);
   assert.equal(watch.holding(), false);
   assert.equal(existsSync(macRestartPath(w.root)), false);
-  w.syncError = null;
-  await w.watch().check();
-  assert.equal(w.restarts.length, 3, "a new Office restarts for it");
+  assert.equal(w.logs.filter((line) => /해제/.test(line)).length, 1, w.logs.join("\n"));
 });
 
 test("a change that sync fixed in place (no add or remove) needs no restart", async (t) => {

@@ -11,7 +11,7 @@ import type { MacClient, MacLinkFile } from "./mac.ts";
 import { teamDir } from "./registry.ts";
 
 /** How long claims stay held for a restart this Office asked for: past it, the restart did not happen (this Office
- * was never stopped), so claims resume and the next check tries again. */
+ * was never stopped), so claims resume; the same set is tried again only after RESTART_RETRY_MS. */
 export const RESTART_HOLD_MS = 600_000;
 /** How long a pending set a restart already tried is left alone: its full sync may have failed only for a moment
  * (no Hub, a clone timeout), so past this it is tried once more, at the cost of one restart an hour for one that
@@ -194,12 +194,12 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
       const file = d.linkOf();
       if (!file || file.macId === revoked || holding()) return;
       if (heldAt !== null) {
-        // The hold ran out and this Office still runs: the restart never happened, so it is asked for again, and no
-        // later Office may take the set for one its restart already tried.
+        // The hold ran out and this Office still runs: the restart never happened (`mac restart` refused before it
+        // stopped anything, or never started). Claims resume; the guard stays, so the same set is tried again only
+        // once RESTART_RETRY_MS have passed, never every check. A changed set restarts as usual.
         heldAt = null;
-        forget();
         log(
-          `team: 팀 Office가 ${RESTART_HOLD_MS / 60000}분 안에 다시 켜지지 않았습니다 — Task를 다시 가져가고, 다음 확인에서 다시 켭니다. 다시 켜기 기록: ${reasonsAt}`,
+          `team: 팀 Office가 ${RESTART_HOLD_MS / 60000}분 안에 다시 켜지지 않았습니다 — Task를 다시 가져갑니다. 이유는 다시 켜기 기록에 있습니다: ${reasonsAt}`,
         );
       }
       let pending: Pending;
@@ -244,8 +244,8 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
         runnersSaid = key;
         return;
       }
-      // The runners were asked: a claim tick may have taken a Task meanwhile.
-      if (busy()) return;
+      // The runners were asked: a heartbeat may have met a 401 meanwhile, or a claim tick taken a Task.
+      if (file.macId === revoked || busy()) return;
       waitingSaid = runnersSaid = null;
       const at = now();
       if (d.root !== undefined)
