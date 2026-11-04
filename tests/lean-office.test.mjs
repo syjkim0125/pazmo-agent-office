@@ -1053,14 +1053,34 @@ test("an agent save with claude and no model is refused while a failed listing k
 });
 
 test("the default runner passes over a claude whose hook block a failed listing kept: no agent, and the first agent", async (t) => {
+  // The startup discovery saw the hook.
   const f = await fixture(t, { catalog: hookedClaude(loggedOut("codex")) });
-  await f.office.runners();
   f.state.catalog = unlistedClaude(loggedOut("codex"));
   await f.office.runners();
   assert.equal(f.office.agents.list().length, 0);
   assert.deepEqual(f.office.chooseRunner("engineer", "unknown-task"), { runner: "codex", model: "gpt-5.5", reasoning: null });
   const first = await f.office.agents.ensureDefault();
   assert.deepEqual([first.work.runner, first.review.runner], ["codex", "codex"]);
+});
+
+test("a claude role job is refused when only the lean Office's discovery saw the hook and the engine's rediscovery meets a failed listing (D29, D39)", async (t) => {
+  const f = await fixture(t, { catalog: (root) => installedCatalog(root) });
+  const { runners } = f.captured;
+  const dev = await f.office.agents.create({ name: "Dev", work: claude("sonnet"), review: codex() });
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: dev.id, risk: "normal" });
+  engineChild(f, "child-1", id);
+  // The engine's copy last saw claude logged out …
+  f.state.catalog = installedCatalog(f.root, { claudeLoggedIn: false });
+  await runners.settings.refresh();
+  // … then only the facade's discovery (the runners screen) saw it logged in with a SessionEnd hook …
+  f.state.catalog = hookedClaude(installedCatalog(f.root));
+  assert.equal((await claudeView(f)).blocked, true);
+  // … and the listing fails at the engine's rediscovery before its not-ready refusal.
+  f.state.catalog = unlistedClaude(installedCatalog(f.root));
+  const jobs = engineJobs(runners);
+  const out = await jobs.run("engineer", "child-1");
+  assert.equal(out.result.error, `RUNNER_NOT_READY claude: ${hookedClaude().installs.claude.hint}`);
+  assert.deepEqual(jobs.calls, [], "the hooked claude never starts");
 });
 
 test("the engine's loader discovers afresh inside the 5 s window, shares a discovery in flight and refreshes the cache", async (t) => {

@@ -1,17 +1,23 @@
-# 2026-11-04 lean Office의 목록 사본도 claude hook 막힘을 유지한다 (U34)
+# 2026-11-04 lean Office와 팀 Office의 목록 사본도 claude hook 막힘을 유지한다 (U34)
 
-- 바로 아래 U33 항목의 "남은 것"이다(M16·V18, D29·D39). 사용자는 설명 페이지를 본 뒤 "Story 그대로"를 골랐다. 그래서 lean 화면이 이미 있는 규칙을 따르게 하는 수정으로 보았다. Story 해시 `b005160e`가 G1 기록과 같아 G1을 다시 받지 않았다. kit 실행은 `.ai-workflow/runs/U34-lean-kept-hook-block.json`(최소 계획)이다.
+- 바로 아래 U33 항목의 "남은 것"이다(M16·V18, D29·D39). 사용자는 설명 페이지를 본 뒤 "Story 그대로"를 골랐다. 그래서 lean 화면과 팀 Office가 이미 있는 규칙을 따르게 하는 수정으로 보았다. Story 해시 `b005160e`가 G1 기록과 같아 G1을 다시 받지 않았다. kit 실행은 `.ai-workflow/runs/U34-lean-kept-hook-block.json`(최소 계획)이다.
+- 무엇이 문제였나:
+  - lean Office의 목록 사본(`discoverNow()`)과 팀 Office가 repo들과 함께 쓰는 탐색 결과(`sharedDiscovery`)는 `keptClaudeBlock`을 거치지 않았다.
+  - 그래서 hook을 찾은 조회 뒤에 같은 claude의 조회가 실패하면, lean의 실행기 화면·agent 저장 검사·기본 실행기에서 claude가 준비됨으로 보였다.
+  - 엔진 사본이 hook을 찾은 조회를 못 봤으면, 엔진도 D39의 다시 탐색 뒤 hook 걸린 claude를 띄울 수 있었다(D29 빈틈). 팀 Office에서는 다른 repo의 엔진도 그랬다. 처음 기록은 이것을 "화면 문제"로만 적었고, 리뷰 1차가 바로잡았다.
 - 고친 것:
-  - lean Office의 목록 사본(`discoverNow()`)도 엔진과 같은 `keptClaudeBlock`을 거친다. 같은 claude가 hook 때문에 막혔으면, 목록 조회가 실패해도 막힘을 유지한다.
-  - 그 사본을 읽는 세 곳이 이제 엔진과 같게 말한다. 실행기 화면은 막힘과 hook 안내를 보인다. 모델을 고르지 않은 claude의 agent 저장은 `RUNNER_NOT_READY`로 거절한다. 기본 실행기는 막힌 claude를 고르지 않는다.
-  - 엔진은 그 사본의 결과를 받으므로, 엔진이 hook을 찾은 조회를 보지 못했어도 같은 막힘을 받는다.
+  - lean Office의 사본과 팀 Office의 함께 쓰는 탐색도 엔진과 같은 `keptClaudeBlock`을 거친다. 같은 claude가 hook 때문에 막혔으면, 조회가 실패해도 막힘을 유지한다.
+  - 막힘은 아래로 전해진다: 팀 Office의 한 repo가 찾은 막힘을 모든 repo가 받고, 엔진은 lean 사본이 유지한 막힘을 받는다.
+  - 그래서 실행기 화면은 막힘과 hook 안내를 보이고, 모델을 고르지 않은 claude의 agent 저장은 `RUNNER_NOT_READY`로 거절하고, 기본 실행기는 막힌 claude를 고르지 않고, 엔진은 그 claude를 띄우지 않는다.
 - 자동 검사:
-  - 세 곳의 시험 3개는 고치기 전에 모두 실패했다. 변이 4개를 시험이 모두 잡았다.
-  - 관련 시험 파일 7개 170/170, 타입 검사 exit 0.
+  - 시험 5개(화면, 저장, 기본 실행기, 엔진의 역할 실행 거절, 팀 Office의 다른 repo)는 고치기 전에 모두 실패했다. 변이 5개를 시험이 모두 잡았다.
+  - 관련 시험 파일 7개 172/172, 타입 검사 exit 0.
+  - 독립 리뷰 1차는 머지 불가였다(Critical 0, Important 2: 위 D29 빈틈을 화면 문제로 적은 것, 팀 Office의 다른 repo). 둘 다 고쳤다.
+  - [학습 문서](solutions/logic-errors/keep-a-remembered-runner-block-in-every-catalog-copy.md): 이력에 기대는 규칙은 결과를 저장하는 곳마다 적용하고, 증거를 위 사본만 본 경우를 맨 아래 읽는 곳에서 시험한다.
 - G4는 아직이다.
 - **남은 것:**
-  - 엔진 사본은 자기가 본 더 오래된 막힘을 계속 쓸 수 있다(더 조심하는 쪽, 다음 성공한 조회에서 맞춰짐).
-  - 팀 Office에서 어떤 repo의 사본이 성공한 조회를 못 보고 실패한 조회만 봤다면 막힘을 모른다(바이너리가 바뀐 직후만).
+  - 아래 사본(엔진, 팀 Office의 repo별 lean 사본)은 자기가 본 더 오래된 막힘을 계속 쓸 수 있다(더 조심하는 쪽, 다음 성공한 조회에서 맞춰짐).
+  - 같은 바이너리의 조회가 Office 안에서 한 번도 성공하지 못했으면 막힘이 없다(D29 그대로, 이 변경 전과 같음).
   - 실제 claude로 재현하지 않았다(손으로 만든 목록으로만 확인). [변경 기록](verification/2026-11-04-lean-kept-hook-block.md)
 
 # 2026-11-03 D39 마지막 리뷰의 Minor 5건을 고친다
@@ -33,7 +39,7 @@
 - PR syjkim0125/pazmo-agent-office#72. G4는 2026-11-04에 기록했다. 사용자가 설명 페이지를 본 뒤 "① 승인 후 PR"을 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/d39-minor-followups-g4.md)
 - **남은 것:**
   - `createLiveRuntime`의 `roleJobFactory` 호출에서 `rediscover`를 빠뜨리거나 덮어쓰면(필드를 하나씩 넘기기, `rediscover: undefined`) 시험도 타입 검사도 잡지 못한다.
-  - lean Office는 자기 목록 사본을 읽어 `keptClaudeBlock`이 적용되지 않는다(실행기 화면, agent 저장 검사, 기본 실행기 고르기). 조회 실패 때 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다(엔진은 여전히 거절, 리뷰어가 코드로 찾음, 전부터 있던 것). → 맨 위 항목(U34)에서 고친다.
+  - lean Office는 자기 목록 사본을 읽어 `keptClaudeBlock`이 적용되지 않는다(실행기 화면, agent 저장 검사, 기본 실행기 고르기). 조회 실패 때 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다(엔진은 여전히 거절, 리뷰어가 코드로 찾음, 전부터 있던 것). → 맨 위 항목(U34)에서 고친다. U34 리뷰에서 엔진도 늘 거절하지는 않았음을 찾았다(엔진 사본이 hook을 찾은 조회를 못 봤으면 D39의 다시 탐색 뒤 시작됨).
   - 실제 claude로 재현하지 않았다(가짜 CLI로만 확인). [변경 기록](verification/2026-11-03-runner-not-ready-wait.md)의 "후속"
 
 # 2026-11-03 실행기 준비 안 됨도 시도로 세지 않고 기다린다 (D39)

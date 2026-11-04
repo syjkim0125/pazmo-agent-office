@@ -13,6 +13,7 @@ import { branchOps } from "../src/team/executor.ts";
 import { createTeamOffice, lifecycleView, sharedGate } from "../src/team/office.ts";
 import { addTeamRepo, teamDir } from "../src/team/registry.ts";
 import { openTeamStore } from "../src/team/store.ts";
+import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
 
 const TOKEN = "a".repeat(64);
 const INSTANCE = "b".repeat(32);
@@ -199,10 +200,12 @@ function runtimes() {
       return this.list.reduce((n, rt) => n + rt.state.active.length, 0);
     },
   };
-  world.create = async (_live, project, dataDir) => {
+  world.create = async (_live, project, dataDir, _ledgers, _token, runners) => {
     const rt = {
       project,
       dataDir,
+      /** The engine's runner settings, as live.ts gets them. */
+      runners,
       closed: false,
       state: { active: [] },
       status: () => ({ execution: "ready", active: rt.state.active, lastError: null }),
@@ -667,6 +670,33 @@ test("status --team shows phase, attempts and blockedBy", async (t) => {
     { phase: office.status().claim.phase, attempts: office.status().claim.attempts },
     { phase: "failed", attempts: 3 },
   );
+});
+
+test("a hook block one repo's discovery found survives a failed claude listing for the other repo's engine (D29, D39)", async (t) => {
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const b = await f.repo("beta");
+  const hooked = () => {
+    const c = readyCatalog();
+    c.installs.claude = blockHookedClaude(c.installs.claude, [{ event: "SessionEnd", source: "policySettings" }]);
+    return c;
+  };
+  let catalog = readyCatalog();
+  let clock = 1_700_000_000_000;
+  await f.open(f.live({ runnerCatalog: async () => catalog, now: () => clock }));
+  await flush();
+  const engine = (dir) => f.world.of(f.checkoutOf(dir)).runners.settings;
+  // Only alpha's engine sees claude's SessionEnd hook (as its rediscovery before a refusal would) …
+  catalog = hooked();
+  clock += 5000;
+  await engine(a).refresh();
+  assert.equal(engine(a).catalog.installs.claude.blocked, "SessionEnd hook (policySettings)");
+  assert.equal(engine(b).catalog.installs.claude.blocked, undefined);
+  // … then beta's engine looks again, and the same claude's model and hook listing fails.
+  catalog = { ...readyCatalog(), models: { ...readyCatalog().models, claude: [] }, claudeUnlisted: true };
+  clock += 5000;
+  await engine(b).refresh();
+  assert.equal(engine(b).catalog.installs.claude.hint, hooked().installs.claude.hint);
 });
 
 test("with --live, a Task is claimed only while every repo engine's runners are ready", async (t) => {

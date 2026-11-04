@@ -53,8 +53,8 @@ export async function loadRunnerCatalog(
  * a listing that fails then must not unblock a claude an earlier discovery
  * blocked: the same binary keeps that block until a listing goes through. The
  * block's hint is made again for the login found now (D30/D32). Every copy of
- * the catalog that a screen or a check reads keeps it this way: the engine's
- * here, the lean Office's in its discovery. */
+ * the catalog keeps it this way: the engine's here, the lean Office's in its
+ * discovery, and the team Office's discovery shared by its repos. */
 export function keptClaudeBlock(before: RunnerCatalog | undefined, after: RunnerCatalog): RunnerCatalog {
   const was = before?.installs.claude,
     now = after.installs.claude;
