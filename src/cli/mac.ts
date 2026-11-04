@@ -1,5 +1,6 @@
 import { spawn } from "node:child_process";
 import type { StdioOptions } from "node:child_process";
+import { rmSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, isAbsolute, join } from "node:path";
 import { dataRoot, fail, locate, OfficeError, packageRoot } from "./project.ts";
@@ -33,6 +34,7 @@ import {
 import type { MacCall, MacLinkFile } from "../team/mac.ts";
 import { reposDir, syncMacRepos } from "../team/mac-sync.ts";
 import type { MacRepoResult } from "../team/mac-sync.ts";
+import { macRestartPath } from "../team/mac-watch.ts";
 import { readTeam, teamRunning as registryTeamRunning } from "../team/registry.ts";
 import type { TeamRepo } from "../team/registry.ts";
 
@@ -435,9 +437,12 @@ async function disconnect(e: Env, d: MacCliDeps) {
     if (!linkFileProblem(error)) throw error;
     unreadable = true;
   }
+  // The restart-loop guard of this Mac's Office: left, it would hold back a reconnect's restart for up to an hour.
+  const dropGuard = () => rmSync(macRestartPath(e.root), { force: true });
   if (!file && !unreadable) {
-    // Not connected: only an agent an earlier run may have left goes.
+    // Not connected: only an agent and a guard an earlier run may have left go.
     await removeLaunchAgent({ home: e.home, uid: e.uid, run: e.launch });
+    dropGuard();
     return { disconnected: true, hubRevoked: false };
   }
 
@@ -474,6 +479,7 @@ async function disconnect(e: Env, d: MacCliDeps) {
       }
   }
   removeMacLink(e.root);
+  dropGuard();
 
   const result: { disconnected: true; hubRevoked: boolean; clonesKept: string; note?: string } = {
     disconnected: true,

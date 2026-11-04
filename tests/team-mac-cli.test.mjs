@@ -10,6 +10,7 @@ import { hubCall, readLinkConfig, writeLinkConfig } from "../src/runtime/hub-lin
 import { launchAgentPath } from "../src/team/launch-agent.ts";
 import { macLinkPath, readMacLink } from "../src/team/mac.ts";
 import { reposDir } from "../src/team/mac-sync.ts";
+import { macRestartPath } from "../src/team/mac-watch.ts";
 import { addTeamRepo, readTeam, teamDir } from "../src/team/registry.ts";
 import { gitOrigins } from "./git-fixture.mjs";
 import { startTestHub } from "./hub-fixture.mjs";
@@ -539,6 +540,8 @@ test("mac disconnect stops the team Office, removes the agent, revokes on the Hu
   const link = readMacLink(m.root);
   const minted = m.cfg(be).token;
   const registry = readFileSync(join(teamDir(m.root), "team.json"));
+  // The restart-loop guard of the Office: a reconnect within the hour must not be held back by it.
+  writeFileSync(macRestartPath(m.root), JSON.stringify({ version: 1, add: ["app-new"], remove: [], at: Date.now() }) + "\n", { mode: 0o600 });
   m.order.length = 0;
   m.launches.length = 0;
 
@@ -560,17 +563,20 @@ test("mac disconnect stops the team Office, removes the agent, revokes on the Hu
   assert.equal(m.ctx.store.mac(link.macToken), null, "revoked on the Hub");
   assert.equal((await m.ctx.api("GET", "/api/link/work", { token: minted })).status, 401);
   assert.equal(existsSync(macLinkPath(m.root)), false);
+  assert.equal(existsSync(macRestartPath(m.root)), false, "the restart guard is gone");
   assert.equal(existsSync(m.linkFile(be)), false, "the Mac's link file is gone");
   assert.deepEqual(readLinkConfig(ownData), ownLink, "the person's own link file stays");
   assert.ok(existsSync(join(be, "README.md")), "the clone stays");
   assert.deepEqual(readFileSync(join(teamDir(m.root), "team.json")), registry, "the registry stays");
   m.noSecret(JSON.stringify(result) + m.lines.join("\n"), "disconnect");
 
-  // Again, with nothing connected: nothing to stop or revoke.
+  // Again, with nothing connected: nothing to stop or revoke; a guard left behind still goes.
   m.order.length = 0;
+  writeFileSync(macRestartPath(m.root), JSON.stringify({ version: 1, add: ["app-new"], remove: [], at: Date.now() }) + "\n", { mode: 0o600 });
   assert.deepEqual(await macCommand("disconnect", { dataDir: m.root }, m.deps({ stopTeam, call })), { disconnected: true, hubRevoked: false });
   assert.equal(stops, 1, "no Mac link: the team Office is not stopped");
   assert.ok(!m.order.includes("revoke"));
+  assert.equal(existsSync(macRestartPath(m.root)), false);
 });
 
 test("mac disconnect with a Task running is TASK_ACTIVE and changes nothing", async (t) => {
