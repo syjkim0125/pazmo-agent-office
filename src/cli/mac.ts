@@ -33,7 +33,7 @@ import {
   writeMacLink,
 } from "../team/mac.ts";
 import type { MacCall, MacLinkFile } from "../team/mac.ts";
-import { reposDir, SYNC_BUSY, syncMacRepos } from "../team/mac-sync.ts";
+import { LINKED_ELSEWHERE_PROBLEM, reposDir, SYNC_BUSY, syncMacRepos } from "../team/mac-sync.ts";
 import type { MacRepoResult } from "../team/mac-sync.ts";
 import { macRestartPath } from "../team/mac-watch.ts";
 import { readTeam, teamRunning as registryTeamRunning } from "../team/registry.ts";
@@ -324,7 +324,9 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
       e.say(line);
       problems.push(line);
     }
-    for (const repo of repos) if (repo.problem) problems.push(withRerun(repo.problem, hub));
+    // Re-running cannot fix a repo the Hub keeps linked elsewhere: its line says what does.
+    for (const repo of repos)
+      if (repo.problem) problems.push(repo.problem.endsWith(LINKED_ELSEWHERE_PROBLEM) ? repo.problem : withRerun(repo.problem, hub));
   }
 
   e.say("[3/3] 로그인할 때 Office 자동 실행 등록");

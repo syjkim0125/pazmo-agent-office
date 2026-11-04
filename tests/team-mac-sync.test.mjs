@@ -594,7 +594,7 @@ test("a link the Hub refuses with LINKED_ELSEWHERE is one Office line, asked onc
     },
   };
   const line =
-    "app-be: 다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면에서 그 연결을 해제하세요";
+    "app-be: 다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요. 해제하면 이 Mac의 Office가 5분 안에 연결합니다";
   for (const mode of ["links-only", "full"]) {
     m.lines.length = 0;
     asks = 0;
@@ -624,7 +624,9 @@ test("a repo past the team Office's 20-repo limit is not cloned or registered, i
   };
   writeRegistry(own);
   const git = spy();
-  const line = "app-fe: 팀 Office는 repo를 20개까지 맡습니다 — 이미 20개가 등록돼 있어 clone하지 않았습니다(LIMIT). 담당 repo가 20개 이하가 되면 다음 맞추기에서 clone합니다";
+  // The count is every repo registered in this Office, folders added with team add included; a new one needs 19 or fewer.
+  const line =
+    "app-fe: 이 팀 Office에 등록된 repo(team add로 더한 폴더 포함)가 이미 20개라 clone하지 않았습니다(LIMIT) — 한 Office는 repo를 20개까지 맡으므로, 등록된 repo가 19개 이하가 되면 다음 맞추기에서 clone합니다";
 
   const full = await syncMacRepos(deps(m, { git: { home: m.w.home, pathEnv: process.env.PATH, run: git.run } }), "full");
   const be = cloneOf(m, "app-be");

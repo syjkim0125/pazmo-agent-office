@@ -80,7 +80,12 @@ main() {
 
   if [ ! -x "$BREW/bin/brew" ]; then
     echo "Homebrew가 아직 없습니다. 아래 명령을 터미널에 붙여넣어 Homebrew를 먼저 설치하세요." >&2
-    echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' >&2
+    # Under Rosetta the plain installer would put Intel Homebrew in /usr/local, and the next run would still find none here.
+    if [ -n "$NATIVE" ]; then
+      echo '  arch -arm64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' >&2
+    else
+      echo '  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"' >&2
+    fi
     echo "설치한 뒤 이 명령을 다시 실행하세요." >&2
     echo "  $RERUN" >&2
     exit 1

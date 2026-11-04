@@ -461,6 +461,20 @@ test("every problem line of mac connect names the rerun command; a repo list the
   assert.deepEqual(launchArgs(other), loaded(other));
 });
 
+test("a repo the Hub keeps linked elsewhere is a problem line without the rerun command: re-running changes nothing", async (t) => {
+  const m = await world(t, ["app-be", "app-fe"]);
+  // The member linked app-be from another Office with a connection string.
+  m.ctx.store.connect(m.ctx.store.createConnectCode(m.member), url("app-be"));
+  const result = await m.connect();
+  assert.equal(result.problems.length, 1, result.problems.join("\n"));
+  assert.equal(
+    result.problems[0],
+    "app-be: 다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요. 해제하면 이 Mac의 Office가 5분 안에 연결합니다",
+  );
+  assert.ok(!result.problems[0].includes(rerun(m.hub)));
+  assert.deepEqual(result.repos.map((r) => [r.name, r.registered, r.linked]), [["app-be", true, false], ["app-fe", true, true]]);
+});
+
 test("a launchctl that refuses the agent is LAUNCHD_FAILED in plain words with the rerun command", async (t) => {
   const m = await world(t, []);
   const refuse = async () => ({ exitCode: 5, stdout: "", stderr: "Bootstrap failed: 5: Input/output error\n" });

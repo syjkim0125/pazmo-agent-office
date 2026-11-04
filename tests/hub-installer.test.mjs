@@ -239,6 +239,19 @@ test("without Homebrew it prints the official install command and stops with exi
   assert.match(r.text, /설치한 뒤 이 명령을 다시 실행하세요/);
   assert.ok(r.text.includes(`curl -fsSL '${PUBLIC}/install.sh' | sh`), "the rerun command is shown too");
   assert.equal(w.calls().some((c) => /^(brew|git|npm|gh|claude|node) /.test(c)), false);
+  assert.ok(!r.text.includes("arch -arm64"), "a native terminal gets the plain command");
+
+  // Under Rosetta the plain command would install Intel Homebrew into /usr/local, and the next run would still find
+  // none in /opt/homebrew: the hint runs it as arm64.
+  const rosetta = world(t);
+  rmSync(join(rosetta.prefix, "bin", "brew"));
+  const r2 = await rosetta.run(script(), { env: { FAKE_ARCH: "x86_64", FAKE_HW_ARM64: "1" } });
+  assert.equal(r2.code, 1);
+  assert.ok(
+    r2.text.includes('  arch -arm64 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'),
+    r2.text,
+  );
+  assert.ok(r2.text.includes(`curl -fsSL '${PUBLIC}/install.sh' | sh`));
 });
 
 test("only missing formulae are installed, and claude-code only when claude is missing", async (t) => {

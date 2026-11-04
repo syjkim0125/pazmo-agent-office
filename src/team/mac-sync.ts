@@ -80,6 +80,10 @@ export type MacSyncResult = {
   skipped?: true;
 };
 
+/** What is said of a repo the Hub keeps linked elsewhere (409 LINKED_ELSEWHERE). Re-running the install line changes
+ * nothing: only releasing that link does, and then this Mac's Office links it at its next check. */
+export const LINKED_ELSEWHERE_PROBLEM =
+  "다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요. 해제하면 이 Mac의 Office가 5분 안에 연결합니다";
 /** What a full sync says when another one holds the lock. */
 export const SYNC_BUSY = "담당 repo 맞추기가 이미 진행 중이라 이번 맞추기는 건너뜁니다 — 진행 중인 맞추기가 끝나면 그 결과를 씁니다";
 const SYNC_LOCK = "sync.lock";
@@ -405,10 +409,7 @@ async function syncUnlocked(d: MacSyncDeps, mode: "full" | "links-only"): Promis
       // The member's live connection-string link to this repo (another Office) stands: the Hub does not let a Mac
       // revoke it, and no retry here would change that. Office's own words, once per check.
       if (codeOf(error) === "LINKED_ELSEWHERE")
-        return problem(
-          r,
-          "다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어 이 Mac은 연결하지 않았습니다 — 이 Mac에서 쓰려면 허브의 레포 화면에서 그 연결을 해제하세요",
-        );
+        return problem(r, LINKED_ELSEWHERE_PROBLEM);
       return problem(r, `허브 연결을 받지 못했습니다 — ${hubReason(error)}`);
     }
     if (minted.member.id !== d.member.id)
@@ -457,7 +458,7 @@ async function syncUnlocked(d: MacSyncDeps, mode: "full" | "links-only"): Promis
     if (!entry && registered >= MAX_REPOS)
       return problem(
         r,
-        `팀 Office는 repo를 ${MAX_REPOS}개까지 맡습니다 — 이미 ${MAX_REPOS}개가 등록돼 있어 clone하지 않았습니다(LIMIT). 담당 repo가 ${MAX_REPOS}개 이하가 되면 다음 맞추기에서 clone합니다`,
+        `이 팀 Office에 등록된 repo(team add로 더한 폴더 포함)가 이미 ${MAX_REPOS}개라 clone하지 않았습니다(LIMIT) — 한 Office는 repo를 ${MAX_REPOS}개까지 맡으므로, 등록된 repo가 ${MAX_REPOS - 1}개 이하가 되면 다음 맞추기에서 clone합니다`,
       );
     if (!full) {
       if (!entry) result.pending.add.push(r.name);
