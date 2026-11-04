@@ -1,0 +1,8 @@
+{
+  "token": "b89291287605c058c0541700bc386d82d419d16c60cdad980ad34f68071d9528",
+  "output": {
+    "summary": "Kit verification: tests 448/448 + 449/449 + 436/436 = 1333/1333, typecheck exit 0, story check PASS exit 0.",
+    "evidence": [".ai-workflow/runs/U35-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

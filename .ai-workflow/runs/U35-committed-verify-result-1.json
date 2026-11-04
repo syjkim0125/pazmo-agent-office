@@ -1,0 +1,8 @@
+{
+  "token": "981b1df3896d92c2fc305b663ecb97d0ecc514353814a19128cb63c29fe85b50",
+  "output": {
+    "summary": "Kit verification on the committed tree: tests 448/448 + 449/449 + 436/436 = 1333/1333, typecheck exit 0, story check PASS exit 0.",
+    "evidence": [".ai-workflow/runs/U35-committed-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}
