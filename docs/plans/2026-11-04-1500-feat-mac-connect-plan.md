@@ -152,7 +152,7 @@
   - "startMac refuses a blank, 61-character or control-character name with INVALID; the 101st live code is RATE_LIMITED"
   - "a member's second Mac revokes the first Mac and the links it minted"
   - "macRepos lists only owned repos; linked is true only for a live link this Mac minted"
-  - "macLink revokes the member's earlier link to the repo, marks the new one with the Mac, is NOT_OWNER for a repo not owned and NOT_FOUND for an unknown one"
+  - "macLink marks the new link with the Mac, replaces the Mac's own earlier link, is NOT_OWNER for a repo not owned and NOT_FOUND for an unknown one" **[마지막 리뷰 뒤 바뀜: 연결 문자열로 만든 살아 있는 연결이 있으면 `LINKED_ELSEWHERE`]**
   - "revokeMac revokes the Mac and every link it minted; link() refuses them; the same member's connection-string link to another repo still works" **[Review Focus 4]**
   - "a member revokes only their own Mac (FORBIDDEN otherwise); an admin revokes anyone's"
   - "revokeMember revokes the member's Macs"
@@ -615,3 +615,14 @@ Task 1–9를 만들면서 컨트롤러가 정한 판정(`Ruling`)과 리뷰가 
 - 스스로 다시 켜기는 `process.execPath`가 `brew upgrade`로 사라졌으면 Homebrew의 안정 경로 node로 켜고, 다시 켜도 맞추지 못한 같은 집합은 한 시간에 한 번만 다시 켠다(`mac-restart.json`, Task 9).
 - 설치기의 마지막 단계(`mac connect`)도 `run_step`을 거친다(Task 3).
 - `.ai-workflow/verification.json`의 `V19`와 kit-checks 경계 줄은 Task 10이 아니라 설정 커밋 `e1e7f64`에서 했다.
+
+## 마지막 리뷰 뒤 바뀐 것 (2026-11-05)
+
+브랜치 전체를 리뷰어 셋(전체, 비밀·Hub 동시성, Office 수명주기)이 본 뒤 고친 것이다. 지적과 판정 전부는 `.ai-workflow/runs/U36-review-1.md`, 사람에게 보이는 결과는 [검증 기록](../verification/2026-11-04-mac-connect.md)의 "마지막 리뷰 뒤 고친 것"이다.
+
+- 위 판정 표의 "**연결을 새로 받는 조건**"에 하나가 더 붙는다: 그 사람이 같은 repo에 연결 문자열로 만든 살아 있는 연결이 있으면 Hub가 Mac의 연결 받기를 409 `LINKED_ELSEWHERE`로 거절하고 아무것도 해제하지 않는다. Mac이 받은 연결은 `/repos`에서 하나씩 해제할 수 없고(409 `MAC_LINK`) Mac을 해제할 때만 끝난다.
+- 판정 표의 "**`mac connect`는 … 토큰이 살아 있으면 다시 짝짓지 않는다**"는 "Hub가 401로 답할 때만 다시 짝짓는다. 그 밖의 실패는 아무것도 바꾸지 않고 다시 할 명령을 말한다"로 바뀐다.
+- 판정 표의 "**스스로 다시 켜기**"에 둘이 더 붙는다: live Office의 실행기가 준비되지 않았으면 다시 켜지 않는다. `mac restart`는 `stopTeam` 전에 실행기 로그인·colima를 먼저 확인하고, 실패하면 멈추지 않는다.
+- 판정 표의 "**LaunchAgent**"에 둘이 더 붙는다: `StartInterval` 1800초(로그인 때나 다시 켜기 뒤 `up`이 실패해도 30분 안에 다시 시도). 같은 plist가 이미 로드돼 있으면 내리지 않고 `kickstart`(`-k` 없이)만 한다.
+- Office의 저장된 실행 상태(`running.json`)는 서비스가 멈출 때 스스로 지우고, 프로세스가 없는 상태는 `status`·`stop`·`start`가 시작 잠금 안에서 지운다. `start.lock`은 만든 pid를 담고, 그 pid가 없으면 낡은 잠금으로 본다(모든 엔진에 해당).
+- 작은 것: 허용 주소는 짝짓는 Hub와 같은 origin이어야 한다. 허용 화면은 이전 Mac이 맡은 Task가 있으면 알린다. 설치기의 업데이트는 `$REPO`에서 받고, Rosetta 터미널도 Apple Silicon이면 받는다. links-only가 연결을 새로 받으면 바로 다시 읽는다. `mac disconnect`는 `mac-restart.json`도 지운다. 20개 상한은 clone 전에 보고, 상한에 걸린 repo는 `pending`에 넣지 않는다.

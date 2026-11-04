@@ -60,34 +60,52 @@ Story: M16 · M4 · V19 · D41. 결정은 [hub-web-team-flow-decision.md](../und
 
 | 검사 | 결과 |
 |---|---|
-| 전체 `npm test`(kit 시험 세 조각) | (전체 검사 뒤 채움) |
-| `npm run typecheck` | (전체 검사 뒤 채움) |
-| Story 검사 `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | (전체 검사 뒤 채움) |
-| 마지막 리뷰(브랜치 전체) | (마지막 리뷰 뒤 채움) |
+| 전체 `npm test` | main을 합친 직후 `5fff3de`: 1512/1512, exit 0(144초). 마지막 리뷰 뒤 수정까지(`6024932`): **1541/1541**, exit 0(114초) |
+| `npm run typecheck` | exit 0(`6024932`) |
+| Story 검사 `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0 |
+| 마지막 리뷰(브랜치 전체, 리뷰어 셋) | 준비 안 됨: Critical 1, Important 5 → 모두 고침(아래 "마지막 리뷰 뒤 고친 것"). 수정의 재리뷰와 kit 검증(시험 세 조각)은 kit 실행 기록 `.ai-workflow/runs/U36-review-2.md`·`U36-verify-1.md`에 남는다 |
 
-Task별 리뷰와 그 시험 수는 "만든 것"에 있다. main을 합친 뒤의 Story 해시·G1과 U 번호 확인, G4 기록은 위 검사 뒤에 한다.
+Task별 리뷰와 그 시험 수는 "만든 것"에 있다. main을 합친 뒤 Story 해시는 `641f931f`이고, G1 기록은 D40·D41 두 승인을 함께 적는다. G4 기록은 kit 검증 뒤에 한다.
 
 ## 확인하지 않은 범위
 
 자동 시험은 가짜 `launchctl`·`open`·`gh`, 로컬 bare repo, 로컬 Hub(TLS와 HTTP 프록시 흉내)를 쓴다. 다음은 시험으로 증명하지 않았다.
 
 - **실제 Mac:** 실제 `launchctl`에서 plist가 로드되는지, 재로그인 뒤 `up --team`이 도는지, `bootout` 직후 `bootstrap`의 재시도와 `enable`이 필요한지(커뮤니티 보고에 기댄 판정), 실제 `/usr/bin/open`이 허용 주소를 여는지. `bootstrap`이 멈추면 한 번에 30초씩 3번과 대기 2초까지 걸릴 수 있다.
-- **실제 설치:** 실제 Homebrew의 `brew install`(`node@24`·`git`·`gh`·`colima`·`docker`)과 `--cask claude-code`, 이 설치가 관리자 암호를 묻는지(허브 `/mac` 화면은 "관리자 암호는 필요 없습니다"라고 쓰는데 근거가 없고, 마지막 리뷰가 문구를 가린다), 실제 `gh auth login`·`claude auth login`, 터미널이 없을 때(`/dev/null`)의 거동.
+- **실제 설치:** 실제 Homebrew의 `brew install`(`node@24`·`git`·`gh`·`colima`·`docker`)과 `--cask claude-code`, 이 설치가 관리자 암호를 묻는지(허브 `/mac` 화면은 "관리자 암호는 필요 없습니다"라고 쓰는데 근거가 없다. 실제 설치로 확인하거나 지운다), 실제 `gh auth login`·`claude auth login`, 터미널이 없을 때(`/dev/null`)의 거동.
 - **실제 OpenShift 허브:** 라우터의 `x-forwarded-for`. 라우터 앞에 회사 로드밸런서가 더 있으면 마지막 값이 모두 로드밸런서 하나로 보여서 팀 전체가 `/api/mac/start`를 10분에 10번 나눠 쓴다. 배포 전에 확인한다. 허브 컨테이너의 `PAZMO_OFFICE_REPO`·`PAZMO_OFFICE_REF`(지금 OpenShift Template `deploy/openshift/pazmo-hub.json`에는 두 값의 매개변수가 없다).
 - **실제 git·gh:** 회사 GitHub Enterprise와 github.com 두 호스트, `gh auth setup-git` 뒤의 `https` clone, 사내 프록시·자체 인증서, 큰 repo의 clone 시간(600000 ms 제한).
 - **여러 사람:** 두 사람의 Mac 두 대, 두 번째 Mac을 허용할 때 앞 Mac의 Office가 겪는 일(401 한 줄, 허브 호출 중단).
 - 팀원 웹(내 할 일·보드·Task 상세·자동으로 일하기), PL 기획, Story 마무리(묶음 2–4). LAN 허브의 설치 한 줄(하지 않기로 했다). `.dmg`, 비밀번호·SSO, Windows·Linux·Intel Mac.
 
-**사람에게 보이는 한계(리뷰가 미룬 것 중에서).** 고치지 않았고, 마지막 리뷰가 가린다.
+**사람에게 보이는 한계(리뷰가 미룬 것 중에서).** 마지막 리뷰가 다시 판정했다(아래 "마지막 리뷰 뒤 고친 것"). 남은 것만 적는다.
 
-- **허브가 잠깐 응답하지 않을 때 `mac connect`를 다시 실행하면 다시 짝짓는다.** 이미 있는 연결을 확인하는 `repos()`가 5xx·시간 초과로 실패해도 연결을 못 쓰는 것으로 보고 새로 짝짓고, 한 사람에 Mac 하나 규칙이 앞 연결을 해제한다. 돌고 있던 Office의 Story 연결이 끊길 수 있다. 정상일 때 다시 실행하면 재사용한다(Task 8, 계획의 글자 그대로).
-- 설치기는 Rosetta로 연 터미널(`uname -m`이 `x86_64`)을 Intel로 보고 거절한다(Task 3). 설치기의 "Office 새 버전 받기"는 받기와 체크아웃이 같은 단계 이름이고, `PAZMO_OFFICE_REPO`를 바꿔도 이미 받은 Mac은 옛 origin에서 계속 받는다.
-- 허용 화면을 연 뒤에 허브가 닫혀 있으면 `mac connect`는 조용히 기다리다 코드가 만료되면 "코드가 만료됐습니다"로 끝난다. 중간 안내가 없다(Task 5). 새 허용 주소가 허브 주소와 같은 곳인지는 확인하지 않는다.
-- 허브 `/mac/approve`를 열기만 하는 GET이 429일 때 문구가 "허용과 거절을 너무 많이 시도했습니다"다(Task 4).
-- **repo 맞추기:** (1) 사람의 `git`이 `insteadOf`로 원격을 다른 호스트 별칭으로 바꿔 두면, 등록된 원격이 허브의 원격과 달라서 전체 맞추기마다 그 clone을 빼고 다시 등록하고 연결을 새로 받는다(Task 6). (2) 두 터미널에서 동시에 전체 맞추기를 돌리면 막는 잠금이 없다. (3) clone이 실패하면 안내 줄에 git의 영어 문구가 그대로 나온다. (4) gh 로그인 확인은 등록된 repo의 연결 갱신보다 앞이라, VPN이 없어 `gh auth status`가 실패하면 로그인한 사람도 "gh 로그인이 필요합니다"로 그 repo의 연결 갱신이 건너뛰어진다. (5) 디스크 쓰기 실패나 중단으로 이 Mac의 `macId`가 든 죽은 토큰이 남고 허브가 `linked: true`라고 하면 다시 받지 않는다(드문 경로).
+- **허용한 사람을 터미널이 다시 묻지 않는다.** 코드를 먼저 허용한 팀원이 이 Mac을 갖는다. 터미널은 그 사람 이름을 한 줄로만 말한다. 같은 회사 사람이 10분 안에 코드를 알아내 먼저 허용해야 하는 경로라 제품 결정으로 남겼다(G4에서 묻는다).
+- **Mac이 받은 repo 연결은 repo 하나만 끊을 수 없다.** Mac을 해제하거나 담당자에서 빼야 끝난다. 관리자가 사고 때 한 사람의 Office를 repo 하나에서만 떼는 손잡이가 없어졌다.
+- **연결 문자열로 만든 예전 연결이 Mac을 막는다.** Mac 흐름 전에 연결 문자열로 같은 repo를 연결해 둔 사람은 그 연결을 `/repos`에서 해제할 때까지 Mac이 그 repo를 연결하지 않는다(로그에 이유와 방법 한 줄).
+- **`stop --team`으로 일부러 끈 Office도 30분 안에 다시 켜진다**(`StartInterval`). 계속 끄려면 `mac disconnect`다. 잠긴 개발자 Office는 30분마다 `launchd.log`에 `RUNNING` 줄이 남는다.
+- 허용 화면을 연 뒤에 허브가 닫혀 있으면 `mac connect`는 조용히 기다리다 코드가 만료되면 "코드가 만료됐습니다"로 끝난다. 중간 안내가 없다(Task 5).
+- 허브 `/mac/approve`를 열기만 하는 GET이 429일 때 문구가 "허용과 거절을 너무 많이 시도했습니다"다(Task 4). `/mac`의 "관리자 암호는 필요 없습니다"는 실제 설치로 확인하거나 지운다. "clone합니다" 같은 개발자 말, 로그인하지 않은 브라우저 안내(다른 기본 브라우저가 열린 경우)도 문구 묶음에서 고친다.
+- **repo 맞추기:** (1) 사람의 `git`이 `insteadOf`로 원격을 다른 호스트 별칭으로 바꿔 두면 등록된 원격이 허브의 원격과 달라, 전체 맞추기마다 그 clone을 빼고 다시 등록하고, 켜진 Office는 한 시간에 한 번 스스로 다시 켠다(팀원에게 쓰라고 하기 전에 고친다). (2) 두 터미널에서 동시에 전체 맞추기를 돌리면 막는 잠금이 없다. (3) clone이 실패하면 안내 줄에 git의 영어 문구가 그대로 나온다. (4) VPN이 없어 `gh auth status`가 실패하면 등록된 repo의 연결 갱신도 건너뛴다. (5) 허브가 연결을 새로 만들었는데 응답을 잃으면(VPN 끊김, 15초 시간 초과) 죽은 토큰이 남고 허브는 `linked: true`라서 다시 받지 않는다(팀원에게 쓰라고 하기 전에 고친다). (6) Mac이 clone한 폴더를 지우면 `up --team`이 `REPO_MISSING`으로 실패한다.
+- **설치기를 다시 실행하면 켜진 Office 밑에서 코드가 바뀐다**(`checkout` + `npm ci`). 돌던 Task가 두 버전을 섞을 수 있다. 다음 로그인까지 옛 코드가 돈다.
 - **켜기 전 맞추기:** `up --team`의 켜기 전 맞추기가 TLS 문제로 실패하면 안내 문구가 `--fingerprint`를 쓰라고 한다. OpenShift 허브에는 해당이 없다(Task 8).
-- **CLI 말:** `--name`은 이미 연결된 Mac에서는 조용히 무시된다. `mac status`는 허브가 4xx(426 포함)로 답해도 "닿지 않음"으로 보인다. 로컬 오류(EACCES 등)가 "허브에 닿지 않습니다"로 보일 수 있다. `mac-link.json`이 없을 때 `mac disconnect`는 `macId`가 든 repo 연결 파일을 남기고, 연결 파일 지우기에 실패하면 삼키고도 지웠다고 말한다.
-- **허브 상태 표시:** `쉬는 중(한도)`와 `일하는 중`은 캐시한 실행기 준비 상태를 쓴다. 가져가기 멈춤·상한·다시 켜기 대기 중에는 낡을 수 있고, 실행기가 준비 안 됐을 때 두 실행기 이름이 다 붙는다. 다시 받은 repo 연결은 준비 안 된 repo에 5분(한 번의 다시 확인) 늦게 닿는다(Task 9).
+- **CLI 말:** `--name`은 이미 연결된 Mac에서는 조용히 무시된다. `mac status`는 허브가 4xx(426 포함)로 답해도 "닿지 않음"으로 보인다. 로컬 오류(EACCES 등)가 "허브에 닿지 않습니다"로 보일 수 있다. `stopTeam`의 `TASK_ACTIVE`·`UNKNOWN`, 레지스트리 이유(`LIMIT`, `NO_ORIGIN`)는 영어로 나온다. `mac-link.json`이 없을 때 `mac disconnect`는 `macId`가 든 repo 연결 파일을 남기고, 연결 파일 지우기에 실패하면 삼키고도 지웠다고 말한다.
+- **허브 상태 표시:** `쉬는 중(한도)`와 `일하는 중`은 캐시한 실행기 준비 상태를 쓴다. 가져가기 멈춤·상한·다시 켜기 대기 중에는 낡을 수 있고, 실행기가 준비 안 됐을 때 두 실행기 이름이 다 붙는다. 담당 repo가 0개인 Office는 실행기를 준비됨으로 세서, 실행기 로그인이 없는데 repo가 생기면 다시 켜기를 시도하다 확인에서 멈추기를 10분쯤마다 되풀이한다(Office는 켜진 채다).
+- **잠긴 Office:** `--live` 없이 켠 팀 Office도 Mac 연결이 있으면 다시 켜질 때 live로 돌아온다(Task 9 판정, 개발자 경로).
+- **허브 운영:** OpenShift 라우트가 `x-forwarded-for`를 `append`나 `replace`로 다뤄야 한다. `if-none`·`never`이거나 라우터를 거치지 않는 경로가 있으면 클라이언트가 키를 바꿔 시작 요청 제한을 피하고, 대기 코드 100개를 채워 허브 전체의 Mac 짝짓기를 10분씩 막을 수 있다. 라우터 앞에 회사 로드밸런서가 더 있으면 팀 전체가 시작 요청 10번/10분을 나눠 쓴다. 재배포 전에 확인한다. 같은 때에 `PAZMO_OFFICE_REF`를 `main` 대신 태그로 고정하고, OpenShift Template에 `PAZMO_OFFICE_REPO`·`PAZMO_OFFICE_REF` 매개변수를 더한다.
+
+## 마지막 리뷰 뒤 고친 것
+
+브랜치 전체(`27f2bff..5fff3de`)를 리뷰어 셋이 따로 봤다: 전체 리뷰, 비밀·인증·Hub 동시성, Office 수명주기·실패 경로. 결과는 Critical 1, Important 5(겹친 것을 합침)였고 머지 전에 모두 고쳤다. 지적 원문과 미룬 것의 이유는 `.ai-workflow/runs/U36-review-1.md`다.
+
+| 고친 것 | 리뷰가 찾은 것 | 이제 | 커밋 |
+|---|---|---|---|
+| F1 저장된 실행 상태 | 재부팅·로그아웃·강제 종료 뒤 `running.json`이 남아, 로그인 때 `up --team`이 `UNKNOWN`으로 실패하고 `stop`·`mac restart`·`mac disconnect`도 거절했다. 고칠 명령이 없었다(모든 엔진에 원래 있던 결함, 자동 실행이 기대므로 Critical) | 서비스는 멈출 때 자기 인스턴스의 상태 파일을 지운다. 저장된 상태의 pid가 없으면(`kill(pid, 0)`만, 신호는 보내지 않음) `status`·`stop`·`start`가 시작 잠금 안에서 지우고 `stopped`로 본다. pid가 살아 있으면 예전처럼 `unknown`이다 | `61b5208` |
+| F4 시작 잠금 | `mac connect`를 다시 실행하면 로드된 LaunchAgent를 `bootout`해 켜는 중인 `up`을 SIGTERM으로 죽이고, `start.lock`이 영원히 남았다 | `start()`는 SIGTERM·SIGINT에서 띄운 서비스를 멈추고 잠금을 지운 뒤 끝난다. 잠금에 만든 pid를 적고, 그 pid가 없으면 낡은 잠금으로 본다(`teamRunning()`도). 같은 plist가 이미 로드돼 있으면 내리지 않고 `kickstart`(`-k` 없이)만 한다 | `61b5208`, `2871c4d`, `6024932` |
+| F2 다시 짝짓기 | 허브가 잠깐 5xx·시간 초과면 `mac connect` 재실행이 새로 짝짓고, 한 사람에 Mac 하나 규칙이 켜진 Office의 연결을 끊었다(Task가 "멈춤"으로 보여 PL이 풀 위험) | 허브가 401로 답할 때만 다시 짝짓는다. 그 밖의 실패는 `mac-link.json`을 그대로 두고 한 줄과 다시 할 명령을 말한다 | `6518a08` |
+| F3 스스로 다시 켜기 | 멈춘 뒤 `up`의 확인(실행기 로그인, colima, VM)이 실패하면 Office가 다음 로그인까지 꺼져 있었다 | live Office의 실행기가 준비되지 않았으면 다시 켜지 않고 한 줄만 말한다. `mac restart`는 멈추기 전에 실행기 로그인과 colima를 확인한다. LaunchAgent에 `StartInterval` 1800초를 더해 실패한 `up`을 30분 안에 다시 한다(켜진 Office에서 `up --team`은 상태만 보고 끝난다) | `3a972fd` |
+| F5 Mac 연결과 다른 연결 | `/repos`의 "연결 해제"로 끊은 Mac 연결을 Mac이 5분 안에 다시 받았다. 같은 repo의 연결 문자열 연결과 Mac 연결이 5분마다 서로를 끊었다 | 연결 문자열로 만든 살아 있는 연결이 이긴다: 허브는 Mac의 연결 받기를 409 `LINKED_ELSEWHERE`로 거절하고 아무것도 해제하지 않으며, Office는 이유와 방법을 한 번 말한다. Mac이 받은 연결은 `/repos`에서 "Mac: <이름>"으로 보이고 해제 단추가 없으며(서버도 409 `MAC_LINK`), `/mac`(관리자는 `/members`)에서 Mac을 해제할 때 끝난다 | `b30224c`, `2ae0f7a` |
+| F6 작은 것 | 리뷰가 고치자고 한 작은 것들 | 허용 주소는 짝짓는 허브와 같은 origin이어야 연다. `/mac/approve`는 이전 Mac이 맡은 Task가 있으면 "PL이 풀어 줘야 한다"고 알린다. 설치기의 업데이트는 `$REPO`에서 받는다. Rosetta 터미널도 `sysctl hw.optional.arm64`가 1이면 받는다. links-only가 연결을 새로 받으면 그 자리에서 다시 읽는다. `mac disconnect`는 `mac-restart.json`도 지운다. 20개 상한은 clone 전에 보고, 상한에 걸린 repo는 다시 켜기 대상에 넣지 않는다 | `627dd60`, `8a101b0`, `996d684`, `8c6e0e2`, `738c84c`, `727b92d` |
 
 ## 실제 확인 계획
 
@@ -127,11 +145,19 @@ LAN(자체 인증서) 허브에는 설치 한 줄이 없어서 설치기는 여�
    - 일부러 맞추지 못하는 repo(해당 호스트의 gh 로그아웃)를 담당으로 더한다. 다시 켜기를 되풀이하지 않고 로그가 한 번 나오는지, 고친 뒤 한 시간 안에 사람이 `mac restart`하면 맞춰지는지.
    - 다시 켜는 node가 `brew upgrade` 뒤에도 있는지(가능하면 `process.execPath`가 없는 상태를 흉내 낸다).
 
+7. **마지막 리뷰가 더한 확인.**
+   - 재부팅한 뒤 `status --team`이 `running`이고, 허브 "내 Mac"이 몇 분 안에 대기 중이 된다(F1). 일부러 서비스를 `kill -9`한 뒤에도 다음 `up --team`이 켜진다.
+   - Task가 도는 동안 설치 명령(`mac connect`)을 다시 실행한다. 팀 Office의 pid가 그대로이고, 자동 실행은 "이미 등록돼 있습니다"라고 말한다(F4). `bootout`이 이미 떨어져 나간 팀 Office까지 죽이는지도 이때 본다.
+   - 허브를 끈 채로 `mac connect`를 다시 실행하면 다시 짝짓지 않고 한 줄과 다시 할 명령이 나온다(F2).
+   - `claude auth logout`으로 쉬는 중(한도)일 때 담당자를 더하면 다시 켜지 않고 한 줄만 말한다. 로그인한 뒤 5분 안에 다시 켜진다(F3). 로그인 때 `up`이 실패하게 만든 뒤(예: colima 끔) 30분 안에 `StartInterval`로 다시 켜지는지 본다.
+   - `/repos`에서 Mac 연결에 해제 단추가 없고, 같은 repo를 다른 `--data-dir`에서 연결 문자열로 연결하면 Mac 로그에 `LINKED_ELSEWHERE` 줄이 한 번 나온다. 그 연결을 `/repos`에서 해제하면 5분 안에 Mac이 다시 연결한다(F5).
+   - 미룬 것 중 확인할 것: `insteadOf` 호스트 별칭이 있는 사람, `/api/mac/link` 응답을 잃은 경우(연결 직후 네트워크 끊기).
+
 ### 중간점검(네 묶음 뒤): 사내 OpenShift 허브와 두 사람의 Mac
 
 사내 OpenShift에 허브를 새 버전으로 다시 띄운 뒤, 두 사람의 Mac으로 **깨끗한 Mac에서 설치 한 줄**을 처음부터 끝까지 한다. 위 이번 묶음의 확인을 같은 방식으로 다시 하고, 다음을 더 본다.
 
-- 설치 한 줄 전체: Homebrew만 있는 Mac, Homebrew 설치가 관리자 암호를 묻는지, GitHub와 Claude 로그인, 허용 화면, Rosetta 터미널의 거절.
+- 설치 한 줄 전체: Homebrew만 있는 Mac, Homebrew 설치가 관리자 암호를 묻는지, GitHub와 Claude 로그인, 허용 화면, Rosetta 터미널에서의 설치(`arch -arm64`로 부르는 Homebrew).
 - 회사 GitHub Enterprise repo의 gh 로그인·`setup-git`·clone, 사내 프록시와 인증서.
 - 라우터 앞의 로드밸런서와 `x-forwarded-for`(10번/10분이 팀 전체에 걸리는지), `PAZMO_OFFICE_REPO`·`PAZMO_OFFICE_REF`.
 - 한 사람 한 Mac: 같은 사람이 Mac 두 대에서 연결하면 앞 Mac이 해제되는지. 다른 사람의 두 Mac이 서로 해제하지 않는지.
