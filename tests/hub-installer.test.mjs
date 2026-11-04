@@ -351,16 +351,23 @@ test("installerConfig refuses an http repo, a quote, a ref with .. or a space (A
   const exit = process.exit;
   const lines = [];
   const errors = [];
-  let exited;
-  const exitedOnce = new Promise((resolve) => (exited = resolve));
+  // Each call of main ends in one process.exit; every wait for it gets its own promise, so an earlier exit cannot satisfy a later wait.
+  let exited = () => {};
+  const nextExit = () => new Promise((resolve) => (exited = resolve));
+  const withTimeout = (promise, ms, what) => {
+    let timer;
+    const limit = new Promise((_, reject) => (timer = setTimeout(() => reject(new Error(`${what} did not happen within ${ms} ms`)), ms)));
+    return Promise.race([promise, limit]).finally(() => clearTimeout(timer));
+  };
   console.log = (line) => lines.push(line);
   console.error = (line) => errors.push(line);
   process.exit = (code) => exited(code);
   try {
     const env = (extra) => ({ PAZMO_HUB_PUBLIC_URL: PUBLIC, PAZMO_HUB_LISTEN: "127.0.0.1:0", PAZMO_HUB_DATA_DIR: data, ...extra });
     // A bad value stops the hub before it listens, like a bad public URL does.
+    const refused = nextExit();
     await main(env({ PAZMO_OFFICE_REPO: "http://github.example.com/team/office.git" }));
-    assert.equal(await exitedOnce, 1);
+    assert.equal(await withTimeout(refused, 10_000, "the exit of a refused start"), 1);
     assert.equal(JSON.parse(errors.at(-1)).code, "ARGUMENT");
     assert.equal(lines.length, 0, "nothing was announced");
 
@@ -376,15 +383,24 @@ test("installerConfig refuses an http repo, a quote, a ref with .. or a space (A
       }).on("error", reject).end();
     });
     assert.equal(text, installScript({ hub: PUBLIC, officeRepo: "https://github.example.com/team/office.git", officeRef: "release/1.2" }));
-    process.listeners("SIGTERM").filter((l) => !before.has(l))[0]?.("SIGTERM");
   } finally {
-    await new Promise((r) => setTimeout(r, 50));
-    console.log = log;
-    console.error = error;
-    process.exit = exit;
-    for (const l of process.listeners("SIGTERM")) if (!before.has(l)) process.removeListener("SIGTERM", l);
-    for (const l of process.listeners("SIGINT")) if (!beforeInt.has(l)) process.removeListener("SIGINT", l);
-    rmSync(data, { recursive: true, force: true });
+    try {
+      // Stop the hub in every outcome, and keep the stub until its shutdown has called process.exit: a late call
+      // reaching the real process.exit would end the whole test file.
+      const handler = process.listeners("SIGTERM").find((l) => !before.has(l));
+      if (handler) {
+        const stopped = nextExit();
+        handler("SIGTERM");
+        assert.equal(await withTimeout(stopped, 10_000, "the hub's shutdown"), 0, "stopping the hub exits 0");
+      }
+    } finally {
+      console.log = log;
+      console.error = error;
+      process.exit = exit;
+      for (const l of process.listeners("SIGTERM")) if (!before.has(l)) process.removeListener("SIGTERM", l);
+      for (const l of process.listeners("SIGINT")) if (!beforeInt.has(l)) process.removeListener("SIGINT", l);
+      rmSync(data, { recursive: true, force: true });
+    }
   }
 });
 
