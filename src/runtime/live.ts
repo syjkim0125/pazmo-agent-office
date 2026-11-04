@@ -75,11 +75,17 @@ const roleNames = ["pm", "lead", "engineer", "reviewer"] as const;
 /** How the runner source shapes the runtime: jobs take `choose(role, taskId)`
  * when given, else the per-role settings choice (taskId ignored). Only the
  * per-role choice has fixed runners to qualify ahead of time and to report in
- * status, so `prequalify` and `roles` are false under `choose`. */
+ * status, so `prequalify` and `roles` are false under `choose`. `factory` is
+ * the role job factory's part that reads the runners: they are checked against
+ * the settings' catalog, which is discovered again before a refusal (D39). */
 export function liveRunnerWiring(runners: LiveRunners) {
   return {
-    choice: (role: ExecutingRole, taskId: string): RunnerChoice =>
-      runners.choose ? runners.choose(role, taskId) : runners.settings.choice(role),
+    factory: {
+      choice: (role: ExecutingRole, taskId: string): RunnerChoice =>
+        runners.choose ? runners.choose(role, taskId) : runners.settings.choice(role),
+      installs: () => runners.settings.catalog!.installs,
+      rediscover: async () => (await runners.settings.refresh()).installs,
+    },
     prequalify: !runners.choose,
     roles: !runners.choose,
   };
@@ -576,9 +582,7 @@ export async function createLiveRuntime(
     };
     const roleJob = runners
       ? roleJobFactory({
-          choice: wiring!.choice,
-          installs: () => runners.settings.catalog!.installs,
-          rediscover: async () => (await runners.settings.refresh()).installs,
+          ...wiring!.factory,
           qualify: qualifyRunner,
           evidence: runners.evidence,
           executor: config.binary,

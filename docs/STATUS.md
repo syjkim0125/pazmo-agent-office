@@ -1,3 +1,25 @@
+# 2026-11-03 D39 마지막 리뷰의 Minor 5건을 고친다
+
+- 바로 아래 D39 항목의 "남은 것"이다(M16·V18). D39의 동작과 Story는 그대로다. Story 해시 `b005160e`가 G1 기록과 같아 G1을 다시 받지 않았다. kit 실행은 `.ai-workflow/runs/U33-d39-minor-followups.json`(최소 계획)이다.
+- 고친 것:
+  - 답은 왔는데 쓸 claude 모델이 없는 조회는 이제 조회 실패가 아니다. hook을 다시 판정한다. 조회 실패는 `loadRunnerCatalog`가 목록에 `claudeUnlisted`로 표시하고, `keptClaudeBlock`은 그 표시만 본다.
+  - 조회 실패로 hook 막힘을 유지할 때, 안내를 지금의 로그인 상태로 다시 만든다. 그 사이 로그아웃했으면 로그인 안내가 붙고, 로그인했으면 빠진다(D30·D32).
+  - 엔진의 다시 확인(`rediscover`)은 `liveRunnerWiring(runners).factory`에 있고, `live.ts`와 lean-office 시험이 같은 것을 쓴다.
+  - 바이너리가 바뀌었는데 다시 확인이 실패하면 `UNVERIFIED_CONTROLLER_BINARY`·`closed:true`로 끝나고 기다리지 않는다. 그 시험을 더했다.
+  - 주석과 학습 문서의 "어떤 프로세스도 띄우기 전에"를 "역할의 실행기 프로세스를 띄우기 전에"로 고쳤다.
+- 자동 검사:
+  - 1·2번의 시험은 고치기 전에 실패했다. 4번은 있던 동작이라 변이로 확인했고, 3번은 변이로 지켜짐을 확인했다.
+  - 관련 시험 파일 11개 238/238, 타입 검사 exit 0.
+  - 독립 리뷰 1차는 머지 가능이었다(Critical·Important 0). Minor 4건(문구 셋, "hook 목록 없음" 안내를 글자까지 보는 시험)을 반영했다. 수정분만 본 2차도 머지 가능이었고, 문구 Minor 2건을 반영했다.
+  - kit 검증 1차는 새 시험 하나가 시험 조각 안에서만 실패했다(431/432). 시험 helper가 이미 실행한 가짜 실행 파일을 덮어써서 macOS가 다음 실행을 가끔 죽인 것이다. helper는 이제 스크립트만 바꾼다(같은 부하 재현 4/60 → 0/60). [학습 문서](solutions/test-failures/rewrite-a-fake-cli-script-not-its-executed-binary.md)
+  - 리뷰 3차(마지막)도 머지 가능이었다. 학습 문서가 SIGKILL의 원인을 단정한 문구 하나는 이 전달 커밋에서 "추정"으로 고쳤다(kit 리뷰·검증 밖).
+  - kit 검증 2차: 시험 441/441 + 448/448 + 432/432 = **1321/1321**, 타입 검사·Story 검사 exit 0.
+- PR syjkim0125/pazmo-agent-office#72. G4는 2026-11-04에 기록했다. 사용자가 설명 페이지를 본 뒤 "① 승인 후 PR"을 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/d39-minor-followups-g4.md)
+- **남은 것:**
+  - `createLiveRuntime`의 `roleJobFactory` 호출에서 `rediscover`를 빠뜨리거나 덮어쓰면(필드를 하나씩 넘기기, `rediscover: undefined`) 시험도 타입 검사도 잡지 못한다.
+  - lean Office는 자기 목록 사본을 읽어 `keptClaudeBlock`이 적용되지 않는다(실행기 화면, agent 저장 검사, 기본 실행기 고르기). 조회 실패 때 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다(엔진은 여전히 거절, 리뷰어가 코드로 찾음, 전부터 있던 것). 별도 작업으로 시작했다(2026-11-04).
+  - 실제 claude로 재현하지 않았다(가짜 CLI로만 확인). [변경 기록](verification/2026-11-03-runner-not-ready-wait.md)의 "후속"
+
 # 2026-11-03 실행기 준비 안 됨도 시도로 세지 않고 기다린다 (D39)
 
 - D37의 후속이다. 팀 Office가 Story Task를 다시 돌릴 때 엔진이 실행기를 준비 안 됨(로그아웃·설치 없음·지원 안 되는 설치본·개인 설정으로 막힘)으로 보면, 실행 전에 `RUNNER_NOT_READY`로 거절했다. 출력이 비어 D37이 알아보지 못했고, 몇 초 만에 시도 3개를 쓸 수 있었다(코드로 추론, 관찰은 안 함).
@@ -14,7 +36,7 @@
 - G4는 2026-11-03에 기록했다. 사용자가 설명 페이지를 본 뒤 그룹 kill 후속과 함께 "둘 다 ① 승인 후 머지"를 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/runner-not-ready-wait-g4.md)
 - **남은 것:**
   - 실제로 로그아웃·막힌 CLI로 돌려 보기(실제 확인 2차와 함께). [변경 기록](verification/2026-11-03-runner-not-ready-wait.md)
-  - 마지막 리뷰의 Minor 5건은 머지 뒤 별도 변경으로 한다([기록](../.ai-workflow/runs/U32-review-2.md)).
+  - 마지막 리뷰의 Minor 5건은 머지 뒤 별도 변경으로 한다([기록](../.ai-workflow/runs/U32-review-2.md)). → 맨 위 항목에서 고친다.
     - 답은 왔는데 claude 모델 목록이 빈 경우도 조회 실패로 보아 hook 막힘을 유지한다.
     - 막힘을 유지할 때 안내 문구도 예전 것이라, 그 사이 로그인 상태가 바뀌면 로그인 안내가 빠지거나 낡는다.
     - `live.ts`에서 엔진에 다시 확인을 잇는 줄을 시험이 직접 지키지 않는다.

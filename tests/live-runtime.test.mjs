@@ -420,7 +420,7 @@ test("runner wiring follows a per-task choose when given, otherwise the per-role
   const evidence = { record() {} };
   // Claw: per-role choice, taskId ignored, per-role prequalify and status roles.
   const claw = liveRunnerWiring({ settings, evidence });
-  assert.deepEqual(claw.choice("reviewer", "t1"), { runner: "codex", model: "gpt-5.5", reasoning: null });
+  assert.deepEqual(claw.factory.choice("reviewer", "t1"), { runner: "codex", model: "gpt-5.5", reasoning: null });
   assert.deepEqual(seen, [["choice", "reviewer"]]);
   assert.equal(claw.prequalify, true);
   assert.equal(claw.roles, true);
@@ -428,11 +428,26 @@ test("runner wiring follows a per-task choose when given, otherwise the per-role
   const asked = [];
   const choose = (role, taskId) => (asked.push([role, taskId]), { runner: "claude", model: "haiku", reasoning: "low" });
   const lean = liveRunnerWiring({ settings, evidence, choose });
-  assert.deepEqual(lean.choice("engineer", "t2"), { runner: "claude", model: "haiku", reasoning: "low" });
+  assert.deepEqual(lean.factory.choice("engineer", "t2"), { runner: "claude", model: "haiku", reasoning: "low" });
   assert.deepEqual(asked, [["engineer", "t2"]]);
   assert.equal(seen.length, 1, "settings.choice is not consulted when choose is given");
   assert.equal(lean.prequalify, false);
   assert.equal(lean.roles, false);
+});
+test("runner wiring checks jobs against the settings' catalog and discovers it again through the settings (D39)", async () => {
+  const before = { installs: { codex: { runner: "codex", loggedIn: false } }, models: {} };
+  const after = { installs: { codex: { runner: "codex", loggedIn: true } }, models: {} };
+  let refreshes = 0;
+  const settings = {
+    catalog: before,
+    refresh: async () => (refreshes++, (settings.catalog = after)),
+    choice: () => ({ runner: "codex", model: "gpt-5.5", reasoning: null }),
+  };
+  const { factory } = liveRunnerWiring({ settings, evidence: { record() {} } });
+  assert.equal(factory.installs(), before.installs);
+  assert.equal(await factory.rediscover(), after.installs);
+  assert.equal(refreshes, 1);
+  assert.equal(factory.installs(), after.installs, "later checks read the refreshed catalog");
 });
 test("the codex runtime option is not treated as a path", async (t) => {
   const f = await setup(t),

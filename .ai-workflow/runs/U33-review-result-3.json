@@ -1,0 +1,8 @@
+{
+  "token": "fd9b0dad28c0a22336cccad5467065177575e5a0dcbd3848f1a9e433e4c64c0c",
+  "output": {
+    "summary": "Review attempt 3 (last) of commit a4209a0: Ready to merge Yes, Critical 0, Important 0, Minor 1 (the new learning doc states the code-signing cause as fact; the trigger is probed, the mechanism is not confirmed from kernel logs). Helper keeps each test's intent (sha unchanged by construction, real discovery path); direct probe: copy-over-after-exec SIGKILLs 17-23/300, script-only rewrite 300/300 ok; stress 60/60; earlier mutants still caught. The wording goes into the delivery commit.",
+    "evidence": [".ai-workflow/runs/U33-review-3.md", ".ai-workflow/runs/U33-review-2.md", ".ai-workflow/runs/U33-review-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

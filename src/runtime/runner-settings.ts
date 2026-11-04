@@ -18,6 +18,8 @@ export type RunnerChoice = {
 export type RunnerCatalog = {
   installs: Record<RunnerName, RunnerInstall>;
   models: Partial<Record<RunnerName, RunnerModel[]>>;
+  /** Set when claude was ready but its model and hook listing failed, so its hooks were not judged. */
+  claudeUnlisted?: true;
 };
 const runners = ["codex", "claude"] as const;
 const roles = ["pm", "lead", "engineer", "reviewer"] as const;
@@ -33,6 +35,7 @@ export async function loadRunnerCatalog(
 ): Promise<RunnerCatalog> {
   const installs = await discoverRunners({ pathEnv, home });
   const models: RunnerCatalog["models"] = {};
+  let claudeUnlisted = false;
   if (installs.codex.status === "ready")
     models.codex = (await codexModels(installs.codex.path!).catch(() => ({ models: [] }))).models;
   if (installs.claude.status === "ready") {
@@ -40,20 +43,36 @@ export async function loadRunnerCatalog(
     models.claude = found?.models ?? [];
     // A failed discovery decides nothing.
     if (found) installs.claude = blockHookedClaude(installs.claude, found.hooks);
+    else claudeUnlisted = true;
   }
-  return { installs, models };
+  return { installs, models, ...(claudeUnlisted ? { claudeUnlisted: true } : {}) };
 }
 
 /** loadRunnerCatalog lists claude's hooks with its models, and a failed
  * listing judges nothing. Before a refusal the engine discovers again (D39), so
  * a listing that fails then must not unblock a claude an earlier discovery
- * blocked: the same binary keeps that block until a listing goes through. */
+ * blocked: the same binary keeps that block until a listing goes through. The
+ * block's hint is made again for the login found now (D30/D32). */
 function keptClaudeBlock(before: RunnerCatalog | undefined, after: RunnerCatalog): RunnerCatalog {
   const was = before?.installs.claude,
     now = after.installs.claude;
-  if (!was?.blocked || now.blocked || now.status !== "ready" || now.sha256 !== was.sha256 || after.models.claude?.length)
-    return after;
-  return { ...after, installs: { ...after.installs, claude: { ...now, blocked: was.blocked, hint: was.hint } } };
+  if (!after.claudeUnlisted || !was?.blocked || now.sha256 !== was.sha256) return after;
+  return { ...after, installs: { ...after.installs, claude: hookBlock(now, was.blocked) } };
+}
+
+const unlistedHooks = "hook 목록 없음";
+/** `blocked` names the hooks claude listed, or says it would not list them. */
+function hookBlock(install: RunnerInstall, blocked: string): RunnerInstall {
+  return {
+    ...install,
+    blocked,
+    hint: blockedHint(
+      install,
+      blocked === unlistedHooks
+        ? "claude가 hook 목록을 알려 주지 않아 Office 역할 실행에 hook이 끼는지 확인할 수 없습니다. Claude Code를 업데이트하거나 codex를 고르세요."
+        : `claude에 ${blocked}이 걸려 있습니다. hook은 Office 역할 실행 중 Office가 볼 수 없게 이 Mac에서 돌 수 있어 claude를 쓰지 않습니다. 그 hook을 빼거나(회사 IT의 관리형 설정이면 IT에 문의) codex를 고르세요.`,
+    ),
+  };
 }
 
 /** SessionEnd hooks never show in a role run's stream, so the run's own hook
@@ -61,19 +80,8 @@ function keptClaudeBlock(before: RunnerCatalog | undefined, after: RunnerCatalog
  * (`null`), is blocked. */
 export function blockHookedClaude(install: RunnerInstall, hooks: ClaudeHook[] | null): RunnerInstall {
   if (hooks?.length === 0) return install;
-  const blocked = hooks
-    ? [...new Set(hooks.map((h) => `${h.event} hook (${h.source})`))].join(", ")
-    : "hook 목록 없음";
-  return {
-    ...install,
-    blocked,
-    hint: blockedHint(
-      install,
-      hooks
-        ? `claude에 ${blocked}이 걸려 있습니다. hook은 Office 역할 실행 중 Office가 볼 수 없게 이 Mac에서 돌 수 있어 claude를 쓰지 않습니다. 그 hook을 빼거나(회사 IT의 관리형 설정이면 IT에 문의) codex를 고르세요.`
-        : "claude가 hook 목록을 알려 주지 않아 Office 역할 실행에 hook이 끼는지 확인할 수 없습니다. Claude Code를 업데이트하거나 codex를 고르세요.",
-    ),
-  };
+  const blocked = hooks ? [...new Set(hooks.map((h) => `${h.event} hook (${h.source})`))].join(", ") : unlistedHooks;
+  return hookBlock(install, blocked);
 }
 
 export const usable = (i: RunnerInstall) => i.status === "ready" && i.loggedIn && !i.blocked;

@@ -3,8 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-03 · Check-in: accepted
 Understanding gate (G3): docs/understanding/pazmo-agent-office-plan.md · 2026-09-18 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/runner-not-ready-wait-g4.json · 2026-11-03 · Check-in: accepted
-G4: PASS — D39(실행기 준비 안 됨도 기다리기): 사용자가 G4 설명 페이지를 본 뒤 "둘 다 ① 승인 후 머지"를 골랐다. 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/runner-not-ready-wait-g4.md).
+Understanding gate (G4): .ai-workflow/approvals/d39-minor-followups-g4.json · 2026-11-04 · Check-in: accepted
+G4: PASS — D39 후속(마지막 리뷰의 Minor 5건): 사용자가 G4 설명 페이지를 본 뒤 "① 승인 후 PR"을 골랐다. 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/d39-minor-followups-g4.md).
 
 ## Goal
 사람이 새 최소 Office(Tasks·작업 상세·Decisions·Agents)에서 일을 만들고 진행·결정·승인을 확인하며, ai-workflow-kit의 역할별 업무 절차가 작업 안의 단계로 돈다. kit가 역할별 절차와 로컬 run 상태를 관리하고 Office가 작업 큐·agent·격리 실행·실제 승인 기록을 관리한다. 팀 협업은 팀 허브와 팀 Story 보드(D24)로 한다. 실패하거나 검증하지 못한 작업은 완료로 표시하지 않는다. 실제 실행·격리·설치 시험과 모의 시험의 증거를 구분한다.
