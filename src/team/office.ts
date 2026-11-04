@@ -525,7 +525,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let syncSaid = new Set<string>();
   async function linksOnlySync(file: MacLinkFile, client: Pick<MacClient, "repos" | "link">) {
     const said = new Set<string>();
-    const { pending } = await syncMacRepos(
+    const { pending, minted } = await syncMacRepos(
       {
         root: c.root,
         hub: file.hub,
@@ -542,6 +542,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       "links-only",
     );
     syncSaid = said;
+    // A link minted now reaches its lane at once: a lane cut off by a re-pair waits no extra repo check (the Hub
+    // shows an open Task held after 10 minutes without a heartbeat).
+    if (minted.length) await recheckLanes();
     return pending;
   }
   const macClientFor = c.macClientFor ?? ((file: MacLinkFile) => macClient(file));
@@ -625,6 +628,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       else if (lane.state !== before) log(`team: ${lane.project}: not claiming yet: ${why(lane)}`);
     }
   }
+  /** `recheck`, one at a time: the repo check and a Mac sync that minted a link never work the same lanes at once. */
+  let rechecking: Promise<void> = Promise.resolve();
+  function recheckLanes(): Promise<void> {
+    const next = rechecking.then(recheck, recheck);
+    rechecking = next.catch(() => {});
+    return next;
+  }
 
   /** A timer whose run never overlaps itself and whose failure is logged, never thrown. */
   function every(ms: number, what: string, run: () => Promise<unknown>) {
@@ -685,7 +695,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (stopped || holdsForLive()) return;
     return scheduler.beat();
   });
-  every(recheckMs, "repo check", recheck);
+  every(recheckMs, "repo check", recheckLanes);
   if (live) every(c.driveMs ?? DRIVE_MS, "drive", () => ex.drive());
   // A connected Mac: its presence at once and every beat (nothing without a Mac link), its repo set every recheck.
   every(c.beatMs ?? BEAT_MS, "presence", () => watch.beat());

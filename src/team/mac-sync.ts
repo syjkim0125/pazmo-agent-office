@@ -70,8 +70,13 @@ export type MacRepoResult = {
 };
 /** `removed`: registry projects taken out. `pending` (links-only): owned repos (by name) that are not registered and
  * that the registry has a place for (`MAX_REPOS`), and Mac clones (by project) that are registered but no longer
- * owned. */
-export type MacSyncResult = { repos: MacRepoResult[]; removed: string[]; pending: { add: string[]; remove: string[] } };
+ * owned. `minted`: the repoIds whose link this sync minted and wrote. */
+export type MacSyncResult = {
+  repos: MacRepoResult[];
+  removed: string[];
+  pending: { add: string[]; remove: string[] };
+  minted: string[];
+};
 
 const login = (host: string) => `gh auth login --hostname ${host} --web --git-protocol https`;
 const setupCommand = (host: string) => `gh auth setup-git --hostname ${host}`;
@@ -184,7 +189,7 @@ export async function syncMacRepos(d: MacSyncDeps, mode: "full" | "links-only"):
   }
   const owned = await d.client.repos();
   let team: Team = readTeam(d.root);
-  const result: MacSyncResult = { repos: [], removed: [], pending: { add: [], remove: [] } };
+  const result: MacSyncResult = { repos: [], removed: [], pending: { add: [], remove: [] }, minted: [] };
   const problem = (r: MacRepoResult, what: string): MacRepoResult => {
     r.problem = `${r.name}: ${what}`;
     say(r.problem);
@@ -329,6 +334,7 @@ export async function syncMacRepos(d: MacSyncDeps, mode: "full" | "links-only"):
     } catch (error) {
       return problem(r, `연결 파일 ${file}을 쓰지 못했습니다 — ${reasonOf(error)}`);
     }
+    result.minted.push(minted.repoId);
     say(`${r.name}: 허브 연결을 받았습니다`);
     return { ...r, linked: true };
   }

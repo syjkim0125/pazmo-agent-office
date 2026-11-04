@@ -1331,6 +1331,37 @@ test("a live Office whose runners are not ready is not restarted for a changed r
   assert.equal(lockedMac.restarts, 1);
 });
 
+test("a link the repo check mints reaches its lane at once, not one repo check later", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const mac = fakeMac();
+  const { macSync: _, ...config } = mac.config;
+  const minted = [];
+  const office = await f.open({
+    ...config,
+    // The default repo check (a links-only sync) over a fake Hub: alpha is owned and this Mac holds no link for it.
+    macClientFor: (file) => ({
+      ...mac.config.macClientFor(file),
+      repos: async () => [{ repoId: "r-alpha", name: "alpha", remote: "github.example.com/team/alpha", linked: false }],
+      async link(repoId) {
+        minted.push(repoId);
+        f.link(a, "a"); // what the lane reads once the link file is written
+        return { token: "L".repeat(43), member: { id: MAC_FILE.memberId, name: MAC_FILE.memberName }, repoId, repoName: "alpha" };
+      },
+    }),
+    recheckMs: 10000,
+  });
+  assert.equal(office.status().repos[0].state, "no-link");
+  // One tick: the lane check runs first (nothing to read yet), then the Mac's repo check mints alpha's link.
+  t.mock.timers.tick(10000);
+  await until(() => minted.length === 1, "the repo check mints alpha's link");
+  await flush();
+  assert.deepEqual(minted, ["r-alpha"]);
+  assert.equal(office.status().repos[0].state, "ready", "the lane reads the new link in the same tick");
+  assert.ok(f.logs.some((line) => line.includes(`${a}: ready again (was no-link)`)), f.logs.join("\n"));
+});
+
 test("a claim under way counts as open: the repo check waits for it and the Office is not restarted", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const f = fixture(t);

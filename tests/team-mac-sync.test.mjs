@@ -126,6 +126,7 @@ test("a full sync clones each owned repo into <root>/repos/<name>, registers it 
     ],
     removed: [],
     pending: { add: [], remove: [] },
+    minted: [m.id("app-be"), m.id("app-fe")],
   });
   assert.deepEqual(m.lines, [
     "app-be: clone했습니다",
@@ -177,6 +178,7 @@ test("a full sync clones each owned repo into <root>/repos/<name>, registers it 
     ["app-be", be, false, true, true, null],
     ["app-fe", fe, false, true, true, null],
   ]);
+  assert.deepEqual(second.minted, [], "nothing minted");
   assert.deepEqual(git.clones(), [], "no clone ran");
   assert.equal(setups, 0, "nothing to clone, no setup-git");
   assert.deepEqual(m.lines, [], "nothing to say");
