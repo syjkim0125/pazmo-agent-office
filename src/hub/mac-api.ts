@@ -65,16 +65,24 @@ export function macApi(
     }
     if (path === "/api/mac/token") return json(res, 200, store.pollMac(str(parse(await readBody(req, FORM_LIMIT)), "deviceCode")));
     const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? "")?.[1];
-    const mac = token ? store.mac(token) : null;
-    if (!mac)
-      return json(res, 401, {
+    const authorize = () => (token ? store.mac(token) : null);
+    const unauthorized = () =>
+      json(res, 401, {
         error: "UNAUTHORIZED",
         message: "이 Mac 연결이 해제됐습니다. 허브의 /mac에서 설치 명령을 다시 실행하세요.",
       });
+    // Looked up now for a cheap refusal, and again below for the routes that wait on a body.
+    let mac = authorize();
+    if (!mac) return unauthorized();
     if (path === "/api/mac/repos") return json(res, 200, { repos: store.macRepos(mac) });
     // Nothing to type-check, so no body is required: a Mac that posts nothing can still disconnect itself.
     if (path === "/api/mac/revoke") return json(res, 200, store.revokeOwnMac(mac));
-    const body = parse(await readBody(req, FORM_LIMIT));
+    const raw = await readBody(req, FORM_LIMIT);
+    // The Mac may have been revoked, or replaced by a newer one, while the body arrived. A stale Mac must not mint a link
+    // (that would end the new Mac's link to the repo) or record a beat, so it is checked again with no await before the store call.
+    mac = authorize();
+    if (!mac) return unauthorized();
+    const body = parse(raw);
     if (path === "/api/mac/link") return json(res, 200, store.macLink(mac, str(body, "repoId")));
     const detail = body.detail === undefined || body.detail === null ? null : str(body, "detail");
     return json(res, 200, store.macHeartbeat(mac, str(body, "state"), detail));

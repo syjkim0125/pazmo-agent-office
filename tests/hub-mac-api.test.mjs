@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { request } from "node:http";
+import { request as secureRequest } from "node:https";
+import { checkServerIdentity } from "node:tls";
 import { DatabaseSync } from "node:sqlite";
 import { HubStore, MAC_CODE_TTL } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
@@ -420,4 +422,73 @@ test("Mac API answers never set a cookie or return HTML, also on a 500", async (
     assert.doesNotMatch(res.text, /<html|<!doctype/i);
   }
   assert.deepEqual(answers.map((r) => r.status), [200, 400, 200, 200, 200, 200, 401, 404, 405, 426, 200]);
+});
+
+/**
+ * POSTs to a Mac route over the LAN hub but holds the end of the body back: once the hub has looked the token up
+ * (`store.mac` was called, so it is now waiting for the body) `between` runs, and only then the rest of the body goes out.
+ */
+async function slowPost({ hub, tls, store }, t, path, token, body, between) {
+  const text = JSON.stringify(body);
+  const lookups = t.mock.method(store, "mac");
+  const before = lookups.mock.callCount();
+  const answer = new Promise((resolve, reject) => {
+    const req = secureRequest(new URL(path, hub.url), {
+      method: "POST",
+      ca: [tls.caPem],
+      checkServerIdentity: (_host, cert) => checkServerIdentity("127.0.0.1", cert),
+      headers: {
+        "content-type": "application/json",
+        "content-length": Buffer.byteLength(text),
+        "x-pazmo-hub-protocol": "4",
+        authorization: `Bearer ${token}`,
+      },
+    }, (res) => {
+      let out = "";
+      res.setEncoding("utf8");
+      res.on("data", (c) => (out += c));
+      res.on("end", () => resolve({ status: res.statusCode, json: JSON.parse(out) }));
+    });
+    req.on("error", reject);
+    req.write(text.slice(0, 5));
+    (async () => {
+      for (let i = 0; i < 300 && lookups.mock.callCount() === before; i++) await new Promise((r) => setTimeout(r, 10));
+      assert.ok(lookups.mock.callCount() > before, "the hub looked the token up and is waiting for the body");
+      await between();
+      req.end(text.slice(5));
+    })().catch(reject);
+  });
+  return answer;
+}
+
+test("a link call whose Mac is replaced while its body is still arriving is 401 and leaves the new Mac's link alone", async (t) => {
+  const ctx = await seeded(t);
+  const { mac, api, pair, be, b } = ctx;
+  const a = await pair(b, "옛 Mac");
+  const linkSpy = t.mock.method(ctx.store, "macLink");
+  let second, minted;
+  const late = await slowPost(ctx, t, "/api/mac/link", a.macToken, { repoId: be }, async () => {
+    // The member pairs a new Mac (which revokes the old one) and that Mac links the same repo.
+    second = await pair(b, "새 Mac");
+    minted = (await mac("POST", "/api/mac/link", { token: second.macToken, body: { repoId: be } })).json.token;
+  });
+  assert.deepEqual([late.status, late.json], [401, UNAUTHORIZED]);
+  assert.equal(linkSpy.mock.callCount(), 1, "only the new Mac's own link call reached the store");
+  const claim = (token) => api("POST", "/api/link/story/claim", { token, protocol: "3", body: {} });
+  assert.equal((await claim(minted)).status, 200, "the new Mac's link was not replaced by a dead one");
+  const repos = await mac("GET", "/api/mac/repos", { token: second.macToken });
+  assert.deepEqual(repos.json.repos.map((r) => [r.name, r.linked]), [["app-be", true], ["app-ops", false]]);
+});
+
+test("a heartbeat from a Mac revoked while its body was arriving is 401 and is not recorded", async (t) => {
+  const ctx = await seeded(t);
+  const { store, admin, b, pair } = ctx;
+  const { macToken, macId } = await pair();
+  const beats = t.mock.method(store, "macHeartbeat");
+  const late = await slowPost(ctx, t, "/api/mac/heartbeat", macToken, { state: "working", detail: "늦은 신호" }, async () => {
+    store.revokeMac(admin, macId);
+  });
+  assert.deepEqual([late.status, late.json], [401, UNAUTHORIZED]);
+  assert.equal(beats.mock.callCount(), 0, "a revoked Mac's beat never reaches the store");
+  assert.deepEqual(store.macs(b.id), []);
 });
