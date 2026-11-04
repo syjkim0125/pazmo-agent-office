@@ -324,7 +324,7 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
   e.say("[3/3] 로그인할 때 Office 자동 실행 등록");
   const extraCa = extraCaOf();
   try {
-    await installLaunchAgent({
+    const agent = await installLaunchAgent({
       home: e.home,
       uid: e.uid,
       node: d.node ?? stableNodePath(process.execPath),
@@ -334,6 +334,8 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
       run: e.launch,
       sleep: d.sleep,
     });
+    // Left loaded: reloading it would stop an Office start it may still be running.
+    if (agent === "kept") e.say("로그인할 때 Office 자동 실행은 이미 등록돼 있습니다 — 다시 등록하지 않습니다");
   } catch (error) {
     if (!(error instanceof OfficeError) || error.code !== "LAUNCHD_FAILED") throw error;
     fail(

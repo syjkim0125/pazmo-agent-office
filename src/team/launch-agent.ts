@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { chmodSync, existsSync, mkdirSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join } from "node:path";
 import { fail } from "../cli/project.ts";
@@ -147,13 +147,27 @@ function writePlist(file: string, text: string): void {
 const BOOTSTRAP_WAITS_MS = [500, 1500];
 const realSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** Whether `file` holds exactly `text`; a file that is not there or cannot be read does not. */
+function holds(file: string, text: string): boolean {
+  try {
+    return readFileSync(file).equals(Buffer.from(text, "utf8"));
+  } catch {
+    return false;
+  }
+}
+
 /** Writes the LaunchAgent and loads it for this user: `bootout` first (the agent may be loaded from an earlier
  * connect; a failure there only means it was not), `enable` (some macOS versions leave the label disabled after a
  * bootout, and then bootstrap fails until it is enabled again; it changes nothing when already enabled), then
  * `bootstrap`. A bootstrap that runs right after a bootout can fail while launchd is still tearing the old job down
  * (`5: Input/output error`), so it is tried up to 3 times, 500 ms and then 1500 ms apart. When every try fails the
  * error is `LAUNCHD_FAILED` with the last try's first stderr line; the file stays, so the agent still loads at the
- * next login. `sleep` is for tests. */
+ * next login. `sleep` is for tests.
+ *
+ * `kept` instead when the plist on disk is already this one and launchd knows the agent (`print` exits 0): a bootout
+ * would kill an `up --team` it may still be running (minutes, the first time). The agent is only kickstarted, without
+ * `-k`: launchd starts `up --team` when it is not running (it reuses a running Office), and leaves a running one
+ * alone. A kickstart that fails changes nothing; the agent's own interval tries again. */
 export async function installLaunchAgent(o: {
   home: string;
   uid: number;
@@ -163,7 +177,7 @@ export async function installLaunchAgent(o: {
   extraCa?: string;
   run?: LaunchRun;
   sleep?: (ms: number) => Promise<void>;
-}): Promise<void> {
+}): Promise<"loaded" | "kept"> {
   const target = domain(o.uid);
   const text = launchAgentPlist(o);
   const run = o.run ?? launchRun;
@@ -171,16 +185,20 @@ export async function installLaunchAgent(o: {
   const file = launchAgentPath(o.home);
   // launchd opens the log file when it starts the job; without its folder the job does not start at all.
   mkdirSync(teamDir(o.root), { recursive: true, mode: 0o700 });
+  if (holds(file, text) && (await attempt(run, ["print", `${target}/${LAUNCH_LABEL}`])).exitCode === 0) {
+    await attempt(run, ["kickstart", `${target}/${LAUNCH_LABEL}`]);
+    return "kept";
+  }
   writePlist(file, text);
   await attempt(run, ["bootout", `${target}/${LAUNCH_LABEL}`]);
   await attempt(run, ["enable", `${target}/${LAUNCH_LABEL}`]);
   let result = await attempt(run, ["bootstrap", target, file]);
   for (const wait of BOOTSTRAP_WAITS_MS) {
-    if (result.exitCode === 0) return;
+    if (result.exitCode === 0) return "loaded";
     await sleep(wait);
     result = await attempt(run, ["bootstrap", target, file]);
   }
-  if (result.exitCode === 0) return;
+  if (result.exitCode === 0) return "loaded";
   const reason = result.stderr.split("\n").map((line) => line.trim()).find(Boolean);
   fail("LAUNCHD_FAILED", `launchctl bootstrap failed: ${reason ?? `exit ${result.exitCode ?? "none"}`}`);
 }

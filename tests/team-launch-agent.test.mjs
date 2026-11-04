@@ -211,6 +211,55 @@ test("install survives a bootout that throws, and keeps an existing LaunchAgents
   assert.equal(statSync(agents).mode & 0o777, 0o700);
 });
 
+test("install says loaded when it loads the agent, and kept when the same plist is already loaded: then no bootout, enable or bootstrap, only a kickstart without -k", async () => {
+  const { home, root } = fixture();
+  const file = launchAgentPath(home);
+  const first = recorder();
+  assert.equal(await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: first.run }), "loaded");
+  const before = readFileSync(file);
+  const mtime = statSync(file).mtimeMs;
+
+  // The same plist, and launchd knows the agent: an `up` it may be running is left alone.
+  const again = recorder();
+  assert.equal(await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: again.run, sleep: sleeper().sleep }), "kept");
+  assert.deepEqual(again.calls, [
+    [LAUNCHCTL, ["print", "gui/501/com.pazmo.office"]],
+    [LAUNCHCTL, ["kickstart", "gui/501/com.pazmo.office"]],
+  ]);
+  assert.deepEqual(readFileSync(file), before);
+  assert.equal(statSync(file).mtimeMs, mtime, "the file is not rewritten");
+
+  // A kickstart that fails changes nothing: the agent stays loaded.
+  const refused = recorder((args) => (args[0] === "kickstart" ? { exitCode: 5, stdout: "", stderr: "failed\n" } : { exitCode: 0, stdout: "", stderr: "" }));
+  assert.equal(await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: refused.run }), "kept");
+  assert.deepEqual(refused.calls.map(([, args]) => args[0]), ["print", "kickstart"]);
+});
+
+test("install reloads as before when the plist on disk differs, or is the same but not loaded", async () => {
+  const { home, root } = fixture();
+  const file = launchAgentPath(home);
+  await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: recorder().run });
+
+  // Another node: a changed plist is written and loaded again, without asking launchd first.
+  const changed = recorder();
+  assert.equal(await installLaunchAgent({ home, uid: UID_, node: "/usr/local/bin/node", cli: CLI, root, run: changed.run }), "loaded");
+  assert.deepEqual(changed.calls.map(([, args]) => args[0]), ["bootout", "enable", "bootstrap"]);
+  assert.ok(readFileSync(file, "utf8").includes("<string>/usr/local/bin/node</string>"));
+
+  // The same plist that launchd does not know (print fails): loaded as before.
+  const notLoaded = recorder((args) => (args[0] === "print" ? { exitCode: 113, stdout: "", stderr: "Could not find service\n" } : { exitCode: 0, stdout: "", stderr: "" }));
+  assert.equal(await installLaunchAgent({ home, uid: UID_, node: "/usr/local/bin/node", cli: CLI, root, run: notLoaded.run }), "loaded");
+  assert.deepEqual(notLoaded.calls.map(([, args]) => args[0]), ["print", "bootout", "enable", "bootstrap"]);
+
+  // A print that throws counts as not loaded.
+  const throwing = recorder((args) => {
+    if (args[0] === "print") throw new Error("spawn failed");
+    return { exitCode: 0, stdout: "", stderr: "" };
+  });
+  assert.equal(await installLaunchAgent({ home, uid: UID_, node: "/usr/local/bin/node", cli: CLI, root, run: throwing.run }), "loaded");
+  assert.deepEqual(throwing.calls.map(([, args]) => args[0]), ["print", "bootout", "enable", "bootstrap"]);
+});
+
 test("a failed bootstrap is LAUNCHD_FAILED with launchctl's first stderr line", async () => {
   const { home, root } = fixture();
   const { run } = recorder((args) =>

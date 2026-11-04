@@ -175,7 +175,7 @@ test("mac connect pairs, writes mac-link.json 0600, clones and registers owned r
   m.noSecret(m.opened.join("\n"), "the opened URL");
 });
 
-test("mac connect again with a live link does not pair, clone, register or mint anything and reloads the agent", async (t) => {
+test("mac connect again with a live link does not pair, clone, register or mint anything and keeps the loaded agent", async (t) => {
   const m = await world(t, ["app-be"]);
   await m.connect();
   const links = liveLinks(m);
@@ -199,8 +199,22 @@ test("mac connect again with a live link does not pair, clone, register or mint 
   assert.deepEqual(readFileSync(join(teamDir(m.root), "team.json")), registry);
   assert.deepEqual(readFileSync(m.linkFile(be)), linkBytes);
   assert.deepEqual(readFileSync(macLinkPath(m.root)), macLink);
-  assert.deepEqual(launchArgs(m), loaded(m), "the agent is loaded again");
+  // The same plist, loaded: no bootout (it would kill an `up` still starting the Office), only a kickstart.
+  assert.deepEqual(launchArgs(m), [
+    ["/bin/launchctl", "print", `gui/${UID_}/com.pazmo.office`],
+    ["/bin/launchctl", "kickstart", `gui/${UID_}/com.pazmo.office`],
+  ]);
   assert.ok(m.lines.some((line) => line.includes("다시 짝짓지 않습니다")), m.lines.join("\n"));
+  assert.ok(m.lines.some((line) => line.includes("자동 실행은 이미 등록돼 있습니다")), m.lines.join("\n"));
+
+  // Not loaded (launchd does not know it): loaded as before.
+  m.launches.length = 0;
+  const notLoaded = async (exe, args) => {
+    m.launches.push([exe, args]);
+    return args[0] === "print" ? { exitCode: 113, stdout: "", stderr: "Could not find service" } : { exitCode: 0, stdout: "", stderr: "" };
+  };
+  assert.equal((await m.connect({ launch: notLoaded })).launchAgent, "loaded");
+  assert.deepEqual(launchArgs(m), [["/bin/launchctl", "print", `gui/${UID_}/com.pazmo.office`], ...loaded(m)]);
 });
 
 test("mac connect while the team Office runs changes no registry and says the Office will do it", async (t) => {
