@@ -12,10 +12,12 @@
   - 관련 시험 파일 11개 238/238, 타입 검사 exit 0.
   - 독립 리뷰 1차는 머지 가능이었다(Critical·Important 0). Minor 4건(문구 셋, "hook 목록 없음" 안내를 글자까지 보는 시험)을 반영했다. 수정분만 본 2차도 머지 가능이었고, 문구 Minor 2건을 반영했다.
   - kit 검증 1차는 새 시험 하나가 시험 조각 안에서만 실패했다(431/432). 시험 helper가 이미 실행한 가짜 실행 파일을 덮어써서 macOS가 다음 실행을 가끔 죽인 것이다. helper는 이제 스크립트만 바꾼다(같은 부하 재현 4/60 → 0/60). [학습 문서](solutions/test-failures/rewrite-a-fake-cli-script-not-its-executed-binary.md)
-- G4는 아직이다.
+  - 리뷰 3차(마지막)도 머지 가능이었다. 학습 문서가 SIGKILL의 원인을 단정한 문구 하나는 이 전달 커밋에서 "추정"으로 고쳤다(kit 리뷰·검증 밖).
+  - kit 검증 2차: 시험 441/441 + 448/448 + 432/432 = **1321/1321**, 타입 검사·Story 검사 exit 0.
+- PR syjkim0125/pazmo-agent-office#72. G4는 2026-11-04에 기록했다. 사용자가 설명 페이지를 본 뒤 "① 승인 후 PR"을 골랐고, 세 질문의 답은 컨트롤러가 썼다. `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/d39-minor-followups-g4.md)
 - **남은 것:**
   - `createLiveRuntime`의 `roleJobFactory` 호출에서 `rediscover`를 빠뜨리거나 덮어쓰면(필드를 하나씩 넘기기, `rediscover: undefined`) 시험도 타입 검사도 잡지 못한다.
-  - lean Office는 자기 목록 사본을 읽어 `keptClaudeBlock`이 적용되지 않는다(실행기 화면, agent 저장 검사, 기본 실행기 고르기). 조회 실패 때 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다(엔진은 여전히 거절, 리뷰어가 코드로 찾음, 전부터 있던 것). 별도 후속이다.
+  - lean Office는 자기 목록 사본을 읽어 `keptClaudeBlock`이 적용되지 않는다(실행기 화면, agent 저장 검사, 기본 실행기 고르기). 조회 실패 때 그곳에서는 claude가 막히지 않은 것으로 보일 수 있다(엔진은 여전히 거절, 리뷰어가 코드로 찾음, 전부터 있던 것). 별도 작업으로 시작했다(2026-11-04).
   - 실제 claude로 재현하지 않았다(가짜 CLI로만 확인). [변경 기록](verification/2026-11-03-runner-not-ready-wait.md)의 "후속"
 
 # 2026-11-03 실행기 준비 안 됨도 시도로 세지 않고 기다린다 (D39)

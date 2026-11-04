@@ -33,9 +33,13 @@ Under load, the next `--version` sometimes died at once with SIGKILL. Discovery 
   - 4 of 60 runs failed.
   - Each failure was `{"exitCode":null,"signal":"SIGKILL","timedOut":false}` on the run right after the overwrite.
 - **The pattern:** older tests that call `fakeNative` again do it before the fake first runs, and they never failed this way.
-- **Why:**
-  - Copying over a Mach-O that has already been executed modifies the same vnode.
-  - macOS's code-signing check can then kill a later exec of it, even when the new bytes are identical.
+- **A direct probe (the review's)** used `fakeNative`, 10 at a time:
+  - Run, copy the shim over it, run again: 283/300 and 277/300 ok. Every failure was SIGKILL.
+  - Rewrite only `.sh` between the runs: 300/300 ok.
+  - Overwrite before the first run, then run twice: 600/600 ok.
+- **Why, likely:**
+  - Copying over a Mach-O that has already been executed modifies the same vnode. macOS's code-signing check can then kill a later exec of it, even when the new bytes are identical.
+  - This was not confirmed from the kernel log, which kept no entries for these runs. The trigger, an in-place overwrite after a first run, is confirmed by the probe.
 
 ## Fix
 Leave the native file alone after it has run, and rewrite only `<path>.sh` (`rewriteClaude` in `tests/runner-settings.test.mjs`). The sha256 stays the same, and the behaviour changes. In the same stress, 0 of 60 runs failed.

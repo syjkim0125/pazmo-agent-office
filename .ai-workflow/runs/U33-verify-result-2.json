@@ -1,0 +1,8 @@
+{
+  "token": "0c6b7e1a2fed7f15839390b2bea15d3d64ebc9f8910839d52b161604c44696a9",
+  "output": {
+    "summary": "kit verify attempt 2 at a4209a0: tests 441/441 + 448/448 + 432/432 = 1321/1321 (main 1317 + 4 new), typecheck exit 0, story exit 0, all runner receipts passed on the same snapshot.",
+    "evidence": [".ai-workflow/runs/U33-verify-2.md"]
+  },
+  "evaluation": { "passed": true }
+}
