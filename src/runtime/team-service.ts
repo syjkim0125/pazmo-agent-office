@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { dirname } from "node:path";
+import { removeSavedState } from "../cli/lifecycle.ts";
 import { noSymlinks } from "../cli/project.ts";
 import { startLifecycleServer } from "../lean/server.ts";
 import { createTeamOffice, lifecycleView } from "../team/office.ts";
@@ -34,6 +35,8 @@ process.once("message", async (raw: unknown) => {
   let office: TeamOffice | undefined;
   let server: { port: number; close(): Promise<void> } | undefined;
 
+  /** Where `start` records this instance once it is ready; set when the data directory is checked. */
+  let saved: { dataDir: string; instance: string } | undefined;
   let closing: Promise<number> | undefined;
   /** Stops new work, stops accepting requests, then closes the Office (its
    * engines, their databases and the team store). Idempotent; resolves with
@@ -52,6 +55,13 @@ process.once("message", async (raw: unknown) => {
       await step("stop", () => office?.beginStop());
       await step("server", () => server?.close());
       await step("office", () => office?.close());
+      // Its saved state goes with it, or a logout or reboot would leave a state the next start cannot resolve.
+      // Only its own: another instance may have replaced it. A failure is logged and changes no exit code.
+      try {
+        if (saved) removeSavedState(saved.dataDir, saved.instance);
+      } catch (error) {
+        console.error("Team shutdown: its runtime state could not be removed:", error);
+      }
       return code;
     })();
     return closing;
@@ -108,6 +118,7 @@ process.once("message", async (raw: unknown) => {
     noSymlinks(dataDir);
     // The team Office is its own project (teamProject); nothing else is accepted.
     if (project !== dataDir) throw new Error("INVALID_HOST_CONFIG");
+    saved = { dataDir, instance: value.instance };
     const { pathEnv, home, sshAuthSock } = value.host;
     office = await createTeamOffice({
       root: dirname(dataDir),

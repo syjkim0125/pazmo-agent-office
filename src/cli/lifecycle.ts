@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   closeSync,
@@ -6,8 +7,7 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
-  rmdirSync,
-  unlinkSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
@@ -87,6 +87,89 @@ function readState(p: Project): Running | undefined {
     fail("UNKNOWN", "Runtime state is invalid; preserve it for recovery.");
   return s;
 }
+/** Removes `<dataDir>/running.json` if it still names `instance`, never a concurrently replaced instance's, and that
+ * instance's operator file (an Office an earlier version started may have left one). A state already gone, or one
+ * that cannot be parsed, is left as it is. `stop`, stale-state recovery and a service shutting down use it. */
+export function removeSavedState(dataDir: string, instance: string): void {
+  const file = join(dataDir, "running.json");
+  noSymlinks(file);
+  let saved: { instance?: unknown } | null;
+  try {
+    saved = JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    if (error instanceof SyntaxError || (error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  if (saved?.instance !== instance) return;
+  const operator = join(dataDir, `operator-${instance}.json`);
+  noSymlinks(operator);
+  rmSync(file, { force: true });
+  rmSync(operator, { force: true });
+}
+/** Whether no process has this pid. Signal 0 only checks; a process of another user (EPERM) is alive, and so is an
+ * unrelated process that reused the pid. */
+function processGone(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+/** The start lock: a directory, made atomically by a start or a stale-state recovery, holding its maker's pid. */
+const startLock = (p: Project) => join(p.dataDir, "start.lock");
+/** Whether no live start lock exists. A lock whose maker is gone (a start killed outright, a reboot) is removed. A
+ * lock without a readable pid (an earlier version's, or one whose maker is writing it this instant) is live. */
+function startLockFree(p: Project): boolean {
+  const lock = startLock(p);
+  noSymlinks(lock);
+  if (!existsSync(lock)) return true;
+  let pid: number;
+  try {
+    pid = Number(readFileSync(join(lock, "pid"), "utf8"));
+  } catch {
+    return false;
+  }
+  if (!Number.isInteger(pid) || pid <= 0 || !processGone(pid)) return false;
+  rmSync(lock, { recursive: true, force: true });
+  return true;
+}
+/** Takes the start lock, taking over a stale one; undefined while another process holds it. The result releases it. */
+function takeStartLock(p: Project): (() => void) | undefined {
+  const lock = startLock(p);
+  noSymlinks(lock);
+  for (let attempt = 0; ; attempt++)
+    try {
+      mkdirSync(lock, { mode: 0o700 });
+      break;
+    } catch {
+      if (attempt > 0 || !startLockFree(p)) return;
+    }
+  const release = () => rmSync(lock, { recursive: true, force: true });
+  try {
+    writeFileSync(join(lock, "pid"), String(process.pid), { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    release();
+    throw error;
+  }
+  return release;
+}
+/** A saved state whose controller did not answer and whose process is gone (a logout, reboot or crash ended it
+ * without `stop`) is stale: cleared under the start lock if the file still names that instance. True when no state
+ * is left. False, and nothing changes, while its process may be alive, another process holds the lock, or another
+ * instance replaced it. The pid is never signalled. */
+function clearDeadState(p: Project, s: Running): boolean {
+  if (!processGone(s.pid)) return false;
+  const release = takeStartLock(p);
+  if (!release) return false;
+  try {
+    const current = readState(p);
+    if (current?.instance === s.instance) removeSavedState(p.dataDir, s.instance);
+    return !current || current.instance === s.instance;
+  } finally {
+    release();
+  }
+}
 async function control(s: Running, action: "status" | "stop") {
   const response = await fetch(`http://127.0.0.1:${s.port}/__pazmo/${action}`, {
     method: action === "stop" ? "POST" : "GET",
@@ -159,7 +242,7 @@ export async function status(p: Project): Promise<OfficeStatus> {
   const s = readState(p);
   if (!s)
     return {
-      status: existsSync(join(p.dataDir, "start.lock")) ? "unknown" : "stopped",
+      status: startLockFree(p) ? "stopped" : "unknown",
       execution: "locked",
     };
   try {
@@ -175,6 +258,7 @@ export async function status(p: Project): Promise<OfficeStatus> {
       dataDir: p.dataDir,
     };
   } catch {
+    if (clearDeadState(p, s)) return { status: "stopped", execution: "locked" };
     return {
       status: "unknown",
       execution: "locked",
@@ -214,12 +298,22 @@ export async function start(
   ignoreMetadata(p);
   noSymlinks(p.dataDir);
   mkdirSync(p.dataDir, { recursive: true, mode: 0o700 });
-  const lock = join(p.dataDir, "start.lock");
-  try {
-    mkdirSync(lock, { mode: 0o700 });
-  } catch {
-    return fail("BUSY", "Another start or recovery owns this Office.");
-  }
+  const release = takeStartLock(p);
+  if (!release) return fail("BUSY", "Another start or recovery owns this Office.");
+  let spawned: ChildProcess | undefined;
+  /** A signal while the start waits (launchd's bootout sends SIGTERM, a terminal's Ctrl-C SIGINT) would end the
+   * process without the `finally` below: stop the service it spawned, as a failed start does, release the lock and
+   * leave non-zero. Nothing was recorded yet: the state is written after the ready, without waiting. */
+  const interrupted = (signal: NodeJS.Signals) => {
+    spawned?.kill("SIGTERM");
+    release();
+    console.error(
+      JSON.stringify({ code: "INTERRUPTED", error: `Office start was interrupted (${signal}); the service it started was stopped.` }),
+    );
+    process.exit(1);
+  };
+  process.on("SIGTERM", interrupted);
+  process.on("SIGINT", interrupted);
   try {
     // Recheck after acquiring the lock; never replace another controller's state.
     if (readState(p))
@@ -243,6 +337,7 @@ export async function start(
         env: serviceEnv(engine, p.dataDir),
       },
     );
+    spawned = child;
     closeSync(fd);
     let readyPort: number;
     try {
@@ -316,7 +411,9 @@ export async function start(
       dataDir: p.dataDir,
     };
   } finally {
-    rmdirSync(lock);
+    process.off("SIGTERM", interrupted);
+    process.off("SIGINT", interrupted);
+    release();
   }
 }
 
@@ -357,7 +454,7 @@ export async function stopTeam(root: string) {
 }
 export async function stop(p: Project) {
   readManifest(p);
-  if (existsSync(join(p.dataDir, "start.lock")))
+  if (!startLockFree(p))
     fail(
       "UNKNOWN",
       "Office startup or recovery is still pending; state is preserved.",
@@ -374,19 +471,14 @@ export async function stop(p: Project) {
       error.code === "TASK_ACTIVE"
     )
       throw error;
+    if (clearDeadState(p, s)) return { status: "stopped", execution: "locked" };
     return fail(
       "UNKNOWN",
       "Runtime could not be authenticated. No process was signalled; state is preserved.",
     );
   }
-  // Only clear the state we authenticated, never a concurrently replaced instance.
-  // An Office an earlier version started may also have left an operator file.
-  if (readState(p)?.instance === s.instance) {
-    unlinkSync(join(p.dataDir, "running.json"));
-    const operator = join(p.dataDir, `operator-${s.instance}.json`);
-    noSymlinks(operator);
-    if (existsSync(operator)) unlinkSync(operator);
-  }
+  // Only clear the state we authenticated; the stopping Office may have removed it already.
+  removeSavedState(p.dataDir, s.instance);
   return { status: "stopped", execution: "locked", dataPreserved: p.dataDir };
 }
 

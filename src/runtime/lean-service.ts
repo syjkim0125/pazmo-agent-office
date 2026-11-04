@@ -2,6 +2,7 @@ import { realpathSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { DatabaseSync } from "node:sqlite";
+import { removeSavedState } from "../cli/lifecycle.ts";
 import { noSymlinks } from "../cli/project.ts";
 import { createLeanOffice } from "../lean/office.ts";
 import type { LeanOffice } from "../lean/office.ts";
@@ -33,6 +34,8 @@ process.once("message", async (raw: unknown) => {
   let office: LeanOffice | undefined;
   let server: { port: number; close(): Promise<void> } | undefined;
 
+  /** Where `start` records this instance once it is ready; set when the data directory is checked. */
+  let saved: { dataDir: string; instance: string } | undefined;
   let closing: Promise<number> | undefined;
   /** Stops new work, stops accepting requests, then closes the Office, then the
    * database (the reverse of how they opened). Idempotent: later calls (a second
@@ -54,6 +57,13 @@ process.once("message", async (raw: unknown) => {
       await step("server", () => server?.close());
       await step("office", () => office?.close());
       await step("database", () => db?.close());
+      // Its saved state goes with it, or a logout or reboot would leave a state the next start cannot resolve.
+      // Only its own: another instance may have replaced it. A failure is logged and changes no exit code.
+      try {
+        if (saved) removeSavedState(saved.dataDir, saved.instance);
+      } catch (error) {
+        console.error("Lean shutdown: its runtime state could not be removed:", error);
+      }
       return code;
     })();
     return closing;
@@ -105,6 +115,7 @@ process.once("message", async (raw: unknown) => {
       // The real path: noSymlinks rejects a symlinked ancestor such as /var on macOS.
       dataDir = realpathSync(value.dataDir);
     noSymlinks(dataDir);
+    saved = { dataDir, instance: value.instance };
     db = openLeanDb(dataDir, project);
     // After every step below that waits: a SIGTERM that came meanwhile closes
     // exactly what is open by now (server, office, database) and ends the start.
