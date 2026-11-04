@@ -78,7 +78,7 @@
 | 판정 | 이유 |
 |---|---|
 | **Mac API는 `/api/mac/*`, 프로토콜 헤더는 `"4"`다.** 다른 값이나 없음은 426 `PROTOCOL_MISMATCH`, `expected:"4"`다 | "`/api/link/*`와 같은 헤더 규칙". 1·2·3과 겹치지 않는 새 번호로, Mac 경로가 없는 옛 Hub와 구분한다 |
-| **Hub에 요청 제한기를 새로 둔다(메모리, 고정 창).** `/api/mac/start`는 클라이언트 키마다 10번/600000 ms다. 키는 TLS 모드에서 소켓 주소, OpenShift 모드에서 `x-forwarded-for`의 **마지막** 값이다. 대기 코드는 Hub 전체에서 100개까지다. 웹 허용·거절은 사람마다 10번/600000 ms다 | 결정은 "다른 인증 없는 POST처럼"이라 했지만 지금 Hub에는 IP 제한이 없다. 라우터가 덧붙이는 마지막 값만 클라이언트가 위조할 수 없다. 사용자 코드 추측은 로그인한 사람만 할 수 있고 시도 수로 막는다 |
+| **Hub에 요청 제한기를 새로 둔다(메모리, 고정 창).** `/api/mac/start`는 클라이언트 키마다 10번/600000 ms다. 키는 TLS 모드에서 소켓 주소, OpenShift 모드에서 `x-forwarded-for`의 **마지막** 값이다. 대기 코드는 Hub 전체에서 100개까지다. 웹 허용·거절은 사람마다 10번/600000 ms다 | 결정은 "다른 인증 없는 POST처럼"이라 했지만 지금 Hub에는 IP 제한이 없다. 라우터가 덧붙이는 마지막 값만 클라이언트가 위조할 수 없다. 사용자 코드 추측은 로그인한 사람만 할 수 있고 시도 수로 막는다 (구현에서 바뀜 — 아래 '구현 중 바뀐 것') |
 | **한 사람의 Mac 연결은 하나만 살아 있다.** 새 Mac이 토큰을 받는 순간 그 사람의 이전 Mac과 그 Mac이 받은 repo 연결을 해제한다. `/mac`은 이것을 알려 준다 | 연결은 (사람, repo)마다 하나다(`#issueLink`가 앞 연결을 끊음). 두 Mac이 같은 repo 연결을 서로 끊는 일을 막는다. Hub도 한 사람에게 Task를 하나만 준다 |
 | **Mac 토큰은 허용 뒤 첫 확인 때 만들어 한 번만 준다.** 이미 준 코드로 다시 확인하면 `expired`다. 응답을 잃으면 연결을 다시 한다 | Hub는 해시만 저장해서 허용 때 만든 토큰을 나중에 다시 줄 수 없다 |
 | **`GET /api/mac/repos`의 각 항목에 `linked`를 더한다(이 Mac이 받은 살아 있는 연결이 있음).** `POST /api/mac/revoke`(자기 해제)도 더한다 | 두 번째 실행에서 이미 맞는 연결을 다시 받지 않기 위해서다(멱등). `mac disconnect`가 Hub 토큰을 끊는 데 쓴다 |
@@ -97,7 +97,7 @@
 | **스스로 다시 켜기:** 팀 서비스는 가져가기를 멈춘다(`holding`). 그리고 그 사람의 PATH·HOME·ssh agent로 `node bin/pazmo-office.mjs mac restart --data-dir <root>`를 분리 실행한다. `mac restart` = `stopTeam` → `up --team --no-open`이다. 600000 ms 안에 멈추지 않으면 대기를 풀고 다음 확인에서 다시 한다 | 레지스트리는 팀 Office가 꺼져 있을 때만 바뀐다(`TEAM_RUNNING`). 자기 자식 프로세스로는 자기를 멈추고 다시 켤 수 없다. 결정 시점과 멈춤 사이에 Task를 가져가지 않아야 한다 |
 | **연결만 바뀐 것(등록된 repo의 연결이 죽음)은 켜진 Office가 그 자리에서 새로 받는다.** 다시 켜지 않는다 | 연결 파일은 레지스트리가 아니다. 팀 Office는 준비 안 된 repo의 연결 파일을 5분마다 다시 읽는다(`recheck`) |
 | **`limited`는 열린 기록이 실행기 계정·준비를 기다릴 때(`waitingOf`)와, live인데 실행기가 준비되지 않았을 때다.** `detail`은 실행기 이름과 이유다 | D37·D39 기다림. 실행기 로그인이 풀린 사람도 "쉬는 중"으로 보이고 이유가 붙는다 |
-| **LaunchAgent:** `ProgramArguments`는 `[node, <packageRoot>/bin/pazmo-office.mjs, up, --team, --no-open, --data-dir, <root>]`이다. `AbandonProcessGroup` true다. PATH는 `<node 폴더>:/opt/homebrew/bin:<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`, `LANG` `en_US.UTF-8`이다. `mac connect`를 실행한 환경에 `NODE_EXTRA_CA_CERTS`가 있으면(절대 경로일 때만) 그 값도 넣는다(컨트롤러 수정: 사내 인증서 허브로 하는 로컬 실제 확인용). node는 `/opt/homebrew/opt/node@24/bin/node`가 지금 node와 같은 실행 파일이면 그 경로, 아니면 `process.execPath`다. 설치는 `bootout`(실패 무시) 다음 `bootstrap`이다 | `up`은 분리된 서비스를 띄우고 끝난다. launchd가 그 뒤 남은 것을 정리하지 않게 한다. `brew upgrade`가 Cellar 경로를 바꿔도 동작해야 한다. 다시 연결해도 같은 이름으로 다시 올린다 |
+| **LaunchAgent:** `ProgramArguments`는 `[node, <packageRoot>/bin/pazmo-office.mjs, up, --team, --no-open, --data-dir, <root>]`이다. `AbandonProcessGroup` true다. PATH는 `<node 폴더>:/opt/homebrew/bin:<HOME>/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`, `LANG` `en_US.UTF-8`이다. `mac connect`를 실행한 환경에 `NODE_EXTRA_CA_CERTS`가 있으면(절대 경로일 때만) 그 값도 넣는다(컨트롤러 수정: 사내 인증서 허브로 하는 로컬 실제 확인용). node는 `/opt/homebrew/opt/node@24/bin/node`가 지금 node와 같은 실행 파일이면 그 경로, 아니면 `process.execPath`다. 설치는 `bootout`(실패 무시) 다음 `bootstrap`이다 | `up`은 분리된 서비스를 띄우고 끝난다. launchd가 그 뒤 남은 것을 정리하지 않게 한다. `brew upgrade`가 Cellar 경로를 바꿔도 동작해야 한다. 다시 연결해도 같은 이름으로 다시 올린다 (구현에서 바뀜 — 아래 '구현 중 바뀐 것') |
 | **`mac connect`는 Office가 켜지기를 기다리지 않는다.** 로그 위치와 "몇 분 뒤 허브의 '내 Mac'에서 확인"을 말한다. 기존 `mac-link.json`이 같은 Hub이고 토큰이 살아 있으면 다시 짝짓지 않는다 | 처음 `up`은 VM·이미지 준비로 몇 분 걸린다. 다시 실행해도 아무것도 바뀌지 않아야 한다 |
 | **`mac disconnect`는 먼저 팀 Office를 멈춘다(`TASK_ACTIVE`면 아무것도 바꾸지 않고 거절).** 그다음 LaunchAgent 내리기 → Hub 해제 → Mac이 쓴 repo 연결 파일과 `mac-link.json` 삭제 순서다. Hub에 닿지 않으면 로컬은 정리하고 `hubRevoked:false`와 "웹 /mac에서 해제"를 말한다. 레지스트리와 clone은 남는다 | 결정: "clone은 남는다". 끊긴 Mac의 Office가 계속 돌며 401만 쌓지 않게 한다 |
 | **설치기:** 전체를 `main() { … }; main "$@"`로 감싼다. 대화가 필요한 명령(`gh auth login`, `claude auth login`, `mac connect`)은 `/dev/tty`에서 읽는다. 열 수 없으면 `/dev/null`이다. Homebrew 위치는 `PAZMO_BREW_PREFIX`(기본 `/opt/homebrew`)다. 설치는 `npm ci --omit=dev --ignore-scripts --no-audit --no-fund`다. 응답은 `text/plain; charset=utf-8`이다 | `curl \| sh`에서는 표준 입력이 스크립트라 대화 명령이 스크립트를 먹는다. 내려받다 끊긴 스크립트는 아무것도 실행하지 않아야 한다. 시험이 실제 Homebrew를 건드리지 않아야 한다. launcher의 `prepareDependencies`와 같은 플래그다 |
@@ -252,7 +252,7 @@
   | 5 | `$OFFICE/.git`이 있으면 `git -C "$OFFICE" fetch --depth 1 origin '<ref>'`와 `git -C "$OFFICE" checkout --detach FETCH_HEAD`. 없으면 `git clone --depth 1 --branch '<ref>' '<repo>' "$OFFICE"`. 그 뒤 `cd "$OFFICE" && npm ci --omit=dev --ignore-scripts --no-audit --no-fund` |
   | 6 | `gh auth status --hostname github.com`이 실패하면 `gh auth login --hostname github.com --web --git-protocol https <"$TTY"` |
   | 7 | `claude auth status` 출력에 `"loggedIn": true`가 없으면 `claude auth login <"$TTY"` |
-  | 8 | `exec "$BREW/opt/node@24/bin/node" "$OFFICE/bin/pazmo-office.mjs" mac connect --hub '<hub>' <"$TTY"` |
+  | 8 | `exec "$BREW/opt/node@24/bin/node" "$OFFICE/bin/pazmo-office.mjs" mac connect --hub '<hub>' <"$TTY"` (구현에서 바뀜 — 아래 '구현 중 바뀐 것') |
 
   - 모든 단계는 `run_step "<단계 이름>" <명령…>`으로 부른다. 실패하면 단계 이름과 다시 할 명령(`curl -fsSL '<hub>/install.sh' | sh`)을 stderr에 쓰고 exit 1이다.
   - 전체가 `main() { … }` 안에 있고, 마지막 줄은 `main "$@"`다.
@@ -295,7 +295,7 @@
     | 경로 | 동작 |
     |---|---|
     | `GET /mac` | 내 Mac 화면. `?approved=1`이면 "허용했습니다. 터미널로 돌아가세요" |
-    | `GET /mac/approve?code=` | 로그인 안 함 → 401 `macSignedOut`. `macCode`가 null → 410 `macCodeGone`. 이미 결정됨 → 409 오류 화면. 아니면 `macApprove` |
+    | `GET /mac/approve?code=` | 로그인 안 함 → 401 `macSignedOut`. `macCode`가 null → 410 `macCodeGone`. 이미 결정됨 → 409 오류 화면. 아니면 `macApprove` (구현에서 바뀜 — 아래 '구현 중 바뀐 것') |
     | `POST /mac/approve`, `POST /mac/deny` | 폼 `code`. 사람마다 10번/600000 ms(넘으면 429). 허용 → `/mac?approved=1`, 거절 → `/mac` |
     | `POST /macs/<id>/revoke` | `revokeMac`. 관리자가 남의 Mac을 해제했으면 `/members`, 아니면 `/mac`로 간다 |
     | `GET /start` | 설치기가 있고 `macBadge`가 `none`이면 맨 위에 "이 Mac 연결 — 처음 한 번, 명령 한 줄" 안내와 `/mac` 링크를 보인다 |
@@ -434,7 +434,7 @@
   - "the plist parses (plutil) to exactly the keys above, with no token anywhere": macOS의 `/usr/bin/plutil -convert json -o -`로 읽어 `deepEqual`한다.
   - "paths with &, < and > are XML-escaped"
   - "extraCa adds NODE_EXTRA_CA_CERTS to EnvironmentVariables and is absent otherwise"
-  - "install writes the file 0644, then runs bootout gui/<uid>/com.pazmo.office (its failure ignored) and bootstrap gui/<uid> <plist>"
+  - "install writes the file 0644, then runs bootout gui/<uid>/com.pazmo.office (its failure ignored) and bootstrap gui/<uid> <plist>" (구현에서 바뀜 — 아래 '구현 중 바뀐 것')
   - "a failed bootstrap is LAUNCHD_FAILED with launchctl's first stderr line"
   - "remove boots out and deletes the file; removing twice is harmless"
   - "state is loaded when launchctl print succeeds, installed when only the file exists, else missing"
@@ -493,7 +493,7 @@
   - `NO_REPOS`의 세 곳은 모두 `repos.length === 0 && !readMacLink(root)`다.
   - 기본 `open`은 `runCommand("/usr/bin/open", [url])`, 기본 `node`는 `stableNodePath(process.execPath)`, 기본 `uid`는 `process.getuid()`다.
   - 기본 `ghLogin`은 `process.stdin.isTTY`일 때만 `spawn("gh", ["auth","login","--hostname",host,"--web","--git-protocol","https"], { stdio: "inherit" })`를 기다리는 함수이고, 아니면 null이다. `restart`와 `upTeam`의 `syncBeforeUp`에는 넘기지 않는다.
-  - 기본 LaunchAgent의 `NODE_EXTRA_CA_CERTS`는 `process.env.NODE_EXTRA_CA_CERTS`가 절대 경로일 때만이다(Task 7 `installLaunchAgent`에 `extraCa?: string` 인자를 더한다).
+  - 기본 LaunchAgent의 `NODE_EXTRA_CA_CERTS`는 `process.env.NODE_EXTRA_CA_CERTS`가 절대 경로일 때만이다(Task 7 `installLaunchAgent`에 `extraCa?: string` 인자를 더한다). (구현에서 바뀜 — 아래 '구현 중 바뀐 것')
   - 진행 줄은 stderr에 한국어로 쓴다(`up`의 `[1/4]`처럼). 짝짓기 → repo 맞추기 → 자동 실행 등록.
 - [ ] **Step 4: 통과 확인.** 같은 명령.
 - [ ] **Step 5: 커밋.** `feat: connect, inspect and disconnect this Mac from the Office CLI`
@@ -555,7 +555,7 @@
 
 **Files:**
 - Modify: `docs/LOCAL-PREVIEW.md`(팀 허브 절에 "### 이 Mac 연결 (OpenShift 허브)", 팀 Office 절에 Mac 연결과의 관계)
-- Modify: `docs/STATUS.md`(맨 위 새 항목), `.ai-workflow/verification.json`(시험 세 조각의 `covers`에 `V19`)
+- Modify: `docs/STATUS.md`(맨 위 새 항목), `.ai-workflow/verification.json`(시험 세 조각의 `covers`에 `V19`) (구현에서 바뀜 — 아래 '구현 중 바뀐 것')
 - Create: `docs/verification/2026-11-04-mac-connect.md`
 
 - [ ] **Step 1: 사용 안내.** 다음을 쓴다.
@@ -607,7 +607,7 @@
 
 ## 구현 중 바뀐 것
 
-Task 1–9를 만들면서 컨트롤러가 정한 판정(`Ruling`)과 리뷰가 찾은 것으로 위 계획이 코드와 달라졌다. 위 Task 본문은 처음 계획 그대로 두고, Task 9의 인터페이스(스스로 다시 켜기의 기억과 한 시간 재시도, `spawnMacRestart`의 node와 환경)만 코드에 맞게 고쳤다. 바뀐 것의 전부와 이유, 영향은 [검증 기록](../verification/2026-11-04-mac-connect.md)의 "판정 적용"에 있다. 큰 것은 다음과 같다.
+Task 1–9를 만들면서 컨트롤러가 정한 판정(`Ruling`)과 리뷰가 찾은 것으로 위 계획이 코드와 달라졌다. Task 9의 인터페이스(스스로 다시 켜기의 기억과 한 시간 재시도, `spawnMacRestart`의 node와 환경)는 코드에 맞게 고쳤다. 코드와 달라진 그 밖의 행과 줄(판정 표의 요청 제한기·LaunchAgent, Task 3 단계 8, Task 4의 `GET /mac/approve`, Task 7의 시험 줄, Task 8의 `NODE_EXTRA_CA_CERTS`, Task 10의 파일 목록)에는 `(구현에서 바뀜 — 아래 '구현 중 바뀐 것')`를 붙여 두었고 본문은 처음 계획 그대로다. 실제로 만든 모습은 아래와 검증 기록에 있다. 바뀐 것의 전부와 이유, 영향은 [검증 기록](../verification/2026-11-04-mac-connect.md)의 "판정 적용"에 있다. 큰 것은 다음과 같다.
 
 - `GET /mac/approve`로 없는 코드를 여는 것도 허용·거절과 같은 사람별 제한에 센다(Task 4, 판정 표의 요청 제한기).
 - LaunchAgent는 `bootout` 뒤에 `enable`을 하고 `bootstrap`을 500·1500 ms 간격으로 3번까지 시도한다(Task 7).

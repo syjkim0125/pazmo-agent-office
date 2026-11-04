@@ -120,13 +120,13 @@ security add-trusted-cert -r trustRoot -p ssl -k ~/Library/Keychains/login.keych
 
 **한 줄**
 
-허브 웹의 **이 Mac 연결**(머리글의 "내 Mac"을 누르면 열리는 `/mac`)에서 명령을 복사해 Mac 터미널에 붙여넣는다. 연결된 Mac이 없는 팀원의 "내 Office 연결" 화면(초대로 들어오면 처음 열리는 화면) 위에도 같은 안내가 나온다.
+허브 웹의 **이 Mac 연결**(머리글의 "내 Mac"을 누르면 열리는 `/mac`)에서 명령을 복사해 Mac 터미널에 붙여넣는다. 연결된 Mac이 없는 팀원의 "내 Office 연결" 화면(초대로 들어오면 처음 열리는 화면) 위에는 `/mac`으로 가라는 안내만 나온다. 명령은 `/mac`에서 복사한다.
 
 ```sh
 curl -fsSL https://<허브 주소>/install.sh | sh
 ```
 
-설치기는 단계마다 이름을 보이고, 이미 된 것은 건너뛴다. 어느 단계에서 멈춰도 그 단계 이름과 다시 실행할 같은 명령이 나온다. 하는 일은 이 순서다.
+설치기는 단계마다 이름을 보이고, 이미 된 것은 건너뛴다. 멈출 때 나오는 말은 이렇다. Apple Silicon Mac이 아니면 그 사실만 말하고 멈춘다(단계 이름도 다시 실행할 명령도 없다). Homebrew가 없으면 Homebrew 설치 명령과 다시 실행할 명령을 보이고 멈춘다(단계 이름은 없다). 그 밖의 단계(프로그램 설치, Claude Code 설치, Office 받기와 준비, GitHub 로그인, Claude 로그인, 내 Mac 연결)에서 멈추면 그 단계 이름과 다시 실행할 같은 명령이 나온다. 하는 일은 이 순서다.
 
 1. Apple Silicon Mac인지, Homebrew가 있는지 본다. Rosetta로 연 터미널은 Intel로 보여 거절된다(터미널을 Rosetta 없이 다시 연다).
 2. `node@24`, `git`, `gh`, `colima`, `docker` 중 없는 것을 `brew install`로 설치하고, `claude`가 없으면 Claude Code를 설치한다.
