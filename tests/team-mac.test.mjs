@@ -323,7 +323,7 @@ test("pairMac refuses an http hub, a path, a query, a fragment or user info befo
     assert.deepEqual([hubSpy.calls.length, lines.length, opened], [0, 0, 0], `nothing happens for ${JSON.stringify(hub)}`);
   }
   // A port and a trailing slash are fine, and name the origin.
-  const spy = fakeHub({ polls: [approved()] });
+  const spy = fakeHub({ start: started({ approveUrl: "https://hub.example.com:8443/mac/approve?code=BCDF-1234" }), polls: [approved()] });
   await pairMac({ hub: "https://hub.example.com:8443/", name: "Mac", say: () => {}, open: async () => {}, call: spy.call });
   assert.equal(spy.calls[0].target.hub, "https://hub.example.com:8443");
 });
@@ -341,6 +341,10 @@ test("a start reply of the wrong shape, or an approve URL that is not the one th
     started({ approveUrl: `https://${DEVICE}.example.com/mac/approve?code=BCDF-1234` }),
     started({ approveUrl: `https://hub.example.com/mac/approve` }),
     started({ approveUrl: `/mac/approve?code=BCDF-1234` }), started({ approveUrl: "javascript:alert(1)" }),
+    // Another origin than the Hub this Mac pairs with: another host, a look-alike, another port.
+    started({ approveUrl: `https://evil.example.com/mac/approve?code=BCDF-1234` }),
+    started({ approveUrl: `https://hub.example.com.evil.example/mac/approve?code=BCDF-1234` }),
+    started({ approveUrl: `https://hub.example.com:8443/mac/approve?code=BCDF-1234` }),
   ];
   for (const start of badStarts) {
     const hub = fakeHub({ start });

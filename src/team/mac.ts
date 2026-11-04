@@ -142,9 +142,9 @@ function classify(error: unknown): Failure {
   return code === "HUB_TLS_UNTRUSTED" || error instanceof OfficeError ? "fatal" : "retry";
 }
 
-/** The approve page of the Hub for this code, and nothing else: the browser is only ever sent to https, never with user info, and
- * never with more than the short user code in it. */
-function approveUrl(value: unknown, userCode: string, deviceCode: string): string {
+/** The approve page of the Hub for this code, and nothing else: the browser is only ever sent to https on `hub` (the
+ * origin this Mac pairs with), never with user info, and never with more than the short user code in it. */
+function approveUrl(value: unknown, userCode: string, deviceCode: string, hub: string): string {
   if (typeof value !== "string" || value.includes(deviceCode)) return badResponse();
   let url: URL;
   try {
@@ -153,21 +153,21 @@ function approveUrl(value: unknown, userCode: string, deviceCode: string): strin
     return badResponse();
   }
   const query = [...url.searchParams];
-  return url.protocol === "https:" && !url.username && !url.password && !url.hash && url.pathname === "/mac/approve" &&
-    query.length === 1 && query[0][0] === "code" && query[0][1] === userCode
+  return url.protocol === "https:" && url.origin === hub && !url.username && !url.password && !url.hash &&
+    url.pathname === "/mac/approve" && query.length === 1 && query[0][0] === "code" && query[0][1] === userCode
     ? url.href
     : badResponse();
 }
 
 type Started = { deviceCode: string; userCode: string; url: string; lifeMs: number };
-function parseStart(reply: unknown): Started {
+function parseStart(reply: unknown, hub: string): Started {
   if (!isObject(reply) || !isSecret(reply.deviceCode) || typeof reply.userCode !== "string" || !USER_CODE.test(reply.userCode)) return badResponse();
   const life = reply.expiresIn;
   if (typeof life !== "number" || !Number.isFinite(life) || life <= 0) return badResponse();
   return {
     deviceCode: reply.deviceCode,
     userCode: reply.userCode,
-    url: approveUrl(reply.approveUrl, reply.userCode, reply.deviceCode),
+    url: approveUrl(reply.approveUrl, reply.userCode, reply.deviceCode, hub),
     lifeMs: Math.min(life, CODE_LIFE_S) * 1000,
   };
 }
@@ -207,7 +207,7 @@ export async function pairMac(o: {
     if (classify(error) === "too-old") return tooOld();
     throw error;
   }
-  const { deviceCode, userCode, url, lifeMs } = parseStart(reply);
+  const { deviceCode, userCode, url, lifeMs } = parseStart(reply, hub);
   // The code's life began with the Hub's answer; this clock, not the Hub's, bounds the waiting.
   const deadline = now() + lifeMs;
   o.say(`브라우저에서 이 Mac을 허용해 주세요: ${url}`);
