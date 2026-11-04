@@ -12,6 +12,7 @@ import {
 import type { LiveConfig } from "../runtime/live.ts";
 import { up } from "./launcher.ts";
 import { TEAM_ACTIONS, teamCommand } from "./team.ts";
+import { MAC_ACTIONS, macCommand } from "./mac.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hub.ts";
 import { parseListen, parsePublicUrl } from "../hub/run.ts";
@@ -51,7 +52,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)",
+        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|mac|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)\nThis Mac and the team Hub: mac connect --hub <https hub> [--name <Mac name>] [--data-dir PATH] (what the Hub's install line runs: pairs this Mac through the browser, clones, registers and links the repos you own, and starts the team Office at login); mac status|disconnect|restart [--data-dir PATH] (disconnect keeps the clones and the registry)",
       );
       return;
     }
@@ -73,6 +74,7 @@ export async function main(args: string[]): Promise<void> {
         "hub-link",
         "hub-unlink",
         "team",
+        "mac",
         "init",
         "doctor",
         "start",
@@ -89,6 +91,10 @@ export async function main(args: string[]): Promise<void> {
         "ARGUMENT",
         "team needs an action: add, remove, list, pause, resume, cap, status or rerun.",
       );
+    // `mac` takes its action before the flags too: mac connect|status|disconnect|restart.
+    const macAction = command === "mac" ? args.shift() : undefined;
+    if (command === "mac" && !MAC_ACTIONS.includes(macAction ?? ""))
+      fail("ARGUMENT", "mac needs an action: connect, status, disconnect or restart.");
     // `team cap` also takes its value, N or off, before the flags.
     const teamValue =
       teamAction === "cap" && args[0] !== undefined && !args[0].startsWith("--")
@@ -191,17 +197,19 @@ export async function main(args: string[]): Promise<void> {
       fail("ARGUMENT", "Use --live with both qualified runtime binaries.");
     const allowed: Record<string, string[]> = {
       "--host": ["hub"],
-      "--name": ["hub"],
+      "--name": ["hub", "mac connect"],
       "--public-url": ["hub"],
       "--listen": ["hub"],
-      "--hub": ["hub-link"],
+      "--hub": ["hub-link", "mac connect"],
       "--code": ["hub-link"],
       "--fingerprint": ["hub-link"],
       "--connect": ["hub-link"],
     };
+    // A mac action is named with its command: --hub is mac connect's, not mac status's.
+    const named = macAction === undefined ? command : `mac ${macAction}`;
     for (const [flag, commands] of Object.entries(allowed))
-      if (options[flag] !== undefined && !commands.includes(command))
-        fail("ARGUMENT", `${flag} is not supported by ${command}.`);
+      if (options[flag] !== undefined && !commands.includes(named))
+        fail("ARGUMENT", `${flag} is not supported by ${named}.`);
     if (options["--memo"] !== undefined && teamAction !== "rerun")
       fail("ARGUMENT", "--memo is only supported by team rerun.");
     const required = (flag: string): string => {
@@ -243,6 +251,23 @@ export async function main(args: string[]): Promise<void> {
             dataDir: options["--data-dir"] as string | undefined,
             value: teamValue,
             memo: options["--memo"] as string | undefined,
+          }),
+        ),
+      );
+      return;
+    }
+    if (command === "mac") {
+      if (options["--project"] !== undefined)
+        fail("ARGUMENT", "mac works on this Mac's data folder and the repos it owns on the Hub; omit --project.");
+      const hub = macAction === "connect" ? required("--hub") : undefined;
+      if ((macAction === "connect" || macAction === "restart") && (process.platform !== "darwin" || process.arch !== "arm64"))
+        fail("PLATFORM", "mac connect와 mac restart는 Apple Silicon macOS에서만 실행됩니다.");
+      console.log(
+        JSON.stringify(
+          await macCommand(macAction!, {
+            ...(hub !== undefined ? { hub } : {}),
+            ...(typeof options["--name"] === "string" ? { name: options["--name"] } : {}),
+            dataDir: options["--data-dir"] as string | undefined,
           }),
         ),
       );

@@ -11,6 +11,7 @@ import { openLeanDb } from "../src/lean/schema.ts";
 import { startLifecycleServer } from "../src/lean/server.ts";
 import { branchOps } from "../src/team/executor.ts";
 import { createTeamOffice, lifecycleView, sharedGate } from "../src/team/office.ts";
+import { writeMacLink } from "../src/team/mac.ts";
 import { addTeamRepo, teamDir } from "../src/team/registry.ts";
 import { openTeamStore } from "../src/team/store.ts";
 import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
@@ -1128,6 +1129,30 @@ test("beginStop stops the timers; close closes every engine and is idempotent", 
 test("no registered repo is NO_REPOS", async (t) => {
   const f = fixture(t);
   await assert.rejects(f.open(), { code: "NO_REPOS" });
+});
+
+test("with no registered repo but a Mac link, the team Office opens with no lanes and claims nothing", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  writeMacLink(f.data, {
+    version: 1,
+    hub: "https://pazmo-hub.apps.example.com",
+    macId: "mac-1",
+    macToken: "T".repeat(43),
+    memberId: "m1",
+    memberName: "김",
+    name: "내 Mac",
+  });
+  const office = await f.open(f.live());
+  const status = office.status();
+  assert.deepEqual(status.repos, []);
+  assert.equal(status.execution, "live");
+  t.mock.timers.tick(300000);
+  await flush();
+  assert.deepEqual(f.calls, [], "no lane, so no claim, heartbeat or drive reached a link");
+  assert.deepEqual(f.world.list, [], "no repo engine was opened");
+  const after = office.status();
+  assert.deepEqual([after.claim, after.blockedBy, after.today, after.busy], [null, null, 0, false]);
 });
 
 test("a registered repo whose folder is gone fails the start with REPO_MISSING, naming the path and team remove, before anything opens", async (t) => {

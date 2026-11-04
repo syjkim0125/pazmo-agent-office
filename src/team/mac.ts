@@ -37,7 +37,7 @@ const isSecret = (value: unknown): value is string => typeof value === "string" 
 const badResponse = (): never => fail("HUB_BAD_RESPONSE", "HUB_BAD_RESPONSE");
 
 /** The hub as an origin: https, no path, query, fragment or user info, and a host that is safe to show in a shell command. */
-function hubOrigin(value: unknown): string | null {
+export function hubOrigin(value: unknown): string | null {
   if (typeof value !== "string") return null;
   let url: URL;
   try {
@@ -49,7 +49,7 @@ function hubOrigin(value: unknown): string | null {
   return url.protocol === "https:" && url.href === `${url.origin}/` && /^[A-Za-z0-9.:[\]-]+$/.test(url.host) ? url.origin : null;
 }
 /** The command a person runs to start over; the Hub's /mac page shows the same one. */
-const rerunCommand = (hub: string): string => `curl -fsSL '${hub}/install.sh' | sh`;
+export const rerunCommand = (hub: string): string => `curl -fsSL '${hub}/install.sh' | sh`;
 /** Cut to `max` UTF-16 units without leaving half a surrogate pair, the unit the Hub counts in. */
 function clip(text: string, max: number): string {
   if (text.length <= max) return text;

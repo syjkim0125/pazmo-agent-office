@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { locate } from "../src/cli/project.ts";
+import { writeMacLink } from "../src/team/mac.ts";
 import { teamDir } from "../src/team/registry.ts";
 import { openTeamStore } from "../src/team/store.ts";
 import { assertOfficesExited } from "./office-process.mjs";
@@ -143,6 +144,47 @@ test("with no registered repo, start --team and up --team are NO_REPOS and start
   assert.equal(up.value.code, appleSilicon ? "NO_REPOS" : "PLATFORM");
   assert.equal(existsSync(f.running), false);
   assert.equal(existsSync(join(teamDir(f.data), "office.log")), false);
+});
+
+test("with a Mac link and no repo, start --team runs with no repos; without one it is still NO_REPOS", async (t) => {
+  const f = fixture(t);
+  assert.equal(call(f, "start", "--team", "--port", "0").value.code, "NO_REPOS", "no Mac link yet");
+  // Nobody listens on port 1: a Hub this Mac cannot reach, without leaving the machine.
+  writeMacLink(f.data, {
+    version: 1,
+    hub: "https://127.0.0.1:1",
+    macId: "mac-1",
+    macToken: "T".repeat(43),
+    memberId: "m1",
+    memberName: "김",
+    name: "내 Mac",
+  });
+  const started = call(f, "start", "--team", "--port", "0");
+  assert.equal(started.status, 0, JSON.stringify(started.value));
+  assert.equal(started.value.status, "running");
+  assert.equal(started.value.engine, "team");
+  const status = call(f, "status", "--team");
+  assert.equal(status.value.status, "running");
+  assert.deepEqual(status.value.repos, [], "a team Office with no lanes");
+  const pid = JSON.parse(readFileSync(f.running, "utf8")).pid;
+  assert.equal(call(f, "stop", "--team").value.status, "stopped");
+  await assertOfficesExited([pid]);
+
+  if (!appleSilicon) return;
+  // up --team syncs first (the Hub is out of reach: one line) and is not stopped by the empty registry; the
+  // machine preparation stops it at its first check, as in the up --team test below.
+  const r = spawnSync(process.execPath, [cli, "up", "--team", "--no-open", "--codex-runtime", "pinned", "--data-dir", f.data], {
+    encoding: "utf8",
+    timeout: 30000,
+    env: f.env,
+  });
+  assert.equal(r.status, 1, r.stderr);
+  const lines = r.stderr.trim().split("\n");
+  const error = JSON.parse(lines.at(-1));
+  assert.ok(["PREREQUISITE", "LOGIN_REQUIRED"].includes(error.code), error.code);
+  assert.ok(lines.some((line) => line.startsWith("Mac 담당 repo 맞추기를 건너뜁니다 — ")), r.stderr);
+  assert.ok(!r.stderr.includes("T".repeat(43)), "no token in the output");
+  assert.equal(existsSync(f.running), false);
 });
 
 test("a registered repo whose folder is gone stops start --team and up --team with REPO_MISSING and its remedy", (t) => {

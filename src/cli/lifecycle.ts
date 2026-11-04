@@ -22,6 +22,7 @@ import {
   readManifest,
   teamProject,
 } from "./project.ts";
+import { readMacLink } from "../team/mac.ts";
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
@@ -312,7 +313,8 @@ export async function start(
 }
 
 /** The team Office of a data root: every registered repo, one engine each.
- * `NO_REPOS` until `team add` registered one. */
+ * `NO_REPOS` until `team add` registered one, unless this Mac is connected to
+ * a Hub (`mac connect`): then it runs with none. */
 export async function startTeam(
   root: string,
   port: number,
@@ -320,7 +322,7 @@ export async function startTeam(
   checks?: { installed: () => boolean },
 ) {
   const { repos } = readTeam(root);
-  if (repos.length === 0)
+  if (repos.length === 0 && !readMacLink(root))
     fail(
       "NO_REPOS",
       "No repo is registered in the team Office. Add one with `team add --project PATH` first.",

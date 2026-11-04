@@ -14,6 +14,7 @@ import { branchOps, createExecutor, prOps } from "./executor.ts";
 import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
 import type { GhResult } from "./gh.ts";
+import { readMacLink } from "./mac.ts";
 import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
@@ -250,7 +251,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     }
   };
   const { repos } = readTeam(c.root);
-  if (repos.length === 0)
+  // A connected Mac (mac-link.json) runs the team Office with no repo yet, so that the Mac counts as on for its member.
+  if (repos.length === 0 && !readMacLink(c.root))
     fail("NO_REPOS", "No repo is registered in the team Office. Add one with `team add --project PATH` first.");
   // Before anything opens: `locate` would fail on a missing folder with a bare ENOENT.
   assertReposPresent(repos);

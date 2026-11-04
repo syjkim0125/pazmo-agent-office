@@ -20,6 +20,8 @@ import {
 import { monitor, start, startTeam, status } from "./lifecycle.ts";
 import type { Engine } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
+import { readMacLink } from "../team/mac.ts";
+import { syncBeforeUp } from "../team/mac-sync.ts";
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { runCommand } from "../runners/command.ts";
@@ -325,13 +327,17 @@ async function prepareMachine(
   };
 }
 
-/** `up --team`: every registered repo is prepared as `up` prepares one (its
- * git root, its Office metadata), then the machine as for lean, then one team
- * Office runs them all. There is no page to open yet; the result is its status. */
+/** `up --team`: a connected Mac first brings its clones and registry in line
+ * with the Hub (never a prompt; a failure is one line and the start goes on).
+ * Then every registered repo is prepared as `up` prepares one (its git root,
+ * its Office metadata), then the machine as for lean, then one team Office runs
+ * them all; a connected Mac runs it with no repo too. There is no page to open
+ * yet; the result is its status. */
 async function upTeam(options: UpOptions, prepare: () => Promise<unknown>) {
   const root = dataRoot(options.dataDir);
+  await syncBeforeUp(root);
   const { repos } = readTeam(root);
-  if (repos.length === 0)
+  if (repos.length === 0 && !readMacLink(root))
     fail(
       "NO_REPOS",
       "No repo is registered in the team Office. Add one with `team add --project PATH` first.",
