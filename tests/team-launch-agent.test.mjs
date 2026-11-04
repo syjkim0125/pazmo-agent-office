@@ -52,6 +52,12 @@ function recorder(reply = () => ({ exitCode: 0, stdout: "", stderr: "" })) {
   return { calls, run };
 }
 
+/** An injected `sleep` that records the waits and returns at once. */
+function sleeper() {
+  const waits = [];
+  return { waits, sleep: async (ms) => void waits.push(ms) };
+}
+
 /** What the macOS property-list parser makes of `xml`. */
 function parsePlist(dir, xml) {
   const file = join(dir, `parse-${Math.random().toString(16).slice(2)}.plist`);
@@ -148,7 +154,7 @@ test("a value that is not an absolute path or holds a control character is refus
   }
 });
 
-test("install writes the file 0644, then runs bootout gui/<uid>/com.pazmo.office (its failure ignored) and bootstrap gui/<uid> <plist>", () => {
+test("install writes the file 0644, then runs bootout gui/<uid>/com.pazmo.office (its failure ignored), enable and bootstrap gui/<uid> <plist>", () => {
   const { home, root } = fixture();
   const file = launchAgentPath(home);
   const seen = [];
@@ -159,12 +165,15 @@ test("install writes the file 0644, then runs bootout gui/<uid>/com.pazmo.office
       ? { exitCode: 3, stdout: "", stderr: "Boot-out failed: 3: No such process\n" }
       : { exitCode: 0, stdout: "", stderr: "" };
   });
-  return installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run }).then(() => {
+  const { waits, sleep } = sleeper();
+  return installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run, sleep }).then(() => {
     assert.deepEqual(calls, [
       [LAUNCHCTL, ["bootout", "gui/501/com.pazmo.office"]],
+      [LAUNCHCTL, ["enable", "gui/501/com.pazmo.office"]],
       [LAUNCHCTL, ["bootstrap", "gui/501", file]],
     ]);
-    assert.deepEqual(seen, [["bootout", true], ["bootstrap", true]]);
+    assert.deepEqual(seen, [["bootout", true], ["enable", true], ["bootstrap", true]]);
+    assert.deepEqual(waits, []);
     assert.equal(statSync(file).mode & 0o777, 0o644);
     assert.equal(readFileSync(file, "utf8"), launchAgentPlist({ node: NODE, cli: CLI, root, home }));
     assert.equal(statSync(join(home, "Library", "LaunchAgents")).mode & 0o777, 0o755);
@@ -198,7 +207,7 @@ test("install survives a bootout that throws, and keeps an existing LaunchAgents
     return { exitCode: 0, stdout: "", stderr: "" };
   };
   await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run });
-  assert.deepEqual(calls, ["bootout", "bootstrap"]);
+  assert.deepEqual(calls, ["bootout", "enable", "bootstrap"]);
   assert.equal(statSync(agents).mode & 0o777, 0o700);
 });
 
@@ -210,7 +219,7 @@ test("a failed bootstrap is LAUNCHD_FAILED with launchctl's first stderr line", 
       : { exitCode: 0, stdout: "", stderr: "" },
   );
   await assert.rejects(
-    installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run }),
+    installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run, sleep: sleeper().sleep }),
     (error) => {
       assert.ok(error instanceof OfficeError);
       assert.equal(error.code, "LAUNCHD_FAILED");
@@ -225,9 +234,65 @@ test("a failed bootstrap with no stderr still says what failed", async () => {
   const { home, root } = fixture();
   const { run } = recorder((args) => (args[0] === "bootstrap" ? { exitCode: null, stdout: "", stderr: "" } : { exitCode: 0, stdout: "", stderr: "" }));
   await assert.rejects(
-    installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run }),
+    installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run, sleep: sleeper().sleep }),
     (error) => error instanceof OfficeError && error.code === "LAUNCHD_FAILED" && /bootstrap/.test(error.message),
   );
+});
+
+test("a bootstrap that fails once (5: Input/output error after a bootout) is retried after 500 ms and then succeeds", async () => {
+  const { home, root } = fixture();
+  let bootstraps = 0;
+  const { calls, run } = recorder((args) =>
+    args[0] === "bootstrap" && ++bootstraps === 1
+      ? { exitCode: 5, stdout: "", stderr: "Bootstrap failed: 5: Input/output error\n" }
+      : { exitCode: 0, stdout: "", stderr: "" },
+  );
+  const { waits, sleep } = sleeper();
+  await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run, sleep });
+  assert.deepEqual(calls.map(([, args]) => args[0]), ["bootout", "enable", "bootstrap", "bootstrap"]);
+  assert.equal(bootstraps, 2);
+  assert.deepEqual(waits, [500]);
+});
+
+test("a bootstrap that always fails is tried 3 times (500 ms, then 1500 ms apart) and reports the last attempt's first stderr line", async () => {
+  const { home, root } = fixture();
+  let bootstraps = 0;
+  const { calls, run } = recorder((args) =>
+    args[0] === "bootstrap"
+      ? { exitCode: 5, stdout: "", stderr: `\nBootstrap failed: 5: attempt ${++bootstraps}\nsecond line\n` }
+      : { exitCode: 0, stdout: "", stderr: "" },
+  );
+  const { waits, sleep } = sleeper();
+  await assert.rejects(
+    installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run, sleep }),
+    (error) => {
+      assert.ok(error instanceof OfficeError);
+      assert.equal(error.code, "LAUNCHD_FAILED");
+      assert.match(error.message, /Bootstrap failed: 5: attempt 3/);
+      assert.doesNotMatch(error.message, /attempt 1|attempt 2|second line/);
+      return true;
+    },
+  );
+  assert.deepEqual(calls.map(([, args]) => args[0]), ["bootout", "enable", "bootstrap", "bootstrap", "bootstrap"]);
+  assert.deepEqual(waits, [500, 1500]);
+});
+
+test("a first-time install (bootout and enable fail: nothing loaded) bootstraps once and never sleeps", async () => {
+  const { home, root } = fixture();
+  const { calls, run } = recorder((args) =>
+    args[0] === "bootstrap" ? { exitCode: 0, stdout: "", stderr: "" } : { exitCode: 3, stdout: "", stderr: "No such process\n" },
+  );
+  const { waits, sleep } = sleeper();
+  await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run, sleep });
+  assert.deepEqual(calls.map(([, args]) => args[0]), ["bootout", "enable", "bootstrap"]);
+  assert.deepEqual(waits, []);
+});
+
+test("with the default sleep, a bootstrap that works first time does not wait", async () => {
+  const { home, root } = fixture();
+  const started = Date.now();
+  await installLaunchAgent({ home, uid: UID_, node: NODE, cli: CLI, root, run: recorder().run });
+  assert.ok(Date.now() - started < 400);
 });
 
 test("an invalid value stops install before the file is written or launchctl runs", async () => {

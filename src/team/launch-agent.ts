@@ -143,9 +143,17 @@ function writePlist(file: string, text: string): void {
   }
 }
 
+/** Waits before bootstrap attempt 2 and 3. */
+const BOOTSTRAP_WAITS_MS = [500, 1500];
+const realSleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
 /** Writes the LaunchAgent and loads it for this user: `bootout` first (the agent may be loaded from an earlier
- * connect; a failure there only means it was not), then `bootstrap`. A failed bootstrap is `LAUNCHD_FAILED` with
- * launchctl's first stderr line; the file stays, so the agent still loads at the next login. */
+ * connect; a failure there only means it was not), `enable` (some macOS versions leave the label disabled after a
+ * bootout, and then bootstrap fails until it is enabled again; it changes nothing when already enabled), then
+ * `bootstrap`. A bootstrap that runs right after a bootout can fail while launchd is still tearing the old job down
+ * (`5: Input/output error`), so it is tried up to 3 times, 500 ms and then 1500 ms apart. When every try fails the
+ * error is `LAUNCHD_FAILED` with the last try's first stderr line; the file stays, so the agent still loads at the
+ * next login. `sleep` is for tests. */
 export async function installLaunchAgent(o: {
   home: string;
   uid: number;
@@ -154,16 +162,24 @@ export async function installLaunchAgent(o: {
   root: string;
   extraCa?: string;
   run?: LaunchRun;
+  sleep?: (ms: number) => Promise<void>;
 }): Promise<void> {
   const target = domain(o.uid);
   const text = launchAgentPlist(o);
   const run = o.run ?? launchRun;
+  const sleep = o.sleep ?? realSleep;
   const file = launchAgentPath(o.home);
   // launchd opens the log file when it starts the job; without its folder the job does not start at all.
   mkdirSync(teamDir(o.root), { recursive: true, mode: 0o700 });
   writePlist(file, text);
   await attempt(run, ["bootout", `${target}/${LAUNCH_LABEL}`]);
-  const result = await attempt(run, ["bootstrap", target, file]);
+  await attempt(run, ["enable", `${target}/${LAUNCH_LABEL}`]);
+  let result = await attempt(run, ["bootstrap", target, file]);
+  for (const wait of BOOTSTRAP_WAITS_MS) {
+    if (result.exitCode === 0) return;
+    await sleep(wait);
+    result = await attempt(run, ["bootstrap", target, file]);
+  }
   if (result.exitCode === 0) return;
   const reason = result.stderr.split("\n").map((line) => line.trim()).find(Boolean);
   fail("LAUNCHD_FAILED", `launchctl bootstrap failed: ${reason ?? `exit ${result.exitCode ?? "none"}`}`);
