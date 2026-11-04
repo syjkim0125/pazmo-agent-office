@@ -8,11 +8,13 @@ import * as page from "./pages.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
+import { installScript, type InstallerConfig } from "./installer.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
   | { kind: "proxy"; publicUrl: string; host: string; port: number };
-export type HubServerConfig = { store: HubStore; listen: HubListen };
+/** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404. */
+export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;
@@ -92,6 +94,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
   const mac = macApi(c.store, { base: () => base, clientKey, startLimit: createRateLimit(START_LIMIT, START_WINDOW_MS) });
   // Only the self-CA mode has a certificate to show; behind the router the router's certificate is the public one.
   const tls = c.listen.kind === "tls" ? c.listen.tls : null;
+  // Built once the public origin is known (it carries the port in self-CA mode); null serves a 404.
+  let installer: string | null = null;
   async function browser(req: IncomingMessage, res: ServerResponse, url: URL) {
     const path = url.pathname,
       post = req.method === "POST";
@@ -104,6 +108,9 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     // Open on purpose: the connection string's #fragment never reaches the server, so this page cannot echo it.
     if (!post && path === "/connect") return html(res, 200, page.connectHelp());
     if (!post && path === "/copy.js") return send(res, 200, "text/javascript; charset=utf-8", COPY_SCRIPT);
+    // Open on purpose, like /copy.js: a Mac runs it before it has any session, and the script holds no secret.
+    if (!post && path === "/install.sh")
+      return installer === null ? html(res, 404, page.error("페이지를 찾을 수 없습니다.")) : send(res, 200, "text/plain; charset=utf-8", installer);
     if (!post && path === "/trust" && tls) return html(res, 200, page.trust(tls.fingerprint));
     if (post && !origins.has(String(req.headers.origin ?? "")))
       throw new HubError("ORIGIN", 403, "다른 사이트에서 보낸 요청은 받지 않습니다.");
@@ -251,6 +258,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         hosts = new Set([pub.hostname, `${pub.hostname}:443`]);
         origins = new Set([pub.origin]);
         base = pub.origin;
+      }
+      try {
+        installer = c.installer ? installScript({ hub: base, ...c.installer }) : null;
+      } catch (error) {
+        // An origin the script cannot carry safely: refuse to start rather than fail on every request.
+        server.close();
+        return reject(error);
       }
       resolve({
         url: base,

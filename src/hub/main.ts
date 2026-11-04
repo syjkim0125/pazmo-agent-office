@@ -25,6 +25,9 @@ export async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> 
       listenHost: listen.host,
       listenPort: listen.port,
       dataDir: env.PAZMO_HUB_DATA_DIR || "/data",
+      // The Office the one-line installer clones; unset or empty means the public default.
+      officeRepo: env.PAZMO_OFFICE_REPO || undefined,
+      officeRef: env.PAZMO_OFFICE_REF || undefined,
     });
     const shutdown = () => {
       hub.stop().then(
