@@ -1,0 +1,12 @@
+{
+  "token": "a6b21abc348d85b5697afa7564567c4daa6d22a6f1e295f22b3c29682e3f0ded",
+  "output": {
+    "summary": "Independent review attempt 1: not ready (Critical 0, Important 2, Minor 3). Code and tests correct; the change record understates the old failure (a hooked claude could start through D39 rediscovery) and the team Office residual (another repo's engine can start it).",
+    "evidence": [".ai-workflow/runs/U34-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement: pin the engine refusal with a job-level test; keep the claude hook block in the team Office's shared discovery with a two-repo test; drop the no-op runners() call; correct the change record and STATUS (old path could start a hooked claude; team residual)."
+  }
+}

@@ -50,7 +50,7 @@ Only the engine's copy kept the block. The others stored each discovery as is.
 - When a record says "the engine still refuses", name which copy must have seen the evidence for that to hold, and check it with a job-level test, not by reading.
 
 ## Still open
-- Keeping a block across failures does not make the copies agree on fresh evidence. The engine rediscovers only when its install is not ready or its binary changed (`src/runtime/runner-jobs.ts`). If a hook appears while the engine's copy says ready, and only the lean copy sees the successful listing (the runners screen, the team Office's claim check), the next claude role job still starts (U34 review 2, by probe; not fixed in U34).
+- Keeping a block across failures does not make the copies agree on fresh evidence. The engine rediscovers only when its install is not ready or its binary changed (`src/runtime/runner-jobs.ts`). If a hook appears while the engine's copy says ready, and only the lean copy sees the successful listing (the lean runners screen; during a team run only the running engine discovers, because the claim check does not), the next claude role job still starts (U34 review 2, by probe; not fixed in U34).
 - The same rule applies: a check that guards a run must read a copy that has seen every discovery, or refresh first.
 
 ## Related

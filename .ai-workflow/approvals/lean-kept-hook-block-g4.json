@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e",
+  "snapshot": "1e0a85216ad9fcd5b7e4735d1c5acc939c6e26d3a9b9741118d1f9385b31f938",
+  "runId": "3b3269fe-68f6-4d2f-9a78-58b586221056",
+  "responseRef": "Claude Code conversation 2026-11-04 (this org; the earlier explainer was made in another Claude org and cannot be opened here): after reading the G4 explainer https://claude.ai/artifact/7n86U8hD6LEBMs2ntbeC7w (version 1) and asked \"U34 G4: 어느 선택지로 할까요?\", the user answered \"① 승인 후 머지\". Option ① said G4 is recorded, the branch is pushed, a PR opened and merged, and the stale-ready engine copy stays a recorded residual for a separate task. Record: .ai-workflow/approvals/lean-kept-hook-block-g4.md",
+  "branch": "claude/vibrant-dijkstra-7dc667",
+  "head": "aca6be8",
+  "date": "2026-11-04"
+}
