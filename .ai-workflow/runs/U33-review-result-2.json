@@ -1,0 +1,8 @@
+{
+  "token": "dfe540e296ed8cc61fe5b71edcd32bbcdbb6d6ae2608eb3fa113a9603180b573",
+  "output": {
+    "summary": "Review attempt 2 of the fix commit 4a00f25 (src unchanged since attempt 1): Ready to merge Yes, Critical 0, Important 0, Minor 2 (wording: the 11-file parenthetical implies a complete set; the lean Office follow-up names only the runners screen). Attempt 1 Minors 1, 3, 4 confirmed fixed; mutants H-H4 caught; rediscover override still uncovered as documented. The two wording Minors go into the delivery commit to keep the last attempts.",
+    "evidence": [".ai-workflow/runs/U33-review-2.md", ".ai-workflow/runs/U33-review-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

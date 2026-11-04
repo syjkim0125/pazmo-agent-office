@@ -1,0 +1,8 @@
+{
+  "token": "9b7aae46869c76d55c852142726e32bf4de2c72d93cb7b29a098cbaad04d645e",
+  "output": {
+    "summary": "kit verify at 4a00f25: tests-1of3 441/441, tests-2of3 448/448, tests-3of3 431/432 (failed), typecheck 0, story 0. The new kept-block login test failed because rewriteClaude overwrote the executed fake claude binary in place and macOS sometimes SIGKILLs its next exec (reproduced 4/60, gone 0/60 when only claude.sh is rewritten).",
+    "evidence": [".ai-workflow/runs/U33-verify-1.md"]
+  },
+  "evaluation": { "passed": false, "action": "fix", "feedback": "tests/runner-settings.test.mjs rewriteClaude must rewrite only claude.sh, never copy over the already executed native fake binary (in-place overwrite makes macOS SIGKILL the next --version run, so claude reads as unsupported and the block is not kept). Fix in implement and run verify again." }
+}

@@ -1,0 +1,20 @@
+{
+  "token": "5b811454ebb67941f4012651fff401221d45eaa226e1eb94d97df51568735f7e",
+  "output": {
+    "summary": "Verify attempt 1 fix in commit a4209a0: rewriteClaude rewrites only claude.sh instead of copying the shim over an executed fake (macOS SIGKILLed the next --version; stress 4/60 failing before, 0/60 after). Also review attempt 2's two wording Minors (related test set no longer claimed complete; lean Office follow-up names all three readers), a new learning doc for the overwrite, and the kit 5 result-JSON location note. runner-settings 22/22, typecheck 0, story 0.",
+    "evidence": [
+      ".ai-workflow/runs/U33-implement-3.md",
+      ".ai-workflow/runs/U33-verify-1.md",
+      ".ai-workflow/runs/U33-review-2.md",
+      "tests/runner-settings.test.mjs",
+      "src/runtime/runner-settings.ts",
+      "src/runtime/live.ts",
+      "src/runtime/runner-jobs.ts",
+      "src/runners/runner-account.ts",
+      "tests/runner-jobs.test.mjs",
+      "tests/live-runtime.test.mjs",
+      "tests/lean-office.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}
