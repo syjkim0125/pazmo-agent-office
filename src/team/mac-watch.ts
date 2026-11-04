@@ -2,10 +2,10 @@ import { spawn } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { noSymlinks, packageRoot } from "../cli/project.ts";
+import { extraCaCerts, noSymlinks, packageRoot } from "../cli/project.ts";
 import type { MacState } from "../hub/store.ts";
 import { printable } from "../runtime/hub-link.ts";
-import { launchLogPath } from "./launch-agent.ts";
+import { STABLE_NODE, launchLogPath, stableNodePath } from "./launch-agent.ts";
 import { rerunCommand } from "./mac.ts";
 import type { MacClient, MacLinkFile } from "./mac.ts";
 import { teamDir } from "./registry.ts";
@@ -13,6 +13,10 @@ import { teamDir } from "./registry.ts";
 /** How long claims stay held for a restart this Office asked for: past it, the restart did not happen (this Office
  * was never stopped), so claims resume and the next check tries again. */
 export const RESTART_HOLD_MS = 600_000;
+/** How long a pending set a restart already tried is left alone: its full sync may have failed only for a moment
+ * (no Hub, a clone timeout), so past this it is tried once more, at the cost of one restart an hour for one that
+ * keeps failing. */
+export const RESTART_RETRY_MS = 3_600_000;
 
 /** What the Mac's heartbeat tells the Hub: its state and, for `limited`, which runner and why. */
 export type Presence = { state: MacState; detail: string | null };
@@ -56,23 +60,28 @@ const strings = (value: unknown): value is string[] => Array.isArray(value) && v
 const sorted = (p: Pending): Pending => ({ add: [...new Set(p.add)].sort(), remove: [...new Set(p.remove)].sort() });
 const keyOf = (p: Pending): string => JSON.stringify([p.add, p.remove]);
 
+/** A pending set a restart was asked for, and when. */
+type Remembered = { key: string; at: number };
+
 /** The set remembered on disk; anything unreadable counts as nothing remembered (at worst, one more restart). */
-function readRemembered(root: string): string | null {
+function readRemembered(root: string): Remembered | null {
   try {
     const file = macRestartPath(root);
     noSymlinks(file);
     if (!existsSync(file)) return null;
     const value: unknown = JSON.parse(readFileSync(file, "utf8"));
     if (typeof value !== "object" || value === null) return null;
-    const { version, add, remove } = value as Record<string, unknown>;
-    return version === 1 && strings(add) && strings(remove) ? keyOf(sorted({ add, remove })) : null;
+    const { version, add, remove, at } = value as Record<string, unknown>;
+    return version === 1 && strings(add) && strings(remove) && typeof at === "number" && Number.isFinite(at)
+      ? { key: keyOf(sorted({ add, remove })), at }
+      : null;
   } catch {
     return null;
   }
 }
 
 /** Temporary file, then rename, 0600: the restarted Office never reads half a set. */
-function writeRemembered(root: string, p: Pending): void {
+function writeRemembered(root: string, p: Pending, at: number): void {
   const dir = teamDir(root);
   noSymlinks(dir);
   mkdirSync(dir, { recursive: true, mode: 0o700 });
@@ -80,7 +89,7 @@ function writeRemembered(root: string, p: Pending): void {
   noSymlinks(file);
   const tmp = join(dir, `${RESTART_FILE}.${randomUUID()}.tmp`);
   try {
-    writeFileSync(tmp, JSON.stringify({ version: 1, add: p.add, remove: p.remove }) + "\n", { mode: 0o600, flag: "wx" });
+    writeFileSync(tmp, JSON.stringify({ version: 1, add: p.add, remove: p.remove, at }) + "\n", { mode: 0o600, flag: "wx" });
     renameSync(tmp, file);
   } catch (error) {
     rmSync(tmp, { force: true });
@@ -104,8 +113,9 @@ const reasonOf = (error: unknown): string => printable(error instanceof Error ? 
  * A 401 means the Hub revoked this Mac: one line, then no Mac call under that macId until the link file names
  * another. A restart is asked for only while nothing is open; until then one line says it waits. From the
  * restart on, claims are held (`holding`) for RESTART_HOLD_MS. The pending set a restart was asked for is
- * remembered (0600, before the restart): the restarted Office that finds the same set again (a repo a full sync
- * cannot add) says so once and does not restart for it; a different set restarts, and an empty one forgets it.
+ * remembered with its time (0600, before the restart): the restarted Office that finds the same set again (a repo a
+ * full sync could not add) says so once and does not restart for it until RESTART_RETRY_MS have passed; a different
+ * set restarts, and an empty one forgets it.
  */
 export function createMacWatch(d: MacWatchDeps): MacWatch {
   const now = d.now ?? Date.now;
@@ -120,8 +130,8 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
   let revoked: string | null = null;
   /** When this Office asked for its restart, while it holds claims for it. */
   let heldAt: number | null = null;
-  /** The pending set (key) a restart was asked for, by this Office or the one before it. */
-  let restartedFor: string | null = d.root === undefined ? null : readRemembered(d.root);
+  /** The pending set a restart was asked for, by this Office or the one before it. */
+  let restartedFor: Remembered | null = d.root === undefined ? null : readRemembered(d.root);
   /** Lines said once until what they say changes. */
   let waitingSaid: string | null = null;
   let stuckSaid: string | null = null;
@@ -174,7 +184,9 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
         // later Office may take the set for one its restart already tried.
         heldAt = null;
         forget();
-        log(`team: 팀 Office가 ${RESTART_HOLD_MS / 60000}분 안에 다시 켜지지 않았습니다 — Task를 다시 가져가고, 다음 확인에서 다시 켭니다`);
+        log(
+          `team: 팀 Office가 ${RESTART_HOLD_MS / 60000}분 안에 다시 켜지지 않았습니다 — Task를 다시 가져가고, 다음 확인에서 다시 켭니다. 다시 켜기 기록: ${reasonsAt}`,
+        );
       }
       let pending: Pending;
       try {
@@ -190,11 +202,12 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
       }
       const key = keyOf(pending);
       const what = describe(pending);
-      if (key === restartedFor) {
-        // The restart for this very set happened and its full sync could not do it: another restart would not either.
+      const age = restartedFor?.key === key ? now() - restartedFor.at : null;
+      if (age !== null && age >= 0 && age < RESTART_RETRY_MS) {
+        // The restart for this very set happened and its full sync could not do it: another one now would not either.
         if (stuckSaid !== key)
           log(
-            `team: 담당 repo 변경을 맞추지 못했습니다: ${what} — 다시 켜도 그대로여서 다시 켜지 않습니다. 이유는 ${reasonsAt}의 맞추기 줄에 있습니다. 고친 뒤 실행하세요: ${restartCommand}`,
+            `team: 담당 repo 변경을 맞추지 못했습니다: ${what} — 다시 켜도 그대로여서 ${RESTART_RETRY_MS / 60000}분 동안 다시 켜지 않습니다. 이유는 ${reasonsAt}의 맞추기 줄에 있습니다. 고친 뒤 실행하세요: ${restartCommand}`,
           );
         stuckSaid = key;
         return;
@@ -207,9 +220,10 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
         return;
       }
       waitingSaid = null;
+      const at = now();
       if (d.root !== undefined)
         try {
-          writeRemembered(d.root, pending);
+          writeRemembered(d.root, pending, at);
         } catch (error) {
           // Unremembered, a restart could repeat every check for a set its sync cannot do: none is made.
           if (unsavedSaid !== key)
@@ -218,8 +232,8 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
           return;
         }
       unsavedSaid = null;
-      restartedFor = key;
-      heldAt = now();
+      restartedFor = { key, at };
+      heldAt = at;
       log(`team: 담당 repo가 바뀌었습니다(${what}) — 새 Task를 가져가지 않고 팀 Office를 다시 켭니다`);
       try {
         d.restart();
@@ -233,21 +247,31 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
   };
 }
 
+/** The node a restart runs with, as the LaunchAgent names it: this one (or Homebrew's version-independent path to
+ * it) while it is there; once `brew upgrade` removed its versioned folder under this running Office, Homebrew's. */
+export function restartNode(execPath: string = process.execPath, stable: string = STABLE_NODE): string {
+  return existsSync(execPath) ? stableNodePath(execPath, stable) : stable;
+}
+
 /**
  * `mac restart --data-dir <root>` apart from this Office (its own process group, not waited for): it stops this
- * Office and starts it again as `up --team --no-open`. It runs with the person's PATH and HOME (and ssh agent), as
- * the LaunchAgent's `up` does, and writes to the LaunchAgent's log. No token is in its arguments or environment.
+ * Office and starts it again as `up --team --no-open`. It runs on `restartNode()` with the person's PATH and HOME
+ * (and ssh agent) and this process's extra CA file (an absolute path only), as the LaunchAgent's `up` does, and
+ * writes to the LaunchAgent's log. No token is in its arguments or environment. `o` is for tests.
  */
 export function spawnMacRestart(
   root: string,
   host: { pathEnv: string; home: string; sshAuthSock?: string },
   spawnFn: typeof spawn = spawn,
+  o: { execPath?: string; stableNode?: string; env?: NodeJS.ProcessEnv } = {},
 ): void {
   const log = launchLogPath(root);
   noSymlinks(log);
+  const node = restartNode(o.execPath, o.stableNode);
+  const extraCa = extraCaCerts(o.env);
   const fd = openSync(log, "a", 0o600);
   try {
-    const child = spawnFn(process.execPath, [join(packageRoot, "bin", "pazmo-office.mjs"), "mac", "restart", "--data-dir", root], {
+    const child = spawnFn(node, [join(packageRoot, "bin", "pazmo-office.mjs"), "mac", "restart", "--data-dir", root], {
       detached: true,
       stdio: ["ignore", fd, fd],
       env: {
@@ -255,6 +279,7 @@ export function spawnMacRestart(
         HOME: host.home,
         LANG: "en_US.UTF-8",
         ...(host.sshAuthSock ? { SSH_AUTH_SOCK: host.sshAuthSock } : {}),
+        ...(extraCa ? { NODE_EXTRA_CA_CERTS: extraCa } : {}),
       },
     });
     // A child that never started emits `error`: said in the log, never thrown into the Office (the hold runs out).

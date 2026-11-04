@@ -26,6 +26,12 @@ export class OfficeError extends Error {
 export function fail(code: string, message: string): never {
   throw new OfficeError(code, message);
 }
+/** `NODE_EXTRA_CA_CERTS` of `env`, only as an absolute path without control characters: what Office hands on to the
+ * team processes it starts (the team service, a self-restart), so a Hub behind an extra CA stays reachable. */
+export function extraCaCerts(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const value = env.NODE_EXTRA_CA_CERTS;
+  return value && isAbsolute(value) && !/[\u0000-\u001f\u007f]/.test(value) ? value : undefined;
+}
 export function noSymlinks(value: string): void {
   let current = resolve(value);
   // Canonicalize existing parents first at call sites (macOS /tmp is a symlink).

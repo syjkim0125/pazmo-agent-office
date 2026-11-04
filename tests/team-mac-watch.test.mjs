@@ -14,9 +14,16 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { packageRoot } from "../src/cli/project.ts";
-import { launchLogPath } from "../src/team/launch-agent.ts";
+import { STABLE_NODE, launchLogPath, stableNodePath } from "../src/team/launch-agent.ts";
 import { writeMacLink } from "../src/team/mac.ts";
-import { RESTART_HOLD_MS, createMacWatch, macRestartPath, spawnMacRestart } from "../src/team/mac-watch.ts";
+import {
+  RESTART_HOLD_MS,
+  RESTART_RETRY_MS,
+  createMacWatch,
+  macRestartPath,
+  restartNode,
+  spawnMacRestart,
+} from "../src/team/mac-watch.ts";
 import { teamDir } from "../src/team/registry.ts";
 
 const FILE = {
@@ -214,10 +221,14 @@ test("the hold ends after 600000 ms if this Office was never stopped, and the ne
   assert.equal(w.restarts.length, 1);
   w.clock += 1;
   assert.equal(watch.holding(), false, "claims are taken again");
-  // The restart never happened (this Office still runs): the same set is tried again.
+  // The restart never happened (this Office still runs): the same set is tried again, and the line says where the
+  // restart wrote why.
+  const said = w.logs.length;
   await watch.check();
   assert.equal(w.restarts.length, 2);
   assert.equal(watch.holding(), true);
+  const expired = w.logs.slice(said).find((line) => line.includes("10분"));
+  assert.ok(expired?.includes(launchLogPath(w.root)), w.logs.join("\n"));
 
   // Run out again, with the Hub out of reach at the next check: the set is no longer remembered as restarted for,
   // so a later Office does not take it for one its restart already tried.
@@ -250,7 +261,7 @@ test("the same pending set after a restart does not restart again and logs once,
   await first.check();
   assert.equal(w.restarts.length, 1);
   // Remembered before the restart was asked for, 0600, in a stable order.
-  assert.deepEqual(JSON.parse(w.restarts[0]), { version: 1, add: ["alpha", "beta"], remove: ["/data/repos/gone"] });
+  assert.deepEqual(JSON.parse(w.restarts[0]), { version: 1, add: ["alpha", "beta"], remove: ["/data/repos/gone"], at: w.clock });
   assert.equal(statSync(macRestartPath(w.root)).mode & 0o777, 0o600);
   await first.check();
   assert.equal(w.restarts.length, 1, "held: no second restart");
@@ -279,11 +290,43 @@ test("a changed pending set restarts once more", async (t) => {
   w.pending = { add: ["beta", "gamma"], remove: [] };
   await second.check();
   assert.equal(w.restarts.length, 2);
-  assert.deepEqual(JSON.parse(w.restarts[1]), { version: 1, add: ["beta", "gamma"], remove: [] });
+  assert.deepEqual(JSON.parse(w.restarts[1]), { version: 1, add: ["beta", "gamma"], remove: [], at: w.clock });
   // And the Office after that knows this set.
   const third = w.watch();
   await third.check();
   assert.equal(w.restarts.length, 2);
+});
+
+test("a remembered pending set is tried again once it is 3600000 ms old, and the file keeps the new time", async (t) => {
+  assert.equal(RESTART_RETRY_MS, 3600000);
+  const w = world(t);
+  w.pending = { add: ["beta"], remove: [] };
+  await w.watch().check();
+  assert.equal(w.restarts.length, 1);
+  const restartedAt = w.clock;
+
+  // The restarted Office: its full sync could not add beta (the Hub was out of reach for a moment).
+  const second = w.watch();
+  w.clock = restartedAt + 3599999;
+  await second.check();
+  assert.equal(w.restarts.length, 1, "not before an hour");
+  assert.equal(second.holding(), false);
+  w.clock = restartedAt + 3600000;
+  await second.check();
+  assert.equal(w.restarts.length, 2, "an hour on, once more");
+  assert.equal(second.holding(), true);
+  assert.deepEqual(JSON.parse(readFileSync(macRestartPath(w.root), "utf8")), { version: 1, add: ["beta"], remove: [], at: restartedAt + 3600000 });
+  await second.check();
+  assert.equal(w.restarts.length, 2, "held");
+
+  // An Office that starts with an old file (the Mac was asleep) restarts for the set at its first check.
+  writeFileSync(macRestartPath(w.root), JSON.stringify({ version: 1, add: ["beta"], remove: [], at: w.clock - RESTART_RETRY_MS }));
+  await w.watch().check();
+  assert.equal(w.restarts.length, 3);
+  // One from before the time was kept (no `at`) counts as nothing remembered.
+  writeFileSync(macRestartPath(w.root), JSON.stringify({ version: 1, add: ["beta"], remove: [] }));
+  await w.watch().check();
+  assert.equal(w.restarts.length, 4);
 });
 
 test("an empty pending set clears the remembered set", async (t) => {
@@ -345,10 +388,10 @@ test("spawnMacRestart runs mac restart --data-dir <root> detached with the perso
     return child;
   };
   const host = { pathEnv: "/opt/homebrew/bin:/usr/bin:/bin", home: "/Users/jane", sshAuthSock: "/private/tmp/agent.sock" };
-  spawnMacRestart(root, host, fake);
+  spawnMacRestart(root, host, fake, { env: {} });
   assert.equal(calls.length, 1);
   const [{ command, args, options }] = calls;
-  assert.equal(command, process.execPath);
+  assert.equal(command, stableNodePath(process.execPath), "this node, as the LaunchAgent names it");
   assert.deepEqual(args, [join(packageRoot, "bin", "pazmo-office.mjs"), "mac", "restart", "--data-dir", root]);
   assert.ok(existsSync(args[0]));
   assert.equal(options.detached, true);
@@ -364,7 +407,7 @@ test("spawnMacRestart runs mac restart --data-dir <root> detached with the perso
   assert.ok(!seen.includes(FILE.macToken), "no token in argv or env");
 
   // Without an ssh agent there is none; the log is appended to, 0600.
-  spawnMacRestart(root, { pathEnv: host.pathEnv, home: host.home }, fake);
+  spawnMacRestart(root, { pathEnv: host.pathEnv, home: host.home }, fake, { env: {} });
   assert.deepEqual(Object.keys(calls[1].options.env).sort(), ["HOME", "LANG", "PATH"]);
   const log = launchLogPath(root);
   assert.equal(readFileSync(log, "utf8"), "out 1\nerr 1\nout 2\nerr 2\n");
@@ -374,4 +417,44 @@ test("spawnMacRestart runs mac restart --data-dir <root> detached with the perso
   assert.equal(typeof calls[1].listeners.error, "function");
   calls[1].listeners.error(Object.assign(new Error("spawn node ENOENT"), { code: "ENOENT" }));
   assert.match(readFileSync(log, "utf8"), /ENOENT/);
+});
+
+test("a restart runs on Homebrew's node once an upgrade removed the running one", (t) => {
+  const root = tempRoot(t);
+  mkdirSync(teamDir(root), { recursive: true });
+  const gone = join(root, "Cellar", "node@24", "24.0.0", "bin", "node");
+  const stable = join(root, "opt", "node@24", "bin", "node");
+  assert.equal(restartNode(gone, stable), stable);
+  assert.equal(restartNode(gone), STABLE_NODE);
+  // While it is there, the node that runs: Homebrew's own path to it, or itself.
+  assert.equal(restartNode(process.execPath, stable), process.execPath);
+  mkdirSync(join(root, "opt", "node@24", "bin"), { recursive: true });
+  writeFileSync(stable, "");
+  const present = join(root, "present-node");
+  writeFileSync(present, "");
+  assert.equal(restartNode(present, stable), present);
+
+  const commands = [];
+  const fake = (command) => {
+    commands.push(command);
+    return { once() {}, on() {}, unref() {} };
+  };
+  spawnMacRestart(root, { pathEnv: "/usr/bin:/bin", home: "/Users/jane" }, fake, { execPath: gone, stableNode: stable, env: {} });
+  spawnMacRestart(root, { pathEnv: "/usr/bin:/bin", home: "/Users/jane" }, fake, { execPath: gone, env: {} });
+  assert.deepEqual(commands, [stable, STABLE_NODE]);
+});
+
+test("a restart carries NODE_EXTRA_CA_CERTS only when it is an absolute path, and changes no other variable", (t) => {
+  const root = tempRoot(t);
+  mkdirSync(teamDir(root), { recursive: true });
+  const envs = [];
+  const fake = (_command, _args, options) => {
+    envs.push(options.env);
+    return { once() {}, on() {}, unref() {} };
+  };
+  const host = { pathEnv: "/usr/bin:/bin", home: "/Users/jane" };
+  const base = { PATH: "/usr/bin:/bin", HOME: "/Users/jane", LANG: "en_US.UTF-8" };
+  for (const value of ["/Users/jane/corp-ca.pem", "corp-ca.pem", "/Users/jane/corp\nca.pem", "", undefined])
+    spawnMacRestart(root, host, fake, { env: value === undefined ? {} : { NODE_EXTRA_CA_CERTS: value, OTHER: "x" } });
+  assert.deepEqual(envs, [{ ...base, NODE_EXTRA_CA_CERTS: "/Users/jane/corp-ca.pem" }, base, base, base, base]);
 });

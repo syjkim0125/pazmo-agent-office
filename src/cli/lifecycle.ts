@@ -14,6 +14,7 @@ import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  extraCaCerts,
   fail,
   ignoreMetadata,
   initTeam,
@@ -45,6 +46,19 @@ type Running = {
   token: string;
   instance: string;
 };
+/** A service's own environment: Office's HOME and TMPDIR and a short PATH (the native Office reads task diffs with
+ * git). The team service also gets the extra CA file of `env` (an absolute path only): its Mac heartbeat and repo
+ * check call a Hub that may sit behind it. */
+export function serviceEnv(engine: Engine, dataDir: string, env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const extraCa = engine === "team" ? extraCaCerts(env) : undefined;
+  return {
+    PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
+    HOME: join(dataDir, "home"),
+    TMPDIR: join(dataDir, "tmp"),
+    LANG: "en_US.UTF-8",
+    ...(extraCa ? { NODE_EXTRA_CA_CERTS: extraCa } : {}),
+  };
+}
 function readState(p: Project): Running | undefined {
   const path = join(p.dataDir, "running.json");
   noSymlinks(path);
@@ -226,13 +240,7 @@ export async function start(
         cwd: p.dataDir,
         detached: true,
         stdio: ["ignore", fd, fd, "ipc"],
-        env: {
-          // The native Office reads task diffs with git.
-          PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
-          HOME: join(p.dataDir, "home"),
-          TMPDIR: join(p.dataDir, "tmp"),
-          LANG: "en_US.UTF-8",
-        },
+        env: serviceEnv(engine, p.dataDir),
       },
     );
     closeSync(fd);

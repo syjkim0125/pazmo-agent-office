@@ -4,6 +4,7 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSy
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
+import { serviceEnv } from "../src/cli/lifecycle.ts";
 import { locate } from "../src/cli/project.ts";
 import { writeMacLink } from "../src/team/mac.ts";
 import { teamDir } from "../src/team/registry.ts";
@@ -185,6 +186,49 @@ test("with a Mac link and no repo, start --team runs with no repos; without one 
   assert.ok(lines.some((line) => line.startsWith("Mac 담당 repo 맞추기를 건너뜁니다 — ")), r.stderr);
   assert.ok(!r.stderr.includes("T".repeat(43)), "no token in the output");
   assert.equal(existsSync(f.running), false);
+});
+
+test("serviceEnv: the team service gets NODE_EXTRA_CA_CERTS only when it is an absolute path; nothing else changes", () => {
+  const base = { PATH: `${dirname(process.execPath)}:/usr/bin:/bin`, HOME: "/d/home", TMPDIR: "/d/tmp", LANG: "en_US.UTF-8" };
+  assert.deepEqual(serviceEnv("team", "/d", { NODE_EXTRA_CA_CERTS: "/Users/jane/corp-ca.pem", OTHER: "x" }), {
+    ...base,
+    NODE_EXTRA_CA_CERTS: "/Users/jane/corp-ca.pem",
+  });
+  for (const value of ["corp-ca.pem", "/Users/jane/corp\nca.pem", ""])
+    assert.deepEqual(serviceEnv("team", "/d", { NODE_EXTRA_CA_CERTS: value }), base, JSON.stringify(value));
+  assert.deepEqual(serviceEnv("team", "/d", {}), base);
+  // The lean service's environment is as it was.
+  assert.deepEqual(serviceEnv("lean", "/d", { NODE_EXTRA_CA_CERTS: "/Users/jane/corp-ca.pem" }), base);
+});
+
+test("a started team service has the extra CA file of an absolute NODE_EXTRA_CA_CERTS, and none for a relative one", async (t) => {
+  const f = fixture(t);
+  // Nobody listens on port 1: the service's first beat is a TLS call that fails without leaving the machine.
+  writeMacLink(f.data, {
+    version: 1,
+    hub: "https://127.0.0.1:1",
+    macId: "mac-1",
+    macToken: "T".repeat(43),
+    memberId: "m1",
+    memberName: "김",
+    name: "내 Mac",
+  });
+  const log = join(teamDir(f.data), "office.log");
+  const since = () => (existsSync(log) ? readFileSync(log, "utf8") : "");
+  // Node loads the extra CA file at the first TLS call and says in the service's log that a missing one was ignored.
+  for (const [value, carried] of [[join(f.root, "missing-ca.pem"), true], ["missing-ca.pem", false]]) {
+    const before = since().length;
+    const started = call({ ...f, env: { ...f.env, NODE_EXTRA_CA_CERTS: value } }, "start", "--team", "--port", "0");
+    assert.equal(started.status, 0, JSON.stringify(started.value));
+    const pid = JSON.parse(readFileSync(f.running, "utf8")).pid;
+    for (let i = 0; i < 400 && !since().slice(before).includes("the presence failed"); i++)
+      await new Promise((resolve) => setTimeout(resolve, 25));
+    const text = since().slice(before);
+    assert.ok(text.includes("the presence failed"), text);
+    assert.equal(text.includes(`Ignoring extra certs from \`${value}\``), carried, text);
+    assert.equal(call(f, "stop", "--team").value.status, "stopped");
+    await assertOfficesExited([pid]);
+  }
 });
 
 test("a registered repo whose folder is gone stops start --team and up --team with REPO_MISSING and its remedy", (t) => {
