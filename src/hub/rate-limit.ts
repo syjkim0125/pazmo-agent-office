@@ -1,7 +1,11 @@
 /** Keys held at once, so a flood of distinct clients cannot grow the table without bound. */
 const MAX_KEYS = 10_000;
 
-export type RateLimit = { take(key: string): boolean };
+export type RateLimit = {
+  take(key: string): boolean;
+  /** True while the key's window is open and used up, so its next `take` would be refused. Takes nothing and opens nothing. */
+  full(key: string): boolean;
+};
 
 /**
  * A fixed window per key, in memory. `take` is true while the key has had fewer than `limit` takes since its window
@@ -12,6 +16,10 @@ export function createRateLimit(limit: number, windowMs: number, now: () => numb
   const windows = new Map<string, { start: number; count: number }>();
   const over = (start: number, at: number) => at - start >= windowMs || at < start; // a clock that stepped back ends it too
   return {
+    full(key) {
+      const w = windows.get(key);
+      return !w || over(w.start, now()) ? limit <= 0 : w.count >= limit;
+    },
     take(key) {
       const at = now();
       let w = windows.get(key);

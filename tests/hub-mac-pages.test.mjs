@@ -7,6 +7,7 @@ import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 import { DEFAULT_OFFICE_REF, DEFAULT_OFFICE_REPO } from "../src/hub/installer.ts";
+import { createRateLimit } from "../src/hub/rate-limit.ts";
 import { startTestHub } from "./hub-fixture.mjs";
 
 const PUBLIC = "https://pazmo-hub.apps.example.com";
@@ -217,6 +218,85 @@ test("the 11th approve attempt by one member in 600000 ms is 429", async (t) => 
   assert.equal((await h.post("/mac/deny", b, { code: real.userCode })).status, 429, "still refused inside the window");
   assert.equal((await h.post("/mac/approve", b, { code: real.userCode }, { csrf: "wrong" })).status, 403, "a bad token is refused before it is counted");
   assert.equal((await h.post("/mac/approve", admin, { code: real.userCode })).status, 303, "another member has an allowance of their own");
+});
+
+/** Two members besides the admin, for tests that spend one member's allowance and need another's untouched. */
+async function threeMembers(h) {
+  const { admin, b } = await twoMembers(h);
+  const c = await h.enter(h.store.createInvite(admin.member, "C"));
+  return { admin, b, c };
+}
+const DEAD = "BCDF-0000"; // reads as a code, but no hub has started it
+
+test("10 missed approve-page lookups by one member in 600000 ms make the 11th GET 429 even for a live code, and it shows nothing", async (t) => {
+  const h = await lan(t);
+  const { admin, b } = await twoMembers(h);
+  const live = h.store.startMac("비밀 이름 Mac");
+  const misses = [DEAD, "nope", "", "bcdf 0001", "BCDF-0002", "ZZZZ-9999", "x".repeat(40), "BCDF-0003", "BCDF-0004", "BCDF-0005"];
+  for (const [i, typed] of misses.entries()) {
+    const gone = await h.get(`/mac/approve?code=${encodeURIComponent(typed)}`, b);
+    assert.equal(gone.status, 410, `miss ${i + 1} still answers 410`);
+  }
+  const probe = await h.get(`/mac/approve?code=${live.userCode}`, b);
+  assert.equal(probe.status, 429, "the 11th lookup is refused whatever it names");
+  assert.match(probe.text, /너무 많/);
+  assert.ok(!probe.text.includes("비밀 이름 Mac") && !probe.text.includes(live.userCode), "an over-limit member learns nothing");
+  assert.equal((await h.get(`/mac/approve?code=${DEAD}`, b)).status, 429, "a dead code is refused too, not answered 410");
+  assert.equal((await h.get(`/mac/approve`, b)).status, 429, "so is a request with no code");
+  assert.equal(h.store.macCode(live.userCode).state, "pending", "nothing was decided");
+  const other = await h.get(`/mac/approve?code=${live.userCode}`, admin);
+  assert.equal(other.status, 200, "another member has an allowance of their own");
+  assert.ok(other.text.includes("비밀 이름 Mac"));
+});
+
+test("missed approve-page lookups and approve/deny POSTs spend the one allowance", async (t) => {
+  const h = await lan(t);
+  const { b, c } = await threeMembers(h);
+  const live = h.store.startMac("진짜 Mac");
+  // 6 misses by GET and 4 by POST: the 10 are used up, whichever way they came.
+  for (let i = 0; i < 6; i++) assert.equal((await h.get(`/mac/approve?code=${DEAD}`, b)).status, 410);
+  for (let i = 0; i < 4; i++) assert.equal((await h.post(i % 2 ? "/mac/deny" : "/mac/approve", b, { code: DEAD })).status, 410);
+  assert.equal((await h.post("/mac/approve", b, { code: live.userCode })).status, 429, "the POST is refused after GET misses");
+  assert.equal((await h.get(`/mac/approve?code=${live.userCode}`, b)).status, 429, "and so is the page");
+  // The other way round: 9 POSTs, then one missed GET takes the tenth.
+  for (let i = 0; i < 9; i++) assert.equal((await h.post("/mac/approve", c, { code: DEAD })).status, 410);
+  assert.equal((await h.get(`/mac/approve?code=${DEAD}`, c)).status, 410, "the tenth is still answered");
+  assert.equal((await h.get(`/mac/approve?code=${live.userCode}`, c)).status, 429, "POSTs and a miss add up to the same limit");
+  assert.equal(h.store.macCode(live.userCode).state, "pending");
+});
+
+test("opening a live or a decided code's approve page again and again does not spend the allowance", async (t) => {
+  const h = await lan(t);
+  const { admin, b, c } = await threeMembers(h);
+  const live = h.store.startMac("살아 있는 Mac");
+  const decided = h.store.startMac("이미 정한 Mac");
+  h.store.approveMac(admin.member, decided.userCode);
+  for (let i = 0; i < 15; i++) {
+    assert.equal((await h.get(`/mac/approve?code=${live.userCode}`, c)).status, 200, `open ${i + 1}`);
+    assert.equal((await h.get(`/mac/approve?code=${decided.userCode}`, c)).status, 409, `decided ${i + 1}`);
+  }
+  // All ten attempts are still there: had the 30 opens counted, some of these would already be 429.
+  for (let i = 0; i < 10; i++) assert.equal((await h.post("/mac/approve", c, { code: DEAD })).status, 410, `attempt ${i + 1}`);
+  assert.equal((await h.post("/mac/approve", c, { code: live.userCode })).status, 429, "the 11th attempt is the one that is refused");
+  assert.equal((await h.post("/mac/approve", b, { code: live.userCode })).status, 303, "the normal open-then-allow flow was never in the way");
+});
+
+test("createRateLimit.full tells whether a key is used up and takes nothing", () => {
+  let now = 1_000;
+  const limit = createRateLimit(2, 600_000, () => now);
+  assert.equal(limit.full("a"), false, "a key never seen is not full");
+  assert.deepEqual([limit.full("a"), limit.full("a")], [false, false], "asking does not spend");
+  limit.take("a");
+  assert.equal(limit.full("a"), false);
+  limit.take("a");
+  assert.equal(limit.full("a"), true);
+  assert.equal(limit.full("b"), false, "another key has its own window");
+  now += 599_999;
+  assert.equal(limit.full("a"), true, "still inside the window");
+  now += 1;
+  assert.equal(limit.full("a"), false, "the window ended");
+  assert.equal(limit.take("a"), true, "and asking did not stop a new window from opening");
+  assert.equal(createRateLimit(0, 600_000, () => now).full("a"), true, "a limit of 0 is always full");
 });
 
 test("the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 중(한도), 잠김, 꺼짐(, and 연결된 Mac 없음 with a link to /mac", async (t) => {

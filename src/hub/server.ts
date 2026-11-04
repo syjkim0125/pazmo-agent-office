@@ -21,7 +21,8 @@ export const LINK_LIMIT = 1024 * 1024;
 /** POST /api/mac/start, per client: it needs no credential, and every start holds one of the hub's pending codes. */
 const START_LIMIT = 10;
 const START_WINDOW_MS = 600_000;
-/** POST /mac/approve and /mac/deny, per signed-in member: a user code can only be guessed by someone who is in, so this is what bounds it. */
+/** Per signed-in member: a user code can only be guessed by someone who is in, so this bounds it. POST /mac/approve and /mac/deny
+ * each spend one, and so does a GET /mac/approve that names no live code; opening a live or decided code is free. */
 const DECIDE_LIMIT = 10;
 const DECIDE_WINDOW_MS = 600_000;
 const COOKIE = "pazmo_hub";
@@ -138,6 +139,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if (post && !same(f("csrf"), s.csrf)) throw new HubError("CSRF", 403, "화면을 새로 고친 뒤 다시 시도해주세요.");
     const me = s.member;
     const trust = !!tls;
+    const tooMany = () => new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
     // Read when a page is drawn, so the header shows the state after whatever this request did.
     const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id) });
     // Only a hub that serves the installer can give a Mac the one-line command.
@@ -166,9 +168,15 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (path === "/mac")
         return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, chrome()));
       if (path === "/mac/approve") {
+        // Checked before the lookup, so a member who is over the limit cannot tell a live code from a dead one.
+        if (decideLimit.full(me.id)) throw tooMany();
         const typed = url.searchParams.get("code") ?? "";
         const info = c.store.macCode(typed);
-        if (!info) return html(res, 410, page.macCodeGone(me, chrome()));
+        if (!info) {
+          // A miss is a guess as far as the limit goes; opening a code that is live or already decided costs nothing.
+          decideLimit.take(me.id);
+          return html(res, 410, page.macCodeGone(me, chrome()));
+        }
         if (info.state !== "pending") throw new HubError("MAC_CODE_USED", 409, "이미 허용하거나 거절한 코드입니다. 새 코드가 필요하면 Mac 터미널에서 설치 명령을 다시 실행하세요.");
         // macCode accepted it, so it reads as four letters and four digits however it was typed; the page shows that form.
         const code = typed.toUpperCase().replace(/[\s-]/g, "");
@@ -229,8 +237,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     }
     if (path === "/mac/approve" || path === "/mac/deny") {
       // Counted after the token is known good, so only the member's own page can spend their allowance.
-      if (!decideLimit.take(me.id))
-        throw new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
+      if (!decideLimit.take(me.id)) throw tooMany();
       if (path === "/mac/approve") c.store.approveMac(me, f("code"));
       else c.store.denyMac(me, f("code"));
       return redirect(res, path === "/mac/approve" ? "/mac?approved=1" : "/mac");
