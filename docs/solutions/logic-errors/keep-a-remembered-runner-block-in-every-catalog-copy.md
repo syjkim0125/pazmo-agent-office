@@ -14,7 +14,7 @@ root_cause: logic_error
 resolution_type: code_fix
 related_components:
   - testing_framework
-tags: [runner-catalog, cache-copies, kept-block, claude-hooks, d29, d39, rediscovery, team-office, lean-office]
+tags: [runner-catalog, cache-copies, kept-block, claude-hooks, d29, d39, d40, rediscovery, refresh-before-run, team-office, lean-office]
 ---
 
 # Keep a remembered runner block in every copy of the runner catalog
@@ -49,10 +49,12 @@ Only the engine's copy kept the block. The others stored each discovery as is.
   - team: only repo A's engine sees it; the listing then fails twice, at A's next look and at B's, and B's engine must hold the block (`tests/team-office.test.mjs`; the fake runtime keeps the engine's `runners`). One failure is not enough: a layer that stores the raw result but returns the kept one passes it, and loses the block on the second failure.
 - When a record says "the engine still refuses", name which copy must have seen the evidence for that to hold, and check it with a job-level test, not by reading.
 
-## Still open
-- Keeping a block across failures does not make the copies agree on fresh evidence. The engine rediscovers only when its install is not ready or its binary changed (`src/runtime/runner-jobs.ts`). If a hook appears while the engine's copy says ready, and only the lean copy sees the successful listing (the lean runners screen; during a team run only the running engine discovers, because the claim check does not), the next claude role job still starts (U34 review 2, by probe; not fixed in U34).
-- The same rule applies: a check that guards a run must read a copy that has seen every discovery, or refresh first.
+## Fresh evidence (closed in D40/U35)
+- Keeping a block across failures does not make the copies agree on fresh evidence. The engine used to rediscover only when its install was not ready or its binary changed (`src/runtime/runner-jobs.ts`). If a hook appeared while the engine's copy said ready, the next claude role job started, whether only the lean runners screen had listed the hook (U34 review 2, by probe) or nothing had.
+- D40 chose "refresh first" over "make the copies agree": `roleJobFactory` rediscovers before every claude job, so a guard no longer depends on which copy happened to see the evidence, or on anyone having looked. Codex jobs still trust a ready copy; codex has its own check right before the run (`CODEX_PERSONAL_INSTRUCTIONS`).
+- Rule: a check that guards a run must refresh right before the run when the state it guards can change without anyone looking. Following another copy only helps when some copy has looked. Test both cases at job level: evidence seen only by an upper copy, and evidence nobody listed (`tests/lean-office.test.mjs`, D40).
 
 ## Related
 - `docs/verification/2026-11-04-lean-kept-hook-block.md`: the change (U34), its tests, mutants and residual risks.
+- `docs/verification/2026-11-04-claude-job-recheck.md`: D40/U35, the rediscovery before every claude role job.
 - `docs/verification/2026-11-03-runner-not-ready-wait.md`: D39 and its follow-up U33, where `keptClaudeBlock`, `claudeUnlisted` and `hookBlock` came from.
