@@ -15,7 +15,7 @@ import { findOnPath, ghStatus, remoteHost } from "./gh.ts";
 import type { GhResult } from "./gh.ts";
 import { macClient, readMacLink } from "./mac.ts";
 import type { MacClient } from "./mac.ts";
-import { addTeamRepo, readTeam, removeTeamRepo, teamRunning } from "./registry.ts";
+import { MAX_REPOS, addTeamRepo, readTeam, removeTeamRepo, teamRunning } from "./registry.ts";
 import type { Team } from "./registry.ts";
 
 const NAME_MAX = 80;
@@ -68,8 +68,9 @@ export type MacRepoResult = {
   linked: boolean;
   problem: string | null;
 };
-/** `removed`: registry projects taken out. `pending` (links-only): owned repos (by name) that are not registered,
- * and Mac clones (by project) that are registered but no longer owned. */
+/** `removed`: registry projects taken out. `pending` (links-only): owned repos (by name) that are not registered and
+ * that the registry has a place for (`MAX_REPOS`), and Mac clones (by project) that are registered but no longer
+ * owned. */
 export type MacSyncResult = { repos: MacRepoResult[]; removed: string[]; pending: { add: string[]; remove: string[] } };
 
 const login = (host: string) => `gh auth login --hostname ${host} --web --git-protocol https`;
@@ -349,6 +350,14 @@ export async function syncMacRepos(d: MacSyncDeps, mode: "full" | "links-only"):
       r.project = entry.project;
       r.registered = true;
     }
+    // A repo the registry has no place for is never cloned (it could never be registered) and, in links-only, is no
+    // reason to restart: a full sync first takes out the Mac clones in `pending.remove`, then adds in this order.
+    const registered = full ? team.repos.length : team.repos.length - result.pending.remove.length + result.pending.add.length;
+    if (!entry && registered >= MAX_REPOS)
+      return problem(
+        r,
+        `팀 Office는 repo를 ${MAX_REPOS}개까지 맡습니다 — 이미 ${MAX_REPOS}개가 등록돼 있어 clone하지 않았습니다(LIMIT). 담당 repo가 ${MAX_REPOS}개 이하가 되면 다음 맞추기에서 clone합니다`,
+      );
     if (!full) {
       if (!entry) result.pending.add.push(r.name);
       return entry ? link(r, repo, entry.project) : r;

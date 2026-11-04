@@ -21,7 +21,8 @@ export type TeamRepo = { project: string; remote: string };
 export type Team = { version: 1; repos: TeamRepo[] };
 
 const FILE = "team.json";
-const MAX_REPOS = 20;
+/** The most repos one team Office runs; a Mac checks it before it clones. */
+export const MAX_REPOS = 20;
 
 /** The team Office keeps its own data here, beside the per-project directories. */
 export const teamDir = (root: string): string => join(root, "team");

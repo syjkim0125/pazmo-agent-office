@@ -610,6 +610,48 @@ test("a link the Hub refuses with LINKED_ELSEWHERE is one Office line, asked onc
   assert.deepEqual(readFileSync(file), before);
 });
 
+test("a repo past the team Office's 20-repo limit is not cloned or registered, is said once, and links-only leaves it out of pending.add", async (t) => {
+  const m = await macWorld(t, ["app-be", "app-fe"]);
+  // 19 repos the person registered from their own folders (not owned on the Hub): app-be is the 20th.
+  const own = Array.from({ length: 19 }, (_, i) => ({ project: join(m.w.root, `own-${i}`), remote: `github.example.com/team/own-${i}` }));
+  const writeRegistry = (repos) => {
+    mkdirSync(teamDir(m.root), { recursive: true, mode: 0o700 });
+    writeFileSync(join(teamDir(m.root), "team.json"), JSON.stringify({ version: 1, repos }));
+  };
+  writeRegistry(own);
+  const git = spy();
+  const line = "app-fe: 팀 Office는 repo를 20개까지 맡습니다 — 이미 20개가 등록돼 있어 clone하지 않았습니다(LIMIT). 담당 repo가 20개 이하가 되면 다음 맞추기에서 clone합니다";
+
+  const full = await syncMacRepos(deps(m, { git: { home: m.w.home, pathEnv: process.env.PATH, run: git.run } }), "full");
+  const be = cloneOf(m, "app-be");
+  assert.deepEqual(full.repos.map((r) => [r.name, r.cloned, r.registered, r.linked, r.problem]), [
+    ["app-be", true, true, true, null],
+    ["app-fe", false, false, false, line],
+  ]);
+  assert.equal(git.clones().length, 1, "only app-be was cloned");
+  assert.equal(existsSync(cloneOf(m, "app-fe")), false);
+  assert.deepEqual(readTeam(m.root).repos.map((r) => r.project), [...own.map((r) => r.project), be]);
+  assert.equal(m.lines.filter((l) => l.startsWith("app-fe:")).length, 1, m.lines.join("\n"));
+
+  // links-only: app-fe could not be added by a full sync either, so it is no reason to restart.
+  m.lines.length = 0;
+  const links = await syncMacRepos(deps(m), "links-only");
+  assert.deepEqual(links.pending, { add: [], remove: [] });
+  assert.deepEqual(links.repos.map((r) => [r.name, r.problem]), [["app-be", null], ["app-fe", line]]);
+  assert.deepEqual(m.lines, [line]);
+
+  // A Mac clone that a full sync would take out frees a place: then app-fe is pending.
+  const other = m.ctx.store.acceptInvite(m.ctx.store.createInvite(m.member, "다른 사람"), "b").member;
+  m.ctx.store.addOwner(m.member, m.id("app-be"), other.id);
+  m.ctx.store.removeOwner(m.member, m.id("app-be"), m.member.id);
+  assert.deepEqual((await syncMacRepos(deps(m), "links-only")).pending, { add: ["app-fe"], remove: [be] });
+
+  // One of the person's own repos goes: there is room again.
+  m.ctx.store.addOwner(m.member, m.id("app-be"), m.member.id);
+  writeRegistry([...own.slice(1), { project: be, remote: "github.example.com/team/app-be" }]);
+  assert.deepEqual((await syncMacRepos(deps(m), "links-only")).pending, { add: ["app-fe"], remove: [] });
+});
+
 test("a clone refused for credentials says gh auth setup-git --hostname <host>", async (t) => {
   const m = await macWorld(t, ["app-be", "app-fe"]);
   const stderr = {
