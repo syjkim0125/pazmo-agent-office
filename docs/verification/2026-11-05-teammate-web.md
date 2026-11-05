@@ -32,11 +32,11 @@ Story: M16 · V19 · D41. 결정은 [hub-web-team-flow-decision.md](../understan
 | 계획의 판정 | 적용 | 구현 중 바뀐 것 |
 |---|---|---|
 | 자동으로 일하기는 Hub에 사람마다 둔다(행이 없으면 켜짐). 꺼지면 `claimNext`가 `null`. 맡은 Task·작업하기·웹 다시 시도·Story 검증에는 영향 없음 | Task 1·5 | **판정(리뷰 1차 뒤, F2, ASSUMED):** 사람이 직접 고른 작업하기와 다시 시도는 Mac의 `team pause`와 하루 상한을 따르지 않고(사람이 고른 일이다), 하루 상한에 세지 않는다. 계획의 "`team pause`·하루 상한은 그 위에 그대로 적용된다"는 자동으로 받는 일에만 맞다. 코드 변경 없음(Office의 되찾기는 처음부터 그랬고 Task 6이 고정한다) |
-| 작업하기는 Hub에서 그 자리에서 claim을 만든다(없음 404 → 상태 409 → 담당자 403 → 연결 없음 `NOT_LINKED` → 맡은 Task 있음 `BUSY`). 스위치는 보지 않는다 | Task 1·5. 두 사람이 같은 Task를 누르면 늦은 쪽은 `STATE`, 한 사람이 둘을 누르면 둘째는 `BUSY` | **리뷰 1차 뒤(F1):** "연결 있음"은 "내 Office가 지금 그 repo를 가져감"이다. 살아 있는 연결 중 Office가 `MAC_OFFLINE_MS`(180000 ms) 안에 쓴 것만 치고, 가장 새 Mac이 잠김이면 하나도 치지 않는다(`HubStore.reachableRepos`). 준비 안 된 레인(gh), 다른 기계의 연결, 꺼진 Office는 연결을 쓰지 않는다. `NOT_LINKED` 말과 버튼 자리의 말이 바뀌었다. **(F5):** 두 번 눌러 첫 번째가 이미 됐으면(`STATE`이고 그 Task가 내 `claimed`) 둘째도 Task 상세로 간다. 켜짐 줄은 "자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다." |
-| Mac이 가져가지 않은 작업하기도 다른 claim과 같다. 10분 뒤 멈춤, PL이 푼다 | Task 1·4 | **리뷰 1차 뒤(F1):** 꺼짐·잠김·준비 안 된 레인은 버튼과 POST가 막으므로, 이 경우는 누른 직후(3분 안) Office가 멈춘 때로 좁아졌다 |
+| 작업하기는 Hub에서 그 자리에서 claim을 만든다(없음 404 → 상태 409 → 담당자 403 → 연결 없음 `NOT_LINKED` → 맡은 Task 있음 `BUSY`). 스위치는 보지 않는다 | Task 1·5. 두 사람이 같은 Task를 누르면 늦은 쪽은 `STATE`, 한 사람이 둘을 누르면 둘째는 `BUSY` | **리뷰 1차 뒤(F1):** "연결 있음"은 "내 Office가 지금 그 repo를 가져감"이다. 살아 있는 연결 중 Office가 `MAC_OFFLINE_MS`(180000 ms) 안에 쓴 것만 치고, 가장 새 Mac이 잠김이면 하나도 치지 않는다(`HubStore.reachableRepos`). 준비 안 된 레인(gh), 다른 기계의 연결, 꺼진 Office는 연결을 쓰지 않는다. `NOT_LINKED` 말과 버튼 자리의 말이 바뀌었다. **(F5):** 두 번 눌러 첫 번째가 이미 됐으면(`STATE`이고 그 Task가 내 `claimed`) 둘째도 Task 상세로 간다. 켜짐 줄은 "자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다." **리뷰 2차 뒤(G1):** 순서는 없음 404 → 상태 409 → 담당자 403 → 맡은 Task 있음 `BUSY` → 가져갈 수 없음 `NOT_LINKED`다. Task를 일하는 Office는 그 Task의 repo만 읽어 다른 repo의 연결이 3분 뒤 낡으므로, `BUSY`를 먼저 봐야 맡은 일이 있는 동안 다른 repo의 Task가 "가져가지 않고 있습니다"로 보이지 않는다 |
+| Mac이 가져가지 않은 작업하기도 다른 claim과 같다. 10분 뒤 멈춤, PL이 푼다 | Task 1·4 | **리뷰 1차 뒤(F1):** 꺼짐·잠김·준비 안 된 레인은 버튼과 POST가 막으므로, 이 경우는 누른 직후(3분 안) Office가 멈춘 때와 아래 "사람에게 보이는 한계"의 좁은 창(리뷰 2차 뒤 G2)으로 좁아졌다 |
 | 다시 시도는 맡은 사람이 지금의 Hub `rerun`을 웹에서 한다. Office는 옛 기록을 `NOT_YOURS`로 버리고 새 claim을 되찾는다 | Task 1·5, Task 6이 실제 스케줄러로 고정 | **판정(Task 1):** `taskActions`는 없는 id에 `taskDetail`처럼 `NOT_FOUND`를 던진다(페이지가 어차피 404여야 한다). **리뷰 1차 뒤(F1):** 웹 다시 시도도 작업하기와 같은 `reachableRepos`가 필요하다(`NOT_LINKED`, 버튼은 `yes|not-linked|no`). 링크 API의 `rerun`은 그대로다. **(F5):** 두 번 눌러 첫 번째가 이미 됐으면 Task 상세로 간다. **(F6):** 메모의 CRLF는 다듬기와 2000자 검사 전에 LF 하나가 된다(웹과 링크 공통) |
 | 다시 시도는 맡은 사람만, 작업 Task만 한다 | Task 1·5 | **리뷰 1차 뒤(F5):** 웹의 검사 순서는 Story 검증 Task(`STATE`) → 실패가 아니거나 맡은 사람이 없음(PL이 풂) `STATE` "실패한 Task만 다시 시도할 수 있습니다. 화면을 새로 고쳐 확인하세요." → 남의 실패한 Task `FORBIDDEN` → `NOT_LINKED` → 메모다. 링크 API는 "실패한 Task만 다시 실행할 수 있습니다."를 그대로 쓴다 |
-| 풀기·취소는 PL이나 관리자가 `releaseTask`·`cancelTask`로 한다. 취소는 "정말 취소합니다" 체크(`confirm=yes`)가 필요하다 | Task 1·5 | **판정(Task 5):** 체크가 없으면 없는 id여도 `INVALID`(400)다. 체크를 조회보다 먼저 보므로 id에 대해 아무것도 알려 주지 않는다. 손으로 만든 요청만 404 대신 400을 본다. **리뷰 1차 뒤(F4):** 웹 취소는 머지 잠금을 쥔 Task를 `STATE`("머지 잠금을 쥔 Task는 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.")로 거절하고, 화면은 폼 대신 "머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. …"를 보인다(`cancelTask`의 `refuseLocked`, 버튼은 `yes|locked|no`). 링크 API의 취소는 그대로다. **(F5):** 풀기 문장은 "…그 레포 담당자 누구든 처음부터 다시 받습니다." |
+| 풀기·취소는 PL이나 관리자가 `releaseTask`·`cancelTask`로 한다. 취소는 "정말 취소합니다" 체크(`confirm=yes`)가 필요하다 | Task 1·5 | **판정(Task 5):** 체크가 없으면 없는 id여도 `INVALID`(400)다. 체크를 조회보다 먼저 보므로 id에 대해 아무것도 알려 주지 않는다. 손으로 만든 요청만 404 대신 400을 본다. **리뷰 1차 뒤(F4):** 웹 취소는 머지 잠금을 쥔 Task를 `STATE`("머지 잠금을 쥔 Task는 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.")로 거절하고, 화면은 폼 대신 "머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. …"를 보인다(`cancelTask`의 `refuseLocked`, 버튼은 `yes|locked|no`). 링크 API의 취소는 그대로다. **(F5):** 풀기 문장은 "…그 레포 담당자 누구든 처음부터 다시 받습니다." **리뷰 2차 뒤(G2):** Story 검증 Task(repo 없음)의 풀기 문장은 "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." |
 | 보드 읽기와 풀기·취소의 첫 인자는 `Actor = { member }` | Task 1 | — |
 | 모든 팀원이 모든 프로젝트·Story·Task를 본다. 버튼은 할 수 있는 사람에게만, 서버가 다시 막는다 | Task 1·4·5 | — |
 | 버튼 표시는 저장소가 정한다(`#pickState` 하나) | Task 1 | **리뷰 1차 뒤(F1·F4):** 다시 시도와 취소의 버튼도 그 POST와 같은 저장소 규칙(`#rerunBlock`, 머지 잠금)에서 나온다 |
@@ -66,16 +66,28 @@ Story: M16 · V19 · D41. 결정은 [hub-web-team-flow-decision.md](../understan
 | F6 단단하게 | `acf1a37` | Office는 `until`을 안전한 0 이상 정수일 때만 보낸다(그 밖은 null). 메모의 CRLF는 LF 하나로 센다. 해제된 Mac 시험은 `hub_macs` 행만 해제해 Mac이 살아 있어야 한다는 조건을 따로 고정한다(`reachableRepos`도) | `team-mac` "macClient sends until only as a safe non-negative integer …", `hub-story-work` "a 2000-character rerun memo whose line breaks arrive as CRLF …", `hub-store-mac` liveLinkRepos 시험 |
 | F7 문서 | (리뷰 1차 문서 커밋) | LOCAL-PREVIEW "팀원 웹", 이 기록, 계획의 "리뷰 뒤 바뀐 것" | — |
 
+## 리뷰 2차 뒤 고친 것
+
+브랜치 리뷰 2차(리뷰어 둘, `.ai-workflow/runs/U37-review-2.md`)는 F1–F7을 모두 해결됨으로 보고, F1이 만든 Important 하나와 문서 두 가지를 냈다. 시험은 먼저 실패(RED)를 본 뒤 고쳤다.
+
+| 고친 것 | 커밋 | 무엇 | 시험 |
+|---|---|---|---|
+| G1 맡은 일이 먼저 | `45aa383` | `#pickBlock`의 순서를 상태 → 담당자 → `BUSY` → `NOT_LINKED`로 바꿨다. 맡은 일이 있는 동안 다른 repo의 Task는 `busy`(아무 말 없음)이고, 고르면 `BUSY`다 | `hub-story-work` "a member holding a Task in one repo sees busy, not not-linked, for a ready Task of another repo whose link is stale, and pickTask is BUSY"(새), "pickTask refuses in order: … an open Task BUSY, no live link NOT_LINKED …"와 "memberWork pick …"의 순서 단언 |
+| G2 Story 검증 Task의 풀기 문장 | `2515a15` | repo가 없는 Story 검증 Task는 "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다."(작업 Task는 그대로) | `hub-story-pages` "풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office" |
+| G2 문서 | (리뷰 2차 문서 커밋) | 위 "사람에게 보이는 한계"에 준비 안 된 레인의 3분 창과 잠깐의 잘못된 거절을 더했다. 계획의 "리뷰 뒤 바뀐 것"과 LOCAL-PREVIEW도 같다 | — |
+
 ## 자동 검사
 
 | 검사 | 결과 |
 |---|---|
 | 전체 `npm test` | Task 6까지 끝난 `7e27d39`에서 **1607/1607**, exit 0(119초). 실패 0, 취소 0, 건너뜀 0 |
 | 전체 `npm test`(리뷰 1차 수정 뒤) | 리뷰 1차 수정의 코드 `acf1a37`에서(이 문서 변경은 커밋 전, 시험은 문서를 읽지 않는다) **1617/1617**, exit 0(113초). 실패 0, 취소 0, 건너뜀 0. 새 시험 10개 |
+| 전체 `npm test`(리뷰 2차 수정 뒤) | 리뷰 2차 수정의 코드 `2515a15`에서(이 문서 변경은 커밋 전, 시험은 문서를 읽지 않는다) **1619/1619**, exit 0(111초). 실패 0, 취소 0, 건너뜀 0. 새 시험 2개 |
+| 리뷰 2차 수정의 시험 파일 8개 | 리뷰 1차와 같은 8개 파일(아래 줄) **187/187**, exit 0 |
 | 리뷰 1차 수정의 시험 파일 8개 | `hub-story-work`·`hub-story-pages`·`hub-store-mac`·`hub-mac-api`·`hub-web-office`·`team-mac`·`team-mac-watch`·`team-office` **185/185**, exit 0 |
-| `npm run typecheck` | exit 0(`7e27d39`), 리뷰 1차 수정 뒤 exit 0(`acf1a37`) |
-| Story 검사 `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0, 리뷰 1차 수정 뒤 exit 0 |
-| 브랜치 전체 리뷰와 kit 검증 | 리뷰 1차는 위 "리뷰 1차 뒤 고친 것"이다. 리뷰 2차와 kit 검증은 이 기록을 고친 뒤에 한다. 결과는 kit 실행 기록 `.ai-workflow/runs/U37-review-N.md`·`U37-verify-N.md`에 남는다. 여기에 적지 않는다 |
+| `npm run typecheck` | exit 0(`7e27d39`), 리뷰 1차 수정 뒤 exit 0(`acf1a37`), 리뷰 2차 수정 뒤 exit 0(`2515a15`) |
+| Story 검사 `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0, 리뷰 1차 수정 뒤 exit 0, 리뷰 2차 수정 뒤 exit 0 |
+| 브랜치 전체 리뷰와 kit 검증 | 리뷰 1차와 2차는 위 "리뷰 1차 뒤 고친 것"·"리뷰 2차 뒤 고친 것"이다. 리뷰 3차와 kit 검증은 이 기록을 고친 뒤에 한다. 결과는 kit 실행 기록 `.ai-workflow/runs/U37-review-N.md`·`U37-verify-N.md`에 남는다. 여기에 적지 않는다 |
 
 Task별 리뷰와 그 시험 수는 "만든 것"에 있다. Task 3 구현 중 `team-lifecycle`의 사내 CA 시험이 한 번 실패했으나 혼자 12/12, 그 뒤 전체 실행에서 통과했다(이번 전체 실행도 통과). G4 기록은 kit 검증 뒤에 한다.
 
@@ -94,11 +106,13 @@ Task별 리뷰와 그 시험 수는 "만든 것"에 있다. Task 3 구현 중 `t
 
 - **화면이 저절로 새로 고쳐지지 않는다.** 내 할 일·보드·Story·Task 상세의 "새로 고침" 링크를 쓴다(ASSUMED). "마지막 소식"은 Task 상세와 내 할 일의 맡은 일 카드에만 있다.
 - **여러 repo를 맡은 사람의 repo 사이 순서는 그 사람 Mac의 등록 순서다**(ASSUMED). repo 하나 안에서는 Story 만든 순 → Task 번호 순이다. 그 repo의 레인이 Office에서 준비 안 됨이면 그 사람은 다른 repo의 일을 받는다.
-- **Mac이 가져가지 않은 작업하기는 10분 뒤 "멈춤(Mac 소식 없음)"으로 보이고, PL이 풀어야 한다.** 꺼짐·잠김·준비 안 된 레인은 버튼과 POST가 막으므로(F1), 누른 직후(3분 안) Office가 멈춘 때만 그렇게 된다.
+- **Mac이 가져가지 않은 작업하기는 10분 뒤 "멈춤(Mac 소식 없음)"으로 보이고, PL이 풀어야 한다.** 꺼짐·잠김·준비 안 된 레인은 버튼과 POST가 막으므로(F1), 누른 직후(3분 안) Office가 멈춘 때와 아래 gh 레인 항목의 좁은 창에서만 그렇게 된다.
 - **자동으로 일하기 스위치는 자동으로 받는 것만 막는다.** 맡은 Task, 작업하기, 다시 시도, PL의 Story 검증은 꺼져 있어도 돈다. Mac의 `team pause`와 하루 상한도 자동으로 받는 일만 막는다(직접 고른 작업하기와 다시 시도는 따르지 않고 상한에 세지 않는다, F2).
 - **AI 실행기 하나가 준비 안 됨인 동안 직접 고른 다른 repo의 Task는 돈다.** 그동안 머리글은 "쉬는 중(한도)"이고 Task 상세는 "Mac의 AI 실행기(…)가 준비되지 않아 쉬는 중입니다."를 보인다(F2의 한계).
 - **Office가 스스로 다시 켜지는 몇 초 사이(`mac restart`)에 작업하기를 누르면** 다시 켜기가 그 Task가 끝날 때까지 미뤄질 수 있다(F2의 한계).
 - **gh 로그인이 풀린 레인의 실패한 Task도 웹 다시 시도는 `reachableRepos`를 통과한다.** 실패 기록의 Task 읽기(하트비트마다)가 그 연결을 쓰기 때문이다. 새 claim은 gh가 다시 될 때까지 되찾아지지 않고, 그동안 10분이 넘으면 멈춤(Mac은 켜져 있지만…)으로 보인다.
+- **준비 안 된 레인이 3분 동안은 가져갈 수 있다로 보일 수 있다(리뷰 2차 뒤 G2).** Office를 다시 켰는데 어떤 레인이 `gh`(또는 연결 없음)로 떨어지면, 앞 실행이 남긴 연결 기록이 180 s 동안 살아 있어 그 repo의 작업하기가 받아들여지고 아무도 가져가지 않는다. 10분 뒤 멈춤으로 보이고 PL이 푼다. 준비 안 된 레인의 연결을 쓰는 Hub 호출(예: PL이 푼 기록의 하트비트)도 그 연결을 새로 적어 같은 창을 연다.
+- **잠깐 잘못 거절될 수 있다(리뷰 2차 뒤 G2).** Office가 Hub가 더는 세지 않는 기록을 쥔 동안(막 버린 기록, 시작의 첫 drive가 끝나기 전 `keepOnNotYours`가 남긴 기록)이나 머지 뒤 다음 tick까지(30 s 이내)는 다른 repo의 연결이 낡아 작업하기가 `NOT_LINKED`로 거절될 수 있다. 잠시 뒤 다시 누르면 된다.
 - **풀기 뒤의 취소도 늦은 머지 보고를 받지 않는다.** F4는 머지 잠금을 쥔 동안만 막는다. 풀기가 잠금을 풀므로 그 뒤 취소는 된다.
 - **웹 다시 시도 뒤에 보낸 로컬 `team rerun --memo`의 메모는 쓰이지 않는다.** Office는 Hub의 새 claim(웹 메모)을 받아들인다. 반대로 로컬 다시 시도가 먼저 Hub에 닿았으면 웹의 다시 시도는 Task 상세로 가고 웹 메모는 저장되지 않는다(F5의 두 번 누르기 규칙).
 - **연결 문자열로 붙인 Office(Mac 없음)가 잠김으로 돌면 Hub는 모른다.** 잠김은 Mac 하트비트로만 알기 때문이다. 그 repo의 작업하기는 받아들여지고, Office는 그 claim을 되찾아 하트비트만 보내며 돌리지 않는다.

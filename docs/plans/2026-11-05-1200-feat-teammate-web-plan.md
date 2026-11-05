@@ -323,3 +323,5 @@ STATUS 맨 위 항목은 G4 기록과 `graph.mjs delivery` 뒤에 전달 커밋�
   - 웹 다시 시도는 실패가 아니거나 맡은 사람이 없으면(PL이 풂) `STATE` "실패한 Task만 다시 시도할 수 있습니다. 화면을 새로 고쳐 확인하세요."다(그 다음이 남의 Task `FORBIDDEN`). 링크 API는 "다시 실행" 말을 그대로 쓴다.
   - 작업하기·다시 시도 POST가 `STATE`인데 그 Task가 이제 그 사람의 `claimed`이면(두 번 누르기) 오류 화면 대신 `/tasks/<id>`로 보낸다.
   - 풀기 문장은 "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다."다.
+- **G1 작업하기의 검사 순서(리뷰 2차 뒤).** 있는 Task(`NOT_FOUND`) → 작업 Task·`ready`·Story `open`(`STATE`) → 그 repo의 담당자(`FORBIDDEN`) → 맡은 Task 없음(`BUSY`) → 그 repo를 가져갈 수 있음(`NOT_LINKED`) 순서다. F1 뒤로 "연결 있음"이 최근에 쓴 연결이 되었는데, Task를 일하는 Office는 그 Task의 repo만 읽으므로 3분이 지나면 다른 repo의 연결이 낡는다. 그래서 맡은 일이 있는 동안 다른 repo의 Task가 "가져가지 않고 있습니다"로 보이지 않게 `BUSY`를 먼저 본다. 버튼(`#pickState`)도 같다. 다시 시도는 바뀌지 않는다.
+- **G2 Story 검증 Task의 풀기 문장(리뷰 2차 뒤).** repo가 없는 Story 검증 Task는 "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다."다. 작업 Task는 위 F5 문장 그대로다.
