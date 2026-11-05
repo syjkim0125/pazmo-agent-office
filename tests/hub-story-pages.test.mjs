@@ -89,7 +89,7 @@ async function proxied(t, { withBoard = true, installer = false } = {}) {
       req.on("error", reject);
       req.end();
     });
-  return { store, board, get, admin: admin.member };
+  return { store, board, get, admin: admin.member, cookie, port: hub.port };
 }
 /** Starts a Mac, lets `member` allow it and takes its token: the Mac is then live for that member. */
 function pairMac(store, member, name = "내 Mac") {
@@ -494,4 +494,152 @@ test("plainFailure picks by prefix and falls back to the default", () => {
   ];
   for (const [reason, text] of cases) assert.equal(plainFailure(reason, "work"), text, reason);
   assert.equal(plainFailure("RUNNER_LIMIT claude: limit", "verify"), "Story 검증이 실패했습니다. PL이 고칠 Task를 더한 뒤 다시 검증합니다.");
+});
+
+// ---- Task 5: the buttons' POST routes ----
+const post = (h, who, path, fields = {}, over = {}) =>
+  h.call("POST", path, {
+    cookie: who.cookie,
+    headers: { origin: h.hub.url },
+    body: new URLSearchParams({ csrf: who.csrf, ...fields, ...over }).toString(),
+  });
+const taskPage = async (h, who, id) => (await h.get(`/tasks/${id}`, who)).text;
+
+test("switching auto work off and on from the web changes what claimNext gives", async (t) => {
+  const h = await team(t);
+  h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  let res = await post(h, h.c, "/me/auto-work", { on: "0" });
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, "/");
+  assert.equal(h.board.claimNext(cBe), null, "off: nothing is given");
+  assert.ok((await h.get("/", h.c)).text.includes(OFF_PILL));
+  res = await post(h, h.c, "/me/auto-work", { on: "1" });
+  assert.equal(res.status, 303);
+  assert.ok(h.board.claimNext(cBe), "on again: the ready Task comes");
+  for (const bad of ["", "yes", "2"]) {
+    res = await post(h, h.c, "/me/auto-work", { on: bad });
+    assert.equal(res.status, 400);
+    assert.ok(res.text.includes("켜기 또는 끄기를 골라주세요."));
+  }
+});
+
+test("작업하기 from the web claims the Task for the member; the Task page then says 시작 중 and the member's inbox names it", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  await post(h, h.c, "/me/auto-work", { on: "0" });
+  const res = await post(h, h.c, `/tasks/${s.api}/pick`);
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, `/tasks/${s.api}`);
+  assert.ok((await taskPage(h, h.c, s.api)).includes("시작 중"));
+  assert.equal(h.board.inbox(cBe).mine.taskId, s.api);
+  const again = await post(h, h.c, `/tasks/${s.copy}/pick`);
+  assert.equal(again.status, 409, "one open Task per member");
+});
+
+test("작업하기 without a live link is a NOT_LINKED page and changes nothing", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  await post(h, h.c, "/me/auto-work", { on: "0" });
+  const res = await post(h, h.c, `/tasks/${s.api}/pick`);
+  assert.equal(res.status, 409);
+  assert.ok(res.text.includes(NOT_LINKED));
+  assert.ok((await taskPage(h, h.pl, s.api)).includes("할 일"));
+  assert.equal(h.board.claimNext(s.plBe).taskId, s.api, "still ready for anyone else");
+});
+
+test("다시 시도 from the web reruns the failed Task with the memo; a second click is a STATE page", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  const api = h.board.claimNext(cBe);
+  h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
+  const res = await post(h, h.c, `/tasks/${s.api}/rerun`, { memo: "  범위를 줄여 주세요  " });
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, `/tasks/${s.api}`);
+  const page = await taskPage(h, h.c, s.api);
+  assert.ok(page.includes("<h2>마지막 메모</h2><pre>범위를 줄여 주세요</pre>"));
+  assert.ok(page.includes("시작 중"));
+  const second = await post(h, h.c, `/tasks/${s.api}/rerun`, { memo: "again" });
+  assert.equal(second.status, 409);
+  assert.ok((await taskPage(h, h.c, s.api)).includes("<pre>범위를 줄여 주세요</pre>"), "the memo is unchanged");
+});
+
+test("풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  const api = h.board.claimNext(cBe);
+  h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
+  const stays = async () => assert.ok((await taskPage(h, h.pl, s.api)).includes("멈춤(실패)"));
+
+  assert.equal((await post(h, h.b, `/tasks/${s.api}/release`)).status, 403);
+  assert.equal((await post(h, h.b, `/tasks/${s.api}/cancel`, { confirm: "yes" })).status, 403);
+  assert.equal((await post(h, h.c, `/tasks/${s.api}/release`)).status, 403, "the assignee is not the PL");
+  await stays();
+
+  const noBox = await post(h, h.pl, `/tasks/${s.api}/cancel`);
+  assert.equal(noBox.status, 400);
+  assert.ok(noBox.text.includes("취소하려면 &#39;정말 취소합니다&#39;를 체크하세요."));
+  await stays();
+
+  const rel = await post(h, h.pl, `/tasks/${s.api}/release`);
+  assert.equal(rel.status, 303);
+  assert.equal(rel.headers.location, `/tasks/${s.api}`);
+  assert.ok((await taskPage(h, h.pl, s.api)).includes("할 일"));
+
+  const can = await post(h, h.admin, `/tasks/${s.api}/cancel`, { confirm: "yes" });
+  assert.equal(can.status, 303);
+  assert.equal(can.headers.location, `/tasks/${s.api}`);
+  assert.ok((await taskPage(h, h.pl, s.api)).includes("취소됨"));
+});
+
+test("every new POST is 403 from another origin or without the CSRF token", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  h.linkOf(h.c, h.be);
+  await post(h, h.c, "/me/auto-work", { on: "0" });
+  const paths = [["/me/auto-work", { on: "1" }], ...["pick", "rerun", "release", "cancel"].map((a) => [`/tasks/${s.api}/${a}`, { confirm: "yes" }])];
+  for (const [path, fields] of paths) {
+    const body = (csrf) => new URLSearchParams({ ...(csrf ? { csrf } : {}), ...fields }).toString();
+    const foreign = await h.call("POST", path, { cookie: h.c.cookie, headers: { origin: "https://evil.example.com" }, body: body(h.c.csrf) });
+    assert.equal(foreign.status, 403, `${path} other origin`);
+    const none = await h.call("POST", path, { cookie: h.c.cookie, headers: { origin: h.hub.url }, body: body(null) });
+    assert.equal(none.status, 403, `${path} no token`);
+    const wrong = await h.call("POST", path, { cookie: h.c.cookie, headers: { origin: h.hub.url }, body: body("nope") });
+    assert.equal(wrong.status, 403, `${path} wrong token`);
+  }
+  assert.ok((await taskPage(h, h.pl, s.api)).includes("할 일"), "nothing changed");
+  assert.ok((await h.get("/", h.c)).text.includes(OFF_PILL), "the switch did not change");
+});
+
+test("an unknown Task id is a 404 page for every button", async (t) => {
+  const h = await team(t);
+  h.story();
+  h.linkOf(h.c, h.be);
+  const id = randomUUID();
+  for (const a of ["pick", "rerun", "release", "cancel"]) {
+    const res = await post(h, h.admin, `/tasks/${id}/${a}`, { confirm: "yes" });
+    assert.equal(res.status, 404, a);
+  }
+});
+
+test("a hub without a board answers 404 for the new POSTs", async (t) => {
+  const h = await proxied(t, { withBoard: false });
+  const host = new URL(PUBLIC).host;
+  const raw = (method, path, body) =>
+    new Promise((resolve, reject) => {
+      const req = request({ host: "127.0.0.1", port: h.port, method, path, headers: { host, cookie: h.cookie, ...(body ? { origin: PUBLIC, "content-type": "application/x-www-form-urlencoded" } : {}) } }, (res) => {
+        let text = "";
+        res.setEncoding("utf8");
+        res.on("data", (c) => (text += c));
+        res.on("end", () => resolve({ status: res.statusCode, text }));
+      });
+      req.on("error", reject);
+      req.end(body);
+    });
+  const csrf = /name="csrf" value="([^"]+)"/.exec((await h.get("/repos")).text)[1];
+  for (const path of ["/me/auto-work", `/tasks/${randomUUID()}/pick`])
+    assert.equal((await raw("POST", path, new URLSearchParams({ csrf, on: "1" }).toString())).status, 404, path);
 });
