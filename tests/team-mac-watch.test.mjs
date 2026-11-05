@@ -57,7 +57,7 @@ function world(t, root = tempRoot(t)) {
     root,
     file: FILE,
     clock: 1_700_000_000_000,
-    presence: { state: "idle", detail: null },
+    presence: { state: "idle", detail: null, until: null },
     idle: true,
     /** What the Office answers when asked whether it could start again (its runners are ready). */
     startable: () => true,
@@ -66,6 +66,7 @@ function world(t, root = tempRoot(t)) {
     beatError: null,
     syncError: null,
     beats: [],
+    untils: [],
     syncs: [],
     restarts: [],
     logs: [],
@@ -74,8 +75,9 @@ function world(t, root = tempRoot(t)) {
     createMacWatch({
       linkOf: () => w.file,
       clientFor: (file) => ({
-        async heartbeat(state, detail) {
+        async heartbeat(state, detail, until) {
           w.beats.push([file.macId, state, detail]);
+          w.untils.push(until);
           if (w.beatError) throw w.beatError;
         },
         async repos() {
@@ -115,9 +117,9 @@ test("beat sends the presence state and detail when a Mac link exists and nothin
   assert.deepEqual([w.beats, w.syncs, w.logs], [[], [], []], "not connected: no Hub call, no line");
 
   w.file = FILE;
-  w.presence = { state: "limited", detail: "claude: limit" };
+  w.presence = { state: "limited", detail: "claude: limit", until: 1_800_000 };
   await watch.beat();
-  w.presence = { state: "working", detail: null };
+  w.presence = { state: "working", detail: null, until: null };
   await watch.beat();
   assert.deepEqual(w.beats, [
     ["mac-1", "limited", "claude: limit"],
@@ -131,6 +133,17 @@ test("beat sends the presence state and detail when a Mac link exists and nothin
   await watch.beat();
   assert.equal(w.beats.length, 4);
   assert.deepEqual(w.logs, []);
+});
+
+test("beat passes the presence until to the Hub", async (t) => {
+  const w = world(t);
+  w.file = FILE;
+  const watch = w.watch();
+  w.presence = { state: "limited", detail: "claude: limit", until: 1_800_000 };
+  await watch.beat();
+  w.presence = { state: "idle", detail: null, until: null };
+  await watch.beat();
+  assert.deepEqual(w.untils, [1_800_000, null]);
 });
 
 test("a 401 heartbeat logs once and stops Mac calls until the link file names another macId", async (t) => {

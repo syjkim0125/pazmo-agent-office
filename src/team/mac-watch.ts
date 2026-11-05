@@ -19,7 +19,7 @@ export const RESTART_HOLD_MS = 600_000;
 export const RESTART_RETRY_MS = 3_600_000;
 
 /** What the Mac's heartbeat tells the Hub: its state and, for `limited`, which runner and why. */
-export type Presence = { state: MacState; detail: string | null };
+export type Presence = { state: MacState; detail: string | null; until: number | null };
 
 type Pending = { add: string[]; remove: string[] };
 type WatchClient = Pick<MacClient, "heartbeat" | "repos" | "link">;
@@ -180,9 +180,9 @@ export function createMacWatch(d: MacWatchDeps): MacWatch {
     async beat() {
       const file = d.linkOf();
       if (!file || file.macId === revoked) return;
-      const { state, detail } = d.presence();
+      const { state, detail, until } = d.presence();
       try {
-        await d.clientFor(file).heartbeat(state, detail);
+        await d.clientFor(file).heartbeat(state, detail, until);
       } catch (error) {
         if (statusOf(error) === 401) return revoke(file);
         // Anything else (no network, a Hub restarting) is the timer's to log; the next beat tries again.

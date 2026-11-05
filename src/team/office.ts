@@ -497,14 +497,14 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
    * its runner's account, or while a live Office's runners are not ready (which runner, and why); working while an
    * engine runs or the open record moves on; idle otherwise. */
   function presenceOf(): Presence {
-    if (!live) return { state: "locked", detail: null };
+    if (!live) return { state: "locked", detail: null, until: null };
     const open = teamStore.openClaim();
     const waiting = open ? waitingOf(open) : null;
-    if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}` };
+    if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}`, until: open?.runnerWait?.retryAt ?? null };
     if (!runnersReady)
-      return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready" };
-    if (gate.busy() || (open !== null && open.phase !== "failed")) return { state: "working", detail: null };
-    return { state: "idle", detail: null };
+      return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready", until: null };
+    if (gate.busy() || (open !== null && open.phase !== "failed")) return { state: "working", detail: null, until: null };
+    return { state: "idle", detail: null, until: null };
   }
 
   /** A link file that cannot be used is said once, until it is fixed or its problem changes. */
