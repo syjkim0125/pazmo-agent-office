@@ -293,9 +293,15 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       }
       if ((m = new RegExp(`^/tasks/${ID}/(pick|rerun|release|cancel)$`).exec(path))) {
         const [, id, action] = m;
-        if (action === "pick") board.pickTask(me, id, c.store.reachableRepos(me.id));
-        else if (action === "rerun") board.rerunTask(me, id, f("memo"), c.store.reachableRepos(me.id));
-        else if (action === "release") board.releaseTask({ member: me }, id);
+        if (action === "pick" || action === "rerun") {
+          try {
+            if (action === "pick") board.pickTask(me, id, c.store.reachableRepos(me.id));
+            else board.rerunTask(me, id, f("memo"), c.store.reachableRepos(me.id));
+          } catch (error) {
+            // A double click: the first submit already made the Task this member's claim, so the second shows it too.
+            if (!(error instanceof HubError && error.code === "STATE" && board.claimedBy(me.id, id))) throw error;
+          }
+        } else if (action === "release") board.releaseTask({ member: me }, id);
         else {
           // Cancelling cannot be undone, so the form must carry the box.
           if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "취소하려면 '정말 취소합니다'를 체크하세요.");

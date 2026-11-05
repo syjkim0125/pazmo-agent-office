@@ -13,6 +13,8 @@ const MSG = {
   busy: "이미 맡은 Task가 있습니다. 그 Task가 끝나거나 PL이 풀어 준 뒤 고르세요.",
   rerunForbidden: "내가 맡은 Task만 다시 시도할 수 있습니다.",
   rerunVerify: "Story 검증은 PL의 Office가 다시 합니다.",
+  rerunState: "실패한 Task만 다시 시도할 수 있습니다. 화면을 새로 고쳐 확인하세요.",
+  linkRerunState: "실패한 Task만 다시 실행할 수 있습니다.",
   autoInvalid: "켜기 또는 끄기를 골라주세요.",
 };
 /** Matches a HubError by code (with its status) and, when given, its exact message. */
@@ -223,13 +225,14 @@ test("rerunTask by the assignee turns the failed work Task claimed under a new c
   assert.deepEqual(events(db, t.taskId, "rerun").at(-1), { member_id: c.id, detail: null });
 });
 
-test("rerunTask: another member FORBIDDEN, a Task that is not failed STATE, a 2001-character memo INVALID, the Story verification Task STATE; a second rerun is STATE", () => {
+test("rerunTask: a Task that is not failed or has no assignee STATE, another member's failed Task FORBIDDEN, a 2001-character memo INVALID, the Story verification Task STATE; a second rerun is STATE", () => {
   {
     const { db, board, pl, b, c, be, linkOf, pub } = opened();
     const l = linkOf(c, be);
     const t = board.claimNext(l);
-    assert.throws(() => board.rerunTask(c, t.taskId, "", new Set([be])), is("STATE")); // claimed, not failed
-    assert.throws(() => board.rerunTask(c, idOf(pub, "copy"), "", new Set([be])), is("FORBIDDEN", MSG.rerunForbidden)); // ready, nobody's
+    assert.throws(() => board.rerunTask(c, t.taskId, "", new Set([be])), is("STATE", MSG.rerunState)); // claimed, not failed
+    assert.throws(() => board.rerunTask(b, t.taskId, "", new Set([be])), is("STATE", MSG.rerunState)); // someone else's, not failed
+    assert.throws(() => board.rerunTask(c, idOf(pub, "copy"), "", new Set([be])), is("STATE", MSG.rerunState)); // ready, nobody's
     board.reportFailed(l, t.taskId, t.claimId, "실패");
     const before = rows(db);
     assert.throws(() => board.rerunTask(c, randomUUID(), "", new Set([be])), is("NOT_FOUND", MSG.notFound));
@@ -240,9 +243,15 @@ test("rerunTask: another member FORBIDDEN, a Task that is not failed STATE, a 20
     assert.deepEqual(events(db, t.taskId, "rerun"), []);
     board.rerunTask(c, t.taskId, "x".repeat(2000), new Set([be]));
     const after = rows(db);
-    assert.throws(() => board.rerunTask(c, t.taskId, "다시", new Set([be])), is("STATE")); // a double click
+    assert.throws(() => board.rerunTask(c, t.taskId, "다시", new Set([be])), is("STATE", MSG.rerunState)); // a double click
     assert.deepEqual(rows(db), after);
     assert.equal(events(db, t.taskId, "rerun").length, 1);
+    // Failed again, then the PL released it before the assignee pressed 다시 시도: STATE, not FORBIDDEN.
+    board.reportFailed(l, t.taskId, board.inbox(l).mine.claimId, "또 실패");
+    board.releaseTask({ member: pl }, t.taskId);
+    const released = rows(db);
+    assert.throws(() => board.rerunTask(c, t.taskId, "", new Set([be])), is("STATE", MSG.rerunState));
+    assert.deepEqual(rows(db), released);
   }
   {
     // A failed Story verification has no assignee; the PL's Office reruns it, not the web.
@@ -265,11 +274,11 @@ test("the link rerun still works and a web rerun after it is STATE", () => {
   const r = board.rerun(l, t.taskId, " 로컬 메모 ");
   assert.notEqual(r.claimId, t.claimId);
   assert.deepEqual(r.lastFailure, { reason: "실패", memo: "로컬 메모" });
-  assert.throws(() => board.rerunTask(c, t.taskId, "웹", new Set([be])), is("STATE"));
+  assert.throws(() => board.rerunTask(c, t.taskId, "웹", new Set([be])), is("STATE", MSG.rerunState));
   // And the other way round: the local rerun after a web rerun is STATE.
   board.reportFailed(l, t.taskId, r.claimId, "실패 2");
   board.rerunTask(c, t.taskId, "웹 메모", new Set([be]));
-  assert.throws(() => board.rerun(l, t.taskId, "로컬"), is("STATE"));
+  assert.throws(() => board.rerun(l, t.taskId, "로컬"), is("STATE", MSG.linkRerunState), "the link keeps its own words");
   // The link keeps its own codes: another member is NOT_YOURS, a long memo INVALID.
   const mine = board.inbox(l).mine;
   board.reportFailed(l, t.taskId, mine.claimId, "실패 3");

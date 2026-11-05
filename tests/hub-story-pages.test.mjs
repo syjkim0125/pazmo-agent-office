@@ -177,7 +177,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(!home.includes(NOT_LINKED));
   assert.ok(!home.includes("/pick"), "auto work is on: the Mac takes it anyway");
   task = (await h.get(`/tasks/${s.api}`, h.c)).text;
-  assert.ok(task.includes("자동으로 일하기가 켜져 있어 내 Mac이 차례대로 가져갑니다."));
+  assert.ok(task.includes("자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다."));
   assert.ok(!task.includes("/pick"));
 
   h.board.setAutoWork(h.c.member, false);
@@ -185,7 +185,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(home.includes(pickForm(s.api)) && home.includes(pickForm(s.copy)), "both ready be Tasks");
   task = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(task.includes(pickForm(s.api)));
-  assert.ok(!task.includes("자동으로 일하기가 켜져 있어"));
+  assert.ok(!task.includes("자동으로 일하기가 켜져 있으면"));
   assert.ok(!(await h.get(`/tasks/${s.ui}`, h.c)).text.includes("/pick"), "ui is waiting in someone else's repo");
 
   h.board.pickTask(h.c.member, s.copy, h.store.reachableRepos(h.c.member.id));
@@ -350,7 +350,36 @@ test("a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분
   for (const [path, who] of [[`/tasks/${s.api}`, h.pl], ["/", h.c]]) assert.ok(!(await h.get(path, who)).text.includes("쉬는 중입니다"), path);
 });
 
-test("a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen", async (t) => {
+test("a member with no open Task whose newest Mac rests with claude: not_ready sees what to do on /", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const mac = pairMac(h.store, h.c.member, "C의 Mac");
+  h.store.macHeartbeat(mac, "limited", "claude: not_ready", null);
+  const line = "Mac의 AI 실행기(claude)가 준비되지 않아 쉬는 중입니다. Mac 터미널에서 claude를 실행해 설치와 로그인을 확인하세요.";
+  const count = (text) => text.split(line).length - 1;
+  let home = (await h.get("/", h.c)).text;
+  assert.ok(home.includes("지금 맡은 일이 없습니다."));
+  assert.ok(home.includes(`<p>${line}</p>`));
+  assert.ok(home.indexOf(line) > home.indexOf("<h1>내 할 일</h1>") && home.indexOf(line) < home.indexOf("<h2>지금 맡은 일</h2>"), "right under the switch");
+  assert.ok(!(await h.get("/", h.b)).text.includes(line), "only the resting member's page");
+  // With a Task open and working, its card says it, once.
+  const cBe = h.linkOf(h.c, h.be);
+  const api = h.board.claimNext(cBe);
+  home = (await h.get("/", h.c)).text;
+  assert.equal(count(home), 1);
+  assert.ok(home.indexOf(line) > home.indexOf("<h2>지금 맡은 일</h2>"), "in the open card");
+  // Failed, the card is not working any more: the sentence moves back under the switch.
+  h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
+  home = (await h.get("/", h.c)).text;
+  assert.equal(count(home), 1);
+  assert.ok(home.indexOf(line) < home.indexOf("<h2>지금 맡은 일</h2>"));
+  assert.ok(home.includes(`href="/tasks/${s.api}"`));
+  // The Mac is ready again: nothing to say.
+  h.store.macHeartbeat(mac, "idle", null);
+  assert.equal(count((await h.get("/", h.c)).text), 0);
+});
+
+test("a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it", async (t) => {
   let now = Date.now();
   const h = await team(t, { now: () => now });
   const s = h.story();
@@ -361,10 +390,18 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   let page = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(page.includes(held));
   assert.ok(!page.includes("꺼짐"), "C has no Mac at all");
-  pairMac(h.store, h.c.member);
+  const mac = pairMac(h.store, h.c.member);
   page = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(page.includes(`${held} (내 Mac: 꺼짐, 마지막 확인 아직 없음)`), "the assignee's own Mac");
   assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(`${held} (맡은 사람의 Mac: 꺼짐, 마지막 확인 아직 없음)`), "seen by the PL");
+  // The Mac is on, yet nothing about this Task: it will not go on by itself (the Office let the claim go, or cannot take it).
+  h.store.macHeartbeat(mac, "idle", null);
+  const on = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+  for (const who of [h.c, h.pl]) {
+    const text = (await h.get(`/tasks/${s.api}`, who)).text;
+    assert.ok(text.includes(`<p><b>${on}</b></p>`), "the Mac reports");
+    assert.ok(!text.includes(held) && !text.includes("꺼짐"));
+  }
 });
 
 test("a merged Task shows the summary, the decision lines with ASSUMED in bold and the PR link", async (t) => {
@@ -397,7 +434,7 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   h.board.rerunTask(h.c.member, s.api, "범위를 줄여 주세요", h.store.reachableRepos(h.c.member.id));
   h.board.reportFailed(cBe, s.api, h.claimOf(cBe), "tests failed again");
   const rerun = `<form method="post" action="/tasks/${s.api}/rerun"><input type="hidden" name="csrf" value="${h.c.csrf}"><label>메모 <span class="muted">(선택, 2000자까지)</span><textarea name="memo" rows="3" maxlength="2000"></textarea></label><div class="row"><button>다시 시도</button></div></form>`;
-  const releaseLine = "풀면 이 Task는 다시 '할 일'이 되고 누구든 처음부터 다시 받습니다.".replaceAll("'", "&#39;");
+  const releaseLine = "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.".replaceAll("'", "&#39;");
   const cancel = (who, id) => `<form method="post" action="/tasks/${id}/cancel"><input type="hidden" name="csrf" value="${who.csrf}"><p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`;
 
   const mine = (await h.get(`/tasks/${s.api}`, h.c)).text;
@@ -475,8 +512,9 @@ test("inTime says 곧, 약 25분 뒤, 약 2시간 뒤, 약 1시간 5분 뒤 and 
   assert.equal(w("limit", ["claude"], now + 25 * 60_000, "claude: limit"), "AI 사용 한도라 쉬는 중입니다. 약 25분 뒤 다시 시도합니다.");
   assert.equal(w("billing", ["claude"], null, "claude: billing"), "AI 결제·크레딧 문제로 쉬는 중입니다. 결제를 확인하면 잠시 뒤 다시 시도합니다.");
   assert.equal(w("login", ["claude"], null, "claude: login"), "Mac의 claude 로그인이 풀려 쉬는 중입니다. Mac 터미널에서 claude를 실행해 로그인하면 잠시 뒤 다시 시도합니다.");
-  assert.equal(w("not_ready", ["claude", "codex"], null, "claude, codex: not_ready"), "Mac의 AI 실행기(claude, codex)가 준비되지 않아 쉬는 중입니다.");
-  assert.equal(w("not_ready", [], null, "not_ready"), "Mac의 AI 실행기가 준비되지 않아 쉬는 중입니다.");
+  assert.equal(w("not_ready", ["claude", "codex"], null, "claude, codex: not_ready"), "Mac의 AI 실행기(claude, codex)가 준비되지 않아 쉬는 중입니다. Mac 터미널에서 claude를 실행해 설치와 로그인을 확인하세요.");
+  assert.equal(w("not_ready", ["codex"], null, "codex: not_ready"), "Mac의 AI 실행기(codex)가 준비되지 않아 쉬는 중입니다. Mac 터미널에서 codex를 실행해 설치와 로그인을 확인하세요.");
+  assert.equal(w("not_ready", [], null, "not_ready"), "Mac의 AI 실행기가 준비되지 않아 쉬는 중입니다. Mac 터미널에서 claude를 실행해 설치와 로그인을 확인하세요.");
   assert.equal(w("other", [], null, "disk full"), "쉬는 중입니다(disk full)");
   assert.equal(w("other", [], null, null), "쉬는 중입니다.");
 });
@@ -490,6 +528,8 @@ test("plainFailure picks by prefix and falls back to the default", () => {
     ["PR #12 was closed on GitHub; reopen it, then run team rerun", "GitHub에서 이 Task의 PR이 닫혔습니다. PR을 다시 연 뒤 다시 시도하세요."],
     ["BUILD_TIMEOUT: engine task x ran for more than 90 minutes.", "구현이 90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요."],
     ["The verified change still holds CONFLICT markers in 2 file(s).", "Story base와 합치다 충돌이 났습니다. 다시 시도하면 AI가 충돌을 풀며 처음부터 합니다."],
+    ["git push failed 3 times in a row: rejected (non-fast-forward)", "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. 아래 이유를 확인한 뒤 다시 시도하세요."],
+    ["attempt checkout failed 3 times in a row: CONFLICT: the attempt folder already exists", "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. 아래 이유를 확인한 뒤 다시 시도하세요."],
     ["PR #12 was merged elsewhere", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
     ["V1 failed: RUNNER_LIMIT later in the text", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
     ["", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
@@ -536,8 +576,37 @@ test("작업하기 from the web claims the Task for the member; the Task page th
   assert.equal(res.headers.location, `/tasks/${s.api}`);
   assert.ok((await taskPage(h, h.c, s.api)).includes("시작 중"));
   assert.equal(h.board.inbox(cBe).mine.taskId, s.api);
+  // A double click: the pick already went through, so the second lands on the Task page too.
+  const twice = await post(h, h.c, `/tasks/${s.api}/pick`);
+  assert.equal(twice.status, 303);
+  assert.equal(twice.headers.location, `/tasks/${s.api}`);
+  assert.equal(h.board.inbox(cBe).mine.taskId, s.api);
   const again = await post(h, h.c, `/tasks/${s.copy}/pick`);
   assert.equal(again.status, 409, "one open Task per member");
+  // The same Task picked by someone else: still the STATE page.
+  await post(h, h.pl, "/me/auto-work", { on: "0" });
+  const taken = await post(h, h.pl, `/tasks/${s.api}/pick`);
+  assert.equal(taken.status, 409);
+  assert.ok(taken.text.includes("지금 받을 수 있는 Task가 아닙니다. 화면을 새로 고쳐 상태를 확인하세요."));
+});
+
+test("a claim the Mac has not taken yet says it waits for the Mac instead of the Hub's own claim time", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  const api = h.board.claimNext(cBe); // no heartbeat yet, so no stage
+  const mine = "내 Mac이 가져가기를 기다립니다(보통 1분 안).";
+  const theirs = "맡은 사람의 Mac이 가져가기를 기다립니다(보통 1분 안).";
+  const page = await taskPage(h, h.c, s.api);
+  assert.ok(page.includes(`${pill("시작 중")} 맡은 사람: C · ${mine} · <a href="/tasks/${s.api}">새로 고침</a>`));
+  assert.ok(!page.includes("마지막 소식"));
+  assert.ok((await taskPage(h, h.pl, s.api)).includes(`맡은 사람: C · ${theirs} · `), "seen by another member");
+  const home = (await h.get("/", h.c)).text;
+  assert.ok(home.includes(`<p class="muted">${mine}</p>`), "the home open card");
+  assert.ok(!home.includes("마지막 소식"));
+  h.board.heartbeat(cBe, api.taskId, api.claimId, "build");
+  assert.ok((await taskPage(h, h.c, s.api)).includes("맡은 사람: C · 마지막 소식 방금 · "), "the Mac took it");
+  assert.ok((await h.get("/", h.c)).text.includes(`<p class="muted">마지막 소식 방금</p>`));
 });
 
 test("작업하기 without a live link is a NOT_LINKED page and changes nothing", async (t) => {
@@ -551,7 +620,7 @@ test("작업하기 without a live link is a NOT_LINKED page and changes nothing"
   assert.equal(h.board.claimNext(s.plBe).taskId, s.api, "still ready for anyone else");
 });
 
-test("다시 시도 from the web reruns the failed Task with the memo; a second click is a STATE page", async (t) => {
+test("다시 시도 from the web reruns the failed Task with the memo; a second click lands on the Task page; after the PL released it, a STATE page that says 다시 시도", async (t) => {
   const h = await team(t);
   const s = h.story();
   const cBe = h.linkOf(h.c, h.be);
@@ -564,8 +633,16 @@ test("다시 시도 from the web reruns the failed Task with the memo; a second 
   assert.ok(page.includes("<h2>마지막 메모</h2><pre>범위를 줄여 주세요</pre>"));
   assert.ok(page.includes("시작 중"));
   const second = await post(h, h.c, `/tasks/${s.api}/rerun`, { memo: "again" });
-  assert.equal(second.status, 409);
+  assert.equal(second.status, 303, "a double click: the rerun already went through");
+  assert.equal(second.headers.location, `/tasks/${s.api}`);
   assert.ok((await taskPage(h, h.c, s.api)).includes("<pre>범위를 줄여 주세요</pre>"), "the memo is unchanged");
+  // Failed again, and the PL releases it while C still has the old page open.
+  h.board.reportFailed(cBe, s.api, h.claimOf(cBe), "tests failed again");
+  h.board.releaseTask(s.plBe, s.api);
+  const late = await post(h, h.c, `/tasks/${s.api}/rerun`, { memo: "" });
+  assert.equal(late.status, 409);
+  assert.ok(late.text.includes("실패한 Task만 다시 시도할 수 있습니다. 화면을 새로 고쳐 확인하세요."));
+  assert.ok((await taskPage(h, h.pl, s.api)).includes(pill("할 일")), "nothing changed");
 });
 
 test("a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page", async (t) => {

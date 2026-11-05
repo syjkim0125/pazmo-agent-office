@@ -213,8 +213,8 @@ type PickBlock = keyof typeof PICK_REFUSALS;
 /** Why a web rerun is refused, in the order the checks run, with the code, status and message the web shows. */
 const RERUN_REFUSALS = {
   VERIFY: ["STATE", 409, "Story 검증은 PL의 Office가 다시 합니다."],
+  STATE: ["STATE", 409, "실패한 Task만 다시 시도할 수 있습니다. 화면을 새로 고쳐 확인하세요."],
   FORBIDDEN: ["FORBIDDEN", 403, "내가 맡은 Task만 다시 시도할 수 있습니다."],
-  STATE: ["STATE", 409, "실패한 Task만 다시 실행할 수 있습니다."],
   NOT_LINKED: ["NOT_LINKED", 409, NOT_LINKED_MESSAGE],
 } as const;
 type RerunBlock = keyof typeof RERUN_REFUSALS;
@@ -816,8 +816,9 @@ export class StoryBoard {
    */
   #rerunBlock(memberId: string, t: TaskRow, linked: ReadonlySet<string>): RerunBlock | null {
     if (t.kind !== "work") return "VERIFY";
+    // Not failed, or nobody's (the PL released it meanwhile): the page the member pressed on is out of date.
+    if (t.state !== "failed" || t.claimed_by === null) return "STATE";
     if (t.claimed_by !== memberId) return "FORBIDDEN";
-    if (t.state !== "failed") return "STATE";
     if (!linked.has(t.repo_id as string)) return "NOT_LINKED";
     return null;
   }
@@ -1227,6 +1228,11 @@ export class StoryBoard {
     });
   }
 
+  /** The Task is the member's claim now (stored state `claimed`): a second click on 작업하기 or 다시 시도 already went through. */
+  claimedBy(memberId: string, taskId: string): boolean {
+    const t = this.#task(taskId);
+    return t !== undefined && t.state === "claimed" && t.claimed_by === memberId;
+  }
   /** The web's buttons for one Task, by the rules `pickTask`, `rerunTask`, `releaseTask` and `cancelTask` check. */
   taskActions(member: Member, taskId: string, linked: ReadonlySet<string>): TaskActions {
     const t = this.#found(taskId);
