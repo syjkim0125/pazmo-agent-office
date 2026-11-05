@@ -794,11 +794,12 @@ export class StoryBoard {
 
   /**
    * The one rerun rule, from a link or the web: the assignee takes a failed Task again under a new claim. The hub
-   * only stores the memo (trimmed, empty is none); the Office counts attempts. Callers check the Task is the member's.
+   * only stores the memo (CRLF as LF, as a form's textarea counts it; trimmed; empty is none); the Office counts
+   * attempts. Callers check the Task is the member's.
    */
   #rerun(memberId: string, t: TaskRow, memo: unknown) {
     if (t.state !== "failed") fail("STATE", 409, "실패한 Task만 다시 실행할 수 있습니다.");
-    const clean = typeof memo === "string" ? memo.trim() : null;
+    const clean = typeof memo === "string" ? memo.replaceAll("\r\n", "\n").trim() : null;
     if (clean === null || clean.length > LIMITS.memoMax) fail("INVALID", 400, `메모는 ${LIMITS.memoMax}자 이하의 문자열이어야 합니다.`);
     this.#claim(t.id, memberId);
     this.#run("UPDATE hub_story_tasks SET memo=? WHERE id=?", clean || null, t.id);

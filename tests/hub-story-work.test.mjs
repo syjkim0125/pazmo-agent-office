@@ -266,6 +266,26 @@ test("rerunTask: a Task that is not failed or has no assignee STATE, another mem
   }
 });
 
+test("a 2000-character rerun memo whose line breaks arrive as CRLF is accepted on the web and the link, and stored with LF", () => {
+  const { db, board, c, be, linkOf } = opened();
+  const l = linkOf(c, be);
+  const t = board.claimNext(l);
+  const lines = Array.from({ length: 20 }, (_, i) => String(i % 10).repeat(99)); // 20 × 99 + 19 breaks = 1999
+  const memo = (sep) => `${lines.join(sep)}끝`; // 2000 characters with \n, 2019 with \r\n
+  assert.equal(memo("\n").length, 2000);
+  assert.equal(memo("\r\n").length, 2019);
+  board.reportFailed(l, t.taskId, t.claimId, "실패");
+  assert.deepEqual(board.rerunTask(c, t.taskId, memo("\r\n"), new Set([be])), { ok: true });
+  const memoOf = () => db.prepare("SELECT memo FROM hub_story_tasks WHERE id=?").get(t.taskId).memo;
+  assert.equal(memoOf(), memo("\n"));
+  assert.equal(events(db, t.taskId, "rerun").at(-1).detail, memo("\n"));
+  board.reportFailed(l, t.taskId, board.inbox(l).mine.claimId, "또 실패");
+  assert.deepEqual(board.rerun(l, t.taskId, ` ${memo("\r\n")}\r\n`).lastFailure, { reason: "또 실패", memo: memo("\n") });
+  // One character more is still too long.
+  board.reportFailed(l, t.taskId, board.inbox(l).mine.claimId, "세 번째 실패");
+  assert.throws(() => board.rerunTask(c, t.taskId, `${memo("\r\n")}x`, new Set([be])), is("INVALID"));
+});
+
 test("the link rerun still works and a web rerun after it is STATE", () => {
   const { db, board, c, be, linkOf, plBe } = opened();
   const l = linkOf(c, be);

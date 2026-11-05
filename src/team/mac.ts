@@ -284,8 +284,15 @@ export function macClient(file: MacLinkFile, call: MacCall = macCall): MacClient
         : badResponse();
     },
     async heartbeat(state, detail, until) {
-      // What the Hub refuses is made acceptable here: a beat is never lost to a runner name or a reason that is too long.
-      ok(await send("POST", "/api/mac/heartbeat", { state, detail: detail === null ? null : clip(printable(detail), DETAIL_LIMIT), until }));
+      // What the Hub refuses is made acceptable here: a beat is never lost to a runner name or a reason that is too
+      // long, nor to a retry time that is not a safe non-negative integer (sent as none).
+      ok(
+        await send("POST", "/api/mac/heartbeat", {
+          state,
+          detail: detail === null ? null : clip(printable(detail), DETAIL_LIMIT),
+          until: typeof until === "number" && Number.isSafeInteger(until) && until >= 0 ? until : null,
+        }),
+      );
     },
     async revoke() {
       ok(await send("POST", "/api/mac/revoke", {}));

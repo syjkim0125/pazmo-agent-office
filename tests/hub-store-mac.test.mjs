@@ -557,7 +557,7 @@ test("macWait reads the newest live limited Mac: limit with runners [claude] and
   assert.equal(store.macWait(b.id), null, "working");
 });
 
-test("liveLinkRepos holds a connection-string link and a live Mac's link, but not a revoked link, a revoked Mac's link or a repo the member no longer owns", () => {
+test("liveLinkRepos holds a connection-string link and a live Mac's link, but not a revoked link, a repo the member no longer owns or the link of a Mac whose row alone is revoked; reachableRepos leaves that one out too", () => {
   const { db, store, admin, join } = setup();
   const b = join("B");
   const repo = (name) => store.addRepo(admin, name, `https://github.example.com/team/${name}`);
@@ -567,18 +567,22 @@ test("liveLinkRepos holds a connection-string link and a live Mac's link, but no
   const byString = (name) => store.connect(store.createConnectCode(b), `https://github.example.com/team/${name}`).token;
   byString("r1");
   const { auth } = pairMac(store, b);
-  store.macLink(auth, r2);
+  const minted2 = store.macLink(auth, r2).token;
   assert.deepEqual([...store.liveLinkRepos(b.id)].sort(), [r1, r2].sort());
   assert.deepEqual([...store.liveLinkRepos(admin.id)], []);
-  const t3 = byString("r3");
+  byString("r3");
   store.revokeLink(b, store.repos(b.id).find((r) => r.id === r3).links[0].id);
   assert.deepEqual([...store.liveLinkRepos(b.id)].sort(), [r1, r2].sort(), "a revoked link is not live");
-  void t3;
   // Ownership gone while the link row is still unrevoked (the link() rule must hold on its own).
   db.prepare("DELETE FROM hub_repo_owners WHERE repo_id=? AND member_id=?").run(r1, b.id);
   assert.deepEqual([...store.liveLinkRepos(b.id)], [r2], "a repo the member no longer owns");
-  store.revokeOwnMac(auth);
+  // Only the Mac row revoked, its link row left unrevoked: the Mac-alive clause leaves the link out on its own.
+  store.link(minted2);
+  assert.deepEqual([...store.reachableRepos(b.id)], [r2], "used just now");
+  db.prepare("UPDATE hub_macs SET revoked_at=? WHERE id=?").run(1, auth.id);
+  assert.equal(db.prepare("SELECT revoked_at FROM hub_links WHERE repo_id=? AND member_id=?").get(r2, b.id).revoked_at, null);
   assert.deepEqual([...store.liveLinkRepos(b.id)], [], "a revoked Mac's link");
+  assert.deepEqual([...store.reachableRepos(b.id)], [], "and it is not reachable either");
 });
 
 test("reachableRepos holds a live link seen within 180000 ms and leaves out one seen earlier or never, and is empty while the member's newest Mac reports locked", () => {

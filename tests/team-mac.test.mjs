@@ -577,6 +577,18 @@ test("macClient makes a heartbeat detail the Hub accepts: no control characters,
   assert.equal(bodies[2].detail, "y".repeat(199), "never half a character");
 });
 
+test("macClient sends until only as a safe non-negative integer: undefined, NaN, -1, 1.5 and a two-argument call go out as null", async () => {
+  const bodies = [];
+  const client = macClient(link(), async (_t, _m, _p, body) => (bodies.push(body), { ok: true }));
+  for (const until of [undefined, NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 2, Infinity, "1800000"]) await client.heartbeat("limited", "claude: limit", until);
+  await client.heartbeat("idle", null);
+  assert.deepEqual(bodies.map((b) => b.until), [null, null, null, null, null, null, null, null]);
+  assert.ok(bodies.every((b) => "until" in b), "the key is always sent, so the Hub clears an old value");
+  await client.heartbeat("limited", "claude: limit", 0);
+  await client.heartbeat("limited", "claude: limit", 1_800_000);
+  assert.deepEqual(bodies.slice(-2).map((b) => b.until), [0, 1_800_000]);
+});
+
 test("macClient refuses a reply of the wrong shape with HUB_BAD_RESPONSE", async () => {
   const wrong = async (run, replies) => {
     for (const reply of replies)
