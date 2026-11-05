@@ -1,0 +1,8 @@
+{
+  "token": "f3da787470079181015085a8093421c1eb258de1dc02c45914dcd207909996fd",
+  "output": {
+    "summary": "Bundle 1 (Mac connect) Tasks 1-10 built with per-Task review (6 fix rounds); main 27f2bff merged with a combined G1 record; full npm test 1512/1512 exit 0, typecheck exit 0, Story check exit 0 on 5fff3de.",
+    "evidence": [".ai-workflow/runs/U36-implement-1.md", "docs/plans/2026-11-04-1500-feat-mac-connect-plan.md", "docs/verification/2026-11-04-mac-connect.md"]
+  },
+  "evaluation": { "passed": true }
+}

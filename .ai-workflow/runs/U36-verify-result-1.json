@@ -1,0 +1,8 @@
+{
+  "token": "994e4bd857dc372cc7d3f4d71fc6c60447fd4a905a1690e87f9395a0c0d1f855",
+  "output": {
+    "summary": "Kit verification on abc62f4: tests 395/395 + 600/600 + 561/561 = 1556/1556, typecheck exit 0, Story check exit 0; snapshot unchanged; real launchctl/reboot/install/OpenShift/two Macs not proven.",
+    "evidence": [".ai-workflow/runs/U36-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

@@ -1,0 +1,12 @@
+{
+  "token": "c3a6f0471099be5a521c4e98db8d0753902e0b41bb67365015f59928aa15e0d6",
+  "output": {
+    "summary": "Review attempt 1 (3 independent reviewers): not ready (Critical 1, Important 5 after merging duplicates). Stale running.json after reboot blocks login start; re-pair on any Hub failure; self-restart can leave the Office off; bootout kills an in-progress up and leaks start.lock; web revoke of a Mac link is undone by the Mac's sync.",
+    "evidence": [".ai-workflow/runs/U36-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement F1-F7 of U36-review-1.md: clear stale team state after reboot/crash; re-pair only on 401; no self-restart while runners not ready plus mac restart preflight and LaunchAgent StartInterval; start() lock cleanup on SIGTERM and no reload of an unchanged loaded agent; Hub refuses Mac link while a live non-Mac link exists and Mac links are revoked only via /mac; cheap hardening batch; docs and real-check list."
+  }
+}
