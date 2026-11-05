@@ -29,6 +29,8 @@ if (process.argv[2] === "--stalled-service") {
   });
 }
 
+// Everything else lifecycle.ts imports from node:child_process is the real one.
+export * from "node:child_process";
 export function spawn(command, _args, options) {
   return realSpawn(command, [self, "--stalled-service"], options);
 }

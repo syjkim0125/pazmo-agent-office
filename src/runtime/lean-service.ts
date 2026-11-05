@@ -36,6 +36,16 @@ process.once("message", async (raw: unknown) => {
 
   /** Where `start` records this instance once it is ready; set when the data directory is checked. */
   let saved: { dataDir: string; instance: string } | undefined;
+  /** Removes the saved state `start` wrote for this instance, if it still names it: first thing in a close, and
+   * again when the close runs out of time, so that a slow or killed close never leaves a state the next start
+   * cannot resolve. A failure is logged and changes no exit code. */
+  function forgetState() {
+    try {
+      if (saved) removeSavedState(saved.dataDir, saved.instance);
+    } catch (error) {
+      console.error("Lean shutdown: its runtime state could not be removed:", error);
+    }
+  }
   let closing: Promise<number> | undefined;
   /** Stops new work, stops accepting requests, then closes the Office, then the
    * database (the reverse of how they opened). Idempotent: later calls (a second
@@ -43,6 +53,7 @@ process.once("message", async (raw: unknown) => {
    * Resolves with the exit code. */
   function close(): Promise<number> {
     closing ??= (async () => {
+      forgetState();
       let code = 0;
       const step = async (name: string, run: (() => Promise<void> | void) | undefined) => {
         try {
@@ -57,13 +68,6 @@ process.once("message", async (raw: unknown) => {
       await step("server", () => server?.close());
       await step("office", () => office?.close());
       await step("database", () => db?.close());
-      // Its saved state goes with it, or a logout or reboot would leave a state the next start cannot resolve.
-      // Only its own: another instance may have replaced it. A failure is logged and changes no exit code.
-      try {
-        if (saved) removeSavedState(saved.dataDir, saved.instance);
-      } catch (error) {
-        console.error("Lean shutdown: its runtime state could not be removed:", error);
-      }
       return code;
     })();
     return closing;
@@ -82,6 +86,7 @@ process.once("message", async (raw: unknown) => {
     // the process non-zero instead of letting it fall out of the event loop as 0.
     setTimeout(() => {
       console.error(`Lean shutdown did not finish in ${SHUTDOWN_LIMIT_MS} ms.`);
+      forgetState();
       process.exit(1);
     }, SHUTDOWN_LIMIT_MS);
     // A start still under way is not closed from here: its database is in use by
