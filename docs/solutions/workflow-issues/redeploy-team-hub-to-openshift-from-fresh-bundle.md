@@ -1,6 +1,7 @@
 ---
 title: Redeploy the team hub to OpenShift from a fresh bundle and verify it without writing data
 date: "2026-10-22"
+last_refreshed: "2026-11-05"
 category: workflow-issues
 module: team hub deploy
 problem_type: workflow_issue
@@ -78,7 +79,7 @@ Division of labor: the person logs in (`oc login --web`, in the browser, so no t
    oc cancel-build <duplicate build name>
    ```
 5. **Right after rollout the route answers 503 "Application is not available".** The Deployment strategy is `Recreate` (`deploy/openshift/pazmo-hub.json:120`), so the old pod stops before the new one is Ready. The readiness probe is `/healthz`. Wait for `READY 1/1` and endpoints, then test.
-6. **The database is one directory deeper than the data dir.** `PAZMO_HUB_DATA_DIR` defaults to `/data` in the container (`src/hub/main.ts:27`). The hub adds a `team-hub` subdirectory (`src/hub/run.ts:54`) and opens `hub.sqlite` there (`src/hub/run.ts:65`). So the file is `/data/team-hub/hub.sqlite`, not `/data/hub.sqlite`.
+6. **The database is one directory deeper than the data dir.** `PAZMO_HUB_DATA_DIR` defaults to `/data` in the container (`src/hub/main.ts:27`). The hub adds a `team-hub` subdirectory (`src/hub/run.ts:57`) and opens `hub.sqlite` there (`src/hub/run.ts:68`). So the file is `/data/team-hub/hub.sqlite`, not `/data/hub.sqlite`.
 
 ## Why This Matters
 The redeploy keeps the PVC. Members, repos, requests and connected Offices are the team's real data, and a wrong step is hard to see:
@@ -100,16 +101,16 @@ The redeploy keeps the PVC. Members, repos, requests and connected Offices are t
 ## Examples
 Modeled on the checks run after the PR #29 redeploy (that run probed `/api/link/story/inbox` and `/api/link/work`; any protocol-3-only route and any protocol-2 route answer the same way). Every step is read-only or unauthenticated. Use the hub's own `<hub route host>`.
 
-1. Liveness (`src/hub/server.ts:195`, answers before the Host check and needs no session):
+1. Liveness (`src/hub/server.ts:317`, answers before the Host check and needs no session):
    ```sh
    curl -s -o /dev/null -w "%{http_code}\n" https://<hub route host>/healthz   # 200
    ```
-2. A route only the new code serves, with no token. New code passes the protocol gate and reaches the token check, so it answers 401 (`src/hub/link-api.ts:164-167`). Old code does not know protocol `3`, so it answers 426 at its first gate with `"expected":"2"` (the gate as it was before PR #29: `git show 2fb903d:src/hub/link-api.ts`, lines 56-61). Use a method the route accepts (`src/hub/link-api.ts:39-40`), or you get 405 before the token check (`src/hub/link-api.ts:158-159`).
+2. A route only the new code serves, with no token. New code passes the protocol gate and reaches the token check, so it answers 401 (`src/hub/link-api.ts:168-171`). Old code does not know protocol `3`, so it answers 426 at its first gate with `"expected":"2"` (the gate as it was before PR #29: `git show 2fb903d:src/hub/link-api.ts`, lines 56-61). Use a method the route accepts (`src/hub/link-api.ts:39-40`), or you get 405 before the token check (`src/hub/link-api.ts:162-163`).
    ```sh
    curl -s -w "\n%{http_code}\n" -H "x-pazmo-hub-protocol: 3" \
      https://<hub route host>/api/link/story/projects                           # 401 UNAUTHORIZED
    ```
-3. The same route with the old protocol header answers 426 and names the version it expects, `"expected":"3"` (`src/hub/link-api.ts:146-151`). Old code answers 404 to this protocol-2 call: it passes the old gate and the route does not exist in it.
+3. The same route with the old protocol header answers 426 and names the version it expects, `"expected":"3"` (`src/hub/link-api.ts:150-155`). Old code answers 404 to this protocol-2 call: it passes the old gate and the route does not exist in it.
    ```sh
    curl -s -w "\n%{http_code}\n" -H "x-pazmo-hub-protocol: 2" \
      https://<hub route host>/api/link/story/projects                           # 426, "expected":"3"
@@ -119,7 +120,7 @@ Modeled on the checks run after the PR #29 redeploy (that run probed `/api/link/
    curl -s -w "\n%{http_code}\n" -H "x-pazmo-hub-protocol: 2" \
      https://<hub route host>/api/link/repos                                    # 401, same as before the change
    ```
-5. Pod log. The first line is JSON with `url` and `listening` (`src/hub/main.ts:38`). It has **no `adminInvite`** when members exist (`src/hub/run.ts:79`, `:86`; `src/hub/store.ts:181`); an `adminInvite` there would mean the hub started on a database with no members, which is a different incident.
+5. Pod log. The first line is JSON with `url` and `listening` (`src/hub/main.ts:41`). It has **no `adminInvite`** when members exist (`src/hub/run.ts:82`, `:89`; `src/hub/store.ts:252`); an `adminInvite` there would mean the hub started on a database with no members, which is a different incident.
    ```sh
    oc logs deploy/pazmo-hub | head -1
    ```
@@ -139,8 +140,8 @@ Modeled on the checks run after the PR #29 redeploy (that run probed `/api/link/
    ```
    Read it three ways:
    - Counts equal the numbers you noted before the deploy. The PVC data survived.
-   - `lastSeenSecondsAgo` is small when at least one Office is running (its hub poll defaults to every 5 seconds, `src/runtime/hub-link.ts:395`). Existing Offices reconnected without a new link. A huge number means no Office is polling right now or no link is live, not necessarily a failed rollout.
-   - `tables` now lists the new Story tables (`hub_projects`, `hub_stories`, `hub_story_tasks`, and the rest of the set in `src/hub/story-store.ts:174-184`). The schema is `CREATE TABLE IF NOT EXISTS`, run in the board's constructor (`src/hub/story-store.ts:269`), so it applied to the old database without a migration step.
+   - `lastSeenSecondsAgo` is small, at most about a minute, when at least one team Office is running with a ready repo. Every Bearer call through a link stamps `hub_links.last_seen` (`src/hub/store.ts:742`). A team Office that holds no Claim reads the inbox through each ready repo's link every 30 s. While it holds a Claim, it calls the hub through that Claim's link at each 60 s heartbeat (a heartbeat, or a Task read for a failed Claim) (`CLAIM_MS`, `BEAT_MS` in `src/team/office.ts`). A small number means existing Offices reconnected without a new link. A Mac's own heartbeat updates `hub_macs`, not `hub_links`, so it does not move this number. A huge number means no team Office is reading through a ready repo right now (all off, or every repo not ready, for example a lapsed gh login), or no link is live. It does not necessarily mean the rollout failed.
+   - `tables` now lists the new Story tables (`hub_projects`, `hub_stories`, `hub_story_tasks`, and the rest of the set in `src/hub/story-store.ts:242-255`). The schema is `CREATE TABLE IF NOT EXISTS`, run in the board's constructor (`src/hub/story-store.ts:323`), so it applied to the old database without a migration step.
 
 Stop here. Creating a project, a Story or a request on the shared hub to "test end to end" is a separate step. Ask the team first.
 
