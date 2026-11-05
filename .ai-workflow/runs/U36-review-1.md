@@ -1,7 +1,7 @@
 # U36 (Mac connect) review, attempt 1
 
 Snapshot `263330f0…` = tree `5fff3de` (range `27f2bff..5fff3de`). Allocation: 3 independent read-only reviewers (kit default 3), all opus:
-1. generalist whole-branch review against plan, design, Story and the SDD ledger (re-dispatch: a first attempt in the stopped Team B session was cut off by an OAuth 401 before reporting anything);
+1. generalist whole-branch review against plan, design, Story and the SDD ledger (re-dispatch: a first attempt in the stopped session of another Claude org was cut off by an OAuth 401 before reporting anything);
 2. seam: secrets, auth and Hub store concurrency;
 3. seam: Office lifecycle and failure paths.
 Reason: 8.7k-line change with token/pairing and self-restart seams; ten task-scoped reviews already ran, so 3 rather than 4–5. Reviewers ran only focused test files (`hub-mac-api` 19/19, `team-mac-watch` 14/14) and the Story check (exit 0).
