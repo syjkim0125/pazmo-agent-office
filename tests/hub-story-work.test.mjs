@@ -444,27 +444,32 @@ test("taskActions: rerun for the assignee of a failed work Task; release for the
   const ctx = opened();
   const { board, admin, pl, b, c, be, fe, linkOf, plBe, pub, tick } = ctx;
   const api = idOf(pub, "api"), copy = idOf(pub, "copy"), ui = idOf(pub, "ui"), verify = verifyOf(pub);
-  const none = { pick: "no", rerun: "no", release: false, cancel: false };
+  const none = { pick: "no", rerun: "no", release: false, cancel: "no" };
   const acts = (m, id, linked = new Set()) => board.taskActions(m, id, linked);
   // Ready: the owner may pick; the PL and an admin may cancel (both also own be, without a be link here).
   assert.deepEqual(acts(c, api, new Set([be])), { ...none, pick: "auto-on" });
-  assert.deepEqual(acts(pl, api), { ...none, pick: "not-linked", cancel: true });
-  assert.deepEqual(acts(admin, api), { ...none, pick: "not-linked", cancel: true });
+  assert.deepEqual(acts(pl, api), { ...none, pick: "not-linked", cancel: "yes" });
+  assert.deepEqual(acts(admin, api), { ...none, pick: "not-linked", cancel: "yes" });
   assert.deepEqual(acts(b, api, new Set([be, fe])), none);
-  assert.deepEqual(acts(pl, ui), { ...none, cancel: true }); // waiting
+  assert.deepEqual(acts(pl, ui), { ...none, cancel: "yes" }); // waiting
   assert.deepEqual(acts(pl, verify, new Set([be, fe])), none); // the verification Task is never cancelled here
   assert.throws(() => acts(c, randomUUID()), is("NOT_FOUND", MSG.notFound));
 
   const l = linkOf(c, be);
   const t = board.claimNext(l); // api
-  assert.deepEqual(acts(pl, api), { ...none, cancel: true }); // claimed, alive
+  assert.deepEqual(acts(pl, api), { ...none, cancel: "yes" }); // claimed, alive
   tick(600_001);
-  assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: true }); // held
+  assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: "yes" }); // held
+  // Holding the merge lock, the web offers no cancel: the change may already be merged.
+  board.mergeLock(l, t.taskId, t.claimId);
+  assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: "locked" });
+  assert.deepEqual(acts(admin, api), { ...none, release: true, cancel: "locked" });
+  assert.deepEqual(acts(b, api), none);
   assert.deepEqual(acts(c, api, new Set([be])), none); // held is not failed: no rerun
-  board.reportFailed(l, t.taskId, t.claimId, "실패");
+  board.reportFailed(l, t.taskId, t.claimId, "실패"); // gives the lock up
   assert.deepEqual(acts(c, api, new Set([be])), { ...none, rerun: "yes" });
-  assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: true });
-  assert.deepEqual(acts(admin, api), { ...none, release: true, cancel: true });
+  assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: "yes" });
+  assert.deepEqual(acts(admin, api), { ...none, release: true, cancel: "yes" });
   assert.deepEqual(acts(b, api), none);
   assert.deepEqual(acts(c, copy, new Set([be])), { ...none, pick: "busy" });
 
@@ -479,6 +484,30 @@ test("taskActions: rerun for the assignee of a failed work Task; release for the
   assert.deepEqual(acts(pl, verify, new Set([be, fe])), { ...none, release: true }); // no web rerun, no cancel
   assert.deepEqual(acts(admin, verify), { ...none, release: true });
   assert.deepEqual(acts(b, verify), none);
+});
+
+test("the link cancel of a merge-locked Task still works; with refuseLocked it is STATE and nothing changes", () => {
+  const { db, board, pl, b, c, be, linkOf, plBe, pub } = opened();
+  const lockedText = "머지 잠금을 쥔 Task는 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.";
+  const lockOf = (id) => ({ ...db.prepare("SELECT merge_lock,lock_member,lock_claim FROM hub_story_tasks WHERE id=?").get(id) });
+  const l = linkOf(c, be);
+  const t = board.claimNext(l); // api
+  board.mergeLock(l, t.taskId, t.claimId);
+  const before = rows(db);
+  const lock = lockOf(t.taskId);
+  assert.equal(lock.merge_lock, 1);
+  assert.throws(() => board.cancelTask({ member: pl }, t.taskId, { refuseLocked: true }), is("STATE", lockedText));
+  assert.throws(() => board.cancelTask({ member: b }, t.taskId, { refuseLocked: true }), is("FORBIDDEN"), "the PL-or-admin rule comes first");
+  assert.deepEqual(rows(db), before);
+  assert.deepEqual(lockOf(t.taskId), lock);
+  assert.deepEqual(events(db, t.taskId, "cancelled"), []);
+  // A Task without the lock cancels with the option as before.
+  assert.deepEqual(board.cancelTask({ member: pl }, idOf(pub, "copy"), { refuseLocked: true }), { ok: true, ready: [] });
+  // The link API's cancel is unchanged: it cancels the locked Task.
+  assert.equal(board.cancelTask(plBe, t.taskId).ok, true);
+  assert.equal(row(db, t.taskId).state, "cancelled");
+  assert.equal(lockOf(t.taskId).merge_lock, 0);
+  assert.throws(() => board.cancelTask({ member: pl }, t.taskId, { refuseLocked: true }), is("STATE", "이미 끝난 Task는 취소할 수 없습니다."));
 });
 
 test("releaseTask and cancelTask take {member} from the web like a link, with the same PL-or-admin rule", () => {

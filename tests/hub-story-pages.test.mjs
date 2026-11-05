@@ -456,6 +456,10 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   now += HELD_AFTER_MS + 1;
   const page = (await h.get(`/tasks/${s.copy}`, h.admin)).text;
   assert.ok(page.includes(`<p>${releaseLine} 머지 중이었을 수 있습니다.</p>`));
+  // And it cannot be cancelled from here: the change may be merged already, so 풀기 comes first.
+  assert.ok(page.includes("<p>머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.</p>"));
+  assert.ok(!page.includes(`/tasks/${s.copy}/cancel`), "no cancel form");
+  assert.ok((await h.get(`/tasks/${s.api}`, h.admin)).text.includes(cancel(h.admin, s.api)), "api holds no lock: the form");
   assert.ok(!(await h.get(`/tasks/${s.api}`, h.admin)).text.includes("머지 중이었을 수 있습니다."), "api holds no lock");
   // An ended Task has nothing to cancel, and the Story verification is never cancelled from here.
   assert.ok(!(await h.get(`/tasks/${s.verify}`, h.pl)).text.includes("/cancel"));
@@ -690,6 +694,25 @@ test("풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for
   assert.equal(can.status, 303);
   assert.equal(can.headers.location, `/tasks/${s.api}`);
   assert.ok((await taskPage(h, h.pl, s.api)).includes("취소됨"));
+});
+
+test("취소 of a Task that holds the merge lock is a STATE page and the Task stays as it was; after 풀기 it can be cancelled", async (t) => {
+  let now = Date.now();
+  const h = await team(t, { now: () => now });
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  const api = h.board.claimNext(cBe);
+  h.board.mergeLock(cBe, api.taskId, api.claimId);
+  now += HELD_AFTER_MS + 1;
+  const res = await post(h, h.pl, `/tasks/${s.api}/cancel`, { confirm: "yes" });
+  assert.equal(res.status, 409);
+  assert.ok(res.text.includes("머지 잠금을 쥔 Task는 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요."));
+  const page = await taskPage(h, h.pl, s.api);
+  assert.ok(page.includes(pill("멈춤(Mac 소식 없음)")) && page.includes("맡은 사람: C"), "unchanged");
+  assert.equal(h.board.inbox(cBe).mine.claimId, api.claimId, "still C's claim");
+  assert.equal((await post(h, h.pl, `/tasks/${s.api}/release`)).status, 303);
+  assert.equal((await post(h, h.pl, `/tasks/${s.api}/cancel`, { confirm: "yes" })).status, 303);
+  assert.ok((await taskPage(h, h.pl, s.api)).includes(pill("취소됨")));
 });
 
 test("every new POST is 403 from another origin or without the CSRF token", async (t) => {

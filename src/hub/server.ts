@@ -305,7 +305,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         else {
           // Cancelling cannot be undone, so the form must carry the box.
           if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "취소하려면 '정말 취소합니다'를 체크하세요.");
-          board.cancelTask({ member: me }, id);
+          board.cancelTask({ member: me }, id, { refuseLocked: true });
         }
         return redirect(res, `/tasks/${id}`);
       }

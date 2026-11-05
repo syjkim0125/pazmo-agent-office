@@ -201,9 +201,12 @@ function actionForms(t: TaskView, csrf: string, a: TaskActions) {
   const release = a.release
     ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc("풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 머지 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
     : "";
-  const cancel = a.cancel
-    ? `<form method="post" action="${esc(base)}/cancel">${csrfField(csrf)}<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
-    : "";
+  const cancel =
+    a.cancel === "yes"
+      ? `<form method="post" action="${esc(base)}/cancel">${csrfField(csrf)}<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
+      : a.cancel === "locked"
+        ? `<p>머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.</p>`
+        : "";
   return pick + rerun + release + cancel;
 }
 

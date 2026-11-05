@@ -141,8 +141,10 @@ export type WorkCard = {
 export type MemberWork = { autoWork: boolean; open: WorkCard | null; ready: WorkCard[]; led: WorkCard[]; done: WorkCard[] };
 /** Whether the member may rerun a Task on the web now: `not-linked` is the assignee of a failed work Task whose repo their Mac is not taking now. */
 export type RerunState = "yes" | "not-linked" | "no";
+/** Whether the PL or an admin may cancel a work Task on the web now: `locked` while it holds the merge lock (release it first). */
+export type CancelState = "yes" | "locked" | "no";
 /** Which buttons the web shows for one Task, by the same rules the actions check. */
-export type TaskActions = { pick: PickState; rerun: RerunState; release: boolean; cancel: boolean };
+export type TaskActions = { pick: PickState; rerun: RerunState; release: boolean; cancel: CancelState };
 export type StoryInbox = {
   mine: { taskId: string; claimId: string; storyId: string; state: "claimed" | "failed" } | null;
   alerts: { taskId: string; storyId: string; number: number; state: "held" | "failed" }[];
@@ -867,12 +869,19 @@ export class StoryBoard {
     });
   }
 
-  cancelTask(a: Actor, taskId: string): { ok: true; ready: number[] } {
+  /**
+   * The PL (or a hub admin) cancels an unfinished work Task. `refuseLocked` (the web) refuses one that holds the merge
+   * lock: its change may already be in the Story base, and a cancel cannot be undone and refuses the late merged
+   * report, while a release keeps that report. The link API cancels as before.
+   */
+  cancelTask(a: Actor, taskId: string, o: { refuseLocked?: boolean } = {}): { ok: true; ready: number[] } {
     return transaction(this.#db, () => {
       const t = this.#found(taskId);
       const s = this.#story(t.story_id);
       this.#assertPlOrAdmin(a, s);
       if (ENDED.includes(t.state)) fail("STATE", 409, "이미 끝난 Task는 취소할 수 없습니다.");
+      if (o.refuseLocked && t.merge_lock === 1)
+        fail("STATE", 409, "머지 잠금을 쥔 Task는 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.");
       if (t.kind === "verify") fail("STATE", 409, "Story 검증 Task는 취소할 수 없습니다. Story를 취소하세요.");
       this.#cancel(s.id, t.id, a.member.id);
       return { ok: true as const, ready: this.#recompute(s.id) };
@@ -1237,11 +1246,12 @@ export class StoryBoard {
   taskActions(member: Member, taskId: string, linked: ReadonlySet<string>): TaskActions {
     const t = this.#found(taskId);
     const lead = this.#plOrAdmin({ member }, this.#story(t.story_id));
+    const cancellable = lead && t.kind === "work" && !ENDED.includes(t.state);
     return {
       pick: this.#pickState(member.id, t, linked),
       rerun: this.#rerunState(member.id, t, linked),
       release: lead && stuck(this.#viewState(t)),
-      cancel: lead && t.kind === "work" && !ENDED.includes(t.state),
+      cancel: !cancellable ? "no" : t.merge_lock === 1 ? "locked" : "yes",
     };
   }
 
