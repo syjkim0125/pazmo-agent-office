@@ -163,13 +163,19 @@ The member who publishes a team Story: they split it into a task graph, approve 
 The one Office a member runs for several of their repos at once: it takes and holds team Story Claims for those repos while each repo keeps its own data and its own Office link.
 *Avoid:* multi-repo Office
 
-A repo registered with a Team Office cannot also run in a single Office, and two clones of the same origin cannot both be registered, because the hub keeps one link per member and repo. The Team Office keeps a local record of its open Claim and takes no new Claim while that record is open. It drops the record when the hub answers that the task is no longer this member's or that it does not know the task, and records it again from the hub inbox while the hub still says it is this member's. A member can pause claiming or cap claims per day. A repo holding the open Claim cannot be removed while its folder exists.
+A repo registered with a Team Office cannot also run in a single Office, and two clones of the same origin cannot both be registered, because the hub keeps one link per member and repo. The Team Office keeps a local record of its open Claim and takes no new Claim while that record is open. It drops the record when the hub answers that the task is no longer this member's or that it does not know the task, and records it again from the hub inbox while the hub still says it is this member's. A member can pause automatic claiming or cap it per day; a Claim the member picks or reruns on the hub web is held back by neither and does not count toward the cap. A repo holding the open Claim cannot be removed while its folder exists.
 
 ### Claim
-A member's Office's hold on one ready work task of a team Story, taken automatically for a repo the member owns and identified by its own claim ID. The Story's verification task is the exception: only the PL claims it, explicitly. A member has at most one open Claim at a time.
+A member's Office's hold on one ready work task of a team Story, identified by its own claim ID: the Team Office takes it automatically for a repo the member owns, or the member picks the task on the hub web and the hub takes it for them, for their Team Office to take over. The Story's verification task is the exception: only the PL claims it, explicitly. A member has at most one open Claim at a time.
 *Avoid:* assignment (that is the accept-based request flow), lease
 
 Every report about the task must carry the current claim ID. After the PL releases or cancels the task, or after a rerun issues a new ID, the old ID is refused, so a returning Office learns the task is no longer its own. The one exception is a merged report from the Claim that last held the Merge lock (see Merge lock). A failed task stays its member's open Claim until they rerun it or the PL releases or cancels it. When an Office stops sending heartbeats its Claim is shown as held, but it is never released automatically.
+
+### Reachable repo
+A repo whose work the member's Team Office is taking now, as the hub judges it without contacting the Office: the member's Office link to it was used within the last few claim ticks, and the member's Office does not report running locked (holding Claims without running them).
+*Avoid:* linked repo (a valid Office link alone does not make a repo reachable)
+
+The hub web offers picking a ready task, or rerunning a failed one, only in a reachable repo, and refuses the action elsewhere, because a Claim the Office never reads would block the member in every repo until the PL releases it. While a Team Office holds no Claim, it reads the hub inbox through every ready repo's link on each claim tick. A repo that is not ready (its GitHub login failed, or its link is held by another Office) and an Office that is off leave no fresh use, so they are not reachable, though use from just before an Office restart can still count for a short while. While the member holds a Claim, the Office reads only that Claim's repo, so the member's other repos count as busy, not as unreachable.
 
 ### Merge lock
 The per-Story, per-repo turn that one Claim holds while it brings the latest Story base into its task branch, re-verifies and merges the result into the Story base.
