@@ -1,0 +1,12 @@
+{
+  "token": "05d09fbd1821d2374724083116025b1a5f048e45128914e290f7c9ace342d499",
+  "output": {
+    "summary": "Review attempt 2 (2 reviewers): F1-F6 resolved as described; not ready (Important 1: a stale state or start lock from before a reboot survives pid reuse; plus cheap Minors and doc errors).",
+    "evidence": [".ai-workflow/runs/U36-review-2.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement G1-G7 of U36-review-2.md: boot-session id in running.json and start.lock with early state removal in close(); exclusive stale-lock takeover and own-lock release; pid-less lock older than 60 s stale; keep the restart guard on hold expiry; verify bootout on disconnect and enable before kickstart; team sync lock; copy and doc corrections."
+  }
+}

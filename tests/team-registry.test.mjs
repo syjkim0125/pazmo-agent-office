@@ -359,6 +359,36 @@ test("a team Office still starting (start.lock) counts as running: add and remov
   await addTeamRepo(f.data, b);
 });
 
+test("a start.lock whose maker is gone (a killed up) does not count as running; one with a live pid or no pid file does", async (t) => {
+  const f = fixture(t);
+  const a = f.repo("alpha"),
+    b = f.repo("beta");
+  await addTeamRepo(f.data, a);
+  const lock = join(teamDir(f.data), "start.lock");
+  const pidFile = join(lock, "pid");
+  mkdirSync(lock);
+
+  // The maker's pid is gone (ESRCH): nothing starts, so the registry may change. The lock is left for lifecycle.
+  const dead = spawnSync(process.execPath, ["-e", ""]).pid;
+  writeFileSync(pidFile, String(dead));
+  assert.equal(teamRunning(f.data), false);
+  assert.ok(existsSync(pidFile), "teamRunning only reads the lock");
+  await addTeamRepo(f.data, b);
+  // ...but a running.json with a live pid still counts.
+  writeFileSync(join(teamDir(f.data), "running.json"), JSON.stringify({ pid: process.pid }));
+  assert.equal(teamRunning(f.data), true);
+  rmSync(join(teamDir(f.data), "running.json"));
+
+  // A live maker, or a pid that cannot be read (an earlier version's lock, or one being written), is a start under way.
+  for (const text of [String(process.pid), "not a pid", "0", "-1", ""]) {
+    writeFileSync(pidFile, text);
+    assert.equal(teamRunning(f.data), true, JSON.stringify(text));
+  }
+  rmSync(pidFile);
+  assert.equal(teamRunning(f.data), true, "no pid file");
+  await assert.rejects(removeTeamRepo(f.data, a), { code: "TEAM_RUNNING" });
+});
+
 test("remove opens no team database when there is none", async (t) => {
   const f = fixture(t);
   const a = await addTeamRepo(f.data, f.repo("alpha"));

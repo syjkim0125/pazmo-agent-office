@@ -18,6 +18,9 @@ export type HubLinkConfig = {
   repoId: string;
   /** The repository as the hub names it; absent in files written before connection strings. */
   repoName?: string;
+  /** The Mac whose `mac connect` minted this link. Absent in a link the person made from a connection string:
+   * the Mac only ever rewrites or removes link files that carry a macId. */
+  macId?: string;
 };
 const FILE = "hub-link.json";
 
@@ -226,8 +229,9 @@ type Deps = {
 
 const describe = (error: unknown) =>
   `${(error as { code?: string }).code ?? "FAILED"} ${error instanceof Error ? error.message : String(error)}`;
-/** Hub-provided text reaches the terminal without control characters. */
-const printable = (text: string) => text.replace(/[\u0000-\u001f\u007f]/g, " ");
+/** Hub-provided text reaches the terminal without control characters; the C1 range (U+0080-U+009F) is included
+ * because some terminals act on it (U+009B is an escape-sequence introducer). */
+export const printable = (text: string) => text.replace(/[\u0000-\u001f\u007f-\u009f]/g, " ");
 
 /** One pass: take accepted work, relay answers and ends, push changed snapshots.
  * Office writes are idempotent by hub ids, so a pass interrupted by the network

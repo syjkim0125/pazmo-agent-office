@@ -1,3 +1,35 @@
+# 2026-11-04 브라우저 팀 흐름 묶음 1: 팀원이 한 줄과 웹 허용 한 번으로 이 Mac을 연결한다 (U36, D41·V19)
+
+- D41(G3·G1 2026-11-04)의 네 묶음 중 첫째다. 계획은 [2026-11-04-1500-feat-mac-connect-plan.md](plans/2026-11-04-1500-feat-mac-connect-plan.md), kit 실행은 `.ai-workflow/runs/U36-mac-connect.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 더하기만 했다. 예외 하나: 마지막 리뷰가 찾은 결함을 고치느라 모든 엔진이 함께 쓰는 `status`·`stop`·`start`가 바뀌었다(프로세스가 없거나 다른 부팅에서 남은 실행 상태와 시작 잠금을 정리하고, 시작 중 SIGTERM·SIGINT에서 띄운 서비스를 멈추고 잠금을 지운다). 프로토콜 1·2·3, `/api/link/*`, 연결 문자열, `hub-link`, `team add|remove`, `start --team`은 그대로다.
+- 범위(OpenShift 허브, Apple Silicon Mac):
+  - **허브:** 기기 코드로 Mac을 사람 단위로 연결한다(`/api/mac/*`, 프로토콜 4, 코드는 10분·한 번·해시만). 한 사람에 Mac 하나이고, Mac을 해제하면 그 Mac이 받은 repo 연결도 멈춘다. 요청 제한기를 새로 두었다.
+  - **허브 웹·설치기:** `/mac`(설치 한 줄과 내 Mac 표), 허용 화면, 머리글 "내 Mac" 상태, 첫 방문 안내, `GET /install.sh`.
+  - **Office:** `mac connect|status|disconnect|restart`. 담당 repo를 `<데이터 루트>/repos/<이름>`에 clone·등록·연결하고(자기 폴더로 등록한 repo는 그대로), 로그인 때 저절로 켜지게 LaunchAgent를 올리고, 60초마다 상태를 보내고, 담당 repo가 바뀌면 열린 Task가 없을 때 스스로 맞추고 다시 켠다.
+  - 사용 안내는 [LOCAL-PREVIEW.md](LOCAL-PREVIEW.md#이-mac-연결-openshift-허브)다.
+- Task별 커밋(기준 `e1e7f64`):
+  - 1 Hub 저장소 `0e0151b`, 2 Hub Mac API `df84ff8`·`9f1ca6b`, 3 설치기 `25f990e`·`b37bb90`, 4 Hub 웹 `9c402ec`·`076922d`
+  - 5 Office 클라이언트 `55929d9`, 6 repo 맞추기 `87f4a3d`, 7 LaunchAgent `05e4e3f`·`fe1a80e`, 8 CLI `92b9ea0`, 9 접속 상태·다시 켜기 `ca51b9b`·`5e258b0`
+  - 10 문서 `docs: record the Mac connect bundle`
+  - 리뷰는 Task마다 했고 Task 2·3·4·7·9가 한 번씩 수정을 거쳤다.
+- 구현 중 계획에서 바뀐 것(컨트롤러 판정과 리뷰, 전부는 [검증 기록](verification/2026-11-04-mac-connect.md)의 "판정 적용"):
+  - 없는 코드를 여는 `GET /mac/approve`도 허용·거절과 같은 사람별 제한에 센다.
+  - LaunchAgent는 `bootout` 뒤에 `enable`을 하고 `bootstrap`을 3번까지 시도한다(실제 확인 전에는 맞는지 모른다).
+  - `NODE_EXTRA_CA_CERTS`(절대 경로일 때만)가 팀 서비스와 스스로 다시 켜기의 환경에도 들어간다.
+  - 스스로 다시 켜기는 `brew upgrade`가 지운 node 대신 Homebrew의 안정 경로 node를 쓰고, 다시 켜도 맞추지 못한 같은 변경은 한 시간에 한 번만 다시 켠다.
+  - 설치기의 마지막 단계(`mac connect`)도 `run_step`을 거친다.
+- **마지막 리뷰(2026-11-05, 리뷰어 셋: 전체·비밀과 Hub 동시성·Office 수명주기):** Critical 1, Important 5를 머지 전에 고쳤다(`b30224c`–`6024932`, 13커밋). 수정을 다시 본 리뷰어 둘(수정 전체, 실행 상태·잠금)의 Important 1과 작은 것들도 고쳤다(`f71903d`–`9fc54f5`, 5커밋). 자세한 것은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "마지막 리뷰 뒤 고친 것"이다.
+  - 재부팅·강제 종료 뒤 남은 `running.json` 때문에 로그인 때 Office가 켜지지 않던 것(모든 엔진에 있던 결함)을 고쳤다. 프로세스가 없거나 다른 부팅에서 남은 상태와 시작 잠금은 정리하고(부팅 세션 id), 멈추기 시작하는 서비스는 자기 상태를 지운다.
+  - `mac connect` 재실행은 허브가 401일 때만 다시 짝짓는다. 다시 켜기는 실행기가 준비되지 않았으면 하지 않고, 멈추기 전에 확인하며, LaunchAgent가 30분마다 다시 시도한다. 이미 로드된 같은 자동 실행은 내리지 않는다. 전체 맞추기는 한 번에 하나만 돈다.
+  - 연결 문자열로 만든 살아 있는 연결이 Mac 연결을 이긴다(허브 409 `LINKED_ELSEWHERE`). Mac 연결은 `/repos`에서 하나씩 해제할 수 없다. Mac 연결은 그 Mac을 해제할 때(`/mac`, 관리자는 팀원·초대 화면), 그 사람을 담당자에서 빼거나 팀원에서 해제할 때, 새 Mac을 허용할 때, 그리고 그 사람이 같은 repo를 다른 곳에서 연결 문자열로 연결할 때 끝난다. 마지막 경우 Mac은 그 연결이 해제될 때까지 다시 연결하지 않는다. 그래서 Mac에서 Task가 도는 중에 같은 repo를 `hub-link`로 연결하면 그 Task는 멈춤으로 보이고 PL이 풀어 줘야 한다.
+- 자동 검사(마지막 리뷰 뒤 2차 수정까지, 2026-11-05): 전체 `npm test` **1556/1556**(실패 0, 109초), `npm run typecheck` exit 0, Story 검사 exit 0. main을 합친 직후(수정 전)는 1512/1512, 1차 수정 뒤는 1541/1541이었다. Task별 시험은 그 Task의 시험 묶음 21/21, 19/19, 22/22, 17/17, 27/27, 18/18, 23/23, 56/56, 59/59였다. 마지막 재리뷰와 kit 검증(시험 세 조각)은 kit 실행 기록 `U36-review-3`·`U36-verify-1`에 남고, G4 뒤 이 항목에 결과 줄을 더한다.
+- G4는 2026-11-05에 기록했다. 묶음은 다른 Claude 조직의 세션에서 만들었고, 그 세션이 마지막 리뷰 도중 인증 오류로 멈춰 이 조직의 세션이 이어받았다. 사용자는 이 조직에서 새로 만든 설명 페이지를 본 뒤 "① 승인 후 머지"를 골랐고, 세 질문에는 직접 답하지 않았다. 터미널이 허용한 팀원 이름을 다시 묻게 할지에는 "지금처럼 두기"라고 답했다. kit 검증(`abc62f4`)은 395/395 + 600/600 + 561/561 = **1556/1556**, 타입 검사·Story 검사 exit 0이고, `graph.mjs delivery`는 `delivered`다. [G4 기록](../.ai-workflow/approvals/mac-connect-g4.md). 3차 리뷰의 Minor 3(옛 문서 세 줄)은 이렇게 처리했다. LOCAL-PREVIEW의 다시 켜기 대기 문장은 전달 커밋에서 고쳤다(kit 리뷰 밖). [검증 기록](verification/2026-11-04-mac-connect.md)은 kit 구현 증거로 고정돼 고치지 않았다. 그 기록의 두 줄은 이렇게 읽는다. "repo 맞추기 (2) 잠금이 없다"는 이제 `sync.lock`이 있다. 다만 건너뛴 `up`이 Office를 먼저 켜면 새 repo가 드물게 한 시간 늦고, 강제 종료 뒤 pid가 재사용되면 최대 6시간 건너뛴다. "10분쯤마다"는 한 시간에 한 번이다. 기록의 "(G4에서 묻는다)"는 "지금처럼 두기"로 정해졌다. 다음 묶음의 변경 기록이 이것을 옮긴다.
+- **남은 것:**
+  - **실제 확인 전부.** 자동 시험만 마쳤다. 그래서 팀원에게 쓰라고 안내하지 않는다. 이번 묶음의 확인은 로컬 LAN 허브와 `NODE_EXTRA_CA_CERTS`로 `mac connect`, 실제 `launchctl`과 재로그인·재부팅 뒤 자동 실행, 상태 다섯 가지, 해제, 담당자 추가 뒤 5분 안에 스스로 다시 켜기, 마지막 리뷰가 더한 확인이다. 사내 OpenShift 허브와 두 사람의 Mac으로 깨끗한 Mac에서 설치 한 줄을 하는 것은 네 묶음 뒤 중간점검이다. 계획은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "실제 확인 계획"이다.
+  - 묶음 2(팀원 웹: 내 할 일·보드·Task 상세·자동으로 일하기·작업하기·다시 시도), 묶음 3(PL 기획), 묶음 4(Story 마무리).
+  - 팀원에게 쓰라고 하기 전에 고칠 것(리뷰가 미룸): git `insteadOf` 호스트 별칭이 있으면 한 시간마다 스스로 다시 켜진다. 허브가 연결을 만든 뒤 응답을 잃으면 죽은 토큰이 남는다.
+  - 재배포 전에 할 것: OpenShift 라우트의 `x-forwarded-for` 처리(`append`·`replace`)와 앞단 로드밸런서 확인, `PAZMO_OFFICE_REF`를 태그로 고정, Template에 `PAZMO_OFFICE_REPO`·`PAZMO_OFFICE_REF` 매개변수.
+  - 사람에게 보이는 한계: 허용한 팀원 이름을 터미널이 다시 묻지 않는다(G4에서 "지금처럼 두기"). Mac 연결은 repo 하나만 끊을 수 없다. `stop --team`으로 끈 Office도 30분 안에 다시 켜진다. 설치기를 다시 실행하면 켜진 Office 밑에서 코드가 바뀐다. 허브 `/mac`의 "관리자 암호는 필요 없습니다"는 근거가 없다. 나머지는 검증 기록의 "사람에게 보이는 한계"다.
+
 # 2026-11-04 claude 역할 실행마다 실행 직전에 실행기를 새로 확인한다 (D40, U35)
 
 - U34 항목의 "남은 것" 첫째(엔진 사본이 준비됨인 동안 생긴 hook)다. 사용자는 [설명 페이지](https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD)를 본 뒤 "B + D40 승인"이라고 답했다. 다른 안 A는 엔진 사본이 lean 사본의 탐색을 따르게 하는 것이었다(Story 그대로, 화면이 본 hook만 막음).

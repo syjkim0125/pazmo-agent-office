@@ -671,7 +671,11 @@ export class StoryBoard {
 
   /** The member's open Task by Story and Task number and repo, so a claim that returned null can say which Task is in the way. */
   openTaskOf(l: Link): OpenTaskRef | null {
-    const t = this.#openTask(l.member.id);
+    return this.openTaskOfMember(l.member.id);
+  }
+  /** The same, by member: the Mac approve page warns that pairing a new Mac strands a Task the earlier Mac holds. */
+  openTaskOfMember(memberId: string): OpenTaskRef | null {
+    const t = this.#openTask(memberId);
     if (!t) return null;
     const repo = t.repo_id ? this.#get<{ name: string }>("SELECT name FROM hub_repos WHERE id=?", t.repo_id) : undefined;
     return {

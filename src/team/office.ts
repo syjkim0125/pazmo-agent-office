@@ -5,7 +5,7 @@ import { OfficeError, fail, locate } from "../cli/project.ts";
 import { createLeanOffice } from "../lean/office.ts";
 import type { LeanConfig, LeanOffice } from "../lean/office.ts";
 import { openLeanDb } from "../lean/schema.ts";
-import { readLinkConfig } from "../runtime/hub-link.ts";
+import { printable, readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
@@ -14,6 +14,11 @@ import { branchOps, createExecutor, prOps } from "./executor.ts";
 import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
 import type { GhResult } from "./gh.ts";
+import { macClient, readMacLink } from "./mac.ts";
+import type { MacClient, MacLinkFile } from "./mac.ts";
+import { syncMacRepos } from "./mac-sync.ts";
+import { createMacWatch, spawnMacRestart } from "./mac-watch.ts";
+import type { Presence } from "./mac-watch.ts";
 import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
@@ -98,8 +103,19 @@ export type TeamConfig = {
   /** Tests only: the host git and gh steps; default: `branchOps(host)` and `prOps(host)`. */
   git?: BranchOps;
   pr?: PrOps;
+  /** The Mac link; default `readMacLink(root)`, with a file that cannot be used said once and taken as none. */
+  macLinkOf?: () => MacLinkFile | null;
+  /** The Hub client of the Mac link; default `macClient(file)`. */
+  macClientFor?: (file: MacLinkFile) => MacClient;
+  /** The repo check of a connected Mac: what only a full sync can do (registry changes). Default: the `pending` of a
+   * links-only `syncMacRepos` (repo links are fixed in place), each of its lines said once while it repeats. */
+  macSync?: (file: MacLinkFile, client: Pick<MacClient, "repos" | "link">) => Promise<{ add: string[]; remove: string[] }>;
+  /** Restarts this Office apart from it; default `spawnMacRestart(root, host)`. */
+  restartSelf?: () => void;
   claimMs?: number;
+  /** How often the open claim's heartbeat and this Mac's presence go out. */
   beatMs?: number;
+  /** How often the repos that are not ready, the runners (while ready) and a connected Mac's repo set are checked. */
   recheckMs?: number;
   driveMs?: number;
   /** Where the Office's lines go; default: stderr (the Office log). */
@@ -250,7 +266,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     }
   };
   const { repos } = readTeam(c.root);
-  if (repos.length === 0)
+  // A connected Mac (mac-link.json) runs the team Office with no repo yet, so that the Mac counts as on for its member.
+  if (repos.length === 0 && !(c.macLinkOf ?? (() => readMacLink(c.root)))())
     fail("NO_REPOS", "No repo is registered in the team Office. Add one with `team add --project PATH` first.");
   // Before anything opens: `locate` would fail on a missing folder with a bare ENOENT.
   assertReposPresent(repos);
@@ -446,10 +463,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let runnersReady = false;
   let runnersCheckedAt: number | null = null;
   let runnersNote: string | null = null;
+  /** The runners of the engines that were not ready at the last check, each once: what `limited` names. */
+  let runnersWaiting: string[] = [];
   /** Asks every engine whether its agent's runners pass today's discovery (one discovery serves them all). One
    * line each time the answer changes, naming the runners that are not ready. */
   async function checkRunners(): Promise<void> {
     const waiting: string[] = [];
+    const names: string[] = [];
     for (const engine of engines) {
       let ready = false;
       try {
@@ -461,8 +481,10 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       // The agent is the engine's default one, fixed when it was made: name its runners, to log in to.
       const agent = engine.office!.agents.list().find((a) => a.id === engine.agentId);
       waiting.push(agent ? `${engine.project} (work ${agent.work.runner}, review ${agent.review.runner})` : engine.project);
+      for (const runner of agent ? [agent.work.runner, agent.review.runner] : []) if (!names.includes(runner)) names.push(runner);
     }
     runnersReady = waiting.length === 0;
+    runnersWaiting = names;
     runnersCheckedAt = clock();
     const note = runnersReady
       ? "team: every repo's runners are ready; claiming again"
@@ -471,8 +493,86 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (note !== runnersNote && !(runnersNote === null && runnersReady)) log(note);
     runnersNote = note;
   }
+  /** What this Mac's heartbeat says, the first that holds: locked (not live); limited while the open record waits on
+   * its runner's account, or while a live Office's runners are not ready (which runner, and why); working while an
+   * engine runs or the open record moves on; idle otherwise. */
+  function presenceOf(): Presence {
+    if (!live) return { state: "locked", detail: null };
+    const open = teamStore.openClaim();
+    const waiting = open ? waitingOf(open) : null;
+    if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}` };
+    if (!runnersReady)
+      return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready" };
+    if (gate.busy() || (open !== null && open.phase !== "failed")) return { state: "working", detail: null };
+    return { state: "idle", detail: null };
+  }
+
+  /** A link file that cannot be used is said once, until it is fixed or its problem changes. */
+  let macLinkNote: string | null = null;
+  function readMacLinkOnce(): MacLinkFile | null {
+    try {
+      const file = readMacLink(c.root);
+      macLinkNote = null;
+      return file;
+    } catch (error) {
+      const note = `team: Mac 연결 파일을 쓸 수 없어 허브에 이 Mac의 상태를 보내지 않습니다 — ${printable(error instanceof Error ? error.message : String(error))}`;
+      if (note !== macLinkNote) log(note);
+      macLinkNote = note;
+      return null;
+    }
+  }
+  /** The links-only sync's lines of the last check that went through: a line said then is not said again. */
+  let syncSaid = new Set<string>();
+  async function linksOnlySync(file: MacLinkFile, client: Pick<MacClient, "repos" | "link">) {
+    const said = new Set<string>();
+    const { pending, minted } = await syncMacRepos(
+      {
+        root: c.root,
+        hub: file.hub,
+        macId: file.macId,
+        member: { id: file.memberId, name: file.memberName },
+        client,
+        git: hostEnv,
+        ghLogin: null,
+        say: (line) => {
+          said.add(line);
+          if (!syncSaid.has(line)) log(`team: ${line}`);
+        },
+      },
+      "links-only",
+    );
+    syncSaid = said;
+    // A link minted now reaches its lane at once: a lane cut off by a re-pair waits no extra repo check (the Hub
+    // shows an open Task held after 10 minutes without a heartbeat).
+    if (minted.length) await recheckLanes();
+    return pending;
+  }
+  const macClientFor = c.macClientFor ?? ((file: MacLinkFile) => macClient(file));
+  /** A claim tick is under way: a Task the Hub gives in it is not recorded yet. */
+  let claimTicking = false;
+  const watch = createMacWatch({
+    linkOf: c.macLinkOf ?? readMacLinkOnce,
+    clientFor: macClientFor,
+    presence: presenceOf,
+    // A stopping Office is not restarted (the stop is the person's), nor one whose claim is under way.
+    idle: () => !stopped && !claimTicking && teamStore.openClaim() === null && !gate.busy(),
+    // Nor a live one whose runners are not ready (asked afresh, a restart is rare): its `up` would refuse and leave
+    // it off, where in place it waits, limited, until the person logs in. A locked Office never checks its runners.
+    startable: async () => {
+      if (!live) return true;
+      await checkRunners();
+      return runnersReady;
+    },
+    sync: c.macSync ?? linksOnlySync,
+    restart: c.restartSelf ?? (() => spawnMacRestart(c.root, hostEnv)),
+    log,
+    now: clock,
+    root: c.root,
+  });
+
   /** Whether the scheduler would ask the Hub for a claim now, the runners aside: the same order of checks. */
   function claimCouldFollow(): boolean {
+    if (watch.holding()) return false;
     if (teamStore.openClaim() !== null) return false;
     const { paused, dailyCap } = teamStore.settings();
     if (paused || (dailyCap !== null && teamStore.claimedToday() >= dailyCap)) return false;
@@ -487,12 +587,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     await checkRunners();
   }
 
-  // A Task is claimed only when it can run here: live, every engine's runners ready, and no record open.
+  // A Task is claimed only when it can run here: live, every engine's runners ready, no record open, and no restart
+  // of this Office held.
   const scheduler = createClaimScheduler({
     lanes,
     store: teamStore,
     busy: () => gate.busy(),
-    canExecute: () => live && runnersReady && teamStore.openClaim() === null,
+    canExecute: () => live && runnersReady && teamStore.openClaim() === null && !watch.holding(),
     stageOf: (open) => ex.stageOf(open),
     onDropped: (open, reason) => ex.onDropped(open, reason),
     // Until the start's first drive has settled, a verified or merging record may hold a merged PR whose claim the
@@ -526,6 +627,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       if (lane.state === "ready") log(`team: ${lane.project}: ready again (was ${before})`);
       else if (lane.state !== before) log(`team: ${lane.project}: not claiming yet: ${why(lane)}`);
     }
+  }
+  /** `recheck`, one at a time: the repo check and a Mac sync that minted a link never work the same lanes at once. */
+  let rechecking: Promise<void> = Promise.resolve();
+  function recheckLanes(): Promise<void> {
+    const next = rechecking.then(recheck, recheck);
+    rechecking = next.catch(() => {});
+    return next;
   }
 
   /** A timer whose run never overlaps itself and whose failure is logged, never thrown. */
@@ -576,14 +684,23 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   every(c.claimMs ?? CLAIM_MS, "claim tick", async () => {
     await runnersBeforeTick();
     if (stopped) return;
-    return scheduler.tick();
+    claimTicking = true;
+    try {
+      return await scheduler.tick();
+    } finally {
+      claimTicking = false;
+    }
   });
   every(c.beatMs ?? BEAT_MS, "heartbeat", async () => {
     if (stopped || holdsForLive()) return;
     return scheduler.beat();
   });
-  every(recheckMs, "repo check", recheck);
+  every(recheckMs, "repo check", recheckLanes);
   if (live) every(c.driveMs ?? DRIVE_MS, "drive", () => ex.drive());
+  // A connected Mac: its presence at once and every beat (nothing without a Mac link), its repo set every recheck.
+  every(c.beatMs ?? BEAT_MS, "presence", () => watch.beat());
+  every(recheckMs, "mac repo check", () => watch.check());
+  void watch.beat().catch((error) => log(`team: the presence failed (${describe(error)}); trying again next cycle`));
 
   return {
     status() {

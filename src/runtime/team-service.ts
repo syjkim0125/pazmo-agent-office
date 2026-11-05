@@ -1,5 +1,6 @@
 import { realpathSync } from "node:fs";
 import { dirname } from "node:path";
+import { removeSavedState } from "../cli/lifecycle.ts";
 import { noSymlinks } from "../cli/project.ts";
 import { startLifecycleServer } from "../lean/server.ts";
 import { createTeamOffice, lifecycleView } from "../team/office.ts";
@@ -34,12 +35,25 @@ process.once("message", async (raw: unknown) => {
   let office: TeamOffice | undefined;
   let server: { port: number; close(): Promise<void> } | undefined;
 
+  /** Where `start` records this instance once it is ready; set when the data directory is checked. */
+  let saved: { dataDir: string; instance: string } | undefined;
+  /** Removes the saved state `start` wrote for this instance, if it still names it: first thing in a close, and
+   * again when the close runs out of time, so that a slow or killed close never leaves a state the next start
+   * cannot resolve. A failure is logged and changes no exit code. */
+  function forgetState() {
+    try {
+      if (saved) removeSavedState(saved.dataDir, saved.instance);
+    } catch (error) {
+      console.error("Team shutdown: its runtime state could not be removed:", error);
+    }
+  }
   let closing: Promise<number> | undefined;
   /** Stops new work, stops accepting requests, then closes the Office (its
    * engines, their databases and the team store). Idempotent; resolves with
    * the exit code. */
   function close(): Promise<number> {
     closing ??= (async () => {
+      forgetState();
       let code = 0;
       const step = async (name: string, run: (() => Promise<void> | void) | undefined) => {
         try {
@@ -70,6 +84,7 @@ process.once("message", async (raw: unknown) => {
     // the process non-zero instead of letting it fall out of the event loop as 0.
     setTimeout(() => {
       console.error(`Team shutdown did not finish in ${SHUTDOWN_LIMIT_MS} ms.`);
+      forgetState();
       process.exit(1);
     }, SHUTDOWN_LIMIT_MS);
     // A start still under way closes what it opened at its next checkpoint.
@@ -108,6 +123,7 @@ process.once("message", async (raw: unknown) => {
     noSymlinks(dataDir);
     // The team Office is its own project (teamProject); nothing else is accepted.
     if (project !== dataDir) throw new Error("INVALID_HOST_CONFIG");
+    saved = { dataDir, instance: value.instance };
     const { pathEnv, home, sshAuthSock } = value.host;
     office = await createTeamOffice({
       root: dirname(dataDir),

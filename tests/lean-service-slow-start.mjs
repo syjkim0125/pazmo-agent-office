@@ -1,7 +1,8 @@
 // Preload for the lean-service startup tests (node --import). It redirects the
 // service's imports of the office and the server to wrappers that make one start
-// step slow (LEAN_TEST_SLOW: office | ensureDefault | server) and append what
-// happens to the office and the server to LEAN_TEST_EVENTS, one line each.
+// step slow (LEAN_TEST_SLOW: office | ensureDefault | server), or the office's
+// close never finish (LEAN_TEST_SLOW: close), and append what happens to the
+// office and the server to LEAN_TEST_EVENTS, one line each.
 // The service itself is unchanged; the real office and server do the work.
 import { appendFileSync } from "node:fs";
 import { registerHooks } from "node:module";
@@ -42,6 +43,8 @@ export async function createLeanOffice(config) {
   };
   office.close = async () => {
     log("office:close");
+    // A close that hangs (a container that will not stop): only the shutdown limit ends the process.
+    if (slow === "close") await new Promise(() => {});
     await close();
     log("office:closed");
   };

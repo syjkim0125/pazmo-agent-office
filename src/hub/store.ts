@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomInt, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
 import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot, type IncomingView, type OutgoingView } from "./protocol.ts";
@@ -21,9 +21,22 @@ const secret = () => randomBytes(32).toString("base64url");
 export const INVITE_TTL = 72 * 3600_000;
 export const SESSION_TTL = 30 * 86400_000;
 export const LINK_CODE_TTL = 10 * 60_000;
+export const MAC_CODE_TTL = 600_000;
+export const MAC_OFFLINE_MS = 180_000;
+export const MAC_PENDING_LIMIT = 100;
 export const REQUEST_BYTES = 16384;
 export const SEND_LIMIT_PER_HOUR = 30;
 const SOURCE_LIMIT = 200;
+const MAC_NAME_LIMIT = 60;
+const MAC_DETAIL_LIMIT = 200;
+const MAC_CODE_KEEP = 86400_000;
+const MAC_STATES = ["working", "idle", "limited", "locked"] as const;
+// Consonants only, so a code read aloud or typed cannot spell a word or mix up 0/O and 1/I.
+const MAC_LETTERS = "BCDFGHJKLMNPQRSTVWXZ";
+const MAC_USER_CODE = new RegExp(`^[${MAC_LETTERS}]{4}\\d{4}$`);
+// A code still waiting for its Mac: not run out and not yet taken.
+const MAC_CODE_LIVE = "expires_at>? AND delivered_at IS NULL";
+const CONTROL = /[\u0000-\u001f\u007f]/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type Member = { id: string; name: string; admin: boolean };
@@ -45,11 +58,30 @@ export type RepoView = {
   remote: string;
   isOwner: boolean;
   owners: { id: string; name: string }[];
-  links: { id: string; memberId: string; memberName: string; lastSeen: number | null }[];
+  /** `mac` names the Mac that minted the link; such a link ends only with its Mac, on /mac or /members. */
+  links: { id: string; memberId: string; memberName: string; lastSeen: number | null; mac: { id: string; name: string } | null }[];
 };
+export type MacState = (typeof MAC_STATES)[number];
+export type MacAuth = { id: string; member: Member };
+export type MacView = {
+  id: string;
+  name: string;
+  state: MacState | "off";
+  detail: string | null;
+  lastSeen: number | null;
+  createdAt: number;
+};
+export type MacBadge = { state: MacState | "off" | "none"; lastSeen: number | null };
+export type MacRepo = { repoId: string; name: string; remote: string; linked: boolean };
+export type MacPoll =
+  | { state: "pending" }
+  | { state: "approved"; macToken: string; macId: string; member: { id: string; name: string } }
+  | { state: "denied" }
+  | { state: "expired" };
 export type MemberView = Member & {
   revoked: boolean;
   devices: { id: string; label: string; expiresAt: number; revoked: boolean }[];
+  macs: MacView[];
 };
 export type RequestView = {
   id: string;
@@ -118,6 +150,24 @@ type RequestRecord = {
   close_reason: string | null;
   close_note: string | null;
 };
+type MacCodeRow = {
+  device_hash: string;
+  name: string;
+  created_at: number;
+  expires_at: number;
+  member_id: string | null;
+  decision: "approved" | "denied" | null;
+  delivered_at: number | null;
+};
+type MacRow = {
+  id: string;
+  member_id: string;
+  name: string;
+  state: MacState;
+  detail: string | null;
+  last_seen: number | null;
+  created_at: number;
+};
 type Arg = string | number | null;
 type PairResult = { token: string; member: Member; repoId: string; repoName: string; created: boolean };
 
@@ -135,6 +185,9 @@ CREATE TABLE IF NOT EXISTS hub_answers(id TEXT PRIMARY KEY,assignment_id TEXT NO
 CREATE TABLE IF NOT EXISTS hub_link_codes(code_hash TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),expires_at INTEGER NOT NULL,used_at INTEGER);
 CREATE TABLE IF NOT EXISTS hub_connect_codes(code_hash TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),expires_at INTEGER NOT NULL,used_at INTEGER);
 CREATE TABLE IF NOT EXISTS hub_links(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,member_id TEXT NOT NULL REFERENCES hub_members(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),created_at INTEGER NOT NULL,last_seen INTEGER,revoked_at INTEGER);
+CREATE TABLE IF NOT EXISTS hub_mac_codes(device_hash TEXT PRIMARY KEY,user_hash TEXT NOT NULL,name TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,member_id TEXT REFERENCES hub_members(id),decision TEXT CHECK(decision IN ('approved','denied')),decided_at INTEGER,delivered_at INTEGER);
+CREATE INDEX IF NOT EXISTS hub_mac_codes_user ON hub_mac_codes(user_hash);
+CREATE TABLE IF NOT EXISTS hub_macs(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL,last_seen INTEGER,state TEXT NOT NULL DEFAULT 'idle' CHECK(state IN ('working','idle','limited','locked')),detail TEXT,revoked_at INTEGER);
 `;
 
 /** Last path segment of the original remote (case kept, .git stripped); never query or fragment text. */
@@ -142,6 +195,12 @@ function repoNameFrom(remote: string): string {
   const raw = remote.trim();
   const path = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? new URL(raw).pathname : raw.slice(raw.indexOf(":") + 1);
   return path.replace(/\/+$/, "").split("/").pop()!.replace(/\.git$/i, "").slice(0, 80);
+}
+
+/** The user code as typed (case, spaces and hyphen do not matter) without its hyphen, or null when it cannot be one. */
+function macUserCode(raw: string): string | null {
+  const code = typeof raw === "string" ? raw.toUpperCase().replace(/[\s-]/g, "") : "";
+  return MAC_USER_CODE.test(code) ? code : null;
 }
 
 /** Every permission rule of the hub lives here so routes cannot drift from it. */
@@ -154,13 +213,15 @@ export class HubStore {
     db.exec(SCHEMA);
     this.#migrate();
   }
-  /** Phase-2 columns for hubs created before this version; idempotent. */
+  /** Columns for hubs created before this version; idempotent. */
   #migrate() {
-    const have = new Set(
-      (this.#db.prepare("PRAGMA table_info(hub_requests)").all() as { name: string }[]).map((c) => c.name),
-    );
+    const columns = (table: string) =>
+      new Set((this.#db.prepare(`PRAGMA table_info(${table})`).all() as { name: string }[]).map((c) => c.name));
+    const have = columns("hub_requests");
     for (const [name, type] of [["source_note", "TEXT"], ["create_key", "TEXT"], ["origin_repo_id", "TEXT"], ["closed_by", "TEXT"], ["close_reason", "TEXT"], ["close_note", "TEXT"]])
       if (!have.has(name)) this.#db.exec(`ALTER TABLE hub_requests ADD COLUMN ${name} ${type}`);
+    // The Mac that minted a link; null for a link made from a connection string.
+    if (!columns("hub_links").has("mac_id")) this.#db.exec("ALTER TABLE hub_links ADD COLUMN mac_id TEXT");
     this.#db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS hub_request_once ON hub_requests(requester_id,create_key) WHERE create_key IS NOT NULL",
     );
@@ -266,6 +327,7 @@ export class HubStore {
     const devices = this.#all<{ id: string; member_id: string; label: string; expires_at: number; revoked_at: number | null }>(
       "SELECT id,member_id,label,expires_at,revoked_at FROM hub_devices ORDER BY created_at",
     );
+    const macs = this.#macRows(null);
     return this.#all<{ id: string; name: string; admin: number; revoked_at: number | null }>(
       "SELECT id,name,admin,revoked_at FROM hub_members ORDER BY created_at",
     ).map((m) => ({
@@ -281,6 +343,7 @@ export class HubStore {
           expiresAt: d.expires_at,
           revoked: d.revoked_at !== null || d.expires_at <= this.#now(),
         })),
+      macs: macs.filter((k) => k.member_id === m.id).map((k) => this.#macView(k)),
     }));
   }
   revokeMember(by: Member, id: string) {
@@ -289,6 +352,7 @@ export class HubStore {
     transaction(this.#db, () => {
       this.#run("UPDATE hub_members SET revoked_at=? WHERE id=? AND revoked_at IS NULL", this.#now(), id);
       this.#run("UPDATE hub_links SET revoked_at=? WHERE member_id=? AND revoked_at IS NULL", this.#now(), id);
+      this.#run("UPDATE hub_macs SET revoked_at=? WHERE member_id=? AND revoked_at IS NULL", this.#now(), id);
     });
   }
   revokeDevice(by: Member, deviceId: string) {
@@ -334,8 +398,11 @@ export class HubStore {
     const owners = this.#all<{ repo_id: string; id: string; name: string }>(
       "SELECT o.repo_id,m.id,m.name FROM hub_repo_owners o JOIN hub_members m ON m.id=o.member_id ORDER BY m.name",
     );
-    const links = this.#all<{ id: string; repo_id: string; member_id: string; name: string; last_seen: number | null }>(
-      "SELECT l.id,l.repo_id,l.member_id,m.name,l.last_seen FROM hub_links l JOIN hub_members m ON m.id=l.member_id WHERE l.revoked_at IS NULL",
+    const links = this.#all<{
+      id: string; repo_id: string; member_id: string; name: string; last_seen: number | null; mac_id: string | null; mac_name: string | null;
+    }>(
+      `SELECT l.id,l.repo_id,l.member_id,m.name,l.last_seen,l.mac_id,k.name mac_name FROM hub_links l
+       JOIN hub_members m ON m.id=l.member_id LEFT JOIN hub_macs k ON k.id=l.mac_id WHERE l.revoked_at IS NULL`,
     );
     return this.#all<{ id: string; name: string; remote: string }>("SELECT id,name,remote FROM hub_repos ORDER BY name").map(
       (r) => ({
@@ -344,7 +411,13 @@ export class HubStore {
         owners: owners.filter((o) => o.repo_id === r.id).map(({ id, name }) => ({ id, name })),
         links: links
           .filter((l) => l.repo_id === r.id)
-          .map((l) => ({ id: l.id, memberId: l.member_id, memberName: l.name, lastSeen: l.last_seen })),
+          .map((l) => ({
+            id: l.id,
+            memberId: l.member_id,
+            memberName: l.name,
+            lastSeen: l.last_seen,
+            mac: l.mac_id ? { id: l.mac_id, name: l.mac_name ?? "" } : null,
+          })),
       }),
     );
   }
@@ -630,26 +703,28 @@ export class HubStore {
     }
     return this.connect(rawCode, remote);
   }
-  /** Revokes the member's earlier link to the repo and returns a fresh token. */
-  #issueLink(memberId: string, repoId: string): string {
+  /** Revokes the member's earlier link to the repo and returns a fresh token; `macId` marks the Mac that minted it. */
+  #issueLink(memberId: string, repoId: string, macId: string | null = null): string {
     this.#run(
       "UPDATE hub_links SET revoked_at=? WHERE member_id=? AND repo_id=? AND revoked_at IS NULL",
       this.#now(), memberId, repoId,
     );
     const token = secret();
     this.#run(
-      "INSERT INTO hub_links(id,token_hash,member_id,repo_id,created_at) VALUES (?,?,?,?,?)",
-      randomUUID(), hash(token), memberId, repoId, this.#now(),
+      "INSERT INTO hub_links(id,token_hash,member_id,repo_id,created_at,mac_id) VALUES (?,?,?,?,?,?)",
+      randomUUID(), hash(token), memberId, repoId, this.#now(), macId,
     );
     return token;
   }
-  /** Valid only while the member is active and still owns the repository. */
+  /** Valid only while the member is active and still owns the repository, and the Mac that minted it (if any) is not revoked. */
   link(raw: string): Link | null {
     const row = this.#get<{ id: string; repo_id: string; member_id: string; name: string; admin: number }>(
       `SELECT l.id,l.repo_id,l.member_id,m.name,m.admin FROM hub_links l
        JOIN hub_members m ON m.id=l.member_id
        JOIN hub_repo_owners o ON o.repo_id=l.repo_id AND o.member_id=l.member_id
-       WHERE l.token_hash=? AND l.revoked_at IS NULL AND m.revoked_at IS NULL`,
+       LEFT JOIN hub_macs k ON k.id=l.mac_id
+       WHERE l.token_hash=? AND l.revoked_at IS NULL AND m.revoked_at IS NULL
+         AND (l.mac_id IS NULL OR (k.id IS NOT NULL AND k.revoked_at IS NULL))`,
       hash(raw),
     );
     if (!row) return null;
@@ -759,12 +834,197 @@ export class HubStore {
     this.#run("UPDATE hub_assignments SET end_acked=1 WHERE id=?", a.id);
     return { ok: true };
   }
+  /** A link a Mac minted is refused: the Mac's next sync would mint it again, so it ends only with its Mac. */
   revokeLink(by: Member, id: string) {
     const l =
-      this.#get<{ member_id: string }>("SELECT member_id FROM hub_links WHERE id=?", id) ??
+      this.#get<{ member_id: string; mac_id: string | null }>("SELECT member_id,mac_id FROM hub_links WHERE id=?", id) ??
       fail("NOT_FOUND", 404, "연결을 찾을 수 없습니다.");
     if (!by.admin && l.member_id !== by.id) fail("FORBIDDEN", 403, "자기 Office 연결만 해제할 수 있습니다.");
+    if (l.mac_id !== null)
+      fail("MAC_LINK", 409, "Mac이 만든 연결은 여기서 해제할 수 없습니다. 내 Mac 화면(/mac)에서 Mac을 해제하세요. 관리자는 팀원·초대 화면(/members)에서 해제할 수 있습니다.");
     this.#run("UPDATE hub_links SET revoked_at=? WHERE id=? AND revoked_at IS NULL", this.#now(), id);
+  }
+
+  /** A Mac asks for a code pair; a signed-in member allows or denies it by the short user code,
+   * and the Mac's first poll after an allow takes its token. Only hashes are stored. */
+  startMac(name: string): { deviceCode: string; userCode: string; expiresIn: number } {
+    const clean = typeof name === "string" ? name.trim() : "";
+    if (typeof name !== "string" || CONTROL.test(name) || !clean || clean.length > MAC_NAME_LIMIT)
+      fail("INVALID", 400, `Mac 이름은 제어 문자 없이 1~${MAC_NAME_LIMIT}자여야 합니다.`);
+    return transaction(this.#db, () => {
+      const now = this.#now();
+      this.#run("DELETE FROM hub_mac_codes WHERE created_at<?", now - MAC_CODE_KEEP);
+      if (this.#get<{ n: number }>(`SELECT COUNT(*) n FROM hub_mac_codes WHERE ${MAC_CODE_LIVE}`, now)!.n >= MAC_PENDING_LIMIT)
+        fail("RATE_LIMITED", 429, "지금 설치 요청이 너무 많습니다. 잠시 뒤 Mac 터미널에서 설치 명령을 다시 실행하세요.");
+      let code: string;
+      do {
+        code =
+          Array.from({ length: 4 }, () => MAC_LETTERS[randomInt(MAC_LETTERS.length)]).join("") +
+          String(randomInt(10_000)).padStart(4, "0");
+      } while (this.#get(`SELECT 1 FROM hub_mac_codes WHERE user_hash=? AND ${MAC_CODE_LIVE}`, hash(code), now));
+      const deviceCode = secret();
+      this.#run(
+        "INSERT INTO hub_mac_codes(device_hash,user_hash,name,created_at,expires_at) VALUES (?,?,?,?,?)",
+        hash(deviceCode), hash(code), clean, now, now + MAC_CODE_TTL,
+      );
+      return { deviceCode, userCode: `${code.slice(0, 4)}-${code.slice(4)}`, expiresIn: MAC_CODE_TTL / 1000 };
+    });
+  }
+  /** The code a typed user code names; a live one is preferred over an old row that happens to share its hash. */
+  #macCodeRow(userCode: string): MacCodeRow | undefined {
+    const code = macUserCode(userCode);
+    return code
+      ? this.#get<MacCodeRow>(
+          `SELECT * FROM hub_mac_codes WHERE user_hash=? ORDER BY (${MAC_CODE_LIVE}) DESC, created_at DESC, rowid DESC LIMIT 1`,
+          hash(code), this.#now(),
+        )
+      : undefined;
+  }
+  /** What the allow page shows; null for a code nobody can answer any more (unknown, run out, or already taken). */
+  macCode(userCode: string): { name: string; createdAt: number; state: "pending" | "approved" | "denied" } | null {
+    const row = this.#macCodeRow(userCode);
+    if (!row || row.delivered_at !== null || row.expires_at <= this.#now()) return null;
+    return { name: row.name, createdAt: row.created_at, state: row.decision ?? "pending" };
+  }
+  approveMac(by: Member, userCode: string) {
+    this.#decideMac(by, userCode, "approved");
+  }
+  denyMac(by: Member, userCode: string) {
+    this.#decideMac(by, userCode, "denied");
+  }
+  /** The first decision wins, whoever asks again; a code nobody decided in time is gone. */
+  #decideMac(by: Member, userCode: string, decision: "approved" | "denied") {
+    transaction(this.#db, () => {
+      const gone = () =>
+        fail("MAC_CODE_INVALID", 410, "코드가 만료됐거나 이미 쓰였습니다. Mac 터미널에서 설치 명령을 다시 실행하세요.");
+      const row = this.#macCodeRow(userCode) ?? gone();
+      if (row.decision !== null) fail("MAC_CODE_USED", 409, "이미 허용하거나 거절한 코드입니다.");
+      if (row.expires_at <= this.#now()) gone();
+      this.#run(
+        "UPDATE hub_mac_codes SET member_id=?,decision=?,decided_at=? WHERE device_hash=?",
+        by.id, decision, this.#now(), row.device_hash,
+      );
+    });
+  }
+  /** The Mac's answer. An allow becomes a Mac exactly once, here: the token is made and handed over in this call
+   * (only its hash is kept), and the member's earlier Mac and the links it minted stop. */
+  pollMac(deviceCode: string): MacPoll {
+    return transaction(this.#db, () => {
+      const row = this.#get<MacCodeRow>("SELECT * FROM hub_mac_codes WHERE device_hash=?", hash(deviceCode));
+      // An unknown code looks like a spent one, so a guess learns nothing.
+      if (!row || row.delivered_at !== null || row.expires_at <= this.#now()) return { state: "expired" };
+      if (row.decision === null) return { state: "pending" };
+      const m =
+        row.decision === "approved"
+          ? this.#get<{ id: string; name: string }>("SELECT id,name FROM hub_members WHERE id=? AND revoked_at IS NULL", row.member_id!)
+          : undefined;
+      if (!m) return { state: "denied" };
+      for (const old of this.#all<{ id: string }>("SELECT id FROM hub_macs WHERE member_id=? AND revoked_at IS NULL", m.id))
+        this.#revokeMac(old.id);
+      const macId = randomUUID(),
+        macToken = secret();
+      this.#run(
+        "INSERT INTO hub_macs(id,member_id,name,token_hash,created_at) VALUES (?,?,?,?,?)",
+        macId, m.id, row.name, hash(macToken), this.#now(),
+      );
+      this.#run("UPDATE hub_mac_codes SET delivered_at=? WHERE device_hash=?", this.#now(), row.device_hash);
+      return { state: "approved", macToken, macId, member: { id: m.id, name: m.name } };
+    });
+  }
+  /** Valid while the Mac is not revoked and its member is active. */
+  mac(raw: string): MacAuth | null {
+    const row = this.#get<{ id: string; member_id: string; name: string; admin: number }>(
+      `SELECT k.id,m.id member_id,m.name,m.admin FROM hub_macs k JOIN hub_members m ON m.id=k.member_id
+       WHERE k.token_hash=? AND k.revoked_at IS NULL AND m.revoked_at IS NULL`,
+      hash(raw),
+    );
+    return row ? { id: row.id, member: { id: row.member_id, name: row.name, admin: row.admin === 1 } } : null;
+  }
+  /** What this Mac should clone: the repos its member owns, with whether it already holds a live link to each. */
+  macRepos(m: MacAuth): MacRepo[] {
+    return this.#all<{ repoId: string; name: string; remote: string; linked: number }>(
+      `SELECT r.id repoId,r.name,r.remote,
+         EXISTS(SELECT 1 FROM hub_links l WHERE l.repo_id=r.id AND l.member_id=? AND l.mac_id=? AND l.revoked_at IS NULL) linked
+       FROM hub_repos r JOIN hub_repo_owners o ON o.repo_id=r.id AND o.member_id=? ORDER BY r.name, r.id`,
+      m.member.id, m.id, m.member.id,
+    ).map((r) => ({ ...r, linked: r.linked === 1 }));
+  }
+  /** Mints the repo link for this Mac, replacing the Mac's earlier one. A live link the member made with a connection string wins:
+   * the Mac is refused and nothing changes, so the two never take the repo from each other. */
+  macLink(m: MacAuth, repoId: string): { token: string; member: { id: string; name: string }; repoId: string; repoName: string } {
+    return transaction(this.#db, () => {
+      const repo =
+        this.#get<{ name: string }>("SELECT name FROM hub_repos WHERE id=?", repoId) ??
+        fail("NOT_FOUND", 404, "레포를 찾을 수 없습니다.");
+      if (!this.#owner(m.member.id, repoId))
+        fail("NOT_OWNER", 403, "이 레포의 담당자나 관리자에게 담당자 추가를 요청하세요.");
+      if (this.#get("SELECT 1 FROM hub_links WHERE member_id=? AND repo_id=? AND mac_id IS NULL AND revoked_at IS NULL", m.member.id, repoId))
+        fail(
+          "LINKED_ELSEWHERE",
+          409,
+          "이 레포는 다른 곳의 Office가 연결 문자열로 연결해 쓰고 있습니다. 이 Mac에서 쓰려면 허브의 레포 화면(/repos)에서 그 연결을 해제하세요.",
+        );
+      return {
+        token: this.#issueLink(m.member.id, repoId, m.id),
+        member: { id: m.member.id, name: m.member.name },
+        repoId,
+        repoName: repo.name,
+      };
+    });
+  }
+  macHeartbeat(m: MacAuth, state: string, detail: string | null): { ok: true } {
+    if (!(MAC_STATES as readonly string[]).includes(state)) fail("INVALID", 400, "Mac 상태가 올바르지 않습니다.");
+    if (detail !== null && (typeof detail !== "string" || detail.length > MAC_DETAIL_LIMIT || CONTROL.test(detail)))
+      fail("INVALID", 400, `상태 설명은 제어 문자 없이 ${MAC_DETAIL_LIMIT}자까지 적을 수 있습니다.`);
+    this.#run("UPDATE hub_macs SET state=?,detail=?,last_seen=? WHERE id=?", state, detail, this.#now(), m.id);
+    return { ok: true };
+  }
+  revokeMac(by: Member, macId: string): { memberId: string } {
+    const k =
+      this.#get<{ member_id: string }>("SELECT member_id FROM hub_macs WHERE id=?", macId) ??
+      fail("NOT_FOUND", 404, "Mac을 찾을 수 없습니다.");
+    if (!by.admin && k.member_id !== by.id) fail("FORBIDDEN", 403, "자기 Mac만 해제할 수 있습니다.");
+    this.#revokeMac(macId);
+    return { memberId: k.member_id };
+  }
+  revokeOwnMac(m: MacAuth): { ok: true } {
+    this.#revokeMac(m.id);
+    return { ok: true };
+  }
+  /** The Mac and every repo link it minted stop together; links made from a connection string are not its. */
+  #revokeMac(macId: string) {
+    transaction(this.#db, () => {
+      this.#run("UPDATE hub_macs SET revoked_at=? WHERE id=? AND revoked_at IS NULL", this.#now(), macId);
+      this.#run("UPDATE hub_links SET revoked_at=? WHERE mac_id=? AND revoked_at IS NULL", this.#now(), macId);
+    });
+  }
+  #macRows(memberId: string | null): MacRow[] {
+    return this.#all<MacRow>(
+      `SELECT id,member_id,name,state,detail,last_seen,created_at FROM hub_macs
+       WHERE revoked_at IS NULL${memberId ? " AND member_id=?" : ""} ORDER BY created_at DESC, rowid DESC`,
+      ...(memberId ? [memberId] : []),
+    );
+  }
+  /** A Mac whose last heartbeat is older than MAC_OFFLINE_MS, or that has not sent one yet, is off and reports nothing else. */
+  #macView(k: MacRow): MacView {
+    const off = k.last_seen === null || this.#now() - k.last_seen > MAC_OFFLINE_MS;
+    return {
+      id: k.id,
+      name: k.name,
+      state: off ? "off" : k.state,
+      detail: off ? null : k.detail,
+      lastSeen: k.last_seen,
+      createdAt: k.created_at,
+    };
+  }
+  /** The member's live Macs, newest first. */
+  macs(memberId: string): MacView[] {
+    return this.#macRows(memberId).map((k) => this.#macView(k));
+  }
+  /** The newest live Mac's state, for the member's header. */
+  macBadge(memberId: string): MacBadge {
+    const [newest] = this.macs(memberId);
+    return newest ? { state: newest.state, lastSeen: newest.lastSeen } : { state: "none", lastSeen: null };
   }
 
   linkRepos(l: Link): { id: string; name: string; owners: string[] }[] {

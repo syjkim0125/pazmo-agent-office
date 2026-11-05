@@ -1,0 +1,8 @@
+{
+  "token": "c62269b07126bbe887f3d74976d67ecb346b5d907d9565f1a849621274bb46ae",
+  "output": {
+    "summary": "Review attempt 3 (1 reviewer, scoped to G1-G7): Ready to merge Yes; Critical 0, Important 0; G1-G5 resolved with pinning tests; Minors (G6 residual ~1 h delay path, sync.lock without boot id, three older doc lines, log wording) disclosed and deferred.",
+    "evidence": [".ai-workflow/runs/U36-review-3.md"]
+  },
+  "evaluation": { "passed": true }
+}

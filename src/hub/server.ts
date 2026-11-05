@@ -6,14 +6,27 @@ import { HubError, type HubStore } from "./store.ts";
 import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
+import { macApi } from "./mac-api.ts";
+import { createRateLimit } from "./rate-limit.ts";
+import { installScript, type InstallerConfig } from "./installer.ts";
+import type { StoryBoard } from "./story-store.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
   | { kind: "proxy"; publicUrl: string; host: string; port: number };
-export type HubServerConfig = { store: HubStore; listen: HubListen };
+/** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404.
+ * `board` lets the Mac approve page name a Task the member's earlier Mac holds; without it the page says nothing about Tasks. */
+export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;
+/** POST /api/mac/start, per client: it needs no credential, and every start holds one of the hub's pending codes. */
+const START_LIMIT = 10;
+const START_WINDOW_MS = 600_000;
+/** Per signed-in member: a user code can only be guessed by someone who is in, so this bounds it. POST /mac/approve and /mac/deny
+ * each spend one, and so does a GET /mac/approve that names no live code; opening a live or decided code is free. */
+const DECIDE_LIMIT = 10;
+const DECIDE_WINDOW_MS = 600_000;
 const COOKIE = "pazmo_hub";
 const COOKIE_AGE = 30 * 86400;
 const ID = "([0-9a-f-]{36})";
@@ -77,8 +90,19 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     origins = new Set<string>(),
     base = "";
   const link = linkApi?.(() => base);
+  // The address a per-client limit counts by. Behind the router the router appends the peer it saw as the LAST
+  // X-Forwarded-For value, while anything before it is whatever the client sent; with no router the header is not trusted.
+  const clientKey = (req: IncomingMessage) =>
+    (c.listen.kind === "proxy" ? String(req.headers["x-forwarded-for"] ?? "").split(",").pop()?.trim() : "") ||
+    req.socket.remoteAddress ||
+    "unknown";
+  // One limiter per hub: two hubs in a process never share a client's count.
+  const mac = macApi(c.store, { base: () => base, clientKey, startLimit: createRateLimit(START_LIMIT, START_WINDOW_MS) });
+  const decideLimit = createRateLimit(DECIDE_LIMIT, DECIDE_WINDOW_MS);
   // Only the self-CA mode has a certificate to show; behind the router the router's certificate is the public one.
   const tls = c.listen.kind === "tls" ? c.listen.tls : null;
+  // Built once the public origin is known (it carries the port in self-CA mode); null serves a 404.
+  let installer: string | null = null;
   async function browser(req: IncomingMessage, res: ServerResponse, url: URL) {
     const path = url.pathname,
       post = req.method === "POST";
@@ -91,6 +115,9 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     // Open on purpose: the connection string's #fragment never reaches the server, so this page cannot echo it.
     if (!post && path === "/connect") return html(res, 200, page.connectHelp());
     if (!post && path === "/copy.js") return send(res, 200, "text/javascript; charset=utf-8", COPY_SCRIPT);
+    // Open on purpose, like /copy.js: a Mac runs it before it has any session, and the script holds no secret.
+    if (!post && path === "/install.sh")
+      return installer === null ? html(res, 404, page.error("페이지를 찾을 수 없습니다.")) : send(res, 200, "text/plain; charset=utf-8", installer);
     if (!post && path === "/trust" && tls) return html(res, 200, page.trust(tls.fingerprint));
     if (post && !origins.has(String(req.headers.origin ?? "")))
       throw new HubError("ORIGIN", 403, "다른 사이트에서 보낸 요청은 받지 않습니다.");
@@ -104,7 +131,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       });
     }
     const s = c.store.session(cookie(req));
-    if (!s) return html(res, 401, page.signedOut());
+    // The one page a person reaches from a terminal before they have a session: it says how to get one, and decides nothing.
+    if (!s) return html(res, 401, !post && path === "/mac/approve" ? page.macSignedOut() : page.signedOut());
     // The store slides the session on use, so the browser's cookie slides with it.
     const token = cookie(req) as string;
     res.setHeader("set-cookie", `${COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`);
@@ -113,6 +141,11 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if (post && !same(f("csrf"), s.csrf)) throw new HubError("CSRF", 403, "화면을 새로 고친 뒤 다시 시도해주세요.");
     const me = s.member;
     const trust = !!tls;
+    const tooMany = () => new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
+    // Read when a page is drawn, so the header shows the state after whatever this request did.
+    const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id) });
+    // Only a hub that serves the installer can give a Mac the one-line command.
+    const install = installer === null ? null : `curl -fsSL ${base}/install.sh | sh`;
     const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
     const fingerprintNote = tls
       ? ` 링크와 별도로 허브 인증서 지문(${tls.fingerprint})도 함께 전달해 받는 사람이 /trust 화면과 대조하게 하세요.`
@@ -124,13 +157,35 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (path === "/") {
         const asked = url.searchParams.get("view");
         const view = asked === "mine" || asked === "repos" ? asked : "all";
-        return html(res, 200, page.board(me, s.csrf, c.store.requests(me.id, view), c.store.repos(me.id), view, trust));
+        return html(res, 200, page.board(me, s.csrf, c.store.requests(me.id, view), c.store.repos(me.id), view, chrome()));
       }
       if ((m = new RegExp(`^/requests/${ID}$`).exec(path)))
-        return html(res, 200, page.request(me, s.csrf, c.store.requestView(m[1], me.id), trust));
-      if (path === "/start") return html(res, 200, page.start(me, s.csrf, trust));
-      if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), trust));
-      if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), trust));
+        return html(res, 200, page.request(me, s.csrf, c.store.requestView(m[1], me.id), chrome()));
+      if (path === "/start") {
+        const badge = c.store.macBadge(me.id);
+        return html(res, 200, page.start(me, s.csrf, { macNudge: install !== null && badge.state === "none" }, { trust, mac: badge }));
+      }
+      if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), chrome()));
+      if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), chrome()));
+      if (path === "/mac")
+        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, chrome()));
+      if (path === "/mac/approve") {
+        // Checked before the lookup, so a member who is over the limit cannot tell a live code from a dead one.
+        if (decideLimit.full(me.id)) throw tooMany();
+        const typed = url.searchParams.get("code") ?? "";
+        const info = c.store.macCode(typed);
+        if (!info) {
+          // A miss is a guess as far as the limit goes; opening a code that is live or already decided costs nothing.
+          decideLimit.take(me.id);
+          return html(res, 410, page.macCodeGone(me, chrome()));
+        }
+        if (info.state !== "pending") throw new HubError("MAC_CODE_USED", 409, "이미 허용하거나 거절한 코드입니다. 새 코드가 필요하면 Mac 터미널에서 설치 명령을 다시 실행하세요.");
+        // macCode accepted it, so it reads as four letters and four digits however it was typed; the page shows that form.
+        const code = typed.toUpperCase().replace(/[\s-]/g, "");
+        // Allowing revokes the earlier Mac and its links, but its claim is the member's and stays until the PL releases it.
+        const held = c.store.macs(me.id).length > 0 ? (c.board?.openTaskOfMember(me.id) ?? null) : null;
+        return html(res, 200, page.macApprove(me, s.csrf, `${code.slice(0, 4)}-${code.slice(4)}`, info, held, chrome()));
+      }
       return html(res, 404, page.error("페이지를 찾을 수 없습니다."));
     }
     if (path === "/requests")
@@ -160,21 +215,21 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       const code = c.store.createLinkCode(me, m[1]);
       return html(res, 200, page.created(me, "내 Office 연결",
         "10분 안에, 이 레포를 클론해 둔 내 PC에서 실행하세요. 한 번만 쓸 수 있습니다.",
-        `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code}${pin}`, trust));
+        `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code}${pin}`, chrome()));
     }
     if (path === "/start/connect-code") {
       const code = c.store.createConnectCode(me);
       const value = `${base}/connect#c=${code}${tls ? `&fp=${tls.fingerprint}` : ""}`;
       return html(res, 200, page.created(me, "내 Office 연결",
-        "10분 안에 한 번만 쓸 수 있습니다. Office 상단의 팀 허브 버튼을 누르고 이 문자열을 붙여넣은 뒤 연결을 누르세요.", value, trust));
+        "10분 안에 한 번만 쓸 수 있습니다. Office 상단의 팀 허브 버튼을 누르고 이 문자열을 붙여넣은 뒤 연결을 누르세요.", value, chrome()));
     }
     if (path === "/invites") {
       const raw = c.store.createInvite(me, f("name"));
-      return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요. 72시간 동안 한 번만 쓸 수 있습니다.${fingerprintNote}`, `${base}/invite/${raw}`, trust));
+      return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요. 72시간 동안 한 번만 쓸 수 있습니다.${fingerprintNote}`, `${base}/invite/${raw}`, chrome()));
     }
     if ((m = new RegExp(`^/members/${ID}/device-invite$`).exec(path))) {
       const raw = c.store.createDeviceInvite(me, m[1]);
-      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요. 72시간 동안 한 번만 쓸 수 있습니다.${deviceNote}`, `${base}/invite/${raw}`, trust));
+      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요. 72시간 동안 한 번만 쓸 수 있습니다.${deviceNote}`, `${base}/invite/${raw}`, chrome()));
     }
     if ((m = new RegExp(`^/members/${ID}/revoke$`).exec(path))) {
       c.store.revokeMember(me, m[1]);
@@ -183,6 +238,18 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if ((m = new RegExp(`^/devices/${ID}/revoke$`).exec(path))) {
       c.store.revokeDevice(me, m[1]);
       return redirect(res, me.admin ? "/members" : "/");
+    }
+    if (path === "/mac/approve" || path === "/mac/deny") {
+      // Counted after the token is known good, so only the member's own page can spend their allowance.
+      if (!decideLimit.take(me.id)) throw tooMany();
+      if (path === "/mac/approve") c.store.approveMac(me, f("code"));
+      else c.store.denyMac(me, f("code"));
+      return redirect(res, path === "/mac/approve" ? "/mac?approved=1" : "/mac");
+    }
+    if ((m = new RegExp(`^/macs/${ID}/revoke$`).exec(path))) {
+      const { memberId } = c.store.revokeMac(me, m[1]);
+      // An admin who ended someone else's Mac came from the member list.
+      return redirect(res, me.admin && memberId !== me.id ? "/members" : "/mac");
     }
     if ((m = new RegExp(`^/links/${ID}/revoke$`).exec(path))) {
       c.store.revokeLink(me, m[1]);
@@ -200,12 +267,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (!link) return json(res, 404, { error: "NOT_FOUND" });
       return link(req, res, url);
     }
+    if (url.pathname.startsWith("/api/mac/")) return mac(req, res, url);
     return browser(req, res, url);
   }
   const onRequest = (req: IncomingMessage, res: ServerResponse) => {
     handle(req, res).catch((error: unknown) => {
       if (res.headersSent) return void res.destroy();
-      const api = (req.url ?? "").startsWith("/api/link/");
+      const api = ["/api/link/", "/api/mac/"].some((prefix) => (req.url ?? "").startsWith(prefix));
       if (error instanceof HubError)
         return api
           ? json(res, error.status, { error: error.code, message: error.message })
@@ -237,6 +305,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         hosts = new Set([pub.hostname, `${pub.hostname}:443`]);
         origins = new Set([pub.origin]);
         base = pub.origin;
+      }
+      try {
+        installer = c.installer ? installScript({ hub: base, ...c.installer }) : null;
+      } catch (error) {
+        // An origin the script cannot carry safely: refuse to start rather than fail on every request.
+        server.close();
+        return reject(error);
       }
       resolve({
         url: base,

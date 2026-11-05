@@ -20,6 +20,8 @@ import {
 import { monitor, start, startTeam, status } from "./lifecycle.ts";
 import type { Engine } from "./lifecycle.ts";
 import { installedRuntime, setupRuntime } from "./runtime-setup.ts";
+import { readMacLink } from "../team/mac.ts";
+import { syncBeforeUp } from "../team/mac-sync.ts";
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { runCommand } from "../runners/command.ts";
@@ -276,14 +278,13 @@ type UpOptions = {
   engine?: Engine;
 };
 
-/** Steps 1–3 of `up` for an Office it starts, the same for both engines: the
- * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
- * runtime, the dedicated VM and its isolation probe. Returns the live
- * configuration step 4 starts the Office with. */
-async function prepareMachine(
-  options: UpOptions,
-  prepare: () => Promise<unknown>,
-): Promise<LiveConfig> {
+/** The start of step 1 of `up`, which needs no install, VM or network: colima
+ * and docker are installed and one runner is logged in. `mac restart` runs it
+ * before it stops a running Office, so a start that would fail here never
+ * leaves the Office off. */
+export async function machinePreflight(
+  options: Pick<UpOptions, "codexRuntime"> = {},
+): Promise<void> {
   for (const name of ["colima", "docker"])
     if (!existsSync(`/opt/homebrew/bin/${name}`))
       fail(
@@ -298,6 +299,17 @@ async function prepareMachine(
     }),
     runnerLoginOptions(options.codexRuntime, homedir()),
   );
+}
+
+/** Steps 1–3 of `up` for an Office it starts, the same for both engines: the
+ * prerequisites and a logged-in runner, the root dependencies, the pinned Codex
+ * runtime, the dedicated VM and its isolation probe. Returns the live
+ * configuration step 4 starts the Office with. */
+async function prepareMachine(
+  options: UpOptions,
+  prepare: () => Promise<unknown>,
+): Promise<LiveConfig> {
+  await machinePreflight(options);
   await prepare();
   console.error("[2/4] 고정된 Codex 실행 파일 확인");
   await setupRuntime(options.dataDir, true);
@@ -325,13 +337,17 @@ async function prepareMachine(
   };
 }
 
-/** `up --team`: every registered repo is prepared as `up` prepares one (its
- * git root, its Office metadata), then the machine as for lean, then one team
- * Office runs them all. There is no page to open yet; the result is its status. */
+/** `up --team`: a connected Mac first brings its clones and registry in line
+ * with the Hub (never a prompt; a failure is one line and the start goes on).
+ * Then every registered repo is prepared as `up` prepares one (its git root,
+ * its Office metadata), then the machine as for lean, then one team Office runs
+ * them all; a connected Mac runs it with no repo too. There is no page to open
+ * yet; the result is its status. */
 async function upTeam(options: UpOptions, prepare: () => Promise<unknown>) {
   const root = dataRoot(options.dataDir);
+  await syncBeforeUp(root);
   const { repos } = readTeam(root);
-  if (repos.length === 0)
+  if (repos.length === 0 && !readMacLink(root))
     fail(
       "NO_REPOS",
       "No repo is registered in the team Office. Add one with `team add --project PATH` first.",

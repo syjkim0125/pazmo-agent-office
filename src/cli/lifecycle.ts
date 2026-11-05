@@ -1,4 +1,5 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
+import type { ChildProcess } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   closeSync,
@@ -6,14 +7,17 @@ import {
   mkdirSync,
   openSync,
   readFileSync,
+  renameSync,
   rmdirSync,
-  unlinkSync,
+  rmSync,
+  statSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import {
+  extraCaCerts,
   fail,
   ignoreMetadata,
   initTeam,
@@ -22,6 +26,7 @@ import {
   readManifest,
   teamProject,
 } from "./project.ts";
+import { readMacLink } from "../team/mac.ts";
 import { assertNotInTeam, assertReposPresent, readTeam } from "../team/registry.ts";
 import type { Project } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
@@ -43,7 +48,26 @@ type Running = {
   port: number;
   token: string;
   instance: string;
+  /** The boot session it started in (bootSession), where the machine has one. */
+  boot?: string;
 };
+/** A service's own environment: Office's HOME and TMPDIR and a short PATH (the native Office reads task diffs with
+ * git). The team service also gets the extra CA file of `env` (an absolute path only): its Mac heartbeat and repo
+ * check call a Hub that may sit behind it. */
+export function serviceEnv(engine: Engine, dataDir: string, env: NodeJS.ProcessEnv = process.env): Record<string, string> {
+  const extraCa = engine === "team" ? extraCaCerts(env) : undefined;
+  return {
+    PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
+    HOME: join(dataDir, "home"),
+    TMPDIR: join(dataDir, "tmp"),
+    LANG: "en_US.UTF-8",
+    ...(extraCa ? { NODE_EXTRA_CA_CERTS: extraCa } : {}),
+  };
+}
+/** The last words of an UNKNOWN: the file whose removal lets Office start again, for a person who knows no Office
+ * is running. */
+const removeHint = (file: string) =>
+  `If no Office is running or starting on this Mac, remove ${file} and try again.`;
 function readState(p: Project): Running | undefined {
   const path = join(p.dataDir, "running.json");
   noSymlinks(path);
@@ -52,10 +76,7 @@ function readState(p: Project): Running | undefined {
   try {
     s = JSON.parse(readFileSync(path, "utf8"));
   } catch {
-    return fail(
-      "UNKNOWN",
-      "Runtime state is unreadable; preserve it for recovery.",
-    );
+    return fail("UNKNOWN", `Runtime state cannot be read. ${removeHint(path)}`);
   }
   if (
     s.version !== 1 ||
@@ -67,10 +88,181 @@ function readState(p: Project): Running | undefined {
     s.port < 1 ||
     s.port > 65535 ||
     !/^[a-f0-9]{64}$/.test(s.token) ||
-    !/^[a-f0-9]{32}$/.test(s.instance)
+    !/^[a-f0-9]{32}$/.test(s.instance) ||
+    (s.boot !== undefined && (typeof s.boot !== "string" || !BOOT_ID.test(s.boot)))
   )
-    fail("UNKNOWN", "Runtime state is invalid; preserve it for recovery.");
+    fail("UNKNOWN", `Runtime state is not valid. ${removeHint(path)}`);
   return s;
+}
+/** Removes `<dataDir>/running.json` if it still names `instance`, never a concurrently replaced instance's, and that
+ * instance's operator file (an Office an earlier version started may have left one). A state already gone, or one
+ * that cannot be parsed, is left as it is. `stop`, stale-state recovery and a service shutting down use it. */
+export function removeSavedState(dataDir: string, instance: string): void {
+  const file = join(dataDir, "running.json");
+  noSymlinks(file);
+  let saved: { instance?: unknown } | null;
+  try {
+    saved = JSON.parse(readFileSync(file, "utf8"));
+  } catch (error) {
+    if (error instanceof SyntaxError || (error as NodeJS.ErrnoException).code === "ENOENT") return;
+    throw error;
+  }
+  if (saved?.instance !== instance) return;
+  const operator = join(dataDir, `operator-${instance}.json`);
+  noSymlinks(operator);
+  rmSync(file, { force: true });
+  rmSync(operator, { force: true });
+}
+const BOOT_ID = /^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$/;
+let boot: { id: string | undefined } | undefined;
+/** This boot session's id: macOS `kern.bootsessionuuid`, Linux's boot_id; undefined elsewhere or when it cannot be
+ * read. Read once per process: no process outlives its boot. */
+export function bootSession(): string | undefined {
+  boot ??= { id: readBootSession() };
+  return boot.id;
+}
+function readBootSession(): string | undefined {
+  try {
+    const raw =
+      process.platform === "darwin"
+        ? execFileSync("/usr/sbin/sysctl", ["-n", "kern.bootsessionuuid"], {
+            encoding: "utf8",
+            timeout: 2000,
+            stdio: ["ignore", "pipe", "ignore"],
+          })
+        : process.platform === "linux"
+          ? readFileSync("/proc/sys/kernel/random/boot_id", "utf8")
+          : "";
+    const id = raw.trim();
+    return BOOT_ID.test(id) ? id : undefined;
+  } catch {
+    return undefined;
+  }
+}
+/** Whether the process a saved state or start lock names is gone. One recorded in another boot is, whatever its pid
+ * names now: pids start again from 1 at every boot, so after a crash or power loss the old pid often belongs to a
+ * live login process. Otherwise only ESRCH is gone (signal 0 only checks): a process of another user (EPERM) is
+ * alive, and so is an unrelated one of this boot that reused the pid. A record without a well-formed boot (an earlier
+ * version's), or a machine without one, has the pid rule only. `teamRunning` judges by this rule too. */
+export function processGone(pid: number, recordedBoot?: string): boolean {
+  const current = recordedBoot && BOOT_ID.test(recordedBoot) ? bootSession() : undefined;
+  if (current && recordedBoot !== current) return true;
+  try {
+    process.kill(pid, 0);
+    return false;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code === "ESRCH";
+  }
+}
+/** The start lock: a directory, made atomically by a start or a stale-state recovery, whose `pid` file holds its
+ * maker's pid and the boot session it was made in (lockRecord). */
+const startLock = (p: Project) => join(p.dataDir, "start.lock");
+const lockRecord = () => {
+  const id = bootSession();
+  return id ? `${process.pid}\n${id}` : String(process.pid);
+};
+/** How long a start lock may have no readable pid: its maker writes it right after making the directory. An older
+ * one's maker died first, or an earlier version made it. Judged by the directory's mtime: this only bounds a short
+ * window, so a clock change merely moves it. */
+const UNCLAIMED_LOCK_MS = 60_000;
+/** Whether a start lock is stale: its maker is gone (processGone), or it has had no readable pid for
+ * UNCLAIMED_LOCK_MS. A lock that is gone is stale. The lifecycle and `teamRunning` judge a lock by this one rule. */
+export function startLockStale(lock: string): boolean {
+  let text = "";
+  try {
+    text = readFileSync(join(lock, "pid"), "utf8");
+  } catch {
+    // No pid yet: judged by its age below.
+  }
+  const [pidText = "", recordedBoot] = text.split("\n");
+  const pid = Number(pidText);
+  if (pidText.trim() && Number.isInteger(pid) && pid > 0) return processGone(pid, recordedBoot?.trim() || undefined);
+  try {
+    return Date.now() - statSync(lock).mtimeMs > UNCLAIMED_LOCK_MS;
+  } catch {
+    return true;
+  }
+}
+/** Removes a stale start lock so that only one remover acts on it. It is first renamed to a name of this remover's
+ * own, judged again there, and put back if it is live after all: a new lock that replaced the stale one between
+ * another remover's judgement and this rename. If a third lock took the place meanwhile, the moved one is dropped
+ * (its maker then releases nothing, see takeStartLock). True when no lock is left. */
+export function removeStaleStartLock(lock: string): boolean {
+  const aside = `${lock}.${randomBytes(8).toString("hex")}`;
+  try {
+    renameSync(lock, aside);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+    throw error;
+  }
+  if (startLockStale(aside)) {
+    rmSync(aside, { recursive: true, force: true });
+    return true;
+  }
+  try {
+    renameSync(aside, lock);
+  } catch {
+    rmSync(aside, { recursive: true, force: true });
+  }
+  return false;
+}
+/** Whether no live start lock exists; a stale one is removed. */
+function startLockFree(p: Project): boolean {
+  const lock = startLock(p);
+  noSymlinks(lock);
+  if (!existsSync(lock)) return true;
+  return startLockStale(lock) && removeStaleStartLock(lock);
+}
+/** Takes the start lock, taking over a stale one; undefined while another process holds it. The result releases it,
+ * only while its pid file still holds this process's record: never a lock another process took over meanwhile. */
+function takeStartLock(p: Project): (() => void) | undefined {
+  const lock = startLock(p);
+  noSymlinks(lock);
+  for (let attempt = 0; ; attempt++)
+    try {
+      mkdirSync(lock, { mode: 0o700 });
+      break;
+    } catch {
+      if (attempt > 0 || !startLockFree(p)) return;
+    }
+  const pidFile = join(lock, "pid");
+  const record = lockRecord();
+  try {
+    writeFileSync(pidFile, record, { flag: "wx", mode: 0o600 });
+  } catch (error) {
+    // Only the empty directory made above: a lock put back meanwhile has its maker's pid file.
+    try {
+      rmdirSync(lock);
+    } catch {
+      // Not empty: not this one's.
+    }
+    throw error;
+  }
+  return () => {
+    let text: string | undefined;
+    try {
+      text = readFileSync(pidFile, "utf8");
+    } catch {
+      // Gone, or moved aside by a remover: nothing of this one's to remove.
+    }
+    if (text === record) rmSync(lock, { recursive: true, force: true });
+  };
+}
+/** A saved state whose controller did not answer and whose process is gone (processGone: a logout, reboot or crash
+ * ended it without `stop`) is stale: cleared under the start lock if the file still names that instance. True when no state
+ * is left. False, and nothing changes, while its process may be alive, another process holds the lock, or another
+ * instance replaced it. The pid is never signalled. */
+function clearDeadState(p: Project, s: Running): boolean {
+  if (!processGone(s.pid, s.boot)) return false;
+  const release = takeStartLock(p);
+  if (!release) return false;
+  try {
+    const current = readState(p);
+    if (current?.instance === s.instance) removeSavedState(p.dataDir, s.instance);
+    return !current || current.instance === s.instance;
+  } finally {
+    release();
+  }
 }
 async function control(s: Running, action: "status" | "stop") {
   const response = await fetch(`http://127.0.0.1:${s.port}/__pazmo/${action}`, {
@@ -143,10 +335,13 @@ export async function status(p: Project): Promise<OfficeStatus> {
   readManifest(p);
   const s = readState(p);
   if (!s)
-    return {
-      status: existsSync(join(p.dataDir, "start.lock")) ? "unknown" : "stopped",
-      execution: "locked",
-    };
+    return startLockFree(p)
+      ? { status: "stopped", execution: "locked" }
+      : {
+          status: "unknown",
+          execution: "locked",
+          reason: `An Office start or recovery is under way. ${removeHint(startLock(p))}`,
+        };
   try {
     const current = await control(s, "status");
     return {
@@ -160,11 +355,11 @@ export async function status(p: Project): Promise<OfficeStatus> {
       dataDir: p.dataDir,
     };
   } catch {
+    if (clearDeadState(p, s)) return { status: "stopped", execution: "locked" };
     return {
       status: "unknown",
       execution: "locked",
-      reason:
-        "Saved runtime cannot be authenticated; no PID will be signalled.",
+      reason: `The saved Office did not answer and its process may still be running; no process was signalled. ${removeHint(join(p.dataDir, "running.json"))}`,
     };
   }
 }
@@ -188,8 +383,13 @@ export async function start(
       fail("EXECUTION_LOCKED", "Stop the preview before starting with --live.");
     return current;
   }
-  if (current.status !== "stopped")
-    fail("UNKNOWN", "Resolve the preserved runtime state before restarting.");
+  if (current.status !== "stopped") {
+    const running = join(p.dataDir, "running.json");
+    fail(
+      "UNKNOWN",
+      `An Office may still be running or starting; nothing was started. ${removeHint(existsSync(running) ? running : startLock(p))}`,
+    );
+  }
   // The service loads ws: without the dependencies it would exit at startup.
   if (!checks.installed())
     fail(
@@ -199,12 +399,22 @@ export async function start(
   ignoreMetadata(p);
   noSymlinks(p.dataDir);
   mkdirSync(p.dataDir, { recursive: true, mode: 0o700 });
-  const lock = join(p.dataDir, "start.lock");
-  try {
-    mkdirSync(lock, { mode: 0o700 });
-  } catch {
-    return fail("BUSY", "Another start or recovery owns this Office.");
-  }
+  const release = takeStartLock(p);
+  if (!release) return fail("BUSY", "Another start or recovery owns this Office.");
+  let spawned: ChildProcess | undefined;
+  /** A signal while the start waits (launchd's bootout sends SIGTERM, a terminal's Ctrl-C SIGINT) would end the
+   * process without the `finally` below: stop the service it spawned, as a failed start does, release the lock and
+   * leave non-zero. Nothing was recorded yet: the state is written after the ready, without waiting. */
+  const interrupted = (signal: NodeJS.Signals) => {
+    spawned?.kill("SIGTERM");
+    release();
+    console.error(
+      JSON.stringify({ code: "INTERRUPTED", error: `Office start was interrupted (${signal}); the service it started was stopped.` }),
+    );
+    process.exit(1);
+  };
+  process.on("SIGTERM", interrupted);
+  process.on("SIGINT", interrupted);
   try {
     // Recheck after acquiring the lock; never replace another controller's state.
     if (readState(p))
@@ -225,15 +435,10 @@ export async function start(
         cwd: p.dataDir,
         detached: true,
         stdio: ["ignore", fd, fd, "ipc"],
-        env: {
-          // The native Office reads task diffs with git.
-          PATH: `${dirname(process.execPath)}:/usr/bin:/bin`,
-          HOME: join(p.dataDir, "home"),
-          TMPDIR: join(p.dataDir, "tmp"),
-          LANG: "en_US.UTF-8",
-        },
+        env: serviceEnv(engine, p.dataDir),
       },
     );
+    spawned = child;
     closeSync(fd);
     let readyPort: number;
     try {
@@ -288,6 +493,7 @@ export async function start(
         port: readyPort,
         token,
         instance,
+        ...(bootSession() ? { boot: bootSession() } : {}),
       };
       writeFileSync(join(p.dataDir, "running.json"), JSON.stringify(state), {
         flag: "wx",
@@ -307,12 +513,15 @@ export async function start(
       dataDir: p.dataDir,
     };
   } finally {
-    rmdirSync(lock);
+    process.off("SIGTERM", interrupted);
+    process.off("SIGINT", interrupted);
+    release();
   }
 }
 
 /** The team Office of a data root: every registered repo, one engine each.
- * `NO_REPOS` until `team add` registered one. */
+ * `NO_REPOS` until `team add` registered one, unless this Mac is connected to
+ * a Hub (`mac connect`): then it runs with none. */
 export async function startTeam(
   root: string,
   port: number,
@@ -320,7 +529,7 @@ export async function startTeam(
   checks?: { installed: () => boolean },
 ) {
   const { repos } = readTeam(root);
-  if (repos.length === 0)
+  if (repos.length === 0 && !readMacLink(root))
     fail(
       "NO_REPOS",
       "No repo is registered in the team Office. Add one with `team add --project PATH` first.",
@@ -347,10 +556,10 @@ export async function stopTeam(root: string) {
 }
 export async function stop(p: Project) {
   readManifest(p);
-  if (existsSync(join(p.dataDir, "start.lock")))
+  if (!startLockFree(p))
     fail(
       "UNKNOWN",
-      "Office startup or recovery is still pending; state is preserved.",
+      `Office startup or recovery is still pending; state is preserved. ${removeHint(startLock(p))}`,
     );
   const s = readState(p);
   if (!s) return { status: "stopped", execution: "locked" };
@@ -364,19 +573,14 @@ export async function stop(p: Project) {
       error.code === "TASK_ACTIVE"
     )
       throw error;
+    if (clearDeadState(p, s)) return { status: "stopped", execution: "locked" };
     return fail(
       "UNKNOWN",
-      "Runtime could not be authenticated. No process was signalled; state is preserved.",
+      `Runtime could not be authenticated. No process was signalled; state is preserved. ${removeHint(join(p.dataDir, "running.json"))}`,
     );
   }
-  // Only clear the state we authenticated, never a concurrently replaced instance.
-  // An Office an earlier version started may also have left an operator file.
-  if (readState(p)?.instance === s.instance) {
-    unlinkSync(join(p.dataDir, "running.json"));
-    const operator = join(p.dataDir, `operator-${s.instance}.json`);
-    noSymlinks(operator);
-    if (existsSync(operator)) unlinkSync(operator);
-  }
+  // Only clear the state we authenticated; the stopping Office may have removed it already.
+  removeSavedState(p.dataDir, s.instance);
   return { status: "stopped", execution: "locked", dataPreserved: p.dataDir };
 }
 

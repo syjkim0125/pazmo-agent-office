@@ -1,13 +1,17 @@
 {
   "gate": "G1",
-  "storyHash": "1b507999c54e75d8cb53f106bf491f22e9e6b566cc0d6f49fdf122239f1ea963",
-  "responseRef": "Claude Code conversation 2026-11-04: after reading the decision explainer https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD (version 1), which showed options A and B, the D40 draft and the M16 sentence, the user answered \"B + D40 승인\"",
+  "storyHash": "641f931f9201b4b4d2b4392802331b22d1169b7d07691be1dc0f9ab91dd019e0",
+  "responseRef": "Two user approvals given on 2026-11-04 in separate Claude Code conversations, merged without other text changes. (1) D40: after reading the decision explainer https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD (version 1), which showed options A and B, the D40 draft and the M16 sentence, the user answered \"B + D40 승인\" (Story hash 1b507999…, main 27f2bff, PR #74). (2) D41 and V19: after reading the G3 explainer https://claude.ai/artifact/9UGi8rPk9ADHyPcB7prD5F (version 1) the user chose \"① 이대로 승인\"; shown the Story change (M16 sentence, D41, V19) and asked \"바뀐 Story가 이번 구현의 범위와 완료 조건으로 맞나요?\", the user answered \"맞아, 진행해\" (Story hash 623a959c…, branch feat/hub-web-flow). This Story is the git merge of the two: M16 carries both the D40 sentence and the D41 sentences, Decisions list D40 then D41, Verify lists V19 then V18 with D40's clause.",
   "story": "docs/understanding/pazmo-agent-office-contract.md",
   "date": "2026-11-04",
-  "scope": "Canonical Story with D39 (approved below) plus D40 (before every claude role job the engine checks its runners again, even when its copy says ready) and its M16 sentence, both as shown in the explainer. ASSUMED (controller, not in the shown draft): V18 got the matching clause 'claude 역할 실행마다 실행 직전에 실행기를 새로 확인함(준비됨 사본이어도 그 사이 생긴 hook으로 거절, D40)'; the D40 line names the explainer as a link instead of '이 설명 페이지'. Earlier decisions keep their own approval records.",
+  "scope": "Canonical Story with D39, D40 (approved in the claude-hook conversation, scope as in its record: D39 (approved below) plus D40 (before every claude role job the engine checks its runners again, even when its copy says ready) and its M16 sentence, both as shown in the explainer. ASSUMED (controller, not in the shown draft): V18 got the matching clause 'claude 역할 실행마다 실행 직전에 실행기를 새로 확인함(준비됨 사본이어도 그 사이 생긴 hook으로 거절, D40)'; the D40 line names the explainer as a link instead of '이 설명 페이지'. Earlier decisions keep their own approval records) and D41 with V19 (approved in this conversation: D41 (browser-first team flow on the Hub, AI on each Mac, automatic Task distribution, PL web planning and G1, automatic Story verification, PL web G4 and the PL Office merging each Story base) and V19,). Earlier decisions keep their own approval records.",
   "supersedes": {
-    "storyHash": "b005160e3d6082ef4dfd75b0109da58302328a0f62b0815270a3ad655906604e",
-    "responseRef": "Claude Code conversation 2026-11-03: after reading the decision explainer https://claude.ai/artifact/FQmjsJozgCNYT81EiKD9n3 (version 4) the user chose \"1-A 2-A 3-A\"; shown the Story draft (M16 sentence, D39, V18 additions) and asked \"이 내용이 이번 구현의 범위와 완료 조건으로 맞나요?\", the user answered \"맞아, 진행해\""
+    "storyHash": "1b507999c54e75d8cb53f106bf491f22e9e6b566cc0d6f49fdf122239f1ea963",
+    "responseRef": "Claude Code conversation 2026-11-04: after reading the decision explainer https://claude.ai/artifact/MXXJSafUz1KBrRzPXhr7sD (version 1), which showed options A and B, the D40 draft and the M16 sentence, the user answered \"B + D40 승인\"",
+    "alsoMerges": {
+      "storyHash": "623a959c476cd46825b39a1a37dd770be5be58febbd83e0c5f8abfd56630f3a4",
+      "responseRef": "Claude Code conversation 2026-11-04: after reading the G3 explainer https://claude.ai/artifact/9UGi8rPk9ADHyPcB7prD5F (version 1) the user chose \"① 이대로 승인\"; shown the Story change (M16 sentence, D41, V19) and asked \"바뀐 Story가 이번 구현의 범위와 완료 조건으로 맞나요?\", the user answered \"맞아, 진행해\""
+    }
   },
   "previous": "docs/understanding/pazmo-agent-office-g1.md (2026-09-17, original Story approval)"
 }

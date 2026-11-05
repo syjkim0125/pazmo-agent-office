@@ -35,6 +35,8 @@ export type GitEnv = {
 export const STORY_CHECKOUT = "story-checkout";
 const REMOTE_TIMEOUT_MS = 120000;
 const LOCAL_TIMEOUT_MS = 30000;
+/** A whole repo comes down in one clone; ten minutes, not the two of a fetch. */
+const CLONE_TIMEOUT_MS = 600000;
 const MAX_BYTES = 2 * 1024 * 1024;
 const MESSAGE_MAX = 160;
 const TASK_BRANCH = /^feature\/story-\d+\/task-\d+$/;
@@ -46,18 +48,27 @@ const MAX_SCAN_BYTES = 8 * 1024 * 1024;
 // `.pazmo-office` ignores itself, but a commit must not depend on that file being there.
 const PATHSPEC = [".", ":(exclude).pazmo-office"];
 
+/** What git says when an https clone or fetch had no credentials it could use (prompts are off). */
+export const CREDENTIALS_REFUSED = /terminal prompts disabled|Authentication failed/i;
+
 /** The first line that says what went wrong, at most 160 characters. A rejected push opens with a
- * `To <url>` header, so for a push the refusal is the line after it. */
-function reason(text: string, push = false): string {
+ * `To <url>` header, so for a push the refusal is the line after it. A clone opens with `Cloning into`;
+ * its credential refusal, when there is one, may follow a `remote:` line and is the line that matters. */
+function reason(text: string, command?: string): string {
   const lines = text
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
-  const first = push ? lines.find((line) => !/^To \S/.test(line)) : lines[0];
+  const first =
+    command === "push"
+      ? lines.find((line) => !/^To \S/.test(line))
+      : command === "clone"
+        ? (lines.find((line) => CREDENTIALS_REFUSED.test(line)) ?? lines.find((line) => !/^Cloning into /.test(line)))
+        : lines[0];
   return (first ?? lines[0] ?? "").slice(0, MESSAGE_MAX);
 }
 
-type GitOptions = { remote?: boolean; ok?: number[]; config?: string[] };
+type GitOptions = { remote?: boolean; ok?: number[]; config?: string[]; timeoutMs?: number };
 
 /** One git command. Hooks are always off; anything but an exit status in `ok` is `GIT_FAILED`. */
 async function git(
@@ -74,7 +85,7 @@ async function git(
     [...config.flatMap((setting) => ["-c", setting]), ...argv],
     {
       cwd,
-      timeoutMs: o.remote ? REMOTE_TIMEOUT_MS : LOCAL_TIMEOUT_MS,
+      timeoutMs: o.timeoutMs ?? (o.remote ? REMOTE_TIMEOUT_MS : LOCAL_TIMEOUT_MS),
       maxBytes: MAX_BYTES,
       env: {
         HOME: env.home,
@@ -92,10 +103,25 @@ async function git(
   if (result.exitCode === null || !(o.ok ?? [0]).includes(result.exitCode))
     return fail(
       "GIT_FAILED",
-      reason(result.stderr, argv[0] === "push") ||
+      reason(result.stderr, argv[0]) ||
         `${what} failed (exit ${result.exitCode ?? result.signal}).`,
     );
   return result;
+}
+
+/** Clones `url` into `target` (a folder that does not exist yet), from `target`'s parent folder. Submodules are not
+ * fetched: they would reach other hosts with the person's credentials. */
+export async function cloneRepo(url: string, target: string, env: GitEnv): Promise<void> {
+  await git(dirname(target), ["clone", "--no-recurse-submodules", "--", url, target], env, {
+    timeoutMs: CLONE_TIMEOUT_MS,
+  });
+}
+
+/** The origin of the repo at `dir` exactly as its config holds it (`remote get-url` would apply the person's
+ * insteadOf rules, which differ from person to person); null when it has none. */
+export async function originUrl(dir: string, env: GitEnv): Promise<string | null> {
+  const result = await git(dir, ["config", "--get", "remote.origin.url"], env, { ok: [0, 1] });
+  return result.exitCode === 0 ? result.stdout.trim() : null;
 }
 
 function checkBranch(branch: string): void {

@@ -39,7 +39,7 @@ node .ai-workflow/bin/graph.mjs verify <run.json> workflow-verify <started-token
 
 - V3·V9: 실제 로그인한 codex·claude CLI로 역할을 돌리는 것. 시험은 가짜 실행 파일을 쓴다.
 - V4: 실제 VM sandbox 경계(canary). 시험은 가짜 실행 환경을 쓴다.
-- V13·V14·V10·V18: 실제 OpenShift 배포, 실제 Hub 연결, 실제 GitHub PR·머지. 시험은 로컬 Hub·bare repo·가짜 `gh`를 쓴다.
+- V13·V14·V10·V18·V19: 실제 OpenShift 배포, 실제 Hub 연결, 실제 Mac 설치·자동 실행, 실제 GitHub PR·머지. 시험은 로컬 Hub·bare repo·가짜 `gh`를 쓴다.
 - V5·V6: pilot 산출물, tarball 설치. 시험은 일부만 흉내 낸다.
 
 이 확인들은 각 변경의 `docs/verification/` 기록과 `docs/STATUS.md`의 "남은 것"에 따로 남는다.

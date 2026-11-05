@@ -11,7 +11,8 @@ import { openLeanDb } from "../src/lean/schema.ts";
 import { startLifecycleServer } from "../src/lean/server.ts";
 import { branchOps } from "../src/team/executor.ts";
 import { createTeamOffice, lifecycleView, sharedGate } from "../src/team/office.ts";
-import { addTeamRepo, teamDir } from "../src/team/registry.ts";
+import { writeMacLink } from "../src/team/mac.ts";
+import { addTeamRepo, readTeam, teamDir } from "../src/team/registry.ts";
 import { openTeamStore } from "../src/team/store.ts";
 import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
 
@@ -553,6 +554,47 @@ function storyRows(f, dir) {
   }
 }
 const claims = (f) => f.calls.filter(([, what]) => what === "claim").length;
+
+const MAC_FILE = {
+  version: 1,
+  hub: "https://pazmo-hub.apps.example.com",
+  macId: "mac-1",
+  macToken: "T".repeat(43),
+  memberId: "m1",
+  memberName: "김",
+  name: "내 Mac",
+};
+/** A connected Mac as the team Office sees it, in `config`: its link, a Hub client that records the beats (state,
+ * detail) and the macId of every client made, a repo check that answers `pending`, and a restart that counts. */
+function fakeMac() {
+  const m = { beats: [], clients: [], syncs: [], restarts: 0, pending: { add: [], remove: [] } };
+  m.config = {
+    macLinkOf: () => MAC_FILE,
+    macClientFor: (file) => {
+      m.clients.push(file.macId);
+      return {
+        async heartbeat(state, detail) {
+          m.beats.push([state, detail]);
+        },
+        async repos() {
+          return [];
+        },
+        async link() {
+          throw new Error("no repo link in this test");
+        },
+        async revoke() {},
+      };
+    },
+    macSync: async (file) => {
+      m.syncs.push(file.macId);
+      return m.pending;
+    },
+    restartSelf: () => {
+      m.restarts++;
+    },
+  };
+  return m;
+}
 
 test("start --team without --live claims nothing and status says execution locked", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
@@ -1128,6 +1170,270 @@ test("beginStop stops the timers; close closes every engine and is idempotent", 
 test("no registered repo is NO_REPOS", async (t) => {
   const f = fixture(t);
   await assert.rejects(f.open(), { code: "NO_REPOS" });
+});
+
+test("with no registered repo but a Mac link, the team Office opens with no lanes and claims nothing", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  writeMacLink(f.data, MAC_FILE);
+  // The Mac link is read from its file (the default); only the Hub is a fake.
+  const mac = fakeMac();
+  const { macLinkOf: _, ...config } = mac.config;
+  const office = await f.open(f.live(config));
+  const status = office.status();
+  assert.deepEqual(status.repos, []);
+  assert.equal(status.execution, "live");
+  for (let minute = 0; minute < 5; minute++) {
+    t.mock.timers.tick(60000);
+    await flush();
+  }
+  assert.deepEqual(f.calls, [], "no lane, so no claim, heartbeat or drive reached a link");
+  assert.deepEqual(f.world.list, [], "no repo engine was opened");
+  const after = office.status();
+  assert.deepEqual([after.claim, after.blockedBy, after.today, after.busy], [null, null, 0, false]);
+  // The Mac counts as on: its state goes to the Hub at the start and every minute.
+  assert.equal(mac.beats.length, 6);
+  assert.deepEqual(mac.beats[0], ["idle", null]);
+  assert.deepEqual([...new Set(mac.clients)], ["mac-1"]);
+});
+
+test("presence is locked without --live, limited while the open record waits on its runner or the runners are not ready, working while an engine runs or a record moves, else idle", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const beat = async () => {
+    t.mock.timers.tick(60000);
+    await flush();
+  };
+
+  // Locked: started without --live.
+  const locked = fixture(t);
+  locked.link(await locked.repo("alpha"), "a");
+  const lockedMac = fakeMac();
+  await locked.open(lockedMac.config);
+  await flush();
+  assert.deepEqual(lockedMac.beats, [["locked", null]]);
+
+  // Live, but no runner is logged in: limited, naming the runner.
+  const notReady = fixture(t);
+  notReady.link(await notReady.repo("alpha"), "a");
+  const notReadyMac = fakeMac();
+  await notReady.open(notReady.live({ runnerCatalog: async () => loggedOutCatalog(), driveMs: 1e9, ...notReadyMac.config }));
+  await flush();
+  assert.deepEqual(notReadyMac.beats, [["limited", "codex: not_ready"]]);
+
+  // Live and ready: idle; a claimed record moves (working); it waits on its runner's limit (limited); it failed (idle).
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  f.link(a, "a").claimReply = claimed("t1", 3, 7);
+  const mac = fakeMac();
+  const office = await f.open(f.live({ driveMs: 1e9, ...mac.config }));
+  await flush();
+  assert.deepEqual(mac.beats, [["idle", null]]);
+  await beat();
+  assert.equal(office.status().claim.phase, "claimed");
+  await beat();
+  assert.deepEqual(mac.beats.at(-1), ["working", null]);
+  const store = storeOf(f);
+  const since = Date.UTC(2026, 10, 2, 9, 0);
+  store.setPhase("t1", "claimed", {
+    runnerWait: { runner: "claude", kind: "limit", message: "weekly limit", since, retryAt: since + 1800000, runs: 1 },
+  });
+  await beat();
+  assert.deepEqual(mac.beats.at(-1), ["limited", "claude: limit"]);
+  store.setPhase("t1", "failed", { attempts: 3, runnerWait: null });
+  await beat();
+  assert.deepEqual(mac.beats.at(-1), ["idle", null]);
+
+  // A repo engine runs a task: working.
+  const busy = fixture(t);
+  const b = await busy.repo("beta");
+  busy.link(b, "b");
+  await waitingTask(busy, b, "Waiting in beta", "story");
+  const busyMac = fakeMac();
+  const busyOffice = await busy.open(busy.live({ driveMs: 1e9, ...busyMac.config }));
+  await flush();
+  assert.equal(busyOffice.status().busy, true);
+  await beat();
+  assert.deepEqual(busyMac.beats.at(-1), ["working", null]);
+});
+
+test("while a restart is held the Office claims nothing", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  f.link(a, "a").claimReply = claimed("t1");
+  const mac = fakeMac();
+  // The default repo check (a links-only sync) over a fake Hub: the member now also owns beta, not registered here.
+  let owned = [{ repoId: "r-beta", name: "beta", remote: "github.example.com/team/beta", linked: false }];
+  const { macSync: _, ...config } = mac.config;
+  let clock = 1_700_000_000_000;
+  await f.open(
+    f.live({
+      ...config,
+      macClientFor: (file) => ({ ...mac.config.macClientFor(file), repos: async () => owned }),
+      recheckMs: 10000,
+      driveMs: 1e9,
+      now: () => clock,
+    }),
+  );
+  const tick = async (ms) => {
+    clock += ms;
+    t.mock.timers.tick(ms);
+    await flush();
+  };
+  await tick(10000);
+  assert.equal(mac.restarts, 1, "the repo check restarts the Office for beta");
+  assert.ok(f.logs.some((line) => line.includes("beta")), f.logs.join("\n"));
+  assert.deepEqual(readTeam(f.data).repos.map((r) => r.project), [a], "a running Office never changes the registry");
+  for (let at = 20000; at <= 590000; at += 10000) await tick(10000);
+  assert.equal(claims(f), 0, "nothing is claimed while the restart is held");
+  assert.equal(mac.restarts, 1);
+
+  // This Office was never stopped, and beta was set aside meanwhile: past 600000 ms it claims again.
+  owned = [];
+  for (let at = 600000; at <= 640000; at += 10000) await tick(10000);
+  assert.equal(claims(f), 1);
+  assert.equal(mac.restarts, 1);
+});
+
+test("a live Office whose runners are not ready is not restarted for a changed repo set, until they are; a locked one is", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  f.link(await f.repo("alpha"), "a");
+  const mac = fakeMac();
+  mac.pending = { add: ["beta"], remove: [] };
+  let catalog = loggedOutCatalog;
+  let clock = 1_700_000_000_000;
+  await f.open(f.live({ ...mac.config, runnerCatalog: async () => catalog(), recheckMs: 10000, driveMs: 1e9, now: () => clock }));
+  const tick = async (ms) => {
+    clock += ms;
+    t.mock.timers.tick(ms);
+    await flush();
+  };
+  for (let at = 10000; at <= 30000; at += 10000) await tick(10000);
+  assert.equal(mac.restarts, 0, "stopped now, up would refuse with no logged-in runner and leave it off");
+  const waiting = f.logs.filter((line) => line.includes("beta"));
+  assert.equal(waiting.length, 1, f.logs.join("\n"));
+  assert.match(waiting[0], /CLI/);
+
+  // The person logs in: the next check finds the runners ready and restarts.
+  catalog = readyCatalog;
+  await tick(10000);
+  assert.equal(mac.restarts, 1);
+
+  // Locked: today's behaviour, whatever the runners.
+  const locked = fixture(t);
+  locked.link(await locked.repo("alpha"), "a");
+  const lockedMac = fakeMac();
+  lockedMac.pending = { add: ["beta"], remove: [] };
+  await locked.open({ ...lockedMac.config, runnerCatalog: async () => loggedOutCatalog(), recheckMs: 10000 });
+  t.mock.timers.tick(10000);
+  await flush();
+  assert.equal(lockedMac.restarts, 1);
+});
+
+test("a link the repo check mints reaches its lane at once, not one repo check later", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const mac = fakeMac();
+  const { macSync: _, ...config } = mac.config;
+  const minted = [];
+  const office = await f.open({
+    ...config,
+    // The default repo check (a links-only sync) over a fake Hub: alpha is owned and this Mac holds no link for it.
+    macClientFor: (file) => ({
+      ...mac.config.macClientFor(file),
+      repos: async () => [{ repoId: "r-alpha", name: "alpha", remote: "github.example.com/team/alpha", linked: false }],
+      async link(repoId) {
+        minted.push(repoId);
+        f.link(a, "a"); // what the lane reads once the link file is written
+        return { token: "L".repeat(43), member: { id: MAC_FILE.memberId, name: MAC_FILE.memberName }, repoId, repoName: "alpha" };
+      },
+    }),
+    recheckMs: 10000,
+  });
+  assert.equal(office.status().repos[0].state, "no-link");
+  // One tick: the lane check runs first (nothing to read yet), then the Mac's repo check mints alpha's link.
+  t.mock.timers.tick(10000);
+  await until(() => minted.length === 1, "the repo check mints alpha's link");
+  await flush();
+  assert.deepEqual(minted, ["r-alpha"]);
+  assert.equal(office.status().repos[0].state, "ready", "the lane reads the new link in the same tick");
+  assert.ok(f.logs.some((line) => line.includes(`${a}: ready again (was no-link)`)), f.logs.join("\n"));
+});
+
+test("a claim under way counts as open: the repo check waits for it and the Office is not restarted", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  let answer;
+  la.claim = () => new Promise((resolve) => (answer = resolve));
+  const mac = fakeMac();
+  await f.open(f.live({ ...mac.config, recheckMs: 10000, driveMs: 1e9 }));
+  for (let at = 10000; at <= 30000; at += 10000) {
+    t.mock.timers.tick(10000);
+    await flush();
+  }
+  assert.equal(typeof answer, "function", "the claim tick waits on the Hub");
+  mac.pending = { add: ["beta"], remove: [] };
+  t.mock.timers.tick(10000);
+  await flush();
+  assert.equal(mac.restarts, 0, "not while the claim is under way");
+  assert.equal(f.logs.filter((line) => line.includes("beta")).length, 1, f.logs.join("\n"));
+  // The Hub gives a Task: it is open now, and the check keeps waiting without another line.
+  answer({ task: claimed("t1"), open: null });
+  await flush();
+  t.mock.timers.tick(10000);
+  await flush();
+  assert.equal(mac.restarts, 0);
+  assert.equal(f.logs.filter((line) => line.includes("beta")).length, 1);
+});
+
+test("a team Office with a Mac link beats presence at start and every 60000 ms, and checks the repo set every 300000 ms", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  await f.repo("alpha");
+  const mac = fakeMac();
+  await f.open(mac.config);
+  await flush();
+  assert.deepEqual(mac.beats, [["locked", null]], "one beat at the start");
+  t.mock.timers.tick(59999);
+  await flush();
+  assert.equal(mac.beats.length, 1);
+  t.mock.timers.tick(1);
+  await flush();
+  assert.equal(mac.beats.length, 2);
+  assert.equal(mac.syncs.length, 0);
+  for (let minute = 2; minute < 5; minute++) {
+    t.mock.timers.tick(60000);
+    await flush();
+  }
+  t.mock.timers.tick(59999);
+  await flush();
+  assert.equal(mac.syncs.length, 0, "no repo check before 300000 ms");
+  t.mock.timers.tick(1);
+  await flush();
+  assert.equal(mac.beats.length, 6);
+  assert.deepEqual(mac.syncs, ["mac-1"]);
+  assert.equal(mac.restarts, 0, "nothing to add or remove");
+});
+
+test("a Mac link file that cannot be used is said once and the Office sends nothing to the Hub", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  await f.repo("alpha");
+  writeMacLink(f.data, MAC_FILE);
+  chmodSync(join(teamDir(f.data), "mac-link.json"), 0o644);
+  const mac = fakeMac();
+  const { macLinkOf: _, ...config } = mac.config;
+  await f.open(config);
+  t.mock.timers.tick(300000);
+  await flush();
+  assert.deepEqual([mac.beats, mac.syncs], [[], []]);
+  const lines = f.logs.filter((line) => line.includes("chmod 600"));
+  assert.equal(lines.length, 1, f.logs.join("\n"));
+  assert.ok(!f.logs.join("\n").includes(MAC_FILE.macToken));
 });
 
 test("a registered repo whose folder is gone fails the start with REPO_MISSING, naming the path and team remove, before anything opens", async (t) => {

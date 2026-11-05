@@ -11,7 +11,7 @@ import {
 import { dirname, join, resolve } from "node:path";
 import { fail, locate, noSymlinks, OfficeError } from "../cli/project.ts";
 import type { Project } from "../cli/project.ts";
-import { status } from "../cli/lifecycle.ts";
+import { processGone, startLockStale, status } from "../cli/lifecycle.ts";
 import { projectRemote } from "../runtime/hub-connect.ts";
 import { openTeamStore } from "./store.ts";
 
@@ -21,7 +21,8 @@ export type TeamRepo = { project: string; remote: string };
 export type Team = { version: 1; repos: TeamRepo[] };
 
 const FILE = "team.json";
-const MAX_REPOS = 20;
+/** The most repos one team Office runs; a Mac checks it before it clones. */
+export const MAX_REPOS = 20;
 
 /** The team Office keeps its own data here, beside the per-project directories. */
 export const teamDir = (root: string): string => join(root, "team");
@@ -92,33 +93,39 @@ export function assertNotInTeam(p: Project): void {
     );
 }
 
-/** Whether a team Office process is up: its running.json names a live pid. A
- * pid owned by someone else (EPERM) is still a live process. A start still
- * under way (its `start.lock`, for up to 15 s before running.json is written)
- * counts too: that Office has already read the registry. */
-export function teamRunning(root: string): boolean {
+/** Whether a team Office start is under way: its `start.lock`, unless the
+ * lifecycle's rule finds it stale (`startLockStale`: its maker's pid is gone or
+ * from another boot, as after an `up` killed outright or a reboot, or it has had
+ * no readable pid for a minute). The lock is only read, never removed: the
+ * lifecycle clears it. */
+function startUnderWay(root: string): boolean {
   const lock = join(teamDir(root), "start.lock");
   noSymlinks(lock);
-  if (existsSync(lock)) return true;
+  return existsSync(lock) && !startLockStale(lock);
+}
+
+/** Whether a team Office process is up: its running.json names a pid that is
+ * not gone by the lifecycle's rule (`processGone`: a pid from another boot is
+ * gone whatever it names now; one owned by someone else, EPERM, is a live
+ * process). A start still under way (its `start.lock`, for up to STARTUP_MS,
+ * 30 s, before running.json is written) counts too: that Office has already
+ * read the registry. */
+export function teamRunning(root: string): boolean {
+  if (startUnderWay(root)) return true;
   const file = join(teamDir(root), "running.json");
   noSymlinks(file);
   if (!existsSync(file)) return false;
-  let pid: unknown;
+  let saved: { pid?: unknown; boot?: unknown } | null;
   try {
-    pid = (JSON.parse(readFileSync(file, "utf8")) as { pid?: unknown } | null)
-      ?.pid;
+    saved = JSON.parse(readFileSync(file, "utf8")) as { pid?: unknown; boot?: unknown } | null;
   } catch {
     return false;
   }
+  const pid = saved?.pid;
   // Zero and negative pids would signal a whole process group.
   if (typeof pid !== "number" || !Number.isInteger(pid) || pid <= 0)
     return false;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (error) {
-    return (error as NodeJS.ErrnoException).code === "EPERM";
-  }
+  return !processGone(pid, typeof saved?.boot === "string" ? saved.boot : undefined);
 }
 
 /** The registry only changes while no team Office is reading it. */
