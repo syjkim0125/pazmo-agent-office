@@ -1,0 +1,12 @@
+{
+  "token": "dded67d13380b2b92f7c644408f511b1774736f4f0df7ee9e83e831419695b8d",
+  "output": {
+    "summary": "Review attempt 2 (2 reviewers, scoped to F1-F7): all fixes addressed; not ready: one new Important (pick checks NOT_LINKED before BUSY, so during a Task every other repo's ready Task shows a false connection problem).",
+    "evidence": [".ai-workflow/runs/U37-review-2.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement G1-G2 of U37-review-2.md: BUSY before NOT_LINKED in the pick rule with a store test and the stated order updated; doc lines for the remaining reachable-check gaps; a Story verification Task's own release line."
+  }
+}

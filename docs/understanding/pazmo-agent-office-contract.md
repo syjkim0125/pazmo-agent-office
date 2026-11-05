@@ -3,8 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-04 · Check-in: accepted
 Understanding gate (G3): docs/understanding/pazmo-agent-office-plan.md · 2026-09-18 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/mac-connect-g4.json · 2026-11-05 · Check-in: accepted
-G4: PASS — U36(D41 묶음 1, 팀원이 설치 한 줄과 웹 허용 한 번으로 Mac을 연결): 사용자가 G4 설명 페이지를 본 뒤 "① 승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다. 터미널이 허용한 팀원 이름을 다시 묻게 할지에는 "지금처럼 두기"라고 답해 한계로 기록했다(기록: .ai-workflow/approvals/mac-connect-g4.md).
+Understanding gate (G4): .ai-workflow/approvals/teammate-web-g4.json · 2026-11-05 · Check-in: accepted
+G4: PASS — U37(D41 묶음 2, 팀원이 Hub 웹에서 내 할 일·보드·Task 상세를 보고 자동으로 일하기·작업하기·다시 시도·풀기·취소를 한다): 사용자가 G4 설명 페이지를 본 뒤 "① 승인 후 머지"를 골랐다(D13). 세 가지에 직접 답하지는 않았다(기록: .ai-workflow/approvals/teammate-web-g4.md).
 
 ## Goal
 사람이 새 최소 Office(Tasks·작업 상세·Decisions·Agents)에서 일을 만들고 진행·결정·승인을 확인하며, ai-workflow-kit의 역할별 업무 절차가 작업 안의 단계로 돈다. kit가 역할별 절차와 로컬 run 상태를 관리하고 Office가 작업 큐·agent·격리 실행·실제 승인 기록을 관리한다. 팀 협업은 팀 허브와 팀 Story 보드(D24)로 한다. 실패하거나 검증하지 못한 작업은 완료로 표시하지 않는다. 실제 실행·격리·설치 시험과 모의 시험의 증거를 구분한다.

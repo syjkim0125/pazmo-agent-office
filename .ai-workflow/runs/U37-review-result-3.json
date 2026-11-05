@@ -1,0 +1,8 @@
+{
+  "token": "700db1392eb49132724ea563d6c23f7c40969630a5d0650493b78838ae63d136",
+  "output": {
+    "summary": "Review attempt 3 (1 reviewer, scoped to G1-G2): Ready to merge Yes; Critical 0, Important 0; G1 (BUSY before NOT_LINKED) and G2 (window limits, verify release line) addressed; 2 docs-wording Minors disclosed and deferred to the delivery commit.",
+    "evidence": [".ai-workflow/runs/U37-review-3.md"]
+  },
+  "evaluation": { "passed": true }
+}

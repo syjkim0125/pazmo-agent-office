@@ -1,0 +1,8 @@
+{
+  "token": "f1263aac1f5f1fecff0dae9e29e77b83f2a1cbff8ca896897f425c1f640677de",
+  "output": {
+    "summary": "Kit verification on 917d4c9: tests 404/404 + 640/640 + 575/575 = 1619/1619, typecheck exit 0, Story check exit 0; snapshot unchanged; real browser, real Macs, OpenShift Hub and two people not proven.",
+    "evidence": [".ai-workflow/runs/U37-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}
