@@ -28,7 +28,7 @@ const NO_LONGER_MINE = /is no longer this Office's claim \(NOT_YOURS\); the reco
  * test's `tick` and `beat` calls). `web` is what the Hub web's buttons call in the Hub store, with A (or the PL, for
  * 풀기) as the person on the page; Task 5 pins the web → store wiring.
  */
-async function office(t) {
+async function office(t, { laneState = {} } = {}) {
   const h = await hubWithStory(t);
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-hub-web-office-")));
   const store = openTeamStore(join(root, "team"));
@@ -39,7 +39,8 @@ async function office(t) {
   const cfg = h.cfgOf("be");
   const member = { id: cfg.memberId, name: cfg.memberName, admin: false };
   const lanes = ["be", "fe"].map((name) => ({
-    project: name, remote: `github.example.com/team/${name}`, link: storyLink(h.cfgOf(name)), gh: { ok: true }, state: "ready",
+    project: name, remote: `github.example.com/team/${name}`, link: storyLink(h.cfgOf(name)), gh: { ok: true },
+    state: laneState[name] ?? "ready",
   }));
   const logs = [];
   const dropped = [];
@@ -61,8 +62,10 @@ async function office(t) {
     mine: async (project) => (await storyLink(h.cfgOf(project)).inbox()).mine,
     web: {
       autoWork: (on) => h.board.setAutoWork(member, on),
-      pick: (taskId) => h.board.pickTask(member, taskId, h.store.liveLinkRepos(member.id)),
-      rerun: (taskId, memo) => h.board.rerunTask(member, taskId, memo),
+      pick: (taskId) => h.board.pickTask(member, taskId, h.store.reachableRepos(member.id)),
+      rerun: (taskId, memo) => h.board.rerunTask(member, taskId, memo, h.store.reachableRepos(member.id)),
+      /** The repos the Hub web counts as reachable for A: the links A's Office used lately. */
+      reachable: () => [...h.store.reachableRepos(member.id)].sort(),
       release: (taskId) => h.board.releaseTask({ member: h.pl }, taskId),
     },
     /** What the executor does when it gives up on a claim: the failed report, then the record held in phase failed. */
@@ -225,4 +228,33 @@ test("a PL release from the web drops the assignee's record at its next beat (NO
   const view = o.view("be-1");
   assert.deepEqual([view.state, view.assignee], ["ready", null]);
   assert.equal(await o.mine("be"), null);
+});
+
+test("a lane that is not ready (gh) is not reachable, so the web cannot pick its Task, while the ready lane's Task can be picked", async (t) => {
+  const o = await office(t, { laneState: { fe: "gh" } });
+  o.web.autoWork(false);
+  const be1 = o.view("be-1"), fe1 = o.view("fe-1");
+  assert.deepEqual(o.web.reachable(), [], "before the Office's first tick no link has been used");
+  assert.throws(() => o.web.pick(be1.id), (e) => e.code === "NOT_LINKED");
+
+  // One tick with no record: recovery reads the inbox of every ready lane, and the claim asks them; fe is skipped.
+  assert.deepEqual(await o.scheduler.tick(), { claimed: null, open: null });
+  assert.deepEqual(o.web.reachable(), [o.h.repos.be]);
+  const work = o.h.board.memberWork(o.member.id, o.h.store.reachableRepos(o.member.id));
+  assert.deepEqual(
+    work.ready.map((c) => [c.title, c.pick]),
+    [["be-1", "yes"], ["fe-1", "not-linked"]],
+    "home offers 작업하기 only where the Office takes it",
+  );
+
+  // fe-1: refused, and nothing changes; the member is not made busy for every repo.
+  assert.throws(() => o.web.pick(fe1.id), (e) => e.code === "NOT_LINKED" && e.status === 409);
+  assert.deepEqual([o.view("fe-1").state, o.view("fe-1").assignee], ["ready", null]);
+  assert.equal(await o.mine("be"), null);
+
+  // be-1: picked, and the next tick takes it back.
+  assert.deepEqual(o.web.pick(be1.id), { ok: true });
+  const recovered = await took(o.scheduler, "recovered");
+  assert.deepEqual([recovered.project, recovered.taskId], ["be", be1.id]);
+  assert.deepEqual(o.logs, []);
 });

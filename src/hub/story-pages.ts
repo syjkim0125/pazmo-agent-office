@@ -82,7 +82,9 @@ const taskLink = (id: string, label: string) => `<a href="/tasks/${esc(id)}">${e
 const failedNow = (x: { state: TaskViewState }) => x.state === "failed";
 /** A Mac's rest only matters while its member is working the Task. */
 const working = (state: TaskViewState) => state === "claimed" || state === "held";
-const NOT_LINKED = `<a href="/mac">이 레포는 아직 내 Mac에 연결되지 않았습니다</a>`;
+/** Pick and rerun need the member's Office to be taking that repo now (`reachableRepos`); /mac says which it is. */
+const NOT_LINKED = `<a href="/mac">내 Mac이 지금 이 레포의 일을 가져가지 않고 있습니다(꺼짐·잠김·연결 문제).</a>`;
+const RERUN_NOT_LINKED = `<a href="/mac">내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.</a>`;
 const HELD = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다. Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
 
 /** One Task on the work page: where it is, its state, and what this list adds (`extra` is markup). */
@@ -174,9 +176,12 @@ function actionForms(t: TaskView, csrf: string, a: TaskActions) {
         : a.pick === "not-linked"
           ? `<p>${NOT_LINKED}</p>`
           : "";
-  const rerun = a.rerun
-    ? `<form method="post" action="${esc(base)}/rerun">${csrfField(csrf)}<label>메모 <span class="muted">(선택, ${LIMITS.memoMax}자까지)</span><textarea name="memo" rows="3" maxlength="${LIMITS.memoMax}"></textarea></label><div class="row"><button>다시 시도</button></div></form>`
-    : "";
+  const rerun =
+    a.rerun === "yes"
+      ? `<form method="post" action="${esc(base)}/rerun">${csrfField(csrf)}<label>메모 <span class="muted">(선택, ${LIMITS.memoMax}자까지)</span><textarea name="memo" rows="3" maxlength="${LIMITS.memoMax}"></textarea></label><div class="row"><button>다시 시도</button></div></form>`
+      : a.rerun === "not-linked"
+        ? `<p>${RERUN_NOT_LINKED}</p>`
+        : "";
   const release = a.release
     ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc("풀면 이 Task는 다시 '할 일'이 되고 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 머지 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
     : "";

@@ -581,6 +581,46 @@ test("liveLinkRepos holds a connection-string link and a live Mac's link, but no
   assert.deepEqual([...store.liveLinkRepos(b.id)], [], "a revoked Mac's link");
 });
 
+test("reachableRepos holds a live link seen within 180000 ms and leaves out one seen earlier or never, and is empty while the member's newest Mac reports locked", () => {
+  const { store, admin, join, tick } = setup();
+  const b = join("B");
+  const repo = (name) => store.addRepo(admin, name, `https://github.example.com/team/${name}`);
+  const [r1, r2, r3, r4] = ["r1", "r2", "r3", "r4"].map(repo);
+  for (const r of [r1, r2, r3, r4]) store.addOwner(admin, r, b.id);
+  const reach = () => [...store.reachableRepos(b.id)].sort();
+  // r1 by a connection string; r2, r3 and r4 by the Mac. r3 is never used; r4 is used and then revoked.
+  const t1 = store.connect(store.createConnectCode(b), "https://github.example.com/team/r1").token;
+  const { auth } = pairMac(store, b);
+  const t2 = store.macLink(auth, r2).token;
+  store.macLink(auth, r3);
+  const t4 = store.macLink(auth, r4).token;
+  assert.deepEqual([...store.liveLinkRepos(b.id)].sort(), [r1, r2, r3, r4].sort());
+  assert.deepEqual(reach(), [], "no link has been used yet");
+
+  store.link(t1);
+  store.link(t4);
+  tick(60_000);
+  store.link(t2);
+  tick(MAC_OFFLINE_MS - 60_000);
+  assert.deepEqual(reach(), [r1, r2, r4].sort(), "r1 and r4 were seen 180000 ms ago, r2 120000 ms ago; r3 never");
+  store.revokeLink(b, store.repos(b.id).find((r) => r.id === r1).links[0].id);
+  assert.deepEqual(reach(), [r2, r4].sort(), "only a live link counts, however fresh");
+  tick(1);
+  assert.deepEqual(reach(), [r2], "r4 was seen 180001 ms ago");
+  assert.deepEqual([...store.reachableRepos(admin.id)], []);
+
+  store.macHeartbeat(auth, "locked", null);
+  assert.equal(store.macBadge(b.id).state, "locked");
+  assert.deepEqual(reach(), [], "the newest Mac reports locked: it takes no work");
+  store.macHeartbeat(auth, "idle", null);
+  assert.deepEqual(reach(), [r2]);
+  store.macHeartbeat(auth, "locked", null);
+  tick(MAC_OFFLINE_MS + 1);
+  store.link(t2);
+  assert.equal(store.macBadge(b.id).state, "off");
+  assert.deepEqual(reach(), [r2], "an off Mac's last word is not read; the link's own use is");
+});
+
 test("an old hub.sqlite gains hub_macs.until", () => {
   const dir = mkdtempSync(join(tmpdir(), "hub-old-until-"));
   try {

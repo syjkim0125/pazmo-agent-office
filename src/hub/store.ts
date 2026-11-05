@@ -1044,18 +1044,35 @@ export class HubStore {
     if (hit) return { kind: hit[2] as MacWait["kind"], runners: hit[1].split(", "), until, detail };
     return { kind: detail === "not_ready" ? "not_ready" : "other", runners: [], until, detail };
   }
-  /** Repos the member's links reach right now, by the same rule as link(): active member, still an owner, link not revoked, minting Mac (if any) alive. */
+  /** The member's links that link() would accept now: active member, still an owner, link not revoked, minting Mac (if any) alive. */
+  #liveLinks(memberId: string): { repo_id: string; last_seen: number | null }[] {
+    return this.#all<{ repo_id: string; last_seen: number | null }>(
+      `SELECT l.repo_id,l.last_seen FROM hub_links l
+       JOIN hub_members m ON m.id=l.member_id
+       JOIN hub_repo_owners o ON o.repo_id=l.repo_id AND o.member_id=l.member_id
+       LEFT JOIN hub_macs k ON k.id=l.mac_id
+       WHERE l.member_id=? AND l.revoked_at IS NULL AND m.revoked_at IS NULL
+         AND (l.mac_id IS NULL OR (k.id IS NOT NULL AND k.revoked_at IS NULL))`,
+      memberId,
+    );
+  }
+  /** Repos the member's links reach right now, by the same rule as link(). */
   liveLinkRepos(memberId: string): Set<string> {
+    return new Set(this.#liveLinks(memberId).map((r) => r.repo_id));
+  }
+  /**
+   * Repos whose work the member's Office is taking now: a live link it used within MAC_OFFLINE_MS. link() stamps
+   * `last_seen` on every call, and a running team Office reads the inbox of every ready lane each claim tick while
+   * it holds no record, and its failed record's Task each beat; a lane that is not ready, a link held on another
+   * machine and an off Office stamp nothing. None while the member's newest Mac reports locked (it runs no Task).
+   */
+  reachableRepos(memberId: string): Set<string> {
+    if (this.macBadge(memberId).state === "locked") return new Set();
+    const now = this.#now();
     return new Set(
-      this.#all<{ repo_id: string }>(
-        `SELECT l.repo_id FROM hub_links l
-         JOIN hub_members m ON m.id=l.member_id
-         JOIN hub_repo_owners o ON o.repo_id=l.repo_id AND o.member_id=l.member_id
-         LEFT JOIN hub_macs k ON k.id=l.mac_id
-         WHERE l.member_id=? AND l.revoked_at IS NULL AND m.revoked_at IS NULL
-           AND (l.mac_id IS NULL OR (k.id IS NOT NULL AND k.revoked_at IS NULL))`,
-        memberId,
-      ).map((r) => r.repo_id),
+      this.#liveLinks(memberId)
+        .filter((r) => r.last_seen !== null && now - r.last_seen <= MAC_OFFLINE_MS)
+        .map((r) => r.repo_id),
     );
   }
   /** The newest live Mac's state, for the member's header. */

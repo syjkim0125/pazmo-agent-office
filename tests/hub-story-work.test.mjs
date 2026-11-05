@@ -2,13 +2,14 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { setup, opened } from "./hub-story-fixture.mjs";
+import { MAC_OFFLINE_MS } from "../src/hub/store.ts";
 
 const STATUS = { NOT_FOUND: 404, FORBIDDEN: 403, STATE: 409, NOT_LINKED: 409, BUSY: 409, INVALID: 400, NOT_YOURS: 409 };
 const MSG = {
   notFound: "Task를 찾을 수 없습니다.",
   pickState: "지금 받을 수 있는 Task가 아닙니다. 화면을 새로 고쳐 상태를 확인하세요.",
   pickForbidden: "이 레포의 담당자만 받을 수 있습니다.",
-  notLinked: "이 레포는 아직 내 Mac에 연결되지 않았습니다. 내 Mac 화면에서 연결 상태를 확인하세요.",
+  notLinked: "내 Mac이 지금 이 레포의 일을 가져갈 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.",
   busy: "이미 맡은 Task가 있습니다. 그 Task가 끝나거나 PL이 풀어 준 뒤 고르세요.",
   rerunForbidden: "내가 맡은 Task만 다시 시도할 수 있습니다.",
   rerunVerify: "Story 검증은 PL의 Office가 다시 합니다.",
@@ -202,7 +203,7 @@ test("rerunTask by the assignee turns the failed work Task claimed under a new c
   const t = board.claimNext(l);
   board.reportFailed(l, t.taskId, t.claimId, "검증 실패: npm test");
   const now = tick(700_000); // a failed Task is not held, whatever its old heartbeat
-  assert.deepEqual(board.rerunTask(c, t.taskId, "  타입 오류부터 고쳐 \n"), { ok: true });
+  assert.deepEqual(board.rerunTask(c, t.taskId, "  타입 오류부터 고쳐 \n", new Set([be])), { ok: true });
   const mine = board.inbox(l).mine;
   assert.deepEqual(mine, { taskId: t.taskId, claimId: mine.claimId, storyId: pub.storyId, state: "claimed" });
   assert.notEqual(mine.claimId, t.claimId);
@@ -216,7 +217,7 @@ test("rerunTask by the assignee turns the failed work Task claimed under a new c
   assert.deepEqual(events(db, t.taskId, "rerun"), [{ member_id: c.id, detail: "타입 오류부터 고쳐" }]);
   // An empty memo is stored as none.
   board.reportFailed(l, t.taskId, mine.claimId, "또 실패");
-  board.rerunTask(c, t.taskId, "   ");
+  board.rerunTask(c, t.taskId, "   ", new Set([be]));
   const again = board.inbox(l).mine;
   assert.deepEqual(board.taskForClaim(l, t.taskId, again.claimId).lastFailure, { reason: "또 실패", memo: null });
   assert.deepEqual(events(db, t.taskId, "rerun").at(-1), { member_id: c.id, detail: null });
@@ -227,19 +228,19 @@ test("rerunTask: another member FORBIDDEN, a Task that is not failed STATE, a 20
     const { db, board, pl, b, c, be, linkOf, pub } = opened();
     const l = linkOf(c, be);
     const t = board.claimNext(l);
-    assert.throws(() => board.rerunTask(c, t.taskId, ""), is("STATE")); // claimed, not failed
-    assert.throws(() => board.rerunTask(c, idOf(pub, "copy"), ""), is("FORBIDDEN", MSG.rerunForbidden)); // ready, nobody's
+    assert.throws(() => board.rerunTask(c, t.taskId, "", new Set([be])), is("STATE")); // claimed, not failed
+    assert.throws(() => board.rerunTask(c, idOf(pub, "copy"), "", new Set([be])), is("FORBIDDEN", MSG.rerunForbidden)); // ready, nobody's
     board.reportFailed(l, t.taskId, t.claimId, "실패");
     const before = rows(db);
-    assert.throws(() => board.rerunTask(c, randomUUID(), ""), is("NOT_FOUND", MSG.notFound));
-    for (const m of [b, pl]) assert.throws(() => board.rerunTask(m, t.taskId, ""), is("FORBIDDEN", MSG.rerunForbidden)); // the PL too
-    assert.throws(() => board.rerunTask(c, t.taskId, "x".repeat(2001)), is("INVALID"));
-    assert.throws(() => board.rerunTask(c, t.taskId, 42), is("INVALID"));
+    assert.throws(() => board.rerunTask(c, randomUUID(), "", new Set([be])), is("NOT_FOUND", MSG.notFound));
+    for (const m of [b, pl]) assert.throws(() => board.rerunTask(m, t.taskId, "", new Set([be])), is("FORBIDDEN", MSG.rerunForbidden)); // the PL too
+    assert.throws(() => board.rerunTask(c, t.taskId, "x".repeat(2001), new Set([be])), is("INVALID"));
+    assert.throws(() => board.rerunTask(c, t.taskId, 42, new Set([be])), is("INVALID"));
     assert.deepEqual(rows(db), before);
     assert.deepEqual(events(db, t.taskId, "rerun"), []);
-    board.rerunTask(c, t.taskId, "x".repeat(2000));
+    board.rerunTask(c, t.taskId, "x".repeat(2000), new Set([be]));
     const after = rows(db);
-    assert.throws(() => board.rerunTask(c, t.taskId, "다시"), is("STATE")); // a double click
+    assert.throws(() => board.rerunTask(c, t.taskId, "다시", new Set([be])), is("STATE")); // a double click
     assert.deepEqual(rows(db), after);
     assert.equal(events(db, t.taskId, "rerun").length, 1);
   }
@@ -251,7 +252,7 @@ test("rerunTask: another member FORBIDDEN, a Task that is not failed STATE, a 20
     const v = board.claimVerify(plBe, pub.storyId);
     board.reportVerify(plBe, v.taskId, v.claimId, { passed: false, summary: "be V1 실패" });
     const before = rows(db);
-    for (const m of [pl, b]) assert.throws(() => board.rerunTask(m, v.taskId, ""), is("STATE", MSG.rerunVerify));
+    for (const m of [pl, b]) assert.throws(() => board.rerunTask(m, v.taskId, "", new Set()), is("STATE", MSG.rerunVerify));
     assert.deepEqual(rows(db), before);
   }
 });
@@ -264,10 +265,10 @@ test("the link rerun still works and a web rerun after it is STATE", () => {
   const r = board.rerun(l, t.taskId, " 로컬 메모 ");
   assert.notEqual(r.claimId, t.claimId);
   assert.deepEqual(r.lastFailure, { reason: "실패", memo: "로컬 메모" });
-  assert.throws(() => board.rerunTask(c, t.taskId, "웹"), is("STATE"));
+  assert.throws(() => board.rerunTask(c, t.taskId, "웹", new Set([be])), is("STATE"));
   // And the other way round: the local rerun after a web rerun is STATE.
   board.reportFailed(l, t.taskId, r.claimId, "실패 2");
-  board.rerunTask(c, t.taskId, "웹 메모");
+  board.rerunTask(c, t.taskId, "웹 메모", new Set([be]));
   assert.throws(() => board.rerun(l, t.taskId, "로컬"), is("STATE"));
   // The link keeps its own codes: another member is NOT_YOURS, a long memo INVALID.
   const mine = board.inbox(l).mine;
@@ -276,6 +277,40 @@ test("the link rerun still works and a web rerun after it is STATE", () => {
   assert.throws(() => board.rerun(l, t.taskId, "x".repeat(2001)), is("INVALID"));
   assert.equal(row(db, t.taskId).state, "failed");
   assert.deepEqual(events(db, t.taskId, "rerun").map((e) => e.detail), ["로컬 메모", "웹 메모"]);
+});
+
+test("pickTask is NOT_LINKED for a stale link; rerunTask is NOT_LINKED for a repo outside linked and changes nothing; taskActions.rerun says not-linked", () => {
+  const { db, store, board, b, c, be, fe, tokenOf, pub, tick } = opened();
+  const copy = idOf(pub, "copy");
+  board.setAutoWork(c, false);
+  const token = tokenOf(c, be);
+  const l = store.link(token); // C's Office reads its be inbox
+  assert.deepEqual([...store.reachableRepos(c.id)], [be]);
+  tick(MAC_OFFLINE_MS + 1); // and then goes quiet
+  assert.deepEqual([...store.liveLinkRepos(c.id)], [be], "the link itself is still live");
+  let before = rows(db);
+  assert.throws(() => board.pickTask(c, copy, store.reachableRepos(c.id)), is("NOT_LINKED", MSG.notLinked));
+  assert.deepEqual(rows(db), before);
+  assert.deepEqual(board.memberWork(c.id, store.reachableRepos(c.id)).ready.map((x) => x.pick), ["not-linked", "not-linked"]);
+  assert.equal(board.taskActions(c, copy, store.reachableRepos(c.id)).pick, "not-linked");
+  store.link(token); // heard from again
+  assert.deepEqual(board.pickTask(c, copy, store.reachableRepos(c.id)), { ok: true });
+
+  const mine = board.inbox(l).mine;
+  board.reportFailed(l, copy, mine.claimId, "실패");
+  before = rows(db);
+  assert.throws(() => board.rerunTask(c, copy, "메모", new Set()), is("NOT_LINKED", MSG.notLinked));
+  assert.throws(() => board.rerunTask(c, copy, "메모", new Set([fe])), is("NOT_LINKED", MSG.notLinked));
+  assert.throws(() => board.rerunTask(c, copy, "x".repeat(2001), new Set()), is("NOT_LINKED"), "judged before the memo");
+  assert.deepEqual(rows(db), before);
+  assert.deepEqual(events(db, copy, "rerun"), []);
+  assert.equal(board.taskActions(c, copy, new Set()).rerun, "not-linked");
+  assert.equal(board.taskActions(c, copy, new Set([be])).rerun, "yes");
+  assert.equal(board.taskActions(b, copy, new Set([be, fe])).rerun, "no", "not the assignee");
+  // The link rerun takes no such set: the Office that calls it holds the link.
+  tick(MAC_OFFLINE_MS + 1);
+  assert.deepEqual([...store.reachableRepos(c.id)], []);
+  assert.notEqual(board.rerun(l, copy, "로컬").claimId, mine.claimId);
 });
 
 test("memberWork: open is the member's claimed or failed Task; ready lists ready work Tasks of open Stories in the member's repos in claim order (at most 50); led lists held and failed Tasks of the member's Stories; done lists the member's merged Tasks newest first (at most 20)", () => {
@@ -400,7 +435,7 @@ test("taskActions: rerun for the assignee of a failed work Task; release for the
   const ctx = opened();
   const { board, admin, pl, b, c, be, fe, linkOf, plBe, pub, tick } = ctx;
   const api = idOf(pub, "api"), copy = idOf(pub, "copy"), ui = idOf(pub, "ui"), verify = verifyOf(pub);
-  const none = { pick: "no", rerun: false, release: false, cancel: false };
+  const none = { pick: "no", rerun: "no", release: false, cancel: false };
   const acts = (m, id, linked = new Set()) => board.taskActions(m, id, linked);
   // Ready: the owner may pick; the PL and an admin may cancel (both also own be, without a be link here).
   assert.deepEqual(acts(c, api, new Set([be])), { ...none, pick: "auto-on" });
@@ -418,7 +453,7 @@ test("taskActions: rerun for the assignee of a failed work Task; release for the
   assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: true }); // held
   assert.deepEqual(acts(c, api, new Set([be])), none); // held is not failed: no rerun
   board.reportFailed(l, t.taskId, t.claimId, "실패");
-  assert.deepEqual(acts(c, api, new Set([be])), { ...none, rerun: true });
+  assert.deepEqual(acts(c, api, new Set([be])), { ...none, rerun: "yes" });
   assert.deepEqual(acts(pl, api), { ...none, release: true, cancel: true });
   assert.deepEqual(acts(admin, api), { ...none, release: true, cancel: true });
   assert.deepEqual(acts(b, api), none);

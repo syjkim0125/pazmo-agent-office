@@ -16,7 +16,9 @@ const PUBLIC = "https://pazmo-hub.apps.example.com";
 const SHA = "c0ffee".padEnd(40, "0");
 const PR = "https://github.example.com/team/app-be/pull/7";
 const OFF_PILL = '<a class="pill" href="/">자동으로 일하기 꺼짐</a>';
-const NOT_LINKED = "이 레포는 아직 내 Mac에 연결되지 않았습니다";
+const NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져가지 않고 있습니다(꺼짐·잠김·연결 문제).";
+const NOT_LINKED_ERROR = "내 Mac이 지금 이 레포의 일을 가져갈 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
+const RERUN_NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
 const NUDGE = "이 Mac 연결 — 처음 한 번, 명령 한 줄";
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
 const pill = (word) => `<span class="pill">${word}</span>`;
@@ -186,7 +188,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(!task.includes("자동으로 일하기가 켜져 있어"));
   assert.ok(!(await h.get(`/tasks/${s.ui}`, h.c)).text.includes("/pick"), "ui is waiting in someone else's repo");
 
-  h.board.pickTask(h.c.member, s.copy, h.store.liveLinkRepos(h.c.member.id));
+  h.board.pickTask(h.c.member, s.copy, h.store.reachableRepos(h.c.member.id));
   home = (await h.get("/", h.c)).text;
   assert.ok(!home.includes("/pick"), "C holds copy now");
   assert.ok(home.includes(`href="/tasks/${s.api}"`), "api is still listed as ready");
@@ -308,7 +310,7 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
     assert.ok(home.includes(plain), `home: ${reason}`);
     assert.ok(home.includes(`<a href="/tasks/${s.api}">자세히·다시 시도</a>`));
     assert.ok((await h.get("/", h.pl)).text.includes(plain), "the PL's stuck list says it too");
-    h.board.rerunTask(h.c.member, s.api, "");
+    h.board.rerunTask(h.c.member, s.api, "", h.store.reachableRepos(h.c.member.id));
     claimId = h.claimOf(cBe);
   }
 });
@@ -392,7 +394,7 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   const cBe = h.linkOf(h.c, h.be);
   const api = h.board.claimNext(cBe);
   h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
-  h.board.rerunTask(h.c.member, s.api, "범위를 줄여 주세요");
+  h.board.rerunTask(h.c.member, s.api, "범위를 줄여 주세요", h.store.reachableRepos(h.c.member.id));
   h.board.reportFailed(cBe, s.api, h.claimOf(cBe), "tests failed again");
   const rerun = `<form method="post" action="/tasks/${s.api}/rerun"><input type="hidden" name="csrf" value="${h.c.csrf}"><label>메모 <span class="muted">(선택, 2000자까지)</span><textarea name="memo" rows="3" maxlength="2000"></textarea></label><div class="row"><button>다시 시도</button></div></form>`;
   const releaseLine = "풀면 이 Task는 다시 '할 일'이 되고 누구든 처음부터 다시 받습니다.".replaceAll("'", "&#39;");
@@ -433,7 +435,7 @@ test("untrusted text is escaped on the work, board, Story and Task pages", async
   h.board.reportMerged(cBe, api.taskId, api.claimId, merged({ summary: `요약 ${EVIL}`, assumptions: [`ASSUMED: ${EVIL}`, `판단 ${EVIL}`] }));
   const copy = h.board.claimNext(cBe);
   h.board.reportFailed(cBe, copy.taskId, copy.claimId, `RUNNER_LIMIT ${EVIL}`);
-  h.board.rerunTask(h.c.member, s.copy, `메모 ${EVIL}`);
+  h.board.rerunTask(h.c.member, s.copy, `메모 ${EVIL}`, h.store.reachableRepos(h.c.member.id));
   h.board.reportFailed(cBe, s.copy, h.claimOf(cBe), `conflict ${EVIL}`);
   const pages = [["/", h.c], ["/", h.pl], ["/board", h.b], [`/stories/${s.storyId}`, h.b], [`/tasks/${s.api}`, h.b], [`/tasks/${s.copy}`, h.c], [`/tasks/${s.ui}`, h.pl]];
   for (const [path, who] of pages) {
@@ -544,7 +546,7 @@ test("작업하기 without a live link is a NOT_LINKED page and changes nothing"
   await post(h, h.c, "/me/auto-work", { on: "0" });
   const res = await post(h, h.c, `/tasks/${s.api}/pick`);
   assert.equal(res.status, 409);
-  assert.ok(res.text.includes(NOT_LINKED));
+  assert.ok(res.text.includes(NOT_LINKED_ERROR));
   assert.ok((await taskPage(h, h.pl, s.api)).includes("할 일"));
   assert.equal(h.board.claimNext(s.plBe).taskId, s.api, "still ready for anyone else");
 });
@@ -564,6 +566,24 @@ test("다시 시도 from the web reruns the failed Task with the memo; a second 
   const second = await post(h, h.c, `/tasks/${s.api}/rerun`, { memo: "again" });
   assert.equal(second.status, 409);
   assert.ok((await taskPage(h, h.c, s.api)).includes("<pre>범위를 줄여 주세요</pre>"), "the memo is unchanged");
+});
+
+test("a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page", async (t) => {
+  let skew = 0;
+  const h = await team(t, { storeNow: () => Date.now() + skew });
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be);
+  const api = h.board.claimNext(cBe);
+  h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
+  assert.ok((await taskPage(h, h.c, s.api)).includes(`<form method="post" action="/tasks/${s.api}/rerun">`), "the Office used the link lately");
+  skew = MAC_OFFLINE_MS + 1000; // and has not since
+  const page = await taskPage(h, h.c, s.api);
+  assert.ok(page.includes(`<p><a href="/mac">${RERUN_NOT_LINKED}</a></p>`));
+  assert.ok(!page.includes("/rerun"), "no form");
+  const res = await post(h, h.c, `/tasks/${s.api}/rerun`, { memo: "다시" });
+  assert.equal(res.status, 409);
+  assert.ok(res.text.includes(NOT_LINKED_ERROR));
+  assert.ok((await taskPage(h, h.pl, s.api)).includes("멈춤(실패)"), "nothing changed");
 });
 
 test("풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays", async (t) => {

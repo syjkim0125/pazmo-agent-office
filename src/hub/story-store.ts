@@ -117,7 +117,7 @@ export type OpenTaskRef = {
 export type Actor = { member: Member };
 /**
  * Whether the member may pick a Task on the web now. `no`: not a ready work Task of an open Story in the member's
- * repo; `not-linked`: no live link to that repo; `busy`: the member holds an open Task; `auto-on`: automatic work
+ * repo; `not-linked`: the member's Office is not taking that repo now; `busy`: the member holds an open Task; `auto-on`: automatic work
  * gives it anyway, so the screen shows no button.
  */
 export type PickState = "yes" | "auto-on" | "not-linked" | "busy" | "no";
@@ -139,8 +139,10 @@ export type WorkCard = {
   pick: PickState;
 };
 export type MemberWork = { autoWork: boolean; open: WorkCard | null; ready: WorkCard[]; led: WorkCard[]; done: WorkCard[] };
+/** Whether the member may rerun a Task on the web now: `not-linked` is the assignee of a failed work Task whose repo their Mac is not taking now. */
+export type RerunState = "yes" | "not-linked" | "no";
 /** Which buttons the web shows for one Task, by the same rules the actions check. */
-export type TaskActions = { pick: PickState; rerun: boolean; release: boolean; cancel: boolean };
+export type TaskActions = { pick: PickState; rerun: RerunState; release: boolean; cancel: boolean };
 export type StoryInbox = {
   mine: { taskId: string; claimId: string; storyId: string; state: "claimed" | "failed" } | null;
   alerts: { taskId: string; storyId: string; number: number; state: "held" | "failed" }[];
@@ -198,14 +200,24 @@ type CardRow = TaskRow & { story_number: number; story_title: string; repo_name:
 const CARD_SELECT = `SELECT t.*,s.number story_number,s.title story_title,r.name repo_name,m.name assignee_name
   FROM hub_story_tasks t JOIN hub_stories s ON s.id=t.story_id
   LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by`;
+/** A web pick or rerun in a repo the member's Office is not taking now (off, locked, the lane not ready, no link here). */
+const NOT_LINKED_MESSAGE = "내 Mac이 지금 이 레포의 일을 가져갈 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
 /** Why a web pick is refused, in the order the checks run, with the status and message the web shows. */
 const PICK_REFUSALS = {
   STATE: [409, "지금 받을 수 있는 Task가 아닙니다. 화면을 새로 고쳐 상태를 확인하세요."],
   FORBIDDEN: [403, "이 레포의 담당자만 받을 수 있습니다."],
-  NOT_LINKED: [409, "이 레포는 아직 내 Mac에 연결되지 않았습니다. 내 Mac 화면에서 연결 상태를 확인하세요."],
+  NOT_LINKED: [409, NOT_LINKED_MESSAGE],
   BUSY: [409, "이미 맡은 Task가 있습니다. 그 Task가 끝나거나 PL이 풀어 준 뒤 고르세요."],
 } as const;
 type PickBlock = keyof typeof PICK_REFUSALS;
+/** Why a web rerun is refused, in the order the checks run, with the code, status and message the web shows. */
+const RERUN_REFUSALS = {
+  VERIFY: ["STATE", 409, "Story 검증은 PL의 Office가 다시 합니다."],
+  FORBIDDEN: ["FORBIDDEN", 403, "내가 맡은 Task만 다시 시도할 수 있습니다."],
+  STATE: ["STATE", 409, "실패한 Task만 다시 실행할 수 있습니다."],
+  NOT_LINKED: ["NOT_LINKED", 409, NOT_LINKED_MESSAGE],
+} as const;
+type RerunBlock = keyof typeof RERUN_REFUSALS;
 
 const KEY_MAX = 100;
 /** The web's lists: ready Tasks in claim order, and the member's latest merges. */
@@ -799,14 +811,34 @@ export class StoryBoard {
     });
   }
   /**
+   * Why the member cannot rerun this Task on the web now, in check order; null when they can. `linked` is the repos
+   * the member's Office is taking now (the caller decides); the memo is checked after, by the shared rule.
+   */
+  #rerunBlock(memberId: string, t: TaskRow, linked: ReadonlySet<string>): RerunBlock | null {
+    if (t.kind !== "work") return "VERIFY";
+    if (t.claimed_by !== memberId) return "FORBIDDEN";
+    if (t.state !== "failed") return "STATE";
+    if (!linked.has(t.repo_id as string)) return "NOT_LINKED";
+    return null;
+  }
+  /** The rerun button by the rule `rerunTask` refuses with. */
+  #rerunState(memberId: string, t: TaskRow, linked: ReadonlySet<string>): RerunState {
+    const block = this.#rerunBlock(memberId, t, linked);
+    return block === null ? "yes" : block === "NOT_LINKED" ? "not-linked" : "no";
+  }
+  /**
    * The web's rerun by the assignee. The Office holding the failed run drops it when its next Task read is
    * NOT_YOURS, and takes the new claim on its next recovery. The Story verification is rerun by the PL's Office.
+   * A repo the member's Office is not taking now is refused (NOT_LINKED): nobody would run the new claim.
    */
-  rerunTask(member: Member, taskId: string, memo: string): { ok: true } {
+  rerunTask(member: Member, taskId: string, memo: string, linked: ReadonlySet<string>): { ok: true } {
     return transaction(this.#db, () => {
       const t = this.#found(taskId);
-      if (t.kind !== "work") fail("STATE", 409, "Story 검증은 PL의 Office가 다시 합니다.");
-      if (t.claimed_by !== member.id) fail("FORBIDDEN", 403, "내가 맡은 Task만 다시 시도할 수 있습니다.");
+      const block = this.#rerunBlock(member.id, t, linked);
+      if (block) {
+        const [code, status, message] = RERUN_REFUSALS[block];
+        fail(code, status, message);
+      }
       this.#rerun(member.id, t, memo);
       return { ok: true as const };
     });
@@ -1153,7 +1185,8 @@ export class StoryBoard {
   }
   /**
    * Why the member cannot pick this Task on the web now, in check order; null when they can. `linked` is the
-   * repos the member has a live link to (the caller decides liveness). The automatic-work switch is not a reason.
+   * repos the member's Office is taking now (the caller decides: `HubStore.reachableRepos`). The automatic-work
+   * switch is not a reason.
    */
   #pickBlock(memberId: string, t: TaskRow, linked: ReadonlySet<string>): PickBlock | null {
     if (t.kind !== "work" || t.state !== "ready" || this.#story(t.story_id).state !== "open") return "STATE";
@@ -1200,7 +1233,7 @@ export class StoryBoard {
     const lead = this.#plOrAdmin({ member }, this.#story(t.story_id));
     return {
       pick: this.#pickState(member.id, t, linked),
-      rerun: t.kind === "work" && t.state === "failed" && t.claimed_by === member.id,
+      rerun: this.#rerunState(member.id, t, linked),
       release: lead && stuck(this.#viewState(t)),
       cancel: lead && t.kind === "work" && !ENDED.includes(t.state),
     };

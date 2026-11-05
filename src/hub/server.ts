@@ -167,7 +167,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           actor = { member: me };
         if (path === "/") {
           const ch = chrome();
-          const work = board.memberWork(me.id, c.store.liveLinkRepos(me.id));
+          const work = board.memberWork(me.id, c.store.reachableRepos(me.id));
           const o = { macNudge: install !== null && ch.mac?.state === "none", wait: c.store.macWait(me.id) };
           return html(res, 200, storyPages.home(me, s.csrf, work, o, ch));
         }
@@ -180,7 +180,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           const d = board.taskDetail(actor, m[1]);
           const who = d.task.assignee?.id ?? null;
           const o = {
-            actions: board.taskActions(me, m[1], c.store.liveLinkRepos(me.id)),
+            actions: board.taskActions(me, m[1], c.store.reachableRepos(me.id)),
             wait: who === null ? null : c.store.macWait(who),
             assigneeMac: who === null ? null : c.store.macBadge(who),
           };
@@ -293,8 +293,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       }
       if ((m = new RegExp(`^/tasks/${ID}/(pick|rerun|release|cancel)$`).exec(path))) {
         const [, id, action] = m;
-        if (action === "pick") board.pickTask(me, id, c.store.liveLinkRepos(me.id));
-        else if (action === "rerun") board.rerunTask(me, id, f("memo"));
+        if (action === "pick") board.pickTask(me, id, c.store.reachableRepos(me.id));
+        else if (action === "rerun") board.rerunTask(me, id, f("memo"), c.store.reachableRepos(me.id));
         else if (action === "release") board.releaseTask({ member: me }, id);
         else {
           // Cancelling cannot be undone, so the form must carry the box.
