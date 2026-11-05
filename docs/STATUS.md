@@ -1,6 +1,6 @@
 # 2026-11-04 브라우저 팀 흐름 묶음 1: 팀원이 한 줄과 웹 허용 한 번으로 이 Mac을 연결한다 (U36, D41·V19)
 
-- D41(G3·G1 2026-11-04)의 네 묶음 중 첫째다. 계획은 [2026-11-04-1500-feat-mac-connect-plan.md](plans/2026-11-04-1500-feat-mac-connect-plan.md), kit 실행은 `.ai-workflow/runs/U36-mac-connect.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 더하기만 했다. 프로토콜 1·2·3, `/api/link/*`, 연결 문자열, `hub-link`, `team add|remove`, `start --team`은 그대로다.
+- D41(G3·G1 2026-11-04)의 네 묶음 중 첫째다. 계획은 [2026-11-04-1500-feat-mac-connect-plan.md](plans/2026-11-04-1500-feat-mac-connect-plan.md), kit 실행은 `.ai-workflow/runs/U36-mac-connect.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 더하기만 했다. 예외 하나: 마지막 리뷰가 찾은 결함을 고치느라 모든 엔진이 함께 쓰는 `status`·`stop`·`start`가 바뀌었다(프로세스가 없거나 다른 부팅에서 남은 실행 상태와 시작 잠금을 정리하고, 시작 중 SIGTERM·SIGINT에서 띄운 서비스를 멈추고 잠금을 지운다). 프로토콜 1·2·3, `/api/link/*`, 연결 문자열, `hub-link`, `team add|remove`, `start --team`은 그대로다.
 - 범위(OpenShift 허브, Apple Silicon Mac):
   - **허브:** 기기 코드로 Mac을 사람 단위로 연결한다(`/api/mac/*`, 프로토콜 4, 코드는 10분·한 번·해시만). 한 사람에 Mac 하나이고, Mac을 해제하면 그 Mac이 받은 repo 연결도 멈춘다. 요청 제한기를 새로 두었다.
   - **허브 웹·설치기:** `/mac`(설치 한 줄과 내 Mac 표), 허용 화면, 머리글 "내 Mac" 상태, 첫 방문 안내, `GET /install.sh`.
@@ -17,11 +17,11 @@
   - `NODE_EXTRA_CA_CERTS`(절대 경로일 때만)가 팀 서비스와 스스로 다시 켜기의 환경에도 들어간다.
   - 스스로 다시 켜기는 `brew upgrade`가 지운 node 대신 Homebrew의 안정 경로 node를 쓰고, 다시 켜도 맞추지 못한 같은 변경은 한 시간에 한 번만 다시 켠다.
   - 설치기의 마지막 단계(`mac connect`)도 `run_step`을 거친다.
-- **마지막 리뷰(2026-11-05, 리뷰어 셋: 전체·비밀과 Hub 동시성·Office 수명주기):** Critical 1, Important 5를 머지 전에 고쳤다(`b30224c`–`6024932`, 13커밋). 자세한 것은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "마지막 리뷰 뒤 고친 것"이다.
-  - 재부팅·강제 종료 뒤 남은 `running.json` 때문에 로그인 때 Office가 켜지지 않던 것(모든 엔진에 있던 결함)을 고쳤다. 프로세스가 없는 상태는 정리하고, 멈추는 서비스는 자기 상태를 지운다.
-  - `mac connect` 재실행은 허브가 401일 때만 다시 짝짓는다. 다시 켜기는 실행기가 준비되지 않았으면 하지 않고, 멈추기 전에 확인하며, LaunchAgent가 30분마다 다시 시도한다. 이미 로드된 같은 자동 실행은 내리지 않는다.
-  - 연결 문자열로 만든 연결이 Mac 연결을 이긴다(허브 409 `LINKED_ELSEWHERE`). Mac 연결은 `/mac`에서 Mac을 해제할 때만 끝난다.
-- 자동 검사(마지막 리뷰 뒤 수정까지, 2026-11-05): 전체 `npm test` **1541/1541**(실패 0, 114초), `npm run typecheck` exit 0, Story 검사 exit 0. main을 합친 직후(수정 전)는 1512/1512였다. Task별 시험은 그 Task의 시험 묶음 21/21, 19/19, 22/22, 17/17, 27/27, 18/18, 23/23, 56/56, 59/59였다. 수정의 재리뷰와 kit 검증(시험 세 조각)은 kit 실행 기록 `U36-review-2`·`U36-verify-1`에 남고, G4 뒤 이 항목에 결과 줄을 더한다.
+- **마지막 리뷰(2026-11-05, 리뷰어 셋: 전체·비밀과 Hub 동시성·Office 수명주기):** Critical 1, Important 5를 머지 전에 고쳤다(`b30224c`–`6024932`, 13커밋). 수정을 다시 본 리뷰어 둘(수정 전체, 실행 상태·잠금)의 Important 1과 작은 것들도 고쳤다(`f71903d`–`9fc54f5`, 5커밋). 자세한 것은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "마지막 리뷰 뒤 고친 것"이다.
+  - 재부팅·강제 종료 뒤 남은 `running.json` 때문에 로그인 때 Office가 켜지지 않던 것(모든 엔진에 있던 결함)을 고쳤다. 프로세스가 없거나 다른 부팅에서 남은 상태와 시작 잠금은 정리하고(부팅 세션 id), 멈추기 시작하는 서비스는 자기 상태를 지운다.
+  - `mac connect` 재실행은 허브가 401일 때만 다시 짝짓는다. 다시 켜기는 실행기가 준비되지 않았으면 하지 않고, 멈추기 전에 확인하며, LaunchAgent가 30분마다 다시 시도한다. 이미 로드된 같은 자동 실행은 내리지 않는다. 전체 맞추기는 한 번에 하나만 돈다.
+  - 연결 문자열로 만든 살아 있는 연결이 Mac 연결을 이긴다(허브 409 `LINKED_ELSEWHERE`). Mac 연결은 `/repos`에서 하나씩 해제할 수 없다. Mac 연결은 그 Mac을 해제할 때(`/mac`, 관리자는 팀원·초대 화면), 그 사람을 담당자에서 빼거나 팀원에서 해제할 때, 새 Mac을 허용할 때, 그리고 그 사람이 같은 repo를 다른 곳에서 연결 문자열로 연결할 때 끝난다. 마지막 경우 Mac은 그 연결이 해제될 때까지 다시 연결하지 않는다. 그래서 Mac에서 Task가 도는 중에 같은 repo를 `hub-link`로 연결하면 그 Task는 멈춤으로 보이고 PL이 풀어 줘야 한다.
+- 자동 검사(마지막 리뷰 뒤 2차 수정까지, 2026-11-05): 전체 `npm test` **1556/1556**(실패 0, 109초), `npm run typecheck` exit 0, Story 검사 exit 0. main을 합친 직후(수정 전)는 1512/1512, 1차 수정 뒤는 1541/1541이었다. Task별 시험은 그 Task의 시험 묶음 21/21, 19/19, 22/22, 17/17, 27/27, 18/18, 23/23, 56/56, 59/59였다. 마지막 재리뷰와 kit 검증(시험 세 조각)은 kit 실행 기록 `U36-review-3`·`U36-verify-1`에 남고, G4 뒤 이 항목에 결과 줄을 더한다.
 - **남은 것:**
   - **실제 확인 전부.** 자동 시험만 마쳤다. 그래서 팀원에게 쓰라고 안내하지 않는다. 이번 묶음의 확인은 로컬 LAN 허브와 `NODE_EXTRA_CA_CERTS`로 `mac connect`, 실제 `launchctl`과 재로그인·재부팅 뒤 자동 실행, 상태 다섯 가지, 해제, 담당자 추가 뒤 5분 안에 스스로 다시 켜기, 마지막 리뷰가 더한 확인이다. 사내 OpenShift 허브와 두 사람의 Mac으로 깨끗한 Mac에서 설치 한 줄을 하는 것은 네 묶음 뒤 중간점검이다. 계획은 [검증 기록](verification/2026-11-04-mac-connect.md)의 "실제 확인 계획"이다.
   - 묶음 2(팀원 웹: 내 할 일·보드·Task 상세·자동으로 일하기·작업하기·다시 시도), 묶음 3(PL 기획), 묶음 4(Story 마무리).

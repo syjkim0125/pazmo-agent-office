@@ -60,10 +60,10 @@ Story: M16 · M4 · V19 · D41. 결정은 [hub-web-team-flow-decision.md](../und
 
 | 검사 | 결과 |
 |---|---|
-| 전체 `npm test` | main을 합친 직후 `5fff3de`: 1512/1512, exit 0(144초). 마지막 리뷰 뒤 수정까지(`6024932`): **1541/1541**, exit 0(114초) |
-| `npm run typecheck` | exit 0(`6024932`) |
+| 전체 `npm test` | main을 합친 직후 `5fff3de`: 1512/1512, exit 0(144초). 1차 수정 뒤(`6024932`): 1541/1541, exit 0(114초). 2차 수정 뒤(`9fc54f5`): **1556/1556**, exit 0(109초) |
+| `npm run typecheck` | exit 0(`6024932`, `9fc54f5`) |
 | Story 검사 `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0 |
-| 마지막 리뷰(브랜치 전체, 리뷰어 셋) | 준비 안 됨: Critical 1, Important 5 → 모두 고침(아래 "마지막 리뷰 뒤 고친 것"). 수정의 재리뷰와 kit 검증(시험 세 조각)은 kit 실행 기록 `.ai-workflow/runs/U36-review-2.md`·`U36-verify-1.md`에 남는다 |
+| 마지막 리뷰(브랜치 전체, 리뷰어 셋) | 준비 안 됨: Critical 1, Important 5 → 모두 고침(아래 "마지막 리뷰 뒤 고친 것"). 재리뷰(리뷰어 둘) 뒤 2차 수정. 마지막 재리뷰와 kit 검증(시험 세 조각)은 kit 실행 기록 `.ai-workflow/runs/U36-review-3.md`·`U36-verify-1.md`에 남는다 |
 
 Task별 리뷰와 그 시험 수는 "만든 것"에 있다. main을 합친 뒤 Story 해시는 `641f931f`이고, G1 기록은 D40·D41 두 승인을 함께 적는다. G4 기록은 kit 검증 뒤에 한다.
 
@@ -81,7 +81,9 @@ Task별 리뷰와 그 시험 수는 "만든 것"에 있다. main을 합친 뒤 S
 **사람에게 보이는 한계(리뷰가 미룬 것 중에서).** 마지막 리뷰가 다시 판정했다(아래 "마지막 리뷰 뒤 고친 것"). 남은 것만 적는다.
 
 - **허용한 사람을 터미널이 다시 묻지 않는다.** 코드를 먼저 허용한 팀원이 이 Mac을 갖는다. 터미널은 그 사람 이름을 한 줄로만 말한다. 같은 회사 사람이 10분 안에 코드를 알아내 먼저 허용해야 하는 경로라 제품 결정으로 남겼다(G4에서 묻는다).
-- **Mac이 받은 repo 연결은 repo 하나만 끊을 수 없다.** Mac을 해제하거나 담당자에서 빼야 끝난다. 관리자가 사고 때 한 사람의 Office를 repo 하나에서만 떼는 손잡이가 없어졌다.
+- **Mac이 받은 repo 연결은 `/repos`에서 repo 하나만 끊을 수 없다.** Mac 해제(`/mac`, 관리자는 `/members`), 담당자에서 빼기, 팀원 해제, 새 Mac 허용, 그리고 그 사람이 같은 repo를 다른 곳에서 연결 문자열로 연결할 때 끝난다. 관리자가 사고 때 한 사람의 Office를 repo 하나에서만 떼는 손잡이는 담당자에서 빼기뿐이다.
+- **같은 repo를 `hub-link`로 연결하면 Mac의 Task가 멈춘다.** Mac에서 Task가 도는 중에 그 사람이 같은 repo를 다른 곳에서 연결 문자열로 연결하면 Mac의 연결이 끊기고, Mac은 그 연결이 해제될 때까지 다시 연결하지 않는다(`LINKED_ELSEWHERE`). 그 Task는 멈춤으로 보이고 PL이 풀어 줘야 한다. 사람이 스스로 한 일이고 판정과 맞지만 미리 알린다.
+- **허용 화면의 Task 경고는 틀릴 수 있다.** Task는 사람 단위로 맡으므로, 연결 문자열 Office가 맡은 Task도 "이전 Mac이 맡은 Task"로 보인다.
 - **연결 문자열로 만든 예전 연결이 Mac을 막는다.** Mac 흐름 전에 연결 문자열로 같은 repo를 연결해 둔 사람은 그 연결을 `/repos`에서 해제할 때까지 Mac이 그 repo를 연결하지 않는다(로그에 이유와 방법 한 줄).
 - **`stop --team`으로 일부러 끈 Office도 30분 안에 다시 켜진다**(`StartInterval`). 계속 끄려면 `mac disconnect`다. 잠긴 개발자 Office는 30분마다 `launchd.log`에 `RUNNING` 줄이 남는다.
 - 허용 화면을 연 뒤에 허브가 닫혀 있으면 `mac connect`는 조용히 기다리다 코드가 만료되면 "코드가 만료됐습니다"로 끝난다. 중간 안내가 없다(Task 5).
@@ -106,6 +108,17 @@ Task별 리뷰와 그 시험 수는 "만든 것"에 있다. main을 합친 뒤 S
 | F3 스스로 다시 켜기 | 멈춘 뒤 `up`의 확인(실행기 로그인, colima, VM)이 실패하면 Office가 다음 로그인까지 꺼져 있었다 | live Office의 실행기가 준비되지 않았으면 다시 켜지 않고 한 줄만 말한다. `mac restart`는 멈추기 전에 실행기 로그인과 colima를 확인한다. LaunchAgent에 `StartInterval` 1800초를 더해 실패한 `up`을 30분 안에 다시 한다(켜진 Office에서 `up --team`은 상태만 보고 끝난다) | `3a972fd` |
 | F5 Mac 연결과 다른 연결 | `/repos`의 "연결 해제"로 끊은 Mac 연결을 Mac이 5분 안에 다시 받았다. 같은 repo의 연결 문자열 연결과 Mac 연결이 5분마다 서로를 끊었다 | 연결 문자열로 만든 살아 있는 연결이 이긴다: 허브는 Mac의 연결 받기를 409 `LINKED_ELSEWHERE`로 거절하고 아무것도 해제하지 않으며, Office는 이유와 방법을 한 번 말한다. Mac이 받은 연결은 `/repos`에서 "Mac: <이름>"으로 보이고 해제 단추가 없으며(서버도 409 `MAC_LINK`), `/mac`(관리자는 `/members`)에서 Mac을 해제할 때 끝난다 | `b30224c`, `2ae0f7a` |
 | F6 작은 것 | 리뷰가 고치자고 한 작은 것들 | 허용 주소는 짝짓는 허브와 같은 origin이어야 연다. `/mac/approve`는 이전 Mac이 맡은 Task가 있으면 "PL이 풀어 줘야 한다"고 알린다. 설치기의 업데이트는 `$REPO`에서 받는다. Rosetta 터미널도 `sysctl hw.optional.arm64`가 1이면 받는다. links-only가 연결을 새로 받으면 그 자리에서 다시 읽는다. `mac disconnect`는 `mac-restart.json`도 지운다. 20개 상한은 clone 전에 보고, 상한에 걸린 repo는 다시 켜기 대상에 넣지 않는다 | `627dd60`, `8a101b0`, `996d684`, `8c6e0e2`, `738c84c`, `727b92d` |
+
+**재리뷰(리뷰어 둘: 수정 전체, 실행 상태·잠금)와 2차 수정.** F1–F6은 지적대로 고쳐졌다고 판정했다. 새로 찾은 것(Important 1: 재부팅 뒤 옛 pid를 다른 프로세스가 쓰면 남은 상태를 여전히 살아 있다고 봄)과 작은 것들을 머지 전에 고쳤다. 원문과 판정은 `.ai-workflow/runs/U36-review-2.md`다.
+
+| 고친 것 | 이제 | 커밋 |
+|---|---|---|
+| G1 부팅 세션 | `running.json`과 `start.lock/pid`에 부팅 세션 id(macOS `kern.bootsessionuuid`, Linux `boot_id`)를 적는다. 제어 호출이 실패할 때 다른 부팅에서 남은 상태·잠금은 pid와 상관없이 낡은 것으로 본다(id가 없는 예전 파일은 pid 규칙). 서비스는 `close()`를 시작할 때와 종료 시간 초과로 끝날 때 자기 상태를 지운다. 남은 `UNKNOWN` 줄은 지울 파일을 말한다 | `9fc54f5` |
+| G2·G3 잠금 넘겨받기 | 낡은 잠금은 고유한 이름으로 옮긴 뒤 다시 판정해 한 프로세스만 넘겨받는다. 잠금은 자기 것일 때만 지운다. pid 파일이 없는 잠금은 60초가 지나면 낡은 것이다. `teamRunning()`도 같은 규칙을 쓴다 | `9fc54f5` |
+| G4 다시 켜기 대기 | 다시 켜기가 일어나지 않은 채 대기가 끝나도 기억을 지우지 않아, 같은 집합은 한 시간 규칙으로만 다시 시도한다. `startable` 확인을 기다리는 사이 해제된 Mac은 다시 켜지 않는다 | `f71903d` |
+| G5 자동 실행 내리기 | `mac disconnect`는 `bootout` 뒤 `launchctl print`로 확인하고, launchd가 아직 들고 있으면 30분마다 켜질 수 있다고 쉬운 말로 알리고 방법(로그아웃 또는 `bootout` 명령)을 준다. 이미 로드된 같은 자동 실행은 `enable` 뒤 `kickstart`한다 | `538cea1` |
+| G6 전체 맞추기 하나씩 | 전체 맞추기는 `<root>/team/sync.lock`을 잡는다. 두 번째는 한 줄만 말하고 아무것도 건드리지 않는다(`.partial` 지우기 포함). links-only는 잡지 않는다 | `444f4b6` |
+| G7 문구 | `LINKED_ELSEWHERE` 줄에는 다시 할 명령을 붙이지 않고, 그 연결을 해제하면 5분 안에 이 Mac이 연결한다고 말한다. 20개 상한 줄은 `team add` 폴더까지 센다고 말한다. Rosetta에서 Homebrew가 없으면 `arch -arm64`를 붙인 설치 명령을 준다 | `b819ac7` |
 
 ## 실제 확인 계획
 
@@ -133,7 +146,7 @@ LAN(자체 인증서) 허브에는 설치 한 줄이 없어서 설치기는 여�
    - 일하는 중: 시험 Story의 Task가 돌 때.
    - 쉬는 중(한도): `claude auth logout`(또는 계정 한도) 뒤. 실행기 이름과 이유가 붙는지.
    - 잠김: `stop --team` 뒤 `start --team`(`--live` 없음).
-   - 꺼짐: Office를 멈추고 180초가 지난 뒤. N분 전 표시, 새로 만든 Mac은 "아직 연락 없음".
+   - 꺼짐: Office를 멈추고 180초가 지난 뒤. N분 전 표시, 새로 만든 Mac은 "아직 연락 없음". 자동 실행이 30분 안에 다시 켤 수 있으니 그 전에 본다(또는 시험 동안 자동 실행을 내려 둔다).
 5. **해제.**
    - 웹 `/mac`에서 해제한다. Office 로그에 해제 줄이 한 번 나오고 허브 호출을 멈추는지, 그 Mac이 받은 repo 연결의 토큰이 401이 되는지, 연결 문자열로 만든 연결은 그대로인지.
    - 설치 명령(`mac connect`)을 다시 실행하면 새로 짝짓고 죽은 연결을 모두 새로 받는지.
@@ -147,10 +160,10 @@ LAN(자체 인증서) 허브에는 설치 한 줄이 없어서 설치기는 여�
 
 7. **마지막 리뷰가 더한 확인.**
    - 재부팅한 뒤 `status --team`이 `running`이고, 허브 "내 Mac"이 몇 분 안에 대기 중이 된다(F1). 일부러 서비스를 `kill -9`한 뒤에도 다음 `up --team`이 켜진다.
-   - Task가 도는 동안 설치 명령(`mac connect`)을 다시 실행한다. 팀 Office의 pid가 그대로이고, 자동 실행은 "이미 등록돼 있습니다"라고 말한다(F4). `bootout`이 이미 떨어져 나간 팀 Office까지 죽이는지도 이때 본다.
+   - Task가 도는 동안 설치 명령(`mac connect`)을 다시 실행한다. 팀 Office의 pid가 그대로이고, 자동 실행은 "이미 등록돼 있습니다"라고 말한다(F4). 같은 plist면 `bootout`을 하지 않으므로, `bootout`이 이미 떨어져 나간 팀 Office까지 죽이는지는 따로 본다(Office가 켜진 채 `launchctl bootout gui/<uid>/com.pazmo.office`를 직접 한 뒤 `status --team`).
    - 허브를 끈 채로 `mac connect`를 다시 실행하면 다시 짝짓지 않고 한 줄과 다시 할 명령이 나온다(F2).
-   - `claude auth logout`으로 쉬는 중(한도)일 때 담당자를 더하면 다시 켜지 않고 한 줄만 말한다. 로그인한 뒤 5분 안에 다시 켜진다(F3). 로그인 때 `up`이 실패하게 만든 뒤(예: colima 끔) 30분 안에 `StartInterval`로 다시 켜지는지 본다.
-   - `/repos`에서 Mac 연결에 해제 단추가 없고, 같은 repo를 다른 `--data-dir`에서 연결 문자열로 연결하면 Mac 로그에 `LINKED_ELSEWHERE` 줄이 한 번 나온다. 그 연결을 `/repos`에서 해제하면 5분 안에 Mac이 다시 연결한다(F5).
+   - `claude auth logout`으로 쉬는 중(한도)일 때 담당자를 더하면 다시 켜지 않고 한 줄만 말한다. 로그인한 뒤 5분 안에 다시 켜진다(F3). 로그인 때 `up`이 실패하게 만든 뒤(예: 재로그인 전에 `claude auth logout`, 로그인 뒤 다시 `claude auth login`) 30분 안에 `StartInterval`로 다시 켜지는지 본다.
+   - `/repos`에서 Mac 연결에 해제 단추가 없고, 같은 repo를 다른 `--data-dir`에서 연결 문자열로 연결하면 Mac 로그에 "다른 곳의 Office가 연결 문자열로 이 repo에 연결해 쓰고 있어…" 줄이 한 번 나온다(다시 할 명령은 붙지 않는다). 그 연결을 `/repos`에서 해제하면 5분 안에 Mac이 다시 연결한다(F5).
    - 미룬 것 중 확인할 것: `insteadOf` 호스트 별칭이 있는 사람, `/api/mac/link` 응답을 잃은 경우(연결 직후 네트워크 끊기).
 
 ### 중간점검(네 묶음 뒤): 사내 OpenShift 허브와 두 사람의 Mac

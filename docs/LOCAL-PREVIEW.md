@@ -157,7 +157,7 @@ curl -fsSL https://<허브 주소>/install.sh | sh
 - 위치는 `<데이터 루트>/repos/<이름>`이다. 기본 데이터 루트는 `~/.local/share/pazmo-agent-office`다. 허브 repo 이름에서 영문·숫자·`.`·`_`·`-` 밖의 글자는 `-`로 바꾸고 앞의 `.`는 뺀다(80자까지). 담당 repo 둘의 이름이 같으면 뒤에 repo id 앞 8자를 붙인다.
 - clone 주소는 `https://<허브가 아는 git 원격>.git`이고 인증은 내 git 설정(gh의 credential helper)이다. 중간에 끊긴 clone은 최종 이름의 폴더를 남기지 않는다(`.partial`로 받은 뒤 이름을 바꾸고, 남은 것은 다음 실행에서 지운다).
 - 그 자리에 이미 폴더가 있으면 origin이 같은 repo일 때만 쓰고, 다르면 `CLONE_DIR_TAKEN`으로 건너뛰며 손대지 않는다.
-- **연결 문자열로 만든 연결이 이긴다.** 같은 repo를 다른 곳에서 연결 문자열로 연결해 두었으면 허브가 이 Mac의 연결을 거절하고, 로그에 이유와 방법이 한 번 나온다. 이 Mac에서 쓰려면 허브의 레포 화면(`/repos`)에서 그 연결을 해제한다. Mac이 받은 연결은 레포 화면에서 하나씩 해제할 수 없고, `/mac`(관리자는 팀원·초대 화면)에서 Mac을 해제할 때 끝난다.
+- **연결 문자열로 만든 연결이 이긴다.** 같은 repo를 다른 곳에서 연결 문자열로 연결해 두었으면 허브가 이 Mac의 연결을 거절하고, 로그에 이유와 방법이 한 번 나온다. 이 Mac에서 쓰려면 허브의 레포 화면(`/repos`)에서 그 연결을 해제한다. 켜진 Office가 5분 안에 다시 연결한다. Mac이 받은 연결은 레포 화면에서 하나씩 해제할 수 없다. Mac 연결은 그 Mac을 해제할 때(`/mac`, 관리자는 팀원·초대 화면), 그 사람을 담당자에서 빼거나 팀원에서 해제할 때, 새 Mac을 허용할 때, 그리고 그 사람이 같은 repo를 다른 곳에서 연결 문자열로 연결할 때 끝난다. 마지막 경우 Mac은 그 연결이 해제될 때까지 다시 연결하지 않는다. 그래서 Mac에서 Task가 도는 중에 같은 repo를 `hub-link`로 연결하면 그 Task는 멈춤으로 보이고 PL이 풀어 줘야 한다.
 - **자기 폴더로 이미 등록한 repo는 그대로 쓴다.** 같은 원격의 repo를 `team add`로 등록해 두었으면 clone하지 않고 그 등록을 쓴다. 연결 문자열로 만든 그 폴더의 연결 파일(`hub-link.json`)은 Mac이 건드리지 않는다. Mac이 만든 연결 파일에만 `macId`가 있고, 그것만 Mac이 새로 받거나 지운다.
 - 담당이 아니게 된 repo 중 Mac이 clone한 것은 팀 Office 등록만 빼고 폴더는 남긴다. 그 repo에 열린 Task가 있으면 끝난 뒤의 다음 맞추기에서 뺀다. 자기 폴더로 등록한 repo는 담당이 아니게 되어도 그대로다.
 
@@ -169,11 +169,11 @@ curl -fsSL https://<허브 주소>/install.sh | sh
 
 **자동 실행(LaunchAgent)**
 
-- 파일은 `~/Library/LaunchAgents/com.pazmo.office.plist`다. Mac에 로그인할 때 `up --team --no-open`을 한 번 돌린다(토큰은 들어 있지 않다). 로그는 `<데이터 루트>/team/launchd.log`다.
+- 파일은 `~/Library/LaunchAgents/com.pazmo.office.plist`다. Mac에 로그인할 때와 그 뒤 30분마다(`StartInterval`) `up --team --no-open`을 돌린다(토큰은 들어 있지 않다). 이미 켜진 Office에는 상태만 보고 끝난다. 로그는 `<데이터 루트>/team/launchd.log`다.
 - Node는 Homebrew의 `/opt/homebrew/opt/node@24/bin/node`다(지금 쓰는 node와 같은 실행 파일일 때). 그래서 `brew upgrade`를 해도 경로가 깨지지 않는다.
 - 켜기 전에 담당 repo를 한 번 맞춘다. 로그인 직후 VPN이 아직 없어 허브에 닿지 않으면 로그 한 줄만 남기고, 이미 등록된 repo로 켠다.
 - 로그인 때 켜기가 실패해도(VPN·colima·실행기 로그인) 30분마다 다시 시도한다(`StartInterval`). 켜진 Office에는 아무것도 하지 않는다. 그래서 `stop --team`으로 끈 Office도 30분 안에 다시 켜진다. 계속 끄려면 `mac disconnect`다.
-- 재부팅이나 강제 종료 뒤 남은 실행 상태는 그 프로세스가 없으면 다음 `up`·`status`·`stop`이 정리한다.
+- 재부팅이나 강제 종료 뒤 남은 실행 상태와 시작 잠금은, 그 프로세스가 없거나 다른 부팅에서 남은 것이면 다음 `up`·`status`·`stop`이 정리한다. 그래도 남으면 오류 줄이 지울 파일을 알려 준다.
 - 꺼짐으로 보이면(아래 상태) Mac에서 설치 명령을 다시 실행한다. 자동 실행 파일과 연결을 다시 맞추고, 이미 같은 자동 실행이 등록돼 있으면 내리지 않고 켜기만 다시 요청한다.
 - 담당 repo가 하나도 없어도 Mac 연결이 있으면 Office는 켜진다. 상태만 보내고 담당 repo를 5분마다 본다.
 
@@ -226,7 +226,7 @@ pazmo-office mac restart       # 팀 Office를 멈추고 up --team으로 다시 
 
 - Apple Silicon Mac과 Homebrew만 된다(Windows·Linux·Intel Mac 없음). 비밀번호·SSO 로그인과 터미널 없는 앱(.dmg)도 없다.
 - 한 사람에 Mac 하나다. 두 번째 Mac을 쓰려면 사람이 다르거나, 첫 Mac이 해제되는 것을 받아들여야 한다.
-- 허브가 5xx나 시간 초과로 잠깐 대답하지 않을 때 설치 명령을 다시 실행하면, 기존 연결을 못 쓰는 것으로 보고 새로 짝짓는다. 그러면 앞의 연결이 해제되어 돌고 있던 Office의 Story 연결이 끊길 수 있다. 허브가 정상일 때 다시 실행한다.
+- `stop --team`으로 끈 Office도 자동 실행이 30분 안에 다시 켠다. 계속 끄려면 `mac disconnect`다.
 - `mac disconnect`는 Task가 실행 중이면 거절한다. Task가 끝난 뒤 다시 한다.
 - 사람이 `gh`와 git 로그인을 한 Git 호스트의 repo만 clone된다. 로그인이 없는 호스트의 repo는 건너뛰고 안내만 한다.
 
