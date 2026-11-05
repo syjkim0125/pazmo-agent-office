@@ -715,6 +715,26 @@ test("취소 of a Task that holds the merge lock is a STATE page and the Task st
   assert.ok((await taskPage(h, h.pl, s.api)).includes(pill("취소됨")));
 });
 
+test("풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be), bFe = h.linkOf(h.b, h.fe);
+  let n = 0;
+  const done = (l) => {
+    const x = h.board.claimNext(l);
+    h.board.mergeLock(l, x.taskId, x.claimId);
+    h.board.reportMerged(l, x.taskId, x.claimId, merged({ mergeCommit: String(++n).padStart(40, "0") }));
+  };
+  done(cBe);
+  done(cBe);
+  done(bFe);
+  const v = h.board.claimVerify(s.plBe, s.storyId);
+  h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: false, summary: "be V1 실패" });
+  const page = await taskPage(h, h.pl, s.verify);
+  assert.ok(page.includes(`<form method="post" action="/tasks/${s.verify}/release"><input type="hidden" name="csrf" value="${h.pl.csrf}"><p>풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다.</p><div class="row"><button class="secondary">풀기</button></div></form>`));
+  assert.ok(!page.includes("그 레포 담당자"), "a verification Task has no repo");
+});
+
 test("every new POST is 403 from another origin or without the CSRF token", async (t) => {
   const h = await team(t);
   const s = h.story();

@@ -199,7 +199,7 @@ function actionForms(t: TaskView, csrf: string, a: TaskActions) {
         ? `<p>${RERUN_NOT_LINKED}</p>`
         : "";
   const release = a.release
-    ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc("풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 머지 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
+    ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc(t.kind === "verify" ? "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." : "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 머지 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
     : "";
   const cancel =
     a.cancel === "yes"
