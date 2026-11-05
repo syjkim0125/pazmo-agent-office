@@ -503,3 +503,148 @@ test("startTestHub gives the store its own clock", async (t) => {
   now += MAC_CODE_TTL;
   assert.deepEqual(store.pollMac(deviceCode), { state: "expired" });
 });
+
+test("macHeartbeat stores until and a beat without it clears it; a negative, fractional or non-number until is INVALID", () => {
+  const { db, store, join } = setup();
+  const b = join("B");
+  const { auth } = pairMac(store, b);
+  const until = () => db.prepare("SELECT until FROM hub_macs WHERE id=?").get(auth.id).until;
+  assert.equal(until(), null);
+  store.macHeartbeat(auth, "limited", "claude: limit", 1_234_567);
+  assert.equal(until(), 1_234_567);
+  store.macHeartbeat(auth, "limited", "claude: limit");
+  assert.equal(until(), null, "a beat without until clears it");
+  store.macHeartbeat(auth, "limited", "claude: limit", 0);
+  assert.equal(until(), 0);
+  store.macHeartbeat(auth, "limited", "claude: limit", 99);
+  for (const bad of [-1, 1.5, "5", NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, {}]) {
+    assert.throws(() => store.macHeartbeat(auth, "limited", "claude: limit", bad), { code: "INVALID", message: "다시 시도 시각이 올바르지 않습니다." }, String(bad));
+    assert.equal(until(), 99, "a refused beat changes nothing");
+  }
+});
+
+test("macWait reads the newest live limited Mac: limit with runners [claude] and until; not_ready with runners from 'claude, codex: not_ready'; plain 'not_ready'; other for an unreadable detail; null when the Mac is off, idle or none", () => {
+  const { store, join, tick } = setup();
+  const b = join("B");
+  assert.equal(store.macWait(b.id), null, "no Mac");
+  const { auth } = pairMac(store, b);
+  assert.equal(store.macWait(b.id), null, "never beat means off");
+  store.macHeartbeat(auth, "idle", null);
+  assert.equal(store.macWait(b.id), null, "idle");
+  store.macHeartbeat(auth, "limited", "claude: limit", 5_000_000);
+  assert.deepEqual(store.macWait(b.id), { kind: "limit", runners: ["claude"], until: 5_000_000, detail: "claude: limit" });
+  store.macHeartbeat(auth, "limited", "claude, codex: not_ready");
+  assert.deepEqual(store.macWait(b.id), { kind: "not_ready", runners: ["claude", "codex"], until: null, detail: "claude, codex: not_ready" });
+  store.macHeartbeat(auth, "limited", "claude, codex: billing");
+  assert.equal(store.macWait(b.id).kind, "billing");
+  store.macHeartbeat(auth, "limited", "claude: login");
+  assert.equal(store.macWait(b.id).kind, "login");
+  store.macHeartbeat(auth, "limited", "not_ready");
+  assert.deepEqual(store.macWait(b.id), { kind: "not_ready", runners: [], until: null, detail: "not_ready" });
+  for (const odd of ["something odd", "claude: weird", "Claude: limit", "claude,codex: limit"]) {
+    store.macHeartbeat(auth, "limited", odd);
+    assert.deepEqual(store.macWait(b.id), { kind: "other", runners: [], until: null, detail: odd }, odd);
+  }
+  store.macHeartbeat(auth, "limited", null);
+  assert.deepEqual(store.macWait(b.id), { kind: "other", runners: [], until: null, detail: null });
+  store.macHeartbeat(auth, "limited", "claude: limit");
+  tick(MAC_OFFLINE_MS + 1);
+  assert.equal(store.macWait(b.id), null, "off");
+  store.macHeartbeat(auth, "limited", "claude: limit");
+  const newer = pairMac(store, b, "Mac 2").auth; // pairing replaces the older Mac; the newest has not beat yet
+  assert.equal(store.macWait(b.id), null, "the newest Mac is off, the revoked one does not speak");
+  store.macHeartbeat(newer, "working", null);
+  assert.equal(store.macWait(b.id), null, "working");
+});
+
+test("liveLinkRepos holds a connection-string link and a live Mac's link, but not a revoked link, a repo the member no longer owns or the link of a Mac whose row alone is revoked; reachableRepos leaves that one out too", () => {
+  const { db, store, admin, join } = setup();
+  const b = join("B");
+  const repo = (name) => store.addRepo(admin, name, `https://github.example.com/team/${name}`);
+  const [r1, r2, r3, r4, r5] = ["r1", "r2", "r3", "r4", "r5"].map(repo);
+  for (const r of [r1, r2, r3, r4, r5]) store.addOwner(admin, r, b.id);
+  assert.deepEqual([...store.liveLinkRepos(b.id)], [], "no links");
+  const byString = (name) => store.connect(store.createConnectCode(b), `https://github.example.com/team/${name}`).token;
+  byString("r1");
+  const { auth } = pairMac(store, b);
+  const minted2 = store.macLink(auth, r2).token;
+  assert.deepEqual([...store.liveLinkRepos(b.id)].sort(), [r1, r2].sort());
+  assert.deepEqual([...store.liveLinkRepos(admin.id)], []);
+  byString("r3");
+  store.revokeLink(b, store.repos(b.id).find((r) => r.id === r3).links[0].id);
+  assert.deepEqual([...store.liveLinkRepos(b.id)].sort(), [r1, r2].sort(), "a revoked link is not live");
+  // Ownership gone while the link row is still unrevoked (the link() rule must hold on its own).
+  db.prepare("DELETE FROM hub_repo_owners WHERE repo_id=? AND member_id=?").run(r1, b.id);
+  assert.deepEqual([...store.liveLinkRepos(b.id)], [r2], "a repo the member no longer owns");
+  // Only the Mac row revoked, its link row left unrevoked: the Mac-alive clause leaves the link out on its own.
+  store.link(minted2);
+  assert.deepEqual([...store.reachableRepos(b.id)], [r2], "used just now");
+  db.prepare("UPDATE hub_macs SET revoked_at=? WHERE id=?").run(1, auth.id);
+  assert.equal(db.prepare("SELECT revoked_at FROM hub_links WHERE repo_id=? AND member_id=?").get(r2, b.id).revoked_at, null);
+  assert.deepEqual([...store.liveLinkRepos(b.id)], [], "a revoked Mac's link");
+  assert.deepEqual([...store.reachableRepos(b.id)], [], "and it is not reachable either");
+});
+
+test("reachableRepos holds a live link seen within 180000 ms and leaves out one seen earlier or never, and is empty while the member's newest Mac reports locked", () => {
+  const { store, admin, join, tick } = setup();
+  const b = join("B");
+  const repo = (name) => store.addRepo(admin, name, `https://github.example.com/team/${name}`);
+  const [r1, r2, r3, r4] = ["r1", "r2", "r3", "r4"].map(repo);
+  for (const r of [r1, r2, r3, r4]) store.addOwner(admin, r, b.id);
+  const reach = () => [...store.reachableRepos(b.id)].sort();
+  // r1 by a connection string; r2, r3 and r4 by the Mac. r3 is never used; r4 is used and then revoked.
+  const t1 = store.connect(store.createConnectCode(b), "https://github.example.com/team/r1").token;
+  const { auth } = pairMac(store, b);
+  const t2 = store.macLink(auth, r2).token;
+  store.macLink(auth, r3);
+  const t4 = store.macLink(auth, r4).token;
+  assert.deepEqual([...store.liveLinkRepos(b.id)].sort(), [r1, r2, r3, r4].sort());
+  assert.deepEqual(reach(), [], "no link has been used yet");
+
+  store.link(t1);
+  store.link(t4);
+  tick(60_000);
+  store.link(t2);
+  tick(MAC_OFFLINE_MS - 60_000);
+  assert.deepEqual(reach(), [r1, r2, r4].sort(), "r1 and r4 were seen 180000 ms ago, r2 120000 ms ago; r3 never");
+  store.revokeLink(b, store.repos(b.id).find((r) => r.id === r1).links[0].id);
+  assert.deepEqual(reach(), [r2, r4].sort(), "only a live link counts, however fresh");
+  tick(1);
+  assert.deepEqual(reach(), [r2], "r4 was seen 180001 ms ago");
+  assert.deepEqual([...store.reachableRepos(admin.id)], []);
+
+  store.macHeartbeat(auth, "locked", null);
+  assert.equal(store.macBadge(b.id).state, "locked");
+  assert.deepEqual(reach(), [], "the newest Mac reports locked: it takes no work");
+  store.macHeartbeat(auth, "idle", null);
+  assert.deepEqual(reach(), [r2]);
+  store.macHeartbeat(auth, "locked", null);
+  tick(MAC_OFFLINE_MS + 1);
+  store.link(t2);
+  assert.equal(store.macBadge(b.id).state, "off");
+  assert.deepEqual(reach(), [r2], "an off Mac's last word is not read; the link's own use is");
+});
+
+test("an old hub.sqlite gains hub_macs.until", () => {
+  const dir = mkdtempSync(join(tmpdir(), "hub-old-until-"));
+  try {
+    const file = join(dir, "hub.sqlite");
+    const old = new DatabaseSync(file);
+    const store = new HubStore(old);
+    const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
+    const { auth, macToken } = pairMac(store, admin);
+    old.exec("ALTER TABLE hub_macs DROP COLUMN until");
+    assert.equal(old.prepare("PRAGMA table_info(hub_macs)").all().some((c) => c.name === "until"), false);
+    old.close();
+
+    const db = new DatabaseSync(file);
+    const reopened = new HubStore(db);
+    assert.equal(db.prepare("PRAGMA table_info(hub_macs)").all().some((c) => c.name === "until"), true);
+    reopened.macHeartbeat(reopened.mac(macToken), "limited", "claude: limit", 42);
+    assert.equal(db.prepare("SELECT until FROM hub_macs").get().until, 42);
+    new HubStore(db);
+    db.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});

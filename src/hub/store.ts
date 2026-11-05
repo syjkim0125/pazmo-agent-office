@@ -167,7 +167,16 @@ type MacRow = {
   detail: string | null;
   last_seen: number | null;
   created_at: number;
+  until: number | null;
 };
+/** Why a member's newest live Mac is resting, read from its limited heartbeat. */
+export type MacWait = {
+  kind: "limit" | "billing" | "login" | "not_ready" | "other";
+  runners: string[];
+  until: number | null;
+  detail: string | null;
+};
+const WAIT_DETAIL = /^([a-z0-9_.-]+(?:, [a-z0-9_.-]+)*): (limit|billing|login|not_ready)$/;
 type Arg = string | number | null;
 type PairResult = { token: string; member: Member; repoId: string; repoName: string; created: boolean };
 
@@ -187,7 +196,7 @@ CREATE TABLE IF NOT EXISTS hub_connect_codes(code_hash TEXT PRIMARY KEY,member_i
 CREATE TABLE IF NOT EXISTS hub_links(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,member_id TEXT NOT NULL REFERENCES hub_members(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),created_at INTEGER NOT NULL,last_seen INTEGER,revoked_at INTEGER);
 CREATE TABLE IF NOT EXISTS hub_mac_codes(device_hash TEXT PRIMARY KEY,user_hash TEXT NOT NULL,name TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,member_id TEXT REFERENCES hub_members(id),decision TEXT CHECK(decision IN ('approved','denied')),decided_at INTEGER,delivered_at INTEGER);
 CREATE INDEX IF NOT EXISTS hub_mac_codes_user ON hub_mac_codes(user_hash);
-CREATE TABLE IF NOT EXISTS hub_macs(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL,last_seen INTEGER,state TEXT NOT NULL DEFAULT 'idle' CHECK(state IN ('working','idle','limited','locked')),detail TEXT,revoked_at INTEGER);
+CREATE TABLE IF NOT EXISTS hub_macs(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),name TEXT NOT NULL,token_hash TEXT NOT NULL UNIQUE,created_at INTEGER NOT NULL,last_seen INTEGER,state TEXT NOT NULL DEFAULT 'idle' CHECK(state IN ('working','idle','limited','locked')),detail TEXT,revoked_at INTEGER,until INTEGER);
 `;
 
 /** Last path segment of the original remote (case kept, .git stripped); never query or fragment text. */
@@ -222,6 +231,8 @@ export class HubStore {
       if (!have.has(name)) this.#db.exec(`ALTER TABLE hub_requests ADD COLUMN ${name} ${type}`);
     // The Mac that minted a link; null for a link made from a connection string.
     if (!columns("hub_links").has("mac_id")) this.#db.exec("ALTER TABLE hub_links ADD COLUMN mac_id TEXT");
+    // When a limited Mac says it tries again (ms); null when it did not say.
+    if (!columns("hub_macs").has("until")) this.#db.exec("ALTER TABLE hub_macs ADD COLUMN until INTEGER");
     this.#db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS hub_request_once ON hub_requests(requester_id,create_key) WHERE create_key IS NOT NULL",
     );
@@ -972,11 +983,13 @@ export class HubStore {
       };
     });
   }
-  macHeartbeat(m: MacAuth, state: string, detail: string | null): { ok: true } {
+  macHeartbeat(m: MacAuth, state: string, detail: string | null, until: number | null = null): { ok: true } {
     if (!(MAC_STATES as readonly string[]).includes(state)) fail("INVALID", 400, "Mac 상태가 올바르지 않습니다.");
     if (detail !== null && (typeof detail !== "string" || detail.length > MAC_DETAIL_LIMIT || CONTROL.test(detail)))
       fail("INVALID", 400, `상태 설명은 제어 문자 없이 ${MAC_DETAIL_LIMIT}자까지 적을 수 있습니다.`);
-    this.#run("UPDATE hub_macs SET state=?,detail=?,last_seen=? WHERE id=?", state, detail, this.#now(), m.id);
+    if (until !== null && !(typeof until === "number" && Number.isSafeInteger(until) && until >= 0))
+      fail("INVALID", 400, "다시 시도 시각이 올바르지 않습니다.");
+    this.#run("UPDATE hub_macs SET state=?,detail=?,until=?,last_seen=? WHERE id=?", state, detail, until, this.#now(), m.id);
     return { ok: true };
   }
   revokeMac(by: Member, macId: string): { memberId: string } {
@@ -1000,7 +1013,7 @@ export class HubStore {
   }
   #macRows(memberId: string | null): MacRow[] {
     return this.#all<MacRow>(
-      `SELECT id,member_id,name,state,detail,last_seen,created_at FROM hub_macs
+      `SELECT id,member_id,name,state,detail,last_seen,created_at,until FROM hub_macs
        WHERE revoked_at IS NULL${memberId ? " AND member_id=?" : ""} ORDER BY created_at DESC, rowid DESC`,
       ...(memberId ? [memberId] : []),
     );
@@ -1020,6 +1033,47 @@ export class HubStore {
   /** The member's live Macs, newest first. */
   macs(memberId: string): MacView[] {
     return this.#macRows(memberId).map((k) => this.#macView(k));
+  }
+  /** Why the member's newest live Mac is resting; null unless that Mac is `limited` (an off Mac says nothing). */
+  macWait(memberId: string): MacWait | null {
+    const [row] = this.#macRows(memberId);
+    if (!row || this.#macView(row).state !== "limited") return null;
+    const detail = row.detail;
+    const hit = detail === null ? null : WAIT_DETAIL.exec(detail);
+    const until = row.until;
+    if (hit) return { kind: hit[2] as MacWait["kind"], runners: hit[1].split(", "), until, detail };
+    return { kind: detail === "not_ready" ? "not_ready" : "other", runners: [], until, detail };
+  }
+  /** The member's links that link() would accept now: active member, still an owner, link not revoked, minting Mac (if any) alive. */
+  #liveLinks(memberId: string): { repo_id: string; last_seen: number | null }[] {
+    return this.#all<{ repo_id: string; last_seen: number | null }>(
+      `SELECT l.repo_id,l.last_seen FROM hub_links l
+       JOIN hub_members m ON m.id=l.member_id
+       JOIN hub_repo_owners o ON o.repo_id=l.repo_id AND o.member_id=l.member_id
+       LEFT JOIN hub_macs k ON k.id=l.mac_id
+       WHERE l.member_id=? AND l.revoked_at IS NULL AND m.revoked_at IS NULL
+         AND (l.mac_id IS NULL OR (k.id IS NOT NULL AND k.revoked_at IS NULL))`,
+      memberId,
+    );
+  }
+  /** Repos the member's links reach right now, by the same rule as link(). */
+  liveLinkRepos(memberId: string): Set<string> {
+    return new Set(this.#liveLinks(memberId).map((r) => r.repo_id));
+  }
+  /**
+   * Repos whose work the member's Office is taking now: a live link it used within MAC_OFFLINE_MS. link() stamps
+   * `last_seen` on every call, and a running team Office reads the inbox of every ready lane each claim tick while
+   * it holds no record, and its failed record's Task each beat; a lane that is not ready, a link held on another
+   * machine and an off Office stamp nothing. None while the member's newest Mac reports locked (it runs no Task).
+   */
+  reachableRepos(memberId: string): Set<string> {
+    if (this.macBadge(memberId).state === "locked") return new Set();
+    const now = this.#now();
+    return new Set(
+      this.#liveLinks(memberId)
+        .filter((r) => r.last_seen !== null && now - r.last_seen <= MAC_OFFLINE_MS)
+        .map((r) => r.repo_id),
+    );
   }
   /** The newest live Mac's state, for the member's header. */
   macBadge(memberId: string): MacBadge {

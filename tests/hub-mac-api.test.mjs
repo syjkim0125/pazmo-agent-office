@@ -509,3 +509,25 @@ test("a heartbeat from a Mac revoked while its body was arriving is 401 and is n
   assert.equal(beats.mock.callCount(), 0, "a revoked Mac's beat never reaches the store");
   assert.deepEqual(store.macs(b.id), []);
 });
+
+test("the heartbeat takes until as a number or null and refuses a string with INVALID; an old body without until still works", async (t) => {
+  const { mac, pair, b, store } = await seeded(t);
+  const { macToken } = await pair();
+  const beat = (body) => mac("POST", "/api/mac/heartbeat", { token: macToken, body });
+  const limited = { state: "limited", detail: "claude: limit" };
+  assert.deepEqual((await beat({ ...limited, until: 7_000_000 })).json, { ok: true });
+  assert.equal(store.macWait(b.id).until, 7_000_000);
+  assert.deepEqual((await beat(limited)).json, { ok: true }, "an old body without until works");
+  assert.equal(store.macWait(b.id).until, null);
+  await beat({ ...limited, until: 7_000_000 });
+  assert.deepEqual((await beat({ ...limited, until: null })).json, { ok: true });
+  assert.equal(store.macWait(b.id).until, null, "null clears it");
+  for (const until of ["7000000", true, [5], {}]) {
+    const res = await beat({ ...limited, until });
+    assert.deepEqual([res.status, res.json.error, res.json.message], [400, "INVALID", "until 숫자가 필요합니다."], JSON.stringify(until));
+  }
+  for (const until of [-1, 1.5]) {
+    const res = await beat({ ...limited, until });
+    assert.deepEqual([res.status, res.json.error], [400, "INVALID"], String(until));
+  }
+});

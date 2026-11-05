@@ -253,7 +253,8 @@ export type MacClient = {
   repos(): Promise<MacRepo[]>;
   /** Mints this Mac's repo link; the token is the repo link's secret and is given only here. */
   link(repoId: string): Promise<{ token: string; member: { id: string; name: string }; repoId: string; repoName: string }>;
-  heartbeat(state: MacState, detail: string | null): Promise<void>;
+  /** `until` is when a limited Mac tries again (ms), or null. */
+  heartbeat(state: MacState, detail: string | null, until: number | null): Promise<void>;
   /** Ends this Mac on the Hub, with every repo link it minted. */
   revoke(): Promise<void>;
 };
@@ -282,9 +283,16 @@ export function macClient(file: MacLinkFile, call: MacCall = macCall): MacClient
         ? { token: reply.token, member: { id: member.id, name: printable(member.name) }, repoId, repoName: printable(reply.repoName) }
         : badResponse();
     },
-    async heartbeat(state, detail) {
-      // What the Hub refuses is made acceptable here: a beat is never lost to a runner name or a reason that is too long.
-      ok(await send("POST", "/api/mac/heartbeat", { state, detail: detail === null ? null : clip(printable(detail), DETAIL_LIMIT) }));
+    async heartbeat(state, detail, until) {
+      // What the Hub refuses is made acceptable here: a beat is never lost to a runner name or a reason that is too
+      // long, nor to a retry time that is not a safe non-negative integer (sent as none).
+      ok(
+        await send("POST", "/api/mac/heartbeat", {
+          state,
+          detail: detail === null ? null : clip(printable(detail), DETAIL_LIMIT),
+          until: typeof until === "number" && Number.isSafeInteger(until) && until >= 0 ? until : null,
+        }),
+      );
     },
     async revoke() {
       ok(await send("POST", "/api/mac/revoke", {}));

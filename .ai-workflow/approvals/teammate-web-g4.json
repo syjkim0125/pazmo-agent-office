@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "641f931f9201b4b4d2b4392802331b22d1169b7d07691be1dc0f9ab91dd019e0",
+  "snapshot": "d2ee48a01e6b6e5d188fff80a3a81a3ab8929312adc47aebe964dac5d7fef026",
+  "runId": "2354c531-fa15-42e2-a44e-36ee9b7a32d9",
+  "responseRef": "Claude Code conversation 2026-11-05. After the G4 explainer https://claude.ai/artifact/RnhF9w5XcebMo3AqB2aXDT (version 1) the user was asked \"U37 묶음 2 '팀원 웹' G4: 설명 페이지를 보셨다면 어느 선택지로 할까요? kit 리뷰 3차는 머지 가능, kit 검증은 1619/1619이고, 실제 Mac·사내 Hub 확인은 아직 하지 않았습니다.\" and answered \"① 승인 후 머지\". Option ① said G4 is recorded, STATUS is written, the branch is pushed, a PR is opened and merged to main, and the next step is planning bundle 3; it can be undone by reverting the PR. Record: .ai-workflow/approvals/teammate-web-g4.md",
+  "branch": "claude/silly-liskov-b64760",
+  "head": "917d4c9",
+  "date": "2026-11-05"
+}

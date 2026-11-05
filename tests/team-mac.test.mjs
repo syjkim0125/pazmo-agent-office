@@ -551,15 +551,17 @@ test("macClient sends each request to the right route with the Mac token, and re
   });
   assert.deepEqual(await client.repos(), [REPO]);
   assert.deepEqual(await client.link("r1"), LINKED);
-  assert.equal(await client.heartbeat("working", "claude"), undefined);
-  assert.equal(await client.heartbeat("idle", null), undefined);
+  assert.equal(await client.heartbeat("working", "claude", null), undefined);
+  assert.equal(await client.heartbeat("limited", "claude: limit", 1_800_000), undefined);
+  assert.equal(await client.heartbeat("idle", null, null), undefined);
   assert.equal(await client.revoke(), undefined);
   const target = { hub: HUB, token: TOKEN };
   assert.deepEqual(calls, [
     { target, method: "GET", path: "/api/mac/repos", body: undefined },
     { target, method: "POST", path: "/api/mac/link", body: { repoId: "r1" } },
-    { target, method: "POST", path: "/api/mac/heartbeat", body: { state: "working", detail: "claude" } },
-    { target, method: "POST", path: "/api/mac/heartbeat", body: { state: "idle", detail: null } },
+    { target, method: "POST", path: "/api/mac/heartbeat", body: { state: "working", detail: "claude", until: null } },
+    { target, method: "POST", path: "/api/mac/heartbeat", body: { state: "limited", detail: "claude: limit", until: 1_800_000 } },
+    { target, method: "POST", path: "/api/mac/heartbeat", body: { state: "idle", detail: null, until: null } },
     { target, method: "POST", path: "/api/mac/revoke", body: {} },
   ]);
 });
@@ -567,12 +569,24 @@ test("macClient sends each request to the right route with the Mac token, and re
 test("macClient makes a heartbeat detail the Hub accepts: no control characters, at most 200 characters", async () => {
   const bodies = [];
   const client = macClient(link(), async (_t, _m, _p, body) => (bodies.push(body), { ok: true }));
-  await client.heartbeat("limited", "claude\n로그인\u009b 필요");
-  await client.heartbeat("limited", "x".repeat(300));
-  await client.heartbeat("limited", `${"y".repeat(199)}😀`);
+  await client.heartbeat("limited", "claude\n로그인\u009b 필요", null);
+  await client.heartbeat("limited", "x".repeat(300), null);
+  await client.heartbeat("limited", `${"y".repeat(199)}😀`, null);
   assert.equal(bodies[0].detail, "claude 로그인  필요");
   assert.equal(bodies[1].detail, "x".repeat(200));
   assert.equal(bodies[2].detail, "y".repeat(199), "never half a character");
+});
+
+test("macClient sends until only as a safe non-negative integer: undefined, NaN, -1, 1.5 and a two-argument call go out as null", async () => {
+  const bodies = [];
+  const client = macClient(link(), async (_t, _m, _p, body) => (bodies.push(body), { ok: true }));
+  for (const until of [undefined, NaN, -1, 1.5, Number.MAX_SAFE_INTEGER + 2, Infinity, "1800000"]) await client.heartbeat("limited", "claude: limit", until);
+  await client.heartbeat("idle", null);
+  assert.deepEqual(bodies.map((b) => b.until), [null, null, null, null, null, null, null, null]);
+  assert.ok(bodies.every((b) => "until" in b), "the key is always sent, so the Hub clears an old value");
+  await client.heartbeat("limited", "claude: limit", 0);
+  await client.heartbeat("limited", "claude: limit", 1_800_000);
+  assert.deepEqual(bodies.slice(-2).map((b) => b.until), [0, 1_800_000]);
 });
 
 test("macClient refuses a reply of the wrong shape with HUB_BAD_RESPONSE", async () => {
@@ -588,7 +602,7 @@ test("macClient refuses a reply of the wrong shape with HUB_BAD_RESPONSE", async
     null, {}, { ...LINKED, token: "short" }, { ...LINKED, token: undefined }, { ...LINKED, member: null }, { ...LINKED, member: { id: "m1" } },
     { ...LINKED, repoId: "other" }, { ...LINKED, repoName: "" }, { ...LINKED, repoName: undefined },
   ]);
-  await wrong((c) => c.heartbeat("idle", null), [null, {}, { ok: false }, { ok: "true" }, "ok"]);
+  await wrong((c) => c.heartbeat("idle", null, null), [null, {}, { ok: false }, { ok: "true" }, "ok"]);
   await wrong((c) => c.revoke(), [null, {}, { ok: false }, []]);
   // A reply with extra fields is still the right shape.
   assert.deepEqual(await macClient(link(), async () => ({ repos: [{ ...REPO, more: 1 }], more: 2 })).repos(), [REPO]);
@@ -622,7 +636,7 @@ test("macClient works against a real Hub: repos, link, heartbeat and revoke", as
 
   assert.equal(await client.heartbeat("working", "claude 작업 중"), undefined);
   assert.deepEqual([store.macs(b.id)[0].state, store.macs(b.id)[0].detail], ["working", "claude 작업 중"]);
-  await client.heartbeat("limited", `줄\n바꿈 ${"x".repeat(300)}`);
+  await client.heartbeat("limited", `줄\n바꿈 ${"x".repeat(300)}`, null);
   assert.equal(store.macs(b.id)[0].state, "limited");
   assert.equal(store.macs(b.id)[0].detail.length, 200);
   await client.heartbeat("idle", null);

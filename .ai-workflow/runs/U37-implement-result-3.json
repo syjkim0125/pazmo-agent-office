@@ -1,0 +1,8 @@
+{
+  "token": "f0903e50e3ab9d3ce4593b67f2a7faf0dc3d681afe6f7864475724df9c3d44ef",
+  "output": {
+    "summary": "Fix wave for review attempt 2 (G1-G2) in 3 commits 3a282fa..917d4c9, test-first; full npm test 1619/1619 exit 0, typecheck exit 0, Story check exit 0.",
+    "evidence": [".ai-workflow/runs/U37-implement-3.md", ".ai-workflow/runs/U37-review-2.md"]
+  },
+  "evaluation": { "passed": true }
+}

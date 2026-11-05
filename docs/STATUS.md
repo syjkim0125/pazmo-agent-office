@@ -1,3 +1,23 @@
+# 2026-11-05 브라우저 팀 흐름 묶음 2: 팀원이 Hub 웹에서 자기 일을 보고 고르고 다시 시도한다 (U37, D41·V19)
+
+- D41(G3·G1 2026-11-04)의 네 묶음 중 둘째다. 계획은 [2026-11-05-1200-feat-teammate-web-plan.md](plans/2026-11-05-1200-feat-teammate-web-plan.md), kit 실행은 `.ai-workflow/runs/U37-teammate-web.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 변경 기록은 [2026-11-05-teammate-web.md](verification/2026-11-05-teammate-web.md), 사용 안내는 [LOCAL-PREVIEW.md의 "팀원 웹"](LOCAL-PREVIEW.md#팀원-웹)이다. Story는 바꾸지 않았다(새 결정 번호 없음, 판정은 계획의 판정 표).
+- 범위:
+  - **Hub 웹:** 첫 화면 **내 할 일**(`/`: 지금 맡은 일·받을 수 있는 일·내 Story에서 멈춘 일·끝낸 일), **보드**(`/board`), Story(`/stories/<id>`), **Task 상세**(`/tasks/<id>`: 상태와 단계, 3줄 요약, 판단 기록, PR, 멈춘 이유의 쉬운 말과 원문, 쉬는 중이면 "약 N분 뒤"). 요청 게시판은 `/requests`로 옮겼다. 보드가 없는 Hub는 지금처럼 `/`가 요청 게시판이다.
+  - **버튼:** 자동으로 일하기 스위치(Hub에 사람마다, 기본 켜짐, 끄면 자동으로 받지 않음), 작업하기, 다시 시도(메모), PL·관리자의 풀기·취소(취소는 확인 체크, 머지 잠금을 쥔 Task는 웹에서 취소하지 못함).
+  - **Office:** 바뀐 것은 Mac 하트비트(프로토콜 4)에 선택 필드 `until`(다시 시도할 시각) 하나다. 웹에서 누른 것은 Hub 상태만 바꾸고, Office는 원래 있던 되찾기(`recover()`)와 실패 기록 읽기로 가져간다(`tests/hub-web-office.test.mjs`가 실제 스케줄러로 고정).
+- Task별 커밋(기준 `8055471`, 계획 `f075432`): 1 Hub 저장소 `8f3119c`, 2 쉬는 이유·살아 있는 연결 `30c60ab`, 3 Office `until` `0fdd477`, 4 화면 `f8e4487`, 5 버튼 `7e27d39`, 6 웹 → Office 시험 `ddc0ece`, 7 문서 `579ac84`. Task별 리뷰는 모두 첫 번에 통과했다.
+- **kit 리뷰(브랜치 전체, 세 번):**
+  - 1차(리뷰어 셋: 전체, Hub 웹 권한·동시성, Office 연동): Important 4 → F1–F7(`4bc8e1c`–`3a282fa`). 내 Office가 지금 가져가지 않는 repo(gh 로그인 문제, 잠긴 Office)에서 작업하기·다시 시도를 누르면 아무도 돌리지 않고 그 사람의 다른 일도 막혔다 → Hub는 그 사람의 연결이 최근 3분 안에 쓰였고 가장 새 Mac이 잠김이 아닐 때만 받는다(`reachableRepos`). 직접 고른 일은 `team pause`·하루 상한을 따르지 않는다는 것을 판정으로 적었다. claude 로그인이 풀린 팀원에게 홈이 할 일을 말한다. 머지 잠금을 쥔 Task의 웹 취소를 막았다.
+  - 2차(리뷰어 둘): 모두 해결, 새 Important 1 → G1–G2(`45aa383`–`917d4c9`). 맡은 일이 3분 넘게 도는 동안 다른 repo의 받을 수 있는 일이 모두 "연결 문제"로 보였다 → 작업하기 판정이 "이미 맡은 일"을 "연결"보다 먼저 본다.
+  - 3차(리뷰어 하나): 머지 가능, Critical·Important 0. 문서 표현 Minor 2는 이 전달 커밋의 LOCAL-PREVIEW에서 고쳤다(kit 리뷰·검증 밖). 변경 기록은 kit 리뷰 그대로 두었고, 그 기록의 "짧게 잘못 거절" 줄은 이렇게 읽는다: 그 창에서는 화면에도 버튼 대신 "연결 문제" 문장이 보이고, 켠 직후 남은 기록의 마무리는 그 Task의 재검증만큼 걸릴 수 있다. 준비 안 된 repo도 그 연결로 Hub를 부른 뒤 3분 동안은 가져갈 수 있는 것으로 보인다(LOCAL-PREVIEW 한계 두 줄).
+- 자동 검사: 전체 `npm test`는 Task 1–7 뒤 1607/1607, 1차 수정 뒤 1617/1617, 2차 수정 뒤 **1619/1619**(exit 0, 111초). `npm run typecheck`·Story 검사 exit 0. kit 검증(`917d4c9`): 404/404 + 640/640 + 575/575 = **1619/1619**, 타입 검사·Story 검사 exit 0([기록](../.ai-workflow/runs/U37-verify-1.md)). `graph.mjs delivery`는 `delivered`다.
+- G4는 2026-11-05에 기록했다. 사용자는 [설명 페이지](https://claude.ai/artifact/RnhF9w5XcebMo3AqB2aXDT)를 본 뒤 "① 승인 후 머지"를 골랐고, 세 질문에는 직접 답하지 않았다(D13). [G4 기록](../.ai-workflow/approvals/teammate-web-g4.md)
+- **남은 것:**
+  - **실제 확인 전부.** 자동 시험과 kit 리뷰·검증만 마쳤다. 그래서 팀원에게 쓰라고 안내하지 않는다. 네 묶음 뒤 중간점검(사내 OpenShift 허브 재배포 + 두 사람의 Mac)에서 할 것은 [묶음 1·2 합친 목록](verification/2026-11-05-teammate-web.md#네-묶음-뒤-중간점검이-덮어야-할-것묶음-12-합친-목록)에 있다: 재배포와 설치 한 줄, 회사 GitHub, 라우터의 `x-forwarded-for`, 한 사람 한 Mac, 로그인 때 자동 실행, 머리글 상태 다섯 가지, 두 사람에게 겹치지 않는 배정, 스위치, 작업하기, 실패한 Task의 다시 시도와 메모, PL의 풀기·취소, 쉬는 중 시각, `/requests` 이동, 묶음 1의 미룬 것.
+  - 묶음 3(PL 기획: 새 Story, 웹 질문·답, Story 초안과 G1, 여러 repo Task 나누기, 자동 올리기·열기, Story base), 묶음 4(Story 마무리).
+  - 사람에게 보이는 한계(전부는 변경 기록의 "확인하지 않은 범위"): 화면이 저절로 새로 고치지 않는다. 한 사람의 여러 repo 사이 순서는 Mac의 등록 순서다. 직접 고른 일은 가져가기 멈춤·하루 상한을 따르지 않는다. gh 로그인이 깨진 repo의 실패 Task를 웹에서 다시 시도하면 받아들여지고 gh가 고쳐질 때까지 기다린다. 풀기 뒤의 취소는 늦은 머지 보고를 받지 않는다. 웹에서 먼저 다시 시도했으면 로컬 `team rerun --memo`의 메모는 쓰이지 않는다. 잠긴 연결 문자열 Office(Mac 없음)는 알아보지 못한다. 보드의 멈춤 칸은 실패한 Story 검증을 세지 않는다(묶음 4). 머리글 "쉬는 중(한도)"는 실행기 준비 안 됨에도 그 이름이다.
+  - 묶음 1에서 넘어온 것(팀원에게 쓰라고 하기 전에 고칠 것, 재배포 전에 할 것)은 아래 U36 항목 그대로다.
+
 # 2026-11-04 브라우저 팀 흐름 묶음 1: 팀원이 한 줄과 웹 허용 한 번으로 이 Mac을 연결한다 (U36, D41·V19)
 
 - D41(G3·G1 2026-11-04)의 네 묶음 중 첫째다. 계획은 [2026-11-04-1500-feat-mac-connect-plan.md](plans/2026-11-04-1500-feat-mac-connect-plan.md), kit 실행은 `.ai-workflow/runs/U36-mac-connect.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 더하기만 했다. 예외 하나: 마지막 리뷰가 찾은 결함을 고치느라 모든 엔진이 함께 쓰는 `status`·`stop`·`start`가 바뀌었다(프로세스가 없거나 다른 부팅에서 남은 실행 상태와 시작 잠금을 정리하고, 시작 중 SIGTERM·SIGINT에서 띄운 서비스를 멈추고 잠금을 지운다). 프로토콜 1·2·3, `/api/link/*`, 연결 문자열, `hub-link`, `team add|remove`, `start --team`은 그대로다.

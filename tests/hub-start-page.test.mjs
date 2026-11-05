@@ -66,7 +66,7 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", opensh
     assert.match(res.text, /<a href="\/start">내 Office 연결<\/a>/);
     assert.match(res.text, /action="\/start\/connect-code"/);
     assert.equal((await h.call("GET", "/start")).status, 401, "needs a session");
-    const board = await h.call("GET", "/", { cookie });
+    const board = await h.call("GET", "/requests", { cookie });
     assert.match(board.text, /<a href="\/start">내 Office 연결<\/a>/, "menu on every page");
   });
 

@@ -10,6 +10,12 @@ const invalid = (message: string): never => {
 /** Wrong types are refused, never coerced into something the store might accept. */
 const str = (body: Record<string, unknown>, key: string): string =>
   typeof body[key] === "string" ? (body[key] as string) : invalid(`${key} 문자열이 필요합니다.`);
+const num = (body: Record<string, unknown>, key: string): number | null =>
+  body[key] === undefined || body[key] === null
+    ? null
+    : typeof body[key] === "number"
+      ? (body[key] as number)
+      : invalid(`${key} 숫자가 필요합니다.`);
 function parse(raw: string): Record<string, unknown> {
   try {
     const value = JSON.parse(raw);
@@ -85,6 +91,6 @@ export function macApi(
     const body = parse(raw);
     if (path === "/api/mac/link") return json(res, 200, store.macLink(mac, str(body, "repoId")));
     const detail = body.detail === undefined || body.detail === null ? null : str(body, "detail");
-    return json(res, 200, store.macHeartbeat(mac, str(body, "state"), detail));
+    return json(res, 200, store.macHeartbeat(mac, str(body, "state"), detail, num(body, "until")));
   };
 }

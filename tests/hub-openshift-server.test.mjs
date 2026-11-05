@@ -55,7 +55,7 @@ test("writes need the public origin; invites set a Secure cookie; there is no ce
   assert.equal((await call("GET", "/trust")).status, 404);
   assert.equal((await call("GET", "/ca.pem")).status, 404);
   const cookie = ok.headers["set-cookie"][0].split(";")[0];
-  const board = await call("GET", "/", { headers: { cookie } });
+  const board = await call("GET", "/requests", { headers: { cookie } });
   assert.doesNotMatch(board.text, /href="\/trust"/, "no certificate menu");
 });
 

@@ -567,14 +567,15 @@ const MAC_FILE = {
 /** A connected Mac as the team Office sees it, in `config`: its link, a Hub client that records the beats (state,
  * detail) and the macId of every client made, a repo check that answers `pending`, and a restart that counts. */
 function fakeMac() {
-  const m = { beats: [], clients: [], syncs: [], restarts: 0, pending: { add: [], remove: [] } };
+  const m = { beats: [], untils: [], clients: [], syncs: [], restarts: 0, pending: { add: [], remove: [] } };
   m.config = {
     macLinkOf: () => MAC_FILE,
     macClientFor: (file) => {
       m.clients.push(file.macId);
       return {
-        async heartbeat(state, detail) {
+        async heartbeat(state, detail, until) {
           m.beats.push([state, detail]);
+          m.untils.push(until);
         },
         async repos() {
           return [];
@@ -1239,9 +1240,12 @@ test("presence is locked without --live, limited while the open record waits on 
   });
   await beat();
   assert.deepEqual(mac.beats.at(-1), ["limited", "claude: limit"]);
+  assert.equal(mac.untils.at(-1), since + 1800000, "a record waiting on its runner carries its retryAt");
   store.setPhase("t1", "failed", { attempts: 3, runnerWait: null });
   await beat();
   assert.deepEqual(mac.beats.at(-1), ["idle", null]);
+  assert.equal(mac.untils.at(-1), null);
+  assert.ok(mac.untils.slice(0, -2).every((u) => u === null), "other states carry null");
 
   // A repo engine runs a task: working.
   const busy = fixture(t);

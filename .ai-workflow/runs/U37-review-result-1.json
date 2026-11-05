@@ -1,0 +1,12 @@
+{
+  "token": "def4c6baea0fb01838c3bca7ddf51d90705c6e394d1b39a301bcaf6928200dc2",
+  "output": {
+    "summary": "Review attempt 1 (3 independent reviewers): not ready (Critical 0, Important 4). A pick or web rerun in a repo the member's Office does not poll (gh lane, locked Office) is never driven and strands the member; own picks/reruns override pause and cap without a ruling; home never tells a teammate with a not-ready runner what to do; web cancel of a merge-locked Task drops a late merge silently.",
+    "evidence": [".ai-workflow/runs/U37-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement F1-F7 of U37-review-1.md: reachable repos = links used within MAC_OFFLINE_MS and newest Mac not locked, for pick and web rerun and their buttons; ruling and docs for picks overriding pause/cap; rest sentence on home and an instruction for not_ready; web cancel refused while the merge lock is held; wording batch; until/memo/test hardening; docs and limits."
+  }
+}
