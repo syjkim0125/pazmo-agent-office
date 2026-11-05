@@ -19,22 +19,26 @@ button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--ac
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button.secondary{background:transparent;color:var(--accent)}button.danger{border-color:var(--bad);background:transparent;color:var(--bad)}
 .muted{color:var(--muted)}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.code{font:600 24px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}`;
-const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
-const button = (action: string, csrf: string, label: string, cls = "") =>
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:6px;align-items:center}.code{font:600 24px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}`;
+export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
+export const button = (action: string, csrf: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${esc(action)}">${csrfField(csrf)}<button class="${cls}">${esc(label)}</button></form>`;
 const stateLabel = (state: string, declined: boolean) => (declined && state === "cancelled" ? "거절됨" : STATE[state] ?? state);
 const STATE: Record<string, string> = { open: "맡을 사람 대기", accepted: "진행 중", done: "완료", cancelled: "취소됨" };
 const STATUS: Record<string, string> = { running: "실행 중", waiting: "답변·승인 대기", done: "완료", cancelled: "취소됨" };
 const KIND: Record<string, string> = { story: "범위 승인 (G1)", questions: "PM 질문", "planning-retry": "계획 재개", G4: "최종 결과 승인 (G4)" };
 const MAC_LABEL: Record<string, string> = { working: "일하는 중", idle: "대기 중", limited: "쉬는 중(한도)", locked: "잠김", off: "꺼짐" };
-function ago(at: number | null) {
+export function ago(at: number | null) {
   if (!at) return "아직 없음";
   const minutes = Math.floor((Date.now() - at) / 60000);
   return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분 전` : `${Math.floor(minutes / 60)}시간 전`;
 }
-/** What the layout needs beyond the page itself: `trust` hides the certificate menu behind the router, and `mac` is the header's state. */
-export type Chrome = { trust?: boolean; mac?: MacBadge | null };
+/**
+ * What the layout needs beyond the page itself: `trust` hides the certificate menu behind the router, and `mac` is the
+ * header's state. `autoWork` is the member's automatic-work switch; it is left out on a hub without a Story board,
+ * whose menu then has no work pages.
+ */
+export type Chrome = { trust?: boolean; mac?: MacBadge | null; autoWork?: boolean };
 /** The newest Mac's state in the header; a Mac whose last beat is older than the store's limit arrives as "off". */
 const macBadge = (b: MacBadge) =>
   b.state === "none" ? "연결된 Mac 없음" : b.state === "off" ? `꺼짐(${b.lastSeen === null ? "아직 연락 없음" : ago(b.lastSeen)})` : MAC_LABEL[b.state] ?? b.state;
@@ -43,7 +47,7 @@ const macState = (m: MacView) => `${MAC_LABEL[m.state] ?? m.state}${m.detail ? `
 
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
   const nav = me
-    ? `<nav><a href="/">요청 게시판</a><a href="/start">내 Office 연결</a><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadge(chrome.mac))}</a>` : ""}</nav>`
+    ? `<nav>${chrome.autoWork === undefined ? "" : '<a href="/">내 할 일</a><a href="/board">보드</a>'}<a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.autoWork === false ? '<a class="pill" href="/">자동으로 일하기 꺼짐</a>' : ""}${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadge(chrome.mac))}</a>` : ""}</nav>`
     : "";
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main></body></html>`;
 }
@@ -61,11 +65,11 @@ export function invite(name: string | null) {
 export function trust(fingerprint: string) {
   return layout("인증서 신뢰", null, `<section><h1>허브 인증서를 한 번 신뢰해주세요</h1><ol><li><a href="/ca.pem">허브 인증 기관 파일</a>을 받습니다.</li><li>파일을 열어 키체인 접근에 추가하고, 항목을 두 번 눌러 <b>신뢰 → 이 인증서 사용 시: 항상 신뢰</b>로 바꿉니다.</li><li>키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요.</li></ol><pre>${esc(fingerprint)}</pre></section>`);
 }
+/** Shown at the top of /start and the member's work page when the hub can install a Mac in one line and this member has none yet. */
+export const MAC_NUDGE = `<section><h2>이 Mac 연결 — 처음 한 번, 명령 한 줄</h2><p>Mac 터미널에서 명령 한 줄이면 필요한 프로그램 설치, 로그인, 담당 레포 내려받기, 자동 실행까지 끝납니다. <a href="/mac">이 Mac 연결</a>에서 명령을 복사하세요.</p></section>`;
 /** `macNudge`: the hub can install a Mac in one line and this member has none yet. */
 export function start(me: Member, csrf: string, o: { macNudge: boolean }, chrome: Chrome = {}) {
-  const nudge = o.macNudge
-    ? `<section><h2>이 Mac 연결 — 처음 한 번, 명령 한 줄</h2><p>Mac 터미널에서 명령 한 줄이면 필요한 프로그램 설치, 로그인, 담당 레포 내려받기, 자동 실행까지 끝납니다. <a href="/mac">이 Mac 연결</a>에서 명령을 복사하세요.</p></section>`
-    : "";
+  const nudge = o.macNudge ? MAC_NUDGE : "";
   return layout("내 Office 연결", me, `${nudge}<section><h1>내 Office 연결</h1><p class="muted">세 단계면 이 허브로 일을 주고받을 수 있습니다.</p></section><section><h2>1. Office 켜기</h2><p>이 레포를 클론해 둔 내 PC에서 Office를 켭니다. 처음이면 관리자에게 설치 방법을 받으세요.</p></section><section><h2>2. 연결 문자열</h2><p>아래 버튼으로 연결 문자열을 만든 뒤 복사해, Office 상단의 팀 허브 버튼을 누르고 붙여넣어 연결하세요. 10분 안에 한 번만 쓸 수 있습니다.</p><form method="post" action="/start/connect-code">${csrfField(csrf)}<div><button>연결 문자열 만들기</button></div></form></section><section><h2>3. 일 보내기</h2><p>Office의 작업 카드나 채팅에서 '팀 허브로 보내기'로 다른 레포 담당자에게 일을 보냅니다.</p></section>`, chrome);
 }
 export function connectHelp() {
@@ -76,7 +80,7 @@ export function created(me: Member, title: string, note: string, value: string, 
 }
 export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoView[], view: string, chrome: Chrome = {}) {
   const tabs = [["all", "전체"], ["mine", "내 요청·맡은 일"], ["repos", "내 레포"]]
-    .map(([v, label]) => (v === view ? `<b>${label}</b>` : `<a href="/?view=${v}">${label}</a>`))
+    .map(([v, label]) => (v === view ? `<b>${label}</b>` : `<a href="/requests?view=${v}">${label}</a>`))
     .join(" · ");
   const form = repos.length
     ? `<form method="post" action="/requests">${csrfField(csrf)}<label>레포<select name="repo" required>${repos.map((r) => `<option value="${esc(r.id)}">${esc(r.name)}</option>`).join("")}</select></label><label>요청 내용 <span class="muted">(최대 16384바이트, 한글 약 5400자)</span><textarea name="body" rows="4" maxlength="16384" required placeholder="무엇을 바꾸고, 어떻게 확인하면 되는지 적어주세요."></textarea></label><label>위험도<select name="risk"><option value="normal">보통</option><option value="high">높음 (추가 승인 필요)</option></select></label><button>요청 올리기</button></form>`

@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import { HubError, type HubStore } from "./store.ts";
 import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
+import * as storyPages from "./story-pages.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
@@ -15,7 +16,8 @@ export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
   | { kind: "proxy"; publicUrl: string; host: string; port: number };
 /** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404.
- * `board` lets the Mac approve page name a Task the member's earlier Mac holds; without it the page says nothing about Tasks. */
+ * `board` serves the member's work page at `/` and the Story pages, and lets the Mac approve page name a Task the member's
+ * earlier Mac holds; without it `/` is the request board, the Story pages are 404 and the approve page says nothing about Tasks. */
 export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
@@ -143,7 +145,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     const trust = !!tls;
     const tooMany = () => new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
     // Read when a page is drawn, so the header shows the state after whatever this request did.
-    const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id) });
+    const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id), autoWork: c.board?.autoWork(me.id) });
     // Only a hub that serves the installer can give a Mac the one-line command.
     const install = installer === null ? null : `curl -fsSL ${base}/install.sh | sh`;
     const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
@@ -154,16 +156,42 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       ? ` 링크와 별도로 허브 인증서 지문(${tls.fingerprint})도 함께 전달해 /trust 화면과 대조하게 하세요.`
       : "";
     if (!post) {
-      if (path === "/") {
+      // Without a Story board the request board keeps the first page.
+      if (path === "/requests" || (path === "/" && !c.board)) {
         const asked = url.searchParams.get("view");
         const view = asked === "mine" || asked === "repos" ? asked : "all";
         return html(res, 200, page.board(me, s.csrf, c.store.requests(me.id, view), c.store.repos(me.id), view, chrome()));
       }
+      if (c.board) {
+        const board = c.board,
+          actor = { member: me };
+        if (path === "/") {
+          const ch = chrome();
+          const work = board.memberWork(me.id, c.store.liveLinkRepos(me.id));
+          const o = { macNudge: install !== null && ch.mac?.state === "none", wait: c.store.macWait(me.id) };
+          return html(res, 200, storyPages.home(me, s.csrf, work, o, ch));
+        }
+        if (path === "/board") {
+          const rows = board.projects(actor).map((project) => ({ project, stories: board.stories(actor, project.id) }));
+          return html(res, 200, storyPages.workBoard(me, rows, chrome()));
+        }
+        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) return html(res, 200, storyPages.storyPage(me, board.story(actor, m[1]), chrome()));
+        if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
+          const d = board.taskDetail(actor, m[1]);
+          const who = d.task.assignee?.id ?? null;
+          const o = {
+            actions: board.taskActions(me, m[1], c.store.liveLinkRepos(me.id)),
+            wait: who === null ? null : c.store.macWait(who),
+            assigneeMac: who === null ? null : c.store.macBadge(who),
+          };
+          return html(res, 200, storyPages.taskPage(me, s.csrf, d, o, chrome()));
+        }
+      }
       if ((m = new RegExp(`^/requests/${ID}$`).exec(path)))
         return html(res, 200, page.request(me, s.csrf, c.store.requestView(m[1], me.id), chrome()));
       if (path === "/start") {
-        const badge = c.store.macBadge(me.id);
-        return html(res, 200, page.start(me, s.csrf, { macNudge: install !== null && badge.state === "none" }, { trust, mac: badge }));
+        const ch = chrome();
+        return html(res, 200, page.start(me, s.csrf, { macNudge: install !== null && ch.mac?.state === "none" }, ch));
       }
       if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), chrome()));
       if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), chrome()));

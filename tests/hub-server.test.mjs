@@ -138,7 +138,7 @@ test("untrusted text is escaped on the board and request pages", async (t) => {
   const evil = `<script>"'&`;
   const repo = store.addRepo(me, `repo ${evil}`, "https://github.example.com/team/evil");
   const req = store.createRequest(me, repo, `body ${evil}`, "normal");
-  for (const path of ["/", `/requests/${req}`, "/repos"]) {
+  for (const path of ["/requests", `/requests/${req}`, "/repos"]) {
     const text = (await call("GET", path, { cookie: admin.cookie })).text;
     assert.doesNotMatch(text, /<script/i, path);
     assert.ok(text.includes("&#60;script&#62;"), `${path} shows the escaped text`);

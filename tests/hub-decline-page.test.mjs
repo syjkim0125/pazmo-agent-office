@@ -38,7 +38,7 @@ test("the owner declines on the detail page with a reason; it shows as 거절됨
   assert.match(after, new RegExp(`거절한 사람: ${ownerMember.name}`));
   assert.doesNotMatch(after, /내가 맡기/);
   assert.doesNotMatch(after, /\/decline"/, "a closed request has no decline form");
-  const board = (await call("GET", "/", { cookie: owner.cookie })).text;
+  const board = (await call("GET", "/requests", { cookie: owner.cookie })).text;
   assert.match(board, /<span class="pill">거절됨<\/span>/);
 });
 
@@ -143,7 +143,7 @@ test("a request cancelled by the assignee's snapshot is 취소됨, not 거절됨
   assert.match(detail, /<span class="pill">취소됨<\/span>/);
   assert.doesNotMatch(detail, /거절됨/);
   assert.doesNotMatch(detail, /거절 사유|거절한 사람/);
-  const board = (await call("GET", "/", { cookie: owner.cookie })).text;
+  const board = (await call("GET", "/requests", { cookie: owner.cookie })).text;
   assert.match(board, /취소됨/);
   assert.doesNotMatch(board, /거절됨/);
 });
