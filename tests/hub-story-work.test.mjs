@@ -117,7 +117,7 @@ test("pickTask claims the ready Task for the member with a new claim id and a pi
   assert.equal(board.claimNext(l), null); // the picked Task is the member's one open Task
 });
 
-test("pickTask refuses in order: unknown NOT_FOUND, waiting or verify or draft-Story STATE, not an owner FORBIDDEN, no live link NOT_LINKED, an open Task BUSY; nothing changes", () => {
+test("pickTask refuses in order: unknown NOT_FOUND, waiting or verify or draft-Story STATE, not an owner FORBIDDEN, an open Task BUSY, no live link NOT_LINKED; nothing changes", () => {
   const ctx = opened();
   const { db, board, b, c, be, fe, linkOf, plBe, projectId, node, check, pub } = ctx;
   const all = new Set([be, fe]), none = new Set();
@@ -144,7 +144,7 @@ test("pickTask refuses in order: unknown NOT_FOUND, waiting or verify or draft-S
   assert.deepEqual(rows(db), before);
   board.claimNext(linkOf(c, be)); // c now holds api
   before = rows(db);
-  assert.throws(() => board.pickTask(c, copy, none), is("NOT_LINKED", MSG.notLinked)); // the link is judged before BUSY
+  assert.throws(() => board.pickTask(c, copy, none), is("BUSY", MSG.busy)); // BUSY is judged before the link
   assert.throws(() => board.pickTask(c, copy, new Set([be])), is("BUSY", MSG.busy));
   assert.throws(() => board.pickTask(c, api, new Set([be])), is("STATE", MSG.pickState)); // already c's own
   assert.deepEqual(rows(db), before);
@@ -452,12 +452,46 @@ test("memberWork pick: yes only with auto off, a linked repo and no open Task; a
   assert.equal(w.open.taskId, idOf(pub, "api"));
   assert.equal(w.open.pick, "no");
   assert.deepEqual(picks(new Set([be])), ["busy"]);
-  assert.deepEqual(picks(new Set()), ["not-linked"]); // the link is judged before BUSY, as pickTask does
+  assert.deepEqual(picks(new Set()), ["busy"]); // BUSY is judged before the link, as pickTask does
   board.setAutoWork(c, true);
   assert.deepEqual(picks(new Set([be])), ["busy"]); // BUSY is judged before the switch
   // The button and the card come from one rule.
   assert.equal(board.taskActions(c, idOf(pub, "copy"), new Set([be])).pick, "busy");
-  assert.equal(board.taskActions(c, idOf(pub, "copy"), new Set()).pick, "not-linked");
+  assert.equal(board.taskActions(c, idOf(pub, "copy"), new Set()).pick, "busy");
+});
+
+test("a member holding a Task in one repo sees busy, not not-linked, for a ready Task of another repo whose link is stale, and pickTask is BUSY", () => {
+  const { db, store, board, pl, be, fe, tokenOf, projectId, node, check, tick } = opened();
+  const tBe = tokenOf(pl, be), tFe = tokenOf(pl, fe);
+  const plBe = store.link(tBe);
+  store.link(tFe); // an Office with no record reads every ready lane's inbox
+  const fePub = board.publishStory(plBe, {
+    projectId, title: "fe만", body: "", risk: "normal", key: "k-fe",
+    graph: { nodes: [node("f1", fe, ["src/f1.ts"])], edges: [] }, storyVerify: [{ repoId: fe, checks: [check] }],
+  });
+  board.openStory(plBe, fePub.storyId);
+  const f1 = idOf(fePub, "f1");
+  const pickOf = () => board.memberWork(pl.id, store.reachableRepos(pl.id)).ready.find((x) => x.taskId === f1).pick;
+  assert.equal(pickOf(), "auto-on");
+  // The Office claims a be Task and holds it: only the be heartbeat uses a link from now on.
+  const t = board.claimNext(store.link(tBe));
+  for (let i = 0; i < 4; i++) {
+    tick(60_000);
+    board.heartbeat(store.link(tBe), t.taskId, t.claimId, "build");
+  }
+  assert.deepEqual([...store.reachableRepos(pl.id)], [be], "the fe link went stale while be was worked");
+  assert.equal(pickOf(), "busy", "auto work on: no line at all, not the Mac-fault sentence");
+  board.setAutoWork(pl, false);
+  assert.equal(pickOf(), "busy");
+  assert.equal(board.taskActions(pl, f1, store.reachableRepos(pl.id)).pick, "busy");
+  const before = rows(db);
+  assert.throws(() => board.pickTask(pl, f1, store.reachableRepos(pl.id)), is("BUSY", MSG.busy));
+  assert.deepEqual(rows(db), before);
+  // Done with be and still not reading fe: then it is the link that is missing.
+  board.mergeLock(store.link(tBe), t.taskId, t.claimId);
+  board.reportMerged(store.link(tBe), t.taskId, t.claimId, merged(t.number));
+  assert.equal(pickOf(), "not-linked");
+  assert.throws(() => board.pickTask(pl, f1, store.reachableRepos(pl.id)), is("NOT_LINKED", MSG.notLinked));
 });
 
 test("taskActions: rerun for the assignee of a failed work Task; release for the PL and an admin on held or failed; cancel for the PL and an admin on unfinished work Tasks; none for others", () => {

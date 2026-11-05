@@ -208,8 +208,8 @@ const NOT_LINKED_MESSAGE = "내 Mac이 지금 이 레포의 일을 가져갈 수
 const PICK_REFUSALS = {
   STATE: [409, "지금 받을 수 있는 Task가 아닙니다. 화면을 새로 고쳐 상태를 확인하세요."],
   FORBIDDEN: [403, "이 레포의 담당자만 받을 수 있습니다."],
-  NOT_LINKED: [409, NOT_LINKED_MESSAGE],
   BUSY: [409, "이미 맡은 Task가 있습니다. 그 Task가 끝나거나 PL이 풀어 준 뒤 고르세요."],
+  NOT_LINKED: [409, NOT_LINKED_MESSAGE],
 } as const;
 type PickBlock = keyof typeof PICK_REFUSALS;
 /** Why a web rerun is refused, in the order the checks run, with the code, status and message the web shows. */
@@ -1196,14 +1196,15 @@ export class StoryBoard {
   }
   /**
    * Why the member cannot pick this Task on the web now, in check order; null when they can. `linked` is the
-   * repos the member's Office is taking now (the caller decides: `HubStore.reachableRepos`). The automatic-work
-   * switch is not a reason.
+   * repos the member's Office is taking now (the caller decides: `HubStore.reachableRepos`). BUSY comes before
+   * NOT_LINKED: an Office working a Task reads only that Task's repo, so its other links go stale while it is busy.
+   * The automatic-work switch is not a reason.
    */
   #pickBlock(memberId: string, t: TaskRow, linked: ReadonlySet<string>): PickBlock | null {
     if (t.kind !== "work" || t.state !== "ready" || this.#story(t.story_id).state !== "open") return "STATE";
     if (!this.#owns(memberId, t.repo_id)) return "FORBIDDEN";
-    if (!linked.has(t.repo_id as string)) return "NOT_LINKED";
     if (this.#openTask(memberId)) return "BUSY";
+    if (!linked.has(t.repo_id as string)) return "NOT_LINKED";
     return null;
   }
   /** The one rule behind the pick button on every screen; `pickTask` refuses by the same checks. */
