@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
-import { HubError, type Link } from "./store.ts";
+import { HubError, type Link, type Member } from "./store.ts";
 import {
   HELD_AFTER_MS,
   LIMITS,
@@ -113,6 +113,34 @@ export type OpenTaskRef = {
   repoName: string | null;
   state: "claimed" | "failed";
 };
+/** Who acts on the board from the web or from a link: a Link has the same shape. */
+export type Actor = { member: Member };
+/**
+ * Whether the member may pick a Task on the web now. `no`: not a ready work Task of an open Story in the member's
+ * repo; `not-linked`: no live link to that repo; `busy`: the member holds an open Task; `auto-on`: automatic work
+ * gives it anyway, so the screen shows no button.
+ */
+export type PickState = "yes" | "auto-on" | "not-linked" | "busy" | "no";
+export type WorkCard = {
+  taskId: string;
+  number: number;
+  kind: "work" | "verify";
+  title: string;
+  repo: { id: string; name: string } | null;
+  story: { id: string; number: number; title: string };
+  state: TaskViewState;
+  stage: string | null;
+  assignee: { id: string; name: string } | null;
+  prUrl: string | null;
+  failure: string | null;
+  heartbeatAt: number | null;
+  updatedAt: number;
+  /** Judged on the ready list only; every other card says `no`. */
+  pick: PickState;
+};
+export type MemberWork = { autoWork: boolean; open: WorkCard | null; ready: WorkCard[]; led: WorkCard[]; done: WorkCard[] };
+/** Which buttons the web shows for one Task, by the same rules the actions check. */
+export type TaskActions = { pick: PickState; rerun: boolean; release: boolean; cancel: boolean };
 export type StoryInbox = {
   mine: { taskId: string; claimId: string; storyId: string; state: "claimed" | "failed" } | null;
   alerts: { taskId: string; storyId: string; number: number; state: "held" | "failed" }[];
@@ -163,9 +191,26 @@ type TaskRow = {
   assumptions: string | null;
   failure: string | null;
   memo: string | null;
+  updated_at: number;
 };
+/** A Task with what a web card names besides it: its Story, repo and assignee. */
+type CardRow = TaskRow & { story_number: number; story_title: string; repo_name: string | null; assignee_name: string | null };
+const CARD_SELECT = `SELECT t.*,s.number story_number,s.title story_title,r.name repo_name,m.name assignee_name
+  FROM hub_story_tasks t JOIN hub_stories s ON s.id=t.story_id
+  LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by`;
+/** Why a web pick is refused, in the order the checks run, with the status and message the web shows. */
+const PICK_REFUSALS = {
+  STATE: [409, "지금 받을 수 있는 Task가 아닙니다. 화면을 새로 고쳐 상태를 확인하세요."],
+  FORBIDDEN: [403, "이 레포의 담당자만 받을 수 있습니다."],
+  NOT_LINKED: [409, "이 레포는 아직 내 Mac에 연결되지 않았습니다. 내 Mac 화면에서 연결 상태를 확인하세요."],
+  BUSY: [409, "이미 맡은 Task가 있습니다. 그 Task가 끝나거나 PL이 풀어 준 뒤 고르세요."],
+} as const;
+type PickBlock = keyof typeof PICK_REFUSALS;
 
 const KEY_MAX = 100;
+/** The web's lists: ready Tasks in claim order, and the member's latest merges. */
+const READY_LIST_MAX = 50;
+const DONE_LIST_MAX = 20;
 const VERIFY_TITLE = "Story 검증";
 const STAGES: readonly string[] = ["build", "review", "verify", "merge"];
 /**
@@ -177,7 +222,8 @@ const FORGET_OWN_LOCK =
 
 /**
  * Tables of the team Story board. `hub_members` and `hub_repos` come from HubStore, so it must run first
- * on the same db. Numbers (`hub_seq`) are one sequence shared by Stories and Tasks.
+ * on the same db. Numbers (`hub_seq`) are one sequence shared by Stories and Tasks. A member without a
+ * `hub_work_settings` row works automatically.
  */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS hub_seq(id INTEGER PRIMARY KEY CHECK(id=1),next INTEGER NOT NULL);
@@ -191,6 +237,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS hub_one_merge_lock ON hub_story_tasks(story_id
 CREATE TABLE IF NOT EXISTS hub_task_deps(task_id TEXT NOT NULL REFERENCES hub_story_tasks(id),dep_id TEXT NOT NULL REFERENCES hub_story_tasks(id),PRIMARY KEY(task_id,dep_id));
 CREATE TABLE IF NOT EXISTS hub_story_appends(story_id TEXT NOT NULL REFERENCES hub_stories(id),create_key TEXT NOT NULL,result TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(story_id,create_key));
 CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,story_id TEXT NOT NULL REFERENCES hub_stories(id),task_id TEXT REFERENCES hub_story_tasks(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
 `;
 
 function fail(code: string, status: number, message: string): never {
@@ -198,6 +245,10 @@ function fail(code: string, status: number, message: string): never {
 }
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const finished = (state: TaskState) => state === "merged" || state === "cancelled";
+/** Stored states a Task cannot be cancelled from. */
+const ENDED: readonly TaskState[] = ["merged", "passed", "cancelled"];
+/** Held or failed: what the PL is alerted to and may release. */
+const stuck = (shown: TaskViewState): shown is "held" | "failed" => shown === "held" || shown === "failed";
 const notYours = (): never => fail("NOT_YOURS", 409, "이제 이 Office의 Task가 아닙니다.");
 
 /** The Story graph checks throw their own error type; callers of the hub see a 400. */
@@ -276,13 +327,15 @@ export class StoryBoard {
     const row = typeof id === "string" ? this.#get<StoryRow>("SELECT * FROM hub_stories WHERE id=?", id) : undefined;
     return row ?? fail("NOT_FOUND", 404, "Story를 찾을 수 없습니다.");
   }
-  #assertPl(l: Link, story: StoryRow) {
-    if (story.pl_member_id !== l.member.id) fail("FORBIDDEN", 403, "Story를 올린 PL만 할 수 있습니다.");
+  #assertPl(a: Actor, story: StoryRow) {
+    if (story.pl_member_id !== a.member.id) fail("FORBIDDEN", 403, "Story를 올린 PL만 할 수 있습니다.");
   }
   /** Recovery when the PL is gone: a hub admin may also release and cancel, nothing else. */
-  #assertPlOrAdmin(l: Link, story: StoryRow) {
-    if (story.pl_member_id !== l.member.id && !l.member.admin)
-      fail("FORBIDDEN", 403, "Story를 올린 PL이나 허브 관리자만 할 수 있습니다.");
+  #plOrAdmin(a: Actor, story: StoryRow) {
+    return story.pl_member_id === a.member.id || a.member.admin;
+  }
+  #assertPlOrAdmin(a: Actor, story: StoryRow) {
+    if (!this.#plOrAdmin(a, story)) fail("FORBIDDEN", 403, "Story를 올린 PL이나 허브 관리자만 할 수 있습니다.");
   }
   #repoExists(id: string) {
     return !!this.#get("SELECT 1 FROM hub_repos WHERE id=?", id);
@@ -400,7 +453,7 @@ export class StoryBoard {
     });
   }
 
-  projects(_l: Link): ProjectView[] {
+  projects(_a: Actor): ProjectView[] {
     const repos = this.#all<{ project_id: string; id: string; name: string; base_branch: string }>(
       `SELECT pr.project_id,r.id,r.name,pr.base_branch FROM hub_project_repos pr JOIN hub_repos r ON r.id=pr.repo_id
        ORDER BY r.name,r.id`,
@@ -574,6 +627,9 @@ export class StoryBoard {
   #task(id: unknown) {
     return typeof id === "string" ? this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE id=?", id) : undefined;
   }
+  #found(id: unknown): TaskRow {
+    return this.#task(id) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
+  }
   /** A work Task exists only for links of its own repo; the verification Task has no repo, so any link shows it. */
   #visible(l: Link, taskId: unknown): TaskRow {
     const t = this.#task(taskId);
@@ -652,10 +708,13 @@ export class StoryBoard {
     };
   }
 
-  /** Oldest ready work Task of the link's repo in an open Story. `null` when the member already has an open Task or nothing is ready (`openTaskOf` tells which). */
+  /**
+   * Oldest ready work Task of the link's repo in an open Story. `null` when the member already has an open Task
+   * (`openTaskOf` names it), has turned automatic work off, or nothing is ready.
+   */
   claimNext(l: Link): ClaimedTask | null {
     return transaction(this.#db, () => {
-      if (this.#openTask(l.member.id)) return null;
+      if (this.#openTask(l.member.id) || !this.autoWork(l.member.id)) return null;
       const next = this.#get<{ id: string; story_id: string }>(
         `SELECT t.id,t.story_id FROM hub_story_tasks t JOIN hub_stories s ON s.id=t.story_id
          WHERE t.kind='work' AND t.state='ready' AND t.repo_id=? AND s.state='open'
@@ -719,18 +778,37 @@ export class StoryBoard {
     });
   }
 
-  /** The owner takes a failed Task again under a new claim; the hub only stores the memo, the Office counts attempts. */
+  /**
+   * The one rerun rule, from a link or the web: the assignee takes a failed Task again under a new claim. The hub
+   * only stores the memo (trimmed, empty is none); the Office counts attempts. Callers check the Task is the member's.
+   */
+  #rerun(memberId: string, t: TaskRow, memo: unknown) {
+    if (t.state !== "failed") fail("STATE", 409, "실패한 Task만 다시 실행할 수 있습니다.");
+    const clean = typeof memo === "string" ? memo.trim() : null;
+    if (clean === null || clean.length > LIMITS.memoMax) fail("INVALID", 400, `메모는 ${LIMITS.memoMax}자 이하의 문자열이어야 합니다.`);
+    this.#claim(t.id, memberId);
+    this.#run("UPDATE hub_story_tasks SET memo=? WHERE id=?", clean || null, t.id);
+    this.#event(t.story_id, t.id, memberId, "rerun", clean || null);
+  }
   rerun(l: Link, taskId: string, memo: string): ClaimedTask {
     return transaction(this.#db, () => {
       const t = this.#visible(l, taskId);
       if (t.claimed_by !== l.member.id) notYours();
-      if (t.state !== "failed") fail("STATE", 409, "실패한 Task만 다시 실행할 수 있습니다.");
-      const clean = typeof memo === "string" ? memo.trim() : null;
-      if (clean === null || clean.length > LIMITS.memoMax) fail("INVALID", 400, `메모는 ${LIMITS.memoMax}자 이하의 문자열이어야 합니다.`);
-      this.#claim(t.id, l.member.id);
-      this.#run("UPDATE hub_story_tasks SET memo=? WHERE id=?", clean || null, t.id);
-      this.#event(t.story_id, t.id, l.member.id, "rerun", clean || null);
+      this.#rerun(l.member.id, t, memo);
       return this.#claimedTask(t.id);
+    });
+  }
+  /**
+   * The web's rerun by the assignee. The Office holding the failed run drops it when its next Task read is
+   * NOT_YOURS, and takes the new claim on its next recovery. The Story verification is rerun by the PL's Office.
+   */
+  rerunTask(member: Member, taskId: string, memo: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const t = this.#found(taskId);
+      if (t.kind !== "work") fail("STATE", 409, "Story 검증은 PL의 Office가 다시 합니다.");
+      if (t.claimed_by !== member.id) fail("FORBIDDEN", 403, "내가 맡은 Task만 다시 시도할 수 있습니다.");
+      this.#rerun(member.id, t, memo);
+      return { ok: true as const };
     });
   }
 
@@ -738,33 +816,32 @@ export class StoryBoard {
    * The PL (or a hub admin) takes a held or failed Task back from its assignee. A failed verification Task also
    * reopens its Story. The last lock holder stays recorded, so its late merged report still counts.
    */
-  releaseTask(l: Link, taskId: string): { ok: true } {
+  releaseTask(a: Actor, taskId: string): { ok: true } {
     return transaction(this.#db, () => {
-      const t = this.#task(taskId) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
+      const t = this.#found(taskId);
       const s = this.#story(t.story_id);
-      this.#assertPlOrAdmin(l, s);
+      this.#assertPlOrAdmin(a, s);
       const shown = this.#viewState(t);
-      if (shown !== "held" && shown !== "failed") fail("STATE", 409, "보류나 실패 상태인 Task만 풀 수 있습니다.");
+      if (!stuck(shown)) fail("STATE", 409, "보류나 실패 상태인 Task만 풀 수 있습니다.");
       this.#run(
         `UPDATE hub_story_tasks SET state='ready',claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,
          stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
         this.#now(), t.id,
       );
       if (t.kind === "verify") this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
-      this.#event(s.id, t.id, l.member.id, "released", shown);
+      this.#event(s.id, t.id, a.member.id, "released", shown);
       return { ok: true as const };
     });
   }
 
-  cancelTask(l: Link, taskId: string): { ok: true; ready: number[] } {
+  cancelTask(a: Actor, taskId: string): { ok: true; ready: number[] } {
     return transaction(this.#db, () => {
-      const t = this.#task(taskId) ?? fail("NOT_FOUND", 404, "Task를 찾을 수 없습니다.");
+      const t = this.#found(taskId);
       const s = this.#story(t.story_id);
-      this.#assertPlOrAdmin(l, s);
-      if (t.state === "merged" || t.state === "passed" || t.state === "cancelled")
-        fail("STATE", 409, "이미 끝난 Task는 취소할 수 없습니다.");
+      this.#assertPlOrAdmin(a, s);
+      if (ENDED.includes(t.state)) fail("STATE", 409, "이미 끝난 Task는 취소할 수 없습니다.");
       if (t.kind === "verify") fail("STATE", 409, "Story 검증 Task는 취소할 수 없습니다. Story를 취소하세요.");
-      this.#cancel(s.id, t.id, l.member.id);
+      this.#cancel(s.id, t.id, a.member.id);
       return { ok: true as const, ready: this.#recompute(s.id) };
     });
   }
@@ -932,7 +1009,7 @@ export class StoryBoard {
       l.member.id,
     ).flatMap((t) => {
       const state = this.#viewState(t);
-      return state === "held" || state === "failed" ? [{ taskId: t.id, storyId: t.story_id, number: t.number, state }] : [];
+      return stuck(state) ? [{ taskId: t.id, storyId: t.story_id, number: t.number, state }] : [];
     });
     const verifyReady = this.#all<{ id: string }>(
       `SELECT s.id FROM hub_stories s JOIN hub_story_tasks t ON t.story_id=s.id AND t.kind='verify'
@@ -946,7 +1023,7 @@ export class StoryBoard {
     };
   }
 
-  stories(_l: Link, projectId: string): StorySummary[] {
+  stories(_a: Actor, projectId: string): StorySummary[] {
     const project = this.#project(projectId);
     const tasks = this.#all<{ story_id: string; state: TaskState; heartbeat_at: number | null }>(
       `SELECT t.story_id,t.state,t.heartbeat_at FROM hub_story_tasks t JOIN hub_stories s ON s.id=t.story_id
@@ -990,7 +1067,7 @@ export class StoryBoard {
       .map((r) => ({ repoId: r.id, repoName: r.name, baseBranch: r.base_branch, storyBase: storyBaseBranch(s.number) }));
   }
 
-  story(l: Link, storyId: string): StoryView {
+  story(a: Actor, storyId: string): StoryView {
     const s = this.#story(storyId);
     const pl = this.#get<{ name: string }>("SELECT name FROM hub_members WHERE id=?", s.pl_member_id);
     const depsOf = new Map<string, number[]>();
@@ -1039,10 +1116,140 @@ export class StoryBoard {
       risk: s.risk,
       state: s.state,
       pl: { id: s.pl_member_id, name: pl?.name ?? "" },
-      isPl: s.pl_member_id === l.member.id,
+      isPl: s.pl_member_id === a.member.id,
       branches: this.#branches(s),
       tasks,
       createdAt: s.created_at,
+    };
+  }
+
+  /** One Task with its Story, for the web's Task page. */
+  taskDetail(a: Actor, taskId: string): { story: StoryView; task: TaskView } {
+    const t = this.#found(taskId);
+    const story = this.story(a, t.story_id);
+    return { story, task: story.tasks.find((x) => x.id === t.id) as TaskView };
+  }
+
+  /** A member works automatically unless they turned it off; no row means on. */
+  autoWork(memberId: string): boolean {
+    const row = this.#get<{ auto_work: number }>("SELECT auto_work FROM hub_work_settings WHERE member_id=?", memberId);
+    return row ? row.auto_work === 1 : true;
+  }
+  /** Off stops `claimNext` only: the open Task, a pick, a web rerun and the PL's `claimVerify` go on. */
+  setAutoWork(member: Member, on: boolean): { autoWork: boolean } {
+    return transaction(this.#db, () => {
+      if (typeof on !== "boolean") fail("INVALID", 400, "켜기 또는 끄기를 골라주세요.");
+      this.#run(
+        `INSERT INTO hub_work_settings(member_id,auto_work,updated_at) VALUES (?,?,?)
+         ON CONFLICT(member_id) DO UPDATE SET auto_work=excluded.auto_work,updated_at=excluded.updated_at`,
+        member.id, on ? 1 : 0, this.#now(),
+      );
+      return { autoWork: on };
+    });
+  }
+
+  #owns(memberId: string, repoId: string | null) {
+    return repoId !== null && !!this.#get("SELECT 1 FROM hub_repo_owners WHERE repo_id=? AND member_id=?", repoId, memberId);
+  }
+  /**
+   * Why the member cannot pick this Task on the web now, in check order; null when they can. `linked` is the
+   * repos the member has a live link to (the caller decides liveness). The automatic-work switch is not a reason.
+   */
+  #pickBlock(memberId: string, t: TaskRow, linked: ReadonlySet<string>): PickBlock | null {
+    if (t.kind !== "work" || t.state !== "ready" || this.#story(t.story_id).state !== "open") return "STATE";
+    if (!this.#owns(memberId, t.repo_id)) return "FORBIDDEN";
+    if (!linked.has(t.repo_id as string)) return "NOT_LINKED";
+    if (this.#openTask(memberId)) return "BUSY";
+    return null;
+  }
+  /** The one rule behind the pick button on every screen; `pickTask` refuses by the same checks. */
+  #pickState(memberId: string, t: TaskRow, linked: ReadonlySet<string>): PickState {
+    switch (this.#pickBlock(memberId, t, linked)) {
+      case "STATE":
+      case "FORBIDDEN":
+        return "no";
+      case "NOT_LINKED":
+        return "not-linked";
+      case "BUSY":
+        return "busy";
+      default:
+        return this.autoWork(memberId) ? "auto-on" : "yes";
+    }
+  }
+  /**
+   * The member picks a ready Task on the web. The hub claims it for them on the spot, as `claimNext` would, and
+   * their Office takes the claim over on its next recovery (inbox `mine`). Works with automatic work on or off.
+   */
+  pickTask(member: Member, taskId: string, linked: ReadonlySet<string>): { ok: true } {
+    return transaction(this.#db, () => {
+      const t = this.#found(taskId);
+      const block = this.#pickBlock(member.id, t, linked);
+      if (block) {
+        const [status, message] = PICK_REFUSALS[block];
+        fail(block, status, message);
+      }
+      this.#claim(t.id, member.id);
+      this.#event(t.story_id, t.id, member.id, "picked");
+      return { ok: true as const };
+    });
+  }
+
+  /** The web's buttons for one Task, by the rules `pickTask`, `rerunTask`, `releaseTask` and `cancelTask` check. */
+  taskActions(member: Member, taskId: string, linked: ReadonlySet<string>): TaskActions {
+    const t = this.#found(taskId);
+    const lead = this.#plOrAdmin({ member }, this.#story(t.story_id));
+    return {
+      pick: this.#pickState(member.id, t, linked),
+      rerun: t.kind === "work" && t.state === "failed" && t.claimed_by === member.id,
+      release: lead && stuck(this.#viewState(t)),
+      cancel: lead && t.kind === "work" && !ENDED.includes(t.state),
+    };
+  }
+
+  #card(t: CardRow, pick: PickState = "no"): WorkCard {
+    return {
+      taskId: t.id,
+      number: t.number,
+      kind: t.kind,
+      title: t.title,
+      repo: t.repo_id ? { id: t.repo_id, name: t.repo_name as string } : null,
+      story: { id: t.story_id, number: t.story_number, title: t.story_title },
+      state: this.#viewState(t),
+      stage: t.stage,
+      assignee: t.claimed_by ? { id: t.claimed_by, name: t.assignee_name as string } : null,
+      prUrl: t.pr_url,
+      failure: t.failure,
+      heartbeatAt: t.heartbeat_at,
+      updatedAt: t.updated_at,
+      pick,
+    };
+  }
+  /**
+   * The member's own page: their open Task; ready work Tasks of open Stories in their repos, in claim order;
+   * held or failed Tasks of Stories they lead; and the Tasks they merged last, newest first.
+   */
+  memberWork(memberId: string, linked: ReadonlySet<string>): MemberWork {
+    const open = this.#get<CardRow>(`${CARD_SELECT} WHERE t.claimed_by=? AND t.state IN ('claimed','failed')`, memberId);
+    const ready = this.#all<CardRow>(
+      `${CARD_SELECT} WHERE t.kind='work' AND t.state='ready' AND s.state='open'
+       AND t.repo_id IN (SELECT repo_id FROM hub_repo_owners WHERE member_id=?)
+       ORDER BY s.created_at,t.number LIMIT ${READY_LIST_MAX}`,
+      memberId,
+    );
+    const led = this.#all<CardRow>(
+      `${CARD_SELECT} WHERE s.pl_member_id=? AND t.state IN ('claimed','failed') ORDER BY t.number`,
+      memberId,
+    ).filter((t) => stuck(this.#viewState(t)));
+    const done = this.#all<CardRow>(
+      `${CARD_SELECT} WHERE t.claimed_by=? AND t.state='merged' ORDER BY t.updated_at DESC,t.number DESC LIMIT ${DONE_LIST_MAX}`,
+      memberId,
+    );
+    return {
+      autoWork: this.autoWork(memberId),
+      open: open ? this.#card(open) : null,
+      ready: ready.map((t) => this.#card(t, this.#pickState(memberId, t, linked))),
+      led: led.map((t) => this.#card(t)),
+      done: done.map((t) => this.#card(t)),
     };
   }
 }
