@@ -3,6 +3,8 @@ import { digest, verifyCandidate } from "../core/candidates.ts";
 import type { Candidate } from "../core/candidates.ts";
 import { workspaceScope } from "../core/workspace.ts";
 import type { ContractInput } from "../core/contracts.ts";
+import { PLAN_LIMITS } from "../hub/plan-protocol.ts";
+import { LIMITS as STORY_LIMITS, isBaseBranchName } from "../hub/story-protocol.ts";
 import type { CommandResult } from "./command.ts";
 import { assertRoleProfile, loadRoleProfile } from "./role-profiles.ts";
 import { terminalReport } from "./terminal-report.ts";
@@ -182,10 +184,19 @@ function parseStory(value: unknown) {
   return { title, goal, domain, must, should, out, assumptions, verify };
 }
 type Story = ReturnType<typeof parseStory>;
+export type PlanningStory = Story;
 type Question = { id: string; text: string; reason: string };
 type Dialogue = {
   questions: Question[];
   answers: { id: string; answer: string }[];
+};
+export type PlanningDialogue = Dialogue;
+/** A team plan's repos (one snapshot folder each) and the PL's rewrite note or the reason the last split was refused. */
+type Team = {
+  version: 1;
+  repos: { folder: string; baseBranch: string }[];
+  rewrite: { previous: string; note: string } | null;
+  retry: string | null;
 };
 type Input = {
   workflow?: "kit-role-v1";
@@ -195,6 +206,7 @@ type Input = {
   role: "pm" | "lead";
   dialogue: Dialogue[];
   story: Story | null;
+  team?: Team;
 };
 function seal(input: Input) {
   const data = {
@@ -239,6 +251,113 @@ export function beginPlanning(
     story: null,
   });
 }
+/** A repo's folder in a team plan's snapshot: a plain name that is also safe as one path part. */
+export const TEAM_FOLDER = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
+/** The most repos one team plan reads. */
+export const TEAM_REPOS_MAX = 20;
+const PLAN_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/** Whitespace and control characters folded to single spaces, trimmed: a PL's free text (answers, notes) as the one
+ * line a model field allows. The Hub keeps the original. */
+export function oneLine(value: string): string {
+  return value.replace(/[\s\x00-\x1f\x7f]+/gu, " ").trim();
+}
+
+/** The packet of a team plan's PM or Lead turn, sealed like a single-Office packet: the plan id stands for the
+ * request id and the PL's text for the request, and `team` adds the repos and the rewrite note or retry reason. */
+export function teamPlanningPacket(input: {
+  planId: string;
+  intent: string;
+  risk: "normal" | "high";
+  role: "pm" | "lead";
+  repos: { folder: string; baseBranch: string }[];
+  dialogue: PlanningDialogue[];
+  story: PlanningStory | null;
+  rewrite: { previous: string; note: string } | null;
+  retry: string | null;
+}): PlanningPacket {
+  const { planId, intent, risk, role } = input;
+  if (typeof planId !== "string" || !PLAN_ID.test(planId)) invalid("plan: invalid id");
+  if (!["normal", "high"].includes(risk) || !["pm", "lead"].includes(role))
+    invalid("plan: invalid risk or role");
+  if (
+    typeof intent !== "string" ||
+    !intent.trim() ||
+    Buffer.byteLength(intent) > PLAN_LIMITS.intentBytes ||
+    intent.includes("\0")
+  )
+    invalid("plan.intent: empty, too large or contains NUL");
+  const folders = new Set<string>();
+  const repos = list(
+    input.repos,
+    "plan.repos",
+    (value, at) => {
+      const r = object(value, ["folder", "baseBranch"], at);
+      if (typeof r.folder !== "string" || !TEAM_FOLDER.test(r.folder) || folders.has(r.folder.toLowerCase()))
+        invalid(`${at}.folder: not a plain unique folder name`);
+      folders.add(r.folder.toLowerCase());
+      if (typeof r.baseBranch !== "string" || !isBaseBranchName(r.baseBranch))
+        invalid(`${at}.baseBranch: not a base branch name`);
+      return { folder: r.folder, baseBranch: r.baseBranch };
+    },
+    TEAM_REPOS_MAX,
+  );
+  const line = (value: unknown, at: string, max: number) =>
+    text(typeof value === "string" ? oneLine(value) : value, at, max);
+  const dialogue = list(
+    input.dialogue,
+    "plan.dialogue",
+    (value, at) => {
+      const round = object(value, ["questions", "answers"], at);
+      return {
+        questions: list(
+          round.questions,
+          `${at}.questions`,
+          (q, path) => {
+            const v = object(q, ["id", "text", "reason"], path);
+            return {
+              id: text(v.id, `${path}.id`, 16),
+              text: text(v.text, `${path}.text`, LIMITS.question),
+              reason: text(v.reason, `${path}.reason`, LIMITS.question),
+            };
+          },
+          PLAN_LIMITS.questionsPerRound,
+        ),
+        answers: list(
+          round.answers,
+          `${at}.answers`,
+          (a, path) => {
+            const v = object(a, ["id", "answer"], path);
+            return { id: text(v.id, `${path}.id`, 16), answer: line(v.answer, `${path}.answer`, PLAN_LIMITS.answerMax) };
+          },
+          PLAN_LIMITS.questionsPerRound,
+        ),
+      };
+    },
+    PLAN_LIMITS.roundsMax,
+    0,
+  );
+  let rewrite: Team["rewrite"] = null;
+  if (input.rewrite != null) {
+    const r = object(input.rewrite, ["previous", "note"], "plan.rewrite");
+    if (typeof r.previous !== "string" || !r.previous.trim() || Buffer.byteLength(r.previous) > PLAN_LIMITS.draftBytes)
+      invalid("plan.rewrite.previous: empty or too large");
+    rewrite = { previous: r.previous, note: line(r.note, "plan.rewrite.note", PLAN_LIMITS.noteMax) };
+  }
+  const retry = input.retry == null ? null : line(input.retry, "plan.retry", PLAN_LIMITS.failureMax);
+  const story = input.story == null ? null : parseStory(input.story);
+  if (role === "lead" && !story) invalid("packet: story missing");
+  return seal({
+    requestId: planId,
+    request: intent,
+    risk,
+    role,
+    dialogue,
+    story,
+    team: { version: 1, repos, rewrite, retry },
+  });
+}
+
 export function continuePlanning(
   packet: PlanningPacket,
   story: Story,
@@ -254,6 +373,59 @@ export function continuePlanning(
     role,
     ...(packet.workflow ? { workflow: packet.workflow } : {}),
   });
+}
+
+const environment = {
+  workspace: "/candidate/tree",
+  access: "read-only",
+  gitMetadata: false,
+  availableCommands: ["node", "/bin/sh"],
+  network: "none",
+  dependencies:
+    "Only selected snapshot files; no installation or implicit global packages.",
+  workspaceSelection: {
+    rule: "include selects the complete allowed tree. Every exclude must be strictly inside an included directory; paths outside include are already unavailable. For a single file, use an empty exclude list. Do not list unrelated source, docs or package files as exclusions.",
+    singleFileExample: { include: ["README_ko.md"], exclude: [] },
+  },
+  evidenceBoundary:
+    "Office checks the selected file manifest and supplies the baseline diff to Reviewer. Candidate checks have no .git or baseline checkout. Use available commands only: no git, rg, bash assumption, installs, or negated pipelines hiding failures. Deterministic checks cannot prove semantic correctness; Reviewer must assess wording and requirement contradictions. Do not ban required links or keywords appearing in negative warnings. Check JavaScript and regex escaping before proposing node -e commands.",
+};
+/** A team Task has no workspace selection: its checks run at the root of its own repo. */
+function teamEnvironment(base: typeof environment) {
+  const { workspaceSelection: _, ...rest } = base;
+  return { ...rest, workspace: "/candidate/tree/<folder>: the root of the task's own repository" };
+}
+
+/** What a team plan's PM or Lead must know beyond its role profile: the repo folders and their base branches, and
+ * the team output (PM `openBlocking`; Lead `repo`, `files`, `after`, `storyVerify`). */
+function teamBlock(team: Team, role: "pm" | "lead"): string {
+  const lines = [
+    "Team planning: this plan belongs to a team project with several repositories. Where this block and the role profile differ, follow this block.",
+    "The readonly snapshot has one folder per project repository, each at the tip of that repository's base branch:",
+    ...team.repos.map((r) => `- /candidate/tree/${r.folder}: repository folder ${r.folder}, base branch ${r.baseBranch}`),
+    "Each folder is a separate repository. A task changes exactly one of them, and its checks run later at the root of that repository, which is /candidate/tree/<folder> in this snapshot.",
+  ];
+  if (role === "pm")
+    lines.push(
+      `Office allows at most ${PLAN_LIMITS.roundsMax} question rounds per plan (not three); after that the plan fails, so ask only what changes the Story.`,
+      'When ready, return {version:1,inputDigest,status:"ready",story:{title,goal,domain,must,should,out,assumptions,verify,openBlocking:[{text,reason}]}}: the PM story schema plus openBlocking.',
+      `openBlocking lists 0-${PLAN_LIMITS.questionsPerRound} decisions the PL must make before approving the Story (G1) because the Story cannot be right without them: text is the decision needed, reason why it blocks. Use [] when nothing blocks. Office asks the PL these as questions; never write OPEN BLOCKING lines yourself.`,
+      "packet.team.rewrite, when not null, is the PL's request to rewrite the draft: previous is the draft the PL saw and note is what to change. Change what the note asks and keep the rest.",
+    );
+  else
+    lines.push(
+      'Return {version:1,inputDigest,plan,tasks:[{title,outcome,scope,constraints,must:[1],verify:[1],checks:[{id:"V1",argv:["node","--test"],timeoutMs:30000}],"repo":"<folder>","files":["src/a.ts"],"after":[]}],"storyVerify":[{"repo":"<folder>","checks":[{id:"V1",argv:["node","--test"],timeoutMs:30000}]}]}. There is no workspace key.',
+      '"repo" is one folder name of packet.team.repos: the only repository the task changes.',
+      '"files" lists the files the task creates or changes, relative to that repository\'s root: no folder prefix, no leading /, no "..". A path ending in / names a folder.',
+      '"after" lists the one-based numbers (in tasks order) of the tasks that must be merged before this one, [] when none. A task never names itself and the order has no cycle.',
+      "Two tasks in the same repository that change the same file must be ordered: one reaches the other through after.",
+      '"storyVerify" gives, for each repository the Story\'s Verify scenarios run in, the checks that run at that repository\'s root once every task is merged: at least one entry, at most one per repository.',
+      "Before returning tasks, run readonly commands in /candidate/tree/<folder> to confirm the paths, existing tests and baseline behavior your files and checks rely on.",
+      ...(team.retry
+        ? [`The previous split was refused for this reason: ${team.retry}`, "Return a whole new split that fixes it."]
+        : []),
+    );
+  return lines.join("\n");
 }
 
 export function planningPrompt(
@@ -275,21 +447,7 @@ export function planningPrompt(
           purpose: "proposal",
         }
       : null,
-    verificationEnvironment: {
-      workspace: "/candidate/tree",
-      access: "read-only",
-      gitMetadata: false,
-      availableCommands: ["node", "/bin/sh"],
-      network: "none",
-      dependencies:
-        "Only selected snapshot files; no installation or implicit global packages.",
-      workspaceSelection: {
-        rule: "include selects the complete allowed tree. Every exclude must be strictly inside an included directory; paths outside include are already unavailable. For a single file, use an empty exclude list. Do not list unrelated source, docs or package files as exclusions.",
-        singleFileExample: { include: ["README_ko.md"], exclude: [] },
-      },
-      evidenceBoundary:
-        "Office checks the selected file manifest and supplies the baseline diff to Reviewer. Candidate checks have no .git or baseline checkout. Use available commands only: no git, rg, bash assumption, installs, or negated pipelines hiding failures. Deterministic checks cannot prove semantic correctness; Reviewer must assess wording and requirement contradictions. Do not ban required links or keywords appearing in negative warnings. Check JavaScript and regex escaping before proposing node -e commands.",
-    },
+    verificationEnvironment: packet.team ? teamEnvironment(environment) : environment,
     procedure: {
       mode: "direct",
       skillStatus: "not-qualified",
@@ -316,7 +474,9 @@ export function planningPrompt(
           'Either role may instead ask necessary questions using {"version":1,"inputDigest":"the supplied digest","status":"questions","questions":[{"id":"Q1","text":"question","reason":"blocking decision"}]}. Office transports the answer and resumes this node; do not guess a human decision.',
         ]
       : []),
-    planningLimits(packet.role),
+    ...(packet.team
+      ? [teamBlock(packet.team, packet.role), teamPlanningLimits(packet.role)]
+      : [planningLimits(packet.role)]),
     "BEGIN PLANNING TASK DATA\n" +
       JSON.stringify(data) +
       "\nEND PLANNING TASK DATA",
@@ -326,26 +486,60 @@ export function planningPrompt(
  * exceeds any limit is still rejected whole, never truncated. */
 export function planningLimits(role: "pm" | "lead") {
   const L = LIMITS;
-  const common = [
+  if (role === "pm") return pmLimits().join("\n");
+  return [
+    ...commonLimits(),
+    `- plan at most ${L.plan} characters; tasks 1-${L.tasks} items.`,
+    ...taskLimits(),
+    checkLimits(L.checks),
+  ].join("\n");
+}
+function commonLimits() {
+  const L = LIMITS;
+  return [
     "Output limits (Office rejects the whole response if any limit is exceeded):",
     "- Every text value is a single line: no line breaks, tabs or other control characters. Write multi-paragraph content as consecutive sentences on one line.",
     "- Use exactly the keys of the schema; no extra or missing keys.",
     `- questions: 1-${L.questions} items, unique ids Q1-Q${L.questions}; text and reason each at most ${L.question} characters.`,
   ];
-  if (role === "pm")
-    return [
-      ...common,
-      `- story.title at most ${L.title} characters; goal, domain and every list item at most ${L.text} characters.`,
-      `- story.must 1-${L.items} items; should 0-${L.items}; out 1-${L.items}; assumptions 0-${L.items}; verify 1-${L.items}.`,
-      `- If more than ${L.items} MUST items are needed, merge closely related requirements into one item; never drop a requirement to fit. If that cannot keep them clear, ask a question instead.`,
-      "- Each verify.must lists unique MUST numbers between 1 and the number of MUST items; every MUST appears in at least one verify.",
-    ].join("\n");
+}
+function pmLimits() {
+  const L = LIMITS;
   return [
-    ...common,
-    `- plan at most ${L.plan} characters; tasks 1-${L.tasks} items.`,
+    ...commonLimits(),
+    `- story.title at most ${L.title} characters; goal, domain and every list item at most ${L.text} characters.`,
+    `- story.must 1-${L.items} items; should 0-${L.items}; out 1-${L.items}; assumptions 0-${L.items}; verify 1-${L.items}.`,
+    `- If more than ${L.items} MUST items are needed, merge closely related requirements into one item; never drop a requirement to fit. If that cannot keep them clear, ask a question instead.`,
+    "- Each verify.must lists unique MUST numbers between 1 and the number of MUST items; every MUST appears in at least one verify.",
+  ];
+}
+function taskLimits() {
+  const L = LIMITS;
+  return [
     `- task title at most ${L.title} characters; outcome, scope and constraints at most ${L.text} characters each.`,
     "- task.must and task.verify list unique Story numbers in range; every task MUST is covered by one of that task's verify entries; across tasks every Story MUST and Verify is covered.",
-    `- checks 1-${L.checks} per task; each id is V<n> from that task's verify and every task verify has a check; argv 1-${L.argv} strings of at most ${L.arg} characters with a non-empty argv[0]; timeoutMs an integer 1-${L.timeoutMs}.`,
+  ];
+}
+function checkLimits(max: number) {
+  const L = LIMITS;
+  return `- checks 1-${max} per task; each id is V<n> from that task's verify and every task verify has a check; argv 1-${L.argv} strings of at most ${L.arg} characters with a non-empty argv[0]; timeoutMs an integer 1-${L.timeoutMs}.`;
+}
+/** The limits of a team plan's PM or Lead output: the single-Office rules plus `openBlocking` for the PM, and for
+ * the Lead the Hub's caps (20 work tasks, 8 checks, 50 files) with `repo`, `after` and `storyVerify`. */
+export function teamPlanningLimits(role: "pm" | "lead"): string {
+  const S = STORY_LIMITS;
+  if (role === "pm")
+    return [
+      ...pmLimits(),
+      `- story.openBlocking 0-${PLAN_LIMITS.questionsPerRound} items of {text, reason}; text and reason each at most ${PLAN_LIMITS.questionTextMax} characters.`,
+    ].join("\n");
+  return [
+    ...commonLimits(),
+    `- plan at most ${LIMITS.plan} characters; tasks 1-${PLAN_LIMITS.workTasksMax} items.`,
+    ...taskLimits(),
+    checkLimits(S.checksPerList),
+    `- repo is one folder of packet.team.repos; files 1-${S.filesPerTask} unique paths of at most ${S.filePathMax} characters each; after lists unique task numbers between 1 and the number of tasks, never the task's own.`,
+    `- storyVerify 1 entry per repository at most, at least 1 entry; checks 1-${S.checksPerList} per entry with the argv and timeoutMs rules above, each id V<n> of a Story Verify scenario it checks.`,
   ].join("\n");
 }
 type Questions = {

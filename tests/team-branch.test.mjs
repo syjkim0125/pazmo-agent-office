@@ -23,7 +23,10 @@ import {
   changedFiles,
   commitAll,
   ensureCheckout,
+  extractTree,
+  fetchBaseTip,
   inMerge,
+  listTree,
   mergeStoryBase,
   pushTaskBranch,
   startTaskBranch,
@@ -984,4 +987,120 @@ test("an unreadable conflicted file, or one that is no longer a regular file, co
   writeFileSync(file, "resolved\n");
   assert.equal((await commitAll(checkout, "finish", e)).changed, true);
   assert.equal(inMerge(checkout), false);
+});
+
+/** The checkout's private git dir (a linked worktree's), which holds its FETCH_HEAD and index. */
+const worktreeGitDir = (w, checkout) => w.git(checkout, "rev-parse", "--path-format=absolute", "--git-dir").trim();
+
+/** Pushes to the origin a branch `with-links` holding a plain file, an executable, a symlink and a gitlink. */
+function pushWithLinks(w) {
+  const scratch = join(w.root, "scratch");
+  w.git(w.root, "clone", "-q", w.bare, scratch);
+  mkdirSync(join(scratch, "bin"));
+  writeFileSync(join(scratch, "bin", "run.sh"), "echo run\n");
+  chmodSync(join(scratch, "bin", "run.sh"), 0o755);
+  symlinkSync("README.md", join(scratch, "link"));
+  const initial = w.git(scratch, "rev-parse", "HEAD").trim();
+  w.git(scratch, "add", "-A");
+  w.git(scratch, "update-index", "--add", "--cacheinfo", `160000,${initial},vendor/sub`);
+  w.git(scratch, "commit", "-q", "-m", "links");
+  w.git(scratch, "push", "-q", "origin", "HEAD:refs/heads/with-links");
+  return w.git(scratch, "rev-parse", "HEAD").trim();
+}
+
+test("fetchBaseTip returns the origin's base branch tip into FETCH_HEAD only and adds no remote-tracking ref; a name with '..' is GIT_FAILED before git runs", async (t) => {
+  const w = gitWorld(t);
+  const tip = w.push("develop", { "web/index.html": "<p>develop</p>\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  const before = snapshot(w);
+
+  assert.equal(await fetchBaseTip(checkout, "develop", e), tip);
+  assert.equal(w.git(checkout, "rev-parse", "FETCH_HEAD").trim(), tip);
+  assert.ok(existsSync(join(worktreeGitDir(w, checkout), "FETCH_HEAD")));
+  const after = snapshot(w);
+  assert.equal(after.refs, before.refs); // no refs/remotes/origin/develop, no local develop
+  assert.doesNotMatch(after.refs, /develop/);
+  assert.equal(after.fetchHead, false);
+  assert.equal(after.head, before.head);
+  assert.equal(after.status, before.status);
+  assert.equal(await fetchBaseTip(checkout, "main", e), w.git(w.bare, "rev-parse", "refs/heads/main").trim());
+
+  const { calls, run } = spy();
+  for (const name of ["a..b", "", "-x", "--upload-pack=sh", "a b", "/abs", "x/", "x.lock"])
+    await assert.rejects(fetchBaseTip(checkout, name, env(w, { run })), { code: "GIT_FAILED" });
+  assert.deepEqual(calls, []);
+});
+
+test("listTree lists blobs and symlinks with sizes and leaves out gitlinks", async (t) => {
+  const w = gitWorld(t);
+  const sha = pushWithLinks(w);
+  const checkout = checkoutOf(w);
+  const { calls, run } = spy();
+  const e = env(w, { run });
+  await ensureCheckout(w.repo, checkout, e);
+  assert.equal(await fetchBaseTip(checkout, "with-links", e), sha);
+
+  assert.deepEqual(await listTree(checkout, sha, e), [
+    { path: "README.md", size: Buffer.byteLength("# origin\n"), link: false },
+    { path: "bin/run.sh", size: Buffer.byteLength("echo run\n"), link: false },
+    { path: "link", size: Buffer.byteLength("README.md"), link: true },
+  ]);
+  const listing = calls.find((call) => subcommand(call.argv) === "ls-tree");
+  assert.equal(listing.options.maxBytes, 16 * 1024 * 1024);
+  assert.equal(listing.options.cwd, checkout);
+  // Only a full commit id goes to git.
+  await assert.rejects(listTree(checkout, "with-links", e), { code: "GIT_FAILED" });
+});
+
+test("extractTree writes the tree of a commit into an empty folder through a private index; the checkout's index, HEAD and status stay the same; a folder with files is GIT_FAILED", async (t) => {
+  const w = gitWorld(t);
+  const sha = pushWithLinks(w);
+  const checkout = checkoutOf(w);
+  const { calls, run } = spy();
+  const e = env(w, { run });
+  await ensureCheckout(w.repo, checkout, e);
+  await fetchBaseTip(checkout, "with-links", e);
+  // The checkout holds a staged change and an untracked file that must survive as they are.
+  writeFileSync(join(checkout, "README.md"), "staged\n");
+  w.git(checkout, "add", "README.md");
+  writeFileSync(join(checkout, "loose.txt"), "untracked\n");
+  const index = join(worktreeGitDir(w, checkout), "index");
+  const state = () => ({
+    head: headOf(w, checkout),
+    status: w.git(checkout, "status", "--porcelain", "--untracked-files=all"),
+    index: readFileSync(index).toString("hex"),
+  });
+  const before = state();
+  const person = snapshot(w);
+  const parent = join(w.root, "plan", "tree");
+  mkdirSync(parent, { recursive: true });
+  const target = join(parent, "app-be");
+  calls.length = 0;
+
+  await extractTree(checkout, sha, target, e);
+
+  assert.equal(readFileSync(join(target, "README.md"), "utf8"), "# origin\n");
+  assert.equal(readFileSync(join(target, "bin", "run.sh"), "utf8"), "echo run\n");
+  assert.notEqual(statSync(join(target, "bin", "run.sh")).mode & 0o111, 0);
+  assert.equal(readlinkSync(join(target, "link")), "README.md");
+  assert.equal(existsSync(join(target, "vendor", "sub", "README.md")), false);
+  assert.equal(existsSync(join(target, ".git")), false);
+  assert.deepEqual(readdirSync(parent), ["app-be"]); // the private index is gone
+  assert.deepEqual(state(), before);
+  assertRepoUntouched(w, person);
+  const indexed = calls.filter((call) => ["read-tree", "checkout-index"].includes(subcommand(call.argv)));
+  assert.deepEqual(indexed.map((call) => subcommand(call.argv)), ["read-tree", "checkout-index"]);
+  const privateIndex = indexed[0].options.env.GIT_INDEX_FILE;
+  assert.equal(dirname(privateIndex), parent);
+  assert.notEqual(privateIndex, index);
+  assert.equal(indexed[1].options.env.GIT_INDEX_FILE, privateIndex);
+  for (const call of calls.filter((call) => !indexed.includes(call)))
+    assert.equal(call.options.env.GIT_INDEX_FILE, undefined);
+
+  calls.length = 0;
+  await assert.rejects(extractTree(checkout, sha, target, e), { code: "GIT_FAILED" });
+  await assert.rejects(extractTree(checkout, "with-links", join(parent, "other"), e), { code: "GIT_FAILED" });
+  assert.deepEqual(calls, []);
 });
