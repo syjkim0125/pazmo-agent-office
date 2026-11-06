@@ -19,6 +19,7 @@ import {
   acceptTeamPm,
   decidedOf,
   dialogueOf,
+  renderTeamDesign,
   renderTeamStory,
   repoFolders,
 } from "../runners/team-planning.ts";
@@ -118,6 +119,9 @@ const UNKNOWN = "PL Mac에서 기획 단계를 마치지 못했습니다. 다시
 /** UNSAFE_PATH from writing the gate records: the plan's own folder, not a repo path of the planning tree. */
 const RECORDS = "PL Mac에 기획 기록을 쓸 수 없습니다(기획 폴더가 안전하지 않습니다). Office 데이터 폴더를 확인한 뒤 다시 시도하세요.";
 const TWICE = "AI가 Task를 두 번 나눴지만 검사를 통과하지 못했습니다.";
+const DESIGN_TOO_LONG = "설계가 너무 깁니다(16KB 넘음).";
+const APPROVED_REFUSED =
+  "Hub가 승인한 설계의 Task 나누기를 받지 않았습니다. 승인한 설계는 고칠 수 없으니 취소하고 새 Story로 시작하세요.";
 const PUBLISH_REFUSED = "Hub가 Story 올리기를 받지 않았습니다. 아래 이유를 확인한 뒤 다시 시도하세요.";
 const OPEN_REFUSED = "Hub가 Story 열기를 받지 않았습니다. 아래 이유를 확인한 뒤 다시 시도하세요.";
 const STORY_REFUSED = "Hub에서 올린 Story를 읽지 못했습니다. 아래 이유를 확인한 뒤 다시 시도하세요.";
@@ -191,6 +195,17 @@ async function hubStep<T>(what: string, plain: string, call: () => Promise<T>): 
   }
 }
 
+/** The design a high-risk split renders to is over the Hub's 16384 bytes: refused like a split the Office's checks
+ * refuse, so the Lead gets one more turn told the limit. */
+class DesignTooLong extends OfficeError {
+  constructor(bytes: number) {
+    super(
+      "DESIGN_TOO_LONG",
+      `The design (plan and task list) is ${bytes} UTF-8 bytes but must fit in ${PLAN_LIMITS.designBytes}: write a shorter plan and shorter task titles.`,
+    );
+  }
+}
+
 /** A model turn's runner the PL's Mac cannot use (not ready, a limit, billing, login) as the PL's failure, else null. */
 function runnerProblem(observation: Awaited<ReturnType<LeanOffice["planTurn"]>>): PlanResult | null {
   const problem = runnerNotReady(observation.result.error) ?? runnerAccountProblem(observation.result.stdout ?? "");
@@ -203,14 +218,17 @@ function runnerProblem(observation: Awaited<ReturnType<LeanOffice["planTurn"]>>)
 }
 
 /** The reason a Lead split was refused, for the next turn's `retry`: the Office's own checks of the output
- * (PLANNING_INVALID, never a runner's failure) or the Hub's graph check (SPLIT_REFUSED). Null for anything else. */
+ * (PLANNING_INVALID, never a runner's failure), the Hub's graph check (SPLIT_REFUSED) or a design over its limit.
+ * Null for anything else. */
 function refusalOf(error: unknown): string | null {
   const reason =
     error instanceof SplitRefused
       ? `${error.graphCode}: ${error.message}`
       : error instanceof PlanningInvalid && error.origin === "output"
         ? error.detail
-        : null;
+        : error instanceof DesignTooLong
+          ? error.message
+          : null;
   if (reason === null) return null;
   // The packet takes it as one line of at most failureMax characters.
   const line = oneLine(reason).slice(0, PLAN_LIMITS.failureMax);
@@ -385,7 +403,8 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
    * checks of the output (PLANNING_INVALID, SPLIT_REFUSED) or by `use` (SplitRefused, as the Hub's publish refusing
    * the graph is). The second turn's packet carries the reason in `retry`; a second refusal is failed with it. A split
    * whose `use` ended on HubNotNow is kept for its lease: the next run of that lease hands it to `use` again without a
-   * Lead turn. The splitting step uses it, and the design step will (F6).
+   * Lead turn. The second refusal's plain line is the design's limit when that was the refusal. The splitting and
+   * design steps both use it (F6).
    */
   async function leadSplit(s: StepInput, story: PlanningStory, use: (split: TeamSplit) => Promise<PlanResult>): Promise<PlanResult> {
     const key = keyOf(s.plan.id, s.leaseId, s.revision);
@@ -395,6 +414,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
     let split = held?.split ?? null;
     for (;;) {
       let refused: string | null;
+      let plain = TWICE;
       try {
         if (!split) {
           const made = await leadTurn(s, story, retry);
@@ -410,9 +430,10 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
       } catch (error) {
         refused = refusalOf(error);
         if (refused === null) throw error;
+        if (error instanceof DesignTooLong) plain = DESIGN_TOO_LONG;
       }
       log(`team: plan ${s.plan.id}: the Lead's split was refused (${refused.slice(0, 160)})${retry === null ? "; asking the Lead once more" : ""}`);
-      if (retry !== null) return withDetail(TWICE, refused);
+      if (retry !== null) return withDetail(plain, refused);
       retry = refused;
       split = null;
     }
@@ -521,15 +542,32 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
   }
 
   /**
-   * The splitting step of a normal-risk plan after its G1: the approval must bind the draft (`checkApprovals`), the
-   * kit gate records go to the plan's folder, then the Lead splits it (one retry), the plan is confirmed and the split
-   * published under `plan:<planId>`, every Story base is made and the Story opened. A plan that already has a
+   * The design step of a high-risk plan after its G1: the approval must bind the draft, then the Lead splits it (one
+   * retry, as the splitting step's) and the design is that split in the `decision.md` shape, posted with the split for
+   * the PL's G3. Nothing is published, recorded or pushed. A design over the Hub's 16384 bytes is refused like a split.
+   */
+  async function designStep(s: StepInput): Promise<PlanResult> {
+    const gates = checkApprovals(s.plan, { needSplit: false });
+    return leadSplit(s, gates.story, async (split) => {
+      const text = renderTeamDesign(split, s.repos);
+      const bytes = Buffer.byteLength(text);
+      if (bytes > PLAN_LIMITS.designBytes) throw new DesignTooLong(bytes);
+      return { kind: "design", text, split };
+    });
+  }
+
+  /**
+   * The splitting step after G1, and for a high-risk plan after its G3: the approvals must bind the draft (and the
+   * design and stored split: `checkApprovals`), the kit gate records go to the plan's folder, then the split is
+   * published under `plan:<planId>` once the plan is confirmed, every Story base is made and the Story opened. A
+   * normal-risk plan's split is the Lead's (one retry); a high-risk plan's is the stored one its G3 approved, with no
+   * Lead turn, and a Hub that refuses it fails the plan (the design cannot be rewritten). A plan that already has a
    * published Story (a retry, an Office restarted mid-split) goes straight to its bases and open: no Lead turn and no
    * second publish (F1).
    */
   async function splitStep(s: StepInput): Promise<PlanResult> {
     const { plan, lane } = s;
-    const gates = checkApprovals(plan, { needSplit: false });
+    const gates = checkApprovals(plan, { needSplit: plan.risk === "high" });
     let storyView: string;
     try {
       ({ storyView } = writeGateRecords(s.dir, plan, gates));
@@ -538,7 +576,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
       throw error;
     }
     if (plan.published) return basesAndOpen(s, plan.published);
-    return leadSplit(s, gates.story, async (split) => {
+    const publish = async (split: TeamSplit): Promise<PlanResult> => {
       await goOn(s, null, true);
       const story = await hubStep("publish", PUBLISH_REFUSED, async () => {
         try {
@@ -559,11 +597,19 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
       });
       log(`team: plan ${plan.id}: published as story-${story.number}${story.already ? " (already)" : ""}`);
       return basesAndOpen(s, story);
-    });
+    };
+    if (!gates.split) return leadSplit(s, gates.story, publish);
+    try {
+      return await publish(gates.split);
+    } catch (error) {
+      // Another Lead turn would publish a split the PL did not approve.
+      if (error instanceof SplitRefused) return withDetail(APPROVED_REFUSED, refusalOf(error) ?? "");
+      throw error;
+    }
   }
 
-  /** The step of each state with Office work. Task 9 adds `design`. */
-  const STEPS: Partial<Record<PlanRecord["state"], Step>> = { queued: pmStep, splitting: splitStep };
+  /** The step of each state with Office work. */
+  const STEPS: Partial<Record<PlanRecord["state"], Step>> = { queued: pmStep, design: designStep, splitting: splitStep };
 
   /** Drops a lease's result for good: one line, and the lease is not asked for again until it has run out. */
   function giveUp(lease: PlanLease, line: string): null {

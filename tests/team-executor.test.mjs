@@ -228,7 +228,7 @@ function watchedLink(link) {
 
 /** A real Hub with A's claim of `be-1` to come, a team store, a fake engine, git (fake unless given) and GitHub. */
 async function world(t, o = {}) {
-  const h = await hubWithStory(t);
+  const h = await hubWithStory(t, { risk: o.risk });
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-executor-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   let clock = 1_700_000_000_000;
@@ -1495,4 +1495,19 @@ test("stageOf follows the phase and the engine's stage, and a drive in flight is
   assert.equal(w.ex.stageOf(w.open()), "merge");
   for (const phase of ["merging", "reporting"]) assert.equal(w.ex.stageOf({ ...w.open(), phase }), "merge");
   assert.equal(w.engine.submits.length, 1);
+});
+
+// Task 9 (R7): a high-risk Story is opened only after its PL's G3, so its Tasks run as they always have.
+test("a Task of a high-risk Story (opened after its G3) is written as a normal-risk contract and submitted", async (t) => {
+  const w = await world(t, { risk: "high" });
+  const task = await w.claim();
+  assert.equal(task.story.risk, "high");
+  await w.ex.drive();
+  assert.equal(w.open().phase, "building");
+  assert.equal(w.engine.submits.length, 1, "the engine took it");
+  const [submitted] = w.engine.submits;
+  assert.equal(submitted.input.risk, "normal");
+  assert.equal(submitted.input.decision, null);
+  assert.equal(submitted.input.story, `${planDir(task, 1)}/story.md`);
+  assert.equal(submitted.meta.hubTaskId, task.taskId);
 });

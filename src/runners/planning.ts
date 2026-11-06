@@ -487,7 +487,7 @@ export function planningPrompt(
         ]
       : []),
     ...(packet.team
-      ? [teamBlock(packet.team, packet.role), teamPlanningLimits(packet.role)]
+      ? [teamBlock(packet.team, packet.role), teamPlanningLimits(packet.role, packet.risk)]
       : [planningLimits(packet.role)]),
     "BEGIN PLANNING TASK DATA\n" +
       JSON.stringify(data) +
@@ -537,8 +537,9 @@ function checkLimits(max: number) {
   return `- checks 1-${max} per task; each id is V<n> from that task's verify and every task verify has a check; argv 1-${L.argv} strings of at most ${L.arg} characters with a non-empty argv[0]; timeoutMs an integer 1-${L.timeoutMs}.`;
 }
 /** The limits of a team plan's PM or Lead output: the single-Office rules plus `openBlocking` for the PM, and for
- * the Lead the Hub's caps (20 work tasks, 8 checks, 50 files) with `repo`, `after` and `storyVerify`. */
-export function teamPlanningLimits(role: "pm" | "lead"): string {
+ * the Lead the Hub's caps (20 work tasks, 8 checks, 50 files) with `repo`, `after` and `storyVerify`. A high-risk
+ * Lead is also told the byte limit of the design its split becomes for the PL's G3. */
+export function teamPlanningLimits(role: "pm" | "lead", risk: "normal" | "high" = "normal"): string {
   const S = STORY_LIMITS;
   if (role === "pm")
     return [
@@ -553,6 +554,11 @@ export function teamPlanningLimits(role: "pm" | "lead"): string {
     `- repo is one folder of packet.team.repos; files 1-${S.filesPerTask} unique paths of at most ${S.filePathMax} characters each; after lists unique task numbers between 1 and the number of tasks, never the task's own.`,
     `- Office writes each task's outcome, scope and constraints (with the M/V numbers it covers) into one Hub spec of at most ${S.taskSpecBytes} UTF-8 bytes; a Korean character takes 3 bytes, so keep the three short.`,
     `- storyVerify 1 entry per repository at most, at least 1 entry; checks 1-${S.checksPerList} per entry with the argv and timeoutMs rules above, each id V<n> of a Story Verify scenario it checks.`,
+    ...(risk === "high"
+      ? [
+          `- risk is high: before anything is published, Office shows the PL a design for approval (G3): your plan, then one line per task with its number, repository folder, title and the tasks it comes after. The whole design must fit in ${PLAN_LIMITS.designBytes} UTF-8 bytes; a Korean character takes 3 bytes, so keep plan to about 2500 Korean characters and task titles short.`,
+        ]
+      : []),
   ].join("\n");
 }
 type Questions = {

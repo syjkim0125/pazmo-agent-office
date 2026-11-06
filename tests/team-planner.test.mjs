@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { OfficeError } from "../src/cli/project.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
 import { planTextHash } from "../src/hub/plan-protocol.ts";
-import { approvedStory, decidedOf, renderTeamStory } from "../src/runners/team-planning.ts";
+import { approvedStory, decidedOf, renderTeamDesign, renderTeamStory, repoFolders } from "../src/runners/team-planning.ts";
 import { createPlanner } from "../src/team/planner.ts";
 import {
   BE,
@@ -930,4 +930,213 @@ test("a step the periodic heartbeat cut while it published makes no base: the pl
   assert.deepEqual(named(w, "open"), []);
   assert.equal(link.stories.get("story-8").state, "draft");
   assert.deepEqual(w.results(), []);
+});
+
+// Task 9: a high-risk plan's design step after its G1, and its splitting step after the PL's G3 of that design.
+/** A high-risk plan leased for its design step after the PL's G1 of DRAFT. */
+const designing = (over = {}) => splitting({ state: "design", risk: "high", ...over });
+/** The design LEAD renders to: the Lead's plan, then one line per Task with its folder and the Tasks it waits for. */
+const DESIGN_TEXT =
+  "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n\nUnderstanding gate (G3): pending\n";
+const g3Of = (text, over = {}) => ({
+  approvalId: "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
+  gate: "G3",
+  memberId: "m-pl",
+  at: Date.UTC(2026, 10, 7, 1, 0),
+  textHash: planTextHash(text),
+  ...over,
+});
+/** The high-risk plan after the PL's G3 of a design result's `text`, leased for its splitting step: the Hub hands
+ * back the split as the JSON it stored. */
+const approvedDesign = ({ text, split }, over = {}) =>
+  designing({ state: "splitting", design: text, split: JSON.parse(JSON.stringify(split)), g3: g3Of(text), ...over });
+const G3_REFUSED = "설계 승인 기록이 맞지 않습니다.";
+
+test("a design lease checks G1, runs the Lead turn and posts design with the decision.md text and the split; nothing is published and no base is made", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  const link = w.first.link;
+  link.lease = leaseOf(designing(), { leaseId: "L1", revision: 6 });
+
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "design" });
+  assert.equal(w.seen.length, 1, "one Lead turn");
+  const { packet } = w.seen[0];
+  assert.equal(packet.role, "lead");
+  assert.equal(packet.risk, "high");
+  assert.deepEqual(packet.story, STORY);
+  assert.equal(packet.team.retry, null);
+  const result = w.lastResult();
+  assert.deepEqual(Object.keys(result).sort(), ["kind", "split", "text"]);
+  assert.equal(result.kind, "design");
+  assert.equal(result.text, DESIGN_TEXT);
+  assert.equal(result.text, renderTeamDesign(result.split, repoFolders(planRecord().repos)));
+  assert.equal(result.split.plan, LEAD.plan);
+  assert.deepEqual(
+    result.split.graph.nodes.map((n) => [n.id, n.repoId, n.title, n.files]),
+    [
+      ["t1", BE, "주문 API", ["src/orders.ts"]],
+      ["t2", FE, "주문 화면", ["src/orders-page.tsx"]],
+    ],
+  );
+  assert.deepEqual(result.split.graph.edges, [{ from: "t1", to: "t2" }]);
+  assert.deepEqual(result.split.storyVerify.map((v) => v.repoId), [BE, FE]);
+  assert.deepEqual(w.calls.at(-1).slice(2, 5), [PLAN_ID, "L1", 6]);
+  assert.deepEqual(w.calls.map(([, what]) => what), ["next", "result"], "nothing is published, read or opened on the Hub");
+  assert.deepEqual(pushes(w), [], "no base is made");
+  assert.equal(existsSync(join(planDir(w), "bases.json")), false);
+  for (const record of ["story.md", "g1.json", "design.md", "g3.json"])
+    assert.equal(existsSync(join(planDir(w), record)), false, `${record}: written only once the design is approved`);
+
+  // A G1 that does not bind the draft: failed before any Lead turn.
+  link.lease = leaseOf(designing({ id: planId(20), g1: { ...G1, memberId: "m-other" } }), { leaseId: "L2", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.equal(w.lastResult().reason, "Story 승인 기록이 이 기획의 PL 것이 아닙니다.");
+  assert.equal(w.seen.length, 1, "no Lead turn");
+  assert.deepEqual(named(w, "publish"), []);
+});
+
+test("a refused split or a design over 16384 bytes runs the Lead once more with the reason in retry; a second design over 16384 bytes posts failed with a plain reason", async (t) => {
+  // 6000 Korean characters: within the Lead's 8192-character plan, but 18000 bytes of UTF-8.
+  const LONG = { ...LEAD, plan: "가".repeat(6000) };
+  const w = world(t, { answers: [UNCOVERED, LEAD, LONG, LEAD, LONG, LONG] });
+  const link = w.first.link;
+  const retries = () => w.seen.map(({ packet }) => packet.team.retry);
+
+  link.lease = leaseOf(designing({ id: planId(30) }), { leaseId: "L1", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "design");
+  assert.deepEqual(retries(), [null, "report.tasks: M1 not covered"]);
+  assert.equal(w.lastResult().text, DESIGN_TEXT);
+
+  link.lease = leaseOf(designing({ id: planId(31) }), { leaseId: "L2", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "design");
+  assert.equal(retries()[2], null);
+  assert.match(retries()[3], /16384/, "the Lead is told the byte limit");
+  assert.match(retries()[3], /18\d{3}/, "and how long the design was");
+  assert.equal(w.lastResult().text, DESIGN_TEXT);
+
+  link.lease = leaseOf(designing({ id: planId(32) }), { leaseId: "L3", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.equal(firstLine(w.lastResult().reason), "설계가 너무 깁니다(16KB 넘음).");
+  assert.match(w.lastResult().reason, /\n.*16384/);
+  assert.equal(w.seen.length, 6, "never a third Lead turn");
+  assert.deepEqual(named(w, "publish"), []);
+  assert.deepEqual(pushes(w), []);
+});
+
+test("after G3 a splitting lease publishes the stored split with risk high and no Lead turn, makes the bases and opens; g3.json is written", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
+  const link = w.first.link;
+  link.lease = leaseOf(designing(), { leaseId: "L1", revision: 6 });
+  assert.equal((await w.planner.tick()).posted, "design");
+  const design = w.lastResult();
+  let pushedAtOpen = null;
+  link.on.open = () => {
+    pushedAtOpen = pushes(w).length;
+  };
+  const plan = approvedDesign(design);
+  link.lease = leaseOf(plan, { leaseId: "L2", revision: 8 });
+
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "open" });
+  assert.equal(w.seen.length, 1, "no Lead turn after G3");
+  const published = named(w, "publish");
+  assert.equal(published.length, 1);
+  const { graph, storyVerify, ...input } = published[0][2];
+  assert.deepEqual(input, { projectId: "p-1", title: "주문 내역 화면", body: VIEW, risk: "high", key: `plan:${PLAN_ID}` });
+  assert.deepEqual(graph, design.split.graph, "exactly the split the PL approved");
+  assert.deepEqual(storyVerify, design.split.storyVerify);
+  assert.deepEqual(pushes(w), [
+    ["pushStoryBase", "/co/app-be", "feature/story-7/base", BE_TIP],
+    ["pushStoryBase", "/co/app-fe", "feature/story-7/base", FE_TIP],
+  ]);
+  assert.equal(pushedAtOpen, 2, "every base was made before open");
+  assert.deepEqual(JSON.parse(readFileSync(join(planDir(w), "bases.json"), "utf8")), { [BE]: BE_TIP, [FE]: FE_TIP });
+  assert.deepEqual(
+    w.calls.slice(2).map(([, what]) => what),
+    ["next", "heartbeat", "publish", "story", "heartbeat", "open", "result"],
+  );
+  assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L2", 8, { kind: "open", storyId: "story-7" }]);
+  assert.equal(link.stories.get("story-7").state, "open");
+  assert.equal(link.stories.get("story-7").input.risk, "high");
+
+  const dir = planDir(w);
+  assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".md") || f.endsWith(".json")).sort(), [
+    "bases.json", "candidate.json", "design.md", "g1.json", "g3.json", "story.md",
+  ]);
+  assert.equal(readFileSync(join(dir, "story.md"), "utf8"), VIEW);
+  assert.equal(readFileSync(join(dir, "design.md"), "utf8"), DESIGN_TEXT);
+  const g3 = JSON.parse(readFileSync(join(dir, "g3.json"), "utf8"));
+  assert.equal(g3.gate, "G3");
+  assert.equal(g3.responseRef, `hub-approval:${plan.g3.approvalId}`);
+  assert.equal(g3.textHash, planTextHash(DESIGN_TEXT));
+  assert.equal(JSON.parse(readFileSync(join(dir, "g1.json"), "utf8")).responseRef, `hub-approval:${G1.approvalId}`);
+
+  // A retry of that plan after its Story was published: no Lead turn and no second publish (F1), the same records.
+  const published2 = { storyId: "story-7", number: 7, state: "open" };
+  link.on.open = undefined;
+  link.lease = leaseOf(approvedDesign(design, { published: published2 }), { leaseId: "L3", revision: 10 });
+  assert.equal((await w.planner.tick()).posted, "open");
+  assert.equal(w.seen.length, 1);
+  assert.equal(named(w, "publish").length, 1);
+
+  // A publish the Hub did not answer (503) is tried again on the next tick of the same lease with the same stored split.
+  let down = 1;
+  link.on.publish = () => {
+    if (down > 0) {
+      down -= 1;
+      throw hubError(503, "HUB_UNAVAILABLE");
+    }
+  };
+  link.lease = leaseOf(approvedDesign(design, { id: planId(50) }), { leaseId: "L4", revision: 1 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(50), posted: null });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(50), posted: "open" });
+  const [, again] = named(w, "publish").slice(-2);
+  assert.deepEqual(again[2].graph, design.split.graph);
+  assert.equal(again[2].risk, "high");
+  assert.equal(w.seen.length, 1, "still no Lead turn");
+});
+
+test("a stored split that no longer passes the graph checks, or a G3 that does not bind the design, posts failed", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  const link = w.first.link;
+  link.lease = leaseOf(designing(), { leaseId: "L0", revision: 6 });
+  assert.equal((await w.planner.tick()).posted, "design");
+  const design = w.lastResult();
+  const edited = `${design.text}- t3 · app-be · 더한 Task\n`;
+  const cycle = { ...design.split, graph: { ...design.split.graph, edges: [{ from: "t1", to: "t2" }, { from: "t2", to: "t1" }] } };
+  const cases = [
+    // The stored split fails the Hub's own graph check now (a cycle), though the design text still renders from it.
+    approvedDesign({ text: renderTeamDesign(cycle, repoFolders(planRecord().repos)), split: cycle }, { id: planId(40) }),
+    // A Task the Hub's project no longer has the repo of.
+    approvedDesign(design, { id: planId(41), repos: [planRecord().repos[0]] }),
+    approvedDesign(design, { id: planId(42), g3: g3Of(design.text, { memberId: "m-other" }) }),
+    approvedDesign(design, { id: planId(43), g3: g3Of(`${design.text}\n`) }),
+    // A design text the stored split does not render to, though the G3 binds that text.
+    approvedDesign({ text: edited, split: design.split }, { id: planId(44) }),
+    approvedDesign(design, { id: planId(45), g3: null }),
+  ];
+  for (const [i, plan] of cases.entries()) {
+    link.lease = leaseOf(plan, { leaseId: `L${i + 1}`, revision: 1 });
+    assert.equal((await w.planner.tick()).posted, "failed", plan.id);
+    assert.equal(w.lastResult().reason, G3_REFUSED, plan.id);
+    assert.equal(existsSync(join(planDir(w, plan.id), "g3.json")), false, "no record");
+  }
+  assert.equal(w.seen.length, 1, "never a Lead turn after G3");
+  assert.deepEqual(named(w, "publish"), [], "nothing published");
+  assert.deepEqual(pushes(w), []);
+
+  // The Hub's publish refuses the approved split's graph: failed with a plain reason, not split again.
+  const hubSays = "Task t1와 t2가 같은 파일(src/orders.ts)을 건드리는데 실행 순서가 없습니다.";
+  link.on.publish = () => {
+    throw refusal(400, "GRAPH_OVERLAP", hubSays);
+  };
+  link.lease = leaseOf(approvedDesign(design, { id: planId(46) }), { leaseId: "L9", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  const reason = w.lastResult().reason;
+  assert.doesNotMatch(firstLine(reason), /[A-Z_]{6,}/);
+  assert.match(firstLine(reason), /새 Story/);
+  assert.ok(reason.endsWith(`\nGRAPH_OVERLAP: ${hubSays}`), reason);
+  assert.equal(w.seen.length, 1, "no Lead turn");
+  assert.equal(named(w, "publish").length, 1, "published once");
+  assert.equal(link.stories.size, 0);
+  assert.deepEqual(pushes(w), []);
 });

@@ -619,3 +619,31 @@ test("the team Lead limits state the Hub's per-task spec limit in UTF-8 bytes; t
   assert.doesNotMatch(teamPlanningLimits("pm"), /16384/);
   assert.doesNotMatch(planningLimits("lead"), /16384|UTF-8/);
 });
+
+// Task 9: a high-risk plan's Lead split becomes the design the PL approves (G3), which the Hub keeps to 16384 bytes.
+test("a high-risk team Lead prompt states the 16384-byte design limit; the normal-risk Lead, the PM and the single-Office prompts do not", (t) => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-team-design-prompt-")));
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  mkdirSync(join(root, "tree", "app-be"), { recursive: true });
+  writeFileSync(join(root, "tree", "app-be", "README.md"), "# app-be\n");
+  mkdirSync(join(root, "candidates"));
+  const context = freezeCandidate(join(root, "tree"), ["app-be/README.md"], join(root, "candidates"));
+  const design = /design[^\n]*16384 UTF-8 bytes/;
+
+  const high = headOf(planningPrompt(teamPlanningPacket(pm({ role: "lead", risk: "high", story: STORY })), context));
+  assert.match(high, design);
+  assert.match(high, /G3/);
+  assert.ok(high.endsWith(teamPlanningLimits("lead", "high")));
+  assert.match(teamPlanningLimits("lead", "high"), design);
+
+  const normal = headOf(planningPrompt(teamPlanningPacket(pm({ role: "lead", story: STORY })), context));
+  assert.doesNotMatch(normal, design);
+  assert.equal(teamPlanningLimits("lead", "normal"), teamPlanningLimits("lead"));
+  assert.ok(normal.endsWith(teamPlanningLimits("lead")));
+  assert.doesNotMatch(headOf(planningPrompt(teamPlanningPacket(pm({ risk: "high" })), context)), design);
+  assert.equal(teamPlanningLimits("pm", "high"), teamPlanningLimits("pm"));
+  const single = headOf(planningPrompt(beginPlanning(PLAN, "Validate input.", "high"), context));
+  assert.ok(single.endsWith(planningLimits("pm")));
+  assert.doesNotMatch(single, design);
+  assert.doesNotMatch(planningLimits("lead"), design);
+});
