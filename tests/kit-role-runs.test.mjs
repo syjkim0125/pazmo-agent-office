@@ -264,6 +264,25 @@ test("the kit 5 G1 record binds the view's canonical text exactly as kit hashes 
   );
 });
 
+test("kitG1 keeps office-approval:<id> by default and writes hub-approval:<id> when asked; kitG3 binds the design hash and the story hash", async () => {
+  const { kitStoryHash, kitG1, kitG3 } = await kitModule();
+  const { digest } = await import("../src/core/candidates.ts");
+  const view = "# Story: a\nStatus: Approved\nUnderstanding gate (G1): hub-approval:a-1 · 2026-11-06 · Check-in: accepted\n## MUST\n- M1. x\n";
+  const office = JSON.parse(kitG1(view, "c-9", { taskId: "t" }));
+  assert.equal(office.responseRef, "office-approval:c-9");
+  assert.equal(kitG1(view, "c-9", { taskId: "t" }, "office-approval"), JSON.stringify(office));
+  const hub = JSON.parse(kitG1(view, "a-1", { planId: "p" }, "hub-approval"));
+  assert.deepEqual(hub, { planId: "p", gate: "G1", storyHash: kitStoryHash(view), responseRef: "hub-approval:a-1" });
+  const design = "# Decision requiring human G3\n\n계획\n\n## Task 목록\n- t1 · app-be · 주문 API\n\nUnderstanding gate (G3): pending\n";
+  assert.deepEqual(JSON.parse(kitG3(design, view, "a-3", { planId: "p", gate: "G1" })), {
+    planId: "p",
+    gate: "G3",
+    designHash: digest(design),
+    storyHash: kitStoryHash(view),
+    responseRef: "hub-approval:a-3",
+  });
+});
+
 test("new runs are kit 5 role runs in kit-runs, and a kit 4 run file is never touched", async (t) => {
   const { KitRoleRun } = await kitModule();
   const f = fixture(t);
