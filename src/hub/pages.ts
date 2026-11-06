@@ -39,15 +39,15 @@ export function ago(at: number | null) {
  * whose menu then has no work pages.
  */
 export type Chrome = { trust?: boolean; mac?: MacBadge | null; autoWork?: boolean };
-/** The newest Mac's state in the header; a Mac whose last beat is older than the store's limit arrives as "off". */
-const macBadge = (b: MacBadge) =>
+/** The newest Mac's state in the header (and on a plan page, the PL's); a Mac whose last beat is older than the store's limit arrives as "off". */
+export const macBadgeLabel = (b: MacBadge) =>
   b.state === "none" ? "연결된 Mac 없음" : b.state === "off" ? `꺼짐(${b.lastSeen === null ? "아직 연락 없음" : ago(b.lastSeen)})` : MAC_LABEL[b.state] ?? b.state;
 /** A Mac's state with the reason it gave, for the tables. */
 const macState = (m: MacView) => `${MAC_LABEL[m.state] ?? m.state}${m.detail ? ` — ${m.detail}` : ""}`;
 
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
   const nav = me
-    ? `<nav>${chrome.autoWork === undefined ? "" : '<a href="/">내 할 일</a><a href="/board">보드</a>'}<a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.autoWork === false ? '<a class="pill" href="/">자동으로 일하기 꺼짐</a>' : ""}${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadge(chrome.mac))}</a>` : ""}</nav>`
+    ? `<nav>${chrome.autoWork === undefined ? "" : '<a href="/">내 할 일</a><a href="/board">보드</a>'}<a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.autoWork === false ? '<a class="pill" href="/">자동으로 일하기 꺼짐</a>' : ""}${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : ""}</nav>`
     : "";
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main></body></html>`;
 }
