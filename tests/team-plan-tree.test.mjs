@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import {
   chmodSync,
@@ -176,11 +177,13 @@ function fakeGit(listings) {
     },
     extractTree: async (checkout, sha, target) => {
       calls.push(["extractTree", checkout, target]);
-      for (const { path, link, content = "x" } of listings[checkout]) {
+      for (const { path, link, content = "x", plain, mode } of listings[checkout]) {
         const file = join(target, path);
         mkdirSync(dirname(file), { recursive: true });
-        if (link) symlinkSync(link, file);
-        else writeFileSync(file, content);
+        // `plain`: git wrote the link as a file holding its target (core.symlinks=false).
+        if (link && !plain) symlinkSync(link, file);
+        else writeFileSync(file, link ?? content);
+        if (mode !== undefined) chmodSync(file, mode);
       }
     },
   };
@@ -256,6 +259,80 @@ test("a git failure names the repo it happened in and leaves no tree behind", as
   await assert.rejects(planTree(dir, [repo("app-be", "be"), repo("app-fe", "fe")], git), (error) => {
     assert.equal(error.code, "GIT_FAILED");
     assert.match(error.message, /^app-fe: fatal: couldn't find remote ref/);
+    return true;
+  });
+  assert.equal(existsSync(join(dir, "tree")), false);
+  assert.equal(existsSync(join(dir, "candidate.json")), false);
+});
+
+/** Adds to the origin `name` a branch `branch` from `from` whose tree also holds `files` (path -> text or { link }),
+ * written straight into the bare repo, so paths that one Mac folder cannot hold side by side can be committed. */
+function plumb(w, name, branch, from, files) {
+  const bare = w.bare(name);
+  const env = { HOME: w.home, PATH: process.env.PATH, LANG: "C", GIT_INDEX_FILE: join(w.root, `${name}-${branch}.index`) };
+  const git = (args, input) =>
+    execFileSync("git", ["-c", "core.ignorecase=false", "--git-dir", bare, ...args], { env, input, encoding: "utf8" }).trim();
+  git(["read-tree", from]);
+  for (const [path, spec] of Object.entries(files)) {
+    const blob = git(["hash-object", "-w", "--stdin"], typeof spec === "string" ? spec : spec.link);
+    git(["update-index", "--add", "--cacheinfo", `${typeof spec === "string" ? "100644" : "120000"},${blob},${path}`]);
+  }
+  const commit = git(["commit-tree", "-p", from, "-m", "plumbed", git(["write-tree"])]);
+  git(["update-ref", `refs/heads/${branch}`, commit]);
+  return commit;
+}
+
+test("paths equal ignoring case in one repo (README.md and readme.md, Foo beside foo/bar, a link A beside a/evil) are left out and counted, and the rest is frozen", async (t) => {
+  const { w, env, repos } = world(t);
+  const tip = plumb(w, "app-be", "clash", "refs/heads/main", {
+    "readme.md": "# lower\n",
+    Foo: "a file\n",
+    "foo/bar": "beside Foo\n",
+    A: { link: "README.md" },
+    "a/evil": "beside A\n",
+    "Docs/guide.md": "upper folder\n",
+    "docs/more.md": "lower folder\n",
+  });
+  const { repo, checkout } = repos["app-be"];
+  await ensureCheckout(repo, checkout, env);
+  const lines = [];
+  const candidate = await planTree(
+    planDir(w.root),
+    [{ folder: "app-be", repoId: BE, name: "app-be", baseBranch: "clash", checkout }],
+    planGit(env),
+    (line) => lines.push(line),
+  );
+  assert.equal(await fetchBaseTip(checkout, "clash", env), tip);
+  assert.equal(verifyCandidate(candidate), true);
+  // docs/link sits in the docs/ folder that Docs/ clashes with, so it goes too.
+  assert.deepEqual(
+    manifestOf(candidate).map((entry) => entry.path),
+    ["app-be/.env.example", "app-be/src/a.ts", "app-be/src/b.ts"],
+  );
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /\b9\b/);
+  assert.match(lines[0], /ignoring case/);
+});
+
+test("a link written as a plain file is left out and counted; a file the freeze cannot read fails with an OfficeError code naming its repo", { skip: process.getuid?.() === 0 }, async (t) => {
+  const root = tempRoot(t);
+  const lines = [];
+  const candidate = await planTree(
+    planDir(root),
+    [repo("app-be", "be")],
+    fakeGit({ be: [{ path: "ok.txt" }, { path: "link", link: "ok.txt", plain: true }] }),
+    (line) => lines.push(line),
+  );
+  assert.deepEqual(manifestOf(candidate).map((entry) => entry.path), ["app-be/ok.txt"]);
+  assert.equal(lines.length, 1);
+  assert.match(lines[0], /\b1\b/);
+
+  const dir = planDir(root);
+  const locked = fakeGit({ be: [{ path: "ok.txt" }], fe: [{ path: "web.txt", mode: 0o000 }] });
+  await assert.rejects(planTree(dir, [repo("app-be", "be"), repo("app-fe", "fe")], locked), (error) => {
+    assert.ok(error instanceof OfficeError);
+    assert.equal(typeof error.code, "string");
+    assert.match(error.message, /^app-fe: /);
     return true;
   });
   assert.equal(existsSync(join(dir, "tree")), false);

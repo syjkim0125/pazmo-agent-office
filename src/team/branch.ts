@@ -214,7 +214,11 @@ export async function extractTree(checkout: string, sha: string, target: string,
   const indexFile = join(dirname(folder), `.index-${randomUUID()}`);
   try {
     await git(checkout, ["read-tree", sha], env, { indexFile });
-    await git(checkout, ["checkout-index", "-a", "-f", `--prefix=${folder}/`], env, { indexFile });
+    // A link stays a link whatever the person's config says, so a reader sees what the repo holds.
+    await git(checkout, ["checkout-index", "-a", "-f", `--prefix=${folder}/`], env, {
+      indexFile,
+      config: ["core.symlinks=true"],
+    });
   } finally {
     rmSync(indexFile, { force: true });
     rmSync(`${indexFile}.lock`, { force: true });

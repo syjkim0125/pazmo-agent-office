@@ -1104,3 +1104,20 @@ test("extractTree writes the tree of a commit into an empty folder through a pri
   await assert.rejects(extractTree(checkout, "with-links", join(parent, "other"), e), { code: "GIT_FAILED" });
   assert.deepEqual(calls, []);
 });
+
+test("extractTree writes a link as a link even when the person's git config says core.symlinks=false", async (t) => {
+  const w = gitWorld(t);
+  const sha = pushWithLinks(w);
+  w.git(w.root, "config", "--global", "core.symlinks", "false");
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  await fetchBaseTip(checkout, "with-links", e);
+  const target = join(w.root, "plan", "tree", "app-be");
+  mkdirSync(dirname(target), { recursive: true });
+
+  await extractTree(checkout, sha, target, e);
+
+  assert.equal(lstatSync(join(target, "link")).isSymbolicLink(), true);
+  assert.equal(readlinkSync(join(target, "link")), "README.md");
+});
