@@ -19,6 +19,10 @@ import type { MacClient, MacLinkFile } from "./mac.ts";
 import { syncMacRepos } from "./mac-sync.ts";
 import { createMacWatch, spawnMacRestart } from "./mac-watch.ts";
 import type { Presence } from "./mac-watch.ts";
+import { planLink } from "./plan-link.ts";
+import type { PlanLink } from "./plan-link.ts";
+import { createPlanner, planGitOps } from "./planner.ts";
+import type { PlanGit, PlanLane } from "./planner.ts";
 import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
@@ -95,6 +99,11 @@ export type TeamConfig = {
   now?: () => number;
   /** The Story link of a repo from its data directory; default: its hub-link.json. */
   linkOf?: (dataDir: string) => StoryLink | null;
+  /** The plan link of a repo from its data directory (the same link, for the PL's plan work); default: its
+   * hub-link.json. */
+  planLinkOf?: (dataDir: string) => PlanLink | null;
+  /** Tests only: the host git of a plan's planning tree; default `planGitOps(host)`. */
+  planGit?: PlanGit;
   /** The gh login for a Git host; default: `gh auth status --hostname` with `host`'s PATH and HOME. */
   ghOf?: (host: string) => Promise<GhResult>;
   /** The person's own HOME and PATH (and ssh agent) for the host git and gh of a Story Task; default: this
@@ -238,6 +247,10 @@ function defaultLinkOf(dataDir: string): StoryLink | null {
   const config = readLinkConfig(dataDir);
   return config ? storyLink(config) : null;
 }
+function defaultPlanLinkOf(dataDir: string): PlanLink | null {
+  const config = readLinkConfig(dataDir);
+  return config ? planLink(config) : null;
+}
 
 const stateOf = (lane: RepoLane): RepoLane["state"] => (!lane.link ? "no-link" : lane.gh?.ok ? "ready" : "gh");
 
@@ -299,6 +312,10 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   const lanes: RepoLane[] = [];
   /** Where each lane's link file is, and its Git host (null when gh cannot be asked about it). */
   const where = new Map<RepoLane, { dataDir: string; host: string | null }>();
+  /** Each lane's plan link, read with its Story link (at the start and by `recheck`). */
+  const planLinks = new Map<RepoLane, PlanLink | null>();
+  /** The PL's plan work, made once the engines are open (live only). */
+  let planner: ReturnType<typeof createPlanner> | undefined;
   const timers: ReturnType<typeof setInterval>[] = [];
   let stopped = false;
   let store: TeamStore | undefined;
@@ -318,6 +335,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   function closeAll(): Promise<void> {
     closing ??= (async () => {
       stopTimers();
+      planner?.stop();
       gate.stop();
       let failure: unknown;
       for (const result of await Promise.allSettled(engines.map(async (engine) => engine.office?.close())))
@@ -345,6 +363,15 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       return linkOf(dataDir);
     } catch (error) {
       log(`team: ${project}: the Hub link cannot be read (${describe(error)}); connect it again with pazmo-office hub-link --project ${project}`);
+      return null;
+    }
+  }
+  const planLinkOf = c.planLinkOf ?? defaultPlanLinkOf;
+  /** The same link file as the Story link: a file that cannot be read was said by `linkFor`. */
+  function planLinkFor(dataDir: string): PlanLink | null {
+    try {
+      return planLinkOf(dataDir);
+    } catch {
       return null;
     }
   }
@@ -430,6 +457,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       if (lane.state !== "ready") log(`team: ${lane.project}: not claiming yet: ${why(lane)}`);
       lanes.push(lane);
       where.set(lane, { dataDir: p.dataDir, host });
+      planLinks.set(lane, planLinkFor(p.dataDir));
     }
   } catch (error) {
     await closeAll().catch((closeError) => log(`team: closing after a failed start failed (${describe(closeError)})`));
@@ -503,7 +531,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}`, until: open?.runnerWait?.retryAt ?? null };
     if (!runnersReady)
       return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready", until: null };
-    if (gate.busy() || (open !== null && open.phase !== "failed")) return { state: "working", detail: null, until: null };
+    if (gate.busy() || planner?.active() || (open !== null && open.phase !== "failed"))
+      return { state: "working", detail: null, until: null };
     return { state: "idle", detail: null, until: null };
   }
 
@@ -555,7 +584,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     clientFor: macClientFor,
     presence: presenceOf,
     // A stopping Office is not restarted (the stop is the person's), nor one whose claim is under way.
-    idle: () => !stopped && !claimTicking && teamStore.openClaim() === null && !gate.busy(),
+    idle: () => !stopped && !claimTicking && !planner?.active() && teamStore.openClaim() === null && !gate.busy(),
     // Nor a live one whose runners are not ready (asked afresh, a restart is rare): its `up` would refuse and leave
     // it off, where in place it waits, limited, until the person logs in. A locked Office never checks its runners.
     startable: async () => {
@@ -579,10 +608,23 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (gate.busy()) return false;
     return lanes.some((lane) => lane.state === "ready" && lane.link !== null);
   }
-  /** Before a claim tick: the runners are checked only when a claim could follow, and then at once while they
-   * were last found not ready, else once every `recheckMs` (a discovery starts the codex and claude CLIs). */
+  /** The ready lanes with a plan link, in registration order: what the planner asks for plan work through. */
+  function planLanes(): PlanLane[] {
+    return lanes.flatMap((lane) => {
+      const link = planLinks.get(lane) ?? null;
+      if (lane.state !== "ready" || lane.link === null || link === null) return [];
+      return [{ project: lane.project, checkout: engineOf(lane.project).checkout, repoId: link.repoId, link }];
+    });
+  }
+  /** Whether the planner would ask the Hub for plan work now, the runners aside: a pause and the daily cap do not
+   * hold plan work. */
+  function planCouldFollow(): boolean {
+    return planner !== undefined && !watch.holding() && teamStore.openClaim() === null && !gate.busy() && planLanes().length > 0;
+  }
+  /** Before a claim tick: the runners are checked only when a claim or plan work could follow, and then at once
+   * while they were last found not ready, else once every `recheckMs` (a discovery starts the codex and claude CLIs). */
   async function runnersBeforeTick(): Promise<void> {
-    if (!live || !claimCouldFollow()) return;
+    if (!live || !(claimCouldFollow() || planCouldFollow())) return;
     if (runnersReady && runnersCheckedAt !== null && clock() - runnersCheckedAt < recheckMs) return;
     await checkRunners();
   }
@@ -622,6 +664,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       const { dataDir, host } = where.get(lane)!;
       const before = lane.state;
       lane.link = linkFor(lane.project, dataDir);
+      planLinks.set(lane, planLinkFor(dataDir));
       if (host && answers.has(host)) lane.gh = answers.get(host)!;
       lane.state = stateOf(lane);
       if (lane.state === "ready") log(`team: ${lane.project}: ready again (was ${before})`);
@@ -681,11 +724,28 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     void ex.drive().then(() => {
       firstDriven = true;
     });
+  // The PL's plan work, only when live: a step runs only where a Task could (live, runners ready, no record open, no
+  // run, no restart held); a pause and the daily cap are for Tasks.
+  if (live)
+    planner = createPlanner({
+      root: c.root,
+      lanes: planLanes,
+      engineOf: (project) => engineOf(project).office!,
+      canStart: () => live && runnersReady && teamStore.openClaim() === null && !gate.busy() && !watch.holding() && !stopped,
+      git: c.planGit ?? planGitOps(hostEnv),
+      beatMs: c.beatMs ?? BEAT_MS,
+      recheckMs,
+      log,
+      now: c.now,
+    });
   every(c.claimMs ?? CLAIM_MS, "claim tick", async () => {
     await runnersBeforeTick();
     if (stopped) return;
     claimTicking = true;
     try {
+      // Plan work first (the PL waits for it on the web); a tick that did a plan step claims nothing.
+      if (planner && (await planner.tick()).ran) return;
+      if (stopped) return;
       return await scheduler.tick();
     } finally {
       claimTicking = false;
@@ -730,6 +790,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     },
     beginStop() {
       stopTimers();
+      planner?.stop();
       gate.stop();
       for (const engine of engines) engine.office!.beginStop();
     },

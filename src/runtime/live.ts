@@ -36,6 +36,9 @@ import type { Qualification } from "../runners/runner-qualification.ts";
 import type { RunnerInstall } from "../runners/runner-discovery.ts";
 import type { ExecutingRole } from "../runners/role-profiles.ts";
 import { roleJobFactory } from "./runner-jobs.ts";
+import { planningPrompt } from "../runners/planning.ts";
+import type { PlanningPacket } from "../runners/planning.ts";
+import type { CommandResult } from "../runners/command.ts";
 import { pinnedCodexProblem, usable } from "./runner-settings.ts";
 import type { RunnerChoice, RunnerSettings } from "./runner-settings.ts";
 import type { RunnerEvidence } from "../core/runner-evidence.ts";
@@ -122,6 +125,12 @@ type Runners = {
     check: { argv: string[]; timeoutMs: number },
     signal: AbortSignal,
   ) => Promise<Observation>;
+  /** One team plan model turn (PM or Lead) on a frozen planning tree in the readonly VM. */
+  planTurn: (
+    packet: PlanningPacket,
+    candidate: Candidate,
+    signal: AbortSignal,
+  ) => Promise<{ closed: boolean; result: CommandResult }>;
   dispose: () => void;
 };
 /** The verifier's own cap (characters) on a check's captured output. */
@@ -178,32 +187,23 @@ export class LiveRuntime {
     checks: { id: string; argv: string[]; timeoutMs: number }[],
     signal?: AbortSignal,
   ): Promise<{ id: string; verdict: "pass" | "fail" | "unknown"; output: string }[]> {
-    if (this.#closing) fail("EXECUTION_LOCKED", "The controller is stopping.");
-    if (this.#active.size || this.#verifying)
-      fail("BUSY", "Another run is active; verify after it settles.");
+    this.#refuseBeside("verify");
     if (!Array.isArray(checks) || !checks.length || checks.length > 32)
       fail("INVALID_REQUEST", "Verify between one and 32 checks.");
     const ids = checks.map((check) => check?.id);
     if (ids.some((id) => typeof id !== "string" || !id.trim()) || new Set(ids).size !== ids.length)
       fail("INVALID_REQUEST", "Every check needs its own non-empty id.");
     const cancelled = () => fail("CANCELLED", "The verify was cancelled.");
-    if (signal?.aborted) cancelled();
-    const abort = new AbortController(),
-      stop = () => abort.abort();
-    signal?.addEventListener("abort", stop, { once: true });
-    // Registered before the first check starts, as #start registers a run.
-    const verifying = { abort, done: Promise.resolve() as Promise<unknown> };
-    this.#verifying = verifying;
-    const done = (async () => {
+    return this.#alone(signal, cancelled, "Verify", async (aborted) => {
       const results = [];
       for (const check of checks) {
-        if (abort.signal.aborted) cancelled();
+        if (aborted.aborted) cancelled();
         const observation = await this.#runners.verify(
           candidate,
           { argv: check.argv, timeoutMs: check.timeoutMs },
-          abort.signal,
+          aborted,
         );
-        if (abort.signal.aborted) cancelled();
+        if (aborted.aborted) cancelled();
         results.push({
           id: check.id,
           verdict: classifyObservation(observation),
@@ -211,8 +211,49 @@ export class LiveRuntime {
         });
       }
       return results;
-    })();
-    verifying.done = done;
+    });
+  }
+  /** One team plan model turn (PM or Lead) on its frozen planning tree: a
+   * run of its own on the same single slot as a verify, so it is refused
+   * while another run or verify is active and none starts beside it
+   * (`status().verifying` is true while it lasts). A cancellation (the
+   * signal, or close) rejects CANCELLED once the turn has stopped. When it
+   * ends the engine is told, as after a run, without the result waiting. */
+  async planTurn(
+    packet: PlanningPacket,
+    candidate: Candidate,
+    signal?: AbortSignal,
+  ): Promise<{ closed: boolean; result: CommandResult }> {
+    this.#refuseBeside("plan");
+    const cancelled = () => fail("CANCELLED", "The planning turn was cancelled.");
+    return this.#alone(signal, cancelled, "Planning turn", async (aborted) => {
+      const { closed, result } = await this.#runners.planTurn(packet, candidate, aborted);
+      if (aborted.aborted) cancelled();
+      return { closed, result };
+    });
+  }
+  /** The checks before a run of its own (a verify or a planning turn): a stopping controller, then another run. */
+  #refuseBeside(what: string) {
+    if (this.#closing) fail("EXECUTION_LOCKED", "The controller is stopping.");
+    if (this.#active.size || this.#verifying)
+      fail("BUSY", `Another run is active; ${what} after it settles.`);
+  }
+  /** Runs `work` on the single slot a verify and a planning turn share: registered before it starts, as #start
+   * registers a run, and cleared when it ends, after which the engine's continuation runs, not awaited. */
+  async #alone<T>(
+    signal: AbortSignal | undefined,
+    cancelled: () => never,
+    what: string,
+    work: (aborted: AbortSignal) => Promise<T>,
+  ): Promise<T> {
+    if (signal?.aborted) cancelled();
+    const abort = new AbortController(),
+      stop = () => abort.abort();
+    signal?.addEventListener("abort", stop, { once: true });
+    const slot = { abort, done: Promise.resolve() as Promise<unknown> };
+    this.#verifying = slot;
+    const done = work(abort.signal);
+    slot.done = done;
     try {
       return await done;
     } finally {
@@ -223,7 +264,7 @@ export class LiveRuntime {
       void Promise.resolve()
         .then(() => this.onSettled?.())
         .catch((error) =>
-          console.error("Verify continuation stopped:", error instanceof Error ? error.message : String(error)),
+          console.error(`${what} continuation stopped:`, error instanceof Error ? error.message : String(error)),
         );
     }
   }
@@ -643,6 +684,16 @@ export async function createLiveRuntime(
         understandingFor(id).run(id, requestId, answerDigest, signal),
       verify: async (candidate, check, signal) =>
         (await verifier.run(candidate, check, () => {}, signal)).observation,
+      planTurn: async (packet, candidate, signal) => {
+        const prompt = planningPrompt(packet, candidate);
+        const { closed, result } = await new ContainerPlanner(client.run).run(
+          candidate,
+          roleJob ? roleJob(packet.role, packet.requestId, prompt) : job(prompt),
+          () => {},
+          signal,
+        );
+        return { closed, result };
+      },
       dispose: client.dispose,
     }, runners
       ? {

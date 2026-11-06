@@ -15,6 +15,7 @@ import { writeMacLink } from "../src/team/mac.ts";
 import { addTeamRepo, readTeam, teamDir } from "../src/team/registry.ts";
 import { openTeamStore } from "../src/team/store.ts";
 import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
+import { PLAN_ID, fakePlanGit, fakePlanLink, leaseOf, planRecord, scriptedTurns } from "./plan-fixture.mjs";
 
 const TOKEN = "a".repeat(64);
 const INSTANCE = "b".repeat(32);
@@ -189,7 +190,8 @@ function fakePr() {
 }
 
 /** Live runtimes as the native engine sees them, one per repo engine: starting a
- * run makes it active and records how many runs the whole world had. */
+ * run makes it active and records how many runs the whole world had. A planning turn answers the next of
+ * `planAnswers` (plan-fixture's scriptedTurns) and is the runtime's run while it lasts (`verifying`). */
 function runtimes() {
   const world = {
     list: [],
@@ -197,6 +199,9 @@ function runtimes() {
     implementations: [],
     /** Runs the engine asked a runtime to stop. */
     stops: [],
+    planAnswers: [],
+    /** Each planning turn: the runtime's project and how many runs the whole world had. */
+    planTurns: [],
     running() {
       return this.list.reduce((n, rt) => n + rt.state.active.length, 0);
     },
@@ -208,8 +213,12 @@ function runtimes() {
       /** The engine's runner settings, as live.ts gets them. */
       runners,
       closed: false,
-      state: { active: [] },
-      status: () => ({ execution: "ready", active: rt.state.active, lastError: null }),
+      state: { active: [], verifying: false },
+      status: () => ({ execution: "ready", active: rt.state.active, verifying: rt.state.verifying, lastError: null }),
+      planTurn(packet, candidate, signal) {
+        world.planTurns.push({ project, runningBefore: world.running() });
+        return scriptedTurns(rt.state, world.planAnswers)(packet, candidate, signal);
+      },
       startPlanning(taskId) {
         world.starts.push({ project, runningBefore: world.running() });
         rt.state.active = [...rt.state.active, { taskId, kind: "planning" }];
@@ -271,6 +280,8 @@ function fixture(t) {
     links: new Map(),
     gh: {},
     ghCalls: [],
+    planLinks: new Map(),
+    planGit: fakePlanGit(),
     world: runtimes(),
     git: hostGit(host),
     pr: fakePr(),
@@ -294,6 +305,12 @@ function fixture(t) {
       f.links.set(f.dataDirOf(dir), link);
       return link;
     },
+    /** Gives the repo a plan link (planLinkOf answers it for the repo's data directory) for Hub repo `repoId`. */
+    planLink(dir, name, repoId) {
+      const link = fakePlanLink(repoId, f.calls, name);
+      f.planLinks.set(f.dataDirOf(dir), link);
+      return link;
+    },
     /** What `start --team --live` gives the Office, with a fake VM runtime, ready runners, and fakes for the
      * git steps that reach the origin and for gh. */
     live: (extra = {}) => ({
@@ -309,6 +326,7 @@ function fixture(t) {
       runnerCatalog: async () => readyCatalog(),
       git: f.git,
       pr: f.pr,
+      planGit: f.planGit,
       ...extra,
     }),
     async open(extra = {}) {
@@ -317,6 +335,7 @@ function fixture(t) {
         token: TOKEN,
         host,
         linkOf: (dataDir) => f.links.get(dataDir) ?? null,
+        planLinkOf: (dataDir) => f.planLinks.get(dataDir) ?? null,
         ghOf: async (gitHost) => {
           f.ghCalls.push(gitHost);
           return f.gh[gitHost] ?? OK;
@@ -1538,4 +1557,188 @@ test("the team server refuses a stop while a repo engine runs, and a wrong Host"
     req.end();
   });
   assert.equal(misdirected, 421);
+});
+
+const ALPHA_ID = "1a1a1a1a-1111-4222-8333-444455556666";
+const BETA_ID = "2b2b2b2b-1111-4222-8333-444455556666";
+const PLAN_QUESTIONS = { status: "questions", questions: [{ id: "Q1", text: "어느 화면부터 만들까요?", reason: "범위가 바뀝니다." }] };
+/** A queued plan over alpha (and beta, unless `only`), leased as L1 at revision 2. */
+const planLease = (only = false) =>
+  leaseOf(
+    planRecord({
+      repos: [
+        { id: ALPHA_ID, name: "alpha", baseBranch: "main" },
+        ...(only ? [] : [{ id: BETA_ID, name: "beta", baseBranch: "main" }]),
+      ],
+    }),
+    { leaseId: "L1", revision: 2 },
+  );
+const planCalls = (f) => f.calls.filter(([name]) => name.startsWith("p"));
+const planAsked = (f) => f.calls.filter(([name, what]) => name.startsWith("p") && what === "next").length;
+
+test("a live Office leases a queued plan on the claim tick before claiming, runs it on the first ready lane's engine and claims no Task in that tick", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const b = await f.repo("beta");
+  f.link(a, "a").claimReply = claimed("t1");
+  f.link(b, "b");
+  const pa = f.planLink(a, "pa", ALPHA_ID);
+  f.planLink(b, "pb", BETA_ID);
+  pa.lease = planLease();
+  f.world.planAnswers.push(PLAN_QUESTIONS);
+  const office = await f.open(f.live({ driveMs: 1e9 }));
+  t.mock.timers.tick(30000);
+  await until(() => f.calls.some(([, what]) => what === "result"), "the plan result");
+  await flush();
+  assert.deepEqual(f.calls, [
+    ["pa", "next"],
+    [
+      "pa",
+      "result",
+      PLAN_ID,
+      "L1",
+      2,
+      { kind: "questions", questions: [{ id: "Q1", text: "어느 화면부터 만들까요?", reason: "범위가 바뀝니다.", blocking: false }] },
+    ],
+  ], "the plan first, and no inbox or claim in that tick");
+  assert.deepEqual(f.world.planTurns, [{ project: f.checkoutOf(a), runningBefore: 0 }], "on the first ready lane's engine");
+  assert.deepEqual(
+    f.planGit.calls.filter(([what]) => what === "fetchBaseTip"),
+    [
+      ["fetchBaseTip", f.checkoutOf(a), "main"],
+      ["fetchBaseTip", f.checkoutOf(b), "main"],
+    ],
+    "each repo from the Office's own checkout of it",
+  );
+  assert.ok(existsSync(join(teamDir(f.data), "plans", PLAN_ID, "candidate.json")));
+  assert.equal(office.status().claim, null);
+
+  // No plan work left: the next tick claims as before.
+  t.mock.timers.tick(30000);
+  await until(() => claims(f) === 1, "the claim");
+  assert.equal(planAsked(f), 2);
+  assert.equal(office.status().claim.title, "Task t1");
+});
+
+test("no plan is leased while a Task record is open, while an engine runs, while the runners are not ready, or when the Office is locked", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const claimTick = async () => {
+    t.mock.timers.tick(30000);
+    await flush();
+  };
+
+  // A failed Task this person still holds: the plan waits for it.
+  const held = fixture(t);
+  const a = await held.repo("alpha");
+  held.link(a, "a");
+  held.planLink(a, "pa", ALPHA_ID).lease = planLease(true);
+  const store = storeOf(held);
+  store.recordClaim(a, claimed("t0"), "claim");
+  store.setPhase("t0", "failed", { attempts: 3 });
+  await held.open(held.live({ driveMs: 1e9 }));
+  await claimTick();
+  assert.equal(planAsked(held), 0, "not while a Task record is open");
+
+  // A repo engine runs.
+  const busy = fixture(t);
+  const b = await busy.repo("beta");
+  busy.link(b, "b");
+  const pb = busy.planLink(b, "pb", BETA_ID);
+  pb.lease = leaseOf(planRecord({ repos: [{ id: BETA_ID, name: "beta", baseBranch: "main" }] }));
+  busy.world.planAnswers.push(PLAN_QUESTIONS);
+  await waitingTask(busy, b, "Waiting in beta", "story");
+  const busyOffice = await busy.open(busy.live({ driveMs: 1e9 }));
+  await flush();
+  assert.equal(busyOffice.status().busy, true);
+  await claimTick();
+  assert.equal(planAsked(busy), 0, "not while an engine runs");
+  await busy.world.of(busy.checkoutOf(b)).settle();
+  await claimTick();
+  await until(() => busy.world.planTurns.length === 1, "the plan once the run settled");
+
+  // The runners are not ready.
+  const notReady = fixture(t);
+  const c = await notReady.repo("gamma");
+  notReady.link(c, "c");
+  notReady.planLink(c, "pc", ALPHA_ID).lease = planLease(true);
+  await notReady.open(notReady.live({ runnerCatalog: async () => loggedOutCatalog(), driveMs: 1e9 }));
+  await claimTick();
+  await claimTick();
+  assert.equal(planAsked(notReady), 0, "not while the runners are not ready");
+
+  // Locked: started without --live.
+  const locked = fixture(t);
+  const d = await locked.repo("delta");
+  locked.link(d, "d");
+  locked.planLink(d, "pd", ALPHA_ID).lease = planLease(true);
+  await locked.open();
+  await claimTick();
+  assert.equal(planAsked(locked), 0, "not when the Office is locked");
+  assert.deepEqual(planCalls(locked), []);
+});
+
+test("team pause and the daily cap do not hold a plan, and the runners are checked for it", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  f.link(a, "a").claimReply = claimed("t1");
+  const store = storeOf(f);
+  store.setPaused(true);
+  const pa = f.planLink(a, "pa", ALPHA_ID);
+  pa.lease = planLease(true);
+  f.world.planAnswers.push(PLAN_QUESTIONS);
+  let catalog = loggedOutCatalog();
+  let clock = 1_700_000_000_000;
+  await f.open(f.live({ runnerCatalog: async () => catalog, now: () => clock, driveMs: 1e9 }));
+  const tick = async (ms) => {
+    clock += ms;
+    t.mock.timers.tick(ms);
+    await flush();
+  };
+  await tick(30000);
+  assert.equal(planAsked(f), 0, "the runners are not ready");
+  // The person logs in: the paused Office checks its runners for the plan and runs it.
+  catalog = readyCatalog();
+  await tick(30000);
+  await until(() => f.calls.some(([, what]) => what === "result"), "the plan result");
+  assert.equal(f.world.planTurns.length, 1);
+  assert.equal(claims(f), 0, "paused: no Task is claimed");
+});
+
+test("presence is working during a planning step and the Mac restart waits for it", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  f.link(a, "a");
+  f.planLink(a, "pa", ALPHA_ID).lease = planLease(true);
+  f.world.planAnswers.push(PLAN_QUESTIONS);
+  let release;
+  f.planGit.hold = new Promise((resolve) => (release = resolve));
+  const mac = fakeMac();
+  mac.pending = { add: ["beta"], remove: [] };
+  let clock = 1_700_000_000_000;
+  // Claim ticks at 5000, 10000, …; presence and the repo set at 7000, 14000, … (never in the same timer tick here).
+  const office = await f.open(f.live({ ...mac.config, claimMs: 5000, beatMs: 7000, recheckMs: 7000, driveMs: 1e9, now: () => clock }));
+  const tick = async (ms) => {
+    clock += ms;
+    t.mock.timers.tick(ms);
+    await flush();
+  };
+  await flush();
+  assert.deepEqual(mac.beats, [["idle", null]]);
+  await tick(5000);
+  await until(() => f.planGit.calls.length === 1, "the plan step fetching its repo");
+  assert.equal(office.status().busy, false, "no engine runs yet: the step is fetching");
+  await tick(2000);
+  assert.deepEqual(mac.beats.at(-1), ["working", null]);
+  assert.equal(mac.restarts, 0, "the restart waits for the planning step");
+  assert.ok(f.logs.some((line) => line.includes("beta")), f.logs.join("\n"));
+
+  release();
+  await until(() => f.calls.some(([, what]) => what === "result"), "the plan result");
+  await tick(3000);
+  await tick(4000);
+  assert.equal(mac.restarts, 1, "restarted once the step finished");
+  assert.deepEqual(mac.beats.at(-1), ["idle", null]);
 });
