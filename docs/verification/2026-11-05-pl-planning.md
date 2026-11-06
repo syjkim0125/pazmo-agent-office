@@ -62,7 +62,7 @@ Story: D41 · D35(P1·P5) · M16 · V19. 결정은 [hub-web-team-flow-decision.m
 
 | 검사 | 결과 |
 |---|---|
-| 전체 `npm test` | (전체 검사 뒤 채움) |
+| 전체 `npm test` | 코드가 끝난 `60a6931`(문서 커밋 전): **1726/1726**, 실패 0, exit 0(205초). 묶음 2 뒤 1619/1619에서 107개 늘었다 |
 | `npm run typecheck` | exit 0(코드는 `60a6931`, 이 문서를 쓴 뒤 커밋 전에 실행) |
 | Story 검사 `node .ai-workflow/bin/check.mjs story docs/understanding/pazmo-agent-office-contract.md` | exit 0(같은 때. 문서 모양·관문 기록이 있는지만 본다) |
 | Task별 시험 | 위 "만든 것" 표. Task 10의 `tests/hub-plan-office.test.mjs`는 실제 Hub(TLS)·실제 git origin 둘·실제 팀 Office와 팀원 A의 실제 스케줄러를 쓰고, 모델 실행과 실행기 목록만 가짜다 |
