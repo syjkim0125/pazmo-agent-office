@@ -11,14 +11,16 @@ import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
 import { installScript, type InstallerConfig } from "./installer.ts";
 import type { StoryBoard } from "./story-store.ts";
+import type { PlanBoard } from "./plan-store.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
   | { kind: "proxy"; publicUrl: string; host: string; port: number };
 /** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404.
  * `board` serves the member's work page at `/` and the Story pages, and lets the Mac approve page name a Task the member's
- * earlier Mac holds; without it `/` is the request board, the Story pages are 404 and the approve page says nothing about Tasks. */
-export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard };
+ * earlier Mac holds; without it `/` is the request board, the Story pages are 404 and the approve page says nothing about Tasks.
+ * `plans` is the PL's Story plans, on the same database as `board`. */
+export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard; plans?: PlanBoard };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;

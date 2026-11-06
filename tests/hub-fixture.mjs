@@ -7,17 +7,26 @@ import { join } from "node:path";
 import { ensureHubTls } from "../src/hub/tls.ts";
 import { HubStore } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
+import { PlanBoard } from "../src/hub/plan-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 
-/** `now` is the Story board's clock and `storeNow` the member store's (both default Date.now), for tests that age a claim or a code without waiting. */
-export async function startTestHub(t, { now, storeNow } = {}) {
+/**
+ * `now` is the Story and plan boards' clock and `storeNow` the member store's (both default Date.now), for tests that age a
+ * claim, a lease or a code without waiting. `plans: false` starts a Hub like one from before the plan routes: no `PlanBoard`.
+ */
+export async function startTestHub(t, { now, storeNow, plans: withPlans = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "hub-server-"));
   const tls = ensureHubTls(join(dir, "tls"), { ip: "127.0.0.1" });
   const db = new DatabaseSync(":memory:");
   const store = new HubStore(db, storeNow);
   const board = new StoryBoard(db, now);
-  const hub = await startHubServer({ store, board, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } }, linkApi(store, board));
+  // After the Story board, on the same database: a plan's Story is one of the board's.
+  const plans = withPlans ? new PlanBoard(db, board, now) : undefined;
+  const hub = await startHubServer(
+    { store, board, plans, listen: { kind: "tls", tls, host: "127.0.0.1", port: 0, names: ["127.0.0.1"] } },
+    linkApi(store, board, plans),
+  );
   t.after(async () => {
     await hub.close();
     rmSync(dir, { recursive: true, force: true });
@@ -60,5 +69,5 @@ export async function startTestHub(t, { now, storeNow } = {}) {
         ...(token ? { authorization: `Bearer ${token}` } : {}),
       },
     }).then((r) => ({ ...r, json: r.text ? JSON.parse(r.text) : null }));
-  return { store, board, tls, hub, call, enter, api };
+  return { store, board, plans, tls, hub, call, enter, api };
 }

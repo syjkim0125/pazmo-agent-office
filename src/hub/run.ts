@@ -6,6 +6,7 @@ import { dataRoot, fail, noSymlinks } from "../cli/project.ts";
 import { ensureHubTls, type HubTls } from "./tls.ts";
 import { HubStore } from "./store.ts";
 import { StoryBoard } from "./story-store.ts";
+import { PlanBoard } from "./plan-store.ts";
 import { startHubServer } from "./server.ts";
 import { linkApi } from "./link-api.ts";
 import { installerConfig } from "./installer.ts";
@@ -73,11 +74,13 @@ export async function startHub(input: RunHubInput) {
     const store = new HubStore(db);
     // After HubStore: the board's tables reference the hub's own.
     const board = new StoryBoard(db);
+    // After the board: a plan's Story is one of the board's.
+    const plans = new PlanBoard(db, board);
     hub = await startHubServer(
       input.mode === "lan"
-        ? { store, board, listen: { kind: "tls", tls: tls!, host: input.host, port: input.port, names: [input.name, input.host].filter((n): n is string => !!n) } }
-        : { store, board, listen: { kind: "proxy", publicUrl: publicUrl!.origin, host: input.listenHost, port: input.listenPort }, installer },
-      linkApi(store, board),
+        ? { store, board, plans, listen: { kind: "tls", tls: tls!, host: input.host, port: input.port, names: [input.name, input.host].filter((n): n is string => !!n) } }
+        : { store, board, plans, listen: { kind: "proxy", publicUrl: publicUrl!.origin, host: input.listenHost, port: input.listenPort }, installer },
+      linkApi(store, board, plans),
     );
     admin = store.bootstrapAdmin();
   } catch (error) {
