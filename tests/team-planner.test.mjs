@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { OfficeError } from "../src/cli/project.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
-import { decidedOf, renderTeamStory } from "../src/runners/team-planning.ts";
+import { planTextHash } from "../src/hub/plan-protocol.ts";
+import { approvedStory, decidedOf, renderTeamStory } from "../src/runners/team-planning.ts";
 import { createPlanner } from "../src/team/planner.ts";
 import {
   BE,
@@ -82,22 +83,29 @@ function world(t, { names = ["app-be", "app-fe"], answers = [], beatMs, recheckM
     lastResult: () => calls.filter(([, what]) => what === "result").at(-1)?.[5],
   };
   const turnOf = scriptedTurns(w.state, answers, w.seen);
-  w.planner = createPlanner({
-    root,
-    lanes: () => w.lanes,
-    engineOf: (project) => ({
-      planTurn: (packet, candidate, signal) => {
-        w.turnsOn.push(project);
-        return turnOf(packet, candidate, signal);
-      },
-    }),
-    canStart: () => w.canStart,
-    git: w.git,
-    beatMs,
-    recheckMs,
-    log: (line) => w.logs.push(line),
-    now,
-  });
+  const make = () =>
+    createPlanner({
+      root,
+      lanes: () => w.lanes,
+      engineOf: (project) => ({
+        planTurn: (packet, candidate, signal) => {
+          w.turnsOn.push(project);
+          return turnOf(packet, candidate, signal);
+        },
+      }),
+      canStart: () => w.canStart,
+      git: w.git,
+      beatMs,
+      recheckMs,
+      log: (line) => w.logs.push(line),
+      now,
+    });
+  w.planner = make();
+  /** A new planner over the same data root, Hub and git: the Office restarted. */
+  w.restart = () => {
+    w.planner.stop();
+    w.planner = make();
+  };
   t.after(() => w.planner.stop());
   return w;
 }
@@ -491,4 +499,435 @@ test("a Hub without plan routes is said once and asked again after recheckMs", a
   clock += 300000;
   assert.deepEqual(await w.planner.tick(), { ran: false, why: "none" });
   assert.equal(nexts(), 3);
+});
+
+// Task 8: the splitting step of a normal-risk plan after its G1.
+const SPLIT_ROUNDS = [round("기간은?", "최근\n30일")];
+const DRAFT = renderTeamStory(STORY, decidedOf(SPLIT_ROUNDS));
+const G1 = {
+  approvalId: "0b6d2c1e-3f4a-4b5c-8d6e-7f8091a2b3c4",
+  gate: "G1",
+  memberId: "m-pl",
+  at: Date.UTC(2026, 10, 6, 23, 30),
+  textHash: planTextHash(DRAFT),
+};
+/** The approved draft the Hub Story carries. */
+const VIEW = approvedStory(DRAFT, G1);
+/** A normal-risk plan leased for its splitting step after the PL's G1 of DRAFT. */
+const splitting = (over = {}) =>
+  planRecord({ state: "splitting", rounds: SPLIT_ROUNDS, draft: { text: DRAFT, story: JSON.parse(JSON.stringify(STORY)) }, g1: G1, ...over });
+const planId = (n) => `6f1c2d3e-4a5b-4c6d-8e7f-0011223344${String(n).padStart(2, "0")}`;
+const BE_TIP = "be".repeat(20);
+const FE_TIP = "fe".repeat(20);
+const check = (id, file = "tests/orders.test.mjs") => ({ id, argv: ["node", "--test", file], timeoutMs: 30000 });
+const beTask = (over = {}) => ({
+  title: "주문 API",
+  outcome: "API가 주문을 돌려준다.",
+  scope: "주문 라우트.",
+  constraints: "응답 모양을 지킨다.",
+  must: [2],
+  verify: [2],
+  checks: [check("V2")],
+  repo: "app-be",
+  files: ["src/orders.ts"],
+  after: [],
+  ...over,
+});
+const feTask = (over = {}) => ({
+  title: "주문 화면",
+  outcome: "화면에 주문이 보인다.",
+  scope: "주문 화면.",
+  constraints: "디자인 체계를 따른다.",
+  must: [1],
+  verify: [1],
+  checks: [check("V1", "tests/orders-page.test.mjs")],
+  repo: "app-fe",
+  files: ["src/orders-page.tsx"],
+  after: [1],
+  ...over,
+});
+/** A Lead split the Office's checks and the Hub's take: the API in app-be, then the page in app-fe. */
+const LEAD = {
+  plan: "API를 먼저 만들고 화면은 그 뒤에 붙인다.",
+  tasks: [beTask(), feTask()],
+  storyVerify: [
+    { repo: "app-be", checks: [check("V2")] },
+    { repo: "app-fe", checks: [check("V1", "tests/orders-page.test.mjs")] },
+  ],
+};
+/** P5: no task covers Story MUST 1 and Verify 1. */
+const UNCOVERED = { ...LEAD, tasks: [beTask()], storyVerify: [{ repo: "app-be", checks: [check("V2")] }] };
+/** The Hub's own graph check refuses it: two app-be tasks change src/orders.ts with no order between them. */
+const OVERLAP = { ...LEAD, tasks: [beTask(), feTask({ repo: "app-be", files: ["src/orders.ts"], after: [] })] };
+const TWICE = "AI가 Task를 두 번 나눴지만 검사를 통과하지 못했습니다.";
+const planDir = (w, id = PLAN_ID) => join(w.root, "team", "plans", id);
+const named = (w, call) => w.calls.filter(([, what]) => what === call);
+const pushes = (w) => w.git.calls.filter(([what]) => what === "pushStoryBase");
+const fetches = (w) => w.git.calls.filter(([what]) => what === "fetchBaseTip");
+
+test("a splitting lease checks the gates, writes the records, runs one Lead turn, publishes with key plan:<planId>, the plan's title, the approved story as body and risk normal, makes every Story repo's base at its recorded base branch tip, opens and posts open", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
+  const link = w.first.link;
+  let pushedAtOpen = null;
+  link.on.open = () => {
+    pushedAtOpen = pushes(w).length;
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "open" });
+  const dir = planDir(w);
+  assert.equal(readFileSync(join(dir, "story.md"), "utf8"), VIEW, "the gate records are in the plan's folder");
+  assert.equal(JSON.parse(readFileSync(join(dir, "g1.json"), "utf8")).responseRef, `hub-approval:${G1.approvalId}`);
+  assert.equal(w.seen.length, 1, "one Lead turn");
+  const { packet } = w.seen[0];
+  assert.equal(packet.role, "lead");
+  assert.deepEqual(packet.story, STORY);
+  assert.equal(packet.team.retry, null);
+  assert.deepEqual(packet.team.repos, [
+    { folder: "app-be", baseBranch: "main" },
+    { folder: "app-fe", baseBranch: "develop" },
+  ]);
+  const published = named(w, "publish");
+  assert.equal(published.length, 1);
+  const { graph, storyVerify, ...input } = published[0][2];
+  assert.deepEqual(input, { projectId: "p-1", title: "주문 내역 화면", body: VIEW, risk: "normal", key: `plan:${PLAN_ID}` });
+  assert.deepEqual(
+    graph.nodes.map((n) => [n.id, n.repoId, n.title, n.files]),
+    [
+      ["t1", BE, "주문 API", ["src/orders.ts"]],
+      ["t2", FE, "주문 화면", ["src/orders-page.tsx"]],
+    ],
+  );
+  assert.deepEqual(graph.edges, [{ from: "t1", to: "t2" }]);
+  assert.deepEqual(storyVerify.map((v) => v.repoId), [BE, FE]);
+
+  assert.deepEqual(JSON.parse(readFileSync(join(dir, "bases.json"), "utf8")), { [BE]: BE_TIP, [FE]: FE_TIP });
+  assert.equal(statSync(join(dir, "bases.json")).mode & 0o777, 0o600);
+  assert.deepEqual(fetches(w).slice(-2), [
+    ["fetchBaseTip", "/co/app-be", "main"],
+    ["fetchBaseTip", "/co/app-fe", "develop"],
+  ]);
+  assert.deepEqual(pushes(w), [
+    ["pushStoryBase", "/co/app-be", "feature/story-7/base", BE_TIP],
+    ["pushStoryBase", "/co/app-fe", "feature/story-7/base", FE_TIP],
+  ]);
+  assert.equal(pushedAtOpen, 2, "every base was made before open");
+  assert.deepEqual(
+    w.calls.map(([, what]) => what),
+    ["next", "heartbeat", "publish", "story", "heartbeat", "open", "result"],
+    "the plan is confirmed right before publish and right before open",
+  );
+  assert.deepEqual(named(w, "heartbeat").map((call) => call.slice(2)), [
+    [PLAN_ID, "L1"],
+    [PLAN_ID, "L1"],
+  ]);
+  assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L1", 9, { kind: "open", storyId: "story-7" }]);
+  assert.equal(link.stories.get("story-7").state, "open");
+});
+
+test("every base is pushed before open; a failing base posts failed naming the repo and open is never called; the Hub Story stays draft", async (t) => {
+  let treeDone = false;
+  const lead = () => {
+    treeDone = true;
+    return LEAD;
+  };
+  const w = world(t, { answers: [LEAD, LEAD, lead] });
+  const link = w.first.link;
+  // The app-fe origin refuses the new branch (a protected-branch rule).
+  w.git.on.pushStoryBase = (checkout) => {
+    if (checkout === "/co/app-fe")
+      throw new OfficeError("GIT_FAILED", "! [remote rejected] feature/story-7/base (pre-receive hook declined)");
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "failed" });
+  const reason = w.lastResult().reason;
+  assert.match(firstLine(reason), /app-fe/);
+  assert.doesNotMatch(firstLine(reason), /app-be|[A-Z_]{6,}/);
+  assert.match(reason, /\n! \[remote rejected\] feature\/story-7\/base \(pre-receive hook declined\)$/);
+  assert.deepEqual(pushes(w).map(([, checkout]) => checkout), ["/co/app-be", "/co/app-fe"]);
+  assert.deepEqual(named(w, "open"), [], "open is never called");
+  assert.equal(link.stories.get("story-7").state, "draft");
+
+  // Another commit already at app-be's base: BASE_EXISTS, naming the repo, and app-fe's base is not made.
+  w.git.on.pushStoryBase = undefined;
+  w.git.remote["/co/app-be feature/story-8/base"] = "0".repeat(40);
+  link.lease = leaseOf(splitting({ id: planId(61) }), { leaseId: "L2", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.equal(
+    w.lastResult().reason,
+    "레포 app-be: 레포에 feature/story-8/base가 이미 다른 커밋으로 있습니다. 그 브랜치를 확인한 뒤 다시 시도하세요.",
+  );
+  assert.equal(w.git.remote["/co/app-fe feature/story-8/base"], undefined);
+  assert.deepEqual(named(w, "open"), []);
+  assert.equal(link.stories.get("story-8").state, "draft");
+
+  // A base branch that cannot be fetched names its repo: nothing is recorded or pushed for that Story.
+  const fetch = w.git.fetchBaseTip;
+  w.git.fetchBaseTip = async (checkout, base) => {
+    if (treeDone && checkout === "/co/app-fe") throw new OfficeError("GIT_FAILED", "fatal: couldn't find remote ref develop");
+    return fetch(checkout, base);
+  };
+  link.lease = leaseOf(splitting({ id: planId(62) }), { leaseId: "L3", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.match(firstLine(w.lastResult().reason), /app-fe/);
+  assert.match(w.lastResult().reason, /\nfatal: couldn't find remote ref develop$/);
+  assert.equal(existsSync(join(planDir(w, planId(62)), "bases.json")), false);
+  assert.equal(pushes(w).filter(([, , base]) => base === "feature/story-9/base").length, 0);
+  assert.deepEqual(named(w, "open"), []);
+  assert.equal(link.stories.get("story-9").state, "draft");
+});
+
+
+test("a P5 failure, a SPLIT_REFUSED graph or a publish answered 400 GRAPH_OVERLAP runs the Lead once more with the reason in the packet's retry; a second refusal posts failed", async (t) => {
+  const w = world(t, { answers: [UNCOVERED, LEAD, OVERLAP, LEAD, LEAD, LEAD, UNCOVERED, OVERLAP, LEAD, LEAD] });
+  const link = w.first.link;
+  const hubSays = "Task t1와 t2가 같은 파일(src/orders.ts)을 건드리는데 실행 순서가 없습니다. 의존선으로 순서를 정하거나 파일을 나누세요.";
+  let refuse = 0;
+  link.on.publish = () => {
+    if (refuse > 0) {
+      refuse -= 1;
+      throw refusal(400, "GRAPH_OVERLAP", hubSays);
+    }
+  };
+  const run = async (n, posted) => {
+    link.lease = leaseOf(splitting({ id: planId(n) }), { leaseId: `L${n}`, revision: 1 });
+    assert.equal((await w.planner.tick()).posted, posted);
+  };
+  const retries = () => w.seen.map(({ packet }) => packet.team.retry);
+
+  // P5: the Office's coverage check.
+  await run(70, "open");
+  assert.deepEqual(retries(), [null, "report.tasks: M1 not covered"]);
+  assert.equal(named(w, "publish").length, 1, "only the second split is published");
+  // SPLIT_REFUSED: the Hub's own graph check, run by the Office before publishing.
+  await run(71, "open");
+  assert.match(retries()[3], /^GRAPH_OVERLAP: Task t1와 t2가 같은 파일\(src\/orders\.ts\)/);
+  assert.equal(named(w, "publish").length, 2);
+  // The Hub's publish refuses the graph: the same one more turn, with the Hub's reason.
+  refuse = 1;
+  await run(72, "open");
+  assert.deepEqual(retries().slice(4), [null, `GRAPH_OVERLAP: ${hubSays}`]);
+  assert.equal(named(w, "publish").length, 4);
+  assert.equal(link.stories.size, 3, "the refused publish made no Story");
+
+  // A second refusal: failed with the reason, nothing published.
+  await run(73, "failed");
+  assert.equal(firstLine(w.lastResult().reason), TWICE);
+  assert.match(w.lastResult().reason, /\nGRAPH_OVERLAP: /);
+  assert.equal(retries()[7].startsWith("report.tasks: M1 not covered"), true);
+  assert.equal(named(w, "publish").length, 4);
+  // The Hub refuses both splits.
+  refuse = 2;
+  await run(74, "failed");
+  assert.equal(firstLine(w.lastResult().reason), TWICE);
+  assert.match(w.lastResult().reason, /\nGRAPH_OVERLAP: Task t1와 t2/);
+  assert.equal(named(w, "publish").length, 6);
+  assert.equal(w.seen.length, 10, "never a third Lead turn");
+  assert.deepEqual(named(w, "open").length, 3);
+});
+
+test("a retry (or an Office restarted mid-split) sees published on the lease: no Lead turn, the same Story (already true), the recorded commits reused even after main moved, a base already at that commit kept, and an open answered STATE on an open Story counts as opened", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
+  const link = w.first.link;
+  w.git.on.pushStoryBase = (checkout) => {
+    if (checkout === "/co/app-fe") throw new OfficeError("GIT_FAILED", "! [remote rejected] (permission denied)");
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  const recorded = readFileSync(join(planDir(w), "bases.json"), "utf8");
+  assert.equal(w.git.remote["/co/app-be feature/story-7/base"], BE_TIP);
+  assert.equal(link.stories.get("story-7").state, "draft");
+
+  // The PL fixed the permission and pressed 다시 시도. Meanwhile both base branches moved and the Office restarted.
+  w.git.on.pushStoryBase = undefined;
+  w.git.tips = { "/co/app-be": "b0".repeat(20), "/co/app-fe": "f0".repeat(20) };
+  w.restart();
+  // An earlier open landed but its reply was lost: asked again, the Hub answers STATE on an open Story.
+  link.on.open = (id) => {
+    link.stories.get(id).state = "open";
+    throw hubError(409, "STATE");
+  };
+  const turns = w.seen.length;
+  const published = named(w, "publish").length;
+  const fetched = fetches(w).length;
+  link.lease = leaseOf(splitting({ published: { storyId: "story-7", number: 7, state: "draft" } }), { leaseId: "L2", revision: 11 });
+
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "open" });
+  assert.equal(w.seen.length, turns, "no Lead turn");
+  assert.equal(named(w, "publish").length, published, "no second publish");
+  assert.equal(fetches(w).length, fetched, "the recorded commits, not the moved tips");
+  assert.equal(readFileSync(join(planDir(w), "bases.json"), "utf8"), recorded);
+  assert.deepEqual(pushes(w).slice(-2), [
+    ["pushStoryBase", "/co/app-be", "feature/story-7/base", BE_TIP],
+    ["pushStoryBase", "/co/app-fe", "feature/story-7/base", FE_TIP],
+  ]);
+  assert.equal(w.git.remote["/co/app-be feature/story-7/base"], BE_TIP, "the base the first attempt made is kept");
+  assert.equal(w.git.remote["/co/app-fe feature/story-7/base"], FE_TIP);
+  assert.equal(named(w, "open").length, 1);
+  assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L2", 11, { kind: "open", storyId: "story-7" }]);
+});
+
+test("a gate failure posts failed before any Lead turn or publish", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  const link = w.first.link;
+  const cases = [
+    [splitting({ id: planId(80), g1: { ...G1, memberId: "m-other" } }), "Story 승인 기록이 이 기획의 PL 것이 아닙니다."],
+    [splitting({ id: planId(81), g1: { ...G1, textHash: planTextHash(`${DRAFT}\n`) } }), "승인한 초안과 지금 초안이 다릅니다. 취소하고 새 Story로 시작하세요."],
+  ];
+  for (const [i, [plan, reason]] of cases.entries()) {
+    link.lease = leaseOf(plan, { leaseId: `L${i}`, revision: 1 });
+    assert.equal((await w.planner.tick()).posted, "failed");
+    assert.equal(w.lastResult().reason, reason);
+    assert.equal(existsSync(join(planDir(w, plan.id), "story.md")), false, "no record");
+  }
+
+  // A record the plan's folder already holds with other bytes, or a plan folder that is a link: a plain reason, not
+  // the planning tree's sentence or a code.
+  mkdirSync(planDir(w, planId(82)), { recursive: true });
+  writeFileSync(join(planDir(w, planId(82)), "story.md"), "# Story: 다른 글\n");
+  mkdirSync(join(w.root, "elsewhere"));
+  symlinkSync(join(w.root, "elsewhere"), planDir(w, planId(83)));
+  for (const [i, id] of [planId(82), planId(83)].entries()) {
+    link.lease = leaseOf(splitting({ id }), { leaseId: `M${i}`, revision: 1 });
+    assert.equal((await w.planner.tick()).posted, "failed");
+    const first = firstLine(w.lastResult().reason);
+    assert.doesNotMatch(first, /[A-Z_]{6,}/);
+    assert.doesNotMatch(first, /기획 입력으로 옮길 수 없는 경로/);
+  }
+  assert.match(firstLine(w.lastResult().reason), /기획 기록을 쓸 수 없습니다/);
+  assert.deepEqual(readFileSync(join(planDir(w, planId(82)), "story.md"), "utf8"), "# Story: 다른 글\n", "kept as it was");
+  assert.deepEqual(w.seen, [], "no Lead turn");
+  assert.deepEqual(named(w, "publish"), [], "nothing published");
+  assert.deepEqual(w.git.calls, [], "no git");
+});
+
+test("a plan cancelled before publish publishes nothing; one cancelled after publish has its draft Story cancelled by the Office, is not opened and posts nothing", async (t) => {
+  const w = world(t, { answers: [LEAD, LEAD, LEAD] });
+  const link = w.first.link;
+  link.on.heartbeat = () => {
+    throw hubError(409, "STATE");
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: null });
+  assert.deepEqual(named(w, "publish"), []);
+  assert.deepEqual(w.results(), []);
+
+  // The PL cancels between publish and open: the Hub's cancel did not see the Story, so the Office cancels it.
+  let beats = 0;
+  link.on.heartbeat = () => {
+    beats += 1;
+    if (beats === 2) throw hubError(409, "STATE");
+  };
+  link.lease = leaseOf(splitting({ id: planId(90) }), { leaseId: "L2", revision: 1 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(90), posted: null });
+  assert.equal(named(w, "publish").length, 1);
+  assert.deepEqual(named(w, "cancel").map((call) => call[2]), ["story-7"]);
+  assert.equal(link.stories.get("story-7").state, "cancelled");
+  assert.deepEqual(named(w, "open"), []);
+  assert.deepEqual(w.results(), []);
+  assert.ok(w.logs.some((line) => line.includes(planId(90)) && line.includes("story-7") && line.includes("cancel")), w.logs.join("\n"));
+
+  // Another Office of the PL took the lease over (NOT_YOURS): the plan is not cancelled, so its Story is left alone.
+  beats = 0;
+  link.on.heartbeat = () => {
+    beats += 1;
+    if (beats === 2) throw hubError(409, "NOT_YOURS");
+  };
+  link.lease = leaseOf(splitting({ id: planId(91) }), { leaseId: "L3", revision: 1 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(91), posted: null });
+  assert.equal(named(w, "cancel").length, 1);
+  assert.equal(link.stories.get("story-8").state, "draft");
+  assert.deepEqual(named(w, "open"), []);
+  assert.deepEqual(w.results(), []);
+});
+
+test("a publish or open the Hub refuses for good posts failed with a plain reason; a 5xx is tried again on the next tick of the same lease without another Lead turn, and the fourth one posts failed; a published Story cancelled meanwhile gets no base", async (t) => {
+  const w = world(t, { answers: [LEAD, LEAD, LEAD, LEAD, LEAD] });
+  const link = w.first.link;
+  link.on.publish = () => {
+    throw refusal(404, "NOT_FOUND", "프로젝트를 찾을 수 없습니다.");
+  };
+  link.lease = leaseOf(splitting({ id: planId(1) }), { leaseId: "L1", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.doesNotMatch(firstLine(w.lastResult().reason), /[A-Z_]{6,}/);
+  assert.match(w.lastResult().reason, /\n.*NOT_FOUND.*프로젝트를 찾을 수 없습니다\./);
+  assert.equal(w.logs.some((line) => line.includes("older Hub")), false, "never hub-too-old");
+
+  // 503 twice, then the Hub takes it: the kept split is published, with no second Lead turn.
+  let down = 2;
+  link.on.publish = () => {
+    if (down > 0) {
+      down -= 1;
+      throw hubError(503, "HUB_UNAVAILABLE");
+    }
+  };
+  link.lease = leaseOf(splitting({ id: planId(2) }), { leaseId: "L2", revision: 1 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(2), posted: null });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(2), posted: null });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(2), posted: "open" });
+  assert.equal(w.seen.length, 2, "one Lead turn for that plan");
+  assert.equal(named(w, "publish").length, 4);
+
+  // Always 503: tried four times, then failed with a plain reason.
+  link.on.publish = () => {
+    throw hubError(503, "HUB_UNAVAILABLE");
+  };
+  link.lease = leaseOf(splitting({ id: planId(3) }), { leaseId: "L3", revision: 1 });
+  for (let i = 0; i < 3; i++) assert.equal((await w.planner.tick()).posted, null);
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.doesNotMatch(firstLine(w.lastResult().reason), /[A-Z_]{6,}/);
+  assert.match(w.lastResult().reason, /\n.*503/);
+  assert.equal(w.seen.length, 3);
+
+  // An open refused for good (403): failed, plain.
+  link.on.publish = undefined;
+  link.on.open = () => {
+    throw refusal(403, "FORBIDDEN", "Story의 PL만 열 수 있습니다.");
+  };
+  link.lease = leaseOf(splitting({ id: planId(4) }), { leaseId: "L4", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.doesNotMatch(firstLine(w.lastResult().reason), /[A-Z_]{6,}/);
+  assert.match(w.lastResult().reason, /\n.*FORBIDDEN.*Story의 PL만 열 수 있습니다\./);
+  const story = [...link.stories.values()].at(-1);
+  assert.equal(story.state, "draft");
+
+  // That Story is cancelled on the Hub before the PL retries: no base is made for it and it is not opened.
+  link.on.open = undefined;
+  story.state = "cancelled";
+  const pushed = pushes(w).length;
+  link.lease = leaseOf(splitting({ id: planId(4), published: { storyId: story.id, number: story.number, state: "cancelled" } }), { leaseId: "L5", revision: 2 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.doesNotMatch(firstLine(w.lastResult().reason), /[A-Z_]{6,}/);
+  assert.equal(pushes(w).length, pushed);
+  assert.equal(story.state, "cancelled");
+});
+
+test("a step the periodic heartbeat cut while it published makes no base: the plan was cancelled, so its draft Story is cancelled; a step stopped with the Office writes nothing more", async (t) => {
+  const w = world(t, { answers: [LEAD, LEAD], beatMs: 5 });
+  const link = w.first.link;
+  link.on.publish = () => new Promise((resolve) => setTimeout(resolve, 60));
+  // Cancelled on the Hub once the Office has sent its publish: every heartbeat after that answers STATE.
+  link.on.heartbeat = () => {
+    if (named(w, "publish").length) throw hubError(409, "STATE");
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.deepEqual(await settles(w.planner.tick(), "the cut step"), { ran: true, planId: PLAN_ID, posted: null });
+  assert.deepEqual(pushes(w), [], "no base for a cancelled plan");
+  assert.deepEqual(named(w, "cancel").map((call) => call[2]), ["story-7"]);
+  assert.deepEqual(named(w, "open"), []);
+  assert.deepEqual(w.results(), []);
+
+  // The Office stops while the step publishes: nothing after the publish reaches the Hub or an origin.
+  link.on.heartbeat = undefined;
+  link.on.publish = () => {
+    w.planner.stop();
+  };
+  link.lease = leaseOf(splitting({ id: planId(95) }), { leaseId: "L2", revision: 1 });
+  assert.deepEqual(await settles(w.planner.tick(), "the stopped step"), { ran: true, planId: planId(95), posted: null });
+  assert.deepEqual(pushes(w), []);
+  assert.deepEqual(named(w, "open"), []);
+  assert.equal(link.stories.get("story-8").state, "draft");
+  assert.deepEqual(w.results(), []);
 });

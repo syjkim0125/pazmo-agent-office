@@ -28,6 +28,7 @@ import {
   inMerge,
   listTree,
   mergeStoryBase,
+  pushStoryBase,
   pushTaskBranch,
   startTaskBranch,
 } from "../src/team/branch.ts";
@@ -1120,4 +1121,139 @@ test("extractTree writes a link as a link even when the person's git config says
 
   assert.equal(lstatSync(join(target, "link")).isSymbolicLink(), true);
   assert.equal(readlinkSync(join(target, "link")), "README.md");
+});
+
+// Task 8: the second write to a remote, a Story base at the commit the plan recorded.
+const STORY_BASE = "feature/story-7/base";
+const BASE_EXISTS = `레포에 ${STORY_BASE}가 이미 다른 커밋으로 있습니다. 그 브랜치를 확인한 뒤 다시 시도하세요.`;
+const refsOf = (w) => w.git(w.bare, "for-each-ref").split("\n").filter(Boolean);
+const gitSteps = (calls) => calls.map((call) => subcommand(call.argv));
+
+test("pushStoryBase creates feature/story-<N>/base at the commit and the bare origin shows it; the same commit already there is exists; another commit there is BASE_EXISTS and nothing is pushed", async (t) => {
+  const w = gitWorld(t);
+  const main = w.git(w.bare, "rev-parse", "refs/heads/main").trim();
+  const develop = w.push("develop", { "web/index.html": "<p>develop</p>\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  assert.equal(await fetchBaseTip(checkout, "develop", e), develop);
+  const before = refsOf(w);
+  const repoBefore = snapshot(w);
+  const made = spy();
+
+  assert.equal(await pushStoryBase(checkout, STORY_BASE, develop, { ...e, run: made.run }), "created");
+  assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${STORY_BASE}`).trim(), develop);
+  const after = refsOf(w);
+  assert.deepEqual(after.filter((line) => !before.includes(line)), [`${develop} commit\trefs/heads/${STORY_BASE}`]);
+  assert.deepEqual(before.filter((line) => !after.includes(line)), []);
+  assert.deepEqual(gitSteps(made.calls), ["ls-remote", "push"]);
+  const { argv } = made.calls[1];
+  assert.deepEqual(argv.slice(-3), ["push", "origin", `${develop}:refs/heads/${STORY_BASE}`]);
+  assert.equal(argv.some((arg) => arg === "-f" || arg.startsWith("--force") || arg.startsWith("+")), false);
+  assertRepoUntouched(w, repoBefore);
+
+  // The same commit already there (an earlier attempt made it): nothing is pushed.
+  const again = spy();
+  assert.equal(await pushStoryBase(checkout, STORY_BASE, develop, { ...e, run: again.run }), "exists");
+  assert.deepEqual(gitSteps(again.calls), ["ls-remote"]);
+
+  // Another commit there: the Story base is not moved, whatever made it.
+  const other = spy();
+  await assert.rejects(pushStoryBase(checkout, STORY_BASE, main, { ...e, run: other.run }), {
+    code: "BASE_EXISTS",
+    message: BASE_EXISTS,
+  });
+  assert.deepEqual(gitSteps(other.calls), ["ls-remote"]);
+  assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${STORY_BASE}`).trim(), develop);
+  assert.deepEqual(refsOf(w), after);
+});
+
+test("pushStoryBase refuses main, a task branch, a plus sign and a short sha with PUSH_REFUSED before git runs; the person's push.followTags sends no tag along", async (t) => {
+  const w = gitWorld(t);
+  const sha = w.git(w.bare, "rev-parse", "refs/heads/main").trim();
+  const refs = w.git(w.bare, "for-each-ref");
+  const { calls, run } = spy();
+  const e = env(w, { run });
+  const checkout = checkoutOf(w);
+
+  for (const branch of [
+    "main",
+    "develop",
+    TASK,
+    `+${STORY_BASE}`,
+    `${STORY_BASE}:refs/heads/main`,
+    `refs/heads/${STORY_BASE}`,
+    ` ${STORY_BASE}`,
+    `${STORY_BASE}\n`,
+    `${STORY_BASE}/extra`,
+    "feature/story-x/base",
+    "feature/story-/base",
+    "feature/story-7/base/",
+    "",
+  ])
+    await assert.rejects(pushStoryBase(checkout, branch, sha, e), { code: "PUSH_REFUSED" }, JSON.stringify(branch));
+  for (const bad of ["HEAD", "main", `${sha}:refs/heads/main`, `+${sha}`, sha.slice(0, 7), `${sha}\n`, ""])
+    await assert.rejects(pushStoryBase(checkout, STORY_BASE, bad, e), { code: "PUSH_REFUSED" }, JSON.stringify(bad));
+  assert.deepEqual(calls, []);
+  assert.equal(w.git(w.bare, "for-each-ref"), refs);
+  // The Task branch guard is not loosened by the Story base's: a Story base is still not a Task branch.
+  await assert.rejects(pushTaskBranch(checkout, STORY_BASE, sha, e), { code: "PUSH_REFUSED" });
+
+  w.git(w.root, "config", "--global", "push.followTags", "true");
+  const tip = w.push("develop", { "a.txt": "develop\n" });
+  const real = env(w);
+  await ensureCheckout(w.repo, checkoutOf(w), real);
+  await fetchBaseTip(checkoutOf(w), "develop", real);
+  w.git(checkoutOf(w), "tag", "-a", "v-base", "-m", "a tag the person made", tip);
+  assert.equal(await pushStoryBase(checkoutOf(w), STORY_BASE, tip, real), "created");
+  assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${STORY_BASE}`).trim(), tip);
+  assert.equal(w.git(w.bare, "for-each-ref", "refs/tags"), "");
+});
+
+test("a push the origin refuses is judged again by ls-remote: the same commit made meanwhile is exists, another commit is BASE_EXISTS, none is GIT_FAILED with git's line", async (t) => {
+  const w = gitWorld(t);
+  const main = w.git(w.bare, "rev-parse", "refs/heads/main").trim();
+  const develop = w.push("develop", { "web/index.html": "<p>develop</p>\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  await fetchBaseTip(checkout, "develop", e);
+  /** A git whose push is refused, after `meanwhile` (another push landing first) has run. */
+  const refusedPush = (meanwhile) => (exe, argv, options) => {
+    if (subcommand(argv) !== "push") return runCommand(exe, argv, options);
+    meanwhile();
+    return {
+      exitCode: 1,
+      signal: null,
+      stdout: "",
+      stderr: `To ${w.bare}\n ! [remote rejected] ${develop} -> ${STORY_BASE} (pre-receive hook declined)\nerror: failed to push some refs\n`,
+      timedOut: false,
+      error: null,
+    };
+  };
+  const setRef = (sha) => () => w.git(w.bare, "update-ref", `refs/heads/${STORY_BASE}`, sha);
+
+  assert.equal(await pushStoryBase(checkout, STORY_BASE, develop, env(w, { run: refusedPush(setRef(develop)) })), "exists");
+  w.git(w.bare, "update-ref", "-d", `refs/heads/${STORY_BASE}`);
+  await assert.rejects(pushStoryBase(checkout, STORY_BASE, develop, env(w, { run: refusedPush(setRef(main)) })), {
+    code: "BASE_EXISTS",
+    message: BASE_EXISTS,
+  });
+  w.git(w.bare, "update-ref", "-d", `refs/heads/${STORY_BASE}`);
+  await assert.rejects(pushStoryBase(checkout, STORY_BASE, develop, env(w, { run: refusedPush(() => {}) })), {
+    code: "GIT_FAILED",
+    message: `! [remote rejected] ${develop} -> ${STORY_BASE} (pre-receive hook declined)`,
+  });
+  assert.equal(w.git(w.bare, "for-each-ref", `refs/heads/${STORY_BASE}`), "");
+  // The second look cannot reach origin: the push's own refusal is what the person sees.
+  let lists = 0;
+  const lostAfterPush = (exe, argv, options) => {
+    if (subcommand(argv) === "ls-remote" && ++lists > 1) return failing("fatal: unable to access origin")();
+    return refusedPush(() => {})(exe, argv, options);
+  };
+  await assert.rejects(pushStoryBase(checkout, STORY_BASE, develop, env(w, { run: lostAfterPush })), {
+    code: "GIT_FAILED",
+    message: `! [remote rejected] ${develop} -> ${STORY_BASE} (pre-receive hook declined)`,
+  });
+  assert.equal(lists, 2);
 });

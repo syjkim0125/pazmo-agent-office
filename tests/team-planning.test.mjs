@@ -611,3 +611,11 @@ test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'U
   assert.deepEqual(a.flatMap((line, i) => (line === d[i] ? [] : [i])), [1, 3]);
   assert.throws(() => approvedStory("# Story: x\nOwner: Human\n", g1), invalid);
 });
+
+test("the team Lead limits state the Hub's per-task spec limit in UTF-8 bytes; the single-Office Lead limits do not change", () => {
+  const lead = teamPlanningLimits("lead");
+  assert.match(lead, /16384 UTF-8 bytes/);
+  assert.match(lead, /outcome, scope and constraints/);
+  assert.doesNotMatch(teamPlanningLimits("pm"), /16384/);
+  assert.doesNotMatch(planningLimits("lead"), /16384|UTF-8/);
+});

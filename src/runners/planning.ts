@@ -551,6 +551,7 @@ export function teamPlanningLimits(role: "pm" | "lead"): string {
     ...taskLimits(),
     checkLimits(S.checksPerList),
     `- repo is one folder of packet.team.repos; files 1-${S.filesPerTask} unique paths of at most ${S.filePathMax} characters each; after lists unique task numbers between 1 and the number of tasks, never the task's own.`,
+    `- Office writes each task's outcome, scope and constraints (with the M/V numbers it covers) into one Hub spec of at most ${S.taskSpecBytes} UTF-8 bytes; a Korean character takes 3 bytes, so keep the three short.`,
     `- storyVerify 1 entry per repository at most, at least 1 entry; checks 1-${S.checksPerList} per entry with the argv and timeoutMs rules above, each id V<n> of a Story Verify scenario it checks.`,
   ].join("\n");
 }

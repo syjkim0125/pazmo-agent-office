@@ -44,6 +44,7 @@ const MAX_BYTES = 2 * 1024 * 1024;
 const TREE_LISTING_BYTES = 16 * 1024 * 1024;
 const MESSAGE_MAX = 160;
 const TASK_BRANCH = /^feature\/story-\d+\/task-\d+$/;
+const STORY_BASE = /^feature\/story-\d+\/base$/;
 const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const PLAIN_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 // A conflict marker line the way git's own `diff --check` reads it.
@@ -225,12 +226,18 @@ export async function extractTree(checkout: string, sha: string, target: string,
   }
 }
 
-async function remoteHas(checkout: string, branch: string, env: GitEnv): Promise<boolean> {
+/** The commit origin's `refs/heads/<branch>` points at, or null when origin has no such branch. */
+async function remoteTip(checkout: string, branch: string, env: GitEnv): Promise<string | null> {
   const ref = `refs/heads/${branch}`;
   const listing = await git(checkout, ["ls-remote", "--heads", "origin", ref], env, {
     remote: true,
   });
-  return listing.stdout.split("\n").some((line) => line.split("\t")[1] === ref);
+  const line = listing.stdout.split("\n").find((entry) => entry.split("\t")[1] === ref);
+  return line === undefined ? null : line.split("\t")[0].trim();
+}
+
+async function remoteHas(checkout: string, branch: string, env: GitEnv): Promise<boolean> {
+  return (await remoteTip(checkout, branch, env)) !== null;
 }
 
 async function unmerged(checkout: string, env: GitEnv): Promise<string[]> {
@@ -521,8 +528,17 @@ export async function commitAll(
   return { sha: await headOf(checkout, env), changed: true };
 }
 
-/** The only write to a remote: `git push origin <sha>:refs/heads/<branch>` for a Story Task branch. No
- * force, no `+`, no other refspec; the config that could add tags or submodule pushes is overridden. */
+/** `git push origin <sha>:refs/heads/<branch>`: no force, no `+`, no other refspec; the config that could add tags
+ * or submodule pushes is overridden. Each caller checks its own branch name first. */
+async function pushRef(checkout: string, branch: string, sha: string, env: GitEnv): Promise<void> {
+  await git(checkout, ["push", "origin", `${sha}:refs/heads/${branch}`], env, {
+    remote: true,
+    config: ["push.followTags=false", "push.recurseSubmodules=no"],
+  });
+}
+
+/** One of the two writes to a remote (D41), the other being `pushStoryBase`: a Story Task branch at `sha`. Only a
+ * `feature/story-<N>/task-<M>` name and a full commit id are pushed. */
 export async function pushTaskBranch(
   checkout: string,
   branch: string,
@@ -532,10 +548,47 @@ export async function pushTaskBranch(
   if (!TASK_BRANCH.test(branch))
     fail("PUSH_REFUSED", "Only feature/story-<N>/task-<M> branches may be pushed.");
   if (!OBJECT_ID.test(sha)) fail("PUSH_REFUSED", "A push needs a full commit id.");
-  await git(checkout, ["push", "origin", `${sha}:refs/heads/${branch}`], env, {
-    remote: true,
-    config: ["push.followTags=false", "push.recurseSubmodules=no"],
-  });
+  await pushRef(checkout, branch, sha, env);
+}
+
+/**
+ * The other write to a remote (D41): a published Story's base `feature/story-<N>/base` made at `sha`, the base branch
+ * tip the plan recorded. Only that name and a full commit id are pushed; a base origin already has is never moved. The
+ * same commit there is `exists`, another commit `BASE_EXISTS`; a refused push is judged again the same way, since an
+ * earlier attempt may have made it meanwhile.
+ */
+export async function pushStoryBase(
+  checkout: string,
+  storyBase: string,
+  sha: string,
+  env: GitEnv,
+): Promise<"created" | "exists"> {
+  if (!STORY_BASE.test(storyBase))
+    fail("PUSH_REFUSED", "Only feature/story-<N>/base branches may be made.");
+  if (!OBJECT_ID.test(sha)) fail("PUSH_REFUSED", "A push needs a full commit id.");
+  const already = async (): Promise<boolean> => {
+    const tip = await remoteTip(checkout, storyBase, env);
+    if (tip !== null && tip !== sha)
+      fail("BASE_EXISTS", `레포에 ${storyBase}가 이미 다른 커밋으로 있습니다. 그 브랜치를 확인한 뒤 다시 시도하세요.`);
+    return tip === sha;
+  };
+  if (await already()) return "exists";
+  try {
+    await pushRef(checkout, storyBase, sha, env);
+  } catch (error) {
+    if (!(error instanceof OfficeError) || error.code !== "GIT_FAILED") throw error;
+    let made: boolean;
+    try {
+      made = await already();
+    } catch (second) {
+      // Another commit there is the answer; a second look that cannot reach origin leaves the push's own refusal.
+      if (second instanceof OfficeError && second.code === "BASE_EXISTS") throw second;
+      throw error;
+    }
+    if (made) return "exists";
+    throw error;
+  }
+  return "created";
 }
 
 /** Merges the Story base's current tip into the checked-out Task branch. A conflict is left in place, with

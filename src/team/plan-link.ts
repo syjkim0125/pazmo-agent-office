@@ -5,7 +5,7 @@ import type { StoryView } from "../hub/story-store.ts";
 
 /**
  * The Hub routes a PL's Office needs to do the PL's Story plan work, through one of the PL's (member, repo) links:
- * any of them stands for the person. `publish`, `open` and `story` are the existing Story routes.
+ * any of them stands for the person. `publish`, `open`, `story` and `cancel` are the existing Story routes.
  */
 export type PlanLink = {
   repoId: string;
@@ -26,6 +26,8 @@ export type PlanLink = {
   }): Promise<{ storyId: string; number: number; already: boolean }>;
   open(storyId: string): Promise<void>;
   story(storyId: string): Promise<StoryView>;
+  /** The existing Story cancel: the Office cancels a draft it published for a plan the PL cancelled meanwhile. */
+  cancel(storyId: string): Promise<void>;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
@@ -67,6 +69,9 @@ export function planLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): Pl
     },
     async open(storyId) {
       await send("POST", "open", { storyId });
+    },
+    async cancel(storyId) {
+      await send("POST", "cancel", { storyId });
     },
     async story(storyId) {
       const reply = await send("GET", `story?id=${encodeURIComponent(storyId)}`);

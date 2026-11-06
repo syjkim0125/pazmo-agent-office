@@ -255,3 +255,23 @@ test("planLink.publish with key plan:<planId>, open and story reach the existing
   await planLink(fakeCfg, call).story("s/1");
   assert.deepEqual(calls[0], [fakeCfg, "GET", "/api/link/story/story?id=s%2F1", undefined, "3"]);
 });
+
+test("planLink.cancel reaches the existing Story cancel route: the PL's draft Story is cancelled and cannot be opened", async (t) => {
+  const w = await world(t);
+  const link = planLink(w.cfgOf(w.pl, "app-be"));
+  const id = w.create();
+  const be = w.repos["app-be"];
+  const pub = await link.publish({
+    projectId: w.projectId, title: "쿠폰 발급", body: DRAFT, risk: "normal", key: planStoryKey(id),
+    graph: { nodes: [{ id: "api", repoId: be, title: "api", spec: "쿠폰 API", files: ["src/api.ts"], verify: [check] }], edges: [] },
+    storyVerify: [{ repoId: be, checks: [check] }],
+  });
+  assert.equal(await link.cancel(pub.storyId), undefined);
+  assert.equal((await link.story(pub.storyId)).state, "cancelled");
+  const refused = await link.open(pub.storyId).then(() => assert.fail("expected a refusal"), (e) => e);
+  assert.equal(refused.status, 409);
+  assert.equal(refused.code, "STATE");
+  const { call, calls } = fakeCall({ ok: true });
+  await planLink(fakeCfg, call).cancel("s-1");
+  assert.deepEqual(calls[0], [fakeCfg, "POST", "/api/link/story/cancel", { storyId: "s-1" }, "3"]);
+});
