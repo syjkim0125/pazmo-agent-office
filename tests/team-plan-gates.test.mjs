@@ -227,9 +227,12 @@ test("writeGateRecords writes story.md with Status: Approved, g1.json with gate 
     textHash: planTextHash(DESIGN),
     gate: "G3",
     designHash: digest(DESIGN),
+    decisionHash: digest(DESIGN),
     storyHash: kitStoryHash(DRAFT),
     responseRef: `hub-approval:${high.g3.approvalId}`,
   });
+  // The G3 record binds the same Story as the G1 record beside it.
+  assert.equal(g3.storyHash, JSON.parse(readFileSync(join(highDir, "g1.json"), "utf8")).storyHash);
   writeGateRecords(highDir, high, { g1: high.g1, g3: high.g3 });
   const redesigned = DESIGN.replace("주문 API", "주문 API 둘");
   assert.throws(

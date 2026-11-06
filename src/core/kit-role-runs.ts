@@ -53,7 +53,7 @@ export function kitG1(
 }
 
 /** The G3 record of a PL's web approval of a high-risk plan's design, bound to that design text and to the Story view
- * it was made for. */
+ * it was made for. kit's own G3 binding reads `storyHash` and `decisionHash` (the design's digest, also `designHash`). */
 export function kitG3(
   design: string,
   storyView: string,
@@ -64,6 +64,7 @@ export function kitG3(
     ...record,
     gate: "G3",
     designHash: digest(design),
+    decisionHash: digest(design),
     storyHash: kitStoryHash(storyView),
     responseRef: `hub-approval:${approvalId}`,
   });

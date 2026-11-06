@@ -278,9 +278,17 @@ test("kitG1 keeps office-approval:<id> by default and writes hub-approval:<id> w
     planId: "p",
     gate: "G3",
     designHash: digest(design),
+    decisionHash: digest(design),
     storyHash: kitStoryHash(view),
     responseRef: "hub-approval:a-3",
   });
+  // kit's own G3 binding (graph/cli.mjs) expects storyHash = the contract fingerprint and decisionHash = digest of the
+  // design file; storyHash is the one the G1 record of the same view carries.
+  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
+  const g3 = JSON.parse(kitG3(design, view, "a-3", {}));
+  assert.equal(g3.storyHash, storyContract(view).fingerprint);
+  assert.equal(g3.storyHash, hub.storyHash);
+  assert.equal(g3.decisionHash, g3.designHash);
 });
 
 test("new runs are kit 5 role runs in kit-runs, and a kit 4 run file is never touched", async (t) => {
