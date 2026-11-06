@@ -140,21 +140,33 @@ function list<T>(
     invalid(`${at}: ${value.length} items (allowed ${min}-${max})`);
   return value.map((item, i) => convert(item, `${at}[${i}]`));
 }
-function refs(value: unknown, count: number, at: string) {
-  const result = list(value, at, (n, path) => {
-    if (typeof n !== "number" || !Number.isInteger(n))
-      invalid(`${path}: not an integer`);
-    if (n < 1 || n > count) invalid(`${path}: out of range 1-${count}`);
-    return n;
-  });
+function refs(value: unknown, count: number, at: string, min = 1, max = LIMITS.items) {
+  const result = list(
+    value,
+    at,
+    (n, path) => {
+      if (typeof n !== "number" || !Number.isInteger(n))
+        invalid(`${path}: not an integer`);
+      if (n < 1 || n > count) invalid(`${path}: out of range 1-${count}`);
+      return n;
+    },
+    max,
+    min,
+  );
   if (new Set(result).size !== result.length)
     invalid(`${at}: duplicate reference`);
   return result;
 }
-function parseStory(value: unknown) {
+/** The shape validators, for readers of other planning outputs (a team PM or Lead) that must judge alike. */
+export const validate = { object, text, list, refs };
+export { LIMITS as PLANNING_LIMITS };
+
+/** A Story as the PM returns it; `extraKeys` are further keys the object must carry (a team PM's `openBlocking`),
+ * read by the caller and left out of the result. */
+export function parseStory(value: unknown, extraKeys: readonly string[] = []) {
   const s = object(
     value,
-    ["title", "goal", "domain", "must", "should", "out", "assumptions", "verify"],
+    ["title", "goal", "domain", "must", "should", "out", "assumptions", "verify", ...extraKeys],
     "story",
   );
   const title = text(s.title, "story.title", LIMITS.title),
@@ -597,12 +609,27 @@ export function answerPlanning(
   });
 }
 
-/** Controller-internal: a closed model turn proposes documents, never approves or executes them. */
-export function acceptPlanning(
+/** Runs `check` so that it fails only with PlanningInvalid, or with an error `pass` lets through. Other validators'
+ * messages are not vetted for display; only their code is kept. */
+export function guardPlanning<T>(check: () => T, pass: (error: unknown) => boolean = () => false): T {
+  try {
+    return check();
+  } catch (error) {
+    if (error instanceof PlanningInvalid || pass(error)) throw error;
+    return invalid(
+      `unexpected ${error instanceof OfficeError ? token(error.code) : "validation error"}`,
+    );
+  }
+}
+
+/** The closed turn's one terminal report for this exact packet: closed, in time, the runner did not fail, exit 0,
+ * version 1 and the packet's input digest. What the report says is the caller's to read. */
+export function reportOf(
   packet: PlanningPacket,
   observation: { closed: boolean; result: CommandResult },
-): PlanningResult {
-  try {
+  markers: string[],
+): Record<string, unknown> {
+  return guardPlanning(() => {
     current(packet);
     const r = observation.result;
     if (!observation.closed) invalid("process not closed");
@@ -614,7 +641,7 @@ export function acceptPlanning(
     if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}`, "runner");
     if (r.exitCode !== 0 || r.signal) invalid(exit);
     if (r.error) invalid(`error=${token(r.error)}`);
-    const raw = terminalReport(r.stdout, ["inputDigest", "status", "tasks"]);
+    const raw = terminalReport(r.stdout, markers);
     if (!raw)
       invalid(
         `terminal report missing (stdout ${Buffer.byteLength(r.stdout ?? "")} bytes)`,
@@ -625,6 +652,101 @@ export function acceptPlanning(
     if (value.version !== 1) invalid("report.version: expected 1");
     if (value.inputDigest !== packet.inputDigest)
       invalid("report.inputDigest: mismatch");
+    return value;
+  });
+}
+
+/** A report's `questions`: 1-3 of {id, text, reason} with unique ids Q1-Q3. */
+export function questionsOf(value: unknown): Question[] {
+  const questions = list(
+    value,
+    "report.questions",
+    (v, at) => {
+      const q = object(v, ["id", "text", "reason"], at);
+      if (typeof q.id !== "string" || !/^Q[1-3]$/.test(q.id))
+        invalid(`${at}.id: expected Q1-Q3`);
+      return {
+        id: q.id,
+        text: text(q.text, `${at}.text`, LIMITS.question),
+        reason: text(q.reason, `${at}.reason`, LIMITS.question),
+      };
+    },
+    LIMITS.questions,
+  );
+  if (new Set(questions.map((q) => q.id)).size !== questions.length)
+    invalid("report.questions: duplicate id");
+  return questions;
+}
+
+/** One verification check whose id is V<n> for one of `verify` (Story Verify numbers): what a `task`'s or the
+ * `Story`'s own check list may hold. */
+export function checkOf(value: unknown, verify: number[], at: string, owner: "task" | "Story" = "task") {
+  const c = object(value, ["id", "argv", "timeoutMs"], at);
+  const id = text(c.id, `${at}.id`, 16);
+  if (!verify.some((v) => id === `V${v}`))
+    invalid(`${at}.id: not a ${owner} verify id`);
+  const argv = list(
+    c.argv,
+    `${at}.argv`,
+    (arg, argAt) => {
+      if (
+        typeof arg !== "string" ||
+        arg.length > LIMITS.arg ||
+        arg.includes("\0")
+      )
+        invalid(`${argAt}: invalid argument`);
+      return arg;
+    },
+    LIMITS.argv,
+  );
+  if (!argv[0]) invalid(`${at}.argv: empty command`);
+  if (
+    typeof c.timeoutMs !== "number" ||
+    !Number.isInteger(c.timeoutMs) ||
+    c.timeoutMs < 1 ||
+    c.timeoutMs > LIMITS.timeoutMs
+  )
+    invalid(`${at}.timeoutMs: expected integer 1-${LIMITS.timeoutMs}`);
+  return { id, argv, timeoutMs: c.timeoutMs };
+}
+
+/** A task's checks: 1-`max` checks of the task's own verify numbers, and every one of those numbers has a check. */
+export function checksOf(value: unknown, verify: number[], at: string, max: number) {
+  const checks = list(value, at, (v, path) => checkOf(v, verify, path), max);
+  for (const v of verify)
+    if (!checks.some((c) => c.id === `V${v}`)) invalid(`${at}: V${v} has no check`);
+  return checks;
+}
+
+/** P5: each task's MUST numbers are covered by that task's own Verify scenarios, and across the tasks every Story
+ * MUST and every Verify scenario is covered. `at` names the task list. */
+export function coverageOf(
+  story: Story,
+  tasks: { must: number[]; verify: number[] }[],
+  at: string,
+): void {
+  tasks.forEach((t, i) => {
+    for (const m of t.must)
+      if (!t.verify.some((v) => story.verify[v - 1].must.includes(m)))
+        invalid(`${at}[${i}].must: M${m} not covered by task verify`);
+  });
+  story.must.forEach((_, i) => {
+    if (!tasks.some((t) => t.must.includes(i + 1)))
+      invalid(`${at}: M${i + 1} not covered`);
+  });
+  story.verify.forEach((_, i) => {
+    if (!tasks.some((t) => t.verify.includes(i + 1)))
+      invalid(`${at}: V${i + 1} not covered`);
+  });
+}
+
+/** Controller-internal: a closed model turn proposes documents, never approves or executes them. */
+export function acceptPlanning(
+  packet: PlanningPacket,
+  observation: { closed: boolean; result: CommandResult },
+): PlanningResult {
+  return guardPlanning(() => {
+    const value = reportOf(packet, observation, ["inputDigest", "status", "tasks"]);
     if (
       value.status === "questions" &&
       (packet.role === "pm" || packet.workflow)
@@ -632,27 +754,10 @@ export function acceptPlanning(
       object(value, ["version", "inputDigest", "status", "questions"], "report");
       if (!packet.workflow && packet.dialogue.length >= 3)
         invalid("report: question rounds exhausted");
-      const questions = list(
-        value.questions,
-        "report.questions",
-        (v, at) => {
-          const q = object(v, ["id", "text", "reason"], at);
-          if (typeof q.id !== "string" || !/^Q[1-3]$/.test(q.id))
-            invalid(`${at}.id: expected Q1-Q3`);
-          return {
-            id: q.id,
-            text: text(q.text, `${at}.text`, LIMITS.question),
-            reason: text(q.reason, `${at}.reason`, LIMITS.question),
-          };
-        },
-        LIMITS.questions,
-      );
-      if (new Set(questions.map((q) => q.id)).size !== questions.length)
-        invalid("report.questions: duplicate id");
       return {
         kind: "questions",
         inputDigest: packet.inputDigest,
-        questions,
+        questions: questionsOf(value.questions),
       };
     }
     if (packet.role === "pm") {
@@ -680,22 +785,18 @@ export function acceptPlanning(
       text(value.plan, "report.plan", LIMITS.plan),
       value.tasks,
     );
-  } catch (error) {
-    if (error instanceof PlanningInvalid) throw error;
-    // Other validators' messages are not vetted for display; keep only the code.
-    return invalid(
-      `unexpected ${error instanceof OfficeError ? token(error.code) : "validation error"}`,
-    );
-  }
+  });
 }
 
-export function renderPlanningStory(story: Story): string {
+/** The Story draft. `extraDecisions` are Office-written Decisions lines after the PM's `ASSUMED:` ones (a team
+ * plan's `PL 답:` lines). */
+export function renderPlanningStory(story: Story, extraDecisions: string[] = []): string {
   const bullets = (values: string[], prefix: string) =>
     values.length
       ? values.map((v, i) => `- ${prefix}${i + 1}. ${v}`).join("\n")
       : "- None.";
   return `# Story: ${story.title}\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\nUnderstanding gate (G4): pending\n\n## Goal\n${story.goal}\n\n## Domain\n${story.domain}\n\n## MUST\n${bullets(story.must, "M")}\n\n## SHOULD\n${bullets(story.should, "S")}\n\n## OUT\n${bullets(story.out, "O")}\n\n## Decisions\n${bullets(
-    story.assumptions.map((s) => "ASSUMED: " + s),
+    [...story.assumptions.map((s) => "ASSUMED: " + s), ...extraDecisions],
     "D",
   )}\n\n## Verify\n${story.verify.map((v, i) => `- V${i + 1} [${v.must.map((m) => "M" + m).join(", ")}]. ${v.scenario}`).join("\n")}\n`;
 }
@@ -742,46 +843,7 @@ function proposal(
       );
       const must = refs(t.must, story.must.length, `${at}.must`),
         verify = refs(t.verify, story.verify.length, `${at}.verify`);
-      for (const m of must)
-        if (!verify.some((v) => story.verify[v - 1].must.includes(m)))
-          invalid(`${at}.must: M${m} not covered by task verify`);
-      const checks = list(
-        t.checks,
-        `${at}.checks`,
-        (v, path) => {
-          const c = object(v, ["id", "argv", "timeoutMs"], path);
-          const id = text(c.id, `${path}.id`, 16);
-          if (!verify.some((v) => id === `V${v}`))
-            invalid(`${path}.id: not a task verify id`);
-          const argv = list(
-            c.argv,
-            `${path}.argv`,
-            (arg, argAt) => {
-              if (
-                typeof arg !== "string" ||
-                arg.length > LIMITS.arg ||
-                arg.includes("\0")
-              )
-                invalid(`${argAt}: invalid argument`);
-              return arg;
-            },
-            LIMITS.argv,
-          );
-          if (!argv[0]) invalid(`${path}.argv: empty command`);
-          if (
-            typeof c.timeoutMs !== "number" ||
-            !Number.isInteger(c.timeoutMs) ||
-            c.timeoutMs < 1 ||
-            c.timeoutMs > LIMITS.timeoutMs
-          )
-            invalid(`${path}.timeoutMs: expected integer 1-${LIMITS.timeoutMs}`);
-          return { id, argv, timeoutMs: c.timeoutMs };
-        },
-        LIMITS.checks,
-      );
-      for (const v of verify)
-        if (!checks.some((c) => c.id === `V${v}`))
-          invalid(`${at}.checks: V${v} has no check`);
+      const checks = checksOf(t.checks, verify, `${at}.checks`, LIMITS.checks);
       let workspace: ReturnType<typeof workspaceScope>;
       try {
         workspace = workspaceScope(t.workspace);
@@ -803,14 +865,7 @@ function proposal(
     },
     LIMITS.tasks,
   );
-  story.must.forEach((_, i) => {
-    if (!tasks.some((t) => t.must.includes(i + 1)))
-      invalid(`report.tasks: M${i + 1} not covered`);
-  });
-  story.verify.forEach((_, i) => {
-    if (!tasks.some((t) => t.verify.includes(i + 1)))
-      invalid(`report.tasks: V${i + 1} not covered`);
-  });
+  coverageOf(story, tasks, "report.tasks");
   const overlaps = overlappingChecks(story, tasks);
   const decisions = overlaps.length
     ? `\n\n## Decisions\n${overlaps
