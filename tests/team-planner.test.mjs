@@ -379,6 +379,96 @@ test("a result that failed to send is sent on the next tick for the same lease w
   assert.ok(w.logs.some((line) => line.includes(PLAN_ID) && line.includes("STALE")), w.logs.join("\n"));
 });
 
+/** A Hub refusal as hubCall throws it: the Hub's message, its code and status. */
+const refusal = (status, code, message) => Object.assign(new Error(message), { status, code });
+const REFUSED = "Hub가 이 Office의 결과를 받지 않았습니다(Hub와 Office 버전이 다를 수 있습니다). Office를 업데이트한 뒤 다시 시도하세요.";
+
+test("a result the Hub refuses with 400 posts one failed in its place on the same lease, and nothing is sent again for that lease", async (t) => {
+  const w = world(t, { answers: [QUESTIONS, QUESTIONS] });
+  const link = w.first.link;
+  link.on.result = (r) => {
+    if (r.kind === "questions") throw refusal(400, "INVALID", "질문 차례는 5번까지입니다.");
+  };
+  link.lease = leaseOf(planRecord(), { leaseId: "L1", revision: 3 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "failed" });
+  assert.deepEqual(
+    w.results().map((call) => [...call.slice(2, 5), call[5].kind]),
+    [
+      [PLAN_ID, "L1", 3, "questions"],
+      [PLAN_ID, "L1", 3, "failed"],
+    ],
+    "one failed, on the same lease and revision",
+  );
+  assert.equal(w.lastResult().reason, `${REFUSED}\nINVALID: 질문 차례는 5번까지입니다.`);
+  for (let i = 0; i < 3; i++) assert.deepEqual(await w.planner.tick(), { ran: false, why: "none" });
+  assert.equal(w.results().length, 2, "nothing is sent again");
+  assert.equal(w.seen.length, 1, "and no second turn");
+});
+
+test("a failed the Hub also refuses with 400 is dropped and logged once; no turn runs again for that lease until it runs out", async (t) => {
+  let clock = 1_700_000_000_000;
+  const w = world(t, { answers: [QUESTIONS, QUESTIONS], now: () => clock });
+  const link = w.first.link;
+  link.on.result = () => {
+    throw refusal(400, "INVALID", "결과를 읽을 수 없습니다.");
+  };
+  const lease = leaseOf(planRecord(), { leaseId: "L1", revision: 3 });
+  link.lease = lease;
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: null });
+  assert.deepEqual(w.results().map((call) => call[5].kind), ["questions", "failed"], "the failed in its place, once");
+  const dropped = () => w.logs.filter((line) => line.includes(PLAN_ID) && line.includes("dropped"));
+  assert.equal(dropped().length, 1, w.logs.join("\n"));
+  // The Hub still holds the lease: it is not asked for, so the lease can run out; Task claims go on.
+  const nexts = () => w.calls.filter(([, what]) => what === "next").length;
+  for (let i = 0; i < 3; i++) {
+    clock += 30000;
+    assert.deepEqual(await w.planner.tick(), { ran: false, why: "none" });
+  }
+  assert.equal(nexts(), 1);
+  assert.equal(w.results().length, 2);
+  assert.equal(w.seen.length, 1);
+  assert.equal(dropped().length, 1, "logged once");
+  // A Hub that still hands out the same lease afterwards gets no turn for it either.
+  clock += 600000;
+  link.on.result = undefined;
+  assert.deepEqual(link.lease, lease);
+  assert.deepEqual(await w.planner.tick(), { ran: false, why: "none" });
+  assert.equal(nexts(), 2);
+  assert.equal(w.seen.length, 1);
+  // Once the lease has run out (600000 ms without a heartbeat) the Hub leases the plan again: a new lease, a new turn.
+  clock += 600000;
+  link.lease = leaseOf(planRecord(), { leaseId: "L2", revision: 3 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "questions" });
+  assert.equal(w.seen.length, 2);
+
+  // A failed result refused with 400 is dropped as it is: no second failed.
+  const lone = world(t, { names: ["app-be"], now: () => clock });
+  lone.first.link.on.result = () => {
+    throw refusal(400, "INVALID", "실패 이유는 1~4000자여야 합니다.");
+  };
+  lone.first.link.lease = leaseOf(planRecord(), { leaseId: "L9", revision: 1 });
+  assert.deepEqual(await lone.planner.tick(), { ran: true, planId: PLAN_ID, posted: null });
+  assert.deepEqual(lone.results().map((call) => call[5].kind), ["failed"]);
+  assert.equal(lone.logs.filter((line) => line.includes("dropped")).length, 1, lone.logs.join("\n"));
+  assert.deepEqual(await lone.planner.tick(), { ran: false, why: "none" });
+  assert.equal(lone.results().length, 1);
+});
+
+test("a result that keeps getting 5xx is resent at most 3 times, then dropped and logged once", async (t) => {
+  const w = world(t, { answers: [QUESTIONS] });
+  const link = w.first.link;
+  link.on.result = () => {
+    throw hubError(503, "HUB_UNAVAILABLE");
+  };
+  link.lease = leaseOf(planRecord(), { leaseId: "L1", revision: 2 });
+  for (let i = 0; i < 4; i++) assert.equal((await w.planner.tick()).ran, true);
+  assert.equal(w.results().length, 4, "sent once and resent 3 times");
+  for (let i = 0; i < 3; i++) assert.deepEqual(await w.planner.tick(), { ran: false, why: "none" });
+  assert.equal(w.results().length, 4, "never more");
+  assert.equal(w.seen.length, 1, "one turn");
+  assert.equal(w.logs.filter((line) => line.includes(PLAN_ID) && line.includes("dropped")).length, 1, w.logs.join("\n"));
+});
+
 test("a Hub without plan routes is said once and asked again after recheckMs", async (t) => {
   let clock = 1_700_000_000_000;
   const w = world(t, { recheckMs: 300000, now: () => clock });

@@ -88,6 +88,11 @@ const PLAIN: Record<string, string> = {
   UNSAFE_PATH: "레포에 기획 입력으로 옮길 수 없는 경로가 있습니다.",
 };
 const UNKNOWN = "PL Mac에서 기획 단계를 마치지 못했습니다. 다시 시도하세요.";
+/** What the PL sees when the Hub refused a result of this Office for good (a 400: the two disagree on a rule). */
+const HUB_REFUSED =
+  "Hub가 이 Office의 결과를 받지 않았습니다(Hub와 Office 버전이 다를 수 있습니다). Office를 업데이트한 뒤 다시 시도하세요.";
+/** How often a result the Hub did not take is sent again before it is dropped. */
+const MAX_RESENDS = 3;
 /** "Not now": another run, an engine locked or stopping, or the turn was cancelled. No result; the lease is asked for
  * again on a later tick. */
 const WAITS = new Set(["BUSY", "EXECUTION_LOCKED", "STOPPING", "CANCELLED"]);
@@ -121,8 +126,11 @@ function reasonOf(error: unknown): PlanResult {
  * step; a step runs to its end (its model turn on the leased lane's engine, inside the engine's single run slot),
  * with its heartbeat every `beatMs`, and its result goes to the Hub. A heartbeat answered NOT_YOURS, STATE, STALE or
  * gone stops the step and sends nothing. A result that could not be sent (network, a Hub restarting) is kept and
- * sent, with no second turn, when the next tick is handed the same lease and revision; a stale one is dropped. A Hub
- * without plan routes (404) is said once and left alone for `recheckMs`.
+ * sent, with no second turn, when the next tick is handed the same lease and revision, at most MAX_RESENDS times; a
+ * stale one is dropped. A result the Hub refuses for good (400) is never kept: a `failed` saying so goes in its place
+ * on the same lease, and a `failed` the Hub refuses is dropped. A result given up that way leaves its lease alone (not
+ * asked for) until the Hub's lease time has run out, so Task claims go on meanwhile. A Hub without plan routes (404) is
+ * said once and left alone for `recheckMs`.
  */
 export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>; active(): boolean; stop(): void } {
   const now = c.now ?? Date.now;
@@ -139,8 +147,12 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
   let stopped = false;
   /** The running step's stop. */
   let current: AbortController | null = null;
-  /** A result the Hub did not take because of a passing failure, for the lease it was made under. */
-  let pending: { planId: string; leaseId: string; revision: number; result: PlanResult } | null = null;
+  /** A result the Hub did not take because of a passing failure, for the lease it was made under, and how often it
+   * was sent. */
+  let pending: { planId: string; leaseId: string; revision: number; result: PlanResult; sends: number } | null = null;
+  /** The lease whose result was given up, and until when the Hub is not asked for work so that the lease runs out. */
+  let givenUp: { planId: string; leaseId: string; revision: number } | null = null;
+  let restUntil: number | null = null;
   /** Until when an older Hub is not asked, and whether that was said. */
   let quietUntil: number | null = null;
   let hubTooOldSaid = false;
@@ -199,8 +211,17 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
   /** The step of each state with Office work. Task 8 adds `splitting`, Task 9 `design`. */
   const STEPS: Partial<Record<PlanRecord["state"], Step>> = { queued: pmStep };
 
-  /** Sends a step's result for the lease it was made under. */
-  async function post(lane: PlanLane, lease: PlanLease, result: PlanResult): Promise<PlanResult["kind"] | null> {
+  /** Drops a lease's result for good: one line, and the lease is not asked for again until it has run out. */
+  function giveUp(lease: PlanLease, line: string): null {
+    pending = null;
+    givenUp = { planId: lease.plan.id, leaseId: lease.leaseId, revision: lease.revision };
+    restUntil = now() + PLAN_LIMITS.leaseMs;
+    log(`team: plan ${lease.plan.id}: ${line}; dropped, and its lease is left to run out`);
+    return null;
+  }
+
+  /** Sends a step's result for the lease it was made under (`sends`: the how-manieth time this result goes). */
+  async function post(lane: PlanLane, lease: PlanLease, result: PlanResult, sends = 1): Promise<PlanResult["kind"] | null> {
     const planId = lease.plan.id;
     try {
       await lane.link.result(planId, lease.leaseId, lease.revision, result);
@@ -208,6 +229,16 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
       log(`team: plan ${planId}: posted ${result.kind}${result.kind === "failed" ? ` (${result.reason.split("\n")[0]})` : ""}`);
       return result.kind;
     } catch (error) {
+      const { status, code } = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
+      // Refused for good: sending it again cannot help. The PL is told why, on the same lease, instead.
+      if (status === 400 && !(typeof code === "string" && code.startsWith("GRAPH_"))) {
+        pending = null;
+        if (result.kind !== "failed") {
+          const message = error instanceof Error ? error.message : "";
+          return post(lane, lease, withDetail(HUB_REFUSED, `${String(code)}: ${message}`.replace(/[\s\x00-\x1f\x7f]+/g, " ")));
+        }
+        return giveUp(lease, `the Hub refused its failed result too (${describe(error)})`);
+      }
       const kind = planFailure(error);
       if (CUT.includes(kind) || kind === "hub-too-old") {
         pending = null;
@@ -215,7 +246,9 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
         if (kind === "hub-too-old") hubTooOld();
         return null;
       }
-      pending = { planId, leaseId: lease.leaseId, revision: lease.revision, result };
+      if (sends > MAX_RESENDS)
+        return giveUp(lease, `its ${result.kind} result could not be sent ${sends} times (${describe(error)})`);
+      pending = { planId, leaseId: lease.leaseId, revision: lease.revision, result, sends };
       log(
         `team: plan ${planId}: its ${result.kind} result could not be sent (${describe(error)}); sending it again on a later tick${kind === "relink" ? "; the repo link needs attention" : ""}`,
       );
@@ -280,6 +313,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
   async function tick(): Promise<PlannerTick> {
     if (stepping || stopped) return { ran: false, why: "busy" };
     if (quietUntil !== null && now() < quietUntil) return { ran: false, why: "hub-too-old" };
+    if (restUntil !== null && now() < restUntil) return { ran: false, why: "none" };
     if (!c.canStart()) return { ran: false, why: "busy" };
     const lane = c.lanes()[0];
     if (!lane) return { ran: false, why: "no-lane" };
@@ -305,7 +339,12 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
       const planId = lease.plan.id;
       if (pending && (pending.planId !== planId || pending.leaseId !== lease.leaseId || pending.revision !== lease.revision))
         pending = null;
-      if (pending) return { ran: true, planId, posted: await post(lane, lease, pending.result) };
+      if (givenUp && givenUp.planId === planId && givenUp.leaseId === lease.leaseId && givenUp.revision === lease.revision) {
+        // The Hub still holds the lease whose result was given up: leave it alone a while longer.
+        restUntil = now() + PLAN_LIMITS.leaseMs;
+        return { ran: false, why: "none" };
+      }
+      if (pending) return { ran: true, planId, posted: await post(lane, lease, pending.result, pending.sends + 1) };
       const step = STEPS[lease.plan.state];
       if (!step) {
         const line = `team: plan ${planId}: this Office cannot do its ${String(lease.plan.state)} step yet`;
