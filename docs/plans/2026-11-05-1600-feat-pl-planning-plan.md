@@ -49,7 +49,7 @@
   | Hub Story 올리기 키 | `plan:<planId>`(PL·키당 하나, `publishStory`의 기존 멱등) |
   | 기획 폴더(Office) | `<root>/team/plans/<planId>/`(`candidate.json`, `candidates/`, `story.md`, `g1.json`, `design.md`, `g3.json`, `bases.json`) |
 
-- **새 오류 코드:** Hub `STALE` 409(revision·빌림이 맞지 않음), `OPEN_BLOCKING` 409. Office `SPLIT_REFUSED`, `BASE_EXISTS`. 그 밖은 기존 `NOT_FOUND` 404, `FORBIDDEN` 403, `STATE` 409, `NOT_YOURS` 409, `INVALID` 400, `PUSH_REFUSED`.
+- **새 오류 코드:** Hub `STALE` 409(revision·빌림이 맞지 않음), `OPEN_BLOCKING` 409, `PLAN_GONE` 404(연결 경로에서 기획이나 빌림이 이제 없음. 경로가 없는 옛 Hub의 코드 없는 404와 구분한다, F11). Office `SPLIT_REFUSED`, `BASE_EXISTS`, `PLAN_GATE`(승인 확인 실패, F7). 그 밖은 기존 `NOT_FOUND` 404, `FORBIDDEN` 403, `STATE` 409, `NOT_YOURS` 409, `INVALID` 400, `PUSH_REFUSED`. 구현이 더한 Office 안의 코드 `BASES_CHANGED`(`bases.json`을 읽을 수 없음), `HUB_NOT_NOW`(나누기 중 Hub 호출이 지금 안 됨, 같은 빌림으로 다시), `DESIGN_TOO_LONG`(설계가 16384바이트를 넘어 Lead에게 한 번 더)는 PL이 보는 첫 줄에 나오지 않는다. 첫 줄은 늘 쉬운 말이다.
 - **kit·검증:** 검증 기록 `docs/verification/2026-11-05-pl-planning.md`와 `docs/STATUS.md`는 kit 노드 증거로 적지 않는다. 검증 기록은 kit 리뷰를 시작하기 전에 끝내고 그 뒤 고치지 않는다. STATUS 항목은 G4와 `graph.mjs delivery` 뒤에 컨트롤러가 쓴다(Task가 쓰지 않는다).
 
 ## 판정 (설계가 맡긴 것, R1–R10과 이 계획이 정한 것)
@@ -551,3 +551,18 @@ STATUS 맨 위 항목은 G4 기록과 `graph.mjs delivery` 뒤에 컨트롤러�
 - 링크 API `publishStory`에 PL의 repo 담당자 검사 더하기(기존 동작 유지, 웹 기획은 만들기·승인에서 검사).
 - Mac 토큰 길의 기획 전달, 실제 claude로 돌린 기획 품질 평가.
 - 사내 OpenShift 허브 재배포와 두 사람 Mac 실제 확인은 네 묶음 뒤 중간점검에서 한다.
+
+## 구현 중 바뀐 것
+
+Task 1–10을 만들면서 사전 점검 판정(F1–F14: 구현 전에 컨트롤러가 계획과 Task들을 맞춰 보고 정한 것), Task 중 컨트롤러 판정(`Ruling`), 리뷰 수정으로 위 계획이 코드와 달라진 곳이다. 위 행과 줄은 고쳐 쓰지 않았다(Global Constraints의 새 오류 코드 줄만 고쳤다). 이유와 틀리면 드는 비용, 사람에게 보이는 결과는 [검증 기록](../verification/2026-11-05-pl-planning.md)의 "판정 적용"과 "사람에게 보이는 한계"에 있다.
+
+- **Task 1:** 취소는 `open`이 아닌 끝나지 않은 상태에서만 되고, 함께 취소하는 Story는 아직 `draft`일 때만이다. 열린 기획은 진행 중 목록에서 빠진다(F4·F5). `myPlans`는 최근 바뀐 것부터(F9). 하고 싶은 일·답·메모는 CRLF·CR을 LF로 바꾼 뒤 센다(F13). 연결 경로의 모르는 기획·끝난 빌림은 404 `PLAN_GONE`(F11). `result open`은 Story가 이미 검증 중·G4 대기·완료여도 받는다. `next`는 돌려주는 살아 있는 빌림의 하트비트를 새로 적는다. 관리자가 아닌 사람의 취소 거절 문구는 "이 Story를 쓰는 PL이나 허브 관리자만 취소할 수 있습니다.", 여섯째 질문 거절은 "질문 차례는 5번까지입니다."다.
+- **Task 2:** `storyRoute`가 `PlanBoard`를 받고, 시험 Hub는 `plans:false`로 기획 경로 없이 뜬다(F10). `planFailure`는 여덟 가지다: 위의 여섯에 `hub-too-old`(코드 없는 404, 기대 프로토콜 1·2의 426)와 `retry-split`(올리기의 400 `GRAPH_*`)을 더했다(F11). 기획 경로의 답만 나누고, 올리기·열기·Story 읽기의 404는 기획 실패다.
+- **Task 3:** 기획이 있는 Hub의 빈 보드 문구가 바뀐다(F8). 취소 문구는 "취소하면 이 기획을 멈춥니다. 이미 올라간 Story가 아직 열리지 않았으면 함께 취소됩니다."다(F4). 새 프로젝트는 기획이 있는 Hub의 모든 팀원에게 보인다.
+- **Task 4:** `planTree`는 넷째 인자 `log`를 받는다. `validPath`가 거절하는 경로, repo 하나 안에서 대소문자·NFC로 겹치는 경로(위 폴더 포함), repo 밖을 가리키는 링크는 빼고 개수를 한 줄로 말한다. `<dir>/candidates`를 먼저 만들고, repo 폴더 이름은 대소문자를 무시하고 겹침을 본다(F12, 리뷰 수정 `3d862fa`). 풀기는 `core.symlinks=true`이고, 얼리기 오류에는 코드와 repo 이름이 붙는다. `fetchBaseTip`은 `fetchTip`을 다시 쓴다(F6).
+- **Task 5:** `questionsOf`·`coverageOf`를 빼서 기존 `acceptPlanning`·`proposal`도 그것을 쓴다(F3). 그래서 단일 Office `proposal`은 결함이 여럿인 답에서 첫째로 이름 대는 결함이 달라질 수 있다. `acceptTeamPm`은 질문 차례를 세지 않고(Office가 센다), 그린 초안에 `OPEN BLOCKING` 줄이 생기는 Story를 거절한다. `SplitRefused`에 `graphCode`가 있다.
+- **Task 6:** `PlanGit`은 Task 6이 쓰는 셋만이다(F2). `TeamConfig`의 기획 타이머와 시험의 가짜 런타임을 채웠다(F14). 실행기 실패 문구는 해당하는 말 하나만 보인다. `CANDIDATE_CHANGED`·`UNSAFE_PATH`·그 밖의 오류에도 쉬운 첫 줄이 있다. Hub가 끝내 거절한 결과(400)는 쉬운 말 `failed`를 한 번 보낸 뒤 버리고, 5xx는 3번까지 다시 보내며, 버린 뒤 600000 ms 동안 기획 일을 묻지 않는다(리뷰 수정 `cb5afe1`). 가져가기 전 실행기 확인은 기획이 따를 수 있을 때도 한다.
+- **Task 7:** `kitG3`는 `designHash` 옆에 `decisionHash`(= 설계 해시)와 `storyHash`도 적는다(kit 자신의 G3 확인 모양, `2f1e100`). 저장된 나누기의 다시 검사는 P5를 다시 돌리지 않는다. 승인 기록은 uuid id·유한한 시각·문자열 해시여야 하고, 기록은 폴더 이름이 그 planId인 곳에만 쓴다.
+- **Task 8:** 다시 시도 때 `published`가 있으면 Lead와 올리기를 건너뛴다(F1, 시험은 두 번째 올리기가 없음을 고정). 올리기 직전·열기 직전 하트비트로 확인하고, 올린 뒤 취소됐으면 Office가 그 draft Story를 취소한다. 주기 하트비트가 끊은 뒤에도 아무것도 쓰지 않는다(F5, `PlanLink.cancel`은 기존 취소 경로). Hub가 지금 안 되면 같은 빌림으로 3번까지 더 하고 Lead 나누기는 그 빌림 동안 메모리에 둔다. 열기의 `STATE`는 Story가 열림·검증 중·G4 대기·완료면 연 것이다. 올린 Story가 취소된 기획의 다시 시도는 base 전에 멈춘다. Hub가 돌려준 브랜치 이름이 `feature/story-<그 번호>/base`인지 본다. `pushStoryBase`는 push 도우미를 `pushTaskBranch`와 함께 쓰되 자기 ref 검사를 따로 둔다(F6).
+- **Task 9:** 저장된 높은 위험 나누기를 Hub가 400 `GRAPH_*`로 거절하면 다시 나누지 않고 "취소하고 새 Story로"라고 멈춘다. 나누기 도우미를 모듈로 옮기는 것은 허용됐지만 하지 않았다. `world()`가 `risk`를 넘긴다(F14).
+- **Task 10:** PL 팀 Office의 가져가기를 멈춰(`team pause`) 두고 시험한다. PL이 Task를 먼저 가져가지 않게 하는 것이고, "멈춤은 기획을 막지 않는다"(R4)도 끝에서 끝으로 고정한다. `app-fe` origin에 `develop` 브랜치를 만든다(F14).
