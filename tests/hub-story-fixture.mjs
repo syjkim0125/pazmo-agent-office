@@ -1,12 +1,14 @@
 import { DatabaseSync } from "node:sqlite";
 import { HubStore } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
+import { PlanBoard } from "../src/hub/plan-store.ts";
 
 export function setup() {
   let now = 1_000_000;
   const db = new DatabaseSync(":memory:");
   const store = new HubStore(db, () => now);
   const board = new StoryBoard(db, () => now);
+  const plans = new PlanBoard(db, board, () => now);
   const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
   const join = (name) => store.acceptInvite(store.createInvite(admin, name), name).member;
   const pl = join("PL"), b = join("B"), c = join("C");
@@ -19,7 +21,7 @@ export function setup() {
   const linkOf = (m, r) => store.link(tokenOf(m, r));
   const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
   const node = (id, repoId, files) => ({ id, repoId, title: id, spec: `${id} 설명`, files, verify: [check] });
-  return { db, store, board, admin, pl, b, c, be, fe, tokenOf, linkOf, node, check, tick: (ms) => (now += ms) };
+  return { db, store, board, plans, admin, pl, b, c, be, fe, tokenOf, linkOf, node, check, tick: (ms) => (now += ms) };
 }
 /** api(be) → ui(fe), copy(be) 독립. 열린 Story. */
 export function opened(ctx = setup()) {

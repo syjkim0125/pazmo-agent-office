@@ -431,12 +431,23 @@ export class StoryBoard {
     this.#event(storyId, taskId, memberId, "cancelled");
   }
 
-  createProject(l: Link, name: string, repos: { repoId: string; baseBranch: string }[]): { projectId: string } {
+  /**
+   * `ownedOnly` (the web) takes only repos the member owns, unless they are a hub admin; the link route takes any
+   * registered repo, as before.
+   */
+  createProject(
+    a: Actor,
+    name: string,
+    repos: { repoId: string; baseBranch: string }[],
+    o: { ownedOnly?: boolean } = {},
+  ): { projectId: string } {
     return transaction(this.#db, () => {
       if (!Array.isArray(repos) || repos.length < 1) fail("INVALID", 400, "프로젝트에는 repo가 하나 이상 필요합니다.");
       for (const r of repos) {
         if (!r || typeof r.repoId !== "string") fail("INVALID", 400, "repoId가 필요합니다.");
         if (!this.#repoExists(r.repoId)) fail("NOT_FOUND", 404, "레포를 찾을 수 없습니다.");
+        if (o.ownedOnly && !a.member.admin && !this.#owns(a.member.id, r.repoId))
+          fail("FORBIDDEN", 403, "내가 담당자인 레포만 넣을 수 있습니다.");
       }
       const clean = typeof name === "string" ? name.trim() : "";
       if (clean.length < 1 || clean.length > LIMITS.projectNameMax)
@@ -445,7 +456,7 @@ export class StoryBoard {
       if (!repos.every((r) => isBaseBranchName(r.baseBranch)))
         fail("INVALID", 400, "base 브랜치 이름을 확인해주세요(feature/story-로 시작하는 이름은 쓸 수 없습니다).");
       const id = randomUUID();
-      this.#run("INSERT INTO hub_projects(id,name,created_by,created_at) VALUES (?,?,?,?)", id, clean, l.member.id, this.#now());
+      this.#run("INSERT INTO hub_projects(id,name,created_by,created_at) VALUES (?,?,?,?)", id, clean, a.member.id, this.#now());
       for (const r of repos)
         this.#run("INSERT INTO hub_project_repos(project_id,repo_id,base_branch) VALUES (?,?,?)", id, r.repoId, r.baseBranch);
       return { projectId: id };
@@ -622,18 +633,18 @@ export class StoryBoard {
     });
   }
 
-  cancelStory(l: Link, storyId: string): { ok: true } {
+  cancelStory(a: Actor, storyId: string): { ok: true } {
     return transaction(this.#db, () => {
       const s = this.#story(storyId);
-      this.#assertPlOrAdmin(l, s);
+      this.#assertPlOrAdmin(a, s);
       if (s.state === "cancelled") fail("STATE", 409, "이미 취소된 Story입니다.");
       if (s.state === "done") fail("STATE", 409, "끝난 Story는 취소할 수 없습니다.");
       for (const t of this.#all<{ id: string }>(
         "SELECT id FROM hub_story_tasks WHERE story_id=? AND state NOT IN ('merged','passed','cancelled') ORDER BY number", s.id,
       ))
-        this.#cancel(s.id, t.id, l.member.id);
+        this.#cancel(s.id, t.id, a.member.id);
       this.#run("UPDATE hub_stories SET state='cancelled',updated_at=? WHERE id=?", this.#now(), s.id);
-      this.#event(s.id, null, l.member.id, "cancelled");
+      this.#event(s.id, null, a.member.id, "cancelled");
       return { ok: true as const };
     });
   }
@@ -1193,6 +1204,21 @@ export class StoryBoard {
 
   #owns(memberId: string, repoId: string | null) {
     return repoId !== null && !!this.#get("SELECT 1 FROM hub_repo_owners WHERE repo_id=? AND member_id=?", repoId, memberId);
+  }
+  /** The member owns every repo of the project, and it has one at least: who may start and approve a Story plan. */
+  ownsProject(memberId: string, projectId: string): boolean {
+    const row = this.#get<{ n: number; owned: number }>(
+      `SELECT COUNT(*) n,COUNT(o.member_id) owned FROM hub_project_repos pr
+       LEFT JOIN hub_repo_owners o ON o.repo_id=pr.repo_id AND o.member_id=? WHERE pr.project_id=?`,
+      memberId, projectId,
+    ) as { n: number; owned: number };
+    return row.n > 0 && row.owned === row.n;
+  }
+  /** The Story this member published under `key`, if any (publish keys are per PL). */
+  storyByKey(memberId: string, key: string): { id: string; number: number; state: StoryState } | null {
+    return this.#get<{ id: string; number: number; state: StoryState }>(
+      "SELECT id,number,state FROM hub_stories WHERE pl_member_id=? AND create_key=?", memberId, key,
+    ) ?? null;
   }
   /**
    * Why the member cannot pick this Task on the web now, in check order; null when they can. `linked` is the
