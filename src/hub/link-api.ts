@@ -1,6 +1,8 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { HUB_LEGACY_PROTOCOL, HUB_PROTOCOL } from "./protocol.ts";
 import { FORM_LIMIT, LINK_LIMIT, json, readBody, type LinkHandler } from "./server.ts";
+import type { PlanResult } from "./plan-protocol.ts";
+import { PlanStateError, type PlanBoard } from "./plan-store.ts";
 import { HubError, type HubStore, type Link } from "./store.ts";
 import { HUB_STORY_PROTOCOL } from "./story-protocol.ts";
 import type { StoryBoard } from "./story-store.ts";
@@ -59,8 +61,17 @@ const ROUTES: Record<string, readonly Method[]> = {
   "/api/link/story/verified": ["POST"],
   "/api/link/story/complete": ["POST"],
   "/api/link/story/inbox": ["GET"],
+  // A PL's Story plan work, for the PL's Office through any of the PL's links.
+  "/api/link/story/plan-next": ["POST"],
+  "/api/link/story/plan-heartbeat": ["POST"],
+  "/api/link/story/plan-result": ["POST"],
 };
 const STORY_PREFIX = "/api/link/story/";
+/** Routes a Hub without a plan board does not have: they answer 404 like a Hub from before them. */
+const PLAN_ROUTES = new Set(["/api/link/story/plan-next", "/api/link/story/plan-heartbeat", "/api/link/story/plan-result"]);
+const noRoute = (): never => {
+  throw new HubError("NOT_FOUND", 404, "찾을 수 없는 경로입니다.");
+};
 /** Routes that exist only from protocol 2; phase-1 Offices never call them. */
 const V2_ONLY = new Set(["/api/link/repos", "/api/link/requests", "/api/link/outgoing", "/api/link/outgoing-answer", "/api/link/outgoing-cancel", "/api/link/incoming", "/api/link/incoming-accept", "/api/link/incoming-decline"]);
 const nullableStr = (body: Record<string, unknown>, key: string): string | null =>
@@ -81,9 +92,10 @@ function parse(raw: string): Record<string, unknown> {
 
 /**
  * The team Story board routes. The board checks every permission and state rule; this only types the wire:
- * wrong types are refused, while `graph`, `storyVerify` and the repo list go to the board for its own validation.
+ * wrong types are refused, while `graph`, `storyVerify` and the repo list go to the board for its own validation,
+ * and a plan step's `result` to the plan board for its own.
  */
-async function storyRoute(board: StoryBoard, link: Link, req: IncomingMessage, url: URL): Promise<unknown> {
+async function storyRoute(board: StoryBoard, plans: PlanBoard | undefined, link: Link, req: IncomingMessage, url: URL): Promise<unknown> {
   const route = `${req.method} ${url.pathname}`;
   switch (route) {
     case "GET /api/link/story/projects": return { projects: board.projects(link) };
@@ -129,12 +141,18 @@ async function storyRoute(board: StoryBoard, link: Link, req: IncomingMessage, u
     case "POST /api/link/story/verified":
       return board.reportVerify(link, str(body, "taskId"), str(body, "claimId"), { passed: bool(body, "passed"), summary: str(body, "summary") });
     case "POST /api/link/story/complete": return board.completeStory(link, str(body, "storyId"));
+    // Each plan route names the Office instance (`holder`); the plan board checks its form and the lease's holder.
+    case "POST /api/link/story/plan-next": return { lease: (plans ?? noRoute()).next(link, str(body, "holder")) };
+    case "POST /api/link/story/plan-heartbeat":
+      return (plans ?? noRoute()).heartbeat(link, str(body, "holder"), str(body, "planId"), str(body, "leaseId"), body.bases);
+    case "POST /api/link/story/plan-result":
+      return (plans ?? noRoute()).result(link, str(body, "holder"), str(body, "planId"), str(body, "leaseId"), num(body, "revision"), body.result as PlanResult);
   }
-  throw new HubError("NOT_FOUND", 404, "찾을 수 없는 경로입니다.");
+  return noRoute();
 }
 
-/** Bearer-only API for members' Offices; no cookies, no browser forms. */
-export function linkApi(store: HubStore, board: StoryBoard) {
+/** Bearer-only API for members' Offices; no cookies, no browser forms. Without `plans` the plan routes are 404. */
+export function linkApi(store: HubStore, board: StoryBoard, plans?: PlanBoard) {
   return (): LinkHandler =>
     async (req: IncomingMessage, res: ServerResponse, url: URL) => {
       const protocol = req.headers["x-pazmo-hub-protocol"];
@@ -145,7 +163,7 @@ export function linkApi(store: HubStore, board: StoryBoard) {
           message: `허브 프로토콜 ${HUB_PROTOCOL}이 필요합니다. Office와 허브를 같은 버전으로 맞춰주세요.`,
         });
       const path = url.pathname;
-      const methods = Object.hasOwn(ROUTES, path) ? ROUTES[path] : undefined;
+      const methods = Object.hasOwn(ROUTES, path) && (plans || !PLAN_ROUTES.has(path)) ? ROUTES[path] : undefined;
       if (!methods) return json(res, 404, { error: "NOT_FOUND" });
       if (path.startsWith(STORY_PREFIX) && protocol !== HUB_STORY_PROTOCOL)
         return json(res, 426, {
@@ -169,7 +187,15 @@ export function linkApi(store: HubStore, board: StoryBoard) {
       const link = token ? store.link(token) : null;
       if (!link)
         return json(res, 401, { error: "UNAUTHORIZED", message: "연결이 해제됐습니다. 허브에서 새 연결 명령을 받아주세요." });
-      if (path.startsWith(STORY_PREFIX)) return json(res, 200, await storyRoute(board, link, req, url));
+      if (path.startsWith(STORY_PREFIX)) {
+        try {
+          return json(res, 200, await storyRoute(board, plans, link, req, url));
+        } catch (error) {
+          // A plan heartbeat's STATE names the plan's state: the Office cancels its draft Story only for `cancelled`.
+          if (error instanceof PlanStateError) return json(res, error.status, { error: error.code, message: error.message, state: error.state });
+          throw error;
+        }
+      }
       if (path === "/api/link/work") return json(res, 200, store.work(link));
       if (path === "/api/link/repos") return json(res, 200, { repos: store.linkRepos(link) });
       if (path === "/api/link/outgoing") return json(res, 200, { items: store.outgoing(link) });

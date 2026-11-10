@@ -25,6 +25,7 @@ import type { RunnerAccountProblem } from "../runners/runner-account.ts";
 import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { changeSummary } from "./decision-summary.ts";
 import { renderPlanningStory } from "../runners/planning.ts";
+import type { PlanningPacket } from "../runners/planning.ts";
 import { HUB_ANSWERABLE, HUB_REQUESTER_NOTE } from "../hub/protocol.ts";
 import type { HubGateway } from "./hub-outgoing.ts";
 
@@ -1500,6 +1501,14 @@ export async function createNativeOffice(c: Config) {
     if (c.othersActive?.()) fail("BUSY", "Another engine has a run; verify after it settles.");
     return live.verify(candidate, checks, signal);
   }
+  /** A team plan's model turn on the live runtime's run of its own (the slot a
+   * verify uses), so the host's one-run gate covers it. A run in another
+   * engine of the host is BUSY too. */
+  async function planTurn(packet: PlanningPacket, candidate: Candidate, signal?: AbortSignal) {
+    if (!live) fail("EXECUTION_LOCKED", "실제 실행 설정으로 Office를 시작해주세요.");
+    if (c.othersActive?.()) fail("BUSY", "Another engine has a run; plan after it settles.");
+    return live.planTurn(packet, candidate, signal);
+  }
   return {
     ledgers,
     live,
@@ -1570,6 +1579,7 @@ export async function createNativeOffice(c: Config) {
     freezeProject,
     cancelStoryTask,
     verifyCandidate,
+    planTurn,
     status: () => live?.status() ?? { execution: "locked", active: [] },
     async checkAgentMutation(id: string, patch?: unknown) {
       await runners.settings.checkAgentMutation(id, patch);

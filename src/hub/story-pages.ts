@@ -3,6 +3,8 @@ import { MAC_NUDGE, ago, button, csrfField, esc, layout, type Chrome } from "./p
 import type { MacBadge, MacWait, Member } from "./store.ts";
 import type { MemberWork, ProjectView, StorySummary, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
+import type { PlanCard } from "./plan-store.ts";
+import { planStateLabel } from "./plan-pages.ts";
 
 const STAGE: Record<string, string> = { build: "진행 중(구현)", review: "진행 중(리뷰)", verify: "진행 중(검증)", merge: "머지 중" };
 const TASK_STATE: Record<string, string> = {
@@ -107,9 +109,20 @@ function card(c: WorkCard, extra = "") {
 const cards = (list: WorkCard[], empty: string, extra: (c: WorkCard) => string = () => "") =>
   list.length ? `<ul>${list.map((c) => card(c, extra(c))).join("")}</ul>` : `<p class="muted">${esc(empty)}</p>`;
 const failureLine = (c: WorkCard) => (failedNow(c) ? `<p>${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "");
+/** A Story plan in progress: its page and its state word. */
+const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${pill(planStateLabel(p.state, p.leased))}`;
 
-/** `macNudge`: the hub can install a Mac in one line and this member has none; `wait`: why the member's Mac rests. */
-export function home(me: Member, csrf: string, w: MemberWork, o: { macNudge: boolean; wait: MacWait | null }, chrome: Chrome): string {
+/**
+ * `macNudge`: the hub can install a Mac in one line and this member has none; `wait`: why the member's Mac rests;
+ * `plans`: the member's unfinished Story plans, on a hub that has them (the section shows only when there are some).
+ */
+export function home(
+  me: Member,
+  csrf: string,
+  w: MemberWork,
+  o: { macNudge: boolean; wait: MacWait | null; plans?: PlanCard[] },
+  chrome: Chrome,
+): string {
   const toggle = `<form class="inline" method="post" action="/me/auto-work">${csrfField(csrf)}<input type="hidden" name="on" value="${w.autoWork ? "0" : "1"}"><button${w.autoWork ? ' class="secondary"' : ""}>${w.autoWork ? "끄기" : "켜기"}</button></form>`;
   const switchLine = w.autoWork
     ? "켜져 있어 내 Mac이 받을 수 있는 일을 차례대로 가져갑니다."
@@ -132,31 +145,46 @@ export function home(me: Member, csrf: string, w: MemberWork, o: { macNudge: boo
     ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failureLine(c)}`)}</section>`
     : "";
   const done = (c: WorkCard) => (c.prUrl ? `<p>PR ${prLink(c.prUrl)}</p>` : "");
+  const plans = o.plans?.length
+    ? `<section><h2>내가 쓰는 Story</h2><ul>${o.plans.map((p) => `<li><p>${planLink(p)}</p><p class="muted">${esc(p.project.name)}</p></li>`).join("")}</ul></section>`
+    : "";
   return layout("내 할 일", me, [
     o.macNudge ? MAC_NUDGE : "",
     `<section><h1>내 할 일</h1><p>자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</p><p>${switchLine}</p><p class="muted">${refresh("/")}</p></section>`,
     rest && !restInCard ? `<section>${rest}</section>` : "",
     `<section><h2>지금 맡은 일</h2>${openPart}</section>`,
+    plans,
     `<section><h2>받을 수 있는 일</h2>${cards(w.ready, "지금 받을 수 있는 일이 없습니다.", pick)}</section>`,
     led,
     `<section><h2>끝낸 일</h2>${cards(w.done, "아직 끝낸 일이 없습니다.", done)}</section>`,
   ].join(""), chrome);
 }
 
-export function workBoard(me: Member, rows: { project: ProjectView; stories: StorySummary[] }[], chrome: Chrome): string {
-  const project = ({ project: p, stories }: { project: ProjectView; stories: StorySummary[] }) => {
+type BoardRow = { project: ProjectView; stories: StorySummary[]; plans?: PlanCard[]; canPlan?: boolean };
+/**
+ * On a hub with Story plans each row also carries its plans in progress and `canPlan` (the member owns every repo of
+ * the project), and `canCreateProject` puts 새 프로젝트 on top; without them the board is drawn as before.
+ */
+export function workBoard(me: Member, rows: BoardRow[], chrome: Chrome, o: { canCreateProject?: boolean } = {}): string {
+  const project = ({ project: p, stories, plans, canPlan }: BoardRow) => {
     const repos = p.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
     const table = stories.length
       ? `<div class="scroll"><table><thead><tr><th>번호</th><th>제목</th><th>상태</th><th>머지/전체</th><th>멈춤</th><th>PL</th></tr></thead><tbody>${stories
           .map((s) => `<tr><td>#${s.number}</td><td><a href="/stories/${esc(s.id)}">${esc(s.title)}</a></td><td>${pill(storyStateLabel(s.state))}</td><td>${s.merged}/${s.total}</td><td>${s.held + s.failed}</td><td>${esc(s.pl.name)}</td></tr>`)
           .join("")}</tbody></table></div>`
       : `<p class="muted">아직 Story가 없습니다.</p>`;
-    return `<section><h2>${esc(p.name)}</h2><p class="muted">레포: ${repos} · 만든 사람 ${esc(p.createdBy.name)}</p>${table}</section>`;
+    const start = canPlan ? `<p><a href="/projects/${esc(p.id)}/new-story">새 Story</a></p>` : "";
+    const planning = plans?.length
+      ? `<h3>기획 중</h3><ul>${plans.map((x) => `<li>${planLink(x)} · PL ${esc(x.pl.name)}</li>`).join("")}</ul>`
+      : "";
+    return `<section><h2>${esc(p.name)}</h2><p class="muted">레포: ${repos} · 만든 사람 ${esc(p.createdBy.name)}</p>${start}${planning}${table}</section>`;
   };
-  const body = rows.length
-    ? rows.map(project).join("")
-    : `<section><p class="muted">아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.</p></section>`;
-  return layout("보드", me, `<section><h1>보드</h1><p class="muted">팀의 모든 프로젝트와 Story입니다. ${refresh("/board")}</p></section>${body}`, chrome);
+  const empty = o.canCreateProject
+    ? "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요."
+    : "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
+  const body = rows.length ? rows.map(project).join("") : `<section><p class="muted">${empty}</p></section>`;
+  const create = o.canCreateProject ? `<p><a href="/projects/new">새 프로젝트</a></p>` : "";
+  return layout("보드", me, `<section><h1>보드</h1><p class="muted">팀의 모든 프로젝트와 Story입니다. ${refresh("/board")}</p>${create}</section>${body}`, chrome);
 }
 
 /** The Tasks before `t`, each linked with its state; numbers point into the same Story. */

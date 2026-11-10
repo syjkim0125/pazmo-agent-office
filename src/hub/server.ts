@@ -6,19 +6,23 @@ import { HubError, type HubStore } from "./store.ts";
 import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
 import * as storyPages from "./story-pages.ts";
+import * as planPages from "./plan-pages.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
 import { installScript, type InstallerConfig } from "./installer.ts";
 import type { StoryBoard } from "./story-store.ts";
+import type { PlanBoard } from "./plan-store.ts";
+import { PLAN_LIMITS } from "./plan-protocol.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
   | { kind: "proxy"; publicUrl: string; host: string; port: number };
 /** `installer` is set only behind the router, where the public certificate lets a Mac run `curl | sh`; without it /install.sh is a 404.
  * `board` serves the member's work page at `/` and the Story pages, and lets the Mac approve page name a Task the member's
- * earlier Mac holds; without it `/` is the request board, the Story pages are 404 and the approve page says nothing about Tasks. */
-export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard };
+ * earlier Mac holds; without it `/` is the request board, the Story pages are 404 and the approve page says nothing about Tasks.
+ * `plans` is the PL's Story plans, on the same database as `board`. */
+export type HubServerConfig = { store: HubStore; listen: HubListen; installer?: InstallerConfig; board?: StoryBoard; plans?: PlanBoard };
 export type HubServer = { url: string; port: number; close(): Promise<void> };
 export const FORM_LIMIT = 64 * 1024;
 export const LINK_LIMIT = 1024 * 1024;
@@ -32,6 +36,13 @@ const DECIDE_WINDOW_MS = 600_000;
 const COOKIE = "pazmo_hub";
 const COOKIE_AGE = 30 * 86400;
 const ID = "([0-9a-f-]{36})";
+/**
+ * A new Story carries a pasted planning document (65536 bytes is about 196 KB urlencoded) and an answer round three
+ * 4000-character answers (about 108 KB): only these two forms read up to 1 MiB, on a hub with plans. Every other form keeps FORM_LIMIT.
+ */
+export const PLAN_FORM_LIMIT = 1024 * 1024;
+const PLAN_FORMS = new RegExp(`^/(?:projects/${ID}/plans|plans/${ID}/answer)$`);
+const ANSWER_IDS = Array.from({ length: PLAN_LIMITS.questionsPerRound }, (_, i) => `Q${i + 1}`);
 const HEADERS = {
   "content-security-policy":
     "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
@@ -86,6 +97,11 @@ const same = (a: string, b: string) => {
   return x.length === y.length && timingSafeEqual(x, y);
 };
 export type LinkHandler = (req: IncomingMessage, res: ServerResponse, url: URL) => Promise<void>;
+const fail404 = (message: string): never => {
+  throw new HubError("NOT_FOUND", 404, message);
+};
+/** The plan board's own words for the same refusal, on the page that comes before it. */
+const NEW_STORY_FORBIDDEN = "프로젝트의 모든 레포 담당자만 새 Story를 만들 수 있습니다.";
 
 export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string) => LinkHandler): Promise<HubServer> {
   let hosts = new Set<string>(),
@@ -138,11 +154,17 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     // The store slides the session on use, so the browser's cookie slides with it.
     const token = cookie(req) as string;
     res.setHeader("set-cookie", `${COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`);
-    const form = post ? new URLSearchParams(await readBody(req, FORM_LIMIT)) : new URLSearchParams();
+    // The limit is chosen by the route before a byte is read; the Origin check above has already run.
+    const limit = c.board && c.plans && PLAN_FORMS.test(path) ? PLAN_FORM_LIMIT : FORM_LIMIT;
+    const form = post ? new URLSearchParams(await readBody(req, limit)) : new URLSearchParams();
     const f = (key: string) => form.get(key) ?? "";
     if (post && !same(f("csrf"), s.csrf)) throw new HubError("CSRF", 403, "화면을 새로 고친 뒤 다시 시도해주세요.");
     const me = s.member;
     const trust = !!tls;
+    // The repos a member may put in a project from the web: their own, or every repo for a hub admin.
+    const projectRepos = () => c.store.repos(me.id).filter((r) => r.isOwner || me.admin).map((r) => ({ id: r.id, name: r.name }));
+    const projectOf = (id: string) =>
+      c.board?.projects({ member: me }).find((p) => p.id === id) ?? fail404("프로젝트를 찾을 수 없습니다.");
     const tooMany = () => new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
     // Read when a page is drawn, so the header shows the state after whatever this request did.
     const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id), autoWork: c.board?.autoWork(me.id) });
@@ -168,12 +190,41 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         if (path === "/") {
           const ch = chrome();
           const work = board.memberWork(me.id, c.store.reachableRepos(me.id));
-          const o = { macNudge: install !== null && ch.mac?.state === "none", wait: c.store.macWait(me.id) };
+          const o = {
+            macNudge: install !== null && ch.mac?.state === "none",
+            wait: c.store.macWait(me.id),
+            ...(c.plans ? { plans: c.plans.myPlans(me.id) } : {}),
+          };
           return html(res, 200, storyPages.home(me, s.csrf, work, o, ch));
         }
         if (path === "/board") {
-          const rows = board.projects(actor).map((project) => ({ project, stories: board.stories(actor, project.id) }));
-          return html(res, 200, storyPages.workBoard(me, rows, chrome()));
+          const plans = c.plans;
+          const rows = board.projects(actor).map((project) => ({
+            project,
+            stories: board.stories(actor, project.id),
+            ...(plans ? { plans: plans.projectPlans(project.id), canPlan: board.ownsProject(me.id, project.id) } : {}),
+          }));
+          return html(res, 200, storyPages.workBoard(me, rows, chrome(), { canCreateProject: !!plans }));
+        }
+        if (c.plans) {
+          if (path === "/projects/new") return html(res, 200, planPages.newProjectPage(me, s.csrf, projectRepos(), chrome()));
+          if ((m = new RegExp(`^/projects/${ID}/new-story$`).exec(path))) {
+            const project = projectOf(m[1]);
+            if (!board.ownsProject(me.id, project.id)) throw new HubError("FORBIDDEN", 403, NEW_STORY_FORBIDDEN);
+            return html(res, 200, planPages.newStoryPage(me, s.csrf, project, chrome()));
+          }
+          if ((m = new RegExp(`^/plans/${ID}$`).exec(path))) {
+            const v = c.plans.plan(actor, m[1]);
+            const reached = c.store.reachableRepos(v.pl.id);
+            const o = {
+              plMac: c.store.macBadge(v.pl.id),
+              plOpenTask: board.openTaskOfMember(v.pl.id),
+              changed: url.searchParams.get("changed") === "1",
+              unlinked: v.repos.filter((r) => !reached.has(r.id)).map((r) => r.name),
+              opened: url.searchParams.get("opened") === "1",
+            };
+            return html(res, 200, planPages.planPage(me, s.csrf, v, o, chrome()));
+          }
         }
         if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) return html(res, 200, storyPages.storyPage(me, board.story(actor, m[1]), chrome()));
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
@@ -308,6 +359,55 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           board.cancelTask({ member: me }, id, { refuseLocked: true });
         }
         return redirect(res, `/tasks/${id}`);
+      }
+      if (c.plans) {
+        const plans = c.plans;
+        if (path === "/projects") {
+          const repos = form.getAll("repo").map((repoId) => ({ repoId, baseBranch: f(`base-${repoId}`).trim() }));
+          try {
+            board.createProject({ member: me }, f("name"), repos, { ownedOnly: true });
+          } catch (error) {
+            if (!(error instanceof HubError && error.code === "INVALID")) throw error;
+            return html(res, 400, planPages.newProjectPage(me, s.csrf, projectRepos(), chrome(), { error: error.message }));
+          }
+          return redirect(res, "/board");
+        }
+        if ((m = new RegExp(`^/projects/${ID}/plans$`).exec(path))) {
+          const values = { title: f("title"), intent: f("intent"), risk: f("risk") };
+          try {
+            return redirect(res, `/plans/${plans.createPlan(me, { projectId: m[1], ...values }).planId}`);
+          } catch (error) {
+            // A mistake in what was typed comes back as the form with the typed values, never lost.
+            if (!(error instanceof HubError && error.code === "INVALID")) throw error;
+            return html(res, 400, planPages.newStoryPage(me, s.csrf, projectOf(m[1]), chrome(), { error: error.message, values }));
+          }
+        }
+        if ((m = new RegExp(`^/plans/${ID}/(answer|rewrite|approve|retry|cancel)$`).exec(path))) {
+          const [, id, action] = m;
+          // Not a whole number: NaN, which the board refuses as INVALID after its permission check.
+          const raw = f("revision");
+          const revision = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+          // A cancel that found the plan's Story already open ended the plan with it: the page says so once.
+          let opened = false;
+          try {
+            if (action === "answer") {
+              const answers = Object.fromEntries(ANSWER_IDS.filter((q) => form.has(`answer-${q}`)).map((q) => [q, f(`answer-${q}`)]));
+              plans.answer(me, id, revision, answers);
+            } else if (action === "rewrite") plans.rewrite(me, id, revision, f("note"));
+            else if (action === "approve") plans.approve(me, id, f("gate") as "G1" | "G3", revision, f("hash"));
+            else if (action === "retry") plans.retry(me, id, revision);
+            else {
+              // Cancelling cannot be undone, so the form must carry the box.
+              if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "취소하려면 '정말 취소합니다'를 체크하세요.");
+              opened = plans.cancel({ member: me }, id, revision).story !== undefined;
+            }
+          } catch (error) {
+            // A second click or an older tab: show the plan as it is now instead of an error, and say why.
+            if (error instanceof HubError && error.code === "STALE") return redirect(res, `/plans/${id}?changed=1`);
+            throw error;
+          }
+          return redirect(res, `/plans/${id}${opened ? "?opened=1" : ""}`);
+        }
       }
     }
     return html(res, 404, page.error("페이지를 찾을 수 없습니다."));

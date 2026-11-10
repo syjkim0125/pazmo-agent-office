@@ -7,12 +7,14 @@ import {
   readdirSync,
   readlinkSync,
   realpathSync,
+  rmSync,
   rmdirSync,
   symlinkSync,
   unlinkSync,
   writeFileSync,
 } from "node:fs";
 import type { Stats } from "node:fs";
+import { randomUUID } from "node:crypto";
 import { basename, dirname, join, resolve } from "node:path";
 import { OfficeError, fail } from "../cli/project.ts";
 import { digest, readStable, verifyCandidate } from "../core/candidates.ts";
@@ -38,8 +40,11 @@ const LOCAL_TIMEOUT_MS = 30000;
 /** A whole repo comes down in one clone; ten minutes, not the two of a fetch. */
 const CLONE_TIMEOUT_MS = 600000;
 const MAX_BYTES = 2 * 1024 * 1024;
+/** A whole tree's listing (`listTree`): about 150000 paths. */
+const TREE_LISTING_BYTES = 16 * 1024 * 1024;
 const MESSAGE_MAX = 160;
 const TASK_BRANCH = /^feature\/story-\d+\/task-\d+$/;
+const STORY_BASE = /^feature\/story-\d+\/base$/;
 const OBJECT_ID = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const PLAIN_REF = /^[A-Za-z0-9][A-Za-z0-9._/-]*$/;
 // A conflict marker line the way git's own `diff --check` reads it.
@@ -68,7 +73,16 @@ function reason(text: string, command?: string): string {
   return (first ?? lines[0] ?? "").slice(0, MESSAGE_MAX);
 }
 
-type GitOptions = { remote?: boolean; ok?: number[]; config?: string[]; timeoutMs?: number };
+/** `indexFile` points git at a private index (`GIT_INDEX_FILE`); `maxBytes` raises the output bound. Neither has a
+ * default value: a command without them runs exactly as before. */
+type GitOptions = {
+  remote?: boolean;
+  ok?: number[];
+  config?: string[];
+  timeoutMs?: number;
+  indexFile?: string;
+  maxBytes?: number;
+};
 
 /** One git command. Hooks are always off; anything but an exit status in `ok` is `GIT_FAILED`. */
 async function git(
@@ -86,13 +100,14 @@ async function git(
     {
       cwd,
       timeoutMs: o.timeoutMs ?? (o.remote ? REMOTE_TIMEOUT_MS : LOCAL_TIMEOUT_MS),
-      maxBytes: MAX_BYTES,
+      maxBytes: o.maxBytes ?? MAX_BYTES,
       env: {
         HOME: env.home,
         PATH: env.pathEnv,
         LANG: "C",
         GIT_TERMINAL_PROMPT: "0",
         ...(env.sshAuthSock ? { SSH_AUTH_SOCK: env.sshAuthSock } : {}),
+        ...(o.indexFile ? { GIT_INDEX_FILE: o.indexFile } : {}),
       },
     },
   );
@@ -129,9 +144,9 @@ function checkBranch(branch: string): void {
     fail("GIT_FAILED", "A Task branch must be feature/story-<N>/task-<M>.");
 }
 // The Story base goes to git as a ref name, so it must not look like an option or a revision range.
-function checkBase(base: string): void {
+function checkBase(base: string, what = "The Story base"): void {
   if (!PLAIN_REF.test(base) || /\.\.|\/\/|\/$|\.$|\.lock(\/|$)/.test(base))
-    fail("GIT_FAILED", "The Story base is not a plain branch name.");
+    fail("GIT_FAILED", `${what} is not a plain branch name.`);
 }
 
 const headOf = async (checkout: string, env: GitEnv): Promise<string> =>
@@ -149,12 +164,80 @@ async function fetchTip(checkout: string, branch: string, env: GitEnv): Promise<
   return (await git(checkout, ["rev-parse", "--verify", "FETCH_HEAD^{commit}"], env)).stdout.trim();
 }
 
-async function remoteHas(checkout: string, branch: string, env: GitEnv): Promise<boolean> {
+/** The tip of a project's base branch on origin, fetched the same way: into FETCH_HEAD only, no remote-tracking ref. */
+export async function fetchBaseTip(checkout: string, baseBranch: string, env: GitEnv): Promise<string> {
+  checkBase(baseBranch, "The base branch");
+  return fetchTip(checkout, baseBranch, env);
+}
+
+function checkObject(sha: string): void {
+  if (!OBJECT_ID.test(sha)) fail("GIT_FAILED", "A tree is read only by its full commit id.");
+}
+
+/** Every file of a commit's tree with its size: blobs and symlinks (`link`), never gitlinks (a submodule is another
+ * repo's reference, not a file here). Paths come raw (`-z`), relative to the repo's top. */
+export async function listTree(
+  checkout: string,
+  sha: string,
+  env: GitEnv,
+): Promise<{ path: string; size: number; link: boolean }[]> {
+  checkObject(sha);
+  const listing = await git(checkout, ["ls-tree", "-r", "-z", "-l", "--full-tree", sha], env, {
+    maxBytes: TREE_LISTING_BYTES,
+  });
+  const entries: { path: string; size: number; link: boolean }[] = [];
+  for (const record of listing.stdout.split("\0")) {
+    if (!record) continue;
+    const tab = record.indexOf("\t");
+    const [mode, type, , size] = record.slice(0, tab).split(/ +/);
+    if (type === "commit") continue;
+    if (tab < 1 || type !== "blob" || !/^\d+$/.test(size ?? ""))
+      fail("GIT_FAILED", "git ls-tree printed an entry that could not be read.");
+    entries.push({ path: record.slice(tab + 1), size: Number(size), link: mode === "120000" });
+  }
+  return entries;
+}
+
+/** Writes the tree of commit `sha` into `target` (missing or empty) through a private index next to it, which is
+ * removed afterwards. The checkout's own index, HEAD and files are not touched. */
+export async function extractTree(checkout: string, sha: string, target: string, env: GitEnv): Promise<void> {
+  checkObject(sha);
+  const folder = resolve(target);
+  let present: string[] = [];
+  try {
+    present = readdirSync(folder);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+      fail("GIT_FAILED", "The folder to extract a tree into is not a folder that can be read.");
+  }
+  if (present.length) fail("GIT_FAILED", "The folder to extract a tree into is not empty.");
+  mkdirSync(folder, { recursive: true, mode: 0o700 });
+  const indexFile = join(dirname(folder), `.index-${randomUUID()}`);
+  try {
+    await git(checkout, ["read-tree", sha], env, { indexFile });
+    // A link stays a link whatever the person's config says, so a reader sees what the repo holds.
+    await git(checkout, ["checkout-index", "-a", "-f", `--prefix=${folder}/`], env, {
+      indexFile,
+      config: ["core.symlinks=true"],
+    });
+  } finally {
+    rmSync(indexFile, { force: true });
+    rmSync(`${indexFile}.lock`, { force: true });
+  }
+}
+
+/** The commit origin's `refs/heads/<branch>` points at, or null when origin has no such branch. */
+async function remoteTip(checkout: string, branch: string, env: GitEnv): Promise<string | null> {
   const ref = `refs/heads/${branch}`;
   const listing = await git(checkout, ["ls-remote", "--heads", "origin", ref], env, {
     remote: true,
   });
-  return listing.stdout.split("\n").some((line) => line.split("\t")[1] === ref);
+  const line = listing.stdout.split("\n").find((entry) => entry.split("\t")[1] === ref);
+  return line === undefined ? null : line.split("\t")[0].trim();
+}
+
+async function remoteHas(checkout: string, branch: string, env: GitEnv): Promise<boolean> {
+  return (await remoteTip(checkout, branch, env)) !== null;
 }
 
 async function unmerged(checkout: string, env: GitEnv): Promise<string[]> {
@@ -445,8 +528,17 @@ export async function commitAll(
   return { sha: await headOf(checkout, env), changed: true };
 }
 
-/** The only write to a remote: `git push origin <sha>:refs/heads/<branch>` for a Story Task branch. No
- * force, no `+`, no other refspec; the config that could add tags or submodule pushes is overridden. */
+/** `git push origin <sha>:refs/heads/<branch>`: no force, no `+`, no other refspec; the config that could add tags
+ * or submodule pushes is overridden. Each caller checks its own branch name first. */
+async function pushRef(checkout: string, branch: string, sha: string, env: GitEnv): Promise<void> {
+  await git(checkout, ["push", "origin", `${sha}:refs/heads/${branch}`], env, {
+    remote: true,
+    config: ["push.followTags=false", "push.recurseSubmodules=no"],
+  });
+}
+
+/** One of the two writes to a remote (D41), the other being `pushStoryBase`: a Story Task branch at `sha`. Only a
+ * `feature/story-<N>/task-<M>` name and a full commit id are pushed. */
 export async function pushTaskBranch(
   checkout: string,
   branch: string,
@@ -456,10 +548,47 @@ export async function pushTaskBranch(
   if (!TASK_BRANCH.test(branch))
     fail("PUSH_REFUSED", "Only feature/story-<N>/task-<M> branches may be pushed.");
   if (!OBJECT_ID.test(sha)) fail("PUSH_REFUSED", "A push needs a full commit id.");
-  await git(checkout, ["push", "origin", `${sha}:refs/heads/${branch}`], env, {
-    remote: true,
-    config: ["push.followTags=false", "push.recurseSubmodules=no"],
-  });
+  await pushRef(checkout, branch, sha, env);
+}
+
+/**
+ * The other write to a remote (D41): a published Story's base `feature/story-<N>/base` made at `sha`, the base branch
+ * tip the plan recorded. Only that name and a full commit id are pushed; a base origin already has is never moved. The
+ * same commit there is `exists`, another commit `BASE_EXISTS`; a refused push is judged again the same way, since an
+ * earlier attempt may have made it meanwhile.
+ */
+export async function pushStoryBase(
+  checkout: string,
+  storyBase: string,
+  sha: string,
+  env: GitEnv,
+): Promise<"created" | "exists"> {
+  if (!STORY_BASE.test(storyBase))
+    fail("PUSH_REFUSED", "Only feature/story-<N>/base branches may be made.");
+  if (!OBJECT_ID.test(sha)) fail("PUSH_REFUSED", "A push needs a full commit id.");
+  const already = async (): Promise<boolean> => {
+    const tip = await remoteTip(checkout, storyBase, env);
+    if (tip !== null && tip !== sha)
+      fail("BASE_EXISTS", `레포에 ${storyBase}가 이미 다른 커밋으로 있습니다. 그 브랜치를 확인한 뒤 다시 시도하세요.`);
+    return tip === sha;
+  };
+  if (await already()) return "exists";
+  try {
+    await pushRef(checkout, storyBase, sha, env);
+  } catch (error) {
+    if (!(error instanceof OfficeError) || error.code !== "GIT_FAILED") throw error;
+    let made: boolean;
+    try {
+      made = await already();
+    } catch (second) {
+      // Another commit there is the answer; a second look that cannot reach origin leaves the push's own refusal.
+      if (second instanceof OfficeError && second.code === "BASE_EXISTS") throw second;
+      throw error;
+    }
+    if (made) return "exists";
+    throw error;
+  }
+  return "created";
 }
 
 /** Merges the Story base's current tip into the checked-out Task branch. A conflict is left in place, with

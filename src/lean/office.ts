@@ -127,6 +127,8 @@ export type LeanOffice = {
   freezeProject: NativeOffice["freezeProject"];
   cancelStoryTask: NativeOffice["cancelStoryTask"];
   verifyCandidate: NativeOffice["verifyCandidate"];
+  /** A team plan's model turn on this engine's run slot (see NativeOffice), refused once a stop was accepted. */
+  planTurn: NativeOffice["planTurn"];
 };
 
 type TaskRow = {
@@ -706,5 +708,9 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     freezeProject: () => native.freezeProject(),
     cancelStoryTask: (id) => native.cancelStoryTask(id),
     verifyCandidate: (candidate, checks, signal) => native.verifyCandidate(candidate, checks, signal),
+    async planTurn(packet, candidate, signal) {
+      if (stopping) fail("STOPPING", STOPPING_MESSAGE);
+      return native.planTurn(packet, candidate, signal);
+    },
   };
 }

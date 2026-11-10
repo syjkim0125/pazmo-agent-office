@@ -9,9 +9,10 @@ import { LiveRuntime } from "../src/runtime/live.ts";
 import { OfficeError } from "../src/cli/project.ts";
 import { classifyObservation } from "../src/core/verification.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
-import { continuePlanning } from "../src/runners/planning.ts";
+import { continuePlanning, teamPlanningPacket } from "../src/runners/planning.ts";
 import { writeStoryContract } from "../src/team/story-contract.ts";
 import { normalizeClaudeStream } from "../src/runners/claude-profile.ts";
+import { PLAN_ID, turn } from "./plan-fixture.mjs";
 
 const TOKEN = "a".repeat(64);
 const HUB_TASK = "hub-task-7";
@@ -56,7 +57,7 @@ async function fixture(t, { live: withLive = true } = {}) {
   // onVerified: what the team Office's callback does after it is recorded (it
   // may throw or never return); settled: how often the host's onSettled ran.
   const state = { active: [], lastError: null, verifying: false, othersActive: false, verified: [], onVerified: null, settled: 0 };
-  const calls = { planning: [], implementation: [], understanding: [], cancelled: [], aborted: [], verify: [] };
+  const calls = { planning: [], implementation: [], understanding: [], cancelled: [], aborted: [], verify: [], planTurn: [] };
   const captured = {};
   const live = {
     status: () => ({ execution: "ready", active: state.active, verifying: state.verifying, lastError: state.lastError }),
@@ -68,6 +69,10 @@ async function fixture(t, { live: withLive = true } = {}) {
     verify: async (...args) => {
       calls.verify.push(args);
       return args[1].map((check) => ({ id: check.id, verdict: "pass", output: "fake" }));
+    },
+    planTurn: async (...args) => {
+      calls.planTurn.push(args);
+      return turn(args[0], PLAN_QUESTIONS);
     },
     assertIdle() {},
     close: async () => {},
@@ -683,6 +688,135 @@ test("verifyCandidate reaches the live verify, and another engine's run or a ver
 
   const locked = await fixture(t, { live: false });
   await assert.rejects(locked.office.verifyCandidate(candidate, checks), { code: "EXECUTION_LOCKED" });
+});
+
+const PLAN_QUESTIONS = { status: "questions", questions: [{ id: "Q1", text: "어느 화면부터?", reason: "범위가 바뀝니다." }] };
+/** A team plan's PM packet over one repo folder. */
+const planPacket = () =>
+  teamPlanningPacket({
+    planId: PLAN_ID,
+    intent: "주문 내역 화면",
+    risk: "normal",
+    role: "pm",
+    repos: [{ folder: "app-be", baseBranch: "main" }],
+    dialogue: [],
+    story: null,
+    rewrite: null,
+    retry: null,
+  });
+
+test("planTurn reaches the live planning turn; another engine's run makes it BUSY; a locked engine is EXECUTION_LOCKED; after beginStop the lean engine says STOPPING", async (t) => {
+  const f = await fixture(t);
+  const candidate = await f.office.freezeProject();
+  const packet = planPacket();
+  assert.deepEqual(await f.office.planTurn(packet, candidate), turn(packet, PLAN_QUESTIONS));
+  const signal = new AbortController().signal;
+  await f.office.planTurn(packet, candidate, signal);
+  assert.deepEqual(f.calls.planTurn, [
+    [packet, candidate, undefined],
+    [packet, candidate, signal],
+  ]);
+  f.state.othersActive = true;
+  await assert.rejects(f.office.planTurn(packet, candidate), { code: "BUSY" });
+  f.state.othersActive = false;
+  assert.equal(f.calls.planTurn.length, 2, "nothing reached the runtime beside another engine's run");
+
+  const locked = await fixture(t, { live: false });
+  await assert.rejects(locked.office.planTurn(packet, candidate), { code: "EXECUTION_LOCKED" });
+
+  f.office.beginStop();
+  await assert.rejects(f.office.planTurn(packet, candidate), { code: "STOPPING" });
+  assert.equal(f.calls.planTurn.length, 2);
+});
+
+test("LiveRuntime.planTurn is a run of its own: BUSY while a run or verify is active, status().verifying true while it runs, onSettled after it, CANCELLED when its signal aborts", async (t) => {
+  const f = await fixture(t);
+  const { id } = await submit(f);
+  const candidate = await f.office.freezeProject();
+  const packet = planPacket();
+  const observation = turn(packet, PLAN_QUESTIONS);
+  const seen = [];
+  const during = {};
+  let releaseRun, releaseVerify;
+  // `hold`: the next turn waits for it; `abortWith`: the next turn aborts that controller and waits for its signal.
+  let hold = null;
+  let abortWith = null;
+  const runtime = new LiveRuntime(f.ledgers, {
+    planning: async () => assert.fail("no planning"),
+    implementation: () => new Promise((resolve) => (releaseRun = resolve)),
+    understanding: async () => assert.fail("no assessment"),
+    verify: () => new Promise((resolve) => (releaseVerify = () => resolve(ok("done")))),
+    planTurn: async (p, c, signal) => {
+      seen.push([p, c, signal instanceof AbortSignal]);
+      during.verifying ??= runtime.status().verifying;
+      during.start ??= (() => {
+        try {
+          runtime.startImplementation(id, f.ledgers.store.get(id).contract.digest);
+          return "started";
+        } catch (error) {
+          return error.code;
+        }
+      })();
+      during.verify ??= await runtime.verify(candidate, [{ id: "V1", argv: ["x"], timeoutMs: 1000 }]).then(
+        () => "ran",
+        (error) => error.code,
+      );
+      if (abortWith) {
+        abortWith.abort();
+        await new Promise((resolve) => (signal.aborted ? resolve() : signal.addEventListener("abort", resolve)));
+      }
+      if (hold) await hold;
+      return observation;
+    },
+    dispose() {},
+  });
+  let settled = 0;
+  runtime.onSettled = async () => {
+    settled++;
+  };
+
+  assert.deepEqual(await runtime.planTurn(packet, candidate), observation);
+  assert.deepEqual(seen, [[packet, candidate, true]]);
+  assert.equal(during.verifying, true, "a planning turn is a run of its own while it lasts");
+  assert.equal(during.start, "BUSY", "no run starts beside it");
+  assert.equal(during.verify, "BUSY", "nor a verify");
+  assert.equal(runtime.status().verifying, false);
+  await tick();
+  assert.equal(settled, 1, "settles like a run, so waiting work continues");
+
+  // Another planning turn in flight.
+  let release;
+  hold = new Promise((resolve) => (release = resolve));
+  const first = runtime.planTurn(packet, candidate);
+  await tick();
+  await assert.rejects(runtime.planTurn(packet, candidate), { code: "BUSY" });
+  release();
+  await first;
+  hold = null;
+
+  // A run is active, then a verify.
+  runtime.startImplementation(id, f.ledgers.store.get(id).contract.digest);
+  await assert.rejects(runtime.planTurn(packet, candidate), { code: "BUSY" });
+  releaseRun();
+  await tick();
+  const verifying = runtime.verify(candidate, [{ id: "V1", argv: ["x"], timeoutMs: 1000 }]);
+  await assert.rejects(runtime.planTurn(packet, candidate), { code: "BUSY" });
+  releaseVerify();
+  await verifying;
+  assert.equal(seen.length, 2, "nothing ran beside the run or the verify");
+
+  // Cancelled before it starts, or while the turn runs.
+  await assert.rejects(runtime.planTurn(packet, candidate, AbortSignal.abort()), { code: "CANCELLED" });
+  assert.equal(seen.length, 2);
+  const controller = new AbortController();
+  abortWith = controller;
+  await assert.rejects(settles(runtime.planTurn(packet, candidate, controller.signal), "a cancelled turn"), { code: "CANCELLED" });
+  assert.equal(seen.length, 3);
+  assert.equal(runtime.status().verifying, false);
+  abortWith = null;
+
+  await runtime.close();
+  await assert.rejects(runtime.planTurn(packet, candidate), { code: "EXECUTION_LOCKED" });
 });
 
 const STORY = {

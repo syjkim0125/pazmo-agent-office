@@ -1,0 +1,8 @@
+{
+  "token": "483a32ec31f72ea2c900c96d8798e19dd45e6702795d2f6bb8c73f708c2f0e8d",
+  "output": {
+    "summary": "Kit verification on c9676dd (attempt 3): tests 514/514 + 516/516 + 724/724 = 1754/1754, typecheck exit 0, Story check exit 0; snapshot unchanged. Attempt 1 voided by a hook cache file in the worktree, attempt 2 by a pre-existing load flake (lean-lifecycle stop at load 11-12).",
+    "evidence": [".ai-workflow/runs/U38-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

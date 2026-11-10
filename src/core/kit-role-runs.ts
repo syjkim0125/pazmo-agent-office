@@ -35,18 +35,38 @@ export function kitStoryHash(text: string): string {
   );
 }
 
-/** The kit 5 G1 record of an actual Office approval event, bound to the Story view it approves. The binding
+/** The kit 5 G1 record of an actual approval event, bound to the Story view it approves: an Office approval
+ * (`office-approval:<challenge id>`), or a PL's approval on the Hub web (`hub-approval:<approval id>`). The binding
  * prevents reuse; it does not authenticate the person (kit `boundApproval`). */
 export function kitG1(
   view: string,
   challengeId: string,
   record: Record<string, unknown>,
+  source: "office-approval" | "hub-approval" = "office-approval",
 ): string {
   return JSON.stringify({
     ...record,
     gate: "G1",
     storyHash: kitStoryHash(view),
-    responseRef: `office-approval:${challengeId}`,
+    responseRef: `${source}:${challengeId}`,
+  });
+}
+
+/** The G3 record of a PL's web approval of a high-risk plan's design, bound to that design text and to the Story view
+ * it was made for. kit's own G3 binding reads `storyHash` and `decisionHash` (the design's digest, also `designHash`). */
+export function kitG3(
+  design: string,
+  storyView: string,
+  approvalId: string,
+  record: Record<string, unknown>,
+): string {
+  return JSON.stringify({
+    ...record,
+    gate: "G3",
+    designHash: digest(design),
+    decisionHash: digest(design),
+    storyHash: kitStoryHash(storyView),
+    responseRef: `hub-approval:${approvalId}`,
   });
 }
 

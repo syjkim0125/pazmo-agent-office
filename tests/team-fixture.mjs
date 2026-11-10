@@ -10,9 +10,9 @@ const node = (id, repoId, files) => ({ id, repoId, title: id, spec: `${id} 설�
  * `cfgOf(name)` is A's Office link config for that repo, so Office code under test goes through the real
  * `hubCall`. The Story board runs on a fake clock: `tick(ms)` ages claims, `release(taskId)` is the PL's
  * release (only allowed once a Task shows held or failed), `cancel(taskId)` the PL's cancel. `plLink` is the PL's
- * own board link (repo `be`), for what the PL does on the board directly.
+ * own board link (repo `be`), for what the PL does on the board directly. `risk` is the published Story's risk.
  */
-export async function hubWithStory(t) {
+export async function hubWithStory(t, { risk = "normal" } = {}) {
   let now = Date.now();
   const hub = await startTestHub(t, { now: () => now });
   const { store, board, tls } = hub;
@@ -36,7 +36,7 @@ export async function hubWithStory(t) {
     { repoId: repos.be, baseBranch: "main" }, { repoId: repos.fe, baseBranch: "develop" },
   ]);
   const story = board.publishStory(plLink, {
-    projectId, title: "쿠폰 발급", body: "# Story", risk: "normal", key: "k1",
+    projectId, title: "쿠폰 발급", body: "# Story", risk, key: "k1",
     graph: {
       nodes: [node("be-1", repos.be, ["src/a.ts"]), node("be-2", repos.be, ["src/b.ts"]), node("fe-1", repos.fe, ["src/ui.ts"])],
       edges: [{ from: "be-1", to: "be-2" }],

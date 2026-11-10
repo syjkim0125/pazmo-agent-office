@@ -90,6 +90,9 @@ export type StoryEngine = Pick<
 export type Executor = {
   /** Takes the open record one phase further, at most. A call while one runs gets that run. Never rejects. */
   drive(): Promise<void>;
+  /** A drive is under way, its git and engine steps on a checkout included, even when the record it took was dropped
+   * meanwhile (a heartbeat answered NOT_YOURS). */
+  busy(): boolean;
   /** The stage the heartbeat reports for the open record. */
   stageOf(open: OpenClaim): Stage;
   /** For the scheduler: a dropped record's own engine task is cancelled (its checkout and branch stay). */
@@ -702,6 +705,7 @@ export function createExecutor(d: {
       });
       return running;
     },
+    busy: () => running !== null,
     stageOf(open) {
       if (open.phase === "verified" || open.phase === "merging" || open.phase === "reporting") return "merge";
       if (open.phase === "building" && open.engineTask) {
