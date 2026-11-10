@@ -567,3 +567,14 @@ Task 1–11을 만들면서 사전 점검 판정(F1–F14: 구현 전에 컨트�
 - **Task 9:** 저장된 높은 위험 나누기를 Hub가 400 `GRAPH_*`로 거절하면 다시 나누지 않고 "취소하고 새 Story로"라고 멈춘다. 나누기 도우미를 모듈로 옮기는 것은 허용됐지만 하지 않았다. `world()`가 `risk`를 넘긴다(F14).
 - **Task 10:** PL 팀 Office의 가져가기를 멈춰(`team pause`) 두고 시험한다. PL이 Task를 먼저 가져가지 않게 하는 것이고, "멈춤은 기획을 막지 않는다"(R4)도 끝에서 끝으로 고정한다. `app-fe` origin에 `develop` 브랜치를 만든다(F14).
 - **Task 11:** LOCAL-PREVIEW의 새 절 밖 두 줄("팀원 웹" 알려진 한계의 "묶음 3은 아직 웹에 없다", "팀 Office"의 "없는 것: PL의 Story 올리기")을 이 묶음에 맞게 고쳤다.
+
+## 마지막 리뷰 뒤 바뀐 것
+
+브랜치 전체 리뷰(리뷰어 셋, `.ai-workflow/runs/U38-review-1.md`) 뒤 고친 것이다. 사람에게 보이는 결과는 [검증 기록](../verification/2026-11-05-pl-planning.md)의 "마지막 리뷰 뒤 고친 것"이다.
+
+- 판정 R1에 더함: 기획은 시작할 때 프로젝트 레포(id·이름·기준 브랜치)를 적어 두고 그것만 쓴다. Story base 커밋도 Hub 기획 기록에 한 번 적는다(`bases.json`은 사본).
+- 판정 R3에 더함: `plan-next`·`plan-heartbeat`·`plan-result`는 Office마다의 `holder`를 보낸다. 다른 holder는 일을 받지 못하고 `NOT_YOURS`를 받는다. `plan-heartbeat`의 `STATE` 답은 기획 상태를 싣고, 본문의 `bases`로 base 커밋을 적는다(다른 커밋이면 409 `BASES_CHANGED`).
+- 판정 R6·R7에 더함: G1·G3 승인은 적어 둔 레포를 PL이 아직 맡고 프로젝트가 그대로일 때만 된다(아니면 `REPOS_CHANGED`·`FORBIDDEN`). 설계 글 끝의 "나누기 지문"이 나눈 결과 전체를 G3에 묶는다.
+- 판정 F4에 더함: 나누는 중 취소인데 Story가 이미 열렸으면 기획은 `open`으로 끝난다.
+- 판정 R4에 더함: executor가 git을 쓰는 동안에는 기획 단계를 시작하지 않는다. Story가 이미 열렸으면 base를 다시 밀지 않는다.
+
