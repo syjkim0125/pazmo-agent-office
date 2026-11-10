@@ -252,7 +252,8 @@ async function world(t) {
     createRuntime: runtimes(turns),
     runnerCatalog: async () => readyCatalog(),
     linkOf: (dataDir) => (configs.has(dataDir) ? storyLink(configs.get(dataDir)) : null),
-    planLinkOf: (dataDir) => (configs.has(dataDir) ? planLink(configs.get(dataDir)) : null),
+    // The Office's own lease holder id on every plan link, as its default plan links carry it.
+    planLinkOf: (dataDir, holder) => (configs.has(dataDir) ? planLink(configs.get(dataDir), undefined, holder) : null),
     ghOf: async () => ({ ok: true }),
     claimMs: 50,
     beatMs: 1000,
@@ -455,7 +456,7 @@ test("a high-risk plan stops at 설계 승인, opens only after G3, keeps risk h
   assert.deepEqual([started.storyBase, started.head], [base, w.tips["app-be"]]);
 });
 
-test("a base push the app-fe origin refuses (its pre-receive hook) leaves the plan failed and the Story draft with no claimable Task; after the hook is gone 다시 시도 opens the same Story number", async (t) => {
+test("a base push the app-fe origin refuses (its pre-receive hook) leaves the plan failed and the Story draft with no claimable Task; after the hook is gone 다시 시도 opens the same Story number at the base commits the Hub kept, though bases.json was lost and main and develop moved", async (t) => {
   const w = await world(t);
   w.turns.answers.push(READY, LEAD);
   const hook = join(w.o.bare("app-fe"), "hooks", "pre-receive");
@@ -483,8 +484,16 @@ test("a base push the app-fe origin refuses (its pre-receive hook) leaves the pl
   assert.match(page, /레포 app-fe에 Story 시작 브랜치/);
   assert.ok(formOf(page, `/plans/${planId}/retry`).revision);
 
-  // The hook is gone; 다시 시도 on the web: no second publish and no Lead turn, the recorded commits, then open.
+  // The hook is gone. Meanwhile the PL's data folder lost bases.json (a new Mac) and both base branches moved: only the
+  // Hub's record of the base commits can put app-fe's base where app-be's already is.
   rmSync(hook);
+  rmSync(join(w.planDir(planId), "bases.json"));
+  const moved = {
+    "app-be": commit(w.o, "app-be", "main", { "src/later.ts": "export const later = 1;\n" }),
+    "app-fe": commit(w.o, "app-fe", "develop", { "web/later.html": "<p>later</p>\n" }),
+  };
+  assert.notEqual(moved["app-be"], w.tips["app-be"]);
+  // 다시 시도 on the web: no second publish and no Lead turn, the Hub's commits, then open.
   await press(w, planId, "retry");
   await settled(w, planId, "open");
   v = w.plan(planId);
@@ -495,7 +504,7 @@ test("a base push the app-fe origin refuses (its pre-receive hook) leaves the pl
   assert.equal(count(w.logs, `story-${draft.number} base in app-be: exists`), 1);
   assert.equal(count(w.logs, `story-${draft.number} base in app-fe: created`), 1);
   assert.equal(w.remote("app-be", base), w.tips["app-be"]);
-  assert.equal(w.remote("app-fe", base), w.tips["app-fe"]);
+  assert.equal(w.remote("app-fe", base), w.tips["app-fe"], "develop's commit at the first attempt, not the moved tip");
   assert.deepEqual(JSON.parse(readFileSync(join(w.planDir(planId), "bases.json"), "utf8")), {
     [w.repos["app-be"]]: w.tips["app-be"],
     [w.repos["app-fe"]]: w.tips["app-fe"],
