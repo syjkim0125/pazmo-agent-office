@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -27,6 +28,7 @@ import {
   renderTeamDesign,
   renderTeamStory,
   repoFolders,
+  splitDigest,
 } from "../src/runners/team-planning.ts";
 import { turn } from "./plan-fixture.mjs";
 
@@ -589,7 +591,8 @@ test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'U
   );
   assert.equal(
     renderTeamDesign(result, FOLDERS),
-    "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n- t3 · app-be · 주문 시험(앞: t2, t1)\n\nUnderstanding gate (G3): pending\n",
+    "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n- t3 · app-be · 주문 시험(앞: t2, t1)\n\nUnderstanding gate (G3): pending\n\n" +
+      `나누기 지문: ${splitDigest(result)}\n`,
   );
 
   const draft = renderTeamStory(STORY, [{ question: "기간은?", answer: "최근 30일" }]);
@@ -610,6 +613,35 @@ test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'U
   assert.equal(a.length, d.length);
   assert.deepEqual(a.flatMap((line, i) => (line === d[i] ? [] : [i])), [1, 3]);
   assert.throws(() => approvedStory("# Story: x\nOwner: Human\n", g1), invalid);
+});
+
+test("splitDigest is the sha256 of the split's canonical JSON (keys sorted at every level, no whitespace, UTF-8): the same for any key order, another for any other spec, files, check argv or Story check", () => {
+  const vcheck = { id: "V1", argv: ["node", "--test"], timeoutMs: 1 };
+  const small = {
+    plan: "가",
+    graph: { nodes: [{ id: "t1", repoId: "r", title: "T", spec: "s", files: ["a"], verify: [vcheck] }], edges: [] },
+    storyVerify: [{ repoId: "r", checks: [vcheck] }],
+  };
+  const canonical =
+    '{"graph":{"edges":[],"nodes":[{"files":["a"],"id":"t1","repoId":"r","spec":"s","title":"T","verify":[{"argv":["node","--test"],"id":"V1","timeoutMs":1}]}]},"plan":"가","storyVerify":[{"checks":[{"argv":["node","--test"],"id":"V1","timeoutMs":1}],"repoId":"r"}]}';
+  assert.equal(splitDigest(small), createHash("sha256").update(canonical, "utf8").digest("hex"));
+  const shuffled = {
+    storyVerify: [{ checks: [{ timeoutMs: 1, argv: ["node", "--test"], id: "V1" }], repoId: "r" }],
+    graph: { edges: [], nodes: [{ verify: [{ timeoutMs: 1, id: "V1", argv: ["node", "--test"] }], files: ["a"], title: "T", spec: "s", repoId: "r", id: "t1" }] },
+    plan: "가",
+  };
+  assert.equal(splitDigest(shuffled), splitDigest(small));
+  const node = small.graph.nodes[0];
+  for (const other of [
+    { ...small, graph: { ...small.graph, nodes: [{ ...node, spec: "s2" }] } },
+    { ...small, graph: { ...small.graph, nodes: [{ ...node, files: ["b"] }] } },
+    { ...small, graph: { ...small.graph, nodes: [{ ...node, verify: [{ ...vcheck, argv: ["rm", "-rf", "/"] }] }] } },
+    { ...small, storyVerify: [{ repoId: "r", checks: [{ ...vcheck, timeoutMs: 2 }] }] },
+  ])
+    assert.notEqual(splitDigest(other), splitDigest(small));
+  // The design ends with that line, so the G3 hash of the design covers the whole split.
+  const design = renderTeamDesign(small, [{ folder: "app-be", repoId: "r", name: "app-be", baseBranch: "main" }]);
+  assert.ok(design.endsWith(`\n나누기 지문: ${splitDigest(small)}\n`), design);
 });
 
 test("the team Lead limits state the Hub's per-task spec limit in UTF-8 bytes; the single-Office Lead limits do not change", () => {

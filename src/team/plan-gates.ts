@@ -58,8 +58,10 @@ function storedSplit(plan: PlanRecord): TeamSplit | null {
  * draft text (its sha256), the draft has no `OPEN BLOCKING` line, and the structured draft re-renders to that exact
  * text with the plan's answers. For a high-risk plan whose stored split is about to be published (`needSplit`), the
  * G3 is the PL's and binds the design text, the stored split passes its checks again, and it re-renders to that
- * design with the folders `repoFolders` gives the plan's repos, the ones every step of the plan uses. Anything else
- * is PlanGateError with the PL's plain reason; nothing is retried.
+ * design with the folders `repoFolders` gives the plan's repos, the ones every step of the plan uses. The design's
+ * last line is the split's digest (`splitDigest`), so re-rendering also compares every Task's spec, files and checks
+ * and every Story check with what the G3 bound, not only the plan and the Task list the page shows. Anything else is
+ * PlanGateError with the PL's plain reason; nothing is retried.
  */
 export function checkApprovals(
   plan: PlanRecord,

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { OfficeError } from "../cli/project.ts";
 import { PLAN_LIMITS, hasOpenBlocking } from "../hub/plan-protocol.ts";
 import type { PlanApproval, PlanRound } from "../hub/plan-protocol.ts";
@@ -261,7 +262,29 @@ export function renderTaskSpec(
   ].join("\n");
 }
 
-/** A high-risk plan's design for G3, in the `decision.md` shape: the Lead's plan and the Task list it approves. */
+/** JSON with every object's keys sorted, at every level, and no whitespace: the same bytes for the same value. */
+function canonicalJson(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map((item) => canonicalJson(item ?? null)).join(",")}]`;
+  if (typeof value === "object" && value !== null) {
+    const entries = Object.keys(value)
+      .sort()
+      .flatMap((key) => {
+        const item = (value as Record<string, unknown>)[key];
+        return item === undefined ? [] : [`${JSON.stringify(key)}:${canonicalJson(item)}`];
+      });
+    return `{${entries.join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+/** sha256 hex of the split's canonical JSON (UTF-8): every Task's spec, files and checks and every Story check. */
+export function splitDigest(split: TeamSplit): string {
+  return createHash("sha256").update(canonicalJson(split), "utf8").digest("hex");
+}
+
+/** A high-risk plan's design for G3, in the `decision.md` shape: the Lead's plan and the Task list it approves, then
+ * the split's digest line, so the G3 that binds this text binds the whole split the Hub stores and the Office
+ * publishes, not only what the list shows. */
 export function renderTeamDesign(split: TeamSplit, repos: TeamRepoFolder[]): string {
   const folderOf = new Map(repos.map((r) => [r.repoId, r.folder]));
   const tasks = split.graph.nodes.map((node) => {
@@ -269,7 +292,7 @@ export function renderTeamDesign(split: TeamSplit, repos: TeamRepoFolder[]): str
     const waits = before.length ? `(앞: ${before.join(", ")})` : "";
     return `- ${node.id} · ${folderOf.get(node.repoId) ?? node.repoId} · ${node.title}${waits}`;
   });
-  return `# Decision requiring human G3\n\n${split.plan}\n\n## Task 목록\n${tasks.join("\n")}\n\nUnderstanding gate (G3): pending\n`;
+  return `# Decision requiring human G3\n\n${split.plan}\n\n## Task 목록\n${tasks.join("\n")}\n\nUnderstanding gate (G3): pending\n\n나누기 지문: ${splitDigest(split)}\n`;
 }
 
 /** The approved draft the Hub Story carries: `Status: Approved` and the G1 line naming the web approval. The kit

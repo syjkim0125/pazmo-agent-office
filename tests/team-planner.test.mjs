@@ -6,7 +6,7 @@ import test from "node:test";
 import { OfficeError } from "../src/cli/project.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
 import { planTextHash } from "../src/hub/plan-protocol.ts";
-import { approvedStory, decidedOf, renderTeamDesign, renderTeamStory, repoFolders } from "../src/runners/team-planning.ts";
+import { approvedStory, decidedOf, renderTeamDesign, renderTeamStory, repoFolders, splitDigest } from "../src/runners/team-planning.ts";
 import { createPlanner } from "../src/team/planner.ts";
 import {
   BE,
@@ -935,9 +935,11 @@ test("a step the periodic heartbeat cut while it published makes no base: the pl
 // Task 9: a high-risk plan's design step after its G1, and its splitting step after the PL's G3 of that design.
 /** A high-risk plan leased for its design step after the PL's G1 of DRAFT. */
 const designing = (over = {}) => splitting({ state: "design", risk: "high", ...over });
-/** The design LEAD renders to: the Lead's plan, then one line per Task with its folder and the Tasks it waits for. */
-const DESIGN_TEXT =
-  "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n\nUnderstanding gate (G3): pending\n";
+/** The design LEAD renders to: the Lead's plan, then one line per Task with its folder and the Tasks it waits for, then
+ * the digest line of the split it posts with it. */
+const DESIGN_TEXT = (split) =>
+  "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n\nUnderstanding gate (G3): pending\n\n" +
+  `나누기 지문: ${splitDigest(split)}\n`;
 const g3Of = (text, over = {}) => ({
   approvalId: "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",
   gate: "G3",
@@ -967,7 +969,7 @@ test("a design lease checks G1, runs the Lead turn and posts design with the dec
   const result = w.lastResult();
   assert.deepEqual(Object.keys(result).sort(), ["kind", "split", "text"]);
   assert.equal(result.kind, "design");
-  assert.equal(result.text, DESIGN_TEXT);
+  assert.equal(result.text, DESIGN_TEXT(result.split));
   assert.equal(result.text, renderTeamDesign(result.split, repoFolders(planRecord().repos)));
   assert.equal(result.split.plan, LEAD.plan);
   assert.deepEqual(
@@ -1004,14 +1006,14 @@ test("a refused split or a design over 16384 bytes runs the Lead once more with 
   link.lease = leaseOf(designing({ id: planId(30) }), { leaseId: "L1", revision: 1 });
   assert.equal((await w.planner.tick()).posted, "design");
   assert.deepEqual(retries(), [null, "report.tasks: M1 not covered"]);
-  assert.equal(w.lastResult().text, DESIGN_TEXT);
+  assert.equal(w.lastResult().text, DESIGN_TEXT(w.lastResult().split));
 
   link.lease = leaseOf(designing({ id: planId(31) }), { leaseId: "L2", revision: 1 });
   assert.equal((await w.planner.tick()).posted, "design");
   assert.equal(retries()[2], null);
   assert.match(retries()[3], /16384/, "the Lead is told the byte limit");
   assert.match(retries()[3], /18\d{3}/, "and how long the design was");
-  assert.equal(w.lastResult().text, DESIGN_TEXT);
+  assert.equal(w.lastResult().text, DESIGN_TEXT(w.lastResult().split));
 
   link.lease = leaseOf(designing({ id: planId(32) }), { leaseId: "L3", revision: 1 });
   assert.equal((await w.planner.tick()).posted, "failed");
@@ -1063,11 +1065,11 @@ test("after G3 a splitting lease publishes the stored split with risk high and n
     "bases.json", "candidate.json", "design.md", "g1.json", "g3.json", "story.md",
   ]);
   assert.equal(readFileSync(join(dir, "story.md"), "utf8"), VIEW);
-  assert.equal(readFileSync(join(dir, "design.md"), "utf8"), DESIGN_TEXT);
+  assert.equal(readFileSync(join(dir, "design.md"), "utf8"), DESIGN_TEXT(design.split));
   const g3 = JSON.parse(readFileSync(join(dir, "g3.json"), "utf8"));
   assert.equal(g3.gate, "G3");
   assert.equal(g3.responseRef, `hub-approval:${plan.g3.approvalId}`);
-  assert.equal(g3.textHash, planTextHash(DESIGN_TEXT));
+  assert.equal(g3.textHash, planTextHash(DESIGN_TEXT(design.split)));
   assert.equal(JSON.parse(readFileSync(join(dir, "g1.json"), "utf8")).responseRef, `hub-approval:${G1.approvalId}`);
 
   // A retry of that plan after its Story was published: no Lead turn and no second publish (F1), the same records.
