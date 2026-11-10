@@ -1,0 +1,8 @@
+{
+  "token": "1a0e488d33f62952684979d42d04a8df211b606c6a820d672b00c1f52b0cd3a5",
+  "output": {
+    "summary": "Review attempt 2 (2 reviewers): ready to merge; Critical 0, Important 0; H1-H11 resolved (H5 destructive half closed); stale doc lines corrected in the delivery commit; restart wait, old-Mac base push, H5 remainder, unlinked-repo line and copy nits deferred and disclosed.",
+    "evidence": [".ai-workflow/runs/U38-review-2.md"]
+  },
+  "evaluation": { "passed": true }
+}

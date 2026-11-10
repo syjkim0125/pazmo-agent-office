@@ -1,3 +1,22 @@
+# 2026-11-10 브라우저 팀 흐름 묶음 3: PL이 Hub 웹에 하고 싶은 일을 적으면 AI가 묻고 정리하고 나눠서 연다 (U38, D41·V19)
+
+- D41(G3·G1 2026-11-04)의 네 묶음 중 셋째다. 계획은 [2026-11-05-1600-feat-pl-planning-plan.md](plans/2026-11-05-1600-feat-pl-planning-plan.md), kit 실행은 `.ai-workflow/runs/U38-pl-planning.json`, 변경 기록은 [2026-11-05-pl-planning.md](verification/2026-11-05-pl-planning.md)다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)의 PL 흐름 1–4다.
+- 범위:
+  - **Hub:** 기획의 기준 기록 `PlanBoard`(상태 기계, 빌림, 승인, 시작할 때 고정한 레포, Hub에 적는 Story base 커밋). 웹: 프로젝트 만들기, [새 Story](글 64KB), 기획 화면(질문 답, 초안의 [고쳐 써 주세요]·[승인](G1), 높은 위험의 설계와 [설계 승인](G3, 올라갈 Task 전부 보기), [다시 시도], [취소]), 내 할 일·보드의 기획 칸. Office용 연결 경로 `/api/link/story/plan-next|plan-heartbeat|plan-result`(프로토콜 3, Office id로 빌림을 묶음).
+  - **PL의 팀 Office:** claim tick마다 기획 일을 먼저 빌려, 프로젝트의 레포를 기준 브랜치 끝에서 읽기 전용으로 모아 PM(질문·막는 결정, D35 P1)과 kit 틀 초안을 돌리고, 승인한 글과 승인자를 다시 확인한 뒤 Lead로 repo별 Task(파일·순서·확인 명령)를 나누고 MUST·Verify 덮임(D35 P5)과 Hub 그래프 검사를 거쳐 올리고, repo마다 `feature/story-<N>/base`를 보호된 push로 만든 뒤 연다. kit G1·G3 기록은 PL Mac의 기획 폴더에 남는다(대상 repo에는 커밋하지 않는다).
+  - 더하기만 했다(프로토콜 1–4의 기존 경로, 단일 Office 기획, 묶음 1·2 동작 그대로). 예외: 멈춤·하루 상한에 걸린 팀 Office도 기획 일이 있을지 보려고 실행기를 확인한다.
+- Task별 커밋(기준 `3e23810`, 계획 `cefcecd`): 1 Hub 기록 `4ea5728`, 2 연결 경로 `fc82028`, 3 웹 `774a526`, 4 기획 입력 `f139fd0`·`3d862fa`, 5 PM·Lead 읽기와 P5 `d3f9cc9`, 6 기획 운전 `f74d9d6`·`cb5afe1`, 7 승인 확인·kit 기록 `0d58676`·`2f1e100`, 8 나누기·올리기·base·열기 `6d24d5e`, 9 높은 위험 `16c21f5`, 10 끝에서 끝 시험 `60a6931`, 11 문서 `3e8ea50`·`77b7c56`·`2b18dd6`. Task별 리뷰는 모두 거쳤고 4·6·11은 한 번씩 고쳤다.
+- **kit 리뷰(브랜치 전체, 두 번):**
+  - 1차(리뷰어 셋: 전체, 권한·승인·웹·새 원격 쓰기, 기획 수명주기): Important 5 → H1–H11(`087fb6e`–`c9676dd`). 이미 열린 Story에 base를 다시 밀어 영구 멈춤, 열린 Story가 있는 기획 취소, 승인이 레포 목록을 묶지 않음, G3가 Task 제목만 봄, 한 PL의 Office 둘이 한 빌림을 나눔, base 커밋이 Office에만 있음.
+  - 2차(리뷰어 둘): 머지 가능, Critical·Important 0. 낡은 문서 줄은 이 전달 커밋의 LOCAL-PREVIEW·변경 기록에서 고쳤다(kit 리뷰·검증 밖).
+- 자동 검사: 전체 `npm test`는 Task 1–11 뒤 1726/1726, 마지막 리뷰 뒤 고친 것까지 **1754/1754**(exit 0, 127초). `npm run typecheck`·Story 검사 exit 0. kit 검증(`c9676dd`): 514/514 + 516/516 + 724/724 = **1754/1754**, 타입 검사·Story 검사 exit 0(세 번째 시도: 첫째는 디자인 hook이 작업 폴더에 남긴 캐시 파일로 스냅숏이 바뀌었고, 둘째는 보안 프로그램 때문에 부하가 11–12일 때 이 브랜치와 무관한 `lean-lifecycle` 시험 하나가 실패했다). `graph.mjs delivery`는 `delivered`다.
+- G4는 2026-11-10에 기록했다. 이 세션에서는 Artifact 게시가 꺼져 있어 설명 페이지를 앱의 브라우저 창에 로컬로 띄웠다. 사용자는 그 페이지를 본 뒤 "① 승인 후 머지"를 골랐고, 세 질문에는 직접 답하지 않았다(D13). 머지 뒤 이 Mac 로컬 Hub로 흐름을 직접 확인하기로 했다. [G4 기록](../.ai-workflow/approvals/pl-planning-g4.md)
+- **남은 것:**
+  - **실제 확인.** 실제 claude로 돌린 기획의 질, 실제 Mac Office와 Hub, 실제 GitHub의 Story base·규칙은 확인하지 않았다. 다음은 이 Mac 로컬 Hub로 묶음 1–3을 직접 겪어 보는 것이다([실제 확인 계획](verification/2026-11-05-pl-planning.md#실제-확인-계획)). 흐름은 "모든 Task가 끝나고 Story가 검증을 기다림"에서 멈춘다.
+  - 묶음 4(Story 검증·결과 화면·웹 G4·main 머지·고칠 것 추가).
+  - 중간점검 전에 고칠 것(리뷰가 미룸): Office를 기획 단계 도중 다시 켜면 10분까지 기다림, 오래된 두 번째 Mac에서 Hub의 base 커밋이 없어 push 실패, 빌림이 없을 때 레포가 없는 Office가 기획을 가져가 멈춤, 기획 시작 두 번 누르기, 거절된 답이 폼에서 사라짐. 나머지는 변경 기록의 "사람에게 보이는 한계"다.
+  - 묶음 1·2에서 넘어온 것은 아래 U37·U36 항목 그대로다.
+
 # 2026-11-05 브라우저 팀 흐름 묶음 2: 팀원이 Hub 웹에서 자기 일을 보고 고르고 다시 시도한다 (U37, D41·V19)
 
 - D41(G3·G1 2026-11-04)의 네 묶음 중 둘째다. 계획은 [2026-11-05-1200-feat-teammate-web-plan.md](plans/2026-11-05-1200-feat-teammate-web-plan.md), kit 실행은 `.ai-workflow/runs/U37-teammate-web.json`이다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)다. 변경 기록은 [2026-11-05-teammate-web.md](verification/2026-11-05-teammate-web.md), 사용 안내는 [LOCAL-PREVIEW.md의 "팀원 웹"](LOCAL-PREVIEW.md#팀원-웹)이다. Story는 바꾸지 않았다(새 결정 번호 없음, 판정은 계획의 판정 표).

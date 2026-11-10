@@ -1,0 +1,12 @@
+{
+  "token": "cb6a34b746d22e3afe1bca17b1e60fe08e5f304273e8486580ef603f8d558c6e",
+  "output": {
+    "summary": "Review attempt 1 (3 reviewers): not ready (Critical 0, Important 5 after merging duplicates): re-pushed bases after an unrecorded open; cancel vs opened Story; approvals do not bind the repo set; G3 does not bind or show the full split; one lease shared by a PL's two Offices; bases only on the Office.",
+    "evidence": [".ai-workflow/runs/U38-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "implement H1-H11 of U38-review-1.md: skip bases for an opened Story; reconcile cancel of an opened Story; snapshot and re-check the plan's repo set; bind the whole split in G3 and show it; lease holder per Office and cancel only on a cancelled plan; base commits on the Hub and a usable BASE_EXISTS line; planner waits for an idle executor; stop/cancel checks; Mac and missing-repo lines on the plan page."
+  }
+}
