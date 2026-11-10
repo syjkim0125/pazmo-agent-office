@@ -2,7 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { HUB_LEGACY_PROTOCOL, HUB_PROTOCOL } from "./protocol.ts";
 import { FORM_LIMIT, LINK_LIMIT, json, readBody, type LinkHandler } from "./server.ts";
 import type { PlanResult } from "./plan-protocol.ts";
-import type { PlanBoard } from "./plan-store.ts";
+import { PlanStateError, type PlanBoard } from "./plan-store.ts";
 import { HubError, type HubStore, type Link } from "./store.ts";
 import { HUB_STORY_PROTOCOL } from "./story-protocol.ts";
 import type { StoryBoard } from "./story-store.ts";
@@ -141,10 +141,12 @@ async function storyRoute(board: StoryBoard, plans: PlanBoard | undefined, link:
     case "POST /api/link/story/verified":
       return board.reportVerify(link, str(body, "taskId"), str(body, "claimId"), { passed: bool(body, "passed"), summary: str(body, "summary") });
     case "POST /api/link/story/complete": return board.completeStory(link, str(body, "storyId"));
-    case "POST /api/link/story/plan-next": return { lease: (plans ?? noRoute()).next(link) };
-    case "POST /api/link/story/plan-heartbeat": return (plans ?? noRoute()).heartbeat(link, str(body, "planId"), str(body, "leaseId"));
+    // Each plan route names the Office instance (`holder`); the plan board checks its form and the lease's holder.
+    case "POST /api/link/story/plan-next": return { lease: (plans ?? noRoute()).next(link, str(body, "holder")) };
+    case "POST /api/link/story/plan-heartbeat":
+      return (plans ?? noRoute()).heartbeat(link, str(body, "holder"), str(body, "planId"), str(body, "leaseId"), body.bases);
     case "POST /api/link/story/plan-result":
-      return (plans ?? noRoute()).result(link, str(body, "planId"), str(body, "leaseId"), num(body, "revision"), body.result as PlanResult);
+      return (plans ?? noRoute()).result(link, str(body, "holder"), str(body, "planId"), str(body, "leaseId"), num(body, "revision"), body.result as PlanResult);
   }
   return noRoute();
 }
@@ -185,7 +187,15 @@ export function linkApi(store: HubStore, board: StoryBoard, plans?: PlanBoard) {
       const link = token ? store.link(token) : null;
       if (!link)
         return json(res, 401, { error: "UNAUTHORIZED", message: "연결이 해제됐습니다. 허브에서 새 연결 명령을 받아주세요." });
-      if (path.startsWith(STORY_PREFIX)) return json(res, 200, await storyRoute(board, plans, link, req, url));
+      if (path.startsWith(STORY_PREFIX)) {
+        try {
+          return json(res, 200, await storyRoute(board, plans, link, req, url));
+        } catch (error) {
+          // A plan heartbeat's STATE names the plan's state: the Office cancels its draft Story only for `cancelled`.
+          if (error instanceof PlanStateError) return json(res, error.status, { error: error.code, message: error.message, state: error.state });
+          throw error;
+        }
+      }
       if (path === "/api/link/work") return json(res, 200, store.work(link));
       if (path === "/api/link/repos") return json(res, 200, { repos: store.linkRepos(link) });
       if (path === "/api/link/outgoing") return json(res, 200, { items: store.outgoing(link) });

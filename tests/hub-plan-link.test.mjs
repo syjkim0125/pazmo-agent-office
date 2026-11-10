@@ -15,6 +15,9 @@ const DRAFT = "# Story: 쿠폰 발급\n\n## Decisions\n- ASSUMED: 쿠폰은 한 
 const q1 = { id: "Q1", text: "쿠폰은 몇 번 쓰나요?", reason: "한 번이면 막아야 합니다.", blocking: true };
 const ROUTES = ["plan-next", "plan-heartbeat", "plan-result"];
 const hubError = (status, code, expected) => Object.assign(new Error(code), { status, code, expected });
+/** Two Office instances of the PL: the lease holder ids they send. */
+const H = "a".repeat(32), H2 = "0123456789abcdef".repeat(2);
+const SHA1 = "1".repeat(40), SHA2 = "2".repeat(40);
 const badResponse = (e) => e.code === "HUB_BAD_RESPONSE";
 
 /**
@@ -65,25 +68,25 @@ const fakeCfg = { hub: "https://hub.example.com", caPem: null, fingerprint: null
 test("plan-next, plan-heartbeat and plan-result work over protocol 3 through the PL's link of either project repo; protocol 2 is 426 PROTOCOL_MISMATCH", async (t) => {
   const w = await world(t);
   const { pl, b, post } = w;
-  assert.deepEqual((await post(pl, "app-be", "plan-next", {})).json, { lease: null });
+  assert.deepEqual((await post(pl, "app-be", "plan-next", { holder: H })).json, { lease: null });
   const id = w.create();
-  const first = await post(pl, "app-be", "plan-next", {});
+  const first = await post(pl, "app-be", "plan-next", { holder: H });
   assert.equal(first.status, 200);
   assert.equal(first.json.lease.plan.id, id);
   assert.equal(first.json.lease.revision, 1);
   // The same person through the other repo's link: the live lease comes back as it is.
-  const again = (await post(pl, "app-fe", "plan-next", {})).json.lease;
+  const again = (await post(pl, "app-fe", "plan-next", { holder: H })).json.lease;
   assert.equal(again.leaseId, first.json.lease.leaseId);
   const { leaseId, revision } = again;
-  assert.deepEqual((await post(pl, "app-fe", "plan-heartbeat", { planId: id, leaseId })).json, { ok: true });
-  const done = await post(pl, "app-be", "plan-result", { planId: id, leaseId, revision, result: { kind: "questions", questions: [q1] } });
+  assert.deepEqual((await post(pl, "app-fe", "plan-heartbeat", { planId: id, leaseId, holder: H })).json, { ok: true });
+  const done = await post(pl, "app-be", "plan-result", { planId: id, leaseId, revision, holder: H, result: { kind: "questions", questions: [q1] } });
   assert.equal(done.status, 200);
   assert.deepEqual(done.json, { ok: true, revision: 2 });
   assert.equal(w.view(id).state, "questions");
   // Waiting for the PL's answers: no Office work.
-  assert.deepEqual((await post(pl, "app-fe", "plan-next", {})).json, { lease: null });
+  assert.deepEqual((await post(pl, "app-fe", "plan-next", { holder: H })).json, { lease: null });
   // Another member's link sees none of the PL's work.
-  assert.deepEqual((await post(b, "app-fe", "plan-next", {})).json, { lease: null });
+  assert.deepEqual((await post(b, "app-fe", "plan-next", { holder: H })).json, { lease: null });
 
   for (const route of ROUTES) {
     const old = await post(pl, "app-be", route, {}, "2");
@@ -94,8 +97,73 @@ test("plan-next, plan-heartbeat and plan-result work over protocol 3 through the
     assert.equal((await w.api("POST", `/api/link/story/${route}`, { protocol: "3", body: {} })).status, 401, route);
   }
   // Wrong types are refused before the board; the board judges the result's content.
-  assert.equal((await post(pl, "app-be", "plan-heartbeat", { planId: id, leaseId: 1 })).json.error, "INVALID");
-  assert.equal((await post(pl, "app-be", "plan-result", { planId: id, leaseId, revision: "2", result: { kind: "failed", reason: "x" } })).json.error, "INVALID");
+  assert.equal((await post(pl, "app-be", "plan-heartbeat", { planId: id, leaseId: 1, holder: H })).json.error, "INVALID");
+  assert.equal((await post(pl, "app-be", "plan-result", { planId: id, leaseId, revision: "2", holder: H, result: { kind: "failed", reason: "x" } })).json.error, "INVALID");
+});
+
+test("the three plan routes need holder, 32 lowercase hex: missing or malformed is 400 INVALID; while a lease is live another holder of the same PL gets lease null, and NOT_YOURS on heartbeat and result", async (t) => {
+  const w = await world(t);
+  const { pl, post } = w;
+  const id = w.create();
+  const bodies = (holder) => ({
+    "plan-next": { ...holder },
+    "plan-heartbeat": { planId: id, leaseId: "l", ...holder },
+    "plan-result": { planId: id, leaseId: "l", revision: 1, result: { kind: "failed", reason: "x" }, ...holder },
+  });
+  for (const holder of [{}, { holder: 42 }, { holder: "" }, { holder: "A".repeat(32) }, { holder: "a".repeat(31) }])
+    for (const [route, body] of Object.entries(bodies(holder))) {
+      const r = await post(pl, "app-be", route, body);
+      assert.deepEqual([r.status, r.json.error], [400, "INVALID"], `${route} ${JSON.stringify(holder)}`);
+    }
+  assert.equal(w.view(id).leased, false);
+  const { leaseId, revision } = (await post(pl, "app-be", "plan-next", { holder: H })).json.lease;
+  assert.deepEqual((await post(pl, "app-fe", "plan-next", { holder: H2 })).json, { lease: null });
+  const beat = await post(pl, "app-fe", "plan-heartbeat", { planId: id, leaseId, holder: H2 });
+  assert.deepEqual([beat.status, beat.json.error], [409, "NOT_YOURS"]);
+  const result = await post(pl, "app-fe", "plan-result", { planId: id, leaseId, revision, holder: H2, result: { kind: "failed", reason: "레포가 없습니다." } });
+  assert.deepEqual([result.status, result.json.error], [409, "NOT_YOURS"]);
+  assert.equal(w.view(id).state, "queued");
+});
+
+test("plan-heartbeat's 409 STATE carries the plan's state as JSON {error, message, state}: cancelled or failed", async (t) => {
+  const w = await world(t);
+  const { pl, post } = w;
+  const cancelled = w.create();
+  const a = (await post(pl, "app-be", "plan-next", { holder: H })).json.lease;
+  w.plans.cancel({ member: pl }, cancelled, 1);
+  const r1 = await post(pl, "app-be", "plan-heartbeat", { planId: cancelled, leaseId: a.leaseId, holder: H });
+  assert.equal(r1.status, 409);
+  assert.deepEqual(r1.json, { error: "STATE", message: "이 기획은 지금 Office가 할 일이 없습니다.", state: "cancelled" });
+  const failed = w.create();
+  const b = (await post(pl, "app-be", "plan-next", { holder: H })).json.lease;
+  await post(pl, "app-be", "plan-result", { planId: failed, leaseId: b.leaseId, revision: b.revision, holder: H, result: { kind: "failed", reason: "멈춤" } });
+  const r2 = await post(pl, "app-be", "plan-heartbeat", { planId: failed, leaseId: b.leaseId, holder: H });
+  assert.deepEqual([r2.status, r2.json.error, r2.json.state], [409, "STATE", "failed"]);
+  // planLink hands the state on, so the Office can tell a cancel from the rest.
+  const e = await planLink(w.cfgOf(pl, "app-be"), undefined, H).heartbeat(failed, b.leaseId).then(() => assert.fail("expected a refusal"), (x) => x);
+  assert.deepEqual([e.status, e.code, e.state], [409, "STATE", "failed"]);
+});
+
+test("plan-heartbeat carries bases {repoId: commit}: the Hub keeps each repo's first commit and plan-next shows them; another commit is 409 BASES_CHANGED and changes nothing", async (t) => {
+  const w = await world(t);
+  const { pl, post } = w;
+  const be = w.repos["app-be"], fe = w.repos["app-fe"];
+  const id = w.create();
+  const first = (await post(pl, "app-be", "plan-next", { holder: H })).json.lease;
+  await post(pl, "app-be", "plan-result", { planId: id, leaseId: first.leaseId, revision: first.revision, holder: H, result: { kind: "draft", text: DRAFT, story: { title: "쿠폰 발급" } } });
+  const v = w.view(id);
+  w.plans.approve(pl, id, "G1", v.revision, v.draft.hash);
+  const lease = (await post(pl, "app-be", "plan-next", { holder: H })).json.lease;
+  assert.deepEqual(lease.plan.bases, {});
+  const beat = (bases) => post(pl, "app-be", "plan-heartbeat", { planId: id, leaseId: lease.leaseId, holder: H, bases });
+  assert.deepEqual((await beat({ [be]: SHA1 })).json, { ok: true });
+  assert.deepEqual((await beat({ [be]: SHA1, [fe]: SHA2 })).json, { ok: true });
+  const changed = await beat({ [fe]: SHA1 });
+  assert.equal(changed.status, 409);
+  assert.deepEqual(changed.json, { error: "BASES_CHANGED", message: "레포 app-fe의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다." });
+  assert.deepEqual([(await beat({ [be]: "x" })).status, (await beat(["x"])).json.error], [400, "INVALID"]);
+  assert.deepEqual((await post(pl, "app-fe", "plan-next", { holder: H })).json.lease.plan.bases, { [be]: SHA1, [fe]: SHA2 });
+  assert.equal(w.view(id).revision, lease.revision, "the lease's result still fits");
 });
 
 test("planLink.next is null without work and a lease with the plan's repos otherwise; a reply without leaseId, revision or plan is HUB_BAD_RESPONSE", async (t) => {
@@ -115,8 +183,8 @@ test("planLink.next is null without work and a lease with the plan's repos other
 
   const ok = { leaseId: "l", revision: 1, plan: { id: "p", repos: [] } };
   const { call, calls } = fakeCall({ lease: ok });
-  assert.deepEqual(await planLink(fakeCfg, call).next(), ok);
-  assert.deepEqual(calls[0], [fakeCfg, "POST", "/api/link/story/plan-next", {}, "3"]);
+  assert.deepEqual(await planLink(fakeCfg, call, H).next(), ok);
+  assert.deepEqual(calls[0], [fakeCfg, "POST", "/api/link/story/plan-next", { holder: H }, "3"]);
   for (const reply of [
     null, {}, { lease: undefined }, { lease: "x" },
     { lease: { revision: 1, plan: ok.plan } }, { lease: { leaseId: "l", plan: ok.plan } }, { lease: { leaseId: "l", revision: 1 } },

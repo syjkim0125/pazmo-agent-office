@@ -17,8 +17,19 @@ import {
 import { HubError, type Link, type Member } from "./store.ts";
 import type { Actor, StoryBoard } from "./story-store.ts";
 
-/** The web's buttons for a plan, by the same rules the actions check. Approval is G1 on a draft, G3 on a design. */
-export type PlanActions = { answer: boolean; rewrite: boolean; approve: "yes" | "open-blocking" | "not-owner" | "no"; retry: boolean; cancel: boolean };
+/**
+ * The web's buttons for a plan, by the same rules the actions check. Approval is G1 on a draft, G3 on a design;
+ * `repos-changed`: the project no longer holds one of the plan's repos with its base branch.
+ */
+export type PlanActions = {
+  answer: boolean;
+  rewrite: boolean;
+  approve: "yes" | "open-blocking" | "not-owner" | "repos-changed" | "no";
+  retry: boolean;
+  cancel: boolean;
+};
+/** The project's repos as they were when the PL started the plan: everything the plan touches. */
+export type PlanRepo = { id: string; name: string; baseBranch: string };
 export type PlanView = {
   id: string;
   project: { id: string; name: string };
@@ -28,10 +39,14 @@ export type PlanView = {
   risk: "normal" | "high";
   state: PlanState;
   revision: number;
+  /** The snapshot taken when the plan started. */
+  repos: PlanRepo[];
   rounds: PlanRound[];
   draft: { text: string; hash: string } | null;
   rewrite: { note: string } | null;
   design: { text: string; hash: string } | null;
+  /** The high-risk split stored with the design, as the Office posted it: what G3 publishes. */
+  split: unknown | null;
   g1: PlanApproval | null;
   g3: PlanApproval | null;
   failure: { reason: string; from: OfficeState } | null;
@@ -79,6 +94,12 @@ type PlanRow = {
   lease_id: string | null;
   leased_at: number | null;
   heartbeat_at: number | null;
+  /** The Office instance holding the lease. */
+  holder: string | null;
+  /** JSON PlanRepo[]: the snapshot. */
+  repos: string | null;
+  /** JSON {repoId: sha}: each Story base commit, stored once. */
+  bases: string | null;
   created_at: number;
   updated_at: number;
 };
@@ -88,10 +109,11 @@ type NamedRow = PlanRow & { project_name: string; pl_name: string };
 /**
  * A PL's Story plan from the web's [새 Story] to its opened Story. `hub_projects`, `hub_members` and `hub_stories`
  * come from HubStore and StoryBoard, so both run first on the same db. The lease lives on the plan row: one per
- * PL (the partial unique index), ended by a result, a cancel, or 600000 ms without a heartbeat.
+ * PL (the partial unique index), held by one Office instance (`holder`), ended by a result, a cancel, or 600000 ms
+ * without a heartbeat. `repos` is the project's repos when the plan started; `bases` the Story base commits.
  */
 const SCHEMA = `
-CREATE TABLE IF NOT EXISTS hub_plans(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES hub_projects(id),pl_member_id TEXT NOT NULL REFERENCES hub_members(id),title TEXT NOT NULL,intent TEXT NOT NULL,risk TEXT NOT NULL CHECK(risk IN ('normal','high')),state TEXT NOT NULL CHECK(state IN ('queued','questions','draft','design','awaiting_g3','splitting','open','failed','cancelled')),revision INTEGER NOT NULL,rounds TEXT NOT NULL,draft TEXT,rewrite TEXT,design TEXT,split TEXT,g1 TEXT,g3 TEXT,failure TEXT,story_id TEXT REFERENCES hub_stories(id),lease_id TEXT,leased_at INTEGER,heartbeat_at INTEGER,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_plans(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES hub_projects(id),pl_member_id TEXT NOT NULL REFERENCES hub_members(id),title TEXT NOT NULL,intent TEXT NOT NULL,risk TEXT NOT NULL CHECK(risk IN ('normal','high')),state TEXT NOT NULL CHECK(state IN ('queued','questions','draft','design','awaiting_g3','splitting','open','failed','cancelled')),revision INTEGER NOT NULL,rounds TEXT NOT NULL,draft TEXT,rewrite TEXT,design TEXT,split TEXT,g1 TEXT,g3 TEXT,failure TEXT,story_id TEXT REFERENCES hub_stories(id),lease_id TEXT,leased_at INTEGER,heartbeat_at INTEGER,holder TEXT,repos TEXT,bases TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_plan_lease ON hub_plans(pl_member_id) WHERE lease_id IS NOT NULL;
 CREATE TABLE IF NOT EXISTS hub_plan_events(id INTEGER PRIMARY KEY AUTOINCREMENT,plan_id TEXT NOT NULL REFERENCES hub_plans(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
 `;
@@ -113,7 +135,12 @@ const MY_PLANS_MAX = 20;
 const QUESTION_IDS: readonly string[] = Array.from({ length: PLAN_LIMITS.questionsPerRound }, (_, i) => `Q${i + 1}`);
 const NAMED_SELECT = `SELECT p.*,j.name project_name,m.name pl_name FROM hub_plans p
   JOIN hub_projects j ON j.id=p.project_id JOIN hub_members m ON m.id=p.pl_member_id`;
-const LEASE_CLEARED = { lease_id: null, leased_at: null, heartbeat_at: null } as const;
+const LEASE_CLEARED = { lease_id: null, leased_at: null, heartbeat_at: null, holder: null } as const;
+/** Columns added after the first hub_plans: an older table gets them on start. */
+const ADDED_COLUMNS = ["holder", "repos", "bases"] as const;
+/** A team Office instance id, one per process start. */
+const HOLDER = /^[a-f0-9]{32}$/;
+const COMMIT = /^[0-9a-f]{40}$/;
 
 const MESSAGES = {
   createForbidden: "프로젝트의 모든 레포 담당자만 새 Story를 만들 수 있습니다.",
@@ -125,6 +152,11 @@ const MESSAGES = {
   state: "지금 할 수 있는 일이 아닙니다. 화면을 새로 고쳐 확인하세요.",
   answer: `답은 질문마다 1~${PLAN_LIMITS.answerMax}자로 적어 주세요.`,
   intentBytes: "하고 싶은 일은 64KB(한글 약 2만 자)까지 적을 수 있습니다.",
+  holder: "holder는 Office 인스턴스 id(소문자 16진수 32자)여야 합니다.",
+  bases: "bases는 이 기획의 레포 id마다 40자리 16진수 커밋 id를 적은 객체여야 합니다.",
+  reposApprove: " 이 기획은 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.",
+  reposRetry: " 프로젝트를 처음대로 되돌린 뒤 다시 시도하거나, 취소하고 새 Story로 시작하세요.",
+  ownerRetry: " 관리자에게 담당자 등록을 요청한 뒤 다시 시도하세요.",
 } as const;
 
 function fail(code: string, status: number, message: string): never {
@@ -134,6 +166,18 @@ const stale = (): never => fail("STALE", 409, MESSAGES.stale);
 const notYours = (): never => fail("NOT_YOURS", 409, "이제 이 Office의 기획 일이 아닙니다.");
 /** On the Office's lease routes: the plan or its lease is no longer there (F11), unlike a 404 for a missing route. */
 const gone = (): never => fail("PLAN_GONE", 404, "이 기획 일은 이제 없습니다.");
+
+/** A heartbeat's STATE: the plan has no Office work now. `state` tells a cancel (the Office drops its draft Story) from the rest. */
+export class PlanStateError extends HubError {
+  state: PlanState;
+  constructor(state: PlanState) {
+    super("STATE", 409, "이 기획은 지금 Office가 할 일이 없습니다.");
+    this.state = state;
+  }
+}
+function holderOf(value: unknown): string {
+  return typeof value === "string" && HOLDER.test(value) ? value : fail("INVALID", 400, MESSAGES.holder);
+}
 /** A browser form sends CRLF: the Hub stores LF and counts after that. */
 const lf = (value: string) => value.replace(/\r\n?/g, "\n");
 const bytes = (value: string) => Buffer.byteLength(value, "utf8");
@@ -182,6 +226,11 @@ export class PlanBoard {
     this.#board = board;
     this.#now = now;
     db.exec(SCHEMA);
+    const have = new Set((db.prepare("PRAGMA table_info(hub_plans)").all() as { name: string }[]).map((c) => c.name));
+    for (const name of ADDED_COLUMNS) if (!have.has(name)) db.exec(`ALTER TABLE hub_plans ADD COLUMN ${name} TEXT`);
+    // A plan from before the snapshot takes its project's repos as they are now.
+    for (const row of this.#all<{ id: string; project_id: string }>("SELECT id,project_id FROM hub_plans WHERE repos IS NULL"))
+      this.#run("UPDATE hub_plans SET repos=? WHERE id=?", JSON.stringify(this.#projectRepos(row.project_id)), row.id);
   }
   #get<T>(sql: string, ...args: Arg[]) {
     const row = this.#db.prepare(sql).get(...args);
@@ -216,6 +265,34 @@ export class PlanBoard {
     );
     this.#event(row.id, memberId, kind, detail);
     return revision;
+  }
+  #projectRepos(projectId: string): PlanRepo[] {
+    return this.#all<PlanRepo>(
+      `SELECT r.id,r.name,pr.base_branch baseBranch FROM hub_project_repos pr JOIN hub_repos r ON r.id=pr.repo_id
+       WHERE pr.project_id=? ORDER BY r.name,r.id`,
+      projectId,
+    );
+  }
+  #snapshot(row: Pick<PlanRow, "repos">): PlanRepo[] {
+    return parsed<PlanRepo[]>(row.repos) ?? [];
+  }
+  /**
+   * Why the plan's repos no longer stand as the PL started it, in a sentence: the PL lost one (`not-owner`), or the
+   * project dropped one or changed its base branch (`changed`). Approve and the lease of design or splitting check it.
+   */
+  #reposProblem(memberId: string, row: PlanRow): { kind: "not-owner" | "changed"; reason: string } | null {
+    const snapshot = this.#snapshot(row);
+    for (const r of snapshot)
+      if (!this.#get("SELECT 1 FROM hub_repo_owners WHERE repo_id=? AND member_id=?", r.id, memberId))
+        return { kind: "not-owner", reason: `레포 ${r.name}의 담당자에 PL이 없습니다.` };
+    const live = new Map(this.#projectRepos(row.project_id).map((r) => [r.id, r]));
+    for (const r of snapshot) {
+      const now = live.get(r.id);
+      if (!now) return { kind: "changed", reason: `기획을 시작한 뒤 프로젝트에서 레포 ${r.name}이(가) 빠졌습니다.` };
+      if (now.baseBranch !== r.baseBranch)
+        return { kind: "changed", reason: `기획을 시작한 뒤 레포 ${r.name}의 기준 브랜치가 ${r.baseBranch}에서 ${now.baseBranch}(으)로 바뀌었습니다.` };
+    }
+    return null;
   }
 
   // ---- The web: the PL (and, to cancel, a hub admin) changes the record. Checks run permission, revision, state.
@@ -254,9 +331,9 @@ export class PlanBoard {
       if (input.risk !== "normal" && input.risk !== "high") fail("INVALID", 400, "위험도를 보통이나 높음 중에서 골라 주세요.");
       const id = randomUUID();
       this.#run(
-        `INSERT INTO hub_plans(id,project_id,pl_member_id,title,intent,risk,state,revision,rounds,created_at,updated_at)
-         VALUES (?,?,?,?,?,?,'queued',1,'[]',?,?)`,
-        id, project.id, member.id, title, intent, input.risk, this.#now(), this.#now(),
+        `INSERT INTO hub_plans(id,project_id,pl_member_id,title,intent,risk,state,revision,rounds,repos,created_at,updated_at)
+         VALUES (?,?,?,?,?,?,'queued',1,'[]',?,?,?)`,
+        id, project.id, member.id, title, intent, input.risk, JSON.stringify(this.#projectRepos(project.id)), this.#now(), this.#now(),
       );
       this.#event(id, member.id, "created");
       return { planId: id };
@@ -295,15 +372,22 @@ export class PlanBoard {
     });
   }
 
-  /** Who may approve the gate this plan waits at, once the caller knows it is the PL's: the checks `approve` ends with. */
-  #approvable(member: Member, row: PlanRow): "yes" | "not-owner" | "open-blocking" {
-    if (!this.#board.ownsProject(member.id, row.project_id)) return "not-owner";
-    if (row.state === "draft" && hasOpenBlocking((parsed<{ text: string }>(row.draft) as { text: string }).text)) return "open-blocking";
-    return "yes";
+  /**
+   * Why the PL may not approve the gate this plan waits at, once the caller knows it is the PL's, or null: the checks
+   * `approve` ends with, and the reason the page shows instead of the button.
+   */
+  #approveBlock(member: Member, row: PlanRow): { block: Exclude<PlanActions["approve"], "yes" | "no">; error: HubError } | null {
+    const problem = this.#reposProblem(member.id, row);
+    if (problem?.kind === "not-owner") return { block: "not-owner", error: new HubError("FORBIDDEN", 403, MESSAGES.notOwner) };
+    if (problem) return { block: "repos-changed", error: new HubError("REPOS_CHANGED", 409, `${problem.reason}${MESSAGES.reposApprove}`) };
+    if (row.state === "draft" && hasOpenBlocking((parsed<{ text: string }>(row.draft) as { text: string }).text))
+      return { block: "open-blocking", error: new HubError("OPEN_BLOCKING", 409, MESSAGES.openBlocking) };
+    return null;
   }
   /**
-   * G1 on a draft, G3 on a design, by the PL who owns every project repo now, for exactly the text the page showed:
-   * another hash is a stale page. G1 moves a normal plan to splitting and a high one to design; G3 to splitting.
+   * G1 on a draft, G3 on a design, by the PL who still owns every repo of the plan's snapshot while the project still
+   * holds each with its base branch, for exactly the text the page showed: another hash is a stale page. G1 moves a
+   * normal plan to splitting and a high one to design; G3 to splitting.
    */
   approve(member: Member, planId: string, gate: "G1" | "G3", revision: number, textHash: string): { approvalId: string } {
     return transaction(this.#db, () => {
@@ -314,9 +398,8 @@ export class PlanBoard {
       if (gateOf(row.state) !== gate) fail("STATE", 409, MESSAGES.state);
       const text = gate === "G1" ? (parsed<{ text: string }>(row.draft) as { text: string }).text : (row.design as string);
       if (textHash !== planTextHash(text)) stale();
-      const block = this.#approvable(member, row);
-      if (block === "not-owner") fail("FORBIDDEN", 403, MESSAGES.notOwner);
-      if (block === "open-blocking") fail("OPEN_BLOCKING", 409, MESSAGES.openBlocking);
+      const block = this.#approveBlock(member, row);
+      if (block) throw block.error;
       const approval: PlanApproval = { approvalId: randomUUID(), gate, memberId: member.id, at: this.#now(), textHash };
       const recorded = JSON.stringify(approval);
       this.#advance(
@@ -340,16 +423,21 @@ export class PlanBoard {
 
   /**
    * The PL or a hub admin stops an unfinished plan and ends its lease. A Story the Office already published for it is
-   * cancelled too while it is still a draft, so it can never open; an opened Story is left to the Story's own cancel.
+   * cancelled too while it is still a draft, so it can never open. A Story that already opened is left to the Story's
+   * own cancel, and the plan is over: it ends `open` with that Story recorded, which the answer names.
    */
-  cancel(a: Actor, planId: string, revision: number): { ok: true } {
+  cancel(a: Actor, planId: string, revision: number): { ok: true; story?: { id: string; number: number } } {
     return transaction(this.#db, () => {
       const row = this.#found(planId);
       if (row.pl_member_id !== a.member.id && !a.member.admin) fail("FORBIDDEN", 403, MESSAGES.notPlOrAdmin);
       this.#assertRevision(row, revision);
       if (FINISHED.includes(row.state)) fail("STATE", 409, MESSAGES.state);
-      this.#advance(row, a.member.id, "cancelled", { state: "cancelled", ...LEASE_CLEARED }, row.state);
       const story = this.#board.storyByKey(row.pl_member_id, planStoryKey(row.id));
+      if (story && OPENED_STORY.includes(story.state)) {
+        this.#advance(row, a.member.id, "open", { state: "open", story_id: story.id, ...LEASE_CLEARED }, "cancel");
+        return { ok: true as const, story: { id: story.id, number: story.number } };
+      }
+      this.#advance(row, a.member.id, "cancelled", { state: "cancelled", ...LEASE_CLEARED }, row.state);
       if (story?.state === "draft") this.#board.cancelStory({ member: a.member }, story.id);
       return { ok: true as const };
     });
@@ -362,7 +450,7 @@ export class PlanBoard {
     return {
       answer: pl && row.state === "questions",
       rewrite: pl && row.state === "draft",
-      approve: pl && gateOf(row.state) !== null ? this.#approvable(member, row) : "no",
+      approve: pl && gateOf(row.state) !== null ? (this.#approveBlock(member, row)?.block ?? "yes") : "no",
       retry: pl && row.state === "failed",
       cancel: (pl || member.admin) && !FINISHED.includes(row.state),
     };
@@ -381,10 +469,12 @@ export class PlanBoard {
       risk: row.risk,
       state: row.state,
       revision: row.revision,
+      repos: this.#snapshot(row),
       rounds: JSON.parse(row.rounds) as PlanRound[],
       draft: draft ? { text: draft.text, hash: planTextHash(draft.text) } : null,
       rewrite: row.rewrite ? { note: (JSON.parse(row.rewrite) as { note: string }).note } : null,
       design: row.design === null ? null : { text: row.design, hash: planTextHash(row.design) },
+      split: parsed<unknown>(row.split),
       g1: parsed<PlanApproval>(row.g1),
       g3: parsed<PlanApproval>(row.g3),
       failure: parsed<{ reason: string; from: OfficeState }>(row.failure),
@@ -442,11 +532,8 @@ export class PlanBoard {
       split: parsed<unknown>(row.split),
       g1: parsed<PlanApproval>(row.g1),
       g3: parsed<PlanApproval>(row.g3),
-      repos: this.#all<{ id: string; name: string; baseBranch: string }>(
-        `SELECT r.id,r.name,pr.base_branch baseBranch FROM hub_project_repos pr JOIN hub_repos r ON r.id=pr.repo_id
-         WHERE pr.project_id=? ORDER BY r.name,r.id`,
-        row.project_id,
-      ),
+      repos: this.#snapshot(row),
+      bases: parsed<Record<string, string>>(row.bases) ?? {},
       published: published ? { storyId: published.id, number: published.number, state: published.state } : null,
     };
   }
@@ -456,30 +543,52 @@ export class PlanBoard {
   }
 
   /**
-   * The link's member's Office work. A live lease of theirs comes back as it is (same id; being asked for counts as
-   * a heartbeat). Otherwise an ended lease is cleared and their oldest plan with Office work gets a new one.
-   * Neither changes the revision.
+   * Whether `row` may be leased: a design or splitting plan whose repos no longer stand as the PL started it is
+   * failed here, naming the repo, so it can be retried once fixed. A queued plan is left to the G1 check.
    */
-  next(l: Link): PlanLease | null {
+  #leasable(row: PlanRow): boolean {
+    if (row.state !== "design" && row.state !== "splitting") return true;
+    const problem = this.#reposProblem(row.pl_member_id, row);
+    if (!problem) return true;
+    const reason = `${problem.reason}${problem.kind === "not-owner" ? MESSAGES.ownerRetry : MESSAGES.reposRetry}`;
+    this.#advance(row, null, "failed", { state: "failed", failure: JSON.stringify({ reason, from: row.state }), ...LEASE_CLEARED }, "repos");
+    return false;
+  }
+
+  /**
+   * The Office instance `holder`'s work for the link's member. A live lease it holds comes back as it is (same id;
+   * being asked for counts as a heartbeat); a live lease another of the member's Offices holds means no work for this
+   * one. Otherwise an ended lease is cleared and the member's oldest plan with Office work gets a new one, held by
+   * `holder`. A design or splitting plan whose repos changed is failed instead (`#leasable`). Neither changes the
+   * revision of a plan it leases.
+   */
+  next(l: Link, holder: string): PlanLease | null {
+    const h = holderOf(holder);
     return transaction(this.#db, () => {
       const now = this.#now();
       const held = this.#get<PlanRow>("SELECT * FROM hub_plans WHERE pl_member_id=? AND lease_id IS NOT NULL", l.member.id);
       if (held && this.#live(held) && OFFICE_STATES.includes(held.state)) {
-        this.#run("UPDATE hub_plans SET heartbeat_at=? WHERE id=?", now, held.id);
-        return this.#lease(held.id);
-      }
-      if (held) {
-        this.#run("UPDATE hub_plans SET lease_id=NULL,leased_at=NULL,heartbeat_at=NULL WHERE id=?", held.id);
+        // Another Office of the same PL is at it: nothing for this one, and its asking is no sign of life.
+        if (held.holder !== h) return null;
+        if (this.#leasable(held)) {
+          this.#run("UPDATE hub_plans SET heartbeat_at=? WHERE id=?", now, held.id);
+          return this.#lease(held.id);
+        }
+      } else if (held) {
+        this.#run("UPDATE hub_plans SET lease_id=NULL,leased_at=NULL,heartbeat_at=NULL,holder=NULL WHERE id=?", held.id);
         this.#event(held.id, l.member.id, "lease_ended");
       }
-      const oldest = this.#get<{ id: string }>(
-        "SELECT id FROM hub_plans WHERE pl_member_id=? AND state IN ('queued','design','splitting') ORDER BY created_at,id LIMIT 1",
-        l.member.id,
-      );
-      if (!oldest) return null;
-      this.#run("UPDATE hub_plans SET lease_id=?,leased_at=?,heartbeat_at=? WHERE id=?", randomUUID(), now, now, oldest.id);
-      this.#event(oldest.id, l.member.id, "leased");
-      return this.#lease(oldest.id);
+      for (;;) {
+        const oldest = this.#get<PlanRow>(
+          "SELECT * FROM hub_plans WHERE pl_member_id=? AND state IN ('queued','design','splitting') ORDER BY created_at,id LIMIT 1",
+          l.member.id,
+        );
+        if (!oldest) return null;
+        if (!this.#leasable(oldest)) continue;
+        this.#run("UPDATE hub_plans SET lease_id=?,leased_at=?,heartbeat_at=?,holder=? WHERE id=?", randomUUID(), now, now, h, oldest.id);
+        this.#event(oldest.id, l.member.id, "leased", h);
+        return this.#lease(oldest.id);
+      }
     });
   }
 
@@ -491,31 +600,58 @@ export class PlanBoard {
   }
 
   /**
-   * Keeps the lease alive. A plan with no Office work now is STATE; a lease another of the member's Offices took over
-   * is NOT_YOURS; a lease that ended (cleared, or 600000 ms without a heartbeat) is gone. Revision unchanged.
+   * Keeps `holder`'s lease alive. A plan with no Office work now is STATE carrying its state (`PlanStateError`); a
+   * lease another Office took over or holds is NOT_YOURS; a lease that ended (cleared, or 600000 ms without a
+   * heartbeat) is gone. `bases` ({repoId: commit}) stores each of the plan's repos' Story base commit once: the same
+   * commit again is nothing, another is BASES_CHANGED and nothing changes. Revision unchanged, so the step's result
+   * still fits its lease; a stored commit is an event.
    */
-  heartbeat(l: Link, planId: string, leaseId: string): { ok: true } {
+  heartbeat(l: Link, holder: string, planId: string, leaseId: string, bases?: unknown): { ok: true } {
+    const h = holderOf(holder);
     return transaction(this.#db, () => {
       const row = this.#mine(l, planId);
-      if (!OFFICE_STATES.includes(row.state)) fail("STATE", 409, "이 기획은 지금 Office가 할 일이 없습니다.");
+      if (!OFFICE_STATES.includes(row.state)) throw new PlanStateError(row.state);
       if (row.lease_id !== leaseId) return row.lease_id === null ? gone() : notYours();
       if (!this.#live(row)) gone();
+      if (row.holder !== h) notYours();
+      this.#storeBases(l, row, bases);
       this.#run("UPDATE hub_plans SET heartbeat_at=? WHERE id=?", this.#now(), row.id);
       return { ok: true as const };
     });
   }
+  #storeBases(l: Link, row: PlanRow, bases: unknown) {
+    if (bases === undefined || bases === null) return;
+    const names = new Map(this.#snapshot(row).map((r) => [r.id, r.name]));
+    if (!isObject(bases) || !Object.entries(bases).every(([id, sha]) => names.has(id) && typeof sha === "string" && COMMIT.test(sha)))
+      fail("INVALID", 400, MESSAGES.bases);
+    const stored = parsed<Record<string, string>>(row.bases) ?? {};
+    const added: string[] = [];
+    for (const [id, sha] of Object.entries(bases as Record<string, string>)) {
+      if (!Object.hasOwn(stored, id)) {
+        stored[id] = sha;
+        added.push(id);
+      } else if (stored[id] !== sha)
+        fail("BASES_CHANGED", 409, `레포 ${names.get(id)}의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다.`);
+    }
+    if (added.length === 0) return;
+    this.#run("UPDATE hub_plans SET bases=? WHERE id=?", JSON.stringify(stored), row.id);
+    this.#event(row.id, l.member.id, "bases", added.join(","));
+  }
 
   /**
-   * The leased step's result, for the revision the lease was given. Another revision or another lease id is STALE
-   * and changes nothing; a lease that ended is gone. Each kind comes from its own state: questions and draft from
-   * queued, design from design, open from splitting, failed from any of the three. The lease ends with it.
+   * The leased step's result from the Office `holder`, for the revision the lease was given. Another revision or
+   * another lease id is STALE and changes nothing; a lease that ended is gone; another holder is NOT_YOURS. Each kind
+   * comes from its own state: questions and draft from queued, design from design, open from splitting, failed from
+   * any of the three. The lease ends with it.
    */
-  result(l: Link, planId: string, leaseId: string, revision: number, r: PlanResult): { ok: true; revision: number } {
+  result(l: Link, holder: string, planId: string, leaseId: string, revision: number, r: PlanResult): { ok: true; revision: number } {
+    const h = holderOf(holder);
     return transaction(this.#db, () => {
       const row = this.#mine(l, planId);
       if (revision !== row.revision) stale();
       if (row.lease_id !== leaseId) return row.lease_id === null ? gone() : stale();
       if (!this.#live(row)) gone();
+      if (row.holder !== h) notYours();
       const kind = isObject(r) && typeof r.kind === "string" && Object.hasOwn(RESULT_FROM, r.kind) ? (r.kind as PlanResult["kind"]) : null;
       if (kind === null) return fail("INVALID", 400, "결과 종류는 questions, draft, design, open, failed 중 하나여야 합니다.");
       if (!RESULT_FROM[kind].includes(row.state)) stale();

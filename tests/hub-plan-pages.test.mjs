@@ -17,9 +17,26 @@ const WAITING = "PL의 Mac이 가져가기를 기다립니다(보통 1분 안)."
 const NEW_STORY_FORBIDDEN = "프로젝트의 모든 레포 담당자만 새 Story를 만들 수 있습니다.";
 const INTENT_BYTES = "하고 싶은 일은 64KB(한글 약 2만 자)까지 적을 수 있습니다.";
 const EMPTY_BOARD = "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요.";
+const G3_NOTE = "승인하면 이 설계와 위 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
 const OLD_EMPTY_BOARD = "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
 const pill = (word) => `<span class="pill">${word}</span>`;
+/** The PL's Office instance: the lease holder id the plan helpers send. */
+const H = "a".repeat(32);
+const OPENED = (n) => `Story #${n}이 이미 열려 기획은 끝났습니다. Story 화면에서 진행을 보세요.`;
+const UNLINKED = (names) => `<p>PL의 Office에 연결되지 않은 레포: ${names} — PL Mac의 Office에 이 레포를 연결해야 기획이 시작됩니다.</p>`;
+/** A high-risk split as the PL's Office stores it with the design: t1 (app-be) before t2 (app-fe), one Story check. */
+const splitOf = (be, fe, text = (s) => s) => ({
+  plan: text("API 먼저, 화면은 뒤에"),
+  graph: {
+    nodes: [
+      { id: "t1", repoId: be, title: text("쿠폰 API"), spec: text("Outcome: 쿠폰을 발급한다\nScope: api"), files: [text("src/api.ts"), "src/coupon.ts"], verify: [{ id: "V1", argv: ["npm", "test", "--", text("coupon api")], timeoutMs: 60000 }] },
+      { id: "t2", repoId: fe, title: "쿠폰 버튼", spec: "Outcome: 버튼", files: ["src/ui.tsx"], verify: [{ id: "V1", argv: ["npm", "run", "test:ui"], timeoutMs: 120000 }] },
+    ],
+    edges: [{ from: "t1", to: "t2" }],
+  },
+  storyVerify: [{ repoId: fe, checks: [{ id: "S1", argv: ["npm", "run", text("e2e")], timeoutMs: 600000 }] }],
+});
 const q = (n, blocking = false, text = (s) => s) => ({ id: `Q${n}`, text: text(`질문 ${n}`), reason: text(`이유 ${n}`), blocking });
 
 /**
@@ -59,18 +76,18 @@ async function team(t, { now, storeNow, plans, project = true, names = {}, text 
   const create = (o = {}) =>
     h.plans.createPlan(pl.member, { projectId, title: text("쿠폰 발급"), intent: text("쿠폰을 한 번에 발급하고 싶어요."), risk: "normal", ...o }).planId;
   const lease = (id) => {
-    const l = h.plans.next(plBe);
+    const l = h.plans.next(plBe, H);
     assert.equal(l?.plan.id, id, "the PL's next plan");
     return l;
   };
   const result = (id, r) => {
     const l = lease(id);
-    return h.plans.result(plBe, id, l.leaseId, l.revision, r);
+    return h.plans.result(plBe, H, id, l.leaseId, l.revision, r);
   };
   const view = (id, who = pl) => h.plans.plan({ member: who.member }, id);
   const questions = (id, qs) => result(id, { kind: "questions", questions: qs });
   const draft = (id, body = DRAFT) => result(id, { kind: "draft", text: body, story: { title: "쿠폰 발급" } });
-  const design = (id, body = DESIGN) => result(id, { kind: "design", text: body, split: { tasks: [] } });
+  const design = (id, body = DESIGN, split = { tasks: [] }) => result(id, { kind: "design", text: body, split });
   const failed = (id, reason) => result(id, { kind: "failed", reason });
   const approve = (id, gate = "G1") => {
     const v = view(id);
@@ -389,13 +406,19 @@ test("a waiting plan says the PL's Mac is off with its last beat, or names the T
   assert.ok(h.board.claimNext(h.plBe));
   const held = h.board.openTaskOfMember(h.pl.member.id);
   assert.equal(held.repoName, "app-be");
-  const task = `<p>PL의 Office가 Task #${held.taskNumber}(app-be)을 맡고 있어, 그 Task가 끝나면 이어서 기획합니다.</p>`;
+  const task = `<p>PL의 Office가 Story #${pub.number} Task #${held.taskNumber}(app-be)을 맡고 있어, 그 Task가 끝나면 이어서 기획합니다.</p>`;
   let text = await h.page(id, h.b);
   assert.ok(text.includes(task));
   assert.ok(!text.includes("꺼져 있습니다"));
 
-  // While the Office is at it, or when the plan waits for the PL, there is nothing to say about the Mac.
+  // While the Office is at it the Mac is said only when it went off meanwhile (H10), never the Task.
   h.lease(id);
+  text = await h.page(id, h.b);
+  assert.ok(text.includes(`${pill("기획 중")} AI가 기획하고 있습니다.`));
+  // (The page's "ago" reads the real clock; only the store's runs five minutes ahead here.)
+  assert.match(text, /<p>PL의 Mac이 꺼져 있습니다\(마지막 확인 [^)]+\)\. 켜지면 이어서 합니다\.<\/p>/, "the Mac went off mid-step");
+  assert.ok(!text.includes("PL의 Office가"));
+  h.store.macHeartbeat(mac, "working", null);
   text = await h.page(id, h.b);
   assert.ok(!text.includes("PL의 Office가") && !text.includes("PL의 Mac"));
   h.questions(id, [q(1)]);
@@ -558,7 +581,7 @@ test("설계 승인, 다시 시도 and 취소 work for the PL; 취소 without �
   assert.ok(text.includes(`<pre># 설계\n\n1. api: 쿠폰 발급 API\n2. ui: 쿠폰 버튼\n</pre>`));
   const g3 = formOf(text, `/plans/${id}/approve`);
   assert.deepEqual(g3, { revision: String(h.view(id).revision), gate: "G3", hash: planTextHash(DESIGN) });
-  assert.ok(text.includes("승인하면 이 Task 목록을 그대로 올리고 엽니다."));
+  assert.ok(text.includes(G3_NOTE));
   assert.ok(text.includes("<button>설계 승인</button>"));
   assert.ok(!text.includes(`/plans/${id}/rewrite`), "a design is not rewritten");
   let res = await h.post(h.pl, `/plans/${id}/approve`, g3);
@@ -648,7 +671,7 @@ test("every new POST is 403 from another origin or without the CSRF token; proje
   h.answerAll(id, text("답"));
   h.draft(id, text(DRAFT));
   h.approve(id);
-  h.design(id, text(DESIGN));
+  h.design(id, text(DESIGN), splitOf(h.be, h.fe, text));
   const stuck = h.create();
   h.failed(stuck, `${text("첫 줄")}\n${text("자세히")}`);
 
@@ -685,7 +708,8 @@ test("every new POST is 403 from another origin or without the CSRF token; proje
   }
   assert.ok(!back.text.includes("<img") && back.text.includes(`value="제목 ${SAFE}"`), "the form sent back");
   const plan = (await h.get(`/plans/${id}`, h.b)).text;
-  for (const part of [`쿠폰 발급 ${SAFE}`, `쿠폰을 한 번에 발급하고 싶어요. ${SAFE}`, `질문 1 ${SAFE}`, `이유 1 ${SAFE}`, `답 ${SAFE}`, `${DRAFT} ${SAFE}`, `${DESIGN} ${SAFE}`, `쿠폰 개편 ${SAFE}`, `PL ${SAFE}`])
+  for (const part of [`쿠폰 발급 ${SAFE}`, `쿠폰을 한 번에 발급하고 싶어요. ${SAFE}`, `질문 1 ${SAFE}`, `이유 1 ${SAFE}`, `답 ${SAFE}`, `${DRAFT} ${SAFE}`, `${DESIGN} ${SAFE}`, `쿠폰 개편 ${SAFE}`, `PL ${SAFE}`,
+    `쿠폰 API ${SAFE}`, `Outcome: 쿠폰을 발급한다\nScope: api ${SAFE}`, `<code>src/api.ts ${SAFE}</code>`, `<code>coupon api ${SAFE}</code>`, `<code>e2e ${SAFE}</code>`, `app-be ${SAFE}`])
     assert.ok(plan.includes(part), part);
   const failedPage = (await h.get(`/plans/${stuck}`, h.pl)).text;
   assert.ok(failedPage.includes(`<b>첫 줄 ${SAFE}</b>`) && failedPage.includes(`<pre>자세히 ${SAFE}</pre>`));
@@ -714,4 +738,129 @@ test("a hub without plans answers 404 for the new pages and draws the board and 
   const text = (await empty.get("/board", empty.pl)).text;
   assert.ok(text.includes(OLD_EMPTY_BOARD));
   assert.ok(!text.includes("새 프로젝트"));
+});
+
+// ---- Final-review fixes: the whole split at G3 (H4), cancel of an opened plan (H2), the PL's Mac and Task lines (H10),
+// the plan's repos the PL's Office has not reached (H11), a plan whose repos changed (H3).
+
+test("the design shows the stored split in full under 올라갈 Task 전부 보기 (each Task's repo, title, what it waits for, spec, files, checks with their commands; the Story checks) before 설계 승인, whose note says it covers all of it", async (t) => {
+  const h = await team(t);
+  const id = h.create({ risk: "high" });
+  h.draft(id);
+  h.approve(id);
+  h.design(id, DESIGN, splitOf(h.be, h.fe));
+  let text = await h.page(id, h.b);
+  const block = /<details><summary>올라갈 Task 전부 보기<\/summary>([\s\S]*?)<\/details>/.exec(text);
+  assert.ok(block, "the details block, for every member");
+  for (const part of [
+    "<b>t1 · app-be · 쿠폰 API</b>", "<b>t2 · app-fe · 쿠폰 버튼</b>", "먼저 끝나야 할 Task: 없음", "먼저 끝나야 할 Task: t1",
+    "<pre>Outcome: 쿠폰을 발급한다\nScope: api</pre>", "<pre>Outcome: 버튼</pre>",
+    "<li><code>src/api.ts</code></li>", "<li><code>src/coupon.ts</code></li>", "<li><code>src/ui.tsx</code></li>",
+    "<li>V1: <code>npm</code> <code>test</code> <code>--</code> <code>coupon api</code> (60초 안)</li>",
+    "<li>V1: <code>npm</code> <code>run</code> <code>test:ui</code> (120초 안)</li>",
+    "Story 전체 확인", "<li>app-fe — S1: <code>npm</code> <code>run</code> <code>e2e</code> (600초 안)</li>",
+  ]) assert.ok(block[1].includes(part), part);
+  text = await h.page(id);
+  assert.ok(text.includes(G3_NOTE));
+  assert.ok(text.indexOf("<summary>올라갈 Task 전부 보기</summary>") < text.indexOf(`/plans/${id}/approve`), "read before the button");
+  h.approve(id, "G3");
+  assert.ok((await h.page(id)).includes("<summary>올라갈 Task 전부 보기</summary>"), "kept for the record after G3");
+  h.plans.cancel({ member: h.pl.member }, id, h.view(id).revision);
+  // A split of another shape is shown as it was stored, so nothing in it is hidden.
+  const odd = h.create({ risk: "high" });
+  h.draft(odd);
+  h.approve(odd);
+  h.design(odd, DESIGN, { tasks: [{ id: "api", note: EVIL }] });
+  text = await h.page(odd);
+  assert.ok(/<details><summary>올라갈 Task 전부 보기<\/summary><pre>[^<]*&#34;tasks&#34;/.test(text));
+  assert.ok(text.includes(SAFE) && !text.includes("<img"));
+  // A normal-risk plan has no stored split.
+  const normal = h.create();
+  h.draft(normal);
+  assert.ok(!(await h.page(normal)).includes("올라갈 Task 전부 보기"));
+});
+
+test("취소 on a plan whose Story already opened ends the plan open and the page says so once, with the Story link", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  h.draft(id);
+  h.approve(id);
+  h.lease(id);
+  const pub = h.publishOpen(id); // open reached the Hub, the open result did not
+  const cancel = formOf(await h.page(id), `/plans/${id}/cancel`);
+  const res = await h.post(h.pl, `/plans/${id}/cancel`, { ...cancel, confirm: "yes" });
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, `/plans/${id}?opened=1`);
+  const text = (await h.get(res.headers.location, h.pl)).text;
+  assert.ok(text.includes(`<section role="status"><p><b>${OPENED(pub.number)}</b></p></section>`));
+  assert.ok(text.includes(`${pill("열림")} Story #${pub.number}이 열렸습니다.`));
+  assert.ok(text.includes(`<a href="/stories/${pub.storyId}">Story #${pub.number} 보기</a>`));
+  assert.ok(!text.includes("<form "), "nothing left to do");
+  assert.deepEqual([h.view(id).state, h.view(id).story.id], ["open", pub.storyId]);
+  assert.equal(h.board.story({ member: h.pl.member }, pub.storyId).state, "open");
+  assert.ok(!(await h.page(id)).includes(OPENED(pub.number)), "only right after the click");
+  // A plain cancel goes back without it, and the notice needs an open plan.
+  const other = h.create();
+  const plain = await h.post(h.pl, `/plans/${other}/cancel`, { revision: String(h.view(other).revision), confirm: "yes" });
+  assert.equal(plain.headers.location, `/plans/${other}`);
+  assert.ok(!(await h.get(`/plans/${other}?opened=1`, h.pl)).text.includes("이미 열려"));
+});
+
+test("a waiting plan whose PL holds a failed Task says that Task must be retried or released, naming Story #S Task #T", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  const pub = h.board.publishStory(h.plBe, {
+    projectId: h.projectId, title: "다른 Story", body: "# Story", risk: "normal", key: "k1",
+    graph: { nodes: [{ id: "api", repoId: h.be, title: "api", spec: "api 설명", files: ["src/api.ts"], verify: [check] }], edges: [] },
+    storyVerify: [{ repoId: h.be, checks: [check] }],
+  });
+  h.board.openStory(h.plBe, pub.storyId);
+  const claimed = h.board.claimNext(h.plBe);
+  h.board.reportFailed(h.plBe, claimed.taskId, claimed.claimId, "검사가 실패했습니다.");
+  const text = await h.page(id, h.b);
+  assert.ok(text.includes(`<p>PL의 Office가 Story #${pub.number} Task #${claimed.number}(app-be)을 맡고 있는데 그 Task가 멈췄습니다. 그 Task를 다시 시도하거나 풀어야 기획이 이어집니다.</p>`));
+  assert.ok(!text.includes("끝나면 이어서"));
+  assert.ok(!text.includes("PL의 Office에 연결되지 않은"), "a busy Office reads only its Task's repo, so the others are not named");
+});
+
+test("a plan with Office work and no live lease names the plan's repos the PL's Office has not reached lately; not while leased, while the PL's Mac is off, or when the plan waits for the PL", async (t) => {
+  let skew = 0;
+  const h = await team(t, { storeNow: () => Date.now() + skew });
+  const id = h.create();
+  let text = await h.page(id, h.b);
+  assert.ok(text.includes(UNLINKED("app-fe")), "app-be's link was used at setup; app-fe has none");
+  assert.ok(text.includes("<p>PL의 Mac: 연결된 Mac 없음</p>"));
+  skew = MAC_OFFLINE_MS + 1000;
+  assert.ok((await h.page(id)).includes(UNLINKED("app-be, app-fe")), "nothing reached lately");
+  h.linkOf(h.pl, h.be);
+  h.linkOf(h.pl, h.fe);
+  assert.ok(!(await h.page(id)).includes("PL의 Office에 연결되지 않은"), "both reached now");
+  skew += MAC_OFFLINE_MS + 1000;
+  h.lease(id);
+  assert.ok(!(await h.page(id)).includes("PL의 Office에 연결되지 않은"), "the Office is at it");
+  h.draft(id);
+  assert.ok(!(await h.page(id)).includes("PL의 Office에 연결되지 않은"), "waiting for the PL");
+  // The PL's Mac is off: the Mac line says why, and every repo looks unreached for that reason alone.
+  const started = h.store.startMac("PL의 Mac");
+  h.store.approveMac(h.pl.member, started.userCode);
+  h.store.macHeartbeat(h.store.mac(h.store.pollMac(started.deviceCode).macToken), "idle", null);
+  skew += 5 * 60_000;
+  const other = h.create();
+  text = await h.page(other);
+  assert.ok(text.includes("PL의 Mac이 꺼져 있습니다"));
+  assert.ok(!text.includes("PL의 Office에 연결되지 않은"));
+});
+
+test("a plan whose project changed one of its repos since it started shows why it cannot be approved instead of 승인", async () => {
+  const { planPage } = await import("../src/hub/plan-pages.ts");
+  const v = {
+    id: randomUUID(), project: { id: randomUUID(), name: "쿠폰 개편" }, pl: { id: "m", name: "PL" }, title: "쿠폰 발급", intent: "쿠폰", risk: "normal",
+    state: "draft", revision: 3, repos: [], rounds: [], draft: { text: DRAFT, hash: planTextHash(DRAFT) }, rewrite: null, design: null, split: null,
+    g1: null, g3: null, failure: null, story: null, leased: false, heartbeatAt: null, createdAt: 0, updatedAt: 0, isPl: true,
+    actions: { answer: false, rewrite: true, approve: "repos-changed", retry: false, cancel: true },
+  };
+  const html = planPage({ id: "m", name: "PL", admin: false }, "c", v, { plMac: { state: "none", lastSeen: null }, plOpenTask: null, changed: false, unlinked: [], opened: false }, {});
+  assert.ok(html.includes("<p><b>기획을 시작한 뒤 프로젝트의 레포나 기준 브랜치가 바뀌어 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.</b></p>"));
+  assert.ok(!html.includes(`/plans/${v.id}/approve`));
+  assert.ok(html.includes(`/plans/${v.id}/rewrite`));
 });

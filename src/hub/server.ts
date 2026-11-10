@@ -215,7 +215,14 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           }
           if ((m = new RegExp(`^/plans/${ID}$`).exec(path))) {
             const v = c.plans.plan(actor, m[1]);
-            const o = { plMac: c.store.macBadge(v.pl.id), plOpenTask: board.openTaskOfMember(v.pl.id), changed: url.searchParams.get("changed") === "1" };
+            const reached = c.store.reachableRepos(v.pl.id);
+            const o = {
+              plMac: c.store.macBadge(v.pl.id),
+              plOpenTask: board.openTaskOfMember(v.pl.id),
+              changed: url.searchParams.get("changed") === "1",
+              unlinked: v.repos.filter((r) => !reached.has(r.id)).map((r) => r.name),
+              opened: url.searchParams.get("opened") === "1",
+            };
             return html(res, 200, planPages.planPage(me, s.csrf, v, o, chrome()));
           }
         }
@@ -380,6 +387,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           // Not a whole number: NaN, which the board refuses as INVALID after its permission check.
           const raw = f("revision");
           const revision = /^\d+$/.test(raw) ? Number(raw) : Number.NaN;
+          // A cancel that found the plan's Story already open ended the plan with it: the page says so once.
+          let opened = false;
           try {
             if (action === "answer") {
               const answers = Object.fromEntries(ANSWER_IDS.filter((q) => form.has(`answer-${q}`)).map((q) => [q, f(`answer-${q}`)]));
@@ -390,14 +399,14 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             else {
               // Cancelling cannot be undone, so the form must carry the box.
               if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "취소하려면 '정말 취소합니다'를 체크하세요.");
-              plans.cancel({ member: me }, id, revision);
+              opened = plans.cancel({ member: me }, id, revision).story !== undefined;
             }
           } catch (error) {
             // A second click or an older tab: show the plan as it is now instead of an error, and say why.
             if (error instanceof HubError && error.code === "STALE") return redirect(res, `/plans/${id}?changed=1`);
             throw error;
           }
-          return redirect(res, `/plans/${id}`);
+          return redirect(res, `/plans/${id}${opened ? "?opened=1" : ""}`);
         }
       }
     }

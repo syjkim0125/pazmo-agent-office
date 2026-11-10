@@ -5,7 +5,7 @@
  */
 import { ago, csrfField, esc, layout, macBadgeLabel, type Chrome } from "./pages.ts";
 import { PLAN_LIMITS, type PlanApproval, type PlanQuestion, type PlanRound, type PlanState } from "./plan-protocol.ts";
-import type { PlanView } from "./plan-store.ts";
+import type { PlanRepo, PlanView } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
 import type { OpenTaskRef, ProjectView } from "./story-store.ts";
 import { LIMITS } from "./story-protocol.ts";
@@ -29,6 +29,9 @@ const CHANGED = "그사이 기획이 바뀌어 새 화면을 보여 드립니다
 /** The same words the store refuses with, shown instead of a button the PL may not press. */
 const OPEN_BLOCKING = "막는 결정이 남은 초안은 승인할 수 없습니다. 고칠 점을 적어 다시 쓰게 하세요.";
 const NOT_OWNER = "프로젝트의 모든 레포 담당자여야 승인할 수 있습니다. 관리자에게 담당자 등록을 요청하세요.";
+const REPOS_CHANGED = "기획을 시작한 뒤 프로젝트의 레포나 기준 브랜치가 바뀌어 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.";
+/** G3 publishes the stored split exactly; the design's digest line binds all of it, so the note says so. */
+const G3_NOTE = "승인하면 이 설계와 위 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
 /** A plan in `open` is not cancellable, and cancel takes its Story along only while that Story is unopened (F4). */
 const CANCEL = "취소하면 이 기획을 멈춥니다. 이미 올라간 Story가 아직 열리지 않았으면 함께 취소됩니다.";
 
@@ -88,20 +91,69 @@ export function newStoryPage(
   return layout("새 Story", me, `<section><p class="muted"><a href="/board">${esc(project.name)}</a> · 레포: ${repos}</p><h1>새 Story</h1><p class="muted">하고 싶은 일을 적으면 내 Mac의 AI가 읽고, 필요하면 묻고, Story 초안을 씁니다. 초안을 승인하면 Task로 나눠 팀에 올립니다.</p>${alert(o.error)}${form}</section>`, chrome);
 }
 
+/** The PL's Mac when it is off: said even while a lease is live, since a Mac asleep mid-step holds it for up to 600000 ms. */
+const macOff = (mac: MacBadge) => `PL의 Mac이 꺼져 있습니다(마지막 확인 ${ago(mac.lastSeen)}). 켜지면 이어서 합니다.`;
 /** Why a plan with Office work and no live lease has not moved: the Task the PL's Office holds first, then the PL's Mac. */
 function macLine(mac: MacBadge, task: OpenTaskRef | null): string {
-  if (task) return `PL의 Office가 Task #${task.taskNumber}${task.repoName ? `(${task.repoName})` : ""}을 맡고 있어, 그 Task가 끝나면 이어서 기획합니다.`;
-  if (mac.state === "off") return `PL의 Mac이 꺼져 있습니다(마지막 확인 ${ago(mac.lastSeen)}). 켜지면 이어서 합니다.`;
+  if (task) {
+    const name = `Story #${task.storyNumber} Task #${task.taskNumber}${task.repoName ? `(${task.repoName})` : ""}`;
+    // A failed Task never ends by itself: the PL retries or releases it on its page.
+    return task.state === "failed"
+      ? `PL의 Office가 ${name}을 맡고 있는데 그 Task가 멈췄습니다. 그 Task를 다시 시도하거나 풀어야 기획이 이어집니다.`
+      : `PL의 Office가 ${name}을 맡고 있어, 그 Task가 끝나면 이어서 기획합니다.`;
+  }
+  if (mac.state === "off") return macOff(mac);
   return `PL의 Mac: ${macBadgeLabel(mac)}`;
+}
+const isText = (value: unknown): value is string => typeof value === "string";
+type Check = { id: string; argv: string[]; timeoutMs: number };
+type SplitNode = { id: string; repoId: string; title: string; spec: string; files: string[]; verify: Check[] };
+type Split = { graph: { nodes: SplitNode[]; edges: { from: string; to: string }[] }; storyVerify: { repoId: string; checks: Check[] }[] };
+const isRecord = (value: unknown): value is Record<string, unknown> => !!value && typeof value === "object" && !Array.isArray(value);
+const listOf = <T>(value: unknown, item: (x: unknown) => x is T): value is T[] => Array.isArray(value) && value.every(item);
+const isCheck = (c: unknown): c is Check =>
+  isRecord(c) && isText(c.id) && listOf(c.argv, isText) && typeof c.timeoutMs === "number";
+const isNode = (n: unknown): n is SplitNode =>
+  isRecord(n) && isText(n.id) && isText(n.repoId) && isText(n.title) && isText(n.spec) && listOf(n.files, isText) && listOf(n.verify, isCheck);
+/** The team Lead's split as the PL's Office stores it with a high-risk design (`TeamSplit`). */
+function isSplit(value: unknown): value is Split {
+  if (!isRecord(value) || !isRecord(value.graph)) return false;
+  const edge = (e: unknown): e is { from: string; to: string } => isRecord(e) && isText(e.from) && isText(e.to);
+  const verify = (v: unknown): v is Split["storyVerify"][number] => isRecord(v) && isText(v.repoId) && listOf(v.checks, isCheck);
+  return listOf(value.graph.nodes, isNode) && listOf(value.graph.edges, edge) && listOf(value.storyVerify, verify);
+}
+/**
+ * The stored split in full, every value escaped: what G3 publishes. Each Task's repo, title, the Tasks it waits for,
+ * spec, files and checks (each argument in its own box, so a space inside one shows), then the Story checks. A split of
+ * any other shape is shown as its JSON, so nothing in it is hidden.
+ */
+function splitDetails(split: unknown, repos: PlanRepo[]): string {
+  const repo = (id: string) => repos.find((r) => r.id === id)?.name ?? id;
+  const check = (c: Check, where = "") =>
+    `<li>${where}${esc(c.id)}: ${c.argv.map((a) => `<code>${esc(a)}</code>`).join(" ")} (${esc(Math.round(c.timeoutMs / 1000))}초 안)</li>`;
+  let body: string;
+  if (isSplit(split)) {
+    const task = (n: SplitNode) => {
+      const after = split.graph.edges.filter((e) => e.to === n.id).map((e) => e.from);
+      return `<li><p><b>${esc(n.id)} · ${esc(repo(n.repoId))} · ${esc(n.title)}</b></p><p class="muted">먼저 끝나야 할 Task: ${after.length ? esc(after.join(", ")) : "없음"}</p><pre>${esc(n.spec)}</pre><p>바꿀 파일</p><ul>${n.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul><p>확인 명령</p><ul>${n.verify.map((c) => check(c)).join("")}</ul></li>`;
+    };
+    const story = split.storyVerify.flatMap((v) => v.checks.map((c) => check(c, `${esc(repo(v.repoId))} — `)));
+    body = `<ol>${split.graph.nodes.map((n) => task(n)).join("")}</ol><h3>Story 전체 확인</h3>${story.length ? `<ul>${story.join("")}</ul>` : "<p>없음</p>"}`;
+  } else body = `<pre>${esc(JSON.stringify(split, null, 2))}</pre>`;
+  return `<details><summary>올라갈 Task 전부 보기</summary>${body}</details>`;
 }
 const when = (at: number) => `${new Date(at).toLocaleString("ko-KR")} (${ago(at)})`;
 
-/** `plMac` and `plOpenTask` are the PL's, read by the caller; `changed`: a click found the plan moved on and came back here. */
+/**
+ * `plMac` and `plOpenTask` are the PL's, read by the caller, and `unlinked` the names of the plan's repos the PL's Office
+ * has not reached lately; `changed`: a click found the plan moved on and came back here; `opened`: a cancel found the
+ * plan's Story already open and ended the plan with it.
+ */
 export function planPage(
   me: Member,
   csrf: string,
   v: PlanView,
-  o: { plMac: MacBadge; plOpenTask: OpenTaskRef | null; changed: boolean },
+  o: { plMac: MacBadge; plOpenTask: OpenTaskRef | null; changed: boolean; unlinked: string[]; opened: boolean },
   chrome: Chrome,
 ): string {
   const base = `/plans/${v.id}`;
@@ -129,11 +181,20 @@ export function planPage(
         ? `<p><b>${OPEN_BLOCKING}</b></p>`
         : v.actions.approve === "not-owner"
           ? `<p><b>${NOT_OWNER}</b></p>`
-          : "";
+          : v.actions.approve === "repos-changed"
+            ? `<p><b>${REPOS_CHANGED}</b></p>`
+            : "";
 
-  const mac = OFFICE.includes(v.state) && !v.leased ? `<p>${esc(macLine(o.plMac, o.plOpenTask))}</p>` : "";
+  const office = OFFICE.includes(v.state);
+  const off = o.plMac.state === "off";
+  const mac = !office ? "" : !v.leased ? `<p>${esc(macLine(o.plMac, o.plOpenTask))}</p>` : off ? `<p>${esc(macOff(o.plMac))}</p>` : "";
+  // A held Task, an off or locked Mac already say why; and a busy or off Office leaves its other links unreached anyway.
+  const unlinked =
+    office && !v.leased && !o.plOpenTask && !off && o.plMac.state !== "locked" && o.unlinked.length
+      ? `<p>${esc(`PL의 Office에 연결되지 않은 레포: ${o.unlinked.join(", ")} — PL Mac의 Office에 이 레포를 연결해야 기획이 시작됩니다.`)}</p>`
+      : "";
   const opened = v.state === "open" && v.story ? `<p><a href="/stories/${esc(v.story.id)}">Story #${v.story.number} 보기</a></p>` : "";
-  const head = `<section><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${pill(planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${opened}<p class="muted"><a href="${esc(base)}">새로 고침</a></p></section>`;
+  const head = `<section><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${pill(planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a href="${esc(base)}">새로 고침</a></p></section>`;
 
   let failure = "";
   if (v.state === "failed" && v.failure) {
@@ -150,6 +211,9 @@ export function planPage(
   const approvals = [v.g1, v.g3].filter((a): a is PlanApproval => a !== null);
   return layout(v.title, me, [
     o.changed ? `<section role="status"><p><b>${CHANGED}</b></p></section>` : "",
+    o.opened && v.state === "open" && v.story
+      ? `<section role="status"><p><b>Story #${v.story.number}이 이미 열려 기획은 끝났습니다. Story 화면에서 진행을 보세요.</b></p></section>`
+      : "",
     head,
     failure,
     `<section><details><summary>하고 싶은 일</summary><pre>${esc(v.intent)}</pre></details></section>`,
@@ -159,7 +223,7 @@ export function planPage(
       ? `<section><h2>Story 초안</h2><pre>${esc(v.draft.text)}</pre>${v.state === "draft" ? approve("G1", v.draft.hash, draftApprove, "승인") + rewrite : ""}</section>`
       : "",
     v.design
-      ? `<section><h2>설계</h2><pre>${esc(v.design.text)}</pre>${v.state === "awaiting_g3" ? approve("G3", v.design.hash, "승인하면 이 Task 목록을 그대로 올리고 엽니다.", "설계 승인") : ""}</section>`
+      ? `<section><h2>설계</h2><pre>${esc(v.design.text)}</pre>${v.split === null ? "" : splitDetails(v.split, v.repos)}${v.state === "awaiting_g3" ? approve("G3", v.design.hash, G3_NOTE, "설계 승인") : ""}</section>`
       : "",
     approvals.length
       ? `<section><h2>승인 기록</h2><ul>${approvals.map((a) => `<li>${a.gate} 승인: ${esc(v.pl.name)} · ${esc(when(a.at))}</li>`).join("")}</ul></section>`

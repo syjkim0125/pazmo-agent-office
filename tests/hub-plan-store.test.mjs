@@ -1,9 +1,16 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash, randomUUID } from "node:crypto";
+import { DatabaseSync } from "node:sqlite";
 import { setup } from "./hub-story-fixture.mjs";
 import { PLAN_LIMITS, hasOpenBlocking, planStoryKey, planTextHash } from "../src/hub/plan-protocol.ts";
+import { HubStore } from "../src/hub/store.ts";
+import { StoryBoard } from "../src/hub/story-store.ts";
+import { PlanBoard } from "../src/hub/plan-store.ts";
 
+/** Two Office instances of the PL (one per team-Office process start): the lease holder ids they send. */
+const H = "a".repeat(32), H2 = "0123456789abcdef".repeat(2);
+const SHA1 = "1".repeat(40), SHA2 = "2".repeat(40), SHA3 = "3".repeat(40);
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const sha = (text) => createHash("sha256").update(text, "utf8").digest("hex");
 const is = (code, message) => (e) => e.code === code && (message === undefined || e.message === message);
@@ -35,9 +42,9 @@ function world() {
   const view = (id, member = pl) => plans.plan({ member }, id);
   /** Leases the PL's next plan, checks it is `id`, and posts `r` under that lease. */
   const post = (id, r) => {
-    const lease = plans.next(plBe);
+    const lease = plans.next(plBe, H);
     assert.equal(lease?.plan.id, id);
-    return plans.result(plBe, id, lease.leaseId, lease.revision, r);
+    return plans.result(plBe, H, id, lease.leaseId, lease.revision, r);
   };
   const toDraft = (id, text = DRAFT) => post(id, { kind: "draft", text, story: { title: "쿠폰 발급" } });
   const approve = (id, gate = "G1", member = pl) => {
@@ -127,81 +134,81 @@ test("next leases the member's oldest queued, design or splitting plan with a ne
   const first = w.create();
   w.tick(1000);
   const second = w.create({ title: "두 번째", risk: "high" });
-  assert.equal(w.plans.next(w.bFe), null); // b의 기획은 없다
-  const lease = w.plans.next(w.plBe);
+  assert.equal(w.plans.next(w.bFe, H), null); // b의 기획은 없다
+  const lease = w.plans.next(w.plBe, H);
   assert.match(lease.leaseId, UUID);
   assert.equal(lease.revision, 1);
   assert.deepEqual(lease.plan, {
     id: first, projectId: w.projectId, plMemberId: w.pl.id, title: "쿠폰 발급", intent: "쿠폰을 한 번에 발급하고 싶어요.", risk: "normal",
     state: "queued", rounds: [], draft: null, rewrite: null, design: null, split: null, g1: null, g3: null,
     repos: [{ id: w.be, name: "app-be", baseBranch: "main" }, { id: w.fe, name: "app-fe", baseBranch: "develop" }],
-    published: null,
+    bases: {}, published: null,
   });
   // The PL's link of either project repo is the same person.
-  assert.equal(w.plans.next(w.plFe).leaseId, lease.leaseId);
+  assert.equal(w.plans.next(w.plFe, H).leaseId, lease.leaseId);
   const v = w.view(first);
   assert.deepEqual([v.leased, v.heartbeatAt, v.revision], [true, 1_001_000, 1]);
   // A plan waiting on the PL is not Office work: the next one is leased.
-  w.plans.result(w.plBe, first, lease.leaseId, 1, { kind: "questions", questions: [q(1)] });
-  const next = w.plans.next(w.plBe);
+  w.plans.result(w.plBe, H, first, lease.leaseId, 1, { kind: "questions", questions: [q(1)] });
+  const next = w.plans.next(w.plBe, H);
   assert.equal(next.plan.id, second);
   assert.notEqual(next.leaseId, lease.leaseId);
   // design: a high-risk plan approved at G1.
-  w.plans.result(w.plBe, second, next.leaseId, 1, { kind: "draft", text: DRAFT, story: {} });
+  w.plans.result(w.plBe, H, second, next.leaseId, 1, { kind: "draft", text: DRAFT, story: {} });
   w.approve(second);
-  const design = w.plans.next(w.plBe);
+  const design = w.plans.next(w.plBe, H);
   assert.deepEqual([design.plan.id, design.plan.state, design.revision], [second, "design", 3]);
 });
 
 test("one lease per member: next again while it is live returns the same lease id; after 600000 ms without a heartbeat next gives a new lease id and the old lease's heartbeat is NOT_YOURS", () => {
   const w = world();
   const id = w.create();
-  const old = w.plans.next(w.plBe);
+  const old = w.plans.next(w.plBe, H);
   w.tick(500_000);
-  assert.equal(w.plans.next(w.plBe).leaseId, old.leaseId); // a live lease handed back counts as a sign of life
+  assert.equal(w.plans.next(w.plBe, H).leaseId, old.leaseId); // a live lease handed back counts as a sign of life
   w.tick(500_000);
-  assert.deepEqual(w.plans.heartbeat(w.plBe, id, old.leaseId), { ok: true });
+  assert.deepEqual(w.plans.heartbeat(w.plBe, H, id, old.leaseId), { ok: true });
   w.tick(599_999);
   assert.equal(w.view(id).leased, true);
   w.tick(1);
   assert.equal(w.view(id).leased, false);
   // Ended but not yet replaced: gone (F11), not revived.
-  assert.throws(() => w.plans.heartbeat(w.plBe, id, old.leaseId), (e) => e.code === "PLAN_GONE" && e.status === 404);
-  const fresh = w.plans.next(w.plBe);
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, id, old.leaseId), (e) => e.code === "PLAN_GONE" && e.status === 404);
+  const fresh = w.plans.next(w.plBe, H);
   assert.equal(fresh.plan.id, id);
   assert.notEqual(fresh.leaseId, old.leaseId);
   assert.equal(fresh.revision, 1);
-  assert.throws(() => w.plans.heartbeat(w.plBe, id, old.leaseId), (e) => e.code === "NOT_YOURS" && e.status === 409);
-  assert.deepEqual(w.plans.heartbeat(w.plFe, id, fresh.leaseId), { ok: true });
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, id, old.leaseId), (e) => e.code === "NOT_YOURS" && e.status === 409);
+  assert.deepEqual(w.plans.heartbeat(w.plFe, H, id, fresh.leaseId), { ok: true });
   assert.equal(w.db.prepare("SELECT COUNT(*) n FROM hub_plans WHERE lease_id IS NOT NULL").get().n, 1);
   // Unknown plan (F11), another member, a plan that is not Office work.
-  assert.throws(() => w.plans.heartbeat(w.plBe, randomUUID(), fresh.leaseId), (e) => e.code === "PLAN_GONE" && e.status === 404);
-  assert.throws(() => w.plans.heartbeat(w.bFe, id, fresh.leaseId), is("NOT_YOURS"));
-  w.plans.result(w.plBe, id, fresh.leaseId, 1, { kind: "questions", questions: [q(1)] });
-  assert.throws(() => w.plans.heartbeat(w.plBe, id, fresh.leaseId), (e) => e.code === "STATE" && e.status === 409);
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, randomUUID(), fresh.leaseId), (e) => e.code === "PLAN_GONE" && e.status === 404);
+  assert.throws(() => w.plans.heartbeat(w.bFe, H, id, fresh.leaseId), is("NOT_YOURS"));
+  w.plans.result(w.plBe, H, id, fresh.leaseId, 1, { kind: "questions", questions: [q(1)] });
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, id, fresh.leaseId), (e) => e.code === "STATE" && e.status === 409);
   assert.equal(w.view(id).revision, 2);
 });
 
 test("result with an old revision or another lease id is STALE and changes nothing; result questions of a cancelled plan is STALE", () => {
   const w = world();
   const id = w.create();
-  const lease = w.plans.next(w.plBe);
+  const lease = w.plans.next(w.plBe, H);
   const questions = { kind: "questions", questions: [q(1)] };
   const stale = (e) => e.code === "STALE" && e.status === 409 && e.message === MSG.stale;
-  w.refused(id, () => w.plans.result(w.plBe, id, lease.leaseId, 0, questions), stale);
-  w.refused(id, () => w.plans.result(w.plBe, id, randomUUID(), 1, questions), stale);
-  w.refused(id, () => w.plans.result(w.plBe, id, lease.leaseId, 1, { kind: "design", text: DESIGN, split: SPLIT }), stale); // queued에서는 설계가 오지 않는다
-  w.refused(id, () => w.plans.result(w.bFe, id, lease.leaseId, 1, questions), is("NOT_YOURS"));
-  w.refused(id, () => w.plans.result(w.plBe, id, lease.leaseId, 1, { kind: "nope" }), is("INVALID"));
-  assert.throws(() => w.plans.result(w.plBe, randomUUID(), lease.leaseId, 1, questions), (e) => e.code === "PLAN_GONE" && e.status === 404);
+  w.refused(id, () => w.plans.result(w.plBe, H, id, lease.leaseId, 0, questions), stale);
+  w.refused(id, () => w.plans.result(w.plBe, H, id, randomUUID(), 1, questions), stale);
+  w.refused(id, () => w.plans.result(w.plBe, H, id, lease.leaseId, 1, { kind: "design", text: DESIGN, split: SPLIT }), stale); // queued에서는 설계가 오지 않는다
+  w.refused(id, () => w.plans.result(w.bFe, H, id, lease.leaseId, 1, questions), is("NOT_YOURS"));
+  w.refused(id, () => w.plans.result(w.plBe, H, id, lease.leaseId, 1, { kind: "nope" }), is("INVALID"));
+  assert.throws(() => w.plans.result(w.plBe, H, randomUUID(), lease.leaseId, 1, questions), (e) => e.code === "PLAN_GONE" && e.status === 404);
   w.plans.cancel({ member: w.pl }, id, 1);
-  w.refused(id, () => w.plans.result(w.plBe, id, lease.leaseId, 1, questions), stale);
+  w.refused(id, () => w.plans.result(w.plBe, H, id, lease.leaseId, 1, questions), stale);
   assert.deepEqual([w.view(id).state, w.view(id).rounds], ["cancelled", []]);
   // A lease that ended without anyone taking it over is gone (F11), even with the right revision.
   const other = w.create();
-  const ended = w.plans.next(w.plBe);
+  const ended = w.plans.next(w.plBe, H);
   w.tick(600_000);
-  w.refused(other, () => w.plans.result(w.plBe, other, ended.leaseId, 1, questions), (e) => e.code === "PLAN_GONE" && e.status === 404);
+  w.refused(other, () => w.plans.result(w.plBe, H, other, ended.leaseId, 1, questions), (e) => e.code === "PLAN_GONE" && e.status === 404);
 });
 
 test("a lease that ended is PLAN_GONE (404) on heartbeat and result, also after next cleared it for another plan (F11)", () => {
@@ -210,24 +217,24 @@ test("a lease that ended is PLAN_GONE (404) on heartbeat and result, also after 
   w.post(older, { kind: "questions", questions: [q(1)] }); // PL을 기다리는 동안 Office 일이 아니다
   w.tick(1000);
   const later = w.create({ title: "나중" });
-  const ended = w.plans.next(w.plBe);
+  const ended = w.plans.next(w.plBe, H);
   assert.equal(ended.plan.id, later);
   w.tick(600_000);
   w.plans.answer(w.pl, older, w.view(older).revision, { Q1: "답" }); // 더 오래된 기획이 다시 Office 일이 된다
-  assert.equal(w.plans.next(w.plBe).plan.id, older); // 끝난 빌림을 비우고 가장 오래된 기획을 빌려 준다
+  assert.equal(w.plans.next(w.plBe, H).plan.id, older); // 끝난 빌림을 비우고 가장 오래된 기획을 빌려 준다
   const v = w.view(later);
   assert.deepEqual([v.state, v.leased, v.heartbeatAt, v.revision], ["queued", false, null, 1]);
   const goneErr = (e) => e.code === "PLAN_GONE" && e.status === 404;
-  assert.throws(() => w.plans.heartbeat(w.plBe, later, ended.leaseId), goneErr);
-  w.refused(later, () => w.plans.result(w.plBe, later, ended.leaseId, 1, { kind: "questions", questions: [q(1)] }), goneErr);
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, later, ended.leaseId), goneErr);
+  w.refused(later, () => w.plans.result(w.plBe, H, later, ended.leaseId, 1, { kind: "questions", questions: [q(1)] }), goneErr);
   assert.deepEqual(w.db.prepare("SELECT kind FROM hub_plan_events WHERE plan_id=? ORDER BY id").all(later).map((r) => r.kind), ["created", "leased", "lease_ended"]);
 });
 
 test("result questions (1–3, ids Q1–Q3, text and reason 1–1000 chars, blocking boolean) appends a round and moves queued → questions; a sixth round is INVALID", () => {
   const w = world();
   const id = w.create();
-  const lease = w.plans.next(w.plBe);
-  const bad = (questions) => w.refused(id, () => w.plans.result(w.plBe, id, lease.leaseId, 1, { kind: "questions", questions }), is("INVALID"));
+  const lease = w.plans.next(w.plBe, H);
+  const bad = (questions) => w.refused(id, () => w.plans.result(w.plBe, H, id, lease.leaseId, 1, { kind: "questions", questions }), is("INVALID"));
   bad([]);
   bad([q(1), q(2), q(3), { ...q(3), id: "Q4" }]);
   bad([{ ...q(1), id: "Q4" }]);
@@ -240,7 +247,7 @@ test("result questions (1–3, ids Q1–Q3, text and reason 1–1000 chars, bloc
   bad("Q1");
   bad([null]);
   const asked = [{ ...q(1), text: "가".repeat(1000) }, q(2, true)];
-  assert.deepEqual(w.plans.result(w.plBe, id, lease.leaseId, 1, { kind: "questions", questions: asked }), { ok: true, revision: 2 });
+  assert.deepEqual(w.plans.result(w.plBe, H, id, lease.leaseId, 1, { kind: "questions", questions: asked }), { ok: true, revision: 2 });
   const v = w.view(id);
   assert.deepEqual([v.state, v.revision, v.leased, v.rounds], ["questions", 2, false, [{ questions: asked, answers: null }]]);
   // Rounds two to five, then a sixth is refused.
@@ -250,8 +257,8 @@ test("result questions (1–3, ids Q1–Q3, text and reason 1–1000 chars, bloc
   }
   w.plans.answer(w.pl, id, w.view(id).revision, { Q1: "다섯째 답" });
   assert.equal(w.view(id).rounds.length, 5);
-  const sixth = w.plans.next(w.plBe);
-  w.refused(id, () => w.plans.result(w.plBe, id, sixth.leaseId, sixth.revision, { kind: "questions", questions: [q(1)] }), is("INVALID"));
+  const sixth = w.plans.next(w.plBe, H);
+  w.refused(id, () => w.plans.result(w.plBe, H, id, sixth.leaseId, sixth.revision, { kind: "questions", questions: [q(1)] }), is("INVALID"));
 });
 
 test("answer: the PL answers every question of the last round once, each trimmed 1–4000 chars (4001 INVALID), a missing or extra id INVALID, an old revision STALE; the plan goes back to queued", () => {
@@ -278,14 +285,14 @@ test("answer: the PL answers every question of the last round once, each trimmed
   // A second click with the page's revision is stale; with a fresh one it is not a question round any more.
   w.refused(id, () => w.plans.answer(w.pl, id, r, { Q1: "a", Q2: "b" }), is("STALE"));
   w.refused(id, () => w.plans.answer(w.pl, id, r + 1, { Q1: "a", Q2: "b" }), is("STATE", MSG.state));
-  assert.deepEqual(w.plans.next(w.plBe).plan.rounds, v.rounds);
+  assert.deepEqual(w.plans.next(w.plBe, H).plan.rounds, v.rounds);
 });
 
 test("result draft stores text (32256 bytes ok, 32257 INVALID) and story (an object, JSON ≤ 65536 bytes) and moves to draft; rewrite keeps {note, previous} and goes back to queued", () => {
   const w = world();
   const id = w.create();
-  const lease = w.plans.next(w.plBe);
-  const draft = (text, story) => () => w.plans.result(w.plBe, id, lease.leaseId, 1, { kind: "draft", text, story });
+  const lease = w.plans.next(w.plBe, H);
+  const draft = (text, story) => () => w.plans.result(w.plBe, H, id, lease.leaseId, 1, { kind: "draft", text, story });
   const full = "가".repeat(10752); // 32256 bytes
   w.refused(id, draft(full + "a", {}), is("INVALID"));
   w.refused(id, draft("", {}), is("INVALID"));
@@ -305,12 +312,12 @@ test("result draft stores text (32256 bytes ok, 32257 INVALID) and story (an obj
   assert.deepEqual(w.plans.rewrite(w.pl, id, 2, "  더 짧게\r\n써 주세요  "), { ok: true });
   const after = w.view(id);
   assert.deepEqual([after.state, after.revision, after.draft, after.rewrite], ["queued", 3, null, { note: "더 짧게\n써 주세요" }]);
-  const again = w.plans.next(w.plBe);
+  const again = w.plans.next(w.plBe, H);
   assert.deepEqual([again.plan.draft, again.plan.rewrite], [null, { note: "더 짧게\n써 주세요", previous: full }]);
   w.refused(id, () => w.plans.rewrite(w.pl, id, 3, "또"), is("STATE"));
   // The next draft is stored exactly as sent (the Office hashes and re-renders it).
   const text = "# Story\r\n\n  끝 공백  \n";
-  w.plans.result(w.plBe, id, again.leaseId, 3, { kind: "draft", text, story: { a: 1 } });
+  w.plans.result(w.plBe, H, id, again.leaseId, 3, { kind: "draft", text, story: { a: 1 } });
   assert.deepEqual(w.view(id).draft, { text, hash: sha(text) });
   assert.deepEqual(w.plans.plan({ member: w.pl }, id).rewrite, { note: "더 짧게\n써 주세요" });
 });
@@ -349,10 +356,10 @@ test("approve G1 records {approvalId uuid, gate G1, memberId, at, textHash = sha
 test("result design stores text (≤ 16384 bytes) and split (object, JSON ≤ 524288 bytes) and moves to awaiting_g3; approve G3 binds sha256 of the design and moves to splitting", () => {
   const w = world();
   const id = w.approved({ risk: "high" });
-  const lease = w.plans.next(w.plBe);
+  const lease = w.plans.next(w.plBe, H);
   assert.deepEqual([lease.plan.state, lease.plan.g1.gate, lease.plan.draft.text], ["design", "G1", DRAFT]);
-  const design = (text, split) => () => w.plans.result(w.plBe, id, lease.leaseId, lease.revision, { kind: "design", text, split });
-  w.refused(id, () => w.plans.result(w.plBe, id, lease.leaseId, lease.revision, { kind: "draft", text: DRAFT, story: {} }), is("STALE"));
+  const design = (text, split) => () => w.plans.result(w.plBe, H, id, lease.leaseId, lease.revision, { kind: "design", text, split });
+  w.refused(id, () => w.plans.result(w.plBe, H, id, lease.leaseId, lease.revision, { kind: "draft", text: DRAFT, story: {} }), is("STALE"));
   w.refused(id, design("가".repeat(5461) + "aa", SPLIT), is("INVALID")); // 16385 bytes
   w.refused(id, design("", SPLIT), is("INVALID"));
   w.refused(id, design(DESIGN, [SPLIT]), is("INVALID"));
@@ -361,7 +368,7 @@ test("result design stores text (≤ 16384 bytes) and split (object, JSON ≤ 52
   assert.deepEqual(design(text, { x: "a".repeat(524280) })(), { ok: true, revision: lease.revision + 1 });
   let v = w.view(id);
   assert.deepEqual([v.state, v.design, v.leased], ["awaiting_g3", { text, hash: sha(text) }, false]);
-  assert.equal(w.plans.next(w.plBe), null); // 설계 승인을 기다리는 동안은 Office 일이 없다
+  assert.equal(w.plans.next(w.plBe, H), null); // 설계 승인을 기다리는 동안은 Office 일이 없다
   const r = v.revision;
   w.refused(id, () => w.plans.approve(w.pl, id, "G1", r, sha(DRAFT)), is("STATE"));
   w.refused(id, () => w.plans.approve(w.pl, id, "G3", r, sha(DRAFT)), is("STALE"));
@@ -371,27 +378,27 @@ test("result design stores text (≤ 16384 bytes) and split (object, JSON ≤ 52
   v = w.view(id);
   assert.deepEqual([v.state, v.g3], ["splitting", { approvalId, gate: "G3", memberId: w.pl.id, at: 1_007_000, textHash: sha(text) }]);
   assert.equal(v.g1.gate, "G1");
-  const split = w.plans.next(w.plBe);
+  const split = w.plans.next(w.plBe, H);
   assert.deepEqual([split.plan.state, split.plan.design, split.plan.split, split.plan.g3.approvalId], ["splitting", text, { x: "a".repeat(524280) }, approvalId]);
 });
 
 test("a splitting lease carries published null, then the Story this PL published with key plan:<planId> as {storyId, number, state}", () => {
   const w = world();
   const id = w.approved();
-  const lease = w.plans.next(w.plBe);
+  const lease = w.plans.next(w.plBe, H);
   assert.deepEqual([lease.plan.state, lease.plan.published], ["splitting", null]);
   w.publish("plan:other"); // another key is not this plan's Story
   const pub = w.publish(planStoryKey(id));
-  assert.deepEqual(w.plans.next(w.plBe).plan.published, { storyId: pub.storyId, number: pub.number, state: "draft" });
+  assert.deepEqual(w.plans.next(w.plBe, H).plan.published, { storyId: pub.storyId, number: pub.number, state: "draft" });
   w.board.openStory(w.plBe, pub.storyId);
-  assert.deepEqual(w.plans.next(w.plFe).plan.published, { storyId: pub.storyId, number: pub.number, state: "open" });
+  assert.deepEqual(w.plans.next(w.plFe, H).plan.published, { storyId: pub.storyId, number: pub.number, state: "open" });
 });
 
 test("result open needs that published Story in state open; it records the story id and moves to open; another Story id is INVALID", () => {
   const w = world();
   const id = w.approved();
-  const lease = w.plans.next(w.plBe);
-  const open = (storyId) => () => w.plans.result(w.plBe, id, lease.leaseId, lease.revision, { kind: "open", storyId });
+  const lease = w.plans.next(w.plBe, H);
+  const open = (storyId) => () => w.plans.result(w.plBe, H, id, lease.leaseId, lease.revision, { kind: "open", storyId });
   const other = w.publish("other");
   w.refused(id, open(other.storyId), is("INVALID")); // 아직 올리지 않음
   const pub = w.publish(planStoryKey(id));
@@ -404,21 +411,21 @@ test("result open needs that published Story in state open; it records the story
   const v = w.view(id);
   assert.deepEqual([v.state, v.story, v.leased], ["open", { id: pub.storyId, number: pub.number }, false]);
   assert.equal(w.db.prepare("SELECT story_id FROM hub_plans WHERE id=?").get(id).story_id, pub.storyId);
-  assert.equal(w.plans.next(w.plBe), null);
+  assert.equal(w.plans.next(w.plBe, H), null);
 });
 
 test("result failed keeps {reason, from}; retry by the PL goes back to from with revision + 1 and keeps g1 and g3", () => {
   const w = world();
   const id = w.create();
-  const lease = w.plans.next(w.plBe);
-  const fail = (reason) => () => w.plans.result(w.plBe, id, lease.leaseId, 1, { kind: "failed", reason });
+  const lease = w.plans.next(w.plBe, H);
+  const fail = (reason) => () => w.plans.result(w.plBe, H, id, lease.leaseId, 1, { kind: "failed", reason });
   w.refused(id, fail(" "), is("INVALID"));
   w.refused(id, fail("가".repeat(4001)), is("INVALID"));
   const reason = "레포 app-fe를 PL의 Mac에서 쓸 수 없습니다.\n자세한 이유";
   fail(` ${reason}\r\n`)();
   let v = w.view(id);
   assert.deepEqual([v.state, v.revision, v.failure, v.leased], ["failed", 2, { reason, from: "queued" }, false]);
-  assert.equal(w.plans.next(w.plBe), null);
+  assert.equal(w.plans.next(w.plBe, H), null);
   w.refused(id, () => w.plans.retry(w.b, id, 2), is("FORBIDDEN", MSG.notPl));
   w.refused(id, () => w.plans.retry(w.pl, id, 1), is("STALE"));
   assert.deepEqual(w.plans.retry(w.pl, id, 2), { ok: true });
@@ -436,19 +443,19 @@ test("result failed keeps {reason, from}; retry by the PL goes back to from with
   w.plans.retry(w.pl, high, before.revision + 1);
   const after = w.view(high);
   assert.deepEqual([after.state, after.revision, after.g1, after.g3, after.design], ["splitting", before.revision + 2, before.g1, before.g3, before.design]);
-  assert.equal(w.plans.next(w.plBe).plan.id, high);
+  assert.equal(w.plans.next(w.plBe, H).plan.id, high);
 });
 
 test("cancel by the PL or an admin ends any unfinished plan, clears the lease and cancels the published draft Story; a second cancel STATE; another member FORBIDDEN", () => {
   const w = world();
   const queued = w.create();
-  const lease = w.plans.next(w.plBe);
+  const lease = w.plans.next(w.plBe, H);
   w.refused(queued, () => w.plans.cancel({ member: w.b }, queued, 1), is("FORBIDDEN"));
   w.refused(queued, () => w.plans.cancel({ member: w.pl }, queued, 0), is("STALE"));
   assert.deepEqual(w.plans.cancel({ member: w.pl }, queued, 1), { ok: true });
   let v = w.view(queued);
   assert.deepEqual([v.state, v.revision, v.leased], ["cancelled", 2, false]);
-  assert.throws(() => w.plans.heartbeat(w.plBe, queued, lease.leaseId), is("STATE"));
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, queued, lease.leaseId), is("STATE"));
   w.refused(queued, () => w.plans.cancel({ member: w.pl }, queued, 2), is("STATE", MSG.state));
   // An admin may cancel too (recovery when the PL is gone); a failed plan is unfinished.
   const failed = w.create();
@@ -461,12 +468,14 @@ test("cancel by the PL or an admin ends any unfinished plan, clears the lease an
   w.plans.cancel({ member: w.pl }, splitting, w.view(splitting).revision);
   assert.equal(w.board.story({ member: w.pl }, pub.storyId).state, "cancelled");
   assert.throws(() => w.board.openStory(w.plBe, pub.storyId), is("STATE"));
-  // An opened Story is not the plan's to cancel (F4): it stays open, and an open plan is not cancellable.
+  // An opened Story is not the plan's to cancel (F4): it stays open, the plan ends open with it (H2), and an open plan is
+  // not cancellable.
   const opened = w.approved();
   const pub2 = w.publish(planStoryKey(opened));
   w.board.openStory(w.plBe, pub2.storyId);
   w.plans.cancel({ member: w.pl }, opened, w.view(opened).revision);
   assert.equal(w.board.story({ member: w.pl }, pub2.storyId).state, "open");
+  assert.equal(w.view(opened).state, "open");
   const done = w.approved();
   const pub3 = w.publish(planStoryKey(done));
   w.board.openStory(w.plBe, pub3.storyId);
@@ -533,7 +542,7 @@ test("myPlans lists the member's unfinished plans newest first, at most 20; proj
     state: "failed", leased: false, updatedAt: 1_023_000,
   });
   assert.deepEqual(w.plans.myPlans(w.b.id), []);
-  const leased = w.plans.next(w.plBe);
+  const leased = w.plans.next(w.plBe, H);
   assert.equal(leased.plan.id, ids[1]);
   assert.equal(w.plans.projectPlans(w.projectId).find((p) => p.id === ids[1]).leased, true);
   // Another project's plan stays in its own list.
@@ -564,4 +573,221 @@ test("createProject with ownedOnly refuses a repo the member does not own (FORBI
   assert.equal(w.board.storyByKey(w.b.id, "k1"), null);
   w.board.cancelStory({ member: w.pl }, pub.storyId);
   assert.equal(w.board.storyByKey(w.pl.id, "k1").state, "cancelled");
+});
+
+// ---- Final-review fixes: the lease holder (H5), STATE's state, base commits (H6), the repo snapshot (H3), cancel of an opened plan (H2).
+
+const kinds = (w, id) => w.db.prepare("SELECT kind FROM hub_plan_events WHERE plan_id=? ORDER BY id").all(id).map((r) => r.kind);
+const REPOS_TAIL = " 이 기획은 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.";
+const RETRY_TAIL = " 프로젝트를 처음대로 되돌린 뒤 다시 시도하거나, 취소하고 새 Story로 시작하세요.";
+const NOT_OWNER_FAILED = "레포 app-fe의 담당자에 PL이 없습니다. 관리자에게 담당자 등록을 요청한 뒤 다시 시도하세요.";
+
+test("a lease belongs to one Office: holder is 32 lowercase hex on next, heartbeat and result (else INVALID); while it is live another holder of the same PL gets no work and NOT_YOURS; once it ends the other holder gets a new lease", () => {
+  const w = world();
+  const id = w.create();
+  for (const bad of [undefined, "", "A".repeat(32), "a".repeat(31), "a".repeat(33), "g".repeat(32), 42])
+    assert.throws(() => w.plans.next(w.plBe, bad), is("INVALID"), String(bad));
+  assert.equal(w.view(id).leased, false, "a refused ask leases nothing");
+  const lease = w.plans.next(w.plBe, H);
+  w.tick(1000);
+  // Another Office of the same PL, through either link: no work, and its ask is no sign of life for the lease.
+  assert.equal(w.plans.next(w.plFe, H2), null);
+  assert.equal(w.plans.next(w.plBe, H2), null);
+  assert.equal(w.view(id).heartbeatAt, 1_000_000);
+  // The same Office through the other repo's link: the lease as it is.
+  assert.equal(w.plans.next(w.plFe, H).leaseId, lease.leaseId);
+  w.refused(id, () => w.plans.heartbeat(w.plBe, H2, id, lease.leaseId), (e) => e.code === "NOT_YOURS" && e.status === 409);
+  w.refused(id, () => w.plans.result(w.plFe, H2, id, lease.leaseId, 1, { kind: "failed", reason: "레포가 없습니다." }), (e) => e.code === "NOT_YOURS" && e.status === 409);
+  for (const bad of [undefined, "x", "B".repeat(32)]) {
+    w.refused(id, () => w.plans.heartbeat(w.plBe, bad, id, lease.leaseId), (e) => e.code === "INVALID" && e.status === 400);
+    w.refused(id, () => w.plans.result(w.plBe, bad, id, lease.leaseId, 1, { kind: "failed", reason: "x" }), is("INVALID"));
+  }
+  assert.deepEqual(w.plans.heartbeat(w.plBe, H, id, lease.leaseId), { ok: true });
+  w.tick(600_000);
+  const taken = w.plans.next(w.plFe, H2);
+  assert.equal(taken.plan.id, id);
+  assert.notEqual(taken.leaseId, lease.leaseId);
+  assert.equal(w.plans.next(w.plBe, H), null, "now the first Office is the other one");
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, id, lease.leaseId), is("NOT_YOURS"));
+  assert.deepEqual(w.plans.result(w.plFe, H2, id, taken.leaseId, 1, { kind: "questions", questions: [q(1)] }), { ok: true, revision: 2 });
+});
+
+test("a heartbeat on a plan with no Office work now is STATE carrying the plan's state (cancelled, failed, questions)", () => {
+  const w = world();
+  const state = (want) => (e) => e.code === "STATE" && e.status === 409 && e.state === want;
+  const cancelled = w.create();
+  const a = w.plans.next(w.plBe, H);
+  w.plans.cancel({ member: w.pl }, cancelled, 1);
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, cancelled, a.leaseId), state("cancelled"));
+  const failed = w.create();
+  const b = w.plans.next(w.plBe, H);
+  w.plans.result(w.plBe, H, failed, b.leaseId, 1, { kind: "failed", reason: "멈춤" });
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, failed, b.leaseId), state("failed"));
+  const asked = w.create();
+  const c = w.plans.next(w.plBe, H);
+  w.plans.result(w.plBe, H, asked, c.leaseId, 1, { kind: "questions", questions: [q(1)] });
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, asked, c.leaseId), state("questions"));
+});
+
+test("a heartbeat may carry bases {repoId: 40-hex sha}: each repo's commit is stored once and the lease's plan shows bases; a different sha for a stored repo is BASES_CHANGED and changes nothing; the revision never moves", () => {
+  const w = world();
+  const id = w.approved();
+  const lease = w.plans.next(w.plBe, H);
+  assert.deepEqual(lease.plan.bases, {});
+  const r = w.view(id).revision;
+  const beat = (bases) => () => w.plans.heartbeat(w.plBe, H, id, lease.leaseId, bases);
+  for (const bad of [[], "x", 7, { [w.be]: "1".repeat(39) }, { [w.be]: "A".repeat(40) }, { [w.be]: 1 }, { [randomUUID()]: SHA1 }])
+    assert.throws(beat(bad), (e) => e.code === "INVALID" && e.status === 400, JSON.stringify(bad));
+  assert.deepEqual(w.plans.next(w.plBe, H).plan.bases, {}, "a refused heartbeat stores nothing");
+  assert.deepEqual(beat({ [w.be]: SHA1 })(), { ok: true });
+  assert.deepEqual(w.plans.next(w.plBe, H).plan.bases, { [w.be]: SHA1 });
+  assert.deepEqual(beat({ [w.be]: SHA1, [w.fe]: SHA2 })(), { ok: true }, "the same commit again is fine");
+  assert.deepEqual(beat({ [w.fe]: SHA2 })(), { ok: true });
+  assert.deepEqual(beat(undefined)(), { ok: true });
+  assert.deepEqual(beat(null)(), { ok: true });
+  assert.deepEqual(beat({})(), { ok: true });
+  const row = () => ({ ...w.db.prepare("SELECT bases,heartbeat_at FROM hub_plans WHERE id=?").get(id) });
+  const before = row();
+  w.tick(1000);
+  // A new repo's commit in the same call is not stored either: nothing changes.
+  const third = w.store.addRepo(w.admin, "app-docs", "git@github.example.com:team/app-docs.git");
+  assert.throws(beat({ [w.fe]: SHA2, [w.be]: SHA3 }), (e) =>
+    e.code === "BASES_CHANGED" && e.status === 409 && e.message === "레포 app-be의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다.");
+  assert.throws(beat({ [third]: SHA3 }), is("INVALID"), "a repo that is not the plan's");
+  assert.deepEqual(row(), before);
+  assert.equal(w.view(id).revision, r);
+  assert.deepEqual(kinds(w, id).filter((k) => k === "bases"), ["bases", "bases"], "one event per stored change");
+  // Kept through a failure and its retry, and never replaced.
+  w.plans.result(w.plBe, H, id, lease.leaseId, r, { kind: "failed", reason: "app-fe의 Story base를 올리지 못했습니다." });
+  w.plans.retry(w.pl, id, r + 1);
+  const again = w.plans.next(w.plBe, H);
+  assert.deepEqual(again.plan.bases, { [w.be]: SHA1, [w.fe]: SHA2 });
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, id, again.leaseId, { [w.fe]: SHA3 }), is("BASES_CHANGED"));
+});
+
+test("createPlan snapshots the project's repos (id, name, base branch): the lease's repos are the snapshot, and a repo added to the project later neither joins the plan nor blocks its approval", () => {
+  const w = world();
+  const id = w.create();
+  const docs = w.store.addRepo(w.admin, "app-docs", "git@github.example.com:team/app-docs.git");
+  w.board.addProjectRepo(w.plBe, w.projectId, docs, "main"); // the PL owns no app-docs
+  const snapshot = [{ id: w.be, name: "app-be", baseBranch: "main" }, { id: w.fe, name: "app-fe", baseBranch: "develop" }];
+  assert.deepEqual(w.plans.next(w.plBe, H).plan.repos, snapshot);
+  w.toDraft(id);
+  assert.equal(w.view(id).actions.approve, "yes");
+  w.approve(id);
+  const split = w.plans.next(w.plBe, H);
+  assert.deepEqual([split.plan.state, split.plan.repos], ["splitting", snapshot]);
+});
+
+test("approve (G1 and G3) needs the PL to own every snapshot repo and the project to still hold each with its base branch; otherwise refused naming the repo, and the page's approve says why", () => {
+  const w = world();
+  const id = w.create();
+  w.toDraft(id);
+  const r = w.view(id).revision;
+  const hash = sha(DRAFT);
+  w.db.prepare("DELETE FROM hub_project_repos WHERE project_id=? AND repo_id=?").run(w.projectId, w.fe);
+  assert.equal(w.view(id).actions.approve, "repos-changed");
+  w.refused(id, () => w.plans.approve(w.pl, id, "G1", r, hash), (e) =>
+    e.code === "REPOS_CHANGED" && e.status === 409 && e.message === `기획을 시작한 뒤 프로젝트에서 레포 app-fe이(가) 빠졌습니다.${REPOS_TAIL}`);
+  w.db.prepare("INSERT INTO hub_project_repos(project_id,repo_id,base_branch) VALUES (?,?,?)").run(w.projectId, w.fe, "main");
+  w.refused(id, () => w.plans.approve(w.pl, id, "G1", r, hash), (e) =>
+    e.code === "REPOS_CHANGED" && e.message === `기획을 시작한 뒤 레포 app-fe의 기준 브랜치가 develop에서 main(으)로 바뀌었습니다.${REPOS_TAIL}`);
+  w.db.prepare("UPDATE hub_project_repos SET base_branch='develop' WHERE project_id=? AND repo_id=?").run(w.projectId, w.fe);
+  w.store.removeOwner(w.admin, w.fe, w.pl.id);
+  assert.equal(w.view(id).actions.approve, "not-owner");
+  w.refused(id, () => w.plans.approve(w.pl, id, "G1", r, hash), is("FORBIDDEN", MSG.notOwner));
+  w.store.addOwner(w.admin, w.fe, w.pl.id);
+  w.approve(id);
+  // G3 by the same rule.
+  const o = world();
+  const high = o.approved({ risk: "high" });
+  o.post(high, { kind: "design", text: DESIGN, split: SPLIT });
+  o.db.prepare("UPDATE hub_project_repos SET base_branch='release' WHERE project_id=? AND repo_id=?").run(o.projectId, o.be);
+  assert.equal(o.view(high).actions.approve, "repos-changed");
+  const hr = o.view(high).revision;
+  o.refused(high, () => o.plans.approve(o.pl, high, "G3", hr, sha(DESIGN)), is("REPOS_CHANGED"));
+  o.db.prepare("UPDATE hub_project_repos SET base_branch='main' WHERE project_id=? AND repo_id=?").run(o.projectId, o.be);
+  o.approve(high, "G3");
+  assert.equal(o.view(high).state, "splitting");
+});
+
+test("next fails a design or splitting plan whose PL lost a snapshot repo or whose project dropped one or changed its base branch, naming the repo, and leases the next plan instead; a retry after the fix is leased", () => {
+  const w = world();
+  const splitting = w.approved();
+  w.tick(1000);
+  const queued = w.create({ title: "다음" });
+  const r = w.view(splitting).revision;
+  w.store.removeOwner(w.admin, w.fe, w.pl.id);
+  const lease = w.plans.next(w.plBe, H);
+  assert.equal(lease.plan.id, queued, "a queued plan is not checked: G1 checks it");
+  let v = w.view(splitting);
+  assert.deepEqual([v.state, v.revision, v.leased, v.failure], ["failed", r + 1, false, { reason: NOT_OWNER_FAILED, from: "splitting" }]);
+  assert.deepEqual(kinds(w, splitting).slice(-1), ["failed"]);
+  assert.equal(w.db.prepare("SELECT member_id FROM hub_plan_events WHERE plan_id=? ORDER BY id DESC LIMIT 1").get(splitting).member_id, null, "the Hub's own check");
+  w.plans.cancel({ member: w.pl }, queued, w.view(queued).revision);
+  assert.equal(w.plans.next(w.plBe, H), null, "nothing else to lease");
+  w.store.addOwner(w.admin, w.fe, w.pl.id);
+  w.plans.retry(w.pl, splitting, r + 1);
+  assert.equal(w.plans.next(w.plBe, H).plan.id, splitting);
+
+  // A design plan whose project changed a base branch; a held live lease is checked when handed back too.
+  const o = world();
+  const design = o.approved({ risk: "high" });
+  const held = o.plans.next(o.plBe, H);
+  assert.equal(held.plan.state, "design");
+  o.db.prepare("UPDATE hub_project_repos SET base_branch='release' WHERE project_id=? AND repo_id=?").run(o.projectId, o.be);
+  assert.equal(o.plans.next(o.plBe, H), null);
+  v = o.view(design);
+  assert.deepEqual([v.state, v.leased, v.failure], ["failed", false, { reason: `기획을 시작한 뒤 레포 app-be의 기준 브랜치가 main에서 release(으)로 바뀌었습니다.${RETRY_TAIL}`, from: "design" }]);
+  assert.throws(() => o.plans.heartbeat(o.plBe, H, design, held.leaseId), (e) => e.code === "STATE" && e.state === "failed");
+  o.db.prepare("UPDATE hub_project_repos SET base_branch='main' WHERE project_id=? AND repo_id=?").run(o.projectId, o.be);
+  o.db.prepare("DELETE FROM hub_project_repos WHERE project_id=? AND repo_id=?").run(o.projectId, o.fe);
+  o.plans.retry(o.pl, design, v.revision);
+  assert.equal(o.plans.next(o.plBe, H), null);
+  assert.equal(o.view(design).failure.reason, `기획을 시작한 뒤 프로젝트에서 레포 app-fe이(가) 빠졌습니다.${RETRY_TAIL}`);
+});
+
+test("cancel of a plan whose published Story already opened ends the plan open with that Story recorded instead of cancelled, and says which Story (also for an admin and a failed plan)", () => {
+  const w = world();
+  const id = w.approved();
+  const lease = w.plans.next(w.plBe, H);
+  const pub = w.publish(planStoryKey(id));
+  w.board.openStory(w.plBe, pub.storyId);
+  const r = w.view(id).revision;
+  assert.deepEqual(w.plans.cancel({ member: w.pl }, id, r), { ok: true, story: { id: pub.storyId, number: pub.number } });
+  const v = w.view(id);
+  assert.deepEqual([v.state, v.revision, v.story, v.leased, v.actions.cancel], ["open", r + 1, { id: pub.storyId, number: pub.number }, false, false]);
+  assert.equal(w.board.story({ member: w.pl }, pub.storyId).state, "open");
+  assert.deepEqual(kinds(w, id).slice(-1), ["open"]);
+  assert.throws(() => w.plans.heartbeat(w.plBe, H, id, lease.leaseId), (e) => e.code === "STATE" && e.state === "open");
+  assert.deepEqual(w.plans.myPlans(w.pl.id).map((p) => p.id), [], "no longer in progress");
+  // A failed plan (the open result never landed), cancelled by an admin.
+  const failed = w.approved();
+  const pub2 = w.publish(planStoryKey(failed));
+  w.board.openStory(w.plBe, pub2.storyId);
+  w.post(failed, { kind: "failed", reason: "Hub가 답하지 않습니다." });
+  assert.deepEqual(w.plans.cancel({ member: w.admin }, failed, w.view(failed).revision), { ok: true, story: { id: pub2.storyId, number: pub2.number } });
+  assert.deepEqual([w.view(failed).state, w.view(failed).story?.id], ["open", pub2.storyId]);
+});
+
+test("a hub_plans table from before the snapshot, holder and bases gets the columns, and its plans snapshot their project's repos then", () => {
+  let now = 1_000_000;
+  const db = new DatabaseSync(":memory:");
+  const store = new HubStore(db, () => now);
+  const board = new StoryBoard(db, () => now);
+  const admin = store.acceptInvite(store.bootstrapAdmin(), "mac").member;
+  const be = store.addRepo(admin, "app-be", "git@github.example.com:team/app-be.git");
+  const { projectId } = board.createProject({ member: admin }, "쿠폰 개편", [{ repoId: be, baseBranch: "main" }]);
+  db.exec(`CREATE TABLE hub_plans(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES hub_projects(id),pl_member_id TEXT NOT NULL REFERENCES hub_members(id),title TEXT NOT NULL,intent TEXT NOT NULL,risk TEXT NOT NULL CHECK(risk IN ('normal','high')),state TEXT NOT NULL CHECK(state IN ('queued','questions','draft','design','awaiting_g3','splitting','open','failed','cancelled')),revision INTEGER NOT NULL,rounds TEXT NOT NULL,draft TEXT,rewrite TEXT,design TEXT,split TEXT,g1 TEXT,g3 TEXT,failure TEXT,story_id TEXT REFERENCES hub_stories(id),lease_id TEXT,leased_at INTEGER,heartbeat_at INTEGER,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL);`);
+  const old = randomUUID();
+  db.prepare("INSERT INTO hub_plans(id,project_id,pl_member_id,title,intent,risk,state,revision,rounds,created_at,updated_at) VALUES (?,?,?,?,?,'normal','queued',1,'[]',?,?)")
+    .run(old, projectId, admin.id, "옛 기획", "옛 일", now, now);
+  const plans = new PlanBoard(db, board, () => now);
+  const columns = db.prepare("PRAGMA table_info(hub_plans)").all().map((c) => c.name);
+  for (const name of ["holder", "repos", "bases"]) assert.ok(columns.includes(name), name);
+  const link = store.link(store.pair(store.createLinkCode(admin, be), "https://github.example.com/team/app-be").token);
+  const lease = plans.next(link, H);
+  assert.deepEqual([lease.plan.id, lease.plan.repos, lease.plan.bases], [old, [{ id: be, name: "app-be", baseBranch: "main" }], {}]);
+  new PlanBoard(db, board, () => now); // a second start changes nothing
+  assert.equal(plans.next(link, H).leaseId, lease.leaseId);
 });

@@ -54,7 +54,10 @@ export type PlanRecord = {
   split: unknown | null;
   g1: PlanApproval | null;
   g3: PlanApproval | null;
+  /** The project's repos as they were when the PL started the plan (a repo added later is not the plan's). */
   repos: { id: string; name: string; baseBranch: string }[];
+  /** Each repo's Story base commit the Office recorded through a heartbeat, stored once; `{}` before any. */
+  bases: Record<string, string>;
   /** The Story this PL published under `planStoryKey(id)`, if any: a retry continues it instead of publishing again. */
   published: { storyId: string; number: number; state: StoryState } | null;
 };
