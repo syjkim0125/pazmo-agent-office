@@ -19,7 +19,7 @@ import type { MacClient, MacLinkFile } from "./mac.ts";
 import { syncMacRepos } from "./mac-sync.ts";
 import { createMacWatch, spawnMacRestart } from "./mac-watch.ts";
 import type { Presence } from "./mac-watch.ts";
-import { planLink } from "./plan-link.ts";
+import { newPlanHolder, planLink } from "./plan-link.ts";
 import type { PlanLink } from "./plan-link.ts";
 import { createPlanner, planGitOps } from "./planner.ts";
 import type { PlanGit, PlanLane } from "./planner.ts";
@@ -99,9 +99,9 @@ export type TeamConfig = {
   now?: () => number;
   /** The Story link of a repo from its data directory; default: its hub-link.json. */
   linkOf?: (dataDir: string) => StoryLink | null;
-  /** The plan link of a repo from its data directory (the same link, for the PL's plan work); default: its
-   * hub-link.json. */
-  planLinkOf?: (dataDir: string) => PlanLink | null;
+  /** The plan link of a repo from its data directory (the same link, for the PL's plan work) carrying `holder`, this
+   * Office start's lease holder id; default: its hub-link.json. */
+  planLinkOf?: (dataDir: string, holder: string) => PlanLink | null;
   /** Tests only: the host git of a plan's planning tree; default `planGitOps(host)`. */
   planGit?: PlanGit;
   /** The gh login for a Git host; default: `gh auth status --hostname` with `host`'s PATH and HOME. */
@@ -247,9 +247,9 @@ function defaultLinkOf(dataDir: string): StoryLink | null {
   const config = readLinkConfig(dataDir);
   return config ? storyLink(config) : null;
 }
-function defaultPlanLinkOf(dataDir: string): PlanLink | null {
+function defaultPlanLinkOf(dataDir: string, holder: string): PlanLink | null {
   const config = readLinkConfig(dataDir);
-  return config ? planLink(config) : null;
+  return config ? planLink(config, undefined, holder) : null;
 }
 
 const stateOf = (lane: RepoLane): RepoLane["state"] => (!lane.link ? "no-link" : lane.gh?.ok ? "ready" : "gh");
@@ -367,10 +367,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     }
   }
   const planLinkOf = c.planLinkOf ?? defaultPlanLinkOf;
+  /** This Office start's lease holder id, on every plan link: a plan step leased here is this Office's alone, not
+   * another Office's of the same person (a Mac and a connection-string Office). */
+  const holder = newPlanHolder();
   /** The same link file as the Story link: a file that cannot be read was said by `linkFor`. */
   function planLinkFor(dataDir: string): PlanLink | null {
     try {
-      return planLinkOf(dataDir);
+      return planLinkOf(dataDir, holder);
     } catch {
       return null;
     }
@@ -725,13 +728,15 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       firstDriven = true;
     });
   // The PL's plan work, only when live: a step runs only where a Task could (live, runners ready, no record open, no
-  // run, no restart held); a pause and the daily cap are for Tasks.
+  // run, no restart held) and once the executor's drive is idle: a drive whose record a heartbeat dropped may still
+  // run git on a checkout the planner fetches into. A pause and the daily cap are for Tasks.
   if (live)
     planner = createPlanner({
       root: c.root,
       lanes: planLanes,
       engineOf: (project) => engineOf(project).office!,
-      canStart: () => live && runnersReady && teamStore.openClaim() === null && !gate.busy() && !watch.holding() && !stopped,
+      canStart: () =>
+        live && runnersReady && teamStore.openClaim() === null && !gate.busy() && !ex.busy() && !watch.holding() && !stopped,
       git: c.planGit ?? planGitOps(hostEnv),
       beatMs: c.beatMs ?? BEAT_MS,
       recheckMs,

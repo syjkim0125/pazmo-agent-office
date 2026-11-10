@@ -73,6 +73,7 @@ export function planRecord(over = {}) {
       { id: FE, name: "app-fe", baseBranch: "develop" },
     ],
     published: null,
+    bases: {},
     ...over,
   };
 }
@@ -91,12 +92,15 @@ const REPOS = {
 };
 
 /**
- * A PlanLink that records its calls in `calls` as [name, call, ...args]. `lease` is what `next` answers until a
- * result is taken (the Hub ends the lease then); `nextError` makes every `next` throw; `on.<call>` runs before the
- * call answers (throw to refuse it). The Story routes keep the Hub's rules over `stories` (storyId -> { id, number,
- * key, state, input }): `publish` answers `already: true` for a key it has and numbers a new Story, a draft, from
- * `nextNumber`; `open` takes only a draft (409 STATE otherwise); `story` names one branch per repo of the Story's
- * tasks and Story checks (`feature/story-<N>/base`); `cancel` refuses a cancelled Story (409 STATE).
+ * A PlanLink that records its calls in `calls` as [name, call, ...args] (a heartbeat's bases, when it carries them,
+ * last). `lease` is what `next` answers until a result is taken (the Hub ends the lease then); `nextError` makes every
+ * `next` throw; `on.<call>` runs before the call answers (throw to refuse it). A heartbeat's bases keep the Hub's rule
+ * in `bases` (planId -> { repoId: sha }): each repo's first commit is kept, another one is 409 BASES_CHANGED and
+ * nothing is kept; a lease shows them only when the test puts them on its plan. The Story routes keep the Hub's rules
+ * over `stories` (storyId -> { id, number, key, state, input }): `publish` answers `already: true` for a key it has
+ * and numbers a new Story, a draft, from `nextNumber`; `open` takes only a draft (409 STATE otherwise); `story` names
+ * one branch per repo of the Story's tasks and Story checks (`feature/story-<N>/base`); `cancel` refuses a cancelled
+ * Story (409 STATE).
  */
 export function fakePlanLink(repoId, calls, name = repoId) {
   const found = (storyId) => {
@@ -110,15 +114,22 @@ export function fakePlanLink(repoId, calls, name = repoId) {
     nextError: null,
     on: {},
     stories: new Map(),
+    bases: {},
     nextNumber: 7,
     async next() {
       calls.push([name, "next"]);
+      await link.on.next?.();
       if (link.nextError) throw link.nextError;
       return link.lease;
     },
-    async heartbeat(planId, leaseId) {
-      calls.push([name, "heartbeat", planId, leaseId]);
-      await link.on.heartbeat?.();
+    async heartbeat(planId, leaseId, bases) {
+      calls.push([name, "heartbeat", planId, leaseId, ...(bases ? [bases] : [])]);
+      await link.on.heartbeat?.(bases);
+      if (!bases) return;
+      const kept = (link.bases[planId] ??= {});
+      if (Object.entries(bases).some(([repoId, sha]) => kept[repoId] !== undefined && kept[repoId] !== sha))
+        throw hubError(409, "BASES_CHANGED");
+      Object.assign(kept, bases);
     },
     async result(planId, leaseId, revision, r) {
       calls.push([name, "result", planId, leaseId, revision, r]);
@@ -163,8 +174,8 @@ export function fakePlanLink(repoId, calls, name = repoId) {
   return link;
 }
 
-/** A Hub error as hubCall throws it. */
-export const hubError = (status, code) => Object.assign(new Error(code ?? `HTTP ${status}`), { status, code });
+/** A Hub error as hubCall throws it; `extra` holds fields of the answer it carries (a STATE's `state`). */
+export const hubError = (status, code, extra = {}) => Object.assign(new Error(code ?? `HTTP ${status}`), { status, code, ...extra });
 
 /**
  * The host git of a planning tree without git: a checkout's base tip is `tips[checkout]` ("a" * 40 otherwise), its

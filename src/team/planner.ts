@@ -27,7 +27,7 @@ import type { TeamSplit } from "../runners/team-planning.ts";
 import * as branch from "./branch.ts";
 import type { GitEnv } from "./branch.ts";
 import { PlanGateError, checkApprovals, writeGateRecords } from "./plan-gates.ts";
-import { planFailure } from "./plan-link.ts";
+import { planFailure, planStateOf } from "./plan-link.ts";
 import type { PlanFailure, PlanLink } from "./plan-link.ts";
 import { planTree } from "./plan-tree.ts";
 import type { PlanTreeGit, PlanTreeRepo } from "./plan-tree.ts";
@@ -74,6 +74,8 @@ export type PlannerTick =
   | { ran: false; why: "busy" | "no-lane" | "none" | "hub-too-old" }
   | { ran: true; planId: string; posted: PlanResult["kind"] | null };
 
+/** A heartbeat that cut the step: what the Hub said, and for STATE the plan's state it named (null if none). */
+type Cut = { kind: PlanFailure; planState: string | null };
 /** What a step works with: the leased plan and its lease, the lane that leased it, its folder and repos (each on a
  * lane), and the signal that stops it. */
 type StepInput = {
@@ -84,9 +86,10 @@ type StepInput = {
   dir: string;
   repos: PlanTreeRepo[];
   signal: AbortSignal;
-  /** A heartbeat right before a Hub write: null while the step is still this Office's. A cut (NOT_YOURS, STATE, STALE,
-   * gone) has already stopped the step and is given back; any other failure is HubNotNow. */
-  confirm(): Promise<PlanFailure | null>;
+  /** A heartbeat right before a Hub write, carrying `bases` when given: null while the step is still this Office's. A
+   * cut (NOT_YOURS, STATE, STALE, gone) has already stopped the step and is given back; any other failure (a
+   * BASES_CHANGED among them) is HubNotNow. */
+  confirm(bases?: Record<string, string>): Promise<Cut | null>;
 };
 type Step = (s: StepInput) => Promise<PlanResult>;
 
@@ -126,6 +129,10 @@ const PUBLISH_REFUSED = "Hub가 Story 올리기를 받지 않았습니다. 아�
 const OPEN_REFUSED = "Hub가 Story 열기를 받지 않았습니다. 아래 이유를 확인한 뒤 다시 시도하세요.";
 const STORY_REFUSED = "Hub에서 올린 Story를 읽지 못했습니다. 아래 이유를 확인한 뒤 다시 시도하세요.";
 const STORY_CANCELLED = "이 기획으로 올린 Story가 취소됐습니다. 취소하고 새 Story로 시작하세요.";
+/** A Story base already at another commit: retrying cannot help, so the PL is told the two ways out. */
+const baseExists = (repo: string, base: string) =>
+  `레포 ${repo}에 ${base} 브랜치가 이미 다른 커밋으로 있어 Story를 열 수 없습니다. 다시 시도해도 같습니다. ` +
+  `그 브랜치에 팀의 작업이 없을 때만 개발자가 레포 ${repo}에서 ${base}를 지운 뒤 다시 시도하거나, 이 기획을 취소하고 새 Story로 시작하세요.`;
 const HUB_UNSURE = "Hub가 답하지 않아 Story를 올리거나 열지 못했습니다. 잠시 뒤 다시 시도하세요.";
 /** The Story states that count as opened: the Hub's own list for an `open` result. */
 const OPENED: readonly StoryState[] = ["open", "verifying", "awaiting_g4", "done"];
@@ -256,6 +263,13 @@ function readBases(file: string): Record<string, string> | null {
   )
     fail("BASES_CHANGED", "bases.json is not a map of repo ids to full commit ids; it is kept for inspection.");
   return value as Record<string, string>;
+}
+
+/** The base commits the Hub keeps for the plan (`bases` on the leased record): only full commit ids are taken. */
+function hubBases(plan: PlanRecord): Record<string, string> {
+  const raw = (plan as PlanRecord & { bases?: unknown }).bases;
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) return {};
+  return Object.fromEntries(Object.entries(raw).filter((e): e is [string, string] => typeof e[1] === "string" && OBJECT_ID.test(e[1])));
 }
 
 /** Temporary file, then rename: `bases.json` is never seen half written. 0600 in the plan's 0700 folder. */
@@ -455,31 +469,43 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
   }
 
   /**
-   * Right before a Hub or origin write: whether the step may go on. The Hub is asked with a heartbeat (`always`), or
-   * only once the step was stopped meanwhile (a heartbeat cut it, or the Office is stopping). A stopped or cut step
-   * goes no further; when the plan was cancelled after `story` was published, that draft is cancelled first (F5).
+   * Right before a Hub or origin write: whether the step may go on. The Hub is asked with a heartbeat (`always`, with
+   * `bases` when given), or only once the step was stopped meanwhile (a heartbeat cut it, or the Office is stopping).
+   * A stopped or cut step goes no further; when the Hub says the plan is cancelled after `story` was published, that
+   * draft is cancelled first (F5). Any other STATE (a plan failed meanwhile) leaves the draft for a retry.
    */
-  async function goOn(s: StepInput, story: { storyId: string; number: number } | null, always: boolean): Promise<void> {
+  async function goOn(
+    s: StepInput,
+    story: { storyId: string; number: number } | null,
+    always: boolean,
+    bases?: Record<string, string>,
+  ): Promise<void> {
     if (!always && !s.signal.aborted) return;
-    let cut: PlanFailure | null;
+    let cut: Cut | null;
     try {
-      cut = await s.confirm();
+      cut = await s.confirm(bases);
     } catch (error) {
       if (!s.signal.aborted) throw error;
       cut = null;
     }
-    if (cut === "state" && story) await cancelDraft(s, story);
+    if (cut?.kind === "state" && cut.planState === "cancelled" && story) await cancelDraft(s, story);
     if (cut || s.signal.aborted) throw new OfficeError("CANCELLED", "The plan step was stopped before its next write.");
   }
 
-  /** The base commit of each repo of the Story: those `bases.json` holds, and for a repo it lacks the base branch tip
-   * fetched now, all added in one write. A recorded commit is never replaced, so a retry makes every base where the
-   * first split meant it, even after the base branch moved. A fetch that fails names its repo and records nothing. */
+  /** The base commit of each repo of the Story: the Hub's (kept on the plan, never replaced), else the one
+   * `bases.json` holds, else the base branch tip fetched now; `bases.json` is written to match in one write. A retry,
+   * even from another Mac or after the base branch moved, makes every base where the first split meant it. A fetch
+   * that fails names its repo and records nothing. Gives back the Story repos' commits. */
   async function baseCommits(s: StepInput, branches: StoryView["branches"], checkoutOf: Map<string, string>) {
     const file = join(s.dir, "bases.json");
     const recorded = readBases(file) ?? {};
+    const onHub = hubBases(s.plan);
     const bases: Record<string, string> = { ...recorded };
     for (const b of branches) {
+      if (onHub[b.repoId]) {
+        bases[b.repoId] = onHub[b.repoId];
+        continue;
+      }
       if (bases[b.repoId]) continue;
       try {
         bases[b.repoId] = await c.git.fetchBaseTip(checkoutOf.get(b.repoId)!, b.baseBranch);
@@ -488,20 +514,26 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
         throw new StepEnd(withDetail(`PL Mac에서 레포 ${b.repoName}의 ${b.baseBranch} 브랜치를 받지 못했습니다. 다시 시도하세요.`, message));
       }
     }
-    if (Object.keys(bases).length !== Object.keys(recorded).length) writeBases(s.dir, file, bases);
-    return bases;
+    if (Object.entries(bases).some(([repoId, sha]) => recorded[repoId] !== sha)) writeBases(s.dir, file, bases);
+    return Object.fromEntries(branches.map((b) => [b.repoId, bases[b.repoId]]));
   }
 
   /**
-   * Steps 4–5 of a split, for a published Story (just now, or by an earlier attempt: F1): every Story repo's base
-   * `feature/story-<N>/base` at its recorded commit, then, only once all are there and the plan is confirmed still
-   * this Office's, the Story is opened. A base that cannot be made names its repo and the Story stays a draft. An open
-   * answered STATE counts when the Story is already open (an earlier open whose reply was lost).
+   * Steps 4–5 of a split, for a published Story (just now, or by an earlier attempt: F1): the base commits go to the
+   * Hub with a heartbeat that also confirms the plan was not cancelled meanwhile, then every Story repo's base
+   * `feature/story-<N>/base` is made at its commit, then, only once all are there and the plan is confirmed still
+   * this Office's, the Story is opened. A base that cannot be made names its repo and the Story stays a draft. A Story
+   * already opened (an earlier open whose result did not land) is posted as open with no base touched: its bases may
+   * hold merged team work by now. An open answered STATE counts when the Story is already open.
    */
   async function basesAndOpen(s: StepInput, story: { storyId: string; number: number }): Promise<PlanResult> {
     const { plan, lane } = s;
     const view = await hubStep("story", STORY_REFUSED, () => lane.link.story(story.storyId));
     if (view.state === "cancelled") return failed(STORY_CANCELLED);
+    if (OPENED.includes(view.state)) {
+      log(`team: plan ${plan.id}: story-${story.number} is already ${view.state}; its bases are left as they are`);
+      return { kind: "open", storyId: story.storyId };
+    }
     const checkoutOf = new Map(s.repos.map((r) => [r.repoId, r.checkout]));
     for (const b of view.branches) {
       if (!checkoutOf.has(b.repoId))
@@ -510,6 +542,9 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
         return withDetail("Hub가 알려 준 Story 브랜치 이름이 이 Story 번호와 맞지 않습니다. 다시 시도하세요.", `${b.repoName}: ${b.storyBase}`);
     }
     const bases = await baseCommits(s, view.branches, checkoutOf);
+    // Right after publish and before the first base: the Hub keeps these commits, and a cancel that came meanwhile
+    // stops the step here.
+    await goOn(s, story, true, bases);
     for (const b of view.branches) {
       await goOn(s, story, false);
       let made: "created" | "exists";
@@ -517,7 +552,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
         made = await c.git.pushStoryBase(checkoutOf.get(b.repoId)!, b.storyBase, bases[b.repoId]);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        if (codeOf(error) === "BASE_EXISTS") return failed(`레포 ${b.repoName}: ${message}`);
+        if (codeOf(error) === "BASE_EXISTS") return failed(baseExists(b.repoName, b.storyBase));
         return withDetail(
           `레포 ${b.repoName}에 Story 시작 브랜치 ${b.storyBase}를 만들지 못했습니다. 레포 권한과 브랜치 규칙을 확인한 뒤 다시 시도하세요.`,
           message,
@@ -672,8 +707,10 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
     return null;
   }
 
-  /** Runs the leased step to its end with its heartbeat, then posts its result unless the step was cut or stopped. */
+  /** Runs the leased step to its end with its heartbeat, then posts its result unless the step was cut or stopped. A
+   * planner already stopped runs nothing. */
   async function runStep(lane: PlanLane, lease: PlanLease, step: Step): Promise<PlanResult["kind"] | null> {
+    if (stopped) return null;
     const { plan } = lease;
     const abort = new AbortController();
     current = abort;
@@ -713,9 +750,9 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
             dir: join(c.root, "team", "plans", plan.id),
             repos: folders.map((f) => ({ ...f, checkout: byRepo.get(f.repoId)!.checkout })),
             signal: abort.signal,
-            confirm: async () => {
+            confirm: async (bases) => {
               try {
-                await lane.link.heartbeat(plan.id, lease.leaseId);
+                await lane.link.heartbeat(plan.id, lease.leaseId, bases);
                 return null;
               } catch (error) {
                 const kind = planFailure(error);
@@ -723,7 +760,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
                 if (!abort.signal.aborted)
                   log(`team: plan ${plan.id}: the Hub says this step is no longer this Office's (${describe(error)}); stopped without a result`);
                 abort.abort();
-                return kind;
+                return { kind, planState: planStateOf(error) };
               }
             },
           });
@@ -762,6 +799,8 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
         );
         return { ran: false, why: "none" };
       }
+      // Stopped while the Hub answered: the lease is left to run out, nothing runs with it.
+      if (stopped) return { ran: false, why: "busy" };
       quietUntil = null;
       hubTooOldSaid = false;
       if (lease === null) {

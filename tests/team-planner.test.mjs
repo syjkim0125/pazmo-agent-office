@@ -570,8 +570,12 @@ test("a splitting lease checks the gates, writes the records, runs one Lead turn
   w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
   const link = w.first.link;
   let pushedAtOpen = null;
+  let pushedAtBases = null;
   link.on.open = () => {
     pushedAtOpen = pushes(w).length;
+  };
+  link.on.heartbeat = (bases) => {
+    if (bases) pushedAtBases = pushes(w).length;
   };
   link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
 
@@ -615,13 +619,16 @@ test("a splitting lease checks the gates, writes the records, runs one Lead turn
   assert.equal(pushedAtOpen, 2, "every base was made before open");
   assert.deepEqual(
     w.calls.map(([, what]) => what),
-    ["next", "heartbeat", "publish", "story", "heartbeat", "open", "result"],
-    "the plan is confirmed right before publish and right before open",
+    ["next", "heartbeat", "publish", "story", "heartbeat", "heartbeat", "open", "result"],
+    "the plan is confirmed right before publish, right after it (with the bases) and right before open",
   );
   assert.deepEqual(named(w, "heartbeat").map((call) => call.slice(2)), [
     [PLAN_ID, "L1"],
+    [PLAN_ID, "L1", { [BE]: BE_TIP, [FE]: FE_TIP }],
     [PLAN_ID, "L1"],
   ]);
+  assert.equal(pushedAtBases, 0, "the Hub has the base commits before the first base is pushed");
+  assert.deepEqual(link.bases[PLAN_ID], { [BE]: BE_TIP, [FE]: FE_TIP });
   assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L1", 9, { kind: "open", storyId: "story-7" }]);
   assert.equal(link.stories.get("story-7").state, "open");
 });
@@ -656,7 +663,8 @@ test("every base is pushed before open; a failing base posts failed naming the r
   assert.equal((await w.planner.tick()).posted, "failed");
   assert.equal(
     w.lastResult().reason,
-    "레포 app-be: 레포에 feature/story-8/base가 이미 다른 커밋으로 있습니다. 그 브랜치를 확인한 뒤 다시 시도하세요.",
+    "레포 app-be에 feature/story-8/base 브랜치가 이미 다른 커밋으로 있어 Story를 열 수 없습니다. 다시 시도해도 같습니다. " +
+      "그 브랜치에 팀의 작업이 없을 때만 개발자가 레포 app-be에서 feature/story-8/base를 지운 뒤 다시 시도하거나, 이 기획을 취소하고 새 Story로 시작하세요.",
   );
   assert.equal(w.git.remote["/co/app-fe feature/story-8/base"], undefined);
   assert.deepEqual(named(w, "open"), []);
@@ -769,6 +777,119 @@ test("a retry (or an Office restarted mid-split) sees published on the lease: no
   assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L2", 11, { kind: "open", storyId: "story-7" }]);
 });
 
+test("a Story that is already open (its open landed, the open result did not) posts open with no base touched, even after a merged Task moved its base", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
+  const link = w.first.link;
+  // The first attempt opened the Story, but its result never reached the Hub.
+  link.on.result = () => {
+    throw hubError(503, "HUB_UNAVAILABLE");
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.equal((await w.planner.tick()).posted, null);
+  assert.equal(link.stories.get("story-7").state, "open");
+  // A teammate's Task merged into the app-be base since; the base branches moved too, and a new Mac has no bases.json.
+  w.git.remote["/co/app-be feature/story-7/base"] = "ab".repeat(20);
+  w.git.tips = { "/co/app-be": "b0".repeat(20), "/co/app-fe": "f0".repeat(20) };
+  rmSync(join(planDir(w), "bases.json"));
+  link.on.result = undefined;
+  w.restart();
+  const pushed = pushes(w).length;
+  const fetched = fetches(w).length;
+  link.lease = leaseOf(splitting({ published: { storyId: "story-7", number: 7, state: "open" } }), { leaseId: "L2", revision: 9 });
+
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "open" });
+  assert.equal(pushes(w).length, pushed, "no base is pushed");
+  assert.equal(fetches(w).length, fetched, "no base branch is fetched");
+  assert.equal(w.git.remote["/co/app-be feature/story-7/base"], "ab".repeat(20), "the merged work stays");
+  assert.deepEqual(named(w, "open").length, 1, "open is not asked again");
+  assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L2", 9, { kind: "open", storyId: "story-7" }]);
+  assert.equal(w.seen.length, 1, "no Lead turn");
+});
+
+test("the Hub's base commits come first: a new Mac without bases.json pushes the commits the Hub kept, not the moved tips, and a bases.json that disagrees is rewritten from the Hub's", async (t) => {
+  const w = world(t, { answers: [LEAD, LEAD] });
+  w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
+  const link = w.first.link;
+  w.git.on.pushStoryBase = (checkout) => {
+    if (checkout === "/co/app-fe") throw new OfficeError("GIT_FAILED", "! [remote rejected] (permission denied)");
+  };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  assert.deepEqual(link.bases[PLAN_ID], { [BE]: BE_TIP, [FE]: FE_TIP }, "the Hub kept the commits before the first push");
+
+  // The PL fixes the permission and retries from another Mac: no bases.json there, and both base branches moved.
+  w.git.on.pushStoryBase = undefined;
+  rmSync(join(planDir(w), "bases.json"));
+  w.git.tips = { "/co/app-be": "b0".repeat(20), "/co/app-fe": "f0".repeat(20) };
+  w.restart();
+  const fetched = fetches(w).length;
+  const published = { storyId: "story-7", number: 7, state: "draft" };
+  link.lease = leaseOf(splitting({ published, bases: { ...link.bases[PLAN_ID] } }), { leaseId: "L2", revision: 11 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "open" });
+  assert.equal(fetches(w).length, fetched, "nothing fetched: the Hub had every commit");
+  assert.deepEqual(pushes(w).slice(-2), [
+    ["pushStoryBase", "/co/app-be", "feature/story-7/base", BE_TIP],
+    ["pushStoryBase", "/co/app-fe", "feature/story-7/base", FE_TIP],
+  ]);
+  assert.deepEqual(JSON.parse(readFileSync(join(planDir(w), "bases.json"), "utf8")), { [BE]: BE_TIP, [FE]: FE_TIP }, "written on this Mac too");
+
+  // A bases.json whose app-fe commit is not the Hub's (an old Mac's record): the Hub's wins and the file follows it.
+  const id = planId(64);
+  mkdirSync(planDir(w, id), { recursive: true });
+  writeFileSync(join(planDir(w, id), "bases.json"), JSON.stringify({ [BE]: BE_TIP, [FE]: "0f".repeat(20) }));
+  // The Hub kept app-fe's commit from an earlier attempt of this plan; the lease shows it.
+  link.bases[id] = { [FE]: FE_TIP };
+  link.lease = leaseOf(splitting({ id, bases: { [FE]: FE_TIP } }), { leaseId: "L3", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "open");
+  assert.deepEqual(pushes(w).slice(-2).map(([, checkout, , sha]) => [checkout, sha]), [
+    ["/co/app-be", BE_TIP],
+    ["/co/app-fe", FE_TIP],
+  ]);
+  assert.deepEqual(JSON.parse(readFileSync(join(planDir(w, id), "bases.json"), "utf8")), { [BE]: BE_TIP, [FE]: FE_TIP });
+  assert.deepEqual(link.bases[id], { [BE]: BE_TIP, [FE]: FE_TIP });
+});
+
+test("a heartbeat whose bases the Hub refuses (BASES_CHANGED: it kept another commit) pushes nothing; the next lease shows the Hub's commit and the step pushes that one", async (t) => {
+  const w = world(t, { answers: [LEAD] });
+  w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
+  const link = w.first.link;
+  const OTHER = "0b".repeat(20);
+  // Another attempt of this plan already gave the Hub app-be's commit; this lease was handed out before that.
+  link.bases[PLAN_ID] = { [BE]: OTHER };
+  link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
+  assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: null });
+  assert.deepEqual(pushes(w), [], "no base while the Hub disagrees");
+  assert.deepEqual(named(w, "open"), []);
+  assert.deepEqual(w.results(), []);
+  assert.deepEqual(link.bases[PLAN_ID], { [BE]: OTHER }, "the Hub's commit is kept");
+
+  link.lease = leaseOf(splitting({ published: { storyId: "story-7", number: 7, state: "draft" }, bases: { [BE]: OTHER } }), { leaseId: "L1", revision: 9 });
+  assert.equal((await w.planner.tick()).posted, "open");
+  assert.deepEqual(pushes(w).map(([, checkout, , sha]) => [checkout, sha]), [
+    ["/co/app-be", OTHER],
+    ["/co/app-fe", FE_TIP],
+  ]);
+  assert.deepEqual(JSON.parse(readFileSync(join(planDir(w), "bases.json"), "utf8")), { [BE]: OTHER, [FE]: FE_TIP });
+});
+
+test("an Office stopped while it asks the Hub for plan work runs nothing with the lease it gets back: no turn, no heartbeat, no result", async (t) => {
+  const w = world(t, { answers: [QUESTIONS] });
+  const link = w.first.link;
+  let answer;
+  link.on.next = () => new Promise((resolve) => (answer = resolve));
+  link.lease = leaseOf(planRecord(), { leaseId: "L1", revision: 1 });
+  const ticking = w.planner.tick();
+  await until(() => answer !== undefined, "the plan-next call");
+  w.planner.stop();
+  answer();
+  assert.deepEqual(await settles(ticking, "the stopped tick"), { ran: false, why: "busy" });
+  assert.deepEqual(w.seen, [], "no turn");
+  assert.deepEqual(w.calls.map(([, what]) => what), ["next"], "nothing but the ask");
+  assert.deepEqual(w.git.calls, [], "no git");
+  assert.equal(w.planner.active(), false);
+});
+
 test("a gate failure posts failed before any Lead turn or publish", async (t) => {
   const w = world(t, { answers: [LEAD] });
   const link = w.first.link;
@@ -803,31 +924,53 @@ test("a gate failure posts failed before any Lead turn or publish", async (t) =>
   assert.deepEqual(w.git.calls, [], "no git");
 });
 
-test("a plan cancelled before publish publishes nothing; one cancelled after publish has its draft Story cancelled by the Office, is not opened and posts nothing", async (t) => {
-  const w = world(t, { answers: [LEAD, LEAD, LEAD] });
+const cancelled = () => hubError(409, "STATE", { state: "cancelled" });
+
+test("a plan cancelled before publish publishes nothing; one cancelled right after publish has its draft Story cancelled by the Office before any base, is not opened and posts nothing; a plan that failed meanwhile (STATE failed) leaves its draft alone", async (t) => {
+  const w = world(t, { answers: [LEAD, LEAD, LEAD, LEAD, LEAD] });
   const link = w.first.link;
   link.on.heartbeat = () => {
-    throw hubError(409, "STATE");
+    throw cancelled();
   };
   link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
   assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: null });
   assert.deepEqual(named(w, "publish"), []);
   assert.deepEqual(w.results(), []);
 
-  // The PL cancels between publish and open: the Hub's cancel did not see the Story, so the Office cancels it.
+  // The PL cancels while the Office publishes: the Hub's cancel did not see the Story, so the Office cancels it, and the
+  // heartbeat right after publish stops the step before any base is pushed.
   let beats = 0;
   link.on.heartbeat = () => {
     beats += 1;
-    if (beats === 2) throw hubError(409, "STATE");
+    if (beats === 2) throw cancelled();
   };
   link.lease = leaseOf(splitting({ id: planId(90) }), { leaseId: "L2", revision: 1 });
   assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(90), posted: null });
   assert.equal(named(w, "publish").length, 1);
+  assert.deepEqual(pushes(w), [], "no base for a plan cancelled right after its publish");
   assert.deepEqual(named(w, "cancel").map((call) => call[2]), ["story-7"]);
   assert.equal(link.stories.get("story-7").state, "cancelled");
   assert.deepEqual(named(w, "open"), []);
   assert.deepEqual(w.results(), []);
   assert.ok(w.logs.some((line) => line.includes(planId(90)) && line.includes("story-7") && line.includes("cancel")), w.logs.join("\n"));
+
+  // STATE also answers for a plan that is failed now (another Office's result, say) or a Hub that names no state: not
+  // a cancel, so the draft the Office published is left for a retry.
+  for (const [n, error] of [[92, hubError(409, "STATE", { state: "failed" })], [93, hubError(409, "STATE")]]) {
+    beats = 0;
+    link.on.heartbeat = () => {
+      beats += 1;
+      if (beats === 2) throw error;
+    };
+    link.lease = leaseOf(splitting({ id: planId(n) }), { leaseId: `L${n}`, revision: 1 });
+    assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(n), posted: null });
+    const story = [...link.stories.values()].at(-1);
+    assert.equal(story.state, "draft", `plan ${n}: the draft is not cancelled`);
+    assert.equal(named(w, "cancel").length, 1);
+  }
+  assert.deepEqual(pushes(w), []);
+  assert.deepEqual(named(w, "open"), []);
+  assert.deepEqual(w.results(), []);
 
   // Another Office of the PL took the lease over (NOT_YOURS): the plan is not cancelled, so its Story is left alone.
   beats = 0;
@@ -838,7 +981,7 @@ test("a plan cancelled before publish publishes nothing; one cancelled after pub
   link.lease = leaseOf(splitting({ id: planId(91) }), { leaseId: "L3", revision: 1 });
   assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(91), posted: null });
   assert.equal(named(w, "cancel").length, 1);
-  assert.equal(link.stories.get("story-8").state, "draft");
+  assert.equal([...link.stories.values()].at(-1).state, "draft");
   assert.deepEqual(named(w, "open"), []);
   assert.deepEqual(w.results(), []);
 });
@@ -908,9 +1051,9 @@ test("a step the periodic heartbeat cut while it published makes no base: the pl
   const w = world(t, { answers: [LEAD, LEAD], beatMs: 5 });
   const link = w.first.link;
   link.on.publish = () => new Promise((resolve) => setTimeout(resolve, 60));
-  // Cancelled on the Hub once the Office has sent its publish: every heartbeat after that answers STATE.
+  // Cancelled on the Hub once the Office has sent its publish: every heartbeat after that answers STATE cancelled.
   link.on.heartbeat = () => {
-    if (named(w, "publish").length) throw hubError(409, "STATE");
+    if (named(w, "publish").length) throw hubError(409, "STATE", { state: "cancelled" });
   };
   link.lease = leaseOf(splitting(), { leaseId: "L1", revision: 9 });
   assert.deepEqual(await settles(w.planner.tick(), "the cut step"), { ran: true, planId: PLAN_ID, posted: null });
@@ -1054,7 +1197,7 @@ test("after G3 a splitting lease publishes the stored split with risk high and n
   assert.deepEqual(JSON.parse(readFileSync(join(planDir(w), "bases.json"), "utf8")), { [BE]: BE_TIP, [FE]: FE_TIP });
   assert.deepEqual(
     w.calls.slice(2).map(([, what]) => what),
-    ["next", "heartbeat", "publish", "story", "heartbeat", "open", "result"],
+    ["next", "heartbeat", "publish", "story", "heartbeat", "heartbeat", "open", "result"],
   );
   assert.deepEqual(w.calls.at(-1).slice(2), [PLAN_ID, "L2", 8, { kind: "open", storyId: "story-7" }]);
   assert.equal(link.stories.get("story-7").state, "open");

@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { hubCall, type HubLinkConfig } from "../runtime/hub-link.ts";
 import type { PlanLease, PlanResult } from "../hub/plan-protocol.ts";
 import { HUB_STORY_PROTOCOL, type GraphInput, type VerifyCheck } from "../hub/story-protocol.ts";
@@ -5,13 +6,18 @@ import type { StoryView } from "../hub/story-store.ts";
 
 /**
  * The Hub routes a PL's Office needs to do the PL's Story plan work, through one of the PL's (member, repo) links:
- * any of them stands for the person. `publish`, `open`, `story` and `cancel` are the existing Story routes.
+ * any of them stands for the person. The three plan routes carry the Office's holder id, so a lease is one Office's,
+ * not the person's: another Office of the same PL gets no work while it is live, and its heartbeat or result is
+ * NOT_YOURS. `publish`, `open`, `story` and `cancel` are the existing Story routes.
  */
 export type PlanLink = {
   repoId: string;
-  /** The person's leased plan step, or null when no plan has Office work. Asking again while leased returns the same lease. */
+  /** This Office's leased plan step, or null when no plan has Office work for it. Asking again while leased returns the
+   * same lease. */
   next(): Promise<PlanLease | null>;
-  heartbeat(planId: string, leaseId: string): Promise<void>;
+  /** Keeps the lease. `bases` (repo id -> commit) are the Story base commits this Office chose: the Hub keeps each
+   * repo's first one and answers 409 BASES_CHANGED to another. */
+  heartbeat(planId: string, leaseId: string, bases?: Record<string, string>): Promise<void>;
   /** The step's result for the revision it was leased at; the lease ends with it. */
   result(planId: string, leaseId: string, revision: number, r: PlanResult): Promise<void>;
   /** Publishes the plan's Story as a draft. A resend with the same key answers `already: true` with the same Story. */
@@ -36,14 +42,22 @@ const badResponse = (): never => {
   throw Object.assign(new Error("HUB_BAD_RESPONSE"), { code: "HUB_BAD_RESPONSE" });
 };
 
-export function planLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): PlanLink {
+const HOLDER = /^[a-f0-9]{32}$/;
+/** A team Office's lease holder id: 16 random bytes in lowercase hex, made once per Office start. */
+export function newPlanHolder(): string {
+  return randomBytes(16).toString("hex");
+}
+/** The holder of plan links made without one: this process's, so they all stand for the same Office. */
+const PROCESS_HOLDER = newPlanHolder();
+
+export function planLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall, holder: string = PROCESS_HOLDER): PlanLink {
+  if (!HOLDER.test(holder)) throw new Error("A plan link's holder id must be 32 lowercase hex characters.");
   const send = (method: "GET" | "POST", path: string, body?: unknown): Promise<unknown> =>
     call(cfg, method, `/api/link/story/${path}`, body, HUB_STORY_PROTOCOL);
   return {
     repoId: cfg.repoId,
     async next() {
-      // The hub takes only a JSON object as a POST body, so the empty request is `{}`.
-      const reply = await send("POST", "plan-next", {});
+      const reply = await send("POST", "plan-next", { holder });
       if (isObject(reply) && reply.lease === null) return null;
       const lease = isObject(reply) ? reply.lease : undefined;
       return isObject(lease) &&
@@ -55,11 +69,11 @@ export function planLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): Pl
         ? (lease as PlanLease)
         : badResponse();
     },
-    async heartbeat(planId, leaseId) {
-      await send("POST", "plan-heartbeat", { planId, leaseId });
+    async heartbeat(planId, leaseId, bases) {
+      await send("POST", "plan-heartbeat", { planId, leaseId, holder, ...(bases ? { bases } : {}) });
     },
     async result(planId, leaseId, revision, r) {
-      await send("POST", "plan-result", { planId, leaseId, revision, result: r });
+      await send("POST", "plan-result", { planId, leaseId, revision, result: r, holder });
     },
     async publish({ projectId, title, body, risk, key, graph, storyVerify }) {
       const reply = await send("POST", "publish", { projectId, title, body, risk, key, graph, storyVerify });
@@ -104,6 +118,13 @@ export type PlanFailure =
   | "relink"
   /** Network, timeout, a bad reply or any other refusal: try again on a later tick. */
   | "retry";
+
+/** The plan's state a 409 STATE answer names (`cancelled`, `failed`, …), else null: only a cancelled plan's draft
+ * Story is the Office's to cancel. */
+export function planStateOf(e: unknown): string | null {
+  const { status, code, state } = isObject(e) ? e : ({} as Record<string, unknown>);
+  return status === 409 && code === "STATE" && typeof state === "string" ? state : null;
+}
 
 export function planFailure(e: unknown): PlanFailure {
   const { status, code, expected } = isObject(e) ? e : ({} as Record<string, unknown>);

@@ -1511,3 +1511,26 @@ test("a Task of a high-risk Story (opened after its G3) is written as a normal-r
   assert.equal(submitted.input.story, `${planDir(task, 1)}/story.md`);
   assert.equal(submitted.meta.hubTaskId, task.taskId);
 });
+
+test("busy holds while a drive runs, its git step included, and clears when it settles: a record dropped meanwhile does not make the executor idle", async (t) => {
+  const w = await world(t);
+  const task = await w.claim();
+  assert.equal(w.ex.busy(), false);
+  let release;
+  const start = w.git.startTaskBranch;
+  w.git.startTaskBranch = async (...args) => {
+    await new Promise((resolve) => (release = resolve));
+    return start(...args);
+  };
+  const driving = w.ex.drive();
+  for (let i = 0; release === undefined && i < 2000; i++) await new Promise((resolve) => setTimeout(resolve, 5));
+  assert.ok(release, "the drive reached its git step");
+  assert.equal(w.ex.busy(), true);
+  // The heartbeat dropped the record (NOT_YOURS) while the git step still runs.
+  w.store.dropClaim(task.taskId, "NOT_YOURS");
+  assert.equal(w.open(), null);
+  assert.equal(w.ex.busy(), true, "busy until the drive itself settles");
+  release();
+  await driving;
+  assert.equal(w.ex.busy(), false);
+});

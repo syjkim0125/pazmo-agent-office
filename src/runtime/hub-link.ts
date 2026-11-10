@@ -105,6 +105,8 @@ export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?
             code: value?.error ?? `HUB_${res.statusCode}`,
             status: res.statusCode,
             expected: value?.expected,
+            // A plan heartbeat's 409 STATE names the plan's state: only a cancelled plan's draft is cancelled.
+            ...(typeof value?.state === "string" ? { state: value.state } : {}),
           }));
         resolve(value);
       });

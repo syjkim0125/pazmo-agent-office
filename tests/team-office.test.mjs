@@ -1742,3 +1742,72 @@ test("presence is working during a planning step and the Mac restart waits for i
   assert.equal(mac.restarts, 1, "restarted once the step finished");
   assert.deepEqual(mac.beats.at(-1), ["idle", null]);
 });
+
+test("each team Office start makes one lease holder id and gives it to every repo's plan link, also when a repo is read again; another start gets another", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const b = await f.repo("beta");
+  f.link(a, "a");
+  // beta has no Story link yet: its plan link is read again on the repo check.
+  const asked = [];
+  const planLinkOf = (dataDir, holder) => {
+    asked.push([dataDir, holder]);
+    return f.planLinks.get(dataDir) ?? null;
+  };
+  const first = await f.open({ planLinkOf, recheckMs: 1000 });
+  assert.deepEqual(asked.map(([dir]) => dir), [f.dataDirOf(a), f.dataDirOf(b)]);
+  const holder = asked[0][1];
+  assert.match(holder, /^[a-f0-9]{32}$/);
+  assert.ok(asked.every(([, h]) => h === holder), "one id for every repo");
+  t.mock.timers.tick(1000);
+  await until(() => asked.length > 2, "beta's link read again");
+  assert.deepEqual(asked.slice(2).map(([dir, h]) => [dir, h]), [[f.dataDirOf(b), holder]], "the same id when read again");
+  await first.close();
+
+  const again = [];
+  await f.open({ planLinkOf: (dataDir, h) => (again.push(h), null) });
+  assert.equal(again.length, 2);
+  assert.notEqual(again[0], holder, "a new start, a new holder");
+});
+
+test("no plan step starts while the executor's drive still runs a git step on a checkout, though the heartbeat dropped its record meanwhile; it starts once the drive settles", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  const pa = f.planLink(a, "pa", ALPHA_ID);
+  pa.lease = planLease(true);
+  f.world.planAnswers.push(PLAN_QUESTIONS);
+  // A claim left by the last run: the start's first drive prepares it, and its git step hangs.
+  const store = storeOf(f);
+  store.recordClaim(a, claimed("t1"), "claim");
+  let release;
+  f.git.startTaskBranch = async (checkout, task) => {
+    f.git.calls.push(["startTaskBranch", checkout, task.branch, task.storyBase]);
+    await new Promise((resolve) => (release = resolve));
+    return { head: "b".repeat(40) };
+  };
+  la.on.heartbeat = () => {
+    throw notYours();
+  };
+  await f.open(f.live({ beatMs: 1000, driveMs: 1e9 }));
+  await until(() => release !== undefined, "the first drive's git step");
+  // The heartbeat drops the record (the PL released the claim) while that git step runs.
+  t.mock.timers.tick(1000);
+  await until(() => claimRow(f, "t1").state === "dropped", "the record dropped");
+  la.on.heartbeat = undefined;
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.equal(planAsked(f), 0, "not while the drive runs");
+  assert.deepEqual(f.planGit.calls, [], "no planner git beside the executor's");
+
+  release();
+  // Claim ticks until the drive has settled and the plan step ran.
+  for (let i = 0; i < 400 && !f.calls.some(([, what]) => what === "result"); i++) {
+    t.mock.timers.tick(30000);
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+  assert.ok(f.calls.some(([, what]) => what === "result"), `the plan result once the drive settled\n${f.logs.join("\n")}`);
+  assert.equal(f.world.planTurns.length, 1);
+});
