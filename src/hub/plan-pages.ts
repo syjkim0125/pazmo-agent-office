@@ -135,10 +135,10 @@ function splitDetails(split: unknown, repos: PlanRepo[]): string {
   if (isSplit(split)) {
     const task = (n: SplitNode) => {
       const after = split.graph.edges.filter((e) => e.to === n.id).map((e) => e.from);
-      return `<li><p><b>${esc(n.id)} · ${esc(repo(n.repoId))} · ${esc(n.title)}</b></p><p class="muted">먼저 끝나야 할 Task: ${after.length ? esc(after.join(", ")) : "없음"}</p><pre>${esc(n.spec)}</pre><details class="dev"><summary>개발 정보</summary><p>바꿀 파일</p><ul>${n.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul><p>확인 명령</p><ul>${n.verify.map((c) => check(c)).join("")}</ul></details></li>`;
+      return `<li><p><b>${esc(n.id)} · ${esc(repo(n.repoId))} · ${esc(n.title)}</b></p><p class="muted">먼저 끝나야 할 Task: ${after.length ? esc(after.join(", ")) : "없음"}</p><pre>${esc(n.spec)}</pre><p>바꿀 파일</p><ul>${n.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul><p>확인 명령</p><ul>${n.verify.map((c) => check(c)).join("")}</ul></li>`;
     };
     const story = split.storyVerify.flatMap((v) => v.checks.map((c) => check(c, `${esc(repo(v.repoId))} — `)));
-    body = `<ol>${split.graph.nodes.map((n) => task(n)).join("")}</ol><h3>Story 전체 확인</h3>${story.length ? `<details class="dev"><summary>개발 정보</summary><ul>${story.join("")}</ul></details>` : "<p>없음</p>"}`;
+    body = `<ol>${split.graph.nodes.map((n) => task(n)).join("")}</ol><h3>Story 전체 확인</h3>${story.length ? `<ul>${story.join("")}</ul>` : "<p>없음</p>"}`;
   } else body = `<pre>${esc(JSON.stringify(split, null, 2))}</pre>`;
   return `<details><summary>올라갈 Task 전부 보기</summary>${body}</details>`;
 }

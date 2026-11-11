@@ -753,7 +753,7 @@ test("the design shows the stored split in full under 올라갈 Task 전부 보�
   h.approve(id);
   h.design(id, DESIGN, splitOf(h.be, h.fe));
   let text = await h.page(id, h.b);
-  const block = /<details><summary>올라갈 Task 전부 보기<\/summary>([\s\S]*?)<\/details><\/details>/.exec(text);
+  const block = /<details><summary>올라갈 Task 전부 보기<\/summary>([\s\S]*?)<\/details>/.exec(text);
   assert.ok(block, "the details block, for every member");
   for (const part of [
     "<b>t1 · app-be · 쿠폰 API</b>", "<b>t2 · app-fe · 쿠폰 버튼</b>", "먼저 끝나야 할 Task: 없음", "먼저 끝나야 할 Task: t1",
@@ -763,6 +763,7 @@ test("the design shows the stored split in full under 올라갈 Task 전부 보�
     "<li>V1: <code>npm</code> <code>run</code> <code>test:ui</code> (120초 안)</li>",
     "Story 전체 확인", "<li>app-fe — S1: <code>npm</code> <code>run</code> <code>e2e</code> (600초 안)</li>",
   ]) assert.ok(block[1].includes(part), part);
+  assert.ok(!block[1].includes("<details"), "the outer fold is the only fold: files and checks are shown directly");
   text = await h.page(id);
   assert.ok(text.includes(G3_NOTE));
   assert.ok(text.indexOf("<summary>올라갈 Task 전부 보기</summary>") < text.indexOf(`/plans/${id}/approve`), "read before the button");
