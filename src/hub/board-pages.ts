@@ -99,8 +99,7 @@ function taskColumns(s: BoardStory, badges: Map<string, MacBadge>): string {
  * progress line.
  */
 export function storyTaskBoard(s: BoardStory, badges: Map<string, MacBadge>): { progress: string; columns: string } {
-  const { total, done } = counts(s);
-  return { progress: total ? progressLine(total, done) : "아직 Task 없음", columns: taskColumns(s, badges) + cancelledStrip(s) };
+  return { progress: progressOf(s), columns: taskColumns(s, badges) + cancelledStrip(s) };
 }
 
 /** Done and total Tasks of a Story (the Story check counts; cancelled cards do not), and how many are stopped. */
@@ -126,8 +125,7 @@ function people(s: BoardStory): string {
 }
 
 function storyLane(s: BoardStory, badges: Map<string, MacBadge>, cancelled: boolean): string {
-  const { total, done } = counts(s);
-  const prog = total ? `<span class="progress">${progressLine(total, done)}</span>` : "";
+  const prog = `<span class="progress">${progressOf(s)}</span>`;
   const title = `<a class="story-title" href="/stories/${esc(s.id)}"><span class="num">#${s.number}</span> ${esc(s.title)}</a>`;
   return `<article class="lane" data-story="${s.number}"><div class="story">${title}${pill(storyStateLabel(s.state), tone("story", s.state))}<span class="people">${people(s)}</span>${prog}</div>${taskColumns(s, badges)}${cancelled ? cancelledStrip(s) : ""}</article>`;
 }
@@ -138,16 +136,24 @@ function goneLine(cancelled: number, done: number): string {
   if (cancelled) return `Task ${cancelled}개 취소됨`;
   return done ? `Task ${done}개 끝남` : "아직 Task 없음";
 }
+/**
+ * How far a Story's Tasks got, the same on its card, its page and its /tasks lane: a bar and "Task N개 중 M개 끝" while
+ * it lives; once cancelled, no bar, only what it had.
+ */
+function progressOf(s: BoardStory): string {
+  const { total, done } = counts(s);
+  if (s.state === "cancelled") return goneLine(s.cards.filter((c) => c.column === "hidden").length, done);
+  return total ? progressLine(total, done) : "아직 Task 없음";
+}
 /** A Story on the Story board: its stage word, stopped Tasks, how many Tasks are done, its PL and who works on it now. */
 function storyCard(s: BoardStory): string {
-  const { total, done, stopped } = counts(s);
+  const { stopped } = counts(s);
   const gone = s.state === "cancelled";
   const cls = gone ? "gone" : stopped ? "stop" : tone("story", s.state);
   const stop = stopped ? `<span class="pill stop">멈춘 Task ${stopped}</span>` : "";
   // A cancelled Story is quiet: a plain word, and what it had instead of a progress bar.
   const word = gone ? pill(storyStateLabel(s.state)) : pill(storyStateLabel(s.state), tone("story", s.state));
-  const prog = gone ? goneLine(s.cards.filter((c) => c.column === "hidden").length, done) : total ? progressLine(total, done) : "아직 Task 없음";
-  return `<li class="scard ${cls}" data-story="${s.number}"><p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${word}${stop}</p><p class="sprog">${prog}</p><p class="speople">${people(s)}</p></li>`;
+  return `<li class="scard ${cls}" data-story="${s.number}"><p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${word}${stop}</p><p class="sprog">${progressOf(s)}</p><p class="speople">${people(s)}</p></li>`;
 }
 /** A Story published but not opened yet: a draft in 기획 중 with its Tasks ready to open. */
 const draftCard = (s: BoardStory) =>
