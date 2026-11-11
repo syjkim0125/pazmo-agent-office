@@ -123,6 +123,5 @@
       "timeoutMs": 30000
     }
   ],
-  "requiresG3": true,
-  "design": "docs/understanding/hub-board-local-upload-plan.md"
+  "requiresG3": false
 }
