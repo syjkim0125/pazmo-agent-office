@@ -1,0 +1,20 @@
+{
+  "token": "ad60ea99ffddd1908e55036f8e18f19fdb250d689b30ac2013d31aec5da93fe6",
+  "output": {
+    "summary": "D43 two boards (Story board at / and /board, all Tasks at /tasks, each Story page with its own Task board) plus every review-1 finding, on top of look A (0f5a46f); commits 6038886 (Story, G1) and 5117b8c. RED 22/126 first; GREEN full npm test 1855/1855, typecheck 0.",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-implement-1.md",
+      ".ai-workflow/runs/U40-two-boards-implement-red-1.txt",
+      ".ai-workflow/runs/U40-two-boards-implement-green-1.txt",
+      "src/hub/board-pages.ts",
+      "src/hub/story-pages.ts",
+      "src/hub/pages.ts",
+      "src/hub/server.ts",
+      "src/hub/story-store.ts",
+      "tests/hub-board-page.test.mjs"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

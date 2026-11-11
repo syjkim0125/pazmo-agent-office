@@ -1,0 +1,5 @@
+ℹ fail 1
+ℹ pass 1858
+ℹ tests 1859
+✖ failing tests:
+✖ upload again after a push failure resumes (17235.269125ms)

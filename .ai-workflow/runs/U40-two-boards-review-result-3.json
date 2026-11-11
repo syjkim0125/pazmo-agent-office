@@ -1,0 +1,12 @@
+{
+  "token": "40f8cacef962d7b50539349887ad81b0dbefaf891ce0e144fab85ded02817595",
+  "output": {
+    "summary": "Review 3 on 8a42da8..0d3baab: Ready; review-2 Minors fixed (cancelled counts incl. doneMore, ✓ beside label, five columns at ≥900 px). Remaining Minor follow-ups: 861–887 px 완료 wrap, pill wrap, cancelled Story page count; upload ECONNRESET judged pre-existing and load-dependent.",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-review-3.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

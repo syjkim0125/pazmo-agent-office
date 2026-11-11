@@ -1,0 +1,26 @@
+ℹ fail 22
+ℹ pass 104
+ℹ tests 126
+✖ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (131.682416ms)
+✖ /tasks is the Task board with five columns per Story (287.368459ms)
+✖ a Story page carries its stage steps and its own Task board with every card (112.030041ms)
+✖ a card wears its state: tone, name tag, Mac dot, time and number (102.621ms)
+✖ a lane says how many of its Tasks are done (121.352292ms)
+✖ a web-planned Story and an uploaded Story share one board (180.762667ms)
+✖ backlog holds a Task that waits for another (208.05675ms)
+✖ board escapes card text (106.210708ms)
+✖ cancelled cards show in a strip only with the toggle (169.000375ms)
+✖ card shows assignee, Mac state and time in column (203.891ms)
+✖ failing tests:
+✖ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (160.213166ms)
+✖ safePath keeps only known pages (0.36125ms)
+✖ stopped card stays in its column with a plain reason (150.698875ms)
+✖ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (102.556083ms)
+✖ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (184.195334ms)
+✖ the board shows 새 프로젝트, each project's plans in progress, and 새 Story only to a member who owns every project repo (252.207291ms)
+✖ the menu marks the page you are on (230.630708ms)
+✖ the store's board for one Story has every card of it (96.006083ms)
+✖ the 완료 column shows the five newest done Stories and folds the rest (136.146708ms)
+✖ untrusted text is escaped on the work, board, Story and Task pages (113.829625ms)
+✖ upload publishes, makes bases and opens (5243.164458ms)
+✖ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (159.629667ms)

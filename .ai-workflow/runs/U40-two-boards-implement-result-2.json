@@ -1,0 +1,19 @@
+{
+  "token": "d9883f07a91da5e8fc3a056580da5a384aa3ba9ce67f692772e03ec8b2c4d61d",
+  "output": {
+    "summary": "Review-1 fixes of U40-two-boards (commit 8a42da8): no sideways scroll from long words (minmax grids), one-Story read by id (storyBoard), fixed fold summary, finish order, cancelled strip, names, hub-wide 기획 중, markers, copy, tests. RED 8/65; GREEN full npm test 1859/1859, typecheck 0; layout 0 overflow in 21 pages x 3 widths x 2 themes.",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-implement-2.md",
+      ".ai-workflow/runs/U40-two-boards-implement-red-2.txt",
+      ".ai-workflow/runs/U40-two-boards-implement-green-2.txt",
+      ".ai-workflow/runs/U40-two-boards-implement-flake-2.txt",
+      "src/hub/pages.ts",
+      "src/hub/story-store.ts",
+      "src/hub/board-pages.ts",
+      "tests/hub-board-page.test.mjs"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

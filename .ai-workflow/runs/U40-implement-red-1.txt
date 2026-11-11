@@ -1,0 +1,19 @@
+ℹ fail 15
+ℹ pass 58
+ℹ tests 73
+✖ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (102.384917ms)
+✖ a card wears its state: tone, name tag, Mac dot, time and number (64.181792ms)
+✖ a lane says how many of its Tasks are done (60.514417ms)
+✖ an empty project says what comes next (62.695416ms)
+✖ every new POST is 403 from another origin or without the CSRF token (85.074959ms)
+✖ failing tests:
+✖ switching auto work off and on from the web changes what claimNext gives (62.365083ms)
+✖ team page for everyone (70.347917ms)
+✖ the approve page shows the Mac, its code and when it asked, with the warning and an allow and a deny form (57.940375ms)
+✖ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (85.012166ms)
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (130.261209ms)
+✖ the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 중(한도), 잠김, 꺼짐(, and 연결된 Mac 없음 with a link to /mac (59.713708ms)
+✖ the header shows me, the switch and my Mac with words beside their shapes (61.012875ms)
+✖ the menu marks the page you are on (61.286333ms)
+✖ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (58.967083ms)
+✖ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (67.573125ms)
