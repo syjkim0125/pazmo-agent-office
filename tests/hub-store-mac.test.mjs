@@ -281,7 +281,7 @@ test("macLink marks the new link with the Mac, replaces the Mac's own earlier li
   assert.deepEqual(minted.member, { id: b.id, name: "B" });
   assert.equal(minted.repoId, repo);
   assert.equal(minted.repoName, "app-be");
-  assert.deepEqual(store.link(minted.token), { id: store.link(minted.token).id, repoId: repo, member: b });
+  assert.deepEqual(store.link(minted.token), { id: store.link(minted.token).id, repoId: repo, member: b, macId: auth.id });
   assert.deepEqual(
     db.prepare("SELECT mac_id FROM hub_links WHERE revoked_at IS NULL").all().map((r) => r.mac_id),
     [auth.id],

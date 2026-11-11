@@ -48,26 +48,32 @@ async function member(h) {
 }
 
 for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", openshift]]) {
-  test(`${mode}: joining by invite or device invite lands on /start`, async (t) => {
+  test(`${mode}: joining by invite or device invite lands on the board (/start on a hub without one)`, async (t) => {
     const h = await make(t);
     const admin = h.store.acceptInvite(h.store.bootstrapAdmin(), "mac").member;
     const join = await h.call("POST", `/invite/${h.store.createInvite(admin, "B")}`, { body: "label=x" });
-    assert.deepEqual([join.status, join.headers.location], [303, "/start"]);
+    assert.deepEqual([join.status, join.headers.location], [303, mode.startsWith("LAN") ? "/" : "/start"]);
     const dev = await h.call("POST", `/invite/${h.store.createDeviceInvite(admin, admin.id)}`, { body: "label=y" });
-    assert.deepEqual([dev.status, dev.headers.location], [303, "/start"]);
+    assert.deepEqual([dev.status, dev.headers.location], [303, mode.startsWith("LAN") ? "/" : "/start"]);
   });
 
-  test(`${mode}: /start shows the three steps and the menu links to it`, async (t) => {
+  test(`${mode}: /start shows the three steps and the menu or the team page links to it`, async (t) => {
     const h = await make(t);
     const { cookie } = await member(h);
     const res = await h.call("GET", "/start", { cookie });
     assert.equal(res.status, 200);
     for (const title of ["Office 켜기", "연결 문자열", "일 보내기"]) assert.match(res.text, new RegExp(`<h2>[^<]*${title}`), title);
-    assert.match(res.text, /<a href="\/start">내 Office 연결<\/a>/);
     assert.match(res.text, /action="\/start\/connect-code"/);
     assert.equal((await h.call("GET", "/start")).status, 401, "needs a session");
     const board = await h.call("GET", "/requests", { cookie });
-    assert.match(board.text, /<a href="\/start">내 Office 연결<\/a>/, "menu on every page");
+    if (mode.startsWith("LAN")) {
+      // A hub with a Story board: the menu is board and team, and the team page carries the way back to /start.
+      assert.match(board.text, /<nav><a href="\/">보드<\/a><a href="\/team">팀<\/a><\/nav>/, "menu on every page");
+      assert.match((await h.call("GET", "/team", { cookie })).text, /<a href="\/start">내 Office 연결<\/a>/, "the team page links to it");
+    } else {
+      assert.match(res.text, /<a href="\/start">내 Office 연결<\/a>/);
+      assert.match(board.text, /<a href="\/start">내 Office 연결<\/a>/, "menu on every page");
+    }
   });
 
   test(`${mode}: POST /start/connect-code returns a one-use member string that pairs`, async (t) => {
@@ -103,7 +109,7 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", opensh
     const code = "A".repeat(43);
     const res = await h.call("GET", `/connect?c=${code}&fp=ZZZ`);
     assert.equal(res.status, 200);
-    assert.match(res.text, /Office 상단의 팀 허브/);
+    assert.match(res.text, /pazmo-office hub-link --project/);
     assert.doesNotMatch(res.text, /[A-Za-z0-9_-]{43}/);
     assert.doesNotMatch(res.text, /ZZZ/);
   });

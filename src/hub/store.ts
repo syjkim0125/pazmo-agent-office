@@ -40,7 +40,8 @@ const CONTROL = /[\u0000-\u001f\u007f]/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 export type Member = { id: string; name: string; admin: boolean };
-export type Link = { id: string; member: Member; repoId: string };
+/** `macId` is the Mac that minted the link; null for a link made from a connection string. */
+export type Link = { id: string; member: Member; repoId: string; macId: string | null };
 export type RequestRow = {
   id: string;
   repoName: string;
@@ -729,8 +730,8 @@ export class HubStore {
   }
   /** Valid only while the member is active and still owns the repository, and the Mac that minted it (if any) is not revoked. */
   link(raw: string): Link | null {
-    const row = this.#get<{ id: string; repo_id: string; member_id: string; name: string; admin: number }>(
-      `SELECT l.id,l.repo_id,l.member_id,m.name,m.admin FROM hub_links l
+    const row = this.#get<{ id: string; repo_id: string; member_id: string; name: string; admin: number; mac_id: string | null }>(
+      `SELECT l.id,l.repo_id,l.member_id,m.name,m.admin,l.mac_id FROM hub_links l
        JOIN hub_members m ON m.id=l.member_id
        JOIN hub_repo_owners o ON o.repo_id=l.repo_id AND o.member_id=l.member_id
        LEFT JOIN hub_macs k ON k.id=l.mac_id
@@ -740,7 +741,18 @@ export class HubStore {
     );
     if (!row) return null;
     this.#run("UPDATE hub_links SET last_seen=? WHERE id=?", this.#now(), row.id);
-    return { id: row.id, repoId: row.repo_id, member: { id: row.member_id, name: row.name, admin: row.admin === 1 } };
+    return { id: row.id, repoId: row.repo_id, member: { id: row.member_id, name: row.name, admin: row.admin === 1 }, macId: row.mac_id };
+  }
+  /**
+   * True when `raw` was minted by a Mac that has since been released or replaced, for an active member. Such a link is
+   * dead (link() refuses it); this only says why, so an upload from the old Mac can be told to use the current one.
+   */
+  retiredMacLink(raw: string): boolean {
+    return !!this.#get(
+      `SELECT 1 FROM hub_links l JOIN hub_macs k ON k.id=l.mac_id JOIN hub_members m ON m.id=l.member_id
+       WHERE l.token_hash=? AND k.revoked_at IS NOT NULL AND m.revoked_at IS NULL`,
+      hash(raw),
+    );
   }
   work(l: Link): HubWork {
     const scope = "a.member_id=? AND r.repo_id=?";
@@ -1030,6 +1042,11 @@ export class HubStore {
       createdAt: k.created_at,
     };
   }
+  /** The member's Mac now: the newest one not revoked, or null. Only a link it minted may upload a Story. */
+  currentMac(memberId: string): { id: string; name: string } | null {
+    const [row] = this.#macRows(memberId);
+    return row ? { id: row.id, name: row.name } : null;
+  }
   /** The member's live Macs, newest first. */
   macs(memberId: string): MacView[] {
     return this.#macRows(memberId).map((k) => this.#macView(k));
@@ -1079,6 +1096,17 @@ export class HubStore {
   macBadge(memberId: string): MacBadge {
     const [newest] = this.macs(memberId);
     return newest ? { state: newest.state, lastSeen: newest.lastSeen } : { state: "none", lastSeen: null };
+  }
+
+  /** Every member's newest live Mac state, from one read of the Macs; a member with no live Mac is absent. */
+  macBadges(): Map<string, MacBadge> {
+    const badges = new Map<string, MacBadge>();
+    for (const row of this.#macRows(null)) {
+      if (badges.has(row.member_id)) continue;
+      const v = this.#macView(row);
+      badges.set(row.member_id, { state: v.state, lastSeen: v.lastSeen });
+    }
+    return badges;
   }
 
   linkRepos(l: Link): { id: string; name: string; owners: string[] }[] {

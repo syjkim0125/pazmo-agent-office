@@ -20,7 +20,9 @@ const EMPTY_BOARD = "아직 프로젝트가 없습니다. [새 프로젝트]로 
 const G3_NOTE = "승인하면 이 설계와 위 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
 const OLD_EMPTY_BOARD = "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
-const pill = (word) => `<span class="pill">${word}</span>`;
+/** State pills carry their tone class (tone() in pages.ts); a word with no entry is a plain pill. */
+const TONES = { "기획 대기": "run", "기획 중": "run", "질문": "need", "초안": "need", "설계 대기": "run", "설계 중": "run", "설계 승인 대기": "need", "나누기 대기": "run", "나누는 중": "run", "열림": "done", "멈춤": "stop", "취소됨": "done" };
+const pill = (word) => `<span class="pill${TONES[word] ? ` ${TONES[word]}` : ""}">${word}</span>`;
 /** The PL's Office instance: the lease holder id the plan helpers send. */
 const H = "a".repeat(32);
 const OPENED = (n) => `Story #${n}이 이미 열려 기획은 끝났습니다. Story 화면에서 진행을 보세요.`;
@@ -108,7 +110,8 @@ async function team(t, { now, storeNow, plans, project = true, names = {}, text 
     board.openStory(plBe, pub.storyId);
     return pub;
   };
-  const page = async (id, who = pl) => (await get(`/plans/${id}`, who)).text;
+  // Without the header: its automatic-work switch is a form of every page, and these tests count the plan's own forms.
+  const page = async (id, who = pl) => (await get(`/plans/${id}`, who)).text.replace(/<header>[\s\S]*?<\/header>/, "");
   return {
     ...h, admin, pl, b, c, be, fe, plBe, linkOf, projectId, get, post,
     create, lease, result, view, questions, draft, design, failed, approve, answerAll, publishOpen, page,
@@ -291,13 +294,13 @@ test("POST /projects/<id>/plans makes a queued plan and goes to /plans/<id>; hom
   const later = h.create({ title: "두 번째" });
   now += 1000;
   h.questions(id, [q(1)]); // the first plan changed last
-  const home = (await h.get("/", h.pl)).text;
+  const home = (await h.get("/me", h.pl)).text;
   assert.ok(home.includes("<h2>내가 쓰는 Story</h2>"));
   const first = `<a href="/plans/${id}">쿠폰 발급</a> ${pill("질문")}`, second = `<a href="/plans/${later}">두 번째</a> ${pill("기획 대기")}`;
   assert.ok(home.includes(first) && home.includes(second));
   assert.ok(home.indexOf(first) < home.indexOf(second), "most recently changed first");
   assert.ok(home.includes('<p class="muted">쿠폰 개편</p>'), "the project");
-  assert.ok(!(await h.get("/", h.b)).text.includes("내가 쓰는 Story"), "B writes none");
+  assert.ok(!(await h.get("/me", h.b)).text.includes("내가 쓰는 Story"), "B writes none");
 });
 
 test("a 65536-byte Korean intent with line breaks (about 196 KB urlencoded) is accepted and kept exactly; 65537 bytes comes back as the form with the typed title and intent and the plain message; a body over 1 MiB is 413", async (t) => {
@@ -335,7 +338,7 @@ test("the plan page states each state in plain words (waiting for the PL's Mac, 
     return text;
   };
   let text = await shows("기획 대기", WAITING);
-  for (const part of ["<h1>쿠폰 발급</h1>", "쿠폰 개편", "PL: PL", "위험도 높음", `<a href="/plans/${id}">새로 고침</a>`, "<details><summary>하고 싶은 일</summary><pre>쿠폰을 한 번에 발급하고 싶어요.</pre></details>"])
+  for (const part of ["<h1>쿠폰 발급</h1>", "쿠폰 개편", "PL: PL", "위험도 높음", `<a class="refresh" href="/plans/${id}">새로 고침</a>`, "<details><summary>하고 싶은 일</summary><pre>쿠폰을 한 번에 발급하고 싶어요.</pre></details>"])
     assert.ok(text.includes(part), part);
   h.lease(id);
   await shows("기획 중", "AI가 기획하고 있습니다.");
@@ -366,10 +369,10 @@ test("the plan page states each state in plain words (waiting for the PL's Mac, 
   h.result(id, { kind: "open", storyId: pub.storyId });
   text = await shows("열림", `Story #${pub.number}이 열렸습니다.`);
   assert.ok(text.includes(`<a href="/stories/${pub.storyId}">Story #${pub.number} 보기</a>`));
-  assert.ok(text.includes("G1 승인: PL · ") && text.includes("G3 승인: PL · "), "the approvals");
+  assert.ok(text.includes("초안 승인(G1): PL · ") && text.includes("설계 승인(G3): PL · "), "the approvals");
   assert.ok(!text.includes("/cancel"), "an opened plan is not cancelled here");
   assert.ok(!(await h.get("/board", h.pl)).text.includes(`/plans/${id}`), "no longer in progress");
-  assert.ok(!(await h.get("/", h.pl)).text.includes(`/plans/${id}`));
+  assert.ok(!(await h.get("/me", h.pl)).text.includes(`/plans/${id}`));
 
   const gone = h.create();
   h.plans.cancel({ member: h.pl.member }, gone, h.view(gone).revision);
@@ -696,7 +699,7 @@ test("every new POST is 403 from another origin or without the CSRF token; proje
   const back = await h.post(h.pl, `/projects/${h.projectId}/plans`, { title: text("제목"), intent: "", risk: "normal" });
   assert.equal(back.status, 400);
   const pages = [
-    ["/board", h.b], ["/", h.pl], [`/plans/${id}`, h.pl], [`/plans/${id}`, h.b], [`/plans/${stuck}`, h.pl],
+    ["/board", h.b], ["/me", h.pl], [`/plans/${id}`, h.pl], [`/plans/${id}`, h.b], [`/plans/${stuck}`, h.pl],
     ["/projects/new", h.pl], [`/projects/${h.projectId}/new-story`, h.pl],
   ];
   for (const [path, who] of pages) {
@@ -704,7 +707,7 @@ test("every new POST is 403 from another origin or without the CSRF token; proje
     assert.equal(res.status, 200, path);
     assert.ok(!res.text.includes("<img"), `${path} has no raw markup`);
     assert.ok(res.text.includes(SAFE), `${path} shows the escaped text`);
-    assert.doesNotMatch(res.text, /<script/i, `${path} loads no script`);
+    assert.doesNotMatch(res.text, /<script(?! src="\/live\.js" defer><\/script>)/i, `${path} loads no script but /live.js`);
   }
   assert.ok(!back.text.includes("<img") && back.text.includes(`value="제목 ${SAFE}"`), "the form sent back");
   const plan = (await h.get(`/plans/${id}`, h.b)).text;
@@ -733,7 +736,7 @@ test("a hub without plans answers 404 for the new pages and draws the board and 
   const board = (await h.get("/board", h.pl)).text;
   assert.ok(board.includes("<h2>쿠폰 개편</h2>"));
   for (const part of ["새 프로젝트", "새 Story", "기획 중", "/projects/"]) assert.ok(!board.includes(part), part);
-  assert.ok(!(await h.get("/", h.pl)).text.includes("내가 쓰는 Story"));
+  assert.ok(!(await h.get("/me", h.pl)).text.includes("내가 쓰는 Story"));
   const empty = await team(t, { plans: false, project: false });
   const text = (await empty.get("/board", empty.pl)).text;
   assert.ok(text.includes(OLD_EMPTY_BOARD));
@@ -760,6 +763,7 @@ test("the design shows the stored split in full under 올라갈 Task 전부 보�
     "<li>V1: <code>npm</code> <code>run</code> <code>test:ui</code> (120초 안)</li>",
     "Story 전체 확인", "<li>app-fe — S1: <code>npm</code> <code>run</code> <code>e2e</code> (600초 안)</li>",
   ]) assert.ok(block[1].includes(part), part);
+  assert.ok(!block[1].includes("<details"), "the outer fold is the only fold: files and checks are shown directly");
   text = await h.page(id);
   assert.ok(text.includes(G3_NOTE));
   assert.ok(text.indexOf("<summary>올라갈 Task 전부 보기</summary>") < text.indexOf(`/plans/${id}/approve`), "read before the button");
@@ -791,7 +795,7 @@ test("취소 on a plan whose Story already opened ends the plan open and the pag
   const res = await h.post(h.pl, `/plans/${id}/cancel`, { ...cancel, confirm: "yes" });
   assert.equal(res.status, 303);
   assert.equal(res.headers.location, `/plans/${id}?opened=1`);
-  const text = (await h.get(res.headers.location, h.pl)).text;
+  const text = (await h.get(res.headers.location, h.pl)).text.replace(/<header>[\s\S]*?<\/header>/, "");
   assert.ok(text.includes(`<section role="status"><p><b>${OPENED(pub.number)}</b></p></section>`));
   assert.ok(text.includes(`${pill("열림")} Story #${pub.number}이 열렸습니다.`));
   assert.ok(text.includes(`<a href="/stories/${pub.storyId}">Story #${pub.number} 보기</a>`));

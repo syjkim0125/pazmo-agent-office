@@ -15,7 +15,8 @@ import {
   type PlanState,
 } from "./plan-protocol.ts";
 import { HubError, type Link, type Member } from "./store.ts";
-import type { Actor, StoryBoard } from "./story-store.ts";
+import { mergeBases, type Actor, type StoryBoard } from "./story-store.ts";
+import { isObject } from "./story-protocol.ts";
 
 /**
  * The web's buttons for a plan, by the same rules the actions check. Approval is G1 on a draft, G3 on a design;
@@ -140,7 +141,6 @@ const LEASE_CLEARED = { lease_id: null, leased_at: null, heartbeat_at: null, hol
 const ADDED_COLUMNS = ["holder", "repos", "bases"] as const;
 /** A team Office instance id, one per process start. */
 const HOLDER = /^[a-f0-9]{32}$/;
-const COMMIT = /^[0-9a-f]{40}$/;
 
 const MESSAGES = {
   createForbidden: "프로젝트의 모든 레포 담당자만 새 Story를 만들 수 있습니다.",
@@ -181,8 +181,6 @@ function holderOf(value: unknown): string {
 /** A browser form sends CRLF: the Hub stores LF and counts after that. */
 const lf = (value: string) => value.replace(/\r\n?/g, "\n");
 const bytes = (value: string) => Buffer.byteLength(value, "utf8");
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
 const parsed = <T>(json: string | null): T | null => (json === null ? null : (JSON.parse(json) as T));
 const gateOf = (state: PlanState): "G1" | "G3" | null => (state === "draft" ? "G1" : state === "awaiting_g3" ? "G3" : null);
 
@@ -622,17 +620,7 @@ export class PlanBoard {
   #storeBases(l: Link, row: PlanRow, bases: unknown) {
     if (bases === undefined || bases === null) return;
     const names = new Map(this.#snapshot(row).map((r) => [r.id, r.name]));
-    if (!isObject(bases) || !Object.entries(bases).every(([id, sha]) => names.has(id) && typeof sha === "string" && COMMIT.test(sha)))
-      fail("INVALID", 400, MESSAGES.bases);
-    const stored = parsed<Record<string, string>>(row.bases) ?? {};
-    const added: string[] = [];
-    for (const [id, sha] of Object.entries(bases as Record<string, string>)) {
-      if (!Object.hasOwn(stored, id)) {
-        stored[id] = sha;
-        added.push(id);
-      } else if (stored[id] !== sha)
-        fail("BASES_CHANGED", 409, `레포 ${names.get(id)}의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다.`);
-    }
+    const { stored, added } = mergeBases(parsed<Record<string, string>>(row.bases) ?? {}, bases, names, { invalid: MESSAGES.bases });
     if (added.length === 0) return;
     this.#run("UPDATE hub_plans SET bases=? WHERE id=?", JSON.stringify(stored), row.id);
     this.#event(row.id, l.member.id, "bases", added.join(","));

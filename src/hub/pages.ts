@@ -1,15 +1,30 @@
 import { HUB_ANSWERABLE } from "./protocol.ts";
 import type { MacBadge, MacView, Member, MemberView, RepoView, RequestRow, RequestView } from "./store.ts";
 import type { OpenTaskRef } from "./story-store.ts";
+import type { StoryState, TaskViewState } from "./story-protocol.ts";
+import type { PlanState } from "./plan-protocol.ts";
+
+export type Tone = "need" | "run" | "stop" | "done";
+/** The color a state pill takes. The kind is explicit: "open" is running for a Story but finished for a plan. need = waits on a person. */
+export function tone(kind: "task", state: TaskViewState): Tone;
+export function tone(kind: "story", state: StoryState): Tone;
+export function tone(kind: "plan", state: PlanState): Tone;
+export function tone(kind: "task" | "story" | "plan", state: string): Tone {
+  if (kind === "task") return state === "failed" || state === "held" ? "stop" : state === "merged" || state === "passed" || state === "cancelled" ? "done" : "run";
+  if (kind === "story") return state === "awaiting_g4" ? "need" : state === "done" || state === "cancelled" ? "done" : "run";
+  if (state === "questions" || state === "draft" || state === "awaiting_g3") return "need";
+  return state === "failed" ? "stop" : state === "open" || state === "cancelled" ? "done" : "run";
+}
+export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${esc(label)}</span>`;
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const STYLE = `:root{--bg:#f6f7f5;--fg:#1c2320;--muted:#5e6964;--line:#d6dcd8;--panel:#fff;--accent:#2b5d8a;--bad:#a8332b;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#141917;--fg:#e3eae6;--muted:#9aa59f;--line:#2b3430;--panel:#1b211e;--accent:#7fb0dc;--bad:#ec7a70;color-scheme:dark}}
+const STYLE = `:root{--bg:#f6f7f5;--fg:#1c2320;--muted:#5e6964;--line:#d6dcd8;--panel:#fff;--accent:#2b5d8a;--bad:#a8332b;--need:#9a5b00;--done:#2f7a3f;--need-bg:#fdf0d5;--done-bg:#dff3e3;--bad-bg:#fbe3e0;--run-bg:#e3eef8;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#141917;--fg:#e3eae6;--muted:#9aa59f;--line:#2b3430;--panel:#1b211e;--accent:#7fb0dc;--bad:#ec7a70;--need:#f0b45a;--done:#7fcf8e;--need-bg:#3a2d12;--done-bg:#16301c;--bad-bg:#3b1b18;--run-bg:#1a2b3b;color-scheme:dark}}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif}
 header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 nav{display:flex;flex-wrap:wrap;gap:14px;align-items:center}nav span{color:var(--muted)}
 main{max-width:980px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:20px}
-a{color:var(--accent)}h1{font-size:22px;margin:0 0 8px}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:12px 0 6px}
+a{color:var(--accent)}h1{font-size:26px;margin:0 0 8px}h2{font-size:19px;margin:0 0 8px}h3{font-size:15px;margin:12px 0 6px}
 section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .scroll{overflow-x:auto}pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:10px;border-radius:6px;margin:0;max-height:480px;overflow:auto}
@@ -18,7 +33,22 @@ textarea,input,select{font:inherit;padding:6px 8px;border:1px solid var(--line);
 button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--panel);cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button.secondary{background:transparent;color:var(--accent)}button.danger{border-color:var(--bad);background:transparent;color:var(--bad)}
-.muted{color:var(--muted)}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
+.pill.need{color:var(--need);border-color:var(--need);background:var(--need-bg)}.pill.run{color:var(--accent);border-color:var(--accent);background:var(--run-bg)}.pill.stop{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}.pill.done{color:var(--done);border-color:var(--done);background:var(--done-bg)}
+details.dev{margin-top:8px}details.dev summary{cursor:pointer;color:var(--muted);font-size:13px}
+.muted{color:var(--muted)}.wrap{overflow-wrap:anywhere}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
+.me{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}.me form{display:inline-block}.me button{padding:2px 10px;font-size:13px;border-radius:999px}
+main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
+.lane{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}.lane:first-of-type{border-top:0;padding-top:0}
+.story{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;overflow-wrap:anywhere}
+.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.col{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
+.col h3{margin:0 0 6px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+.cards{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:15px;overflow-wrap:anywhere;min-width:0}.card p{margin:2px 0}
+.toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}a.pill{text-decoration:none}a.pill[aria-current=true]{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+.cancelled{border:1px dashed var(--line);border-radius:6px;padding:8px;color:var(--muted)}.cancelled h3{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between}.cancelled .cards{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}.cancelled .card{background:transparent;color:var(--muted);font-size:14px}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+.live-note{display:none}html.live .live-note{display:inline}html.live .refresh{display:none}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:6px;align-items:center}.code{font:600 24px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 export const button = (action: string, csrf: string, label: string, cls = "") =>
@@ -38,18 +68,45 @@ export function ago(at: number | null) {
  * header's state. `autoWork` is the member's automatic-work switch; it is left out on a hub without a Story board,
  * whose menu then has no work pages.
  */
-export type Chrome = { trust?: boolean; mac?: MacBadge | null; autoWork?: boolean };
+export type Chrome = {
+  trust?: boolean;
+  mac?: MacBadge | null;
+  autoWork?: boolean;
+  /** The member's CSRF token, for the header's switch form. */
+  csrf?: string;
+  /** The page the switch returns to (one of `safePath`'s pages); without it the switch returns to the board. */
+  path?: string;
+  /** Whether the page asks to refresh itself while shown (the live script). */
+  live?: boolean;
+};
 /** The newest Mac's state in the header (and on a plan page, the PL's); a Mac whose last beat is older than the store's limit arrives as "off". */
 export const macBadgeLabel = (b: MacBadge) =>
   b.state === "none" ? "연결된 Mac 없음" : b.state === "off" ? `꺼짐(${b.lastSeen === null ? "아직 연락 없음" : ago(b.lastSeen)})` : MAC_LABEL[b.state] ?? b.state;
 /** A Mac's state with the reason it gave, for the tables. */
 const macState = (m: MacView) => `${MAC_LABEL[m.state] ?? m.state}${m.detail ? ` — ${m.detail}` : ""}`;
 
-export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
-  const nav = me
-    ? `<nav>${chrome.autoWork === undefined ? "" : '<a href="/">내 할 일</a><a href="/board">보드</a>'}<a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.autoWork === false ? '<a class="pill" href="/">자동으로 일하기 꺼짐</a>' : ""}${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : ""}</nav>`
+/** How long a card has stood in its column: minutes, then hours. */
+export function inColumn(at: number): string {
+  const minutes = Math.floor((Date.now() - at) / 60000);
+  return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분째` : `${Math.floor(minutes / 60)}시간째`;
+}
+/** The header of a hub with a Story board: board and team on the left; on the right the member, the automatic-work switch and the Mac. */
+function boardHeader(me: Member, chrome: Chrome): string {
+  const on = chrome.autoWork === true;
+  const sw = chrome.csrf
+    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="secondary" aria-pressed="${on}">자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</button></form>`
     : "";
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main></body></html>`;
+  const mac = chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : "";
+  return `<nav><a href="/">보드</a><a href="/team">팀</a></nav><div class="me"><a href="/me">${esc(me.name)}</a>${sw}${mac}</div>`;
+}
+
+export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
+  const nav = me && chrome.autoWork !== undefined
+    ? boardHeader(me, chrome)
+    : me
+    ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : ""}</nav>`
+    : "";
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
   return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${esc(message)}</p><p><a href="/">처음으로</a></p></section>`);
@@ -70,10 +127,10 @@ export const MAC_NUDGE = `<section><h2>이 Mac 연결 — 처음 한 번, 명령
 /** `macNudge`: the hub can install a Mac in one line and this member has none yet. */
 export function start(me: Member, csrf: string, o: { macNudge: boolean }, chrome: Chrome = {}) {
   const nudge = o.macNudge ? MAC_NUDGE : "";
-  return layout("내 Office 연결", me, `${nudge}<section><h1>내 Office 연결</h1><p class="muted">세 단계면 이 허브로 일을 주고받을 수 있습니다.</p></section><section><h2>1. Office 켜기</h2><p>이 레포를 클론해 둔 내 PC에서 Office를 켭니다. 처음이면 관리자에게 설치 방법을 받으세요.</p></section><section><h2>2. 연결 문자열</h2><p>아래 버튼으로 연결 문자열을 만든 뒤 복사해, Office 상단의 팀 허브 버튼을 누르고 붙여넣어 연결하세요. 10분 안에 한 번만 쓸 수 있습니다.</p><form method="post" action="/start/connect-code">${csrfField(csrf)}<div><button>연결 문자열 만들기</button></div></form></section><section><h2>3. 일 보내기</h2><p>Office의 작업 카드나 채팅에서 '팀 허브로 보내기'로 다른 레포 담당자에게 일을 보냅니다.</p></section>`, chrome);
+  return layout("내 Office 연결", me, `${nudge}<section><h1>내 Office 연결</h1><p class="muted">세 단계면 이 허브로 일을 주고받을 수 있습니다.</p></section><section><h2>1. Office 켜기</h2><p>이 레포를 클론해 둔 내 PC에서 Office를 켭니다. 처음이면 관리자에게 설치 방법을 받으세요.</p></section><section><h2>2. 연결 문자열</h2><p>이 허브가 Mac 한 줄 설치를 쓸 수 없을 때의 방법입니다. 아래 버튼으로 연결 문자열을 만든 뒤 복사해, 레포 폴더마다 터미널에서 <code>pazmo-office hub-link --project &lt;레포 폴더&gt; --connect '&lt;연결 문자열&gt;'</code> 를 실행하세요. 10분 안에 한 번만 쓸 수 있습니다.</p><form method="post" action="/start/connect-code">${csrfField(csrf)}<div><button>연결 문자열 만들기</button></div></form></section><section><h2>3. 일 보내기</h2><p>연결이 끝나면 허브 보드에서 Story와 Task를 보고, 다른 레포 담당자와 일을 주고받습니다.</p></section>`, chrome);
 }
 export function connectHelp() {
-  return layout("Office에 붙여넣기", null, `<section><h1>Office에 붙여넣기</h1><p>이 주소는 Office에 붙여넣는 연결 문자열입니다. Office 상단의 팀 허브 버튼을 누르고 붙여넣은 뒤 연결을 누르세요.</p><p class="muted">연결 문자열은 허브의 <a href="/start">내 Office 연결</a>에서 만들 수 있습니다.</p></section>`);
+  return layout("Office에 붙여넣기", null, `<section><h1>Office에 붙여넣기</h1><p>이 주소는 연결 문자열입니다. Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 터미널에서 <code>pazmo-office hub-link --project &lt;레포 폴더&gt; --connect '&lt;연결 문자열&gt;'</code> 를 실행하세요.</p><p class="muted">연결 문자열은 허브의 <a href="/start">내 Office 연결</a>에서 만들 수 있습니다.</p></section>`);
 }
 export function created(me: Member, title: string, note: string, value: string, chrome: Chrome = {}) {
   return layout(title, me, `<section><h1>${esc(title)}</h1><p>${esc(note)}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, chrome);
@@ -134,7 +191,7 @@ export function request(me: Member, csrf: string, v: RequestView, chrome: Chrome
         .join("")}</ul>`
     : "";
   const progress = s
-    ? `<section><h2>진행</h2><p><span class="pill">${esc(STATUS[s.status] ?? s.status)}</span> ${esc(s.message)}</p><p class="muted">마지막 소식 ${ago(v.snapshotAt)} · Office 연결 확인 ${ago(v.officeSeen)} · <a href="/requests/${esc(v.id)}">새로 고침</a></p>${s.summary ? `<pre>${esc(s.summary)}</pre>` : ""}</section>`
+    ? `<section><h2>진행</h2><p><span class="pill">${esc(STATUS[s.status] ?? s.status)}</span> ${esc(s.message)}</p><p class="muted">마지막 소식 ${ago(v.snapshotAt)} · Office 연결 확인 ${ago(v.officeSeen)} · <a class="refresh" href="/requests/${esc(v.id)}">새로 고침</a></p>${s.summary ? `<pre>${esc(s.summary)}</pre>` : ""}</section>`
     : v.state === "accepted"
       ? `<section><h2>진행</h2><p>맡은 사람의 Office가 아직 작업을 받지 않았습니다. Office 연결 확인 ${ago(v.officeSeen)}.</p></section>`
       : "";
@@ -226,4 +283,33 @@ export function macCodeGone(me: Member, chrome: Chrome = {}) {
 }
 export function macSignedOut() {
   return layout("로그인 필요", null, `<section><h1>먼저 이 브라우저로 허브에 들어와야 합니다</h1><p>이 브라우저에서 관리자에게 받은 <b>초대 링크</b>를 먼저 열어주세요. 이미 등록한 팀원이라면 <b>새 기기 링크</b>를 받아 열면 됩니다. 입장한 뒤 이 주소를 다시 열어주세요. 터미널에 나온 허용 주소입니다.</p><p>Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+}
+
+/** Everyone's Mac, switch and current Task: the team page, for every member. `rows` are the members who have not been revoked. */
+export function teamPage(
+  me: Member,
+  rows: { id: string; name: string; admin: boolean; mac: MacBadge; autoWork: boolean; task: { taskId: string; label: string } | null }[],
+  o: { trust: boolean },
+  chrome: Chrome = {},
+) {
+  const table = rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.name)}${r.admin ? ' <span class="pill">관리자</span>' : ""}</td><td><span class="pill">${esc(macBadgeLabel(r.mac))}</span></td><td><span class="pill">${r.autoWork ? "켜짐" : "꺼짐"}</span></td><td>${r.task ? `<a href="/tasks/${esc(r.task.taskId)}">${esc(r.task.label)}</a>` : '<span class="muted">없음</span>'}</td></tr>`,
+    )
+    .join("");
+  const links = [
+    '<a href="/me">내 할 일</a>',
+    '<a href="/repos">레포</a>',
+    '<a href="/requests">요청 게시판</a>',
+    '<a href="/start">내 Office 연결</a>',
+    me.admin ? '<a href="/members">팀원·초대</a>' : "",
+    o.trust ? '<a href="/trust">인증서</a>' : "",
+  ].filter(Boolean);
+  return layout(
+    "팀",
+    me,
+    `<section><h1>팀</h1><div class="scroll"><table><thead><tr><th>이름</th><th>Mac</th><th>자동으로 일하기</th><th>지금 하는 일</th></tr></thead><tbody>${table}</tbody></table></div></section><section><h2>더 보기</h2><p class="row">${links.join(" · ")}</p></section>`,
+    chrome,
+  );
 }

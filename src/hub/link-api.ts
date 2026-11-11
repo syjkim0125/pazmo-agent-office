@@ -5,7 +5,7 @@ import type { PlanResult } from "./plan-protocol.ts";
 import { PlanStateError, type PlanBoard } from "./plan-store.ts";
 import { HubError, type HubStore, type Link } from "./store.ts";
 import { HUB_STORY_PROTOCOL } from "./story-protocol.ts";
-import type { StoryBoard } from "./story-store.ts";
+import { NOT_YOUR_MAC_MESSAGE, type StoryBoard } from "./story-store.ts";
 
 const invalid = (message: string): never => {
   throw new HubError("INVALID", 400, message);
@@ -61,6 +61,9 @@ const ROUTES: Record<string, readonly Method[]> = {
   "/api/link/story/verified": ["POST"],
   "/api/link/story/complete": ["POST"],
   "/api/link/story/inbox": ["GET"],
+  // A Story the PL approved locally, uploaded by the command on the PL's current Mac.
+  "/api/link/story/upload": ["POST"],
+  "/api/link/story/upload-bases": ["POST"],
   // A PL's Story plan work, for the PL's Office through any of the PL's links.
   "/api/link/story/plan-next": ["POST"],
   "/api/link/story/plan-heartbeat": ["POST"],
@@ -69,6 +72,8 @@ const ROUTES: Record<string, readonly Method[]> = {
 const STORY_PREFIX = "/api/link/story/";
 /** Routes a Hub without a plan board does not have: they answer 404 like a Hub from before them. */
 const PLAN_ROUTES = new Set(["/api/link/story/plan-next", "/api/link/story/plan-heartbeat", "/api/link/story/plan-result"]);
+/** Routes that answer a link from a released or replaced Mac with NOT_YOUR_MAC instead of the plain 401. */
+const UPLOAD_ROUTES = new Set(["/api/link/story/upload", "/api/link/story/upload-bases"]);
 const noRoute = (): never => {
   throw new HubError("NOT_FOUND", 404, "찾을 수 없는 경로입니다.");
 };
@@ -95,7 +100,7 @@ function parse(raw: string): Record<string, unknown> {
  * wrong types are refused, while `graph`, `storyVerify` and the repo list go to the board for its own validation,
  * and a plan step's `result` to the plan board for its own.
  */
-async function storyRoute(board: StoryBoard, plans: PlanBoard | undefined, link: Link, req: IncomingMessage, url: URL): Promise<unknown> {
+async function storyRoute(store: HubStore, board: StoryBoard, plans: PlanBoard | undefined, link: Link, req: IncomingMessage, url: URL): Promise<unknown> {
   const route = `${req.method} ${url.pathname}`;
   switch (route) {
     case "GET /api/link/story/projects": return { projects: board.projects(link) };
@@ -115,6 +120,13 @@ async function storyRoute(board: StoryBoard, plans: PlanBoard | undefined, link:
         projectId: str(body, "projectId"), title: str(body, "title"), body: str(body, "body"), risk: risk(body),
         key: str(body, "key"), graph: body.graph, storyVerify: body.storyVerify,
       });
+    case "POST /api/link/story/upload":
+      return board.uploadStory(link, store.currentMac(link.member.id), {
+        projectId: str(body, "projectId"), title: str(body, "title"), body: str(body, "body"), risk: risk(body),
+        storyHash: str(body, "storyHash"), graph: body.graph, storyVerify: body.storyVerify,
+      });
+    case "POST /api/link/story/upload-bases":
+      return board.uploadBases(link, store.currentMac(link.member.id), str(body, "storyId"), body.bases);
     case "POST /api/link/story/open": return board.openStory(link, str(body, "storyId"));
     case "POST /api/link/story/add-tasks": return board.addTasks(link, str(body, "storyId"), str(body, "key"), body.graph);
     case "POST /api/link/story/cancel": return board.cancelStory(link, str(body, "storyId"));
@@ -185,11 +197,15 @@ export function linkApi(store: HubStore, board: StoryBoard, plans?: PlanBoard) {
       }
       const token = /^Bearer ([A-Za-z0-9_-]{43})$/.exec(req.headers.authorization ?? "")?.[1];
       const link = token ? store.link(token) : null;
-      if (!link)
+      if (!link) {
+        // The command on a Mac the member has since replaced or released: say to run it on the current Mac.
+        if (token && UPLOAD_ROUTES.has(path) && store.retiredMacLink(token))
+          return json(res, 403, { error: "NOT_YOUR_MAC", message: NOT_YOUR_MAC_MESSAGE });
         return json(res, 401, { error: "UNAUTHORIZED", message: "연결이 해제됐습니다. 허브에서 새 연결 명령을 받아주세요." });
+      }
       if (path.startsWith(STORY_PREFIX)) {
         try {
-          return json(res, 200, await storyRoute(board, plans, link, req, url));
+          return json(res, 200, await storyRoute(store, board, plans, link, req, url));
         } catch (error) {
           // A plan heartbeat's STATE names the plan's state: the Office cancels its draft Story only for `cancelled`.
           if (error instanceof PlanStateError) return json(res, error.status, { error: error.code, message: error.message, state: error.state });

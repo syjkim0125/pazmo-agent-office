@@ -1,3 +1,23 @@
+# 2026-11-11 Hub 첫 화면을 칸반 보드로, PL은 자기 claude 대화에서 승인한 Story를 명령 하나로 올린다 (U39, D42·V20)
+
+- 디자인 제안(설명 페이지 https://claude.ai/artifact/GJBHwuZJSNs9xqUJDPQKAR)을 본 사용자가 "① 1단계 먼저"를 고른 뒤, "허브에는 Story와 Task 목록만, 작업은 각자 로컬, 카드마다 누가 하는지"로 방향을 바꿨다(D42, G1 2026-11-11). Task는 지금처럼 각자 Mac의 Office가 자동으로 하고, 웹 기획(묶음 3)은 함께 두며, 묶음 4의 최종 승인과 main 머지는 PL의 로컬 claude 대화에서 한다. 설계는 [hub-board-local-upload-plan.md](understanding/hub-board-local-upload-plan.md)(G3 2026-11-11), 계획은 [2026-11-11-1400-feat-hub-board-plan.md](plans/2026-11-11-1400-feat-hub-board-plan.md), kit 실행은 `.ai-workflow/runs/U39-hub-board.json`, 변경 기록은 [2026-11-11-hub-board.md](verification/2026-11-11-hub-board.md), 사용 안내는 [LOCAL-PREVIEW.md의 "칸반 보드와 로컬 올리기"](LOCAL-PREVIEW.md)다.
+- 범위:
+  - **Hub 웹:** `/`는 프로젝트별 보드다. Story 한 줄에 Task 카드 다섯 칸(백로그·할 일·진행 중·리뷰·완료)이 Hub 상태로 정해지고, 멈춘 카드는 멈춘 칸에 "멈춤"과 쉬운 이유, 카드마다 맡은 사람·Mac 상태·칸에 머문 시간(`column_at`)이 보인다. 내 Story만·취소한 것도 보기, 메뉴 보드·팀, 옛 내 할 일은 `/me`, 누구나 보는 `/team`. 10초 저절로 업데이트(`/live.js`, ETag/304, CSP에 `connect-src 'self'`만 더함, 쓰는 중·숨은 탭이면 쉼). 초대 뒤 보드로, 로그인 전에 연 주소로 돌아가기(`pazmo_next`, 72시간). 개발 말 접기와 상태 색.
+  - **Hub 연결 경로:** `POST /api/link/story/upload`·`upload-bases`(프로토콜 3, 더하기만). PL의 지금 Mac이 만든 연결만, 프로젝트의 모든 레포 담당자만, 글의 kit 해시를 다시 계산, 같은 글은 Story 하나(`upload:<해시>`), Story 화면에 "로컬 승인 · Mac 이름", 열리기 전이면 웹 [취소].
+  - **PL의 Mac:** `pazmo-office team upload --story <파일> --tasks <파일>`이 kit G1(·G3) 묶임, 그래프, MUST·Verify 덮임, 레포·기준 브랜치를 검사한 뒤 올리고, repo마다 `feature/story-<N>/base`를 만들고 연다. 도중 실패는 같은 명령이 이어 한다. Story base·열기 코드는 기획 Office와 함께 쓰도록 `src/team/story-bases.ts`로 꺼냈다. claude 안내 `skills/pazmo-hub-upload/SKILL.md`(`--guide`로 출력, `mac connect` 때 `~/.claude/skills`로 복사, 고친 파일은 두고 소유 표시는 `.pazmo-managed`).
+- Task별 커밋(기준 `0acd1d9`, 계획 `da84ce4`): 1 보드 데이터 `b93b2f2`·`0b62de6`, 2 보드 화면·메뉴 `1c0cbed`, 3 저절로 업데이트 `d3e11df`, 4 들어오기 `9d9b583`, 5 사람 말 `b86a22c`·`e56a944`, 6 Hub 올리기 경로 `2af7c83`·`f27fafc`, 7 올리기 명령 `59df0b4`·`d016c44`·`75fe8ca`, 8 안내·문서 `ff018b3`·`e89cd58`. Task별 리뷰는 모두 거쳤고 5·6·7은 한 번씩 고쳤다.
+- **kit 리뷰(브랜치 전체, 두 번):**
+  - 1차(리뷰어 둘: 전체, 보안): Critical 0, Important 6 → `2291121`–`eab3265`. Task 파일의 risk만으로 G3를 건너뜀(kit 프로필 `requiresG3`나 Story의 G3 줄이 있으면 고위험), 취소 카드가 안 보임, 안내 파일 앞의 관리 표시 때문에 claude가 스킬로 못 읽음, 저절로 업데이트가 펼친 접기를 닫음, 멈춘 뒤에도 "저절로 업데이트" 표시, V20의 같은 보드 시험 없음. 더해 Hub가 글의 해시를 다시 계산한다.
+  - 2차(고친 범위 다시 보기): 일곱 가지 모두 해결, 새 Critical·Important 0.
+- 자동 검사: 전체 `npm test`는 Task 1–8 뒤 1831/1831, 마지막 리뷰 뒤 고친 것까지 **1841/1841**. kit 검증(`eab3265`): 559/559 + 618/618 + 664/664 = **1841/1841**, 타입 검사·Story 검사 exit 0(부하 5.8–11.4에서도 흔들린 시험 없음). `graph.mjs delivery`는 `delivered`다. kit 프로필의 `requiresG3`는 이번 실행 동안만 켰고 이 전달 커밋에서 껐다.
+- G4는 2026-11-11에 기록했다. 사용자는 설명 페이지(6판)의 증거·새 보드 캡처·세 질문을 본 뒤 "① 승인 후 머지"를 골랐고, 세 질문에는 직접 답하지 않았다(D13). [G4 기록](../.ai-workflow/approvals/hub-board-g4.md)
+- **남은 것:**
+  - **올리기의 실제 확인.** 로컬 확인용 허브(사내 인증서 방식)는 Mac 쪽 호출이 시스템 인증서만 믿어 Mac 연결이 안 되고, 그래서 그 허브의 PL 연결은 Mac 없는 연결 문자열 연결이라 올리기는 `NOT_YOUR_MAC`으로 거절된다(설계대로). 실제 확인은 Mac 연결이 되는 허브(재배포한 사내 허브)에서, PL이 claude 대화로 올리고 팀원 Office가 끝내는 데까지 한다. 보드 화면은 확인용 허브 데이터의 복사본에 새 코드를 띄워 확인했다.
+  - 사내 허브 재배포(묶음 1–3·D42 함께), 두 사람의 실제 Mac, 실제 claude가 쓴 Task 파일, 실제 브라우저에서의 저절로 업데이트.
+  - 묶음 4(Story 검증, 최종 승인과 main 머지를 PL의 로컬 claude 대화에서, D42(6)).
+  - 작은 것(머지를 막지 않음): 포커스 되돌리기는 지금 화면에 대상이 없음, 선택한 글을 잊으면 업데이트가 쉰 채 표시는 남음, 안내의 두 번째 rename이 실패하면 고친 파일로 보임, `requiresG3`가 불린이 아니면 거짓으로 봄, `projectText`는 kit의 심볼릭 링크 거부가 없음, 오류 문구를 영어 `coverageOf` 문구에서 바꿔 옴, 로그인 전 주소·스위치 돌아가기에서 쿼리를 버림. 신뢰 모델의 한계: 로컬 G1 기록은 서명 없는 파일이고, 옛 publish·open 경로는 G1 없이도 Story를 연다.
+  - 묶음 1–3에서 넘어온 것은 아래 U38·U37·U36 항목 그대로다.
+
 # 2026-11-10 브라우저 팀 흐름 묶음 3: PL이 Hub 웹에 하고 싶은 일을 적으면 AI가 묻고 정리하고 나눠서 연다 (U38, D41·V19)
 
 - D41(G3·G1 2026-11-04)의 네 묶음 중 셋째다. 계획은 [2026-11-05-1600-feat-pl-planning-plan.md](plans/2026-11-05-1600-feat-pl-planning-plan.md), kit 실행은 `.ai-workflow/runs/U38-pl-planning.json`, 변경 기록은 [2026-11-05-pl-planning.md](verification/2026-11-05-pl-planning.md)다. 결정은 [hub-web-team-flow-decision.md](understanding/hub-web-team-flow-decision.md)의 PL 흐름 1–4다.

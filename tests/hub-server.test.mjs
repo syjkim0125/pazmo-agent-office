@@ -50,7 +50,7 @@ test("other host names, oversized forms and unsafe framing are refused", async (
   assert.match(page.headers["content-security-policy"], /frame-ancestors 'none'/);
   assert.equal(page.headers["referrer-policy"], "same-origin");
   assert.equal(page.headers["cache-control"], "no-store");
-  assert.doesNotMatch(page.text, /<script/i, "only the created-value page loads the copy script");
+  assert.doesNotMatch(page.text, /<script(?! src="\/live\.js" defer><\/script>)/i, "no script but /live.js (the created-value page also loads /copy.js)");
 });
 
 test("the copy script is served publicly and the CSP allows scripts only from this origin", async (t) => {
@@ -86,12 +86,12 @@ test("the one-time value page has a real copy button; other pages load no script
   assert.match(pre[1], /\/invite\/[A-Za-z0-9_-]{43}$/);
   assert.equal((made.text.match(/<script/g) ?? []).length, 1);
   for (const path of ["/", "/repos"]) {
-    assert.doesNotMatch((await call("GET", path, { cookie: admin.cookie })).text, /<script/i, path);
+    assert.doesNotMatch((await call("GET", path, { cookie: admin.cookie })).text, /<script(?! src="\/live\.js" defer><\/script>)/i, path);
   }
   const me = store.members()[0];
   const repo = store.addRepo(me, "r", "https://github.example.com/team/r");
   const req = store.createRequest(me, repo, "body", "normal");
-  assert.doesNotMatch((await call("GET", `/requests/${req}`, { cookie: admin.cookie })).text, /<script/i);
+  assert.doesNotMatch((await call("GET", `/requests/${req}`, { cookie: admin.cookie })).text, /<script(?! src="\/live\.js" defer><\/script>)/i);
 });
 
 test("the board enforces owner-only accept and requester-only answers over HTTP", async (t) => {

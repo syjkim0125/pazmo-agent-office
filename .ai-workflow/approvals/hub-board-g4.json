@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "341e131e848b149662227309e4975dfdfa02d6c66470e239d94e0e0dc5f03b85",
+  "snapshot": "addbf0460272f2f3b16840b1669a619b021b9afa29b2599cff8f7cb126502a9c",
+  "runId": "6cce5bf1-1195-41a6-b210-1786cc120367",
+  "responseRef": "Claude Code conversation 2026-11-11. The G4 section of https://claude.ai/artifact/GJBHwuZJSNs9xqUJDPQKAR (version 6) showed the change size, new board screenshots, test/review/preview evidence, what was not verified (no Mac pairing on the self-CA check Hub, so the upload command was not tried for real), the three G4 questions, options and rollback; the conversation repeated the evidence, the questions and the 27 controller rulings. Asked \"G4: 어느 선택지로 할까요?\", the user answered \"① 승인 후 머지\" without answering the three questions (D13). Record: .ai-workflow/approvals/hub-board-g4.md",
+  "branch": "feat/hub-easy-flow",
+  "head": "eab3265",
+  "date": "2026-11-11"
+}

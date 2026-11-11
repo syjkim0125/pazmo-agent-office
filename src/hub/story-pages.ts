@@ -1,7 +1,7 @@
 /** The team Story pages of the Hub web: the member's work, the board, one Story and one Task. No script; every value goes through `esc`. */
-import { MAC_NUDGE, ago, button, csrfField, esc, layout, type Chrome } from "./pages.ts";
+import { MAC_NUDGE, ago, button, csrfField, esc, layout, tone, tonePill, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
-import type { MemberWork, ProjectView, StorySummary, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
+import type { MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
 import type { PlanCard } from "./plan-store.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -79,7 +79,10 @@ export function waitText(w: MacWait, now: number): string {
 }
 
 const pill = (label: string) => `<span class="pill">${esc(label)}</span>`;
-const refresh = (path: string) => `<a href="${esc(path)}">새로 고침</a>`;
+const taskPill = (x: { state: TaskViewState; stage: string | null }) => tonePill(tone("task", x.state), taskStateLabel(x.state, x.stage));
+const planPill = (p: PlanCard) => tonePill(tone("plan", p.state), planStateLabel(p.state, p.leased));
+const dev = (inner: string) => `<details class="dev"><summary>개발 정보</summary>${inner}</details>`;
+const refresh = (path: string) => `<a class="refresh" href="${esc(path)}">새로 고침</a><span class="live-note">저절로 업데이트</span>`;
 const prLink = (url: string) => `<a href="${esc(url)}" rel="noreferrer">${esc(url)}</a>`;
 const taskLink = (id: string, label: string) => `<a href="/tasks/${esc(id)}">${esc(label)}</a>`;
 /** The failure is shown only while the Task is failed: the store keeps the last one through a release and a new claim. */
@@ -104,13 +107,13 @@ const news = (x: { state: TaskViewState; stage: string | null; heartbeatAt: numb
 /** One Task on the work page: where it is, its state, and what this list adds (`extra` is markup). */
 function card(c: WorkCard, extra = "") {
   const where = `Story #${c.story.number} ${esc(c.story.title)}${c.repo ? ` · ${esc(c.repo.name)}` : ""}`;
-  return `<li><p>${taskLink(c.taskId, `#${c.number} ${c.title}`)} ${pill(taskStateLabel(c.state, c.stage))}</p><p class="muted">${where}</p>${extra}</li>`;
+  return `<li><p>${taskLink(c.taskId, `#${c.number} ${c.title}`)} ${taskPill(c)}</p><p class="muted">${where}</p>${extra}</li>`;
 }
 const cards = (list: WorkCard[], empty: string, extra: (c: WorkCard) => string = () => "") =>
   list.length ? `<ul>${list.map((c) => card(c, extra(c))).join("")}</ul>` : `<p class="muted">${esc(empty)}</p>`;
 const failureLine = (c: WorkCard) => (failedNow(c) ? `<p>${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "");
 /** A Story plan in progress: its page and its state word. */
-const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${pill(planStateLabel(p.state, p.leased))}`;
+const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${planPill(p)}`;
 
 /**
  * `macNudge`: the hub can install a Mac in one line and this member has none; `wait`: why the member's Mac rests;
@@ -123,7 +126,7 @@ export function home(
   o: { macNudge: boolean; wait: MacWait | null; plans?: PlanCard[] },
   chrome: Chrome,
 ): string {
-  const toggle = `<form class="inline" method="post" action="/me/auto-work">${csrfField(csrf)}<input type="hidden" name="on" value="${w.autoWork ? "0" : "1"}"><button${w.autoWork ? ' class="secondary"' : ""}>${w.autoWork ? "끄기" : "켜기"}</button></form>`;
+  const toggle = `<form class="inline" method="post" action="/me/auto-work">${csrfField(csrf)}<input type="hidden" name="back" value="/me"><input type="hidden" name="on" value="${w.autoWork ? "0" : "1"}"><button${w.autoWork ? ' class="secondary"' : ""}>${w.autoWork ? "끄기" : "켜기"}</button></form>`;
   const switchLine = w.autoWork
     ? "켜져 있어 내 Mac이 받을 수 있는 일을 차례대로 가져갑니다."
     : "꺼져 있어 새 일을 받지 않습니다. 아래에서 직접 고를 수 있습니다.";
@@ -144,13 +147,13 @@ export function home(
   const led = w.led.length
     ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failureLine(c)}`)}</section>`
     : "";
-  const done = (c: WorkCard) => (c.prUrl ? `<p>PR ${prLink(c.prUrl)}</p>` : "");
+  const done = (c: WorkCard) => (c.prUrl ? dev(`<p>PR ${prLink(c.prUrl)}</p>`) : "");
   const plans = o.plans?.length
     ? `<section><h2>내가 쓰는 Story</h2><ul>${o.plans.map((p) => `<li><p>${planLink(p)}</p><p class="muted">${esc(p.project.name)}</p></li>`).join("")}</ul></section>`
     : "";
   return layout("내 할 일", me, [
     o.macNudge ? MAC_NUDGE : "",
-    `<section><h1>내 할 일</h1><p>자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</p><p>${switchLine}</p><p class="muted">${refresh("/")}</p></section>`,
+    `<section><h1>내 할 일</h1><p>자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</p><p>${switchLine}</p><p class="muted">${refresh("/me")}</p></section>`,
     rest && !restInCard ? `<section>${rest}</section>` : "",
     `<section><h2>지금 맡은 일</h2>${openPart}</section>`,
     plans,
@@ -160,37 +163,14 @@ export function home(
   ].join(""), chrome);
 }
 
-type BoardRow = { project: ProjectView; stories: StorySummary[]; plans?: PlanCard[]; canPlan?: boolean };
-/**
- * On a hub with Story plans each row also carries its plans in progress and `canPlan` (the member owns every repo of
- * the project), and `canCreateProject` puts 새 프로젝트 on top; without them the board is drawn as before.
- */
-export function workBoard(me: Member, rows: BoardRow[], chrome: Chrome, o: { canCreateProject?: boolean } = {}): string {
-  const project = ({ project: p, stories, plans, canPlan }: BoardRow) => {
-    const repos = p.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
-    const table = stories.length
-      ? `<div class="scroll"><table><thead><tr><th>번호</th><th>제목</th><th>상태</th><th>머지/전체</th><th>멈춤</th><th>PL</th></tr></thead><tbody>${stories
-          .map((s) => `<tr><td>#${s.number}</td><td><a href="/stories/${esc(s.id)}">${esc(s.title)}</a></td><td>${pill(storyStateLabel(s.state))}</td><td>${s.merged}/${s.total}</td><td>${s.held + s.failed}</td><td>${esc(s.pl.name)}</td></tr>`)
-          .join("")}</tbody></table></div>`
-      : `<p class="muted">아직 Story가 없습니다.</p>`;
-    const start = canPlan ? `<p><a href="/projects/${esc(p.id)}/new-story">새 Story</a></p>` : "";
-    const planning = plans?.length
-      ? `<h3>기획 중</h3><ul>${plans.map((x) => `<li>${planLink(x)} · PL ${esc(x.pl.name)}</li>`).join("")}</ul>`
-      : "";
-    return `<section><h2>${esc(p.name)}</h2><p class="muted">레포: ${repos} · 만든 사람 ${esc(p.createdBy.name)}</p>${start}${planning}${table}</section>`;
-  };
-  const empty = o.canCreateProject
-    ? "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요."
-    : "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
-  const body = rows.length ? rows.map(project).join("") : `<section><p class="muted">${empty}</p></section>`;
-  const create = o.canCreateProject ? `<p><a href="/projects/new">새 프로젝트</a></p>` : "";
-  return layout("보드", me, `<section><h1>보드</h1><p class="muted">팀의 모든 프로젝트와 Story입니다. ${refresh("/board")}</p>${create}</section>${body}`, chrome);
-}
-
 /** The Tasks before `t`, each linked with its state; numbers point into the same Story. */
 const depsOf = (s: StoryView, t: TaskView) => t.deps.map((n) => s.tasks.find((x) => x.number === n)).filter((x): x is TaskView => !!x);
 
-export function storyPage(me: Member, s: StoryView, chrome: Chrome): string {
+/**
+ * `upload` is the local approval of a Story the PL's Mac uploaded (null for any other Story). While such a Story has
+ * not opened, its PL or a hub admin gets the [취소] form.
+ */
+export function storyPage(me: Member, csrf: string, s: StoryView, o: { upload: StoryUpload | null }, chrome: Chrome): string {
   const branches = s.branches.length
     ? `<div class="scroll"><table><thead><tr><th>레포</th><th>base</th><th>Story base</th></tr></thead><tbody>${s.branches
         .map((b) => `<tr><td>${esc(b.repoName)}</td><td>${esc(b.baseBranch)}</td><td>${esc(b.storyBase)}</td></tr>`)
@@ -199,13 +179,22 @@ export function storyPage(me: Member, s: StoryView, chrome: Chrome): string {
   const rows = s.tasks
     .map((t) => {
       const deps = depsOf(s, t).map((d) => taskLink(d.id, `#${d.number}`)).join(", ") || "-";
-      return `<tr><td>#${t.number}</td><td>${esc(t.repo?.name ?? "-")}</td><td>${taskLink(t.id, t.title)}</td><td>${pill(taskStateLabel(t.state, t.stage))}</td><td>${esc(t.assignee?.name ?? "-")}</td><td>${deps}</td><td>${t.prUrl ? prLink(t.prUrl) : "-"}</td></tr>`;
+      return `<tr><td>#${t.number}</td><td>${esc(t.repo?.name ?? "-")}</td><td>${taskLink(t.id, t.title)}</td><td>${taskPill(t)}</td><td>${esc(t.assignee?.name ?? "-")}</td><td>${deps}</td></tr>`;
     })
     .join("");
+  const prList = s.tasks.filter((t) => t.prUrl);
+  const prs = prList.length ? `<h3>PR</h3><ul>${prList.map((t) => `<li>#${t.number} ${prLink(t.prUrl ?? "")}</li>`).join("")}</ul>` : "";
+  const up = o.upload;
+  const approval = up ? `<p class="muted wrap">로컬 승인 · ${esc(up.macName)} · ${esc(ago(up.at))}</p>` : "";
+  const cancel =
+    up && s.state === "draft" && (s.isPl || me.admin)
+      ? `<form method="post" action="/stories/${esc(s.id)}/cancel">${csrfField(csrf)}<p>아직 열리지 않았습니다. 취소하면 이 Story는 열리지 않고, 같은 글로는 다시 올릴 수 없습니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
+      : "";
+  const hash = up ? `<h3>로컬 승인</h3><p class="wrap">Story 해시 <code>${esc(up.storyHash)}</code></p>` : "";
   return layout(`Story #${s.number}`, me, [
-    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${pill(storyStateLabel(s.state))}</p><pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/board">보드</a></p></section>`,
-    `<section><h2>Story base</h2>${branches}</section>`,
-    `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th><th>PR</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
+    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${approval}${cancel}<pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
+    `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
+    `<section>${dev(`${hash}<h3>Story base</h3>${branches}${prs}`)}</section>`,
   ].join(""), chrome);
 }
 
@@ -227,13 +216,13 @@ function actionForms(t: TaskView, csrf: string, a: TaskActions) {
         ? `<p>${RERUN_NOT_LINKED}</p>`
         : "";
   const release = a.release
-    ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc(t.kind === "verify" ? "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." : "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 머지 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
+    ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc(t.kind === "verify" ? "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." : "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 합치는 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
     : "";
   const cancel =
     a.cancel === "yes"
       ? `<form method="post" action="${esc(base)}/cancel">${csrfField(csrf)}<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
       : a.cancel === "locked"
-        ? `<p>머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.</p>`
+        ? `<p>합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요.</p>`
         : "";
   return pick + rerun + release + cancel;
 }
@@ -261,22 +250,22 @@ export function taskPage(
   const wait = o.wait && working(t.state) ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
   const result =
     t.summary !== null || t.assumptions.length || t.prUrl || t.mergeCommit
-      ? `<section><h2>결과</h2>${t.summary !== null ? `<h3>3줄 요약</h3><pre>${esc(t.summary)}</pre>` : ""}${
+      ? `<section><h2>결과</h2>${t.summary !== null ? `<h3>요약</h3><pre>${esc(t.summary)}</pre>` : ""}${
           t.assumptions.length
-            ? `<h3>판단 기록</h3><ul>${t.assumptions.map((line) => `<li>${line.startsWith("ASSUMED:") ? `<b>${esc(line)}</b>` : esc(line)}</li>`).join("")}</ul>`
+            ? `<h3>AI가 정한 것</h3><ul>${t.assumptions.map((line) => `<li>${line.startsWith("ASSUMED:") ? esc(`AI가 정한 것:${line.slice("ASSUMED:".length)}`) : esc(line)}</li>`).join("")}</ul>`
             : ""
-        }${t.prUrl ? `<p>PR ${prLink(t.prUrl)}</p>` : ""}${t.mergeCommit ? `<p>머지 커밋 <code>${esc(t.mergeCommit.slice(0, 12))}</code></p>` : ""}</section>`
+        }${t.prUrl || t.mergeCommit ? dev(`${t.prUrl ? `<p>PR ${prLink(t.prUrl)}</p>` : ""}${t.mergeCommit ? `<p>머지 커밋 <code>${esc(t.mergeCommit.slice(0, 12))}</code></p>` : ""}`) : ""}</section>`
       : "";
   const deps = depsOf(s, t);
   const work = [
     t.spec ? `<pre>${esc(t.spec)}</pre>` : "",
-    t.files.length ? `<h3>만질 파일</h3><ul>${t.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul>` : "",
+    t.files.length ? dev(`<h3>만질 파일</h3><ul>${t.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul>`) : "",
     deps.length
-      ? `<h3>앞 Task</h3><ul>${deps.map((x) => `<li>${taskLink(x.id, `#${x.number} ${x.title}`)} ${pill(taskStateLabel(x.state, x.stage))}</li>`).join("")}</ul>`
+      ? `<h3>앞 Task</h3><ul>${deps.map((x) => `<li>${taskLink(x.id, `#${x.number} ${x.title}`)} ${taskPill(x)}</li>`).join("")}</ul>`
       : "",
   ].join("");
   return layout(`Task #${t.number}`, me, [
-    `<section><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${pill(taskStateLabel(t.state, t.stage))} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
+    `<section><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
     result,
     work ? `<section><h2>할 일 내용</h2>${work}</section>` : "",
     t.memo ? `<section><h2>마지막 메모</h2><pre>${esc(t.memo)}</pre></section>` : "",

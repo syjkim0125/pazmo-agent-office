@@ -1,0 +1,12 @@
+{
+  "token": "9758d20366b9c5a632c074d13043b39079c266742c09287ce3676eedcb45ee64",
+  "output": {
+    "summary": "Fresh kit checks at eab3265: story and typecheck exit 0, tests 559/559 + 618/618 + 664/664 = 1841/1841.",
+    "evidence": [
+      ".ai-workflow/runs/U39-verify-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

@@ -333,9 +333,9 @@ test("the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 
   let skew = 0;
   const h = await lan(t, { storeNow: () => Date.now() + skew });
   const { admin, b } = await twoMembers(h);
-  const header = async (path = "/", who = admin) => /<nav>.*<\/nav>/.exec((await h.get(path, who)).text)[0];
+  const header = async (path = "/", who = admin) => /<header>.*<\/header>/.exec((await h.get(path, who)).text)[0];
 
-  assert.ok((await header()).endsWith(`${PILL("연결된 Mac 없음")}</nav>`), "the pill closes the menu; no Mac yet");
+  assert.ok((await header()).endsWith(`${PILL("연결된 Mac 없음")}</div></header>`), "the pill closes the header; no Mac yet");
   const mac = h.pair(admin.member, "내 Mac");
   assert.ok((await header()).includes(PILL("꺼짐(아직 연락 없음)")), "a Mac that has not reported is not shown as running");
   for (const [state, label] of [["working", "일하는 중"], ["idle", "대기 중"], ["limited", "쉬는 중(한도)"], ["locked", "잠김"]]) {
@@ -364,7 +364,8 @@ test("/mac in OpenShift mode shows curl -fsSL <origin>/install.sh | sh with a co
   assert.equal(pre[1], `curl -fsSL ${PUBLIC}/install.sh | sh`);
   assert.match(res.text, /<button type="button" data-copy-target="copy-value">복사<\/button>/);
   assert.ok(res.text.includes('<script src="/copy.js" defer></script>'));
-  assert.equal((res.text.match(/<script/g) ?? []).length, 1);
+  assert.equal((res.text.match(/<script/g) ?? []).length, 2, "/live.js and /copy.js");
+  assert.ok(res.text.includes('<script src="/live.js" defer></script>'));
   for (const part of [/Homebrew/, /브라우저/, /코드/, /clone/, /로그인할 때마다/, /이전.*해제/])
     assert.match(res.text, part, String(part));
   assert.doesNotMatch(res.text, /이 허브는 사내 인증서/);
@@ -377,7 +378,8 @@ test("/mac in OpenShift mode shows curl -fsSL <origin>/install.sh | sh with a co
     assert.equal(page.status, 200, label);
     assert.match(page.text, /이 허브는 사내 인증서를 써서 설치 한 줄을 쓸 수 없습니다/, label);
     assert.match(page.text, /<a href="\/start">내 Office 연결<\/a>/, label);
-    assert.doesNotMatch(page.text, /curl|install\.sh|copy-value|<script/i, `${label}: no command and no script`);
+    assert.doesNotMatch(page.text, /curl|install\.sh|copy-value|copy\.js/i, `${label}: no command and no copy script`);
+    assert.doesNotMatch(page.text, /<script(?! src="\/live\.js" defer><\/script>)/i, `${label}: no script but /live.js`);
   }
 });
 
@@ -510,7 +512,7 @@ test("a Mac name with <script> is escaped on the approve page, /mac and /members
   h.store.macHeartbeat(h.store.mac(mac.macToken), "limited", `<script>detail</script>`);
   for (const [path, who] of [["/mac", b], ["/members", admin]]) {
     const text = (await h.get(path, who)).text;
-    assert.doesNotMatch(text, /<script/i, path);
+    assert.doesNotMatch(text, /<script(?! src="\/live\.js" defer><\/script>)/i, path);
     assert.ok(text.includes("&#60;script&#62;alert(&#34;x&#34;)&#60;/script&#62;"), `${path} shows the escaped name`);
     assert.ok(text.includes("&#60;script&#62;detail"), `${path} shows the escaped detail`);
   }

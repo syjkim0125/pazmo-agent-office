@@ -1,13 +1,16 @@
 import { createServer } from "node:https";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { HubError, type HubStore } from "./store.ts";
 import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
 import * as storyPages from "./story-pages.ts";
 import * as planPages from "./plan-pages.ts";
+import * as boardPages from "./board-pages.ts";
+import { safePath } from "./paths.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
+import { LIVE_SCRIPT } from "./live-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
 import { installScript, type InstallerConfig } from "./installer.ts";
@@ -45,14 +48,26 @@ const PLAN_FORMS = new RegExp(`^/(?:projects/${ID}/plans|plans/${ID}/answer)$`);
 const ANSWER_IDS = Array.from({ length: PLAN_LIMITS.questionsPerRound }, (_, i) => `Q${i + 1}`);
 const HEADERS = {
   "content-security-policy":
-    "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+    "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; connect-src 'self'",
   "referrer-policy": "same-origin",
   "x-content-type-options": "nosniff",
   "cache-control": "no-store",
   "strict-transport-security": "max-age=31536000",
 };
 
+const LIVE_TAG = '<script src="/live.js" defer></script>';
 export function send(res: ServerResponse, status: number, type: string, body: string, extra: Record<string, string> = {}) {
+  if (status === 200 && type.startsWith("text/html") && res.req?.method === "GET") {
+    // The tag is the hash of the page as built; a live page also carries it, so its first poll can already get a 304.
+    const tag = `"${createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+    if (res.req.headers["if-none-match"] === tag) {
+      res.writeHead(304, { ...HEADERS, ...extra, etag: tag });
+      res.end();
+      return;
+    }
+    if (body.includes(LIVE_TAG)) body = body.replace('<meta charset="utf-8">', `<meta charset="utf-8"><meta name="etag" content="${tag.replace(/"/g, "&quot;")}">`);
+    extra = { ...extra, etag: tag };
+  }
   res.writeHead(status, { ...HEADERS, "content-type": type, ...extra });
   res.end(body);
 }
@@ -60,7 +75,7 @@ const html = (res: ServerResponse, status: number, body: string, extra?: Record<
   send(res, status, "text/html; charset=utf-8", body, extra);
 export const json = (res: ServerResponse, status: number, value: unknown) =>
   send(res, status, "application/json; charset=utf-8", JSON.stringify(value));
-const redirect = (res: ServerResponse, to: string, extra: Record<string, string> = {}) => {
+const redirect = (res: ServerResponse, to: string, extra: Record<string, string | string[]> = {}) => {
   res.writeHead(303, { ...HEADERS, location: to, ...extra });
   res.end();
 };
@@ -84,13 +99,18 @@ export function readBody(req: IncomingMessage, limit: number): Promise<string> {
     req.on("error", reject);
   });
 }
-function cookie(req: IncomingMessage): string | undefined {
+function cookieOf(req: IncomingMessage, name: string): string | undefined {
   for (const part of (req.headers.cookie ?? "").split(";")) {
     const [key, ...rest] = part.trim().split("=");
-    if (key === COOKIE) return rest.join("=");
+    if (key === name) return rest.join("=");
   }
   return undefined;
 }
+const cookie = (req: IncomingMessage) => cookieOf(req, COOKIE);
+// The page a person opened before they had a session, kept so the invite can bring them back to it.
+const NEXT_COOKIE = "pazmo_next";
+const NEXT_AGE = 72 * 60 * 60;
+const NEXT_ATTRS = "HttpOnly; Secure; SameSite=Lax; Path=/";
 const same = (a: string, b: string) => {
   const x = Buffer.from(a),
     y = Buffer.from(b);
@@ -132,6 +152,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       });
     // Open on purpose: the connection string's #fragment never reaches the server, so this page cannot echo it.
     if (!post && path === "/connect") return html(res, 200, page.connectHelp());
+    if (!post && path === "/live.js") return send(res, 200, "text/javascript; charset=utf-8", LIVE_SCRIPT);
     if (!post && path === "/copy.js") return send(res, 200, "text/javascript; charset=utf-8", COPY_SCRIPT);
     // Open on purpose, like /copy.js: a Mac runs it before it has any session, and the script holds no secret.
     if (!post && path === "/install.sh")
@@ -144,13 +165,27 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (!post) return html(res, 200, page.invite(c.store.invite(m[1])?.name ?? null));
       const label = new URLSearchParams(await readBody(req, FORM_LIMIT)).get("label") ?? "";
       const { session } = c.store.acceptInvite(m[1], label);
-      return redirect(res, "/start", {
-        "set-cookie": `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
+      let next: string | null = null;
+      try {
+        next = safePath(decodeURIComponent(cookieOf(req, NEXT_COOKIE) ?? ""));
+      } catch {
+        // A value that does not decode is ignored like any other odd one.
+      }
+      // A hub without the Story board has no board to land on.
+      return redirect(res, c.board ? (next ?? "/") : "/start", {
+        "set-cookie": [
+          `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
+          ...(cookieOf(req, NEXT_COOKIE) !== undefined ? [`${NEXT_COOKIE}=; Max-Age=0; ${NEXT_ATTRS}`] : []),
+        ],
       });
     }
     const s = c.store.session(cookie(req));
     // The one page a person reaches from a terminal before they have a session: it says how to get one, and decides nothing.
-    if (!s) return html(res, 401, !post && path === "/mac/approve" ? page.macSignedOut() : page.signedOut());
+    if (!s) {
+      if (!post && path === "/mac/approve") return html(res, 401, page.macSignedOut());
+      const remember = !post && safePath(path) ? { "set-cookie": `${NEXT_COOKIE}=${encodeURIComponent(path)}; Max-Age=${NEXT_AGE}; ${NEXT_ATTRS}` } : undefined;
+      return html(res, 401, page.signedOut(), remember);
+    }
     // The store slides the session on use, so the browser's cookie slides with it.
     const token = cookie(req) as string;
     res.setHeader("set-cookie", `${COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`);
@@ -167,7 +202,14 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       c.board?.projects({ member: me }).find((p) => p.id === id) ?? fail404("프로젝트를 찾을 수 없습니다.");
     const tooMany = () => new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
     // Read when a page is drawn, so the header shows the state after whatever this request did.
-    const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id), autoWork: c.board?.autoWork(me.id) });
+    const chrome = (): page.Chrome => ({
+      trust,
+      mac: c.store.macBadge(me.id),
+      autoWork: c.board?.autoWork(me.id),
+      csrf: s.csrf,
+      ...(safePath(path) ? { path } : {}),
+    });
+    const live = (): page.Chrome => ({ ...chrome(), live: true });
     // Only a hub that serves the installer can give a Mac the one-line command.
     const install = installer === null ? null : `curl -fsSL ${base}/install.sh | sh`;
     const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
@@ -187,7 +229,21 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (c.board) {
         const board = c.board,
           actor = { member: me };
-        if (path === "/") {
+        if (path === "/" || path === "/board") {
+          const plans = c.plans;
+          const projects = board.board(actor, { mine: url.searchParams.get("mine") === "1", cancelled: url.searchParams.get("cancelled") === "1" });
+          const v = {
+            projects,
+            plans: plans ? projects.flatMap((p) => plans.projectPlans(p.project.id)) : [],
+            badges: c.store.macBadges(),
+            mine: url.searchParams.get("mine") === "1",
+            cancelled: url.searchParams.get("cancelled") === "1",
+            canCreateProject: !!plans,
+            canPlan: new Set(plans ? projects.filter((p) => board.ownsProject(me.id, p.project.id)).map((p) => p.project.id) : []),
+          };
+          return html(res, 200, boardPages.boardPage(me, s.csrf, v, live()));
+        }
+        if (path === "/me") {
           const ch = chrome();
           const work = board.memberWork(me.id, c.store.reachableRepos(me.id));
           const o = {
@@ -195,16 +251,26 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             wait: c.store.macWait(me.id),
             ...(c.plans ? { plans: c.plans.myPlans(me.id) } : {}),
           };
-          return html(res, 200, storyPages.home(me, s.csrf, work, o, ch));
+          return html(res, 200, storyPages.home(me, s.csrf, work, o, { ...ch, live: true }));
         }
-        if (path === "/board") {
-          const plans = c.plans;
-          const rows = board.projects(actor).map((project) => ({
-            project,
-            stories: board.stories(actor, project.id),
-            ...(plans ? { plans: plans.projectPlans(project.id), canPlan: board.ownsProject(me.id, project.id) } : {}),
-          }));
-          return html(res, 200, storyPages.workBoard(me, rows, chrome(), { canCreateProject: !!plans }));
+        if (path === "/team") {
+          const badges = c.store.macBadges(),
+            current = board.currentTasks();
+          const rows = c.store
+            .members()
+            .filter((m) => !m.revoked)
+            .map((m) => {
+              const t = current.get(m.id);
+              return {
+                id: m.id,
+                name: m.name,
+                admin: m.admin,
+                mac: badges.get(m.id) ?? { state: "none" as const, lastSeen: null },
+                autoWork: board.autoWork(m.id),
+                task: t ? { taskId: t.taskId, label: `Story #${t.storyNumber} Task #${t.number} ${t.title}` } : null,
+              };
+            });
+          return html(res, 200, page.teamPage(me, rows, { trust }, live()));
         }
         if (c.plans) {
           if (path === "/projects/new") return html(res, 200, planPages.newProjectPage(me, s.csrf, projectRepos(), chrome()));
@@ -223,10 +289,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
               unlinked: v.repos.filter((r) => !reached.has(r.id)).map((r) => r.name),
               opened: url.searchParams.get("opened") === "1",
             };
-            return html(res, 200, planPages.planPage(me, s.csrf, v, o, chrome()));
+            return html(res, 200, planPages.planPage(me, s.csrf, v, o, live()));
           }
         }
-        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) return html(res, 200, storyPages.storyPage(me, board.story(actor, m[1]), chrome()));
+        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) {
+          const v = board.story(actor, m[1]);
+          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id) }, live()));
+        }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);
           const who = d.task.assignee?.id ?? null;
@@ -235,7 +304,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             wait: who === null ? null : c.store.macWait(who),
             assigneeMac: who === null ? null : c.store.macBadge(who),
           };
-          return html(res, 200, storyPages.taskPage(me, s.csrf, d, o, chrome()));
+          return html(res, 200, storyPages.taskPage(me, s.csrf, d, o, live()));
         }
       }
       if ((m = new RegExp(`^/requests/${ID}$`).exec(path)))
@@ -247,7 +316,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), chrome()));
       if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), chrome()));
       if (path === "/mac")
-        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, chrome()));
+        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, live()));
       if (path === "/mac/approve") {
         // Checked before the lookup, so a member who is over the limit cannot tell a live code from a dead one.
         if (decideLimit.full(me.id)) throw tooMany();
@@ -300,7 +369,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       const code = c.store.createConnectCode(me);
       const value = `${base}/connect#c=${code}${tls ? `&fp=${tls.fingerprint}` : ""}`;
       return html(res, 200, page.created(me, "내 Office 연결",
-        "10분 안에 한 번만 쓸 수 있습니다. Office 상단의 팀 허브 버튼을 누르고 이 문자열을 붙여넣은 뒤 연결을 누르세요.", value, chrome()));
+        "10분 안에 한 번만 쓸 수 있습니다. Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 pazmo-office hub-link --project <레포 폴더> --connect '이 문자열' 을 실행하세요.", value, chrome()));
     }
     if (path === "/invites") {
       const raw = c.store.createInvite(me, f("name"));
@@ -340,7 +409,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         const on = f("on");
         if (on !== "1" && on !== "0") throw new HubError("INVALID", 400, "켜기 또는 끄기를 골라주세요.");
         board.setAutoWork(me, on === "1");
-        return redirect(res, "/");
+        return redirect(res, safePath(f("back")) ?? "/");
       }
       if ((m = new RegExp(`^/tasks/${ID}/(pick|rerun|release|cancel)$`).exec(path))) {
         const [, id, action] = m;
@@ -359,6 +428,19 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           board.cancelTask({ member: me }, id, { refuseLocked: true });
         }
         return redirect(res, `/tasks/${id}`);
+      }
+      if ((m = new RegExp(`^/stories/${ID}/cancel$`).exec(path))) {
+        const id = m[1];
+        // Cancelling cannot be undone, so the form must carry the box.
+        if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "취소하려면 '정말 취소합니다'를 체크하세요.");
+        try {
+          board.cancelUpload({ member: me }, id);
+        } catch (error) {
+          // A double click: the first submit already cancelled the uploaded Story, so the second shows it too.
+          const done = error instanceof HubError && error.code === "STATE" && board.storyUpload(id) !== null && board.story({ member: me }, id).state === "cancelled";
+          if (!done) throw error;
+        }
+        return redirect(res, `/stories/${id}`);
       }
       if (c.plans) {
         const plans = c.plans;

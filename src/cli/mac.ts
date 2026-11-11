@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import type { StdioOptions } from "node:child_process";
-import { rmSync } from "node:fs";
+import { createHash, randomUUID } from "node:crypto";
+import { existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { dataRoot, fail, locate, OfficeError, packageRoot } from "./project.ts";
 import { machinePreflight, up } from "./launcher.ts";
 import { statusTeam as lifecycleStatusTeam, stopTeam as lifecycleStopTeam } from "./lifecycle.ts";
@@ -252,6 +253,61 @@ async function reusable(e: Env, hub: string): Promise<MacLinkFile | null> {
   }
 }
 
+/** Beside the installed guide: the sha256 of the SKILL.md this command wrote, so the guide itself starts with its front matter. */
+const GUIDE_MARK = ".pazmo-managed";
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
+const isLink = (path: string): boolean => lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink() ?? false;
+
+/** Writes `files` ({name: text}) into `dir` through temp files and renames; every temp file is removed on failure. */
+function writeReplacing(dir: string, files: Record<string, string>): void {
+  const temps: string[] = [];
+  try {
+    const staged = Object.entries(files).map(([name, text]) => {
+      const tmp = join(dir, `${name}.${randomUUID()}.tmp`);
+      temps.push(tmp);
+      writeFileSync(tmp, text, { flag: "wx" });
+      return [tmp, join(dir, name)] as const;
+    });
+    for (const [tmp, final] of staged) renameSync(tmp, final);
+  } finally {
+    for (const tmp of temps) rmSync(tmp, { force: true });
+  }
+}
+
+/**
+ * Puts the Hub upload guide where the PL's claude finds it: `<home>/.claude/skills/pazmo-hub-upload/SKILL.md`, byte for
+ * byte the repo's skill file (its front matter first), with the sidecar `.pazmo-managed` holding the sha256 of what was
+ * written. A SKILL.md whose hash the sidecar holds is ours and is brought up to date; any other (edited, no sidecar, or
+ * a symbolic link anywhere below the home) is the PL's and is left untouched.
+ */
+export function installUploadGuide(home: string): "written" | "kept-user-edit" | "same" {
+  const body = readFileSync(join(packageRoot, "skills", "pazmo-hub-upload", "SKILL.md"), "utf8");
+  const parts = [".claude", "skills", "pazmo-hub-upload"];
+  const dir = join(home, ...parts);
+  const target = join(dir, "SKILL.md");
+  const mark = join(dir, GUIDE_MARK);
+  // Never written through a link: a linked skills folder, guide folder, SKILL.md or sidecar belongs to the PL.
+  const paths = [...parts.map((_, i) => join(home, ...parts.slice(0, i + 1))), target, mark];
+  if (paths.some(isLink)) return "kept-user-edit";
+  const have = lstatSync(target, { throwIfNoEntry: false });
+  if (have) {
+    if (!have.isFile()) return "kept-user-edit";
+    const text = readFileSync(target, "utf8");
+    let ours: string | null = null;
+    try {
+      ours = readFileSync(mark, "utf8").trim();
+    } catch {
+      // no sidecar: not ours
+    }
+    if (ours !== sha256(text)) return "kept-user-edit";
+    if (text === body) return "same";
+  }
+  mkdirSync(dir, { recursive: true });
+  // The sidecar first: if the guide's own rename then fails, a guide that was not there is simply written next time.
+  writeReplacing(dir, { [GUIDE_MARK]: `${sha256(body)}\n`, "SKILL.md": body });
+  return "written";
+}
+
 /**
  * Pairs this Mac with `hub` (or keeps a link the Hub still answers), brings the clones and the registry in line
  * while the team Office is stopped, and loads the LaunchAgent that starts the team Office at login (and once now).
@@ -350,6 +406,19 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
       "LAUNCHD_FAILED",
       `로그인할 때 Office를 켜는 자동 실행을 등록하지 못했습니다(${printable(error.message)}). 파일은 남아 있어 다음 로그인 때 다시 시도됩니다. ${again(hub)}`,
     );
+  }
+  try {
+    const guide = installUploadGuide(e.home);
+    e.say(
+      guide === "written"
+        ? "claude용 허브 올리기 안내를 ~/.claude/skills/pazmo-hub-upload에 두었습니다"
+        : guide === "same"
+          ? "claude용 허브 올리기 안내는 이미 최신입니다"
+          : "claude용 허브 올리기 안내: 고친 안내가 있어 그대로 둡니다",
+    );
+  } catch (error) {
+    // The pairing stands; the guide is also printed by `team upload --guide`.
+    e.say(`claude용 허브 올리기 안내를 두지 못했습니다(${printable(error instanceof Error ? error.message : String(error))}). pazmo-office team upload --guide로 볼 수 있습니다`);
   }
   e.say(note);
   return { connected: true, member: file.memberName, mac: file.name, repos, problems, launchAgent: "loaded", log, note };

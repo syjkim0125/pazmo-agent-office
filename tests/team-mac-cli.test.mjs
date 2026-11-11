@@ -181,6 +181,24 @@ test("mac connect pairs, writes mac-link.json 0600, clones and registers owned r
   m.noSecret(m.opened.join("\n"), "the opened URL");
 });
 
+test("mac connect copies the claude upload guide into the home, says so, and keeps a guide the PL edited", async (t) => {
+  const m = await world(t, ["app-be"]);
+  const guide = join(m.home, ".claude", "skills", "pazmo-hub-upload", "SKILL.md");
+  await m.connect();
+  // Byte-for-byte the repo's skill file (front matter at byte 0, so claude loads it); ours by the sidecar's hash.
+  const source = readFileSync(join(packageRoot, "skills", "pazmo-hub-upload", "SKILL.md"), "utf8");
+  assert.equal(readFileSync(guide, "utf8"), source);
+  assert.match(readFileSync(guide, "utf8"), /^---\nname: pazmo-hub-upload\n/);
+  assert.match(readFileSync(join(m.home, ".claude", "skills", "pazmo-hub-upload", ".pazmo-managed"), "utf8"), /^[0-9a-f]{64}\n$/);
+  assert.ok(m.lines.some((l) => l.includes("올리기 안내") && l.includes("pazmo-hub-upload")), "said where it went");
+
+  writeFileSync(guide, "# 내가 고친 안내\n");
+  m.lines.length = 0;
+  await m.connect();
+  assert.equal(readFileSync(guide, "utf8"), "# 내가 고친 안내\n");
+  assert.ok(m.lines.some((l) => l.includes("고친 안내가 있어 그대로 둡니다")));
+});
+
 test("mac connect again with a live link does not pair, clone, register or mint anything and keeps the loaded agent", async (t) => {
   const m = await world(t, ["app-be"]);
   await m.connect();

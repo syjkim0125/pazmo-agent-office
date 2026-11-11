@@ -7,7 +7,6 @@ import { PLAN_LIMITS, planStoryKey } from "../hub/plan-protocol.ts";
 import type { PlanLease, PlanQuestion, PlanRecord, PlanResult } from "../hub/plan-protocol.ts";
 import { storyBaseBranch } from "../hub/story-protocol.ts";
 import type { StoryState } from "../hub/story-protocol.ts";
-import type { StoryView } from "../hub/story-store.ts";
 import type { LeanOffice } from "../lean/office.ts";
 import { PlanningInvalid, oneLine, teamPlanningPacket } from "../runners/planning.ts";
 import type { PlanningPacket, PlanningStory } from "../runners/planning.ts";
@@ -31,6 +30,7 @@ import { planFailure, planStateOf } from "./plan-link.ts";
 import type { PlanFailure, PlanLink } from "./plan-link.ts";
 import { planTree } from "./plan-tree.ts";
 import type { PlanTreeGit, PlanTreeRepo } from "./plan-tree.ts";
+import { StoryBaseError, openWithBases } from "./story-bases.ts";
 
 /** How often a leased step's heartbeat goes out: well inside the Hub's 600000 ms lease. */
 const BEAT_MS = 60000;
@@ -492,39 +492,17 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
     if (cut || s.signal.aborted) throw new OfficeError("CANCELLED", "The plan step was stopped before its next write.");
   }
 
-  /** The base commit of each repo of the Story: the Hub's (kept on the plan, never replaced), else the one
-   * `bases.json` holds, else the base branch tip fetched now; `bases.json` is written to match in one write. A retry,
-   * even from another Mac or after the base branch moved, makes every base where the first split meant it. A fetch
-   * that fails names its repo and records nothing. Gives back the Story repos' commits. */
-  async function baseCommits(s: StepInput, branches: StoryView["branches"], checkoutOf: Map<string, string>) {
-    const file = join(s.dir, "bases.json");
-    const recorded = readBases(file) ?? {};
-    const onHub = hubBases(s.plan);
-    const bases: Record<string, string> = { ...recorded };
-    for (const b of branches) {
-      if (onHub[b.repoId]) {
-        bases[b.repoId] = onHub[b.repoId];
-        continue;
-      }
-      if (bases[b.repoId]) continue;
-      try {
-        bases[b.repoId] = await c.git.fetchBaseTip(checkoutOf.get(b.repoId)!, b.baseBranch);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        throw new StepEnd(withDetail(`PL Mac에서 레포 ${b.repoName}의 ${b.baseBranch} 브랜치를 받지 못했습니다. 다시 시도하세요.`, message));
-      }
-    }
-    if (Object.entries(bases).some(([repoId, sha]) => recorded[repoId] !== sha)) writeBases(s.dir, file, bases);
-    return Object.fromEntries(branches.map((b) => [b.repoId, bases[b.repoId]]));
-  }
-
   /**
-   * Steps 4–5 of a split, for a published Story (just now, or by an earlier attempt: F1): the base commits go to the
-   * Hub with a heartbeat that also confirms the plan was not cancelled meanwhile, then every Story repo's base
-   * `feature/story-<N>/base` is made at its commit, then, only once all are there and the plan is confirmed still
-   * this Office's, the Story is opened. A base that cannot be made names its repo and the Story stays a draft. A Story
-   * already opened (an earlier open whose result did not land) is posted as open with no base touched: its bases may
-   * hold merged team work by now. An open answered STATE counts when the Story is already open.
+   * Steps 4–5 of a split, for a published Story (just now, or by an earlier attempt: F1), through `openWithBases`:
+   * each repo's base commit is the Hub's (kept on the plan, never replaced), else the one `bases.json` holds, else the
+   * base branch tip fetched now, so a retry, even from another Mac or after the base branch moved, makes every base
+   * where the first split meant it; `bases.json` is written to match in one write and the commits go to the Hub with a
+   * heartbeat that also confirms the plan was not cancelled meanwhile; then every Story repo's base
+   * `feature/story-<N>/base` is made at its commit, then, only once all are there and the plan is confirmed still this
+   * Office's, the Story is opened. A fetch that fails names its repo and records nothing; a base that cannot be made
+   * names its repo and the Story stays a draft. A Story already opened (an earlier open whose result did not land) is
+   * posted as open with no base touched: its bases may hold merged team work by now. An open answered STATE counts
+   * when the Story is already open.
    */
   async function basesAndOpen(s: StepInput, story: { storyId: string; number: number }): Promise<PlanResult> {
     const { plan, lane } = s;
@@ -541,37 +519,65 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
       if (b.storyBase !== storyBaseBranch(story.number))
         return withDetail("Hub가 알려 준 Story 브랜치 이름이 이 Story 번호와 맞지 않습니다. 다시 시도하세요.", `${b.repoName}: ${b.storyBase}`);
     }
-    const bases = await baseCommits(s, view.branches, checkoutOf);
-    // Right after publish and before the first base: the Hub keeps these commits, and a cancel that came meanwhile
-    // stops the step here.
-    await goOn(s, story, true, bases);
+    const file = join(s.dir, "bases.json");
+    const onFile = readBases(file) ?? {};
+    const onHub = hubBases(plan);
+    const recorded: Record<string, string> = {};
     for (const b of view.branches) {
-      await goOn(s, story, false);
-      let made: "created" | "exists";
-      try {
-        made = await c.git.pushStoryBase(checkoutOf.get(b.repoId)!, b.storyBase, bases[b.repoId]);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        if (codeOf(error) === "BASE_EXISTS") return failed(baseExists(b.repoName, b.storyBase));
-        return withDetail(
-          `레포 ${b.repoName}에 Story 시작 브랜치 ${b.storyBase}를 만들지 못했습니다. 레포 권한과 브랜치 규칙을 확인한 뒤 다시 시도하세요.`,
-          message,
-        );
-      }
-      log(`team: plan ${plan.id}: story-${story.number} base in ${b.repoName}: ${made}`);
+      const sha = onHub[b.repoId] ?? onFile[b.repoId];
+      if (sha) recorded[b.repoId] = sha;
     }
-    await goOn(s, story, true);
-    await hubStep("open", OPEN_REFUSED, async () => {
-      try {
-        await lane.link.open(story.storyId);
-      } catch (error) {
-        const { status, code } = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
-        if (status !== 409 || code !== "STATE") throw error;
-        const again = await lane.link.story(story.storyId);
-        if (OPENED.includes(again.state)) return;
-        throw new StepEnd(failed(again.state === "cancelled" ? STORY_CANCELLED : `올린 Story를 열 수 없습니다(지금 상태: ${again.state}). 다시 시도하세요.`));
-      }
-    });
+    const nameOf = new Map(view.branches.map((b) => [checkoutOf.get(b.repoId)!, b.repoName]));
+    try {
+      await openWithBases({
+        story: { id: story.storyId, number: story.number },
+        repos: view.branches.map((b) => ({ id: b.repoId, name: b.repoName, baseBranch: b.baseBranch, checkout: checkoutOf.get(b.repoId)! })),
+        recorded,
+        record: async (bases) => {
+          const merged = { ...onFile, ...bases };
+          if (Object.entries(merged).some(([repoId, sha]) => onFile[repoId] !== sha)) writeBases(s.dir, file, merged);
+          // Right after publish and before the first base: the Hub keeps these commits, and a cancel that came
+          // meanwhile stops the step here.
+          await goOn(s, story, true, bases);
+          return bases;
+        },
+        git: {
+          fetchBaseTip: (checkout, baseBranch) => c.git.fetchBaseTip(checkout, baseBranch),
+          pushStoryBase: async (checkout, storyBase, sha) => {
+            await goOn(s, story, false);
+            const made = await c.git.pushStoryBase(checkout, storyBase, sha);
+            log(`team: plan ${plan.id}: story-${story.number} base in ${nameOf.get(checkout)}: ${made}`);
+            return made;
+          },
+        },
+        open: async () => {
+          await goOn(s, story, true);
+          await hubStep("open", OPEN_REFUSED, async () => {
+            try {
+              await lane.link.open(story.storyId);
+            } catch (error) {
+              const { status, code } = (typeof error === "object" && error !== null ? error : {}) as Record<string, unknown>;
+              if (status !== 409 || code !== "STATE") throw error;
+              const again = await lane.link.story(story.storyId);
+              if (OPENED.includes(again.state)) return;
+              throw new StepEnd(failed(again.state === "cancelled" ? STORY_CANCELLED : `올린 Story를 열 수 없습니다(지금 상태: ${again.state}). 다시 시도하세요.`));
+            }
+          });
+        },
+      });
+    } catch (error) {
+      if (!(error instanceof StoryBaseError)) throw error;
+      // A stop between two pushes is the step's own, not the push's.
+      if (error.cause instanceof OfficeError && error.cause.code === "CANCELLED") throw error.cause;
+      const { name, baseBranch } = error.repo;
+      if (error.step === "fetch")
+        throw new StepEnd(withDetail(`PL Mac에서 레포 ${name}의 ${baseBranch} 브랜치를 받지 못했습니다. 다시 시도하세요.`, error.message));
+      if (error.code === "BASE_EXISTS") return failed(baseExists(name, error.storyBase));
+      return withDetail(
+        `레포 ${name}에 Story 시작 브랜치 ${error.storyBase}를 만들지 못했습니다. 레포 권한과 브랜치 규칙을 확인한 뒤 다시 시도하세요.`,
+        error.message,
+      );
+    }
     log(`team: plan ${plan.id}: story-${story.number} opened`);
     return { kind: "open", storyId: story.storyId };
   }

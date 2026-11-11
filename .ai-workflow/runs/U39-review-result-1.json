@@ -1,0 +1,16 @@
+{
+  "token": "517ab70b7a7fe8021a6e44acbc3f33a45c390e0463bc4aa1e2631004dabddeec",
+  "output": {
+    "summary": "Two whole-branch reviews: 0 Critical, 6 Important (G3 risk downgrade, cancelled cards hidden, guide front matter, live swap closes details, stale live indicator, missing V20 board test).",
+    "evidence": [
+      ".ai-workflow/runs/U39-review-1.md",
+      ".ai-workflow/runs/U39-review-1a.md",
+      ".ai-workflow/runs/U39-review-1b.md"
+    ]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "Fix the six Important findings in .ai-workflow/runs/U39-review-1.md in the implement node, then review again."
+  }
+}

@@ -1,13 +1,17 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
+import { kitStoryHash } from "../core/kit-role-runs.ts";
 import { HubError, type Link, type Member } from "./store.ts";
+import { taskColumn, type BoardColumn } from "./board.ts";
 import {
   HELD_AFTER_MS,
   LIMITS,
   StoryGraphError,
+  COMMIT,
   VERIFY_NODE_ID,
   isBaseBranchName,
+  isObject,
   prUrlOf,
   storyBaseBranch,
   taskBranch,
@@ -29,6 +33,35 @@ export type ProjectView = {
   repos: { id: string; name: string; baseBranch: string }[];
   openStories: number;
 };
+export type BoardCard = {
+  taskId: string;
+  storyId: string;
+  number: number;
+  title: string;
+  kind: "work" | "verify";
+  repo: { id: string; name: string } | null;
+  state: TaskViewState;
+  stage: string | null;
+  column: BoardColumn;
+  columnAt: number;
+  assignee: { id: string; name: string } | null;
+  failure: string | null;
+  heartbeatAt: number | null;
+};
+export type BoardStory = {
+  id: string;
+  number: number;
+  title: string;
+  state: StoryState;
+  risk: "normal" | "high";
+  pl: { id: string; name: string };
+  cards: BoardCard[];
+  /** Merged cards beyond the newest BOARD_DONE_MAX that `cards` leaves out. */
+  doneMore: number;
+};
+export type BoardProject = { project: ProjectView; stories: BoardStory[] };
+/** The board shows this many of a Story's newest merged cards. */
+export const BOARD_DONE_MAX = 5;
 export type StorySummary = {
   id: string;
   number: number;
@@ -78,6 +111,10 @@ export type StoryView = {
   tasks: TaskView[];
   createdAt: number;
 };
+/** The local approval behind an uploaded Story, for its page. */
+export type StoryUpload = { macName: string; at: number; storyHash: string };
+export type UploadResult = { storyId: string; number: number; state: StoryState; already: boolean; bases: Record<string, string> };
+type UploadRow = { story_id: string; mac_id: string; mac_name: string; story_hash: string; bases: string; created_at: number };
 /** What an Office gets when it takes a Task. The verification Task has no repo, branch, files or spec of its own. */
 export type ClaimedTask = {
   taskId: string;
@@ -222,6 +259,9 @@ const RERUN_REFUSALS = {
 type RerunBlock = keyof typeof RERUN_REFUSALS;
 
 const KEY_MAX = 100;
+/** The kit's Story hash (sha256 hex) and a git commit id, as an upload sends them. */
+const STORY_HASH = /^[0-9a-f]{64}$/;
+export const NOT_YOUR_MAC_MESSAGE = "이 Mac은 지금 연결된 내 Mac이 아닙니다. 지금 연결된 Mac에서 다시 실행하세요.";
 /** The web's lists: ready Tasks in claim order, and the member's latest merges. */
 const READY_LIST_MAX = 50;
 const DONE_LIST_MAX = 20;
@@ -235,9 +275,10 @@ const FORGET_OWN_LOCK =
   "lock_member=CASE WHEN lock_claim=? THEN NULL ELSE lock_member END,lock_claim=CASE WHEN lock_claim=? THEN NULL ELSE lock_claim END";
 
 /**
- * Tables of the team Story board. `hub_members` and `hub_repos` come from HubStore, so it must run first
+ * Tables of the team Story board. `hub_members`, `hub_repos` and `hub_macs` come from HubStore, so it must run first
  * on the same db. Numbers (`hub_seq`) are one sequence shared by Stories and Tasks. A member without a
- * `hub_work_settings` row works automatically.
+ * `hub_work_settings` row works automatically. `hub_story_uploads` is the local approval of a Story the PL's Mac
+ * uploaded (the Mac and its name then, the kit Story hash, when) and the Story base commits, one per repo.
  */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS hub_seq(id INTEGER PRIMARY KEY CHECK(id=1),next INTEGER NOT NULL);
@@ -245,17 +286,43 @@ INSERT OR IGNORE INTO hub_seq(id,next) VALUES (1,1);
 CREATE TABLE IF NOT EXISTS hub_projects(id TEXT PRIMARY KEY,name TEXT NOT NULL,created_by TEXT NOT NULL REFERENCES hub_members(id),created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_project_repos(project_id TEXT NOT NULL REFERENCES hub_projects(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),base_branch TEXT NOT NULL,PRIMARY KEY(project_id,repo_id));
 CREATE TABLE IF NOT EXISTS hub_stories(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES hub_projects(id),number INTEGER NOT NULL UNIQUE,title TEXT NOT NULL,body TEXT NOT NULL,risk TEXT NOT NULL CHECK(risk IN ('normal','high')),pl_member_id TEXT NOT NULL REFERENCES hub_members(id),create_key TEXT NOT NULL,graph TEXT NOT NULL,fingerprint TEXT NOT NULL,story_verify TEXT NOT NULL,published TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('draft','open','verifying','awaiting_g4','done','cancelled')),created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(pl_member_id,create_key));
-CREATE TABLE IF NOT EXISTS hub_story_tasks(id TEXT PRIMARY KEY,story_id TEXT NOT NULL REFERENCES hub_stories(id),node_id TEXT NOT NULL,number INTEGER NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('work','verify')),repo_id TEXT REFERENCES hub_repos(id),title TEXT NOT NULL,spec TEXT NOT NULL,files TEXT NOT NULL,verify TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('waiting','ready','claimed','failed','merged','passed','cancelled')),claimed_by TEXT REFERENCES hub_members(id),claim_id TEXT,claimed_at INTEGER,heartbeat_at INTEGER,stage TEXT,merge_lock INTEGER NOT NULL DEFAULT 0,lock_member TEXT REFERENCES hub_members(id),lock_claim TEXT,pr_url TEXT,merge_commit TEXT,summary TEXT,assumptions TEXT,failure TEXT,memo TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(story_id,node_id));
+CREATE TABLE IF NOT EXISTS hub_story_tasks(id TEXT PRIMARY KEY,story_id TEXT NOT NULL REFERENCES hub_stories(id),node_id TEXT NOT NULL,number INTEGER NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('work','verify')),repo_id TEXT REFERENCES hub_repos(id),title TEXT NOT NULL,spec TEXT NOT NULL,files TEXT NOT NULL,verify TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('waiting','ready','claimed','failed','merged','passed','cancelled')),claimed_by TEXT REFERENCES hub_members(id),claim_id TEXT,claimed_at INTEGER,heartbeat_at INTEGER,stage TEXT,merge_lock INTEGER NOT NULL DEFAULT 0,column_at INTEGER,column_key TEXT,lock_member TEXT REFERENCES hub_members(id),lock_claim TEXT,pr_url TEXT,merge_commit TEXT,summary TEXT,assumptions TEXT,failure TEXT,memo TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(story_id,node_id));
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_open_task ON hub_story_tasks(claimed_by) WHERE state IN ('claimed','failed');
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_merge_lock ON hub_story_tasks(story_id,repo_id) WHERE merge_lock=1;
 CREATE TABLE IF NOT EXISTS hub_task_deps(task_id TEXT NOT NULL REFERENCES hub_story_tasks(id),dep_id TEXT NOT NULL REFERENCES hub_story_tasks(id),PRIMARY KEY(task_id,dep_id));
 CREATE TABLE IF NOT EXISTS hub_story_appends(story_id TEXT NOT NULL REFERENCES hub_stories(id),create_key TEXT NOT NULL,result TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(story_id,create_key));
 CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,story_id TEXT NOT NULL REFERENCES hub_stories(id),task_id TEXT REFERENCES hub_story_tasks(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),mac_id TEXT NOT NULL REFERENCES hub_macs(id),mac_name TEXT NOT NULL,story_hash TEXT NOT NULL,bases TEXT NOT NULL,created_at INTEGER NOT NULL);
 `;
 
 function fail(code: string, status: number, message: string): never {
   throw new HubError(code, status, message);
+}
+/**
+ * Story base commits ({repoId: commit}) merged into `stored`, each of `names`' repos (id → name) once: the same commit
+ * again is nothing, another is BASES_CHANGED (409, naming the repo, then `changedSuffix`). A non-object, a repo not in
+ * `names` or a commit that is not 40 hex characters is INVALID (400) with the caller's `invalid` message. `stored` itself
+ * is left alone; `added` is the repo ids the merge took. Shared by a plan's heartbeat and an uploaded Story's bases.
+ */
+export function mergeBases(
+  stored: Readonly<Record<string, string>>,
+  bases: unknown,
+  names: ReadonlyMap<string, string>,
+  o: { invalid: string; changedSuffix?: string },
+): { stored: Record<string, string>; added: string[] } {
+  if (!isObject(bases) || !Object.entries(bases).every(([id, sha]) => names.has(id) && typeof sha === "string" && COMMIT.test(sha)))
+    fail("INVALID", 400, o.invalid);
+  const merged = { ...stored };
+  const added: string[] = [];
+  for (const [id, sha] of Object.entries(bases as Record<string, string>)) {
+    if (!Object.hasOwn(merged, id)) {
+      merged[id] = sha;
+      added.push(id);
+    } else if (merged[id] !== sha)
+      fail("BASES_CHANGED", 409, `레포 ${names.get(id)}의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다.${o.changedSuffix ?? ""}`);
+  }
+  return { stored: merged, added };
 }
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const finished = (state: TaskState) => state === "merged" || state === "cancelled";
@@ -321,6 +388,24 @@ export class StoryBoard {
     this.#db = db;
     this.#now = now;
     db.exec(SCHEMA);
+    this.#migrate();
+  }
+  /**
+   * Board column columns for hubs made before them; idempotent. A Task that already exists gets the time it was
+   * claimed (or created) as the time it entered its column, the best the stored rows can say.
+   */
+  #migrate() {
+    const have = new Set((this.#db.prepare("PRAGMA table_info(hub_story_tasks)").all() as { name: string }[]).map((c) => c.name));
+    if (!have.has("column_at")) this.#db.exec("ALTER TABLE hub_story_tasks ADD COLUMN column_at INTEGER");
+    if (!have.has("column_key")) this.#db.exec("ALTER TABLE hub_story_tasks ADD COLUMN column_key TEXT");
+    const rows = this.#all<{ id: string; state: TaskState; stage: string | null }>(
+      "SELECT id,state,stage FROM hub_story_tasks WHERE column_key IS NULL",
+    );
+    for (const r of rows)
+      this.#run(
+        "UPDATE hub_story_tasks SET column_key=?,column_at=COALESCE(claimed_at,created_at) WHERE id=?",
+        taskColumn(r.state, r.stage), r.id,
+      );
   }
   #get<T>(sql: string, ...args: Arg[]) {
     const row = this.#db.prepare(sql).get(...args);
@@ -328,6 +413,27 @@ export class StoryBoard {
   }
   #all<T>(sql: string, ...args: Arg[]) {
     return this.#db.prepare(sql).all(...args).map((row) => ({ ...row }) as T);
+  }
+  /**
+   * A failed Task has no stage left (the report clears it) but stays in the column it stopped in: its stored
+   * column when that is doing or review, else doing. Every other state follows `taskColumn`.
+   */
+  #columnOf(t: { state: TaskState; stage: string | null; column_key: string | null }): BoardColumn {
+    if (t.state !== "failed") return taskColumn(t.state, t.stage);
+    return t.column_key === "review" || t.column_key === "doing" ? t.column_key : "doing";
+  }
+  /**
+   * Stamps `column_at` only when the Task's board column differs from the one stored. Every write of a Task's
+   * state or stage calls this after it. `held` is not stored: it is the claimed state, so the column follows the stage.
+   */
+  #touchColumn(taskId: string) {
+    const t = this.#get<{ state: TaskState; stage: string | null; column_key: string | null }>(
+      "SELECT state,stage,column_key FROM hub_story_tasks WHERE id=?", taskId,
+    );
+    if (!t) return;
+    const column = this.#columnOf(t);
+    if (t.column_key !== column)
+      this.#run("UPDATE hub_story_tasks SET column_key=?,column_at=? WHERE id=?", column, this.#now(), taskId);
   }
   #run(sql: string, ...args: Arg[]) {
     this.#db.prepare(sql).run(...args);
@@ -400,6 +506,7 @@ export class StoryBoard {
       const next: TaskState = deps && (t.kind === "work" || anyMerged) ? "ready" : "waiting";
       if (next === t.state) continue;
       this.#run("UPDATE hub_story_tasks SET state=?,updated_at=? WHERE id=?", next, this.#now(), t.id);
+      this.#touchColumn(t.id);
       if (next === "ready") {
         readied.push(t.number);
         this.#event(storyId, t.id, null, "ready");
@@ -418,6 +525,7 @@ export class StoryBoard {
       t.id, storyId, t.nodeId, t.number, t.kind, t.repoId, t.title, t.spec,
       JSON.stringify(t.files), JSON.stringify(t.verify), this.#now(), this.#now(),
     );
+    this.#touchColumn(t.id);
   }
   #addDep(taskId: string, depId: string) {
     this.#run("INSERT OR IGNORE INTO hub_task_deps(task_id,dep_id) VALUES (?,?)", taskId, depId);
@@ -428,6 +536,7 @@ export class StoryBoard {
       "UPDATE hub_story_tasks SET state='cancelled',claimed_by=NULL,claim_id=NULL,merge_lock=0,lock_member=NULL,lock_claim=NULL,updated_at=? WHERE id=?",
       this.#now(), taskId,
     );
+    this.#touchColumn(taskId);
     this.#event(storyId, taskId, memberId, "cancelled");
   }
 
@@ -500,6 +609,67 @@ export class StoryBoard {
         .map((r) => ({ id: r.id, name: r.name, baseBranch: r.base_branch })),
       openStories: openCount.get(p.id) ?? 0,
     }));
+  }
+
+  /**
+   * The board: every project with its Stories and their cards, in a fixed number of queries (projects, Stories,
+   * Tasks). `mine` keeps the Stories the member leads or has a card in (all cards of a kept Story); a cancelled
+   * Story and its cancelled cards are left out unless `cancelled`. A Story shows its newest BOARD_DONE_MAX merged
+   * cards, most recent merge first, and counts the rest in `doneMore`.
+   */
+  board(a: Actor, o: { mine: boolean; cancelled: boolean }): BoardProject[] {
+    const projects = this.projects(a);
+    const stories = this.#all<{ id: string; project_id: string; number: number; title: string; state: StoryState; risk: "normal" | "high"; pl_member_id: string; pl_name: string }>(
+      `SELECT s.id,s.project_id,s.number,s.title,s.state,s.risk,s.pl_member_id,m.name pl_name
+       FROM hub_stories s JOIN hub_members m ON m.id=s.pl_member_id ORDER BY s.number`,
+    );
+    const tasks = this.#all<TaskRow & { column_at: number; column_key: string | null; repo_name: string | null; assignee_name: string | null }>(
+      `SELECT t.*,r.name repo_name,m.name assignee_name FROM hub_story_tasks t
+       LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by ORDER BY t.number`,
+    );
+    const cardsOf = new Map<string, { card: BoardCard; mine: boolean }[]>();
+    for (const t of tasks) {
+      const state = this.#viewState(t);
+      const column = this.#columnOf(t);
+      if (column === "hidden" && !o.cancelled) continue;
+      const card: BoardCard = {
+        taskId: t.id, storyId: t.story_id, number: t.number, title: t.title, kind: t.kind,
+        repo: t.repo_id === null ? null : { id: t.repo_id, name: t.repo_name ?? "" },
+        state, stage: t.stage, column, columnAt: t.column_at,
+        assignee: t.claimed_by === null ? null : { id: t.claimed_by, name: t.assignee_name ?? "" },
+        failure: t.failure, heartbeatAt: t.heartbeat_at,
+      };
+      const list = cardsOf.get(t.story_id) ?? [];
+      list.push({ card, mine: t.claimed_by === a.member.id });
+      cardsOf.set(t.story_id, list);
+    }
+    const byProject = new Map<string, BoardStory[]>();
+    for (const s of stories) {
+      if (s.state === "cancelled" && !o.cancelled) continue;
+      const mine = cardsOf.get(s.id) ?? [];
+      if (o.mine && s.pl_member_id !== a.member.id && !mine.some((c) => c.mine)) continue;
+      const cards = mine.map((c) => c.card);
+      const done = cards.filter((c) => c.column === "done").sort((x, y) => y.columnAt - x.columnAt || y.number - x.number);
+      const shown = new Set(done.slice(0, BOARD_DONE_MAX));
+      const story: BoardStory = {
+        id: s.id, number: s.number, title: s.title, state: s.state, risk: s.risk,
+        pl: { id: s.pl_member_id, name: s.pl_name },
+        cards: [...cards.filter((c) => c.column !== "done"), ...shown],
+        doneMore: Math.max(0, done.length - BOARD_DONE_MAX),
+      };
+      byProject.set(s.project_id, [...(byProject.get(s.project_id) ?? []), story]);
+    }
+    return projects.map((project) => ({ project, stories: byProject.get(project.id) ?? [] }));
+  }
+
+  /** Each member's open Task (claimed or failed), by member id: what the team page says they are on. */
+  currentTasks(): Map<string, { taskId: string; storyNumber: number; number: number; title: string }> {
+    return new Map(
+      this.#all<{ claimed_by: string; id: string; story_number: number; number: number; title: string }>(
+        `SELECT t.claimed_by,t.id,s.number story_number,t.number,t.title FROM hub_story_tasks t
+         JOIN hub_stories s ON s.id=t.story_id WHERE t.claimed_by IS NOT NULL AND t.state IN ('claimed','failed')`,
+      ).map((r) => [r.claimed_by, { taskId: r.id, storyNumber: r.story_number, number: r.number, title: r.title }]),
+    );
   }
 
   publishStory(
@@ -622,6 +792,7 @@ export class StoryBoard {
          stage=NULL,merge_lock=0,summary=NULL,failure=NULL,updated_at=? WHERE id=?`,
         this.#now(), verifyId,
       );
+      this.#touchColumn(verifyId);
       const result = { tasks: fresh.map((f) => ({ nodeId: f.node.id, taskId: f.id, number: f.number })) };
       this.#run(
         "INSERT INTO hub_story_appends(story_id,create_key,result,created_at) VALUES (?,?,?,?)",
@@ -646,6 +817,106 @@ export class StoryBoard {
       this.#run("UPDATE hub_stories SET state='cancelled',updated_at=? WHERE id=?", this.#now(), s.id);
       this.#event(s.id, null, a.member.id, "cancelled");
       return { ok: true as const };
+    });
+  }
+
+  /**
+   * A Story the PL approved locally (kit G1), uploaded by the command on the PL's Mac. Refused unless the link was
+   * minted by the member's current Mac (`mac`, from HubStore.currentMac), `storyHash` is the kit hash of `body` (400
+   * INVALID otherwise) and the member owns every repo of the project; a Story under the same key that some other way
+   * made (the plain publish route) is STATE, so the record only ever describes what the Mac sent, and a Story under
+   * the same text that was cancelled is not made again. Then
+   * `publishStory` under the key `upload:<storyHash>` (one Story per text, a resend gets the first answer) and the
+   * approval record for a new Story, all in one transaction: any refusal leaves no Story and no record. `bases` are
+   * the Story base commits stored so far.
+   */
+  uploadStory(
+    l: Link,
+    mac: { id: string; name: string } | null,
+    input: { projectId: string; title: string; body: string; risk: "normal" | "high"; storyHash: string; graph: unknown; storyVerify: unknown },
+  ): UploadResult {
+    return transaction(this.#db, () => {
+      if (typeof input.storyHash !== "string" || !STORY_HASH.test(input.storyHash))
+        fail("INVALID", 400, "Story 해시는 64자리 소문자 16진수여야 합니다. kit이 계산한 해시를 그대로 보내세요.");
+      // The approval record and the one-Story-per-text key describe the body itself, never a hash the client only claims.
+      if (typeof input.body === "string" && kitStoryHash(input.body) !== input.storyHash)
+        fail("INVALID", 400, "Story 글과 해시가 맞지 않습니다. 올리는 Story 파일에서 kit이 계산한 해시를 그대로 보내세요.");
+      const current = this.#currentMac(l, mac);
+      const project = this.#project(input.projectId);
+      if (!this.ownsProject(l.member.id, project.id))
+        fail("NOT_OWNER", 403, "프로젝트의 모든 레포 담당자여야 올릴 수 있습니다. 관리자에게 담당자 등록을 요청하세요.");
+      const key = `upload:${input.storyHash}`;
+      const prior = this.storyByKey(l.member.id, key);
+      if (prior && !this.#upload(prior.id)) fail("STATE", 409, "이 키로 이미 다른 방법으로 올린 Story가 있습니다.");
+      if (prior?.state === "cancelled")
+        fail("UPLOAD_CANCELLED", 409, "이 Story는 취소됐습니다. Story 글을 고쳐 새 승인을 받은 뒤 올리세요.");
+      const { projectId, title, body, risk, graph, storyVerify } = input;
+      const published = this.publishStory(l, { projectId, title, body, risk, graph, storyVerify, key });
+      if (!published.already) {
+        this.#run(
+          "INSERT INTO hub_story_uploads(story_id,mac_id,mac_name,story_hash,bases,created_at) VALUES (?,?,?,?,'{}',?)",
+          published.storyId, current.id, current.name, input.storyHash, this.#now(),
+        );
+        this.#event(published.storyId, null, l.member.id, "uploaded", current.name);
+      }
+      const row = this.#upload(published.storyId) as UploadRow;
+      return {
+        storyId: published.storyId,
+        number: published.number,
+        state: this.#story(published.storyId).state,
+        already: published.already,
+        bases: JSON.parse(row.bases) as Record<string, string>,
+      };
+    });
+  }
+  #upload(storyId: string) {
+    return this.#get<UploadRow>("SELECT * FROM hub_story_uploads WHERE story_id=?", storyId);
+  }
+  /** The upload routes' Mac rule: the link was minted by `mac`, the member's current Mac. A connection-string link has none. */
+  #currentMac(l: Link, mac: { id: string; name: string } | null): { id: string; name: string } {
+    if (l.macId === null || mac === null || l.macId !== mac.id) fail("NOT_YOUR_MAC", 403, NOT_YOUR_MAC_MESSAGE);
+    return mac;
+  }
+  /**
+   * The Story base commits of an uploaded Story ({repoId: commit}), by the PL who uploaded it, from the PL's current
+   * Mac (`mac`) like the upload. Each of the project's repos is stored once (`mergeBases`): the same commit again is
+   * nothing, another is BASES_CHANGED and nothing changes. A repo not stored yet is taken only while the Story is not
+   * open. Answers every commit stored.
+   */
+  uploadBases(l: Link, mac: { id: string; name: string } | null, storyId: string, bases: unknown): { bases: Record<string, string> } {
+    return transaction(this.#db, () => {
+      this.#currentMac(l, mac);
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      const row = this.#upload(s.id) ?? fail("STATE", 409, "명령으로 올린 Story가 아니라 base 커밋을 적을 수 없습니다.");
+      const names = new Map(
+        this.#all<{ id: string; name: string }>(
+          "SELECT r.id,r.name FROM hub_project_repos pr JOIN hub_repos r ON r.id=pr.repo_id WHERE pr.project_id=?", s.project_id,
+        ).map((r) => [r.id, r.name]),
+      );
+      const { stored, added } = mergeBases(JSON.parse(row.bases) as Record<string, string>, bases, names, {
+        invalid: "bases는 이 Story 프로젝트의 레포 id마다 40자리 16진수 커밋 id를 적은 객체여야 합니다.",
+        changedSuffix: " Hub에 적힌 커밋으로 다시 실행하세요.",
+      });
+      if (added.length === 0) return { bases: stored };
+      if (s.state !== "draft") fail("STATE", 409, "열리기 전의 Story에만 새 base 커밋을 적을 수 있습니다.");
+      this.#run("UPDATE hub_story_uploads SET bases=? WHERE story_id=?", JSON.stringify(stored), s.id);
+      this.#event(s.id, null, l.member.id, "bases", added.map((id) => names.get(id)).join(","));
+      return { bases: stored };
+    });
+  }
+  /** The local approval of an uploaded Story; null for any other Story. */
+  storyUpload(storyId: string): StoryUpload | null {
+    const row = this.#upload(storyId);
+    return row ? { macName: row.mac_name, at: row.created_at, storyHash: row.story_hash } : null;
+  }
+  /** The web's [취소] on an uploaded Story that has not opened: by its PL or a hub admin, through `cancelStory`. */
+  cancelUpload(a: Actor, storyId: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPlOrAdmin(a, s);
+      if (!this.#upload(s.id) || s.state !== "draft") fail("STATE", 409, "열리기 전의 올린 Story만 여기서 취소할 수 있습니다.");
+      return this.cancelStory(a, s.id);
     });
   }
 
@@ -688,6 +959,7 @@ export class StoryBoard {
       "UPDATE hub_story_tasks SET state='claimed',claimed_by=?,claim_id=?,claimed_at=?,heartbeat_at=?,stage=NULL,updated_at=? WHERE id=?",
       memberId, randomUUID(), now, now, now, taskId,
     );
+    this.#touchColumn(taskId);
   }
   /** Reads the Task back after it was claimed, so the answer carries the stored claim id, failure and memo. */
   #claimedTask(taskId: string): ClaimedTask {
@@ -799,6 +1071,7 @@ export class StoryBoard {
       if (!STAGES.includes(stage)) fail("INVALID", 400, `단계는 ${STAGES.join(", ")} 중 하나여야 합니다.`);
       const now = this.#now();
       this.#run("UPDATE hub_story_tasks SET heartbeat_at=?,stage=?,updated_at=? WHERE id=?", now, stage, now, t.id);
+      this.#touchColumn(t.id);
       return { ok: true as const };
     });
   }
@@ -875,6 +1148,7 @@ export class StoryBoard {
          stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
         this.#now(), t.id,
       );
+      this.#touchColumn(t.id);
       if (t.kind === "verify") this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
       this.#event(s.id, t.id, a.member.id, "released", shown);
       return { ok: true as const };
@@ -976,6 +1250,7 @@ export class StoryBoard {
         l.member.id, claimId, late ? null : t.heartbeat_at, prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions),
         this.#now(), t.id,
       );
+      this.#touchColumn(t.id);
       this.#event(t.story_id, t.id, l.member.id, late ? "late_merged" : "merged", r.mergeCommit);
       return { ok: true as const, already: false, ready: this.#recompute(t.story_id) };
     });
@@ -992,6 +1267,7 @@ export class StoryBoard {
         `UPDATE hub_story_tasks SET state='failed',failure=?,merge_lock=0,${FORGET_OWN_LOCK},stage=NULL,updated_at=? WHERE id=?`,
         reason, claimId, claimId, this.#now(), t.id,
       );
+      this.#touchColumn(t.id);
       this.#event(t.story_id, t.id, l.member.id, "failed", reason);
       return { ok: true as const };
     });
@@ -1021,6 +1297,7 @@ export class StoryBoard {
       if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
       if (r.passed) {
         this.#run("UPDATE hub_story_tasks SET state='passed',summary=?,stage=NULL,updated_at=? WHERE id=?", r.summary, this.#now(), t.id);
+        this.#touchColumn(t.id);
         this.#run("UPDATE hub_stories SET state='awaiting_g4',updated_at=? WHERE id=?", this.#now(), t.story_id);
       } else {
         this.#run(
@@ -1028,6 +1305,7 @@ export class StoryBoard {
            stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
           r.summary, this.#now(), t.id,
         );
+        this.#touchColumn(t.id);
         this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), t.story_id);
       }
       this.#event(t.story_id, t.id, l.member.id, r.passed ? "verified" : "verify_failed", r.summary);
