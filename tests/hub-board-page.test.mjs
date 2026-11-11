@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { startTestHub } from "./hub-fixture.mjs";
 import { plainFailure } from "../src/hub/story-pages.ts";
 import { safePath } from "../src/hub/paths.ts";
+import { planStoryKey } from "../src/hub/plan-protocol.ts";
+import { kitStoryHash } from "../src/core/kit-role-runs.ts";
 
 const SHA = "c0ffee".padEnd(40, "0");
 const PR = "https://github.example.com/team/app-be/pull/7";
@@ -188,6 +190,59 @@ test("planning lanes", async (t) => {
   assert.ok(text.includes(`href="/plans/${plan.planId}"`));
   assert.ok(text.includes(`href="/stories/${draft.storyId}"`));
   assert.ok(text.includes("새 기획"));
+});
+
+test("a web-planned Story and an uploaded Story share one board", async (t) => {
+  const h = await team(t);
+  const task = (id, file) => ({ id, repoId: h.be, title: `${id} 작업`, spec: `${id} 설명`, files: [file], verify: [check] });
+  // Web plan: the PL plans on the web, the PL's Office drafts, the PL approves G1 on the web, and the Office publishes
+  // the plan's Story under the plan key, opens it and reports it open.
+  const HOLDER = "a".repeat(32);
+  const planId = h.plans.createPlan(h.pl.member, { projectId: h.projectId, title: "웹 기획 Story", intent: "쿠폰을 웹에서 기획한다", risk: "normal" }).planId;
+  const lease = () => {
+    const l = h.plans.next(h.plBe, HOLDER);
+    assert.equal(l?.plan.id, planId, "the PL's plan");
+    return l;
+  };
+  let l = lease();
+  h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "draft", text: "# Story: 웹 기획 Story\n", story: { title: "웹 기획 Story" } });
+  const v = h.plans.plan({ member: h.pl.member }, planId);
+  h.plans.approve(h.pl.member, planId, "G1", v.revision, v.draft.hash);
+  l = lease();
+  const web = h.board.publishStory(h.plBe, {
+    projectId: h.projectId, title: "웹 기획 Story", body: "# Story: 웹 기획 Story\n", risk: "normal", key: planStoryKey(planId),
+    graph: { nodes: [task("web", "src/web.ts")], edges: [] }, storyVerify: [{ repoId: h.be, checks: [check] }],
+  });
+  h.board.openStory(h.plBe, web.storyId);
+  h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "open", storyId: web.storyId });
+  // Local upload: the PL's current Mac sends a locally approved Story through the upload route (its app-fe link: the
+  // PL's app-be is held by the connection string the web plan's Office used).
+  const token = h.store.macLink(h.pair(h.pl, "PL Mac"), h.fe).token;
+  const body = "# Story: 올린 Story\n\n## MUST\n- M1. 올린다.\n";
+  const sent = await h.api("POST", "/api/link/story/upload", {
+    token, protocol: "3",
+    body: { projectId: h.projectId, title: "올린 Story", body, risk: "normal", storyHash: kitStoryHash(body), graph: { nodes: [task("up", "src/up.ts")], edges: [] }, storyVerify: [{ repoId: h.be, checks: [check] }] },
+  });
+  assert.equal(sent.status, 200, sent.text);
+  const up = sent.json;
+  const cardOf = (s, nodeId) => h.board.story({ member: h.pl.member }, s.storyId).tasks.find((x) => x.nodeId === nodeId).id;
+  // Before it opens, the uploaded Story waits in 기획 중 beside the opened web-planned lane.
+  let text = (await h.get("/", h.pl)).text;
+  const planning = /<article class="lane"><h3>기획 중<\/h3>([\s\S]*?)<\/article>/.exec(text)?.[1] ?? "";
+  assert.ok(planning.includes(`href="/stories/${up.storyId}"`), "the uploaded draft is in 기획 중");
+  assert.ok(colOf(laneOf(text, web.number), "todo").includes(`/tasks/${cardOf(web, "web")}`));
+  // Opened, both are lanes of the same project with their cards, for the PL and for a teammate.
+  assert.equal((await h.api("POST", "/api/link/story/open", { token, protocol: "3", body: { storyId: up.storyId } })).status, 200);
+  for (const who of [h.pl, h.c]) {
+    text = (await h.get("/", who)).text;
+    const project = /<section class="project">[\s\S]*?<\/section>/.exec(text)[0];
+    for (const [s, nodeId] of [[web, "web"], [up, "up"]]) {
+      const lane = laneOf(project, s.number);
+      assert.ok(lane.includes(`href="/stories/${s.storyId}"`), `#${s.number} lane`);
+      assert.ok(colOf(lane, "todo").includes(`/tasks/${cardOf(s, nodeId)}`), `#${s.number} card`);
+    }
+  }
+  assert.ok((await h.get(`/stories/${up.storyId}`, h.c)).text.includes("로컬 승인 · PL Mac"), "the uploaded one carries its local approval");
 });
 
 test("mine and cancelled toggles are links", async (t) => {
