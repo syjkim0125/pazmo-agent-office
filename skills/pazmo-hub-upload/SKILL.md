@@ -18,9 +18,9 @@ it: teammates' Macs take its Tasks from the Hub. Use this only on the PL's own M
 2. Get the PL's G1 (understanding gate) through the kit workflow. The kit writes the line
    `Understanding gate (G1): <record path> · <date> · Check-in: accepted` into the Story header and the record (JSON with
    `gate`, `storyHash`, `responseRef`). Keep that line as it is.
-3. For a high-risk Story also get G3 (design approval) through the kit workflow: the Story gets an
-   `Understanding gate (G3): …` line whose record binds the Story and the design file it names (`design`,
-   `decisionHash`).
+3. For a high-risk Story also get G3 (design approval) through the kit workflow. The design file is the one
+   `.ai-workflow/verification.json` names in `design` (set `requiresG3` and `design` there before G3). The Story gets an
+   `Understanding gate (G3): …` line whose record binds the Story (`storyHash`) and that design file (`decisionHash`).
 4. Do not edit the Story after its approval. Any change to the text (except the Status and gate lines) needs a new G1
    (and G3), and the command refuses the old one.
 5. Write the Task file below. Each Task names its repo, the files it touches, the Story M/V ids it covers, the Tasks
@@ -70,7 +70,7 @@ a check before the upload fails.
 | Code | What is wrong | Fix |
 |---|---|---|
 | `UPLOAD_G1` | The Story has no G1 line, its record is missing, or the record does not bind this Story text (it changed after approval). | Get G1 again through the kit workflow for the Story as it is now, then run again. |
-| `UPLOAD_G3` | `risk` is `high` but there is no G3 line, its record does not bind this Story, or the design file changed after G3. | Get G3 for the design through the kit workflow, then run again. |
+| `UPLOAD_G3` | `risk` is `high` but there is no G3 line, its record does not bind this Story, no design file is named (`design` in `.ai-workflow/verification.json`, else the record's), the two name different files, or the design file changed after G3. | Name the design in `.ai-workflow/verification.json` and get G3 for it through the kit workflow, then run again. |
 | `UPLOAD_STORY` | No `# Story:` title, the Story is over 32768 bytes, or it is not the kit shape (an M no V names, a V naming an M that does not exist, duplicate ids). | Fix the Story, get G1 again (the text changed), then run again. |
 | `UPLOAD_TASKS` | The Task file is not JSON or not the shape above: a bad `risk`, a `covers` id the Story does not have, a covered V without its check or a check whose V is not covered, an `after` naming no Task, or a graph the Hub refuses (cycle, two Tasks on one file with no order, limits). | Fix the Task file as the message says, then run again. |
 | `UPLOAD_COVERAGE` | An M or V of the Story is in no Task's `covers`, or a Task covers an M that none of its own Vs checks. | Add a Task or put the id in the right Task's `covers` (and its check), then run again. |

@@ -130,6 +130,42 @@ function gateRecord(root: string, text: string, gate: "G1" | "G3", storyHash: st
   return value as Record<string, unknown>;
 }
 
+/** The kit's verification profile, where it names the design file a G3 binds (kit `cli.mjs`: `profile.value.design`). */
+const PROFILE = ".ai-workflow/verification.json";
+
+/**
+ * The design file a G3 binds, as the kit finds it: the `design` of `.ai-workflow/verification.json` under `root`; the
+ * G3 record's own `design` only when the profile names none, and both must name the same file when both do.
+ */
+function designPath(root: string, g3: Record<string, unknown>): string {
+  let profile: unknown = null;
+  let text: string | null = null;
+  try {
+    text = readFileSync(join(root, PROFILE), "utf8");
+  } catch {
+    // no profile: the record's own design, if any
+  }
+  if (text !== null)
+    try {
+      profile = JSON.parse(text);
+    } catch {
+      refuse("UPLOAD_G3", `kit 검증 설정(${PROFILE})이 JSON이 아니라 G3의 설계 파일을 알 수 없습니다. 그 파일을 고친 뒤 다시 실행하세요.`);
+    }
+  const named = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
+  const fromProfile = named(isObject(profile) ? profile.design : undefined);
+  const fromRecord = named(g3.design);
+  if (fromProfile && fromRecord && resolve(root, fromProfile) !== resolve(root, fromRecord))
+    refuse(
+      "UPLOAD_G3",
+      `G3 기록의 설계 파일(${fromRecord})이 kit 검증 설정(${PROFILE})의 design(${fromProfile})과 다릅니다. ${PROFILE}의 design에 승인받은 설계 파일을 적고 G3 승인을 다시 받은 뒤 실행하세요.`,
+    );
+  return (
+    fromProfile ??
+    fromRecord ??
+    refuse("UPLOAD_G3", `G3가 묶은 설계 파일을 알 수 없습니다. ${PROFILE}의 design에 설계 파일 경로를 적고 kit workflow로 G3 승인을 받은 뒤 실행하세요.`)
+  );
+}
+
 /** The Task file as JSON with its `project` (null when it has none). */
 function readTasks(tasksPath: string): { raw: Record<string, unknown>; project: string | null } {
   let text: string;
@@ -205,10 +241,8 @@ export function checkUpload(storyPath: string, tasksPath: string, project: Uploa
     const g3 = gateRecord(root, body, "G3", storyHash, "UPLOAD_G3");
     if (!g3)
       return refuse("UPLOAD_G3", "위험도가 high인 Story는 설계 승인(G3)이 필요한데 Story에 G3 줄이 없습니다. kit workflow로 설계를 승인받아 기록한 뒤 다시 실행하세요.");
-    if (typeof g3.design !== "string" || !g3.design)
-      refuse("UPLOAD_G3", "G3 기록에 설계 파일(design)이 없습니다. kit workflow로 설계 승인을 다시 받은 뒤 실행하세요.");
-    const design = g3.design as string;
-    if (g3.decisionHash !== sha256(projectText(root, design, "UPLOAD_G3", "G3 기록이 가리키는 설계 파일")))
+    const design = designPath(root, g3);
+    if (g3.decisionHash !== sha256(projectText(root, design, "UPLOAD_G3", "설계 파일")))
       refuse("UPLOAD_G3", `설계 파일(${design})이 G3 승인 뒤 바뀌었습니다. 바뀐 설계로 G3 승인을 다시 받은 뒤 실행하세요.`);
   }
 

@@ -184,6 +184,12 @@ test("high risk needs a bound G3", (t) => {
   const other = files(t, { story, tasks: high });
   other.put(".ai-workflow/approvals/pay-g3.json", g3({ storyHash: "0".repeat(64) }));
   refuses(other, "UPLOAD_G3");
+  // A record with no response it was given in.
+  const unanswered = files(t, { story, tasks: high });
+  const { responseRef, ...noResponse } = g3();
+  assert.ok(responseRef);
+  unanswered.put(".ai-workflow/approvals/pay-g3.json", noResponse);
+  refuses(unanswered, "UPLOAD_G3", /G3/);
   // Bound: it passes, and a normal-risk Story needs no G3.
   const bound = files(t, { story, tasks: high });
   bound.put(".ai-workflow/approvals/pay-g3.json", g3());
@@ -255,4 +261,42 @@ test("refuses a bad graph before the Hub", (t) => {
   const overlap = tasksFile();
   overlap.tasks.push({ id: "be-log", repo: "app-be", title: "결제 기록", spec: "기록을 남긴다.", files: ["src/pay.ts"], covers: ["M1", "V1"], after: [], checks: [check("V1")] });
   refuses(files(t, { tasks: overlap }), "UPLOAD_TASKS", /같은 파일/);
+});
+
+test("G3 takes the design file from the kit verification profile", (t) => {
+  const high = tasksFile({ risk: "high" });
+  const story = storyText({ gates: [G1_LINE, G3_LINE] });
+  // The kit's own G3 record: no design field; the design path lives in .ai-workflow/verification.json.
+  const kitG3 = { gate: "G3", storyHash: kitStoryHash(story), decisionHash: sha256(DESIGN), responseRef: "chat: 설계 승인" };
+  const profile = (design) => ({ version: 1, checks: [{ id: "v1", covers: ["V1"], argv: ["npm", "test"] }], requiresG3: true, design });
+  const kit = files(t, { story, tasks: high });
+  kit.put(".ai-workflow/approvals/pay-g3.json", kitG3);
+  kit.put(".ai-workflow/verification.json", profile("docs/pay-design.md"));
+  assert.equal(kit.check().risk, "high");
+  // The design named there changed after G3.
+  kit.put("docs/pay-design.md", "# 바뀐 설계\n");
+  refuses(kit, "UPLOAD_G3", /설계/);
+  // A record whose design is another file than the profile's.
+  const split = files(t, { story, tasks: high });
+  split.put("docs/other-design.md", DESIGN);
+  split.put(".ai-workflow/approvals/pay-g3.json", { ...kitG3, design: "docs/other-design.md" });
+  split.put(".ai-workflow/verification.json", profile("docs/pay-design.md"));
+  refuses(split, "UPLOAD_G3", /verification\.json/);
+  // The same file named both ways is fine.
+  split.put(".ai-workflow/approvals/pay-g3.json", { ...kitG3, design: "./docs/pay-design.md" });
+  assert.equal(split.check().risk, "high");
+  // A profile design path that leaves the project.
+  const outside = files(t, { story, tasks: high });
+  outside.put(".ai-workflow/approvals/pay-g3.json", kitG3);
+  outside.put(".ai-workflow/verification.json", profile("../pay-design.md"));
+  refuses(outside, "UPLOAD_G3", /상대 경로/);
+  // No design anywhere: neither the profile nor the record names one.
+  const none = files(t, { story, tasks: high });
+  none.put(".ai-workflow/approvals/pay-g3.json", kitG3);
+  refuses(none, "UPLOAD_G3", /design/);
+  // A profile that is not JSON.
+  const broken = files(t, { story, tasks: high });
+  broken.put(".ai-workflow/approvals/pay-g3.json", kitG3);
+  broken.put(".ai-workflow/verification.json", "{ not json");
+  refuses(broken, "UPLOAD_G3", /verification\.json/);
 });

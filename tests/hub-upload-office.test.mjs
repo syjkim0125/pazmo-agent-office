@@ -152,6 +152,10 @@ async function world(t) {
     const dir = join(root, "pl", name);
     mkdirSync(dirname(dir), { recursive: true });
     o.git(dirname(dir), "clone", "-q", `https://${o.remote(name)}.git`, dir);
+    // The PL is in the middle of work there: a staged change and an untracked file the upload must leave alone.
+    writeFileSync(join(dir, "README.md"), `# ${name}\nwork in progress\n`);
+    o.git(dir, "add", "README.md");
+    writeFileSync(join(dir, "notes.txt"), "untracked\n");
     const { project } = await addTeamRepo(data, dir);
     const { dataDir } = locate(project, data);
     mkdirSync(dataDir, { recursive: true, mode: 0o700 });
@@ -216,6 +220,23 @@ async function world(t) {
     /** Every branch on origin `name`. */
     heads: (name) => o.git(root, "ls-remote", "--heads", o.bare(name)).trim(),
     get: (path) => h.call("GET", path, { cookie: web.cookie }),
+    /** What the PL sees in each registered clone: HEAD, local branches, the index and the working tree. */
+    clones: () =>
+      Object.fromEntries(
+        NAMES.map((name) => {
+          const dir = join(root, "pl", name);
+          return [
+            name,
+            {
+              head: o.git(dir, "symbolic-ref", "HEAD"),
+              commit: o.git(dir, "rev-parse", "HEAD"),
+              branches: o.git(dir, "for-each-ref", "refs/heads"),
+              index: o.git(dir, "ls-files", "-s"),
+              status: o.git(dir, "status", "--porcelain=v1", "--untracked-files=all"),
+            },
+          ];
+        }),
+      ),
     /** Origin `name` refuses every push while `allow` has not been called (a protected-branch rule). */
     refusePushes(name) {
       const marker = join(root, `refuse-${name}`);
@@ -230,7 +251,10 @@ async function world(t) {
 
 test("upload publishes, makes bases and opens", async (t) => {
   const w = await world(t);
+  const clones = w.clones();
+  assert.match(clones["app-be"].status, /^M  README\.md\n\?\? notes\.txt\n$/, "a staged change and an untracked file");
   const result = await w.upload();
+  assert.deepEqual(w.clones(), clones, "the PL's clones are as they were: HEAD, branches, index, working tree");
   assert.deepEqual(Object.keys(result).sort(), ["already", "number", "opened", "storyId"]);
   assert.deepEqual([result.opened, result.already], [true, false]);
 
@@ -270,6 +294,7 @@ test("upload publishes, makes bases and opens", async (t) => {
 
 test("upload again after a push failure resumes", async (t) => {
   const w = await world(t);
+  const clones = w.clones();
   const rule = w.refusePushes("app-fe");
   await assert.rejects(w.upload(), (error) => {
     assert.equal(error.code, "GIT_FAILED");
@@ -282,6 +307,7 @@ test("upload again after a push failure resumes", async (t) => {
   const base = `feature/story-${draft.number}/base`;
   assert.equal(w.remote("app-be", base), w.tips["app-be"]);
   assert.equal(w.remote("app-fe", base), null);
+  assert.deepEqual(w.clones(), clones, "a failed run leaves the PL's clones as they were");
 
   // The rule is lifted; meanwhile develop moved on.
   rule.allow();
@@ -294,6 +320,7 @@ test("upload again after a push failure resumes", async (t) => {
   assert.equal(w.remote("app-be", base), w.tips["app-be"]);
   assert.equal(w.story(draft.id).state, "open");
   assert.equal(w.stories().length, 1, "one Story");
+  assert.deepEqual(w.clones(), clones, "the resume leaves the PL's clones as they were");
 });
 
 test("upload again after success changes nothing", async (t) => {
