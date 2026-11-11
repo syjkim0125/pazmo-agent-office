@@ -1,0 +1,8 @@
+{
+  "gate": "G3",
+  "storyHash": "341e131e848b149662227309e4975dfdfa02d6c66470e239d94e0e0dc5f03b85",
+  "decisionHash": "4197b7b25d723ade15b0e58dce02b56dea12b8cf5eed9522174807bb2d57aebd",
+  "responseRef": "Claude Code conversation 2026-11-11: after reading version 5 of https://claude.ai/artifact/GJBHwuZJSNs9xqUJDPQKAR (the G3 section: one scenario, K1 the upload command publishes directly instead of queueing a Hub plan for the Office, K2 the local G1 checked by the command against the Story hash and by the Hub against the PL's current Mac and repo ownership, K3 live refresh by ETag that pauses while typing or hidden, the board, idempotency and resume, landing and menus, the claude guide, invariants, recovery, evidence and the eight steps) and the design document docs/understanding/hub-board-local-upload-plan.md, asked \"이 설계로 구현을 시작할까요?\", the user answered \"승인, 시작해\".",
+  "design": "docs/understanding/hub-board-local-upload-plan.md",
+  "date": "2026-11-11"
+}

@@ -2,7 +2,7 @@
 Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G3): docs/understanding/pazmo-agent-office-plan.md · 2026-09-18 · Check-in: accepted
+Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
 Understanding gate (G4): .ai-workflow/approvals/pl-planning-g4.json · 2026-11-10 · Check-in: accepted
 G4: PASS — U38(D41 묶음 3, PL이 Hub 웹에 하고 싶은 일을 적으면 PL의 Office가 AI로 묻고 kit 틀로 정리하고, PL의 G1(높은 위험이면 G3) 뒤 repo별 Task로 나눠 올리고 Story base를 만들어 연다): 사용자가 G4 설명 페이지를 본 뒤 "① 승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/pl-planning-g4.md).
 
