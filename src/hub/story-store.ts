@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
 import { HubError, type Link, type Member } from "./store.ts";
+import { taskColumn, type BoardColumn } from "./board.ts";
 import {
   HELD_AFTER_MS,
   LIMITS,
@@ -29,6 +30,35 @@ export type ProjectView = {
   repos: { id: string; name: string; baseBranch: string }[];
   openStories: number;
 };
+export type BoardCard = {
+  taskId: string;
+  storyId: string;
+  number: number;
+  title: string;
+  kind: "work" | "verify";
+  repo: { id: string; name: string } | null;
+  state: TaskViewState;
+  stage: string | null;
+  column: BoardColumn;
+  columnAt: number;
+  assignee: { id: string; name: string } | null;
+  failure: string | null;
+  heartbeatAt: number | null;
+};
+export type BoardStory = {
+  id: string;
+  number: number;
+  title: string;
+  state: StoryState;
+  risk: "normal" | "high";
+  pl: { id: string; name: string };
+  cards: BoardCard[];
+  /** Merged cards beyond the newest BOARD_DONE_MAX that `cards` leaves out. */
+  doneMore: number;
+};
+export type BoardProject = { project: ProjectView; stories: BoardStory[] };
+/** The board shows this many of a Story's newest merged cards. */
+export const BOARD_DONE_MAX = 5;
 export type StorySummary = {
   id: string;
   number: number;
@@ -245,7 +275,7 @@ INSERT OR IGNORE INTO hub_seq(id,next) VALUES (1,1);
 CREATE TABLE IF NOT EXISTS hub_projects(id TEXT PRIMARY KEY,name TEXT NOT NULL,created_by TEXT NOT NULL REFERENCES hub_members(id),created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_project_repos(project_id TEXT NOT NULL REFERENCES hub_projects(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),base_branch TEXT NOT NULL,PRIMARY KEY(project_id,repo_id));
 CREATE TABLE IF NOT EXISTS hub_stories(id TEXT PRIMARY KEY,project_id TEXT NOT NULL REFERENCES hub_projects(id),number INTEGER NOT NULL UNIQUE,title TEXT NOT NULL,body TEXT NOT NULL,risk TEXT NOT NULL CHECK(risk IN ('normal','high')),pl_member_id TEXT NOT NULL REFERENCES hub_members(id),create_key TEXT NOT NULL,graph TEXT NOT NULL,fingerprint TEXT NOT NULL,story_verify TEXT NOT NULL,published TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('draft','open','verifying','awaiting_g4','done','cancelled')),created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(pl_member_id,create_key));
-CREATE TABLE IF NOT EXISTS hub_story_tasks(id TEXT PRIMARY KEY,story_id TEXT NOT NULL REFERENCES hub_stories(id),node_id TEXT NOT NULL,number INTEGER NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('work','verify')),repo_id TEXT REFERENCES hub_repos(id),title TEXT NOT NULL,spec TEXT NOT NULL,files TEXT NOT NULL,verify TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('waiting','ready','claimed','failed','merged','passed','cancelled')),claimed_by TEXT REFERENCES hub_members(id),claim_id TEXT,claimed_at INTEGER,heartbeat_at INTEGER,stage TEXT,merge_lock INTEGER NOT NULL DEFAULT 0,lock_member TEXT REFERENCES hub_members(id),lock_claim TEXT,pr_url TEXT,merge_commit TEXT,summary TEXT,assumptions TEXT,failure TEXT,memo TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(story_id,node_id));
+CREATE TABLE IF NOT EXISTS hub_story_tasks(id TEXT PRIMARY KEY,story_id TEXT NOT NULL REFERENCES hub_stories(id),node_id TEXT NOT NULL,number INTEGER NOT NULL UNIQUE,kind TEXT NOT NULL CHECK(kind IN ('work','verify')),repo_id TEXT REFERENCES hub_repos(id),title TEXT NOT NULL,spec TEXT NOT NULL,files TEXT NOT NULL,verify TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN ('waiting','ready','claimed','failed','merged','passed','cancelled')),claimed_by TEXT REFERENCES hub_members(id),claim_id TEXT,claimed_at INTEGER,heartbeat_at INTEGER,stage TEXT,merge_lock INTEGER NOT NULL DEFAULT 0,column_at INTEGER,column_key TEXT,lock_member TEXT REFERENCES hub_members(id),lock_claim TEXT,pr_url TEXT,merge_commit TEXT,summary TEXT,assumptions TEXT,failure TEXT,memo TEXT,created_at INTEGER NOT NULL,updated_at INTEGER NOT NULL,UNIQUE(story_id,node_id));
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_open_task ON hub_story_tasks(claimed_by) WHERE state IN ('claimed','failed');
 CREATE UNIQUE INDEX IF NOT EXISTS hub_one_merge_lock ON hub_story_tasks(story_id,repo_id) WHERE merge_lock=1;
 CREATE TABLE IF NOT EXISTS hub_task_deps(task_id TEXT NOT NULL REFERENCES hub_story_tasks(id),dep_id TEXT NOT NULL REFERENCES hub_story_tasks(id),PRIMARY KEY(task_id,dep_id));
@@ -321,6 +351,24 @@ export class StoryBoard {
     this.#db = db;
     this.#now = now;
     db.exec(SCHEMA);
+    this.#migrate();
+  }
+  /**
+   * Board column columns for hubs made before them; idempotent. A Task that already exists gets the time it was
+   * claimed (or created) as the time it entered its column, the best the stored rows can say.
+   */
+  #migrate() {
+    const have = new Set((this.#db.prepare("PRAGMA table_info(hub_story_tasks)").all() as { name: string }[]).map((c) => c.name));
+    if (!have.has("column_at")) this.#db.exec("ALTER TABLE hub_story_tasks ADD COLUMN column_at INTEGER");
+    if (!have.has("column_key")) this.#db.exec("ALTER TABLE hub_story_tasks ADD COLUMN column_key TEXT");
+    const rows = this.#all<{ id: string; state: TaskState; stage: string | null }>(
+      "SELECT id,state,stage FROM hub_story_tasks WHERE column_key IS NULL",
+    );
+    for (const r of rows)
+      this.#run(
+        "UPDATE hub_story_tasks SET column_key=?,column_at=COALESCE(claimed_at,created_at) WHERE id=?",
+        taskColumn(r.state, r.stage), r.id,
+      );
   }
   #get<T>(sql: string, ...args: Arg[]) {
     const row = this.#db.prepare(sql).get(...args);
@@ -328,6 +376,19 @@ export class StoryBoard {
   }
   #all<T>(sql: string, ...args: Arg[]) {
     return this.#db.prepare(sql).all(...args).map((row) => ({ ...row }) as T);
+  }
+  /**
+   * Stamps `column_at` only when the Task's board column differs from the one stored. Every write of a Task's
+   * state or stage calls this after it. `held` is not stored: it is the claimed state, so the column follows the stage.
+   */
+  #touchColumn(taskId: string) {
+    const t = this.#get<{ state: TaskState; stage: string | null; column_key: string | null }>(
+      "SELECT state,stage,column_key FROM hub_story_tasks WHERE id=?", taskId,
+    );
+    if (!t) return;
+    const column = taskColumn(t.state, t.stage);
+    if (t.column_key !== column)
+      this.#run("UPDATE hub_story_tasks SET column_key=?,column_at=? WHERE id=?", column, this.#now(), taskId);
   }
   #run(sql: string, ...args: Arg[]) {
     this.#db.prepare(sql).run(...args);
@@ -400,6 +461,7 @@ export class StoryBoard {
       const next: TaskState = deps && (t.kind === "work" || anyMerged) ? "ready" : "waiting";
       if (next === t.state) continue;
       this.#run("UPDATE hub_story_tasks SET state=?,updated_at=? WHERE id=?", next, this.#now(), t.id);
+      this.#touchColumn(t.id);
       if (next === "ready") {
         readied.push(t.number);
         this.#event(storyId, t.id, null, "ready");
@@ -418,6 +480,7 @@ export class StoryBoard {
       t.id, storyId, t.nodeId, t.number, t.kind, t.repoId, t.title, t.spec,
       JSON.stringify(t.files), JSON.stringify(t.verify), this.#now(), this.#now(),
     );
+    this.#touchColumn(t.id);
   }
   #addDep(taskId: string, depId: string) {
     this.#run("INSERT OR IGNORE INTO hub_task_deps(task_id,dep_id) VALUES (?,?)", taskId, depId);
@@ -428,6 +491,7 @@ export class StoryBoard {
       "UPDATE hub_story_tasks SET state='cancelled',claimed_by=NULL,claim_id=NULL,merge_lock=0,lock_member=NULL,lock_claim=NULL,updated_at=? WHERE id=?",
       this.#now(), taskId,
     );
+    this.#touchColumn(taskId);
     this.#event(storyId, taskId, memberId, "cancelled");
   }
 
@@ -500,6 +564,67 @@ export class StoryBoard {
         .map((r) => ({ id: r.id, name: r.name, baseBranch: r.base_branch })),
       openStories: openCount.get(p.id) ?? 0,
     }));
+  }
+
+  /**
+   * The board: every project with its Stories and their cards, in a fixed number of queries (projects, Stories,
+   * Tasks). `mine` keeps the Stories the member leads or has a card in (all cards of a kept Story); a cancelled
+   * Story and its cancelled cards are left out unless `cancelled`. A Story shows its newest BOARD_DONE_MAX merged
+   * cards, most recent merge first, and counts the rest in `doneMore`.
+   */
+  board(a: Actor, o: { mine: boolean; cancelled: boolean }): BoardProject[] {
+    const projects = this.projects(a);
+    const stories = this.#all<{ id: string; project_id: string; number: number; title: string; state: StoryState; risk: "normal" | "high"; pl_member_id: string; pl_name: string }>(
+      `SELECT s.id,s.project_id,s.number,s.title,s.state,s.risk,s.pl_member_id,m.name pl_name
+       FROM hub_stories s JOIN hub_members m ON m.id=s.pl_member_id ORDER BY s.number`,
+    );
+    const tasks = this.#all<TaskRow & { column_at: number; repo_name: string | null; assignee_name: string | null }>(
+      `SELECT t.*,r.name repo_name,m.name assignee_name FROM hub_story_tasks t
+       LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by ORDER BY t.number`,
+    );
+    const cardsOf = new Map<string, { card: BoardCard; mine: boolean }[]>();
+    for (const t of tasks) {
+      const state = this.#viewState(t);
+      const column = taskColumn(t.state, t.stage);
+      if (column === "hidden" && !o.cancelled) continue;
+      const card: BoardCard = {
+        taskId: t.id, storyId: t.story_id, number: t.number, title: t.title, kind: t.kind,
+        repo: t.repo_id === null ? null : { id: t.repo_id, name: t.repo_name ?? "" },
+        state, stage: t.stage, column, columnAt: t.column_at,
+        assignee: t.claimed_by === null ? null : { id: t.claimed_by, name: t.assignee_name ?? "" },
+        failure: t.failure, heartbeatAt: t.heartbeat_at,
+      };
+      const list = cardsOf.get(t.story_id) ?? [];
+      list.push({ card, mine: t.claimed_by === a.member.id });
+      cardsOf.set(t.story_id, list);
+    }
+    const byProject = new Map<string, BoardStory[]>();
+    for (const s of stories) {
+      if (s.state === "cancelled" && !o.cancelled) continue;
+      const mine = cardsOf.get(s.id) ?? [];
+      if (o.mine && s.pl_member_id !== a.member.id && !mine.some((c) => c.mine)) continue;
+      const cards = mine.map((c) => c.card);
+      const done = cards.filter((c) => c.column === "done").sort((x, y) => y.columnAt - x.columnAt || y.number - x.number);
+      const shown = new Set(done.slice(0, BOARD_DONE_MAX));
+      const story: BoardStory = {
+        id: s.id, number: s.number, title: s.title, state: s.state, risk: s.risk,
+        pl: { id: s.pl_member_id, name: s.pl_name },
+        cards: [...cards.filter((c) => c.column !== "done"), ...shown],
+        doneMore: Math.max(0, done.length - BOARD_DONE_MAX),
+      };
+      byProject.set(s.project_id, [...(byProject.get(s.project_id) ?? []), story]);
+    }
+    return projects.map((project) => ({ project, stories: byProject.get(project.id) ?? [] }));
+  }
+
+  /** Each member's open Task (claimed or failed), by member id: what the team page says they are on. */
+  currentTasks(): Map<string, { taskId: string; storyNumber: number; number: number; title: string }> {
+    return new Map(
+      this.#all<{ claimed_by: string; id: string; story_number: number; number: number; title: string }>(
+        `SELECT t.claimed_by,t.id,s.number story_number,t.number,t.title FROM hub_story_tasks t
+         JOIN hub_stories s ON s.id=t.story_id WHERE t.claimed_by IS NOT NULL AND t.state IN ('claimed','failed')`,
+      ).map((r) => [r.claimed_by, { taskId: r.id, storyNumber: r.story_number, number: r.number, title: r.title }]),
+    );
   }
 
   publishStory(
@@ -622,6 +747,7 @@ export class StoryBoard {
          stage=NULL,merge_lock=0,summary=NULL,failure=NULL,updated_at=? WHERE id=?`,
         this.#now(), verifyId,
       );
+      this.#touchColumn(verifyId);
       const result = { tasks: fresh.map((f) => ({ nodeId: f.node.id, taskId: f.id, number: f.number })) };
       this.#run(
         "INSERT INTO hub_story_appends(story_id,create_key,result,created_at) VALUES (?,?,?,?)",
@@ -688,6 +814,7 @@ export class StoryBoard {
       "UPDATE hub_story_tasks SET state='claimed',claimed_by=?,claim_id=?,claimed_at=?,heartbeat_at=?,stage=NULL,updated_at=? WHERE id=?",
       memberId, randomUUID(), now, now, now, taskId,
     );
+    this.#touchColumn(taskId);
   }
   /** Reads the Task back after it was claimed, so the answer carries the stored claim id, failure and memo. */
   #claimedTask(taskId: string): ClaimedTask {
@@ -799,6 +926,7 @@ export class StoryBoard {
       if (!STAGES.includes(stage)) fail("INVALID", 400, `단계는 ${STAGES.join(", ")} 중 하나여야 합니다.`);
       const now = this.#now();
       this.#run("UPDATE hub_story_tasks SET heartbeat_at=?,stage=?,updated_at=? WHERE id=?", now, stage, now, t.id);
+      this.#touchColumn(t.id);
       return { ok: true as const };
     });
   }
@@ -875,6 +1003,7 @@ export class StoryBoard {
          stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
         this.#now(), t.id,
       );
+      this.#touchColumn(t.id);
       if (t.kind === "verify") this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
       this.#event(s.id, t.id, a.member.id, "released", shown);
       return { ok: true as const };
@@ -976,6 +1105,7 @@ export class StoryBoard {
         l.member.id, claimId, late ? null : t.heartbeat_at, prUrl, r.mergeCommit, r.summary, JSON.stringify(assumptions),
         this.#now(), t.id,
       );
+      this.#touchColumn(t.id);
       this.#event(t.story_id, t.id, l.member.id, late ? "late_merged" : "merged", r.mergeCommit);
       return { ok: true as const, already: false, ready: this.#recompute(t.story_id) };
     });
@@ -992,6 +1122,7 @@ export class StoryBoard {
         `UPDATE hub_story_tasks SET state='failed',failure=?,merge_lock=0,${FORGET_OWN_LOCK},stage=NULL,updated_at=? WHERE id=?`,
         reason, claimId, claimId, this.#now(), t.id,
       );
+      this.#touchColumn(t.id);
       this.#event(t.story_id, t.id, l.member.id, "failed", reason);
       return { ok: true as const };
     });
@@ -1021,6 +1152,7 @@ export class StoryBoard {
       if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
       if (r.passed) {
         this.#run("UPDATE hub_story_tasks SET state='passed',summary=?,stage=NULL,updated_at=? WHERE id=?", r.summary, this.#now(), t.id);
+        this.#touchColumn(t.id);
         this.#run("UPDATE hub_stories SET state='awaiting_g4',updated_at=? WHERE id=?", this.#now(), t.story_id);
       } else {
         this.#run(
@@ -1028,6 +1160,7 @@ export class StoryBoard {
            stage=NULL,merge_lock=0,updated_at=? WHERE id=?`,
           r.summary, this.#now(), t.id,
         );
+        this.#touchColumn(t.id);
         this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), t.story_id);
       }
       this.#event(t.story_id, t.id, l.member.id, r.passed ? "verified" : "verify_failed", r.summary);

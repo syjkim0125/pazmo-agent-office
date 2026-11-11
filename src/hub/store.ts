@@ -1081,6 +1081,17 @@ export class HubStore {
     return newest ? { state: newest.state, lastSeen: newest.lastSeen } : { state: "none", lastSeen: null };
   }
 
+  /** Every member's newest live Mac state, from one read of the Macs; a member with no live Mac is absent. */
+  macBadges(): Map<string, MacBadge> {
+    const badges = new Map<string, MacBadge>();
+    for (const row of this.#macRows(null)) {
+      if (badges.has(row.member_id)) continue;
+      const v = this.#macView(row);
+      badges.set(row.member_id, { state: v.state, lastSeen: v.lastSeen });
+    }
+    return badges;
+  }
+
   linkRepos(l: Link): { id: string; name: string; owners: string[] }[] {
     return this.repos(l.member.id).map((r) => ({ id: r.id, name: r.name, owners: r.owners.map((o) => o.name) }));
   }
