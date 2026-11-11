@@ -1,6 +1,6 @@
 import { createServer } from "node:https";
 import { createServer as createHttpServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { timingSafeEqual } from "node:crypto";
+import { createHash, timingSafeEqual } from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { HubError, type HubStore } from "./store.ts";
 import type { HubTls } from "./tls.ts";
@@ -10,6 +10,7 @@ import * as planPages from "./plan-pages.ts";
 import * as boardPages from "./board-pages.ts";
 import { safePath } from "./paths.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
+import { LIVE_SCRIPT } from "./live-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
 import { installScript, type InstallerConfig } from "./installer.ts";
@@ -47,14 +48,26 @@ const PLAN_FORMS = new RegExp(`^/(?:projects/${ID}/plans|plans/${ID}/answer)$`);
 const ANSWER_IDS = Array.from({ length: PLAN_LIMITS.questionsPerRound }, (_, i) => `Q${i + 1}`);
 const HEADERS = {
   "content-security-policy":
-    "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
+    "default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'; connect-src 'self'",
   "referrer-policy": "same-origin",
   "x-content-type-options": "nosniff",
   "cache-control": "no-store",
   "strict-transport-security": "max-age=31536000",
 };
 
+const LIVE_TAG = '<script src="/live.js" defer></script>';
 export function send(res: ServerResponse, status: number, type: string, body: string, extra: Record<string, string> = {}) {
+  if (status === 200 && type.startsWith("text/html") && res.req?.method === "GET") {
+    // The tag is the hash of the page as built; a live page also carries it, so its first poll can already get a 304.
+    const tag = `"${createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
+    if (res.req.headers["if-none-match"] === tag) {
+      res.writeHead(304, { ...HEADERS, ...extra, etag: tag });
+      res.end();
+      return;
+    }
+    if (body.includes(LIVE_TAG)) body = body.replace('<meta charset="utf-8">', `<meta charset="utf-8"><meta name="etag" content="${tag.replace(/"/g, "&quot;")}">`);
+    extra = { ...extra, etag: tag };
+  }
   res.writeHead(status, { ...HEADERS, "content-type": type, ...extra });
   res.end(body);
 }
@@ -134,6 +147,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       });
     // Open on purpose: the connection string's #fragment never reaches the server, so this page cannot echo it.
     if (!post && path === "/connect") return html(res, 200, page.connectHelp());
+    if (!post && path === "/live.js") return send(res, 200, "text/javascript; charset=utf-8", LIVE_SCRIPT);
     if (!post && path === "/copy.js") return send(res, 200, "text/javascript; charset=utf-8", COPY_SCRIPT);
     // Open on purpose, like /copy.js: a Mac runs it before it has any session, and the script holds no secret.
     if (!post && path === "/install.sh")
@@ -176,6 +190,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       csrf: s.csrf,
       ...(safePath(path) ? { path } : {}),
     });
+    const live = (): page.Chrome => ({ ...chrome(), live: true });
     // Only a hub that serves the installer can give a Mac the one-line command.
     const install = installer === null ? null : `curl -fsSL ${base}/install.sh | sh`;
     const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
@@ -207,7 +222,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             canCreateProject: !!plans,
             canPlan: new Set(plans ? projects.filter((p) => board.ownsProject(me.id, p.project.id)).map((p) => p.project.id) : []),
           };
-          return html(res, 200, boardPages.boardPage(me, s.csrf, v, chrome()));
+          return html(res, 200, boardPages.boardPage(me, s.csrf, v, live()));
         }
         if (path === "/me") {
           const ch = chrome();
@@ -217,7 +232,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             wait: c.store.macWait(me.id),
             ...(c.plans ? { plans: c.plans.myPlans(me.id) } : {}),
           };
-          return html(res, 200, storyPages.home(me, s.csrf, work, o, ch));
+          return html(res, 200, storyPages.home(me, s.csrf, work, o, { ...ch, live: true }));
         }
         if (path === "/team") {
           const badges = c.store.macBadges(),
@@ -236,7 +251,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
                 task: t ? { taskId: t.taskId, label: `Story #${t.storyNumber} Task #${t.number} ${t.title}` } : null,
               };
             });
-          return html(res, 200, page.teamPage(me, rows, { trust }, chrome()));
+          return html(res, 200, page.teamPage(me, rows, { trust }, live()));
         }
         if (c.plans) {
           if (path === "/projects/new") return html(res, 200, planPages.newProjectPage(me, s.csrf, projectRepos(), chrome()));
@@ -255,10 +270,10 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
               unlinked: v.repos.filter((r) => !reached.has(r.id)).map((r) => r.name),
               opened: url.searchParams.get("opened") === "1",
             };
-            return html(res, 200, planPages.planPage(me, s.csrf, v, o, chrome()));
+            return html(res, 200, planPages.planPage(me, s.csrf, v, o, live()));
           }
         }
-        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) return html(res, 200, storyPages.storyPage(me, board.story(actor, m[1]), chrome()));
+        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) return html(res, 200, storyPages.storyPage(me, board.story(actor, m[1]), live()));
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);
           const who = d.task.assignee?.id ?? null;
@@ -267,7 +282,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             wait: who === null ? null : c.store.macWait(who),
             assigneeMac: who === null ? null : c.store.macBadge(who),
           };
-          return html(res, 200, storyPages.taskPage(me, s.csrf, d, o, chrome()));
+          return html(res, 200, storyPages.taskPage(me, s.csrf, d, o, live()));
         }
       }
       if ((m = new RegExp(`^/requests/${ID}$`).exec(path)))
@@ -279,7 +294,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), chrome()));
       if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), chrome()));
       if (path === "/mac")
-        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, chrome()));
+        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, live()));
       if (path === "/mac/approve") {
         // Checked before the lookup, so a member who is over the limit cannot tell a live code from a dead one.
         if (decideLimit.full(me.id)) throw tooMany();

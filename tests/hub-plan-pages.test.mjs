@@ -336,7 +336,7 @@ test("the plan page states each state in plain words (waiting for the PL's Mac, 
     return text;
   };
   let text = await shows("기획 대기", WAITING);
-  for (const part of ["<h1>쿠폰 발급</h1>", "쿠폰 개편", "PL: PL", "위험도 높음", `<a href="/plans/${id}">새로 고침</a>`, "<details><summary>하고 싶은 일</summary><pre>쿠폰을 한 번에 발급하고 싶어요.</pre></details>"])
+  for (const part of ["<h1>쿠폰 발급</h1>", "쿠폰 개편", "PL: PL", "위험도 높음", `<a class="refresh" href="/plans/${id}">새로 고침</a>`, "<details><summary>하고 싶은 일</summary><pre>쿠폰을 한 번에 발급하고 싶어요.</pre></details>"])
     assert.ok(text.includes(part), part);
   h.lease(id);
   await shows("기획 중", "AI가 기획하고 있습니다.");
@@ -705,7 +705,7 @@ test("every new POST is 403 from another origin or without the CSRF token; proje
     assert.equal(res.status, 200, path);
     assert.ok(!res.text.includes("<img"), `${path} has no raw markup`);
     assert.ok(res.text.includes(SAFE), `${path} shows the escaped text`);
-    assert.doesNotMatch(res.text, /<script/i, `${path} loads no script`);
+    assert.doesNotMatch(res.text, /<script(?! src="\/live\.js" defer><\/script>)/i, `${path} loads no script but /live.js`);
   }
   assert.ok(!back.text.includes("<img") && back.text.includes(`value="제목 ${SAFE}"`), "the form sent back");
   const plan = (await h.get(`/plans/${id}`, h.b)).text;

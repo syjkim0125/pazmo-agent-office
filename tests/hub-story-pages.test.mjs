@@ -246,7 +246,7 @@ test("the board lists projects with Story progress; the Story page lists every T
   assert.ok(uiDeps.includes(`<a href="/tasks/${s.api}">#${s.apiNo}</a>`), "the Task before it");
   assert.deepEqual(row(s.copy).slice(1, 3), ["진행 중(구현)", "C"]);
   assert.equal(row(s.verify)[1], "앞 Task 기다림");
-  assert.ok(page.includes(`<a href="/stories/${s.storyId}">새로 고침</a>`));
+  assert.ok(page.includes(`<a class="refresh" href="/stories/${s.storyId}">새로 고침</a>`));
 });
 
 test("state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료", async (t) => {
@@ -503,7 +503,7 @@ test("an unknown Task or Story id is a 404 page; the new pages load no script", 
   for (const path of ["/", "/board", "/requests", `/stories/${s.storyId}`, `/tasks/${s.api}`]) {
     const res = await h.get(path, h.c);
     assert.equal(res.status, 200, path);
-    assert.doesNotMatch(res.text, /<script/i, path);
+    assert.doesNotMatch(res.text, /<script(?! src="\/live\.js" defer><\/script>)/i, path);
   }
 });
 
@@ -601,7 +601,7 @@ test("a claim the Mac has not taken yet says it waits for the Mac instead of the
   const mine = "내 Mac이 가져가기를 기다립니다(보통 1분 안).";
   const theirs = "맡은 사람의 Mac이 가져가기를 기다립니다(보통 1분 안).";
   const page = await taskPage(h, h.c, s.api);
-  assert.ok(page.includes(`${pill("시작 중")} 맡은 사람: C · ${mine} · <a href="/tasks/${s.api}">새로 고침</a>`));
+  assert.ok(page.includes(`${pill("시작 중")} 맡은 사람: C · ${mine} · <a class="refresh" href="/tasks/${s.api}">새로 고침</a>`));
   assert.ok(!page.includes("마지막 소식"));
   assert.ok((await taskPage(h, h.pl, s.api)).includes(`맡은 사람: C · ${theirs} · `), "seen by another member");
   const home = (await h.get("/me", h.c)).text;

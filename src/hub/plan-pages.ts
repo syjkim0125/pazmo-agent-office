@@ -194,7 +194,7 @@ export function planPage(
       ? `<p>${esc(`PL의 Office에 연결되지 않은 레포: ${o.unlinked.join(", ")} — PL Mac의 Office에 이 레포를 연결해야 기획이 시작됩니다.`)}</p>`
       : "";
   const opened = v.state === "open" && v.story ? `<p><a href="/stories/${esc(v.story.id)}">Story #${v.story.number} 보기</a></p>` : "";
-  const head = `<section><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${pill(planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a href="${esc(base)}">새로 고침</a></p></section>`;
+  const head = `<section><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${pill(planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a class="refresh" href="${esc(base)}">새로 고침</a><span class="live-note">저절로 업데이트</span></p></section>`;
 
   let failure = "";
   if (v.state === "failed" && v.failure) {

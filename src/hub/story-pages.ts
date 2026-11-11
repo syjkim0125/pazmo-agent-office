@@ -79,7 +79,7 @@ export function waitText(w: MacWait, now: number): string {
 }
 
 const pill = (label: string) => `<span class="pill">${esc(label)}</span>`;
-const refresh = (path: string) => `<a href="${esc(path)}">새로 고침</a>`;
+const refresh = (path: string) => `<a class="refresh" href="${esc(path)}">새로 고침</a><span class="live-note">저절로 업데이트</span>`;
 const prLink = (url: string) => `<a href="${esc(url)}" rel="noreferrer">${esc(url)}</a>`;
 const taskLink = (id: string, label: string) => `<a href="/tasks/${esc(id)}">${esc(label)}</a>`;
 /** The failure is shown only while the Task is failed: the store keeps the last one through a release and a new claim. */
