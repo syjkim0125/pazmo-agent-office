@@ -199,6 +199,38 @@ test("high risk needs a bound G3", (t) => {
   refuses(files(t, { tasks: tasksFile({ risk: "medium" }) }), "UPLOAD_TASKS", /risk/);
 });
 
+test("normal risk is refused when the Story needs G3", (t) => {
+  const profile = (o = {}) => ({ version: 1, checks: [{ id: "v1", covers: ["V1"], argv: ["npm", "test"] }], ...o });
+  const g3Story = storyText({ gates: [G1_LINE, G3_LINE] });
+  const bindG3 = (f) =>
+    f.put(".ai-workflow/approvals/pay-g3.json", { gate: "G3", storyHash: kitStoryHash(g3Story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인" });
+  // The kit profile requires G3: "normal" is refused, even with no G3 line in the Story.
+  const required = files(t);
+  required.put(".ai-workflow/verification.json", profile({ requiresG3: true, design: "docs/pay-design.md" }));
+  refuses(required, "UPLOAD_G3", /설계 승인\(G3\)이 필요한 Story입니다[\s\S]*requiresG3[\s\S]*risk를 high로/);
+  // The Story carries a G3 line, bound or only pending: "normal" is refused too.
+  const lined = files(t, { story: g3Story });
+  bindG3(lined);
+  refuses(lined, "UPLOAD_G3", /설계 승인\(G3\)이 필요한 Story입니다[\s\S]*G3 줄[\s\S]*risk를 high로/);
+  const pendingStory = storyText({ gates: [G1_LINE, "Understanding gate (G3): pending"] });
+  refuses(files(t, { story: pendingStory }), "UPLOAD_G3", /risk를 high로/);
+  // The same Stories as "high" with a bound G3 pass.
+  const high = files(t, { story: g3Story, tasks: tasksFile({ risk: "high" }) });
+  bindG3(high);
+  high.put(".ai-workflow/verification.json", profile({ requiresG3: true, design: "docs/pay-design.md" }));
+  assert.equal(high.check().risk, "high");
+  // A profile that does not require G3, and a Story without a G3 line, keep "normal".
+  const plain = files(t);
+  plain.put(".ai-workflow/verification.json", profile({ requiresG3: false }));
+  assert.equal(plain.check().risk, "normal");
+  plain.put(".ai-workflow/verification.json", profile());
+  assert.equal(plain.check().risk, "normal");
+  // A profile that is not JSON cannot tell, so nothing goes up.
+  const broken = files(t);
+  broken.put(".ai-workflow/verification.json", "{ not json");
+  refuses(broken, "UPLOAD_G3", /verification\.json/);
+});
+
 test("refuses uncovered MUST or Verify", (t) => {
   const tasks = tasksFile();
   // M3 is in no Task's covers.

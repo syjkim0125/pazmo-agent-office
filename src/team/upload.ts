@@ -130,29 +130,35 @@ function gateRecord(root: string, text: string, gate: "G1" | "G3", storyHash: st
   return value as Record<string, unknown>;
 }
 
-/** The kit's verification profile, where it names the design file a G3 binds (kit `cli.mjs`: `profile.value.design`). */
+/** The kit's verification profile: whether G3 is required (`requiresG3`) and the design file a G3 binds (`design`). */
 const PROFILE = ".ai-workflow/verification.json";
+/** A Story header line for G3 (bound or pending): the kit adds one only to a Story that takes G3. */
+const G3_LINE = /^Understanding gate \(G3\):/im;
 
-/**
- * The design file a G3 binds, as the kit finds it: the `design` of `.ai-workflow/verification.json` under `root`; the
- * G3 record's own `design` only when the profile names none, and both must name the same file when both do.
- */
-function designPath(root: string, g3: Record<string, unknown>): string {
-  let profile: unknown = null;
-  let text: string | null = null;
+/** The kit profile under `root` as JSON; null when there is none. A profile that is not JSON cannot say whether G3 is needed. */
+function readProfile(root: string): Record<string, unknown> | null {
+  let text: string;
   try {
     text = readFileSync(join(root, PROFILE), "utf8");
   } catch {
-    // no profile: the record's own design, if any
+    return null;
   }
-  if (text !== null)
-    try {
-      profile = JSON.parse(text);
-    } catch {
-      refuse("UPLOAD_G3", `kit 검증 설정(${PROFILE})이 JSON이 아니라 G3의 설계 파일을 알 수 없습니다. 그 파일을 고친 뒤 다시 실행하세요.`);
-    }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    return refuse("UPLOAD_G3", `kit 검증 설정(${PROFILE})이 JSON이 아니라 설계 승인(G3)이 필요한지 알 수 없습니다. 그 파일을 고친 뒤 다시 실행하세요.`);
+  }
+  return isObject(value) ? value : null;
+}
+
+/**
+ * The design file a G3 binds, as the kit finds it: the `design` of the kit profile; the G3 record's own `design` only
+ * when the profile names none, and both must name the same file when both do.
+ */
+function designPath(root: string, profile: Record<string, unknown> | null, g3: Record<string, unknown>): string {
   const named = (value: unknown) => (typeof value === "string" && value.trim() ? value.trim() : null);
-  const fromProfile = named(isObject(profile) ? profile.design : undefined);
+  const fromProfile = named(profile?.design);
   const fromRecord = named(g3.design);
   if (fromProfile && fromRecord && resolve(root, fromProfile) !== resolve(root, fromRecord))
     refuse(
@@ -205,7 +211,8 @@ function coverageWords(detail: string, ids: string[]): string {
 
 /**
  * Every check of the upload that needs no Hub (K2, K3), as a plain UPLOAD_* refusal: the Story's G1 record binds its
- * kit hash (and, for high risk, its G3 record binds the hash and the design file), the Story has the kit shape (a
+ * kit hash (and, for high risk, its G3 record binds the hash and the design file; the risk is high whenever the kit
+ * profile has `requiresG3` or the Story has a G3 line, whatever the Task file says), the Story has the kit shape (a
  * `# Story:` title, each M named by a V), the Task file's repos and base branches are the project's, each Task's
  * covered Vs have their checks, the graph passes the Hub's own `validateGraph` and `validateStoryVerify`, and every M
  * and V is covered (`coverageOf`, P5). Gives back what the Hub's upload takes: repo names become the project's repo
@@ -237,11 +244,19 @@ export function checkUpload(storyPath: string, tasksPath: string, project: Uploa
   const risk = raw.risk;
   if (risk !== "normal" && risk !== "high")
     return refuse("UPLOAD_TASKS", "Task 파일의 risk는 normal 또는 high여야 합니다. Story의 위험도를 적은 뒤 다시 실행하세요.");
+  // The Task file is not approved, so it alone cannot skip G3: the kit profile or the Story's own G3 line decides too.
+  const profile = readProfile(root);
+  const needsG3 = profile?.requiresG3 === true ? `${PROFILE}의 requiresG3가 true` : G3_LINE.test(body) ? "Story에 G3 줄이 있음" : null;
+  if (risk === "normal" && needsG3)
+    refuse(
+      "UPLOAD_G3",
+      `이 Story는 설계 승인(G3)이 필요한 Story입니다(${needsG3}). Task 파일의 risk를 high로 바꾸고, kit workflow로 받은 G3 기록을 Story에 함께 두세요.`,
+    );
   if (risk === "high") {
     const g3 = gateRecord(root, body, "G3", storyHash, "UPLOAD_G3");
     if (!g3)
-      return refuse("UPLOAD_G3", "위험도가 high인 Story는 설계 승인(G3)이 필요한데 Story에 G3 줄이 없습니다. kit workflow로 설계를 승인받아 기록한 뒤 다시 실행하세요.");
-    const design = designPath(root, g3);
+      return refuse("UPLOAD_G3", "위험도가 high인 Story는 설계 승인(G3)이 필요한데 Story에 G3 기록이 없습니다. kit workflow로 설계를 승인받아 기록한 뒤 다시 실행하세요.");
+    const design = designPath(root, profile, g3);
     if (g3.decisionHash !== sha256(projectText(root, design, "UPLOAD_G3", "설계 파일")))
       refuse("UPLOAD_G3", `설계 파일(${design})이 G3 승인 뒤 바뀌었습니다. 바뀐 설계로 G3 승인을 다시 받은 뒤 실행하세요.`);
   }

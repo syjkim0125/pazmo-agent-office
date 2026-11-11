@@ -433,14 +433,14 @@ Hub 웹의 첫 화면(`/`)이 프로젝트별 칸반 보드가 되었고, PL은 
 
 - 먼저 이 Mac이 Hub에 연결되어 있어야 한다(`pazmo-office mac connect`). 연결할 때 claude용 안내(`~/.claude/skills/pazmo-hub-upload/SKILL.md`)가 이 Mac의 claude에게 복사된다. 이미 연결된 Mac은 `mac connect`를 한 번 더 하면 안내만 새로 받는다. PL이 안내를 고쳐 두었으면 "고친 안내가 있어 그대로 둡니다"라고 하고 건드리지 않는다. 안내는 `pazmo-office team upload --guide`로도 볼 수 있다.
 - claude 대화에서 kit workflow로 Story를 쓰고 G1(높은 위험이면 G3도)을 받은 뒤 이렇게 말한다: **"이 Story 허브에 올려줘."**
-- claude가 하는 일: Task 파일(JSON)을 쓰고 `pazmo-office team upload --story <Story.md> --tasks <tasks.json>`을 실행한다. Task 파일은 프로젝트 이름, 위험(`normal`/`high`), 쓰는 repo와 기준 브랜치, Task 목록(Task마다 id·repo·제목·할 일·만질 파일·덮는 M/V·앞 Task·확인 명령), Story 전체 확인으로 되어 있다. 자세한 모양과 한도는 안내 파일에 있다.
+- claude가 하는 일: Task 파일(JSON)을 쓰고 `pazmo-office team upload --story <Story.md> --tasks <tasks.json>`을 실행한다. Task 파일은 프로젝트 이름, 위험(`normal`/`high`. kit 설정이 `requiresG3: true`이거나 Story에 G3 줄이 있으면 `high`여야 한다), 쓰는 repo와 기준 브랜치, Task 목록(Task마다 id·repo·제목·할 일·만질 파일·덮는 M/V·앞 Task·확인 명령), Story 전체 확인으로 되어 있다. 자세한 모양과 한도는 안내 파일에 있다.
 - 명령은 이 Mac에서 다음을 확인한 뒤에만 올린다: G1(과 G3) 기록이 이 Story 글에 묶였는지, 이 Mac이 PL의 지금 연결된 Mac인지, PL이 프로젝트의 모든 repo 담당자인지, Task 그래프, 모든 M·V가 Task로 덮였는지, 프로젝트의 repo와 기준 브랜치. 하나라도 어긋나면 아무것도 올리지 않는다. 통과하면 Story와 Task를 올리고, repo마다 `feature/story-<N>/base`를 만들고(PL의 clone을 쓰되 그 clone의 작업 폴더·index·브랜치·HEAD는 바꾸지 않는다. 가져오기와 base 브랜치 push만 한다) Story를 연다. 보드에는 "로컬 승인 · Mac 이름"으로 보인다.
 - 성공하면 `{"storyId":"…","number":8,"opened":true,"already":false}`를 돌려준다. **도중에 실패하면 같은 명령을 다시 실행한다.** 같은 글은 Story 하나만 만들고, 실패한 단계(올리기 → base → 열기)부터 이어서 한다. 이미 끝났으면 `"already":true`로 답하고 아무것도 바꾸지 않는다.
 
 | 오류 코드 | 뜻 | 고치는 법 |
 |---|---|---|
 | `UPLOAD_G1` | G1 줄이 없거나 기록이 없거나 지금 Story 글과 안 맞음(승인 뒤 글이 바뀜) | kit workflow로 지금 글에 G1을 다시 받는다 |
-| `UPLOAD_G3` | 높은 위험인데 G3가 없거나 안 맞음, 설계 파일이 안 정해졌거나 승인 뒤 바뀜 | `.ai-workflow/verification.json`의 `design`에 설계를 적고 G3를 받는다 |
+| `UPLOAD_G3` | G3가 필요한 Story(kit 설정의 `requiresG3: true`나 Story의 G3 줄)인데 Task 파일의 위험이 `normal`, 또는 높은 위험인데 G3가 없거나 안 맞음, 설계 파일이 안 정해졌거나 승인 뒤 바뀜 | Task 파일의 위험을 `high`로 하고 `.ai-workflow/verification.json`의 `design`에 설계를 적고 G3를 받는다 |
 | `UPLOAD_STORY` | `# Story:` 제목이 없거나 32768바이트가 넘거나 kit 모양이 아님 | Story를 고치고 G1을 다시 받는다 |
 | `UPLOAD_TASKS` | Task 파일이 JSON이 아니거나 모양이 틀림, 그래프 오류(순환·같은 파일의 순서 없음) | 메시지대로 Task 파일을 고친다 |
 | `UPLOAD_COVERAGE` | Story의 M·V가 어떤 Task에도 안 덮였거나, Task의 M을 그 Task의 V가 확인하지 않음 | Task를 더하거나 `covers`와 확인 명령을 고친다 |
