@@ -15,7 +15,8 @@ import { startTestHub } from "./hub-fixture.mjs";
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 const SHA = "c0ffee".padEnd(40, "0");
 const PR = "https://github.example.com/team/app-be/pull/7";
-const OFF_PILL = 'aria-pressed="false">자동으로 일하기 꺼짐</button>';
+// U40: the switch draws a track before its words.
+const OFF_PILL = 'aria-pressed="false"><span class="track" aria-hidden="true"></span>자동으로 일하기 꺼짐</button>';
 const NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져가지 않고 있습니다(꺼짐·잠김·연결 문제).";
 const NOT_LINKED_ERROR = "내 Mac이 지금 이 레포의 일을 가져갈 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
 const RERUN_NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
@@ -116,7 +117,8 @@ test("/ is the member's work page with the four sections, and the request board 
   assert.ok(home.text.includes(`href="/tasks/${s.api}"`), "the PL's failed Task is under 내 Story에서 멈춘 일");
   assert.ok(home.text.includes(`href="/tasks/${s.copy}"`), "copy is ready in the PL's repo");
   assert.match(home.text, /<nav><a href="\/">보드<\/a><a href="\/team">팀<\/a><\/nav>/);
-  assert.match((await h.get("/team", h.admin)).text, /<a href="\/repos">레포<\/a> · <a href="\/requests">요청 게시판<\/a> · <a href="\/start">내 Office 연결<\/a> · <a href="\/members">팀원·초대<\/a>/);
+  // U40: the team page's other pages are a list of tiles instead of a line joined by dots.
+  assert.match((await h.get("/team", h.admin)).text, /<li><a href="\/repos">레포<\/a><\/li><li><a href="\/requests">요청 게시판<\/a><\/li><li><a href="\/start">내 Office 연결<\/a><\/li><li><a href="\/members">팀원·초대<\/a><\/li>/);
 
   const mine = (await h.get("/me", h.c)).text;
   assert.doesNotMatch(mine, /내 Story에서 멈춘 일/, "only shown to a PL with a stuck Task");
@@ -230,7 +232,9 @@ test("the board lists projects with Story progress; the Story page lists every T
   const board = (await h.get("/board", h.b)).text;
   assert.match(board, /<h2>쿠폰 개편<\/h2>/);
   assert.match(board, /app-be \(main\), app-fe \(develop\)/);
-  assert.ok(board.includes(`<a href="/stories/${s.storyId}"><b>#${s.number} 쿠폰 발급</b></a>${pill("진행 중")}<span class="muted">PL PL`));
+  // U40: the lane head puts the number in its own span and a name tag before the PL.
+  assert.ok(board.includes(`<a class="story-title" href="/stories/${s.storyId}"><span class="num">#${s.number}</span> 쿠폰 발급</a>${pill("진행 중")}<span class="people"><span class="lead"><span class="av av`));
+  assert.match(board, /aria-hidden="true">PL<\/span>PL PL<\/span>/);
 
   const page = (await h.get(`/stories/${s.storyId}`, h.b)).text;
   assert.match(page, /<h1>쿠폰 발급<\/h1>/);

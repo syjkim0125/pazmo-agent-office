@@ -289,7 +289,8 @@ test("upload publishes, makes bases and opens", async (t) => {
   // The board shows the Story's cards.
   const page = await w.get("/");
   assert.equal(page.status, 200);
-  assert.match(page.text, new RegExp(`href="/tasks/${claimed.taskId}">#\\d+ 결제 API</a>`));
+  // U40: a card's title link holds only the title; its number moves to the card's meta line.
+  assert.match(page.text, new RegExp(`href="/tasks/${claimed.taskId}">결제 API</a>`));
 });
 
 test("upload again after a push failure resumes", async (t) => {

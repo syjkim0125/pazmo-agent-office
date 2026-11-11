@@ -15,7 +15,8 @@ const HOST = "pazmo-hub.apps.example.com";
 const FORM = { "content-type": "application/x-www-form-urlencoded" };
 const EVIL = "https://evil.example.com";
 const INSTALLER = { officeRepo: DEFAULT_OFFICE_REPO, officeRef: DEFAULT_OFFICE_REF };
-const PILL = (label) => `<a class="pill" href="/mac">내 Mac: ${label}</a>`;
+// U40: the header's Mac chip carries a dot (its color class is checked in hub-board-page) before the same words.
+const PILL = (label) => `<span class="dot" aria-hidden="true"></span>내 Mac: ${label}</a>`;
 
 /** Browser-side helpers over one hub: `enter` joins through a real invite, `get`/`post` act as that browser. */
 function harness({ store, board, origin, call, api }) {

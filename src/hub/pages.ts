@@ -18,38 +18,114 @@ export function tone(kind: "task" | "story" | "plan", state: string): Tone {
 export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${esc(label)}</span>`;
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const STYLE = `:root{--bg:#f6f7f5;--fg:#1c2320;--muted:#5e6964;--line:#d6dcd8;--panel:#fff;--accent:#2b5d8a;--bad:#a8332b;--need:#9a5b00;--done:#2f7a3f;--need-bg:#fdf0d5;--done-bg:#dff3e3;--bad-bg:#fbe3e0;--run-bg:#e3eef8;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#141917;--fg:#e3eae6;--muted:#9aa59f;--line:#2b3430;--panel:#1b211e;--accent:#7fb0dc;--bad:#ec7a70;--need:#f0b45a;--done:#7fcf8e;--need-bg:#3a2d12;--done-bg:#16301c;--bad-bg:#3b1b18;--run-bg:#1a2b3b;color-scheme:dark}}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif}
-header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
-nav{display:flex;flex-wrap:wrap;gap:14px;align-items:center}nav span{color:var(--muted)}
-main{max-width:980px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:20px}
-a{color:var(--accent)}h1{font-size:26px;margin:0 0 8px}h2{font-size:19px;margin:0 0 8px}h3{font-size:15px;margin:12px 0 6px}
-section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
-table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
-.scroll{overflow-x:auto}pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:10px;border-radius:6px;margin:0;max-height:480px;overflow:auto}
-form{display:grid;gap:8px}form.inline{display:inline-block;margin:2px}label{display:grid;gap:4px}
-textarea,input,select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--fg)}
-button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--panel);cursor:pointer}
-button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-button.secondary{background:transparent;color:var(--accent)}button.danger{border-color:var(--bad);background:transparent;color:var(--bad)}
-.pill.need{color:var(--need);border-color:var(--need);background:var(--need-bg)}.pill.run{color:var(--accent);border-color:var(--accent);background:var(--run-bg)}.pill.stop{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}.pill.done{color:var(--done);border-color:var(--done);background:var(--done-bg)}
-details.dev{margin-top:8px}details.dev summary{cursor:pointer;color:var(--muted);font-size:13px}
-.muted{color:var(--muted)}.wrap{overflow-wrap:anywhere}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
-.me{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}.me form{display:inline-block}.me button{padding:2px 10px;font-size:13px;border-radius:999px}
-main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
-.lane{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}.lane:first-of-type{border-top:0;padding-top:0}
-.story{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;overflow-wrap:anywhere}
-.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
-.col{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
-.col h3{margin:0 0 6px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
-.cards{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:15px;overflow-wrap:anywhere;min-width:0}.card p{margin:2px 0}
-.toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}a.pill{text-decoration:none}a.pill[aria-current=true]{background:var(--accent);color:var(--panel);border-color:var(--accent)}
-.cancelled{border:1px dashed var(--line);border-radius:6px;padding:8px;color:var(--muted)}.cancelled h3{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between}.cancelled .cards{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}.cancelled .card{background:transparent;color:var(--muted);font-size:14px}
-@media (max-width:860px){.cols{grid-template-columns:1fr}}
-.live-note{display:none}html.live .live-note{display:inline}html.live .refresh{display:none}
-.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:6px;align-items:center}.code{font:600 24px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}`;
+const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:anywhere;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-underline-offset:3px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+h1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}
+.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}
+nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}
+nav a{display:inline-flex;align-items:center;min-height:40px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}
+nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}
+.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}
+.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:40px;color:var(--fg);text-decoration:none}
+button.switch{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}
+.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}
+.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}
+.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}
+.macchip{min-height:40px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}
+.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}
+.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:#1d2733;flex:none;overflow:hidden;white-space:nowrap}
+.av0{background:#ffd8c2}.av1{background:#cfe3ff}.av2{background:#d4f0dc}.av3{background:#f3d6f2}.av4{background:#fff0b3}.av5{background:#d7d9ff}.av6{background:#c9f0ee}.av7{background:#ffd6dc}
+main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;gap:20px}
+main:has(.projects){max-width:1440px}
+header:not(:has(nav))+main{max-width:600px;padding-top:56px}
+section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;gap:12px;min-width:0}
+.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}
+.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}
+.filter{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}
+.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}
+.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}
+button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}
+button.secondary,.btn.ghost{background:var(--panel);color:var(--accent);border-color:var(--line)}
+button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}
+button:hover,.btn:hover{filter:brightness(1.06)}
+.toggles .btn{margin-left:auto}
+.needs{border:2px solid var(--need-bar);gap:10px}
+.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}
+.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.needs .count{background:var(--need-bar);color:#fff}
+.needs ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.needs a{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--fg);text-decoration:none}
+.needs a:hover{background:var(--tray)}
+.projects{display:grid;gap:32px}.project{display:grid;gap:14px}
+.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}
+.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}
+.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;gap:14px;min-width:0}
+.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}
+.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}
+.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}
+.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none}.story-title:hover{text-decoration:underline}
+.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}
+.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}
+.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now .person{font-weight:500}
+.progress{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}
+progress{-webkit-appearance:none;appearance:none;width:96px;height:8px;border:0;border-radius:999px;background:var(--tray);overflow:hidden}
+progress::-webkit-progress-bar{background:var(--tray);border-radius:999px}progress::-webkit-progress-value{background:var(--done-bar);border-radius:999px}progress::-moz-progress-bar{background:var(--done-bar);border-radius:999px}
+.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}
+.col{background:var(--tray);border-radius:14px;padding:10px;min-width:0;display:flex;flex-direction:column;gap:8px}
+.col h3{margin:0;padding:2px 4px;display:flex;align-items:center;justify-content:space-between;font-size:14px;color:var(--muted)}
+.col h3 span:last-child,.cancelled h3 span:last-child{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--panel);font-size:13px;font-variant-numeric:tabular-nums}
+.cards{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.col .cards:empty::before{content:"비어 있음";display:block;padding:8px 4px;text-align:center;font-size:14px;color:var(--muted)}
+.card{position:relative;display:grid;gap:6px;min-width:0;padding:12px 12px 10px 15px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden;font-size:15px}
+.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--idle)}
+.card.run::before{background:var(--run-bar)}.card.stop::before{background:var(--stop-bar)}.card.need::before{background:var(--need-bar)}.card.done::before{background:var(--done-bar)}
+.card.done{box-shadow:none}.card.done .title{color:var(--muted)}
+.card .title{color:var(--fg);font-weight:700;line-height:1.4;text-decoration:none}
+.card .title::after{content:"";position:absolute;inset:0}
+.card:hover{border-color:var(--accent)}.card:has(.title:focus-visible){outline:3px solid var(--accent);outline-offset:2px}.card .title:focus-visible{outline:none}
+.who{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px}
+.time{color:var(--muted);font-variant-numeric:tabular-nums}
+.why{font-size:14px;color:var(--stop);background:var(--stop-bg);border-radius:8px;padding:6px 8px}
+.meta{font-size:13px;color:var(--muted)}
+.cancelled{border:2px dashed var(--line);border-radius:14px;padding:10px;color:var(--muted);display:grid;gap:8px}.cancelled h3{margin:0;display:flex;justify-content:space-between;align-items:center;font-size:14px}
+.cancelled .cards{grid-template-columns:repeat(auto-fill,minmax(200px,1fr))}.cancelled .card{background:transparent;box-shadow:none;color:var(--muted);font-size:14px}.cancelled .card a{color:var(--muted)}
+.pill{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:26px;padding:1px 10px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;line-height:1.4;vertical-align:middle}
+.pill::before{content:"";width:7px;height:7px;border-radius:50%;background:currentColor;flex:none}
+.pill.need{background:var(--need-bg);color:var(--need)}.pill.run{background:var(--run-bg);color:var(--run)}.pill.stop{background:var(--stop-bg);color:var(--stop)}.pill.done{background:var(--done-bg);color:var(--done)}
+.tag{font-size:12px;font-weight:600;color:var(--muted);background:var(--tray);border-radius:6px;padding:1px 6px;margin-left:6px}
+.onoff{font-size:14px;font-weight:700}.onoff.on{color:var(--done)}.onoff.off{color:var(--muted)}
+ul.work{list-style:none;margin:0;padding:0;display:grid;gap:8px}ul.work>li{display:grid;gap:4px;padding:12px 14px;border-radius:12px;background:var(--bg)}
+.tiles{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.tiles a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--bg);color:var(--fg);font-weight:600;text-decoration:none}.tiles a:hover{background:var(--tray)}
+.callout{display:grid;gap:8px;padding:14px 16px;border-radius:14px;background:var(--stop-bg);color:var(--stop)}.callout pre{background:var(--panel);color:var(--fg)}.callout summary{font-size:14px}
+.head form:not(.inline),section>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}.head h1{font-size:26px}
+p.state{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+table{width:100%;border-collapse:collapse}th{font-size:13px;font-weight:650;color:var(--muted)}td,th{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:last-child td{border-bottom:0}
+.scroll{overflow-x:auto}
+pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:12px 14px;border-radius:12px;margin:0;max-height:480px;overflow:auto;font-size:15px;line-height:1.65;font-family:inherit}pre:has(+p [data-copy-target]){font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
+code,.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
+details>*+*{margin-top:8px}summary{cursor:pointer;font-weight:600;padding:4px 0}details.dev summary{color:var(--muted);font-size:14px;font-weight:500}
+form{display:grid;gap:10px;margin:0}form.inline{display:inline-flex;margin:2px}label{display:grid;gap:6px;font-weight:600}label .muted{font-weight:400}
+textarea,input,select{font:inherit;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg)}
+input[type=checkbox]{width:22px;height:22px;min-height:0;margin:0;accent-color:var(--accent)}
+fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;gap:10px}legend{padding:0 6px;font-weight:600}
+.muted{color:var(--muted)}.wrap{overflow-wrap:anywhere}
+ol,ul{padding-left:22px}li+li{margin-top:2px}.cards li+li,.needs li+li,ul.work li+li,.tiles li+li{margin-top:0}
+.live-note{display:none;align-items:center;gap:6px;color:var(--muted)}.live-note::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--done-bar)}html.live .live-note{display:inline-flex}html.live .refresh{display:none}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:8px;align-items:center}.code{font-weight:600;font-size:24px;letter-spacing:.1em}
+@media (max-width:860px){header{padding:8px 14px}.me{margin-left:0;width:100%}main{padding:16px 14px 48px}section{padding:18px}
+.cols{grid-template-columns:1fr;gap:8px}.col:has(>.cards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.col:has(>.cards:empty) h3{flex:1}.col .cards:empty{display:none}
+.progress{margin-left:0;width:100%}.toggles .btn{margin-left:0}
+table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block}table.stack tr{padding:10px 0;border-bottom:1px solid var(--line)}table.stack td{border:0;padding:3px 0}table.stack td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:13px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 export const button = (action: string, csrf: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${esc(action)}">${csrfField(csrf)}<button class="${cls}">${esc(label)}</button></form>`;
@@ -85,28 +161,57 @@ export const macBadgeLabel = (b: MacBadge) =>
 /** A Mac's state with the reason it gave, for the tables. */
 const macState = (m: MacView) => `${MAC_LABEL[m.state] ?? m.state}${m.detail ? ` — ${m.detail}` : ""}`;
 
+/**
+ * A member's round name tag. It is decorative (the name is always written beside it, so it is hidden from screen
+ * readers); its color comes from the member id, so a person keeps one color on every page. Hangul names of three
+ * letters or more show their last two (the given name), anything else its first two characters.
+ */
+export function avatar(person: { id: string; name: string }): string {
+  let h = 0;
+  for (const ch of person.id) h = (h * 31 + (ch.codePointAt(0) ?? 0)) >>> 0;
+  const chars = [...person.name.trim()];
+  const given = chars.length >= 3 && chars.every((c) => /[\uac00-\ud7a3]/.test(c));
+  return `<span class="av av${h % 8}" aria-hidden="true">${esc((given ? chars.slice(-2) : chars.slice(0, 2)).join(""))}</span>`;
+}
+/** The color of a Mac's dot: on (working or waiting for work), resting (limit or locked), or off (silent or none). */
+const macTone = (b: MacBadge) => (b.state === "working" || b.state === "idle" ? "on" : b.state === "limited" || b.state === "locked" ? "rest" : "off");
+/** A Mac's state as a dot and its words, for a card or a table. */
+export const macLine = (b: MacBadge) => `<span class="mac ${macTone(b)}"><span class="dot" aria-hidden="true"></span>${esc(macBadgeLabel(b))}</span>`;
+/** The header's link to /mac: my newest Mac's dot and words. */
+const macChip = (b: MacBadge) => `<a class="macchip ${macTone(b)}" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: ${esc(macBadgeLabel(b))}</a>`;
+/** The menu item for the page shown: the board for the board and every Story, Task and plan page; the team page for itself. */
+function menuOf(path: string | undefined): string | null {
+  if (path === "/team") return "/team";
+  return path === "/" || path === "/board" || /^\/(?:stories|tasks|plans)\//.test(path ?? "") ? "/" : null;
+}
+
 /** How long a card has stood in its column: minutes, then hours. */
 export function inColumn(at: number): string {
   const minutes = Math.floor((Date.now() - at) / 60000);
   return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분째` : `${Math.floor(minutes / 60)}시간째`;
 }
-/** The header of a hub with a Story board: board and team on the left; on the right the member, the automatic-work switch and the Mac. */
+/**
+ * The header of a hub with a Story board: board and team on the left (the one shown marked as the current page); on
+ * the right the member's name tag, the automatic-work switch (a track beside its words) and the Mac's dot and words.
+ */
 function boardHeader(me: Member, chrome: Chrome): string {
   const on = chrome.autoWork === true;
   const sw = chrome.csrf
-    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="secondary" aria-pressed="${on}">자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</button></form>`
+    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${on}"><span class="track" aria-hidden="true"></span>자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</button></form>`
     : "";
-  const mac = chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : "";
-  return `<nav><a href="/">보드</a><a href="/team">팀</a></nav><div class="me"><a href="/me">${esc(me.name)}</a>${sw}${mac}</div>`;
+  const mac = chrome.mac ? macChip(chrome.mac) : "";
+  const here = menuOf(chrome.path);
+  const item = (href: string, label: string) => `<a href="${href}"${here === href ? ' aria-current="page"' : ""}>${label}</a>`;
+  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}${esc(me.name)}</a>${sw}${mac}</div>`;
 }
 
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
   const nav = me && chrome.autoWork !== undefined
     ? boardHeader(me, chrome)
     : me
-    ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : ""}</nav>`
+    ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : "";
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span>Pazmo 팀 허브</a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
   return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${esc(message)}</p><p><a href="/">처음으로</a></p></section>`);
@@ -285,7 +390,10 @@ export function macSignedOut() {
   return layout("로그인 필요", null, `<section><h1>먼저 이 브라우저로 허브에 들어와야 합니다</h1><p>이 브라우저에서 관리자에게 받은 <b>초대 링크</b>를 먼저 열어주세요. 이미 등록한 팀원이라면 <b>새 기기 링크</b>를 받아 열면 됩니다. 입장한 뒤 이 주소를 다시 열어주세요. 터미널에 나온 허용 주소입니다.</p><p>Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
 }
 
-/** Everyone's Mac, switch and current Task: the team page, for every member. `rows` are the members who have not been revoked. */
+/**
+ * Everyone's Mac, switch and current Task: the team page, for every member. `rows` are the members who have not been
+ * revoked. On a phone each row stacks, its cells named by `data-label`.
+ */
 export function teamPage(
   me: Member,
   rows: { id: string; name: string; admin: boolean; mac: MacBadge; autoWork: boolean; task: { taskId: string; label: string } | null }[],
@@ -295,7 +403,7 @@ export function teamPage(
   const table = rows
     .map(
       (r) =>
-        `<tr><td>${esc(r.name)}${r.admin ? ' <span class="pill">관리자</span>' : ""}</td><td><span class="pill">${esc(macBadgeLabel(r.mac))}</span></td><td><span class="pill">${r.autoWork ? "켜짐" : "꺼짐"}</span></td><td>${r.task ? `<a href="/tasks/${esc(r.task.taskId)}">${esc(r.task.label)}</a>` : '<span class="muted">없음</span>'}</td></tr>`,
+        `<tr><td><span class="person">${avatar(r)}${esc(r.name)}</span>${r.admin ? '<span class="tag">관리자</span>' : ""}</td><td data-label="Mac">${macLine(r.mac)}</td><td data-label="자동으로 일하기"><span class="onoff ${r.autoWork ? "on" : "off"}">${r.autoWork ? "켜짐" : "꺼짐"}</span></td><td data-label="지금 하는 일">${r.task ? `<a href="/tasks/${esc(r.task.taskId)}">${esc(r.task.label)}</a>` : '<span class="muted">없음</span>'}</td></tr>`,
     )
     .join("");
   const links = [
@@ -309,7 +417,7 @@ export function teamPage(
   return layout(
     "팀",
     me,
-    `<section><h1>팀</h1><div class="scroll"><table><thead><tr><th>이름</th><th>Mac</th><th>자동으로 일하기</th><th>지금 하는 일</th></tr></thead><tbody>${table}</tbody></table></div></section><section><h2>더 보기</h2><p class="row">${links.join(" · ")}</p></section>`,
+    `<section><h1>팀</h1><div class="scroll"><table class="stack"><thead><tr><th>이름</th><th>Mac</th><th>자동으로 일하기</th><th>지금 하는 일</th></tr></thead><tbody>${table}</tbody></table></div></section><section><h2>더 보기</h2><ul class="tiles">${links.map((l) => `<li>${l}</li>`).join("")}</ul></section>`,
     chrome,
   );
 }

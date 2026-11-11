@@ -186,12 +186,14 @@ test("planStateLabel and planStateText say each state in plain words", async () 
 test("the board shows 새 프로젝트, each project's plans in progress, and 새 Story only to a member who owns every project repo", async (t) => {
   const h = await team(t);
   const id = h.create();
-  const newStory = `<a href="/projects/${h.projectId}/new-story">새 Story</a>`;
+  // U40: 새 Story and 새 프로젝트 are drawn as buttons, and a plan in progress is a card with its PL's name tag.
+  const newStory = `<a class="btn ghost" href="/projects/${h.projectId}/new-story">새 Story</a>`;
   for (const who of [h.pl, h.b, h.c, h.admin]) {
     const board = (await h.get("/board", who)).text;
-    assert.ok(board.includes('<a href="/projects/new">새 프로젝트</a>'), `${who.member.name}: 새 프로젝트`);
+    assert.ok(board.includes('<a class="btn ghost" href="/projects/new">새 프로젝트</a>'), `${who.member.name}: 새 프로젝트`);
     assert.ok(board.includes("<h3>기획 중</h3>"), who.member.name);
-    assert.ok(board.includes(`<a href="/plans/${id}">쿠폰 발급</a> ${pill("기획 대기")} · PL PL`), who.member.name);
+    assert.ok(board.includes(`<li class="card run"><a class="title" href="/plans/${id}">쿠폰 발급</a><p>${pill("기획 대기")}</p><p class="who"><span class="av av`), who.member.name);
+    assert.match(board, /aria-hidden="true">PL<\/span><span>PL PL<\/span><\/p><\/li>/, who.member.name);
     assert.equal(board.includes(newStory), who === h.pl, `${who.member.name}: 새 Story only for the owner of app-be and app-fe`);
   }
   // A plan that is no longer in progress leaves the list, and so does the heading.
@@ -204,7 +206,7 @@ test("the board shows 새 프로젝트, each project's plans in progress, and �
   const empty = await team(t, { project: false });
   const text = (await empty.get("/board", empty.pl)).text;
   assert.ok(text.includes(EMPTY_BOARD));
-  assert.ok(text.includes('<a href="/projects/new">새 프로젝트</a>'));
+  assert.ok(text.includes('<a class="btn ghost" href="/projects/new">새 프로젝트</a>'));
 });
 
 test("/projects/new lists only my repos (an admin sees all) with base branch main; POST /projects makes the project and goes to /board; a repo I do not own is a FORBIDDEN page", async (t) => {
@@ -229,7 +231,7 @@ test("/projects/new lists only my repos (an admin sees all) with base branch mai
   assert.equal(made.createdBy.id, h.b.member.id);
   const board = (await h.get("/board", h.b)).text;
   assert.ok(board.includes("<h2>화면 개편</h2>"));
-  assert.ok(board.includes(`<a href="/projects/${made.id}/new-story">새 Story</a>`), "B owns every repo of B's project");
+  assert.ok(board.includes(`<a class="btn ghost" href="/projects/${made.id}/new-story">새 Story</a>`), "B owns every repo of B's project");
 
   const before = h.board.projects({ member: h.b.member }).length;
   res = await h.post(h.b, "/projects", [["name", "몰래"], ["repo", h.fe], [`base-${h.fe}`, "main"], ["repo", h.be], [`base-${h.be}`, "main"]]);

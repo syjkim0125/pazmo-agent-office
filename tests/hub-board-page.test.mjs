@@ -354,7 +354,9 @@ test("team page for everyone", async (t) => {
   assert.match(page.text, /일하는 중/);
   assert.ok(page.text.includes(`href="/tasks/${claim.taskId}"`));
   assert.ok(page.text.includes(`Story #${s.number}`));
-  assert.match(page.text, /<td>PL<\/td>[\s\S]*?<span class="pill">꺼짐<\/span>/);
+  // U40: each member is a name tag and their switch is a word with its own color, not a bare pill.
+  assert.match(page.text, /<td><span class="person"><span class="av av[0-7]" aria-hidden="true">PL<\/span>PL<\/span><\/td>[\s\S]*?<span class="onoff off">꺼짐<\/span>/);
+  assert.match(page.text, /<span class="mac on"><span class="dot" aria-hidden="true"><\/span>일하는 중<\/span>/, "C's Mac with its dot and word");
   assert.ok(!page.text.includes('href="/members"'), "not an admin");
   assert.ok((await h.get("/team", h.admin)).text.includes('href="/members"'));
   h.store.revokeMember(h.admin.member, h.b.member.id);
@@ -397,4 +399,120 @@ test("safePath keeps only known pages", () => {
   for (const ok of ["/", "/board", "/me", "/team", "/mac", `/stories/${id}`, `/tasks/${id.replace(/./, "a")}`, `/plans/${id}`]) assert.equal(safePath(ok), ok, ok);
   for (const bad of [null, undefined, "", "x", "//evil", "/\\evil", "/board?x=1", "/stories/abc", "/%2Fevil", "/%2fevil", "/me\n", "/me\u0000", "https://evil.example/", `/${"a".repeat(300)}`, "/requests"])
     assert.equal(safePath(bad), null, String(bad));
+});
+
+// U40 (화면 다듬기): the board's look — a card's tone and name tag, the box of what waits on the viewer, a lane's
+// progress, the current menu item, the header's switch and Mac chip, empty projects and the stylesheet's floor.
+const needsOf = (text) => /<section class="needs" aria-labelledby="needs">([\s\S]*?)<\/section>/.exec(text)?.[1] ?? null;
+
+test("a card wears its state: tone, name tag, Mac dot, time and number", async (t) => {
+  const h = await team(t, { names: { c: "에이" } });
+  const s = h.open(h.publish("쿠폰 발급", ["a", "b", "c"]));
+  const c = h.cBe();
+  const mac = h.pair(h.c);
+  h.store.macHeartbeat(mac, "working", null);
+  const first = h.board.claimNext(c);
+  h.board.mergeLock(c, first.taskId, first.claimId);
+  h.board.reportMerged(c, first.taskId, first.claimId, merged());
+  const doing = h.board.claimNext(c);
+  h.board.heartbeat(c, doing.taskId, doing.claimId, "build");
+  let lane = laneOf((await h.get("/", h.pl)).text, s.number);
+  assert.match(colOf(lane, "doing"), new RegExp(`<li class="card run"><a class="title" href="/tasks/${doing.taskId}">b 작업</a><p><span class="pill run">진행 중\\(구현\\)</span></p>`));
+  assert.match(
+    colOf(lane, "doing"),
+    /<p class="who"><span class="av av[0-7]" aria-hidden="true">에이<\/span><span>에이<\/span><span class="mac on"><span class="dot" aria-hidden="true"><\/span>일하는 중<\/span><span class="time">방금<\/span><\/p><p class="meta"><span class="num">#\d+<\/span> app-be<\/p><\/li>/,
+  );
+  assert.match(colOf(lane, "done"), new RegExp(`<li class="card done"><a class="title" href="/tasks/${first.taskId}">a 작업</a><p class="meta">`), "a merged card is quiet");
+  assert.match(colOf(lane, "todo"), /<li class="card"><a class="title" href="\/tasks\/[^"]+">c 작업<\/a><p class="meta">/, "a card nobody holds has no tone");
+  h.board.reportFailed(c, doing.taskId, doing.claimId, "RUNNER_LIMIT claude: usage limit");
+  lane = laneOf((await h.get("/", h.pl)).text, s.number);
+  assert.match(colOf(lane, "doing"), new RegExp(`<li class="card stop"><a class="title" href="/tasks/${doing.taskId}">`));
+  assert.ok(colOf(lane, "doing").includes(`<p class="why">${plainFailure("RUNNER_LIMIT claude: usage limit", "work")}</p>`));
+});
+
+test("나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does", async (t) => {
+  const h = await team(t);
+  const g4 = h.open(h.publish("승인 Story", ["a"]));
+  advance(h, g4, "awaiting_g4");
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  assert.equal(claim.taskId, s.tasks.a);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "RUNNER_LIMIT claude: usage limit");
+  const HOLDER = "b".repeat(32);
+  const planId = h.plans.createPlan(h.pl.member, { projectId: h.projectId, title: "초안 기획", intent: "쿠폰 만료를 알리고 싶다", risk: "normal" }).planId;
+  const l = h.plans.next(h.plBe, HOLDER);
+  h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "draft", text: "# Story: 초안 기획\n", story: { title: "초안 기획" } });
+
+  const pl = needsOf((await h.get("/", h.pl)).text);
+  assert.ok(pl, "the PL has a box");
+  assert.match(pl, /^<h2 id="needs">나를 기다리는 일 <span class="count">3<\/span><\/h2>/);
+  assert.ok(pl.includes(`<a href="/stories/${g4.storyId}"><span class="pill need">승인 대기</span>`), "the Story waiting for its result approval");
+  assert.ok(pl.includes(`<a href="/tasks/${claim.taskId}"><span class="pill stop">멈춤(실패)</span>`), "a stopped Task of the PL's Story");
+  assert.ok(pl.includes(plainFailure("RUNNER_LIMIT claude: usage limit", "work")));
+  assert.ok(pl.includes(`<a href="/plans/${planId}"><span class="pill need">초안</span>`), "the PL's draft to read");
+
+  const mine = needsOf((await h.get("/", h.c)).text);
+  assert.ok(mine.includes(`href="/tasks/${claim.taskId}"`), "C holds the stopped Task");
+  assert.ok(!mine.includes(g4.storyId) && !mine.includes(planId), "not C's Story or plan");
+  assert.equal(needsOf((await h.get("/", h.b)).text), null, "nothing waits on B: no box");
+  assert.ok(needsOf((await h.get("/?mine=1", h.pl)).text), "the box stays under 내 Story만");
+});
+
+test("a lane says how many of its Tasks are done", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a", "b", "c"]));
+  let lane = laneOf((await h.get("/", h.c)).text, s.number);
+  assert.ok(lane.includes('<span class="progress"><progress value="0" max="4" aria-hidden="true"></progress>4개 중 0개 끝</span>'), "three Tasks and the Story check");
+  const c = h.cBe();
+  const one = h.board.claimNext(c);
+  h.board.mergeLock(c, one.taskId, one.claimId);
+  h.board.reportMerged(c, one.taskId, one.claimId, merged());
+  lane = laneOf((await h.get("/", h.c)).text, s.number);
+  assert.ok(lane.includes('<progress value="1" max="4" aria-hidden="true"></progress>4개 중 1개 끝'));
+  assert.match(lane, new RegExp(`<a class="story-title" href="/stories/${s.storyId}"><span class="num">#${s.number}</span> 쿠폰 발급</a>`));
+  assert.match(lane, /<span class="lead"><span class="av av[0-7]" aria-hidden="true">PL<\/span>PL PL<\/span>/);
+});
+
+test("the menu marks the page you are on", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const nav = async (path) => /<nav>.*?<\/nav>/.exec((await h.get(path, h.c)).text)[0];
+  const BOARD = '<nav><a href="/" aria-current="page">보드</a><a href="/team">팀</a></nav>';
+  for (const path of ["/", "/board", `/stories/${s.storyId}`, `/tasks/${s.tasks.a}`]) assert.equal(await nav(path), BOARD, path);
+  assert.equal(await nav("/team"), '<nav><a href="/">보드</a><a href="/team" aria-current="page">팀</a></nav>');
+  for (const path of ["/me", "/mac", "/repos"]) assert.equal(await nav(path), '<nav><a href="/">보드</a><a href="/team">팀</a></nav>', path);
+});
+
+test("the header shows me, the switch and my Mac with words beside their shapes", async (t) => {
+  const h = await team(t);
+  const header = /<header>.*<\/header>/.exec((await h.get("/", h.c)).text)[0];
+  assert.match(header, /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span>Pazmo 팀 허브<\/a>/);
+  assert.match(header, /<a class="person" href="\/me"><span class="av av[0-7]" aria-hidden="true">C<\/span>C<\/a>/);
+  assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span>자동으로 일하기 켜짐</button>'));
+  assert.ok(header.endsWith('<a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: 연결된 Mac 없음</a></div></header>'));
+  const mac = h.pair(h.c);
+  for (const [state, tone] of [["working", "on"], ["idle", "on"], ["limited", "rest"], ["locked", "rest"]]) {
+    h.store.macHeartbeat(mac, state, null);
+    assert.match((await h.get("/", h.c)).text, new RegExp(`<a class="macchip ${tone}" href="/mac">`), state);
+  }
+});
+
+test("an empty project says what comes next", async (t) => {
+  const h = await team(t);
+  h.board.createProject(h.plBe, "빈 프로젝트", [{ repoId: h.be, baseBranch: "main" }]);
+  const empty = (text) => /<h2>빈 프로젝트<\/h2>[\s\S]*?<p class="empty">([^<]*)<\/p>/.exec(text)?.[1];
+  assert.equal(empty((await h.get("/", h.pl)).text), "아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다.");
+  assert.equal(empty((await h.get("/", h.b)).text), "아직 Story가 없습니다. 이 프로젝트의 레포를 모두 맡은 사람이 Story를 올리면 여기에 보입니다.");
+});
+
+test("the stylesheet keeps both themes, visible focus, large targets and no sideways scroll", async (t) => {
+  const h = await team(t);
+  const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
+  assert.match(style, /@media \(prefers-color-scheme:dark\)\{:root\{/);
+  assert.match(style, /:focus-visible\{outline:3px solid var\(--accent\)/);
+  assert.match(style, /button,\.btn\{[^}]*min-height:44px/);
+  assert.match(style, /overflow-wrap:anywhere/);
+  assert.match(style, /@media \(prefers-reduced-motion:reduce\)/);
+  assert.doesNotMatch(style, /url\(/, "no image or font the CSP would block");
 });

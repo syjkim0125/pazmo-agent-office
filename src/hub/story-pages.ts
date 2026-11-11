@@ -110,7 +110,7 @@ function card(c: WorkCard, extra = "") {
   return `<li><p>${taskLink(c.taskId, `#${c.number} ${c.title}`)} ${taskPill(c)}</p><p class="muted">${where}</p>${extra}</li>`;
 }
 const cards = (list: WorkCard[], empty: string, extra: (c: WorkCard) => string = () => "") =>
-  list.length ? `<ul>${list.map((c) => card(c, extra(c))).join("")}</ul>` : `<p class="muted">${esc(empty)}</p>`;
+  list.length ? `<ul class="work">${list.map((c) => card(c, extra(c))).join("")}</ul>` : `<p class="muted">${esc(empty)}</p>`;
 const failureLine = (c: WorkCard) => (failedNow(c) ? `<p>${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "");
 /** A Story plan in progress: its page and its state word. */
 const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${planPill(p)}`;
@@ -135,7 +135,7 @@ export function home(
   const rest = o.wait ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
   const restInCard = open !== null && working(open.state);
   const openPart = open
-    ? `<ul>${card(
+    ? `<ul class="work">${card(
         open,
         `<p class="muted">${esc(news(open, true))}</p>${restInCard ? rest : ""}${
           failedNow(open) ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>` : ""
@@ -149,7 +149,7 @@ export function home(
     : "";
   const done = (c: WorkCard) => (c.prUrl ? dev(`<p>PR ${prLink(c.prUrl)}</p>`) : "");
   const plans = o.plans?.length
-    ? `<section><h2>내가 쓰는 Story</h2><ul>${o.plans.map((p) => `<li><p>${planLink(p)}</p><p class="muted">${esc(p.project.name)}</p></li>`).join("")}</ul></section>`
+    ? `<section><h2>내가 쓰는 Story</h2><ul class="work">${o.plans.map((p) => `<li><p>${planLink(p)}</p><p class="muted">${esc(p.project.name)}</p></li>`).join("")}</ul></section>`
     : "";
   return layout("내 할 일", me, [
     o.macNudge ? MAC_NUDGE : "",
@@ -192,7 +192,7 @@ export function storyPage(me: Member, csrf: string, s: StoryView, o: { upload: S
       : "";
   const hash = up ? `<h3>로컬 승인</h3><p class="wrap">Story 해시 <code>${esc(up.storyHash)}</code></p>` : "";
   return layout(`Story #${s.number}`, me, [
-    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${approval}${cancel}<pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
+    `<section class="head"><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${approval}${cancel}<pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
     `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
     `<section>${dev(`${hash}<h3>Story base</h3>${branches}${prs}`)}</section>`,
   ].join(""), chrome);
@@ -243,9 +243,9 @@ export function taskPage(
   const macOn = o.assigneeMac !== null && o.assigneeMac.state !== "off" && o.assigneeMac.state !== "none";
   const stop =
     t.state === "held"
-      ? `<p><b>${esc(macOn ? HELD_MAC_ON : HELD + macOff)}</b></p>`
+      ? `<div class="callout"><p><b>${esc(macOn ? HELD_MAC_ON : HELD + macOff)}</b></p></div>`
       : failedNow(t)
-        ? `<p><b>${esc(plainFailure(t.failure ?? "", t.kind))}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}`
+        ? `<div class="callout"><p><b>${esc(plainFailure(t.failure ?? "", t.kind))}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}</div>`
         : "";
   const wait = o.wait && working(t.state) ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
   const result =
@@ -265,7 +265,7 @@ export function taskPage(
       : "",
   ].join("");
   return layout(`Task #${t.number}`, me, [
-    `<section><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
+    `<section class="head"><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
     result,
     work ? `<section><h2>할 일 내용</h2>${work}</section>` : "",
     t.memo ? `<section><h2>마지막 메모</h2><pre>${esc(t.memo)}</pre></section>` : "",
