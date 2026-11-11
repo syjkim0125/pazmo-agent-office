@@ -4,10 +4,16 @@ import { DatabaseSync } from "node:sqlite";
 import { HubStore } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
 import { esc } from "../src/hub/pages.ts";
+import { kitStoryHash } from "../src/core/kit-role-runs.ts";
 import { startTestHub } from "./hub-fixture.mjs";
 
-const HASH = "a".repeat(64);
-const OTHER_HASH = "b".repeat(64);
+/** A Story text and the kit hash the command sends with it. */
+const text = (body) => ({ body, storyHash: kitStoryHash(body) });
+const FIRST = text("# Story\n본문");
+const OTHER = text("# Story\n다른 본문");
+const THIRD = text("# Story\n세 번째 본문");
+const HASH = FIRST.storyHash;
+const OTHER_HASH = OTHER.storyHash;
 const SHA = (c) => c.repeat(40);
 const KEY = `upload:${HASH}`;
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
@@ -50,7 +56,7 @@ async function team(t) {
   /** A link made from a connection string: it has no Mac. */
   const stringLink = (who, repo) => store.pair(store.createLinkCode(who.member, repo), remote[repo]).token;
   const input = (o = {}) => ({
-    projectId, title: "쿠폰 발급", body: "# Story\n본문", risk: "normal", storyHash: HASH,
+    projectId, title: "쿠폰 발급", risk: "normal", ...FIRST,
     graph: { nodes: [node("api", be, ["src/api.ts"]), node("ui", fe, ["src/ui.ts"])], edges: [{ from: "api", to: "ui" }] },
     storyVerify: [{ repoId: be, checks: [check] }],
     ...o,
@@ -117,7 +123,7 @@ test("same text uploads once", async (t) => {
   assert.equal(h.board.stories({ member: h.pl.member }, h.projectId).length, 1);
   assert.equal(h.board.storyUpload(first.storyId).at, at, "the approval record is written once");
   // Another approved text is another Story.
-  const other = await h.upload(token, h.input({ storyHash: OTHER_HASH }));
+  const other = await h.upload(token, h.input(OTHER));
   assert.equal(other.status, 200);
   assert.notEqual(other.json.storyId, first.storyId);
   // After it opens, the same text still answers with the one Story and its state.
@@ -180,14 +186,14 @@ test("refuses a live Mac that is not the member's newest", () => {
   const { projectId } = board.createProject({ member: pl }, "p", [{ repoId: be, baseBranch: "main" }]);
   const mac = pairMac(store, pl, "옛 Mac");
   const link = store.link(store.macLink(mac.auth, be).token);
-  const input = (storyHash) => ({ projectId, title: "t", body: "b", risk: "normal", storyHash, graph: { nodes: [node("api", be, ["a.ts"])], edges: [] }, storyVerify: [{ repoId: be, checks: [check] }] });
+  const input = (story) => ({ projectId, title: "t", risk: "normal", ...story, graph: { nodes: [node("api", be, ["a.ts"])], edges: [] }, storyVerify: [{ repoId: be, checks: [check] }] });
   // Uploaded while this Mac is the member's newest.
-  const { storyId } = board.uploadStory(link, store.currentMac(pl.id), input(OTHER_HASH));
+  const { storyId } = board.uploadStory(link, store.currentMac(pl.id), input(OTHER));
   // A newer live Mac from before Macs replaced each other (old data): only the newest one is the member's Mac.
   db.prepare("INSERT INTO hub_macs(id,member_id,name,token_hash,created_at) VALUES (?,?,?,?,?)").run("newer", pl.id, "새 Mac", "h".repeat(64), Date.now() + 1000);
   assert.deepEqual(store.currentMac(pl.id), { id: "newer", name: "새 Mac" });
-  assert.throws(() => board.uploadStory(link, store.currentMac(pl.id), input(HASH)), { code: "NOT_YOUR_MAC", status: 403, message: NOT_YOUR_MAC });
-  assert.throws(() => board.uploadStory(link, null, input(HASH)), { code: "NOT_YOUR_MAC", status: 403 });
+  assert.throws(() => board.uploadStory(link, store.currentMac(pl.id), input(FIRST)), { code: "NOT_YOUR_MAC", status: 403, message: NOT_YOUR_MAC });
+  assert.throws(() => board.uploadStory(link, null, input(FIRST)), { code: "NOT_YOUR_MAC", status: 403 });
   assert.equal(board.storyByKey(pl.id, KEY), null);
   // Its Story base commits are refused the same way, and none is stored.
   assert.throws(() => board.uploadBases(link, store.currentMac(pl.id), storyId, { [be]: SHA("1") }), { code: "NOT_YOUR_MAC", status: 403, message: NOT_YOUR_MAC });
@@ -237,6 +243,26 @@ test("refuses a bad graph", async (t) => {
   h.noStory(h.pl);
 });
 
+test("refuses a Story hash that is not the kit hash of the body", async (t) => {
+  const h = await team(t);
+  const token = h.macLink(pairMac(h.store, h.pl.member, "PL Mac"), h.be);
+  // The same body under another well-formed hash, another body under the first hash, and a made-up hash.
+  for (const wrong of [h.input({ storyHash: OTHER_HASH }), h.input({ body: OTHER.body }), h.input({ storyHash: "a".repeat(64) })]) {
+    const res = await h.upload(token, wrong);
+    assert.equal(res.status, 400, res.text);
+    assert.equal(res.json.error, "INVALID");
+    assert.match(res.json.message, /^Story 글과 해시가 맞지 않습니다/);
+  }
+  h.noStory(h.pl);
+  assert.equal(h.board.storyByKey(h.pl.member.id, `upload:${OTHER_HASH}`), null, "nothing under the claimed hash either");
+  // The kit hash leaves out the Status and gate lines and line ends, as the command computes it.
+  const crlf = `Status: Approved\r\n${FIRST.body.replace(/\n/g, "\r\n")}\r\n`;
+  assert.equal(kitStoryHash(crlf), HASH);
+  const res = await h.upload(token, h.input({ body: crlf }));
+  assert.equal(res.status, 200, res.text);
+  assert.equal(h.board.storyUpload(res.json.storyId).storyHash, HASH);
+});
+
 test("cancelled Story is not uploaded again", async (t) => {
   const h = await team(t);
   const token = h.macLink(pairMac(h.store, h.pl.member, "PL Mac"), h.be);
@@ -248,7 +274,7 @@ test("cancelled Story is not uploaded again", async (t) => {
   assert.equal(h.board.stories({ member: h.pl.member }, h.projectId).length, 1, "no second Story behind the PL's back");
   assert.equal(h.board.storyByKey(h.pl.member.id, KEY).state, "cancelled");
   // A changed text with a new approval is a new Story.
-  const next = await h.upload(token, h.input({ storyHash: OTHER_HASH }));
+  const next = await h.upload(token, h.input(OTHER));
   assert.equal(next.status, 200);
   assert.equal(next.json.already, false);
 });
@@ -337,14 +363,14 @@ test("PL cancels an unopened upload on the web", async (t) => {
   assert.doesNotMatch(page, /\/cancel"/, "no form once cancelled");
 
   // A hub admin cancels an uploaded draft too.
-  const byAdmin = (await h.upload(token, h.input({ storyHash: "c".repeat(64) }))).json;
+  const byAdmin = (await h.upload(token, h.input(THIRD))).json;
   const adminRes = await h.post(`/stories/${byAdmin.storyId}/cancel`, h.admin, { confirm: "yes" });
   assert.equal(adminRes.status, 303);
   assert.equal(adminRes.headers.location, `/stories/${byAdmin.storyId}`);
   assert.equal(h.board.story({ member: h.pl.member }, byAdmin.storyId).state, "cancelled");
 
   // An opened upload has no button, and the route refuses it.
-  const opened = (await h.upload(token, h.input({ storyHash: OTHER_HASH }))).json;
+  const opened = (await h.upload(token, h.input(OTHER))).json;
   assert.equal((await h.api("POST", "/api/link/story/open", { token, protocol: "3", body: { storyId: opened.storyId } })).status, 200);
   assert.doesNotMatch((await h.get(`/stories/${opened.storyId}`, h.pl)).text, /\/cancel"/);
   assert.equal((await h.post(`/stories/${opened.storyId}/cancel`, h.pl, { confirm: "yes" })).status, 409);
