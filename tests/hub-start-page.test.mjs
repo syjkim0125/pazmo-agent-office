@@ -48,13 +48,13 @@ async function member(h) {
 }
 
 for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", openshift]]) {
-  test(`${mode}: joining by invite or device invite lands on /start`, async (t) => {
+  test(`${mode}: joining by invite or device invite lands on the board (/start on a hub without one)`, async (t) => {
     const h = await make(t);
     const admin = h.store.acceptInvite(h.store.bootstrapAdmin(), "mac").member;
     const join = await h.call("POST", `/invite/${h.store.createInvite(admin, "B")}`, { body: "label=x" });
-    assert.deepEqual([join.status, join.headers.location], [303, "/start"]);
+    assert.deepEqual([join.status, join.headers.location], [303, mode.startsWith("LAN") ? "/" : "/start"]);
     const dev = await h.call("POST", `/invite/${h.store.createDeviceInvite(admin, admin.id)}`, { body: "label=y" });
-    assert.deepEqual([dev.status, dev.headers.location], [303, "/start"]);
+    assert.deepEqual([dev.status, dev.headers.location], [303, mode.startsWith("LAN") ? "/" : "/start"]);
   });
 
   test(`${mode}: /start shows the three steps and the menu or the team page links to it`, async (t) => {
@@ -109,7 +109,7 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", opensh
     const code = "A".repeat(43);
     const res = await h.call("GET", `/connect?c=${code}&fp=ZZZ`);
     assert.equal(res.status, 200);
-    assert.match(res.text, /Office 상단의 팀 허브/);
+    assert.match(res.text, /pazmo-office hub-link --project/);
     assert.doesNotMatch(res.text, /[A-Za-z0-9_-]{43}/);
     assert.doesNotMatch(res.text, /ZZZ/);
   });

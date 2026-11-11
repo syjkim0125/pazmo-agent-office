@@ -75,7 +75,7 @@ const html = (res: ServerResponse, status: number, body: string, extra?: Record<
   send(res, status, "text/html; charset=utf-8", body, extra);
 export const json = (res: ServerResponse, status: number, value: unknown) =>
   send(res, status, "application/json; charset=utf-8", JSON.stringify(value));
-const redirect = (res: ServerResponse, to: string, extra: Record<string, string> = {}) => {
+const redirect = (res: ServerResponse, to: string, extra: Record<string, string | string[]> = {}) => {
   res.writeHead(303, { ...HEADERS, location: to, ...extra });
   res.end();
 };
@@ -99,13 +99,18 @@ export function readBody(req: IncomingMessage, limit: number): Promise<string> {
     req.on("error", reject);
   });
 }
-function cookie(req: IncomingMessage): string | undefined {
+function cookieOf(req: IncomingMessage, name: string): string | undefined {
   for (const part of (req.headers.cookie ?? "").split(";")) {
     const [key, ...rest] = part.trim().split("=");
-    if (key === COOKIE) return rest.join("=");
+    if (key === name) return rest.join("=");
   }
   return undefined;
 }
+const cookie = (req: IncomingMessage) => cookieOf(req, COOKIE);
+// The page a person opened before they had a session, kept so the invite can bring them back to it.
+const NEXT_COOKIE = "pazmo_next";
+const NEXT_AGE = 72 * 60 * 60;
+const NEXT_ATTRS = "HttpOnly; Secure; SameSite=Lax; Path=/";
 const same = (a: string, b: string) => {
   const x = Buffer.from(a),
     y = Buffer.from(b);
@@ -160,13 +165,27 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (!post) return html(res, 200, page.invite(c.store.invite(m[1])?.name ?? null));
       const label = new URLSearchParams(await readBody(req, FORM_LIMIT)).get("label") ?? "";
       const { session } = c.store.acceptInvite(m[1], label);
-      return redirect(res, "/start", {
-        "set-cookie": `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
+      let next: string | null = null;
+      try {
+        next = safePath(decodeURIComponent(cookieOf(req, NEXT_COOKIE) ?? ""));
+      } catch {
+        // A value that does not decode is ignored like any other odd one.
+      }
+      // A hub without the Story board has no board to land on.
+      return redirect(res, c.board ? (next ?? "/") : "/start", {
+        "set-cookie": [
+          `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
+          ...(cookieOf(req, NEXT_COOKIE) !== undefined ? [`${NEXT_COOKIE}=; Max-Age=0; ${NEXT_ATTRS}`] : []),
+        ],
       });
     }
     const s = c.store.session(cookie(req));
     // The one page a person reaches from a terminal before they have a session: it says how to get one, and decides nothing.
-    if (!s) return html(res, 401, !post && path === "/mac/approve" ? page.macSignedOut() : page.signedOut());
+    if (!s) {
+      if (!post && path === "/mac/approve") return html(res, 401, page.macSignedOut());
+      const remember = !post && safePath(path) ? { "set-cookie": `${NEXT_COOKIE}=${encodeURIComponent(path)}; Max-Age=${NEXT_AGE}; ${NEXT_ATTRS}` } : undefined;
+      return html(res, 401, page.signedOut(), remember);
+    }
     // The store slides the session on use, so the browser's cookie slides with it.
     const token = cookie(req) as string;
     res.setHeader("set-cookie", `${COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`);
@@ -347,7 +366,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       const code = c.store.createConnectCode(me);
       const value = `${base}/connect#c=${code}${tls ? `&fp=${tls.fingerprint}` : ""}`;
       return html(res, 200, page.created(me, "내 Office 연결",
-        "10분 안에 한 번만 쓸 수 있습니다. Office 상단의 팀 허브 버튼을 누르고 이 문자열을 붙여넣은 뒤 연결을 누르세요.", value, chrome()));
+        "10분 안에 한 번만 쓸 수 있습니다. Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 pazmo-office hub-link --project <레포 폴더> --connect '이 문자열' 을 실행하세요.", value, chrome()));
     }
     if (path === "/invites") {
       const raw = c.store.createInvite(me, f("name"));
