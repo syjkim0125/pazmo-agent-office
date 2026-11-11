@@ -63,9 +63,11 @@ export class StoryGraphError extends Error {
 function fail(code: string, message: string): never {
   throw new StoryGraphError(code, message);
 }
-function isObject(value: unknown): value is Record<string, unknown> {
+export function isObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === "object" && !Array.isArray(value);
 }
+/** A Story base commit id as the Hub stores it: 40 lowercase hex characters. */
+export const COMMIT = /^[0-9a-f]{40}$/;
 
 export function storyBaseBranch(n: number): string {
   return `feature/story-${n}/base`;

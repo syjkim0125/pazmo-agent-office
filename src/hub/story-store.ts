@@ -7,8 +7,10 @@ import {
   HELD_AFTER_MS,
   LIMITS,
   StoryGraphError,
+  COMMIT,
   VERIFY_NODE_ID,
   isBaseBranchName,
+  isObject,
   prUrlOf,
   storyBaseBranch,
   taskBranch,
@@ -258,10 +260,7 @@ type RerunBlock = keyof typeof RERUN_REFUSALS;
 const KEY_MAX = 100;
 /** The kit's Story hash (sha256 hex) and a git commit id, as an upload sends them. */
 const STORY_HASH = /^[0-9a-f]{64}$/;
-const COMMIT = /^[0-9a-f]{40}$/;
 export const NOT_YOUR_MAC_MESSAGE = "이 Mac은 지금 연결된 내 Mac이 아닙니다. 지금 연결된 Mac에서 다시 실행하세요.";
-const isObject = (value: unknown): value is Record<string, unknown> =>
-  value !== null && typeof value === "object" && !Array.isArray(value);
 /** The web's lists: ready Tasks in claim order, and the member's latest merges. */
 const READY_LIST_MAX = 50;
 const DONE_LIST_MAX = 20;
@@ -298,6 +297,31 @@ CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCE
 
 function fail(code: string, status: number, message: string): never {
   throw new HubError(code, status, message);
+}
+/**
+ * Story base commits ({repoId: commit}) merged into `stored`, each of `names`' repos (id → name) once: the same commit
+ * again is nothing, another is BASES_CHANGED (409, naming the repo, then `changedSuffix`). A non-object, a repo not in
+ * `names` or a commit that is not 40 hex characters is INVALID (400) with the caller's `invalid` message. `stored` itself
+ * is left alone; `added` is the repo ids the merge took. Shared by a plan's heartbeat and an uploaded Story's bases.
+ */
+export function mergeBases(
+  stored: Readonly<Record<string, string>>,
+  bases: unknown,
+  names: ReadonlyMap<string, string>,
+  o: { invalid: string; changedSuffix?: string },
+): { stored: Record<string, string>; added: string[] } {
+  if (!isObject(bases) || !Object.entries(bases).every(([id, sha]) => names.has(id) && typeof sha === "string" && COMMIT.test(sha)))
+    fail("INVALID", 400, o.invalid);
+  const merged = { ...stored };
+  const added: string[] = [];
+  for (const [id, sha] of Object.entries(bases as Record<string, string>)) {
+    if (!Object.hasOwn(merged, id)) {
+      merged[id] = sha;
+      added.push(id);
+    } else if (merged[id] !== sha)
+      fail("BASES_CHANGED", 409, `레포 ${names.get(id)}의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다.${o.changedSuffix ?? ""}`);
+  }
+  return { stored: merged, added };
 }
 const compare = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
 const finished = (state: TaskState) => state === "merged" || state === "cancelled";
@@ -798,9 +822,11 @@ export class StoryBoard {
   /**
    * A Story the PL approved locally (kit G1), uploaded by the command on the PL's Mac. Refused unless the link was
    * minted by the member's current Mac (`mac`, from HubStore.currentMac) and the member owns every repo of the
-   * project; a Story under the same text that was cancelled is not made again. Then `publishStory` under the key
-   * `upload:<storyHash>` (one Story per text, a resend gets the first answer) and the approval record, once, all in
-   * one transaction: any refusal leaves no Story and no record. `bases` are the Story base commits stored so far.
+   * project; a Story under the same key that some other way made (the plain publish route) is STATE, so the record
+   * only ever describes what the Mac sent, and a Story under the same text that was cancelled is not made again. Then
+   * `publishStory` under the key `upload:<storyHash>` (one Story per text, a resend gets the first answer) and the
+   * approval record for a new Story, all in one transaction: any refusal leaves no Story and no record. `bases` are
+   * the Story base commits stored so far.
    */
   uploadStory(
     l: Link,
@@ -810,21 +836,23 @@ export class StoryBoard {
     return transaction(this.#db, () => {
       if (typeof input.storyHash !== "string" || !STORY_HASH.test(input.storyHash))
         fail("INVALID", 400, "Story 해시는 64자리 소문자 16진수여야 합니다. kit이 계산한 해시를 그대로 보내세요.");
-      if (l.macId === null || mac === null || l.macId !== mac.id) fail("NOT_YOUR_MAC", 403, NOT_YOUR_MAC_MESSAGE);
+      const current = this.#currentMac(l, mac);
       const project = this.#project(input.projectId);
       if (!this.ownsProject(l.member.id, project.id))
         fail("NOT_OWNER", 403, "프로젝트의 모든 레포 담당자여야 올릴 수 있습니다. 관리자에게 담당자 등록을 요청하세요.");
       const key = `upload:${input.storyHash}`;
-      if (this.storyByKey(l.member.id, key)?.state === "cancelled")
+      const prior = this.storyByKey(l.member.id, key);
+      if (prior && !this.#upload(prior.id)) fail("STATE", 409, "이 키로 이미 다른 방법으로 올린 Story가 있습니다.");
+      if (prior?.state === "cancelled")
         fail("UPLOAD_CANCELLED", 409, "이 Story는 취소됐습니다. Story 글을 고쳐 새 승인을 받은 뒤 올리세요.");
       const { projectId, title, body, risk, graph, storyVerify } = input;
       const published = this.publishStory(l, { projectId, title, body, risk, graph, storyVerify, key });
-      if (!this.#upload(published.storyId)) {
+      if (!published.already) {
         this.#run(
           "INSERT INTO hub_story_uploads(story_id,mac_id,mac_name,story_hash,bases,created_at) VALUES (?,?,?,?,'{}',?)",
-          published.storyId, mac.id, mac.name, input.storyHash, this.#now(),
+          published.storyId, current.id, current.name, input.storyHash, this.#now(),
         );
-        this.#event(published.storyId, null, l.member.id, "uploaded", mac.name);
+        this.#event(published.storyId, null, l.member.id, "uploaded", current.name);
       }
       const row = this.#upload(published.storyId) as UploadRow;
       return {
@@ -839,13 +867,20 @@ export class StoryBoard {
   #upload(storyId: string) {
     return this.#get<UploadRow>("SELECT * FROM hub_story_uploads WHERE story_id=?", storyId);
   }
+  /** The upload routes' Mac rule: the link was minted by `mac`, the member's current Mac. A connection-string link has none. */
+  #currentMac(l: Link, mac: { id: string; name: string } | null): { id: string; name: string } {
+    if (l.macId === null || mac === null || l.macId !== mac.id) fail("NOT_YOUR_MAC", 403, NOT_YOUR_MAC_MESSAGE);
+    return mac;
+  }
   /**
-   * The Story base commits of an uploaded Story ({repoId: commit}), by the PL who uploaded it. Each of the project's
-   * repos is stored once: the same commit again is nothing, another is BASES_CHANGED and nothing changes. A repo not
-   * stored yet is taken only while the Story is not open. Answers every commit stored.
+   * The Story base commits of an uploaded Story ({repoId: commit}), by the PL who uploaded it, from the PL's current
+   * Mac (`mac`) like the upload. Each of the project's repos is stored once (`mergeBases`): the same commit again is
+   * nothing, another is BASES_CHANGED and nothing changes. A repo not stored yet is taken only while the Story is not
+   * open. Answers every commit stored.
    */
-  uploadBases(l: Link, storyId: string, bases: unknown): { bases: Record<string, string> } {
+  uploadBases(l: Link, mac: { id: string; name: string } | null, storyId: string, bases: unknown): { bases: Record<string, string> } {
     return transaction(this.#db, () => {
+      this.#currentMac(l, mac);
       const s = this.#story(storyId);
       this.#assertPl(l, s);
       const row = this.#upload(s.id) ?? fail("STATE", 409, "명령으로 올린 Story가 아니라 base 커밋을 적을 수 없습니다.");
@@ -854,17 +889,10 @@ export class StoryBoard {
           "SELECT r.id,r.name FROM hub_project_repos pr JOIN hub_repos r ON r.id=pr.repo_id WHERE pr.project_id=?", s.project_id,
         ).map((r) => [r.id, r.name]),
       );
-      if (!isObject(bases) || !Object.entries(bases).every(([id, sha]) => names.has(id) && typeof sha === "string" && COMMIT.test(sha)))
-        fail("INVALID", 400, "bases는 이 Story 프로젝트의 레포 id마다 40자리 16진수 커밋 id를 적은 객체여야 합니다.");
-      const stored = JSON.parse(row.bases) as Record<string, string>;
-      const added: string[] = [];
-      for (const [id, sha] of Object.entries(bases as Record<string, string>)) {
-        if (!Object.hasOwn(stored, id)) {
-          stored[id] = sha;
-          added.push(id);
-        } else if (stored[id] !== sha)
-          fail("BASES_CHANGED", 409, `레포 ${names.get(id)}의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다. Hub에 적힌 커밋으로 다시 실행하세요.`);
-      }
+      const { stored, added } = mergeBases(JSON.parse(row.bases) as Record<string, string>, bases, names, {
+        invalid: "bases는 이 Story 프로젝트의 레포 id마다 40자리 16진수 커밋 id를 적은 객체여야 합니다.",
+        changedSuffix: " Hub에 적힌 커밋으로 다시 실행하세요.",
+      });
       if (added.length === 0) return { bases: stored };
       if (s.state !== "draft") fail("STATE", 409, "열리기 전의 Story에만 새 base 커밋을 적을 수 있습니다.");
       this.#run("UPDATE hub_story_uploads SET bases=? WHERE story_id=?", JSON.stringify(stored), s.id);

@@ -133,12 +133,18 @@ test("refuses a link without a Mac", async (t) => {
   let res = await h.upload(byString);
   assert.equal(res.status, 403);
   assert.deepEqual(res.json, { error: "NOT_YOUR_MAC", message: NOT_YOUR_MAC });
-  h.macLink(pairMac(h.store, h.pl.member, "PL Mac"), h.be);
+  const macToken = h.macLink(pairMac(h.store, h.pl.member, "PL Mac"), h.be);
   assert.equal(h.store.link(byString).macId, null);
   res = await h.upload(byString);
   assert.equal(res.status, 403);
   assert.equal(res.json.error, "NOT_YOUR_MAC");
   h.noStory(h.pl);
+  // Recording Story base commits takes the same Mac: a connection-string link of the same PL is refused.
+  const { storyId } = (await h.upload(macToken)).json;
+  res = await h.uploadBases(byString, { storyId, bases: { [h.be]: SHA("1") } });
+  assert.equal(res.status, 403);
+  assert.deepEqual(res.json, { error: "NOT_YOUR_MAC", message: NOT_YOUR_MAC });
+  assert.deepEqual((await h.upload(macToken)).json.bases, {}, "nothing was stored");
 });
 
 test("refuses an old Mac", async (t) => {
@@ -174,13 +180,19 @@ test("refuses a live Mac that is not the member's newest", () => {
   const { projectId } = board.createProject({ member: pl }, "p", [{ repoId: be, baseBranch: "main" }]);
   const mac = pairMac(store, pl, "옛 Mac");
   const link = store.link(store.macLink(mac.auth, be).token);
+  const input = (storyHash) => ({ projectId, title: "t", body: "b", risk: "normal", storyHash, graph: { nodes: [node("api", be, ["a.ts"])], edges: [] }, storyVerify: [{ repoId: be, checks: [check] }] });
+  // Uploaded while this Mac is the member's newest.
+  const { storyId } = board.uploadStory(link, store.currentMac(pl.id), input(OTHER_HASH));
   // A newer live Mac from before Macs replaced each other (old data): only the newest one is the member's Mac.
   db.prepare("INSERT INTO hub_macs(id,member_id,name,token_hash,created_at) VALUES (?,?,?,?,?)").run("newer", pl.id, "새 Mac", "h".repeat(64), Date.now() + 1000);
   assert.deepEqual(store.currentMac(pl.id), { id: "newer", name: "새 Mac" });
-  const input = { projectId, title: "t", body: "b", risk: "normal", storyHash: HASH, graph: { nodes: [node("api", be, ["a.ts"])], edges: [] }, storyVerify: [] };
-  assert.throws(() => board.uploadStory(link, store.currentMac(pl.id), input), { code: "NOT_YOUR_MAC", status: 403, message: NOT_YOUR_MAC });
-  assert.throws(() => board.uploadStory(link, null, input), { code: "NOT_YOUR_MAC", status: 403 });
+  assert.throws(() => board.uploadStory(link, store.currentMac(pl.id), input(HASH)), { code: "NOT_YOUR_MAC", status: 403, message: NOT_YOUR_MAC });
+  assert.throws(() => board.uploadStory(link, null, input(HASH)), { code: "NOT_YOUR_MAC", status: 403 });
   assert.equal(board.storyByKey(pl.id, KEY), null);
+  // Its Story base commits are refused the same way, and none is stored.
+  assert.throws(() => board.uploadBases(link, store.currentMac(pl.id), storyId, { [be]: SHA("1") }), { code: "NOT_YOUR_MAC", status: 403, message: NOT_YOUR_MAC });
+  assert.throws(() => board.uploadBases(link, null, storyId, { [be]: SHA("1") }), { code: "NOT_YOUR_MAC", status: 403 });
+  assert.deepEqual(JSON.parse(db.prepare("SELECT bases FROM hub_story_uploads WHERE story_id=?").get(storyId).bases), {});
   assert.equal(store.currentMac(admin.id), null, "a member without a Mac has none");
 });
 
@@ -239,6 +251,22 @@ test("cancelled Story is not uploaded again", async (t) => {
   const next = await h.upload(token, h.input({ storyHash: OTHER_HASH }));
   assert.equal(next.status, 200);
   assert.equal(next.json.already, false);
+});
+
+test("refuses a Story published another way under the upload key", async (t) => {
+  const h = await team(t);
+  // The plain publish route with the upload key, from a connection-string link: not what the PL's Mac sent.
+  const byString = h.stringLink(h.pl, h.fe);
+  const plain = await h.api("POST", "/api/link/story/publish", { token: byString, protocol: "3", body: { ...h.input(), storyHash: undefined, key: KEY } });
+  assert.equal(plain.status, 200, plain.text);
+  const token = h.macLink(pairMac(h.store, h.pl.member, "PL Mac"), h.be);
+  const res = await h.upload(token);
+  assert.equal(res.status, 409);
+  assert.deepEqual(res.json, { error: "STATE", message: "이 키로 이미 다른 방법으로 올린 Story가 있습니다." });
+  assert.equal(h.board.storyUpload(plain.json.storyId), null, "no local approval record");
+  assert.doesNotMatch((await h.get(`/stories/${plain.json.storyId}`, h.pl)).text, /로컬 승인/);
+  const bases = await h.uploadBases(token, { storyId: plain.json.storyId, bases: { [h.be]: SHA("1") } });
+  assert.deepEqual([bases.status, bases.json.error], [409, "STATE"]);
 });
 
 test("bases are written once", async (t) => {
@@ -307,6 +335,13 @@ test("PL cancels an unopened upload on the web", async (t) => {
   assert.equal((await h.post(path, h.pl, { confirm: "yes" })).status, 303, "a second click shows the cancelled Story");
   const page = (await h.get(`/stories/${storyId}`, h.pl)).text;
   assert.doesNotMatch(page, /\/cancel"/, "no form once cancelled");
+
+  // A hub admin cancels an uploaded draft too.
+  const byAdmin = (await h.upload(token, h.input({ storyHash: "c".repeat(64) }))).json;
+  const adminRes = await h.post(`/stories/${byAdmin.storyId}/cancel`, h.admin, { confirm: "yes" });
+  assert.equal(adminRes.status, 303);
+  assert.equal(adminRes.headers.location, `/stories/${byAdmin.storyId}`);
+  assert.equal(h.board.story({ member: h.pl.member }, byAdmin.storyId).state, "cancelled");
 
   // An opened upload has no button, and the route refuses it.
   const opened = (await h.upload(token, h.input({ storyHash: OTHER_HASH }))).json;

@@ -125,7 +125,8 @@ async function storyRoute(store: HubStore, board: StoryBoard, plans: PlanBoard |
         projectId: str(body, "projectId"), title: str(body, "title"), body: str(body, "body"), risk: risk(body),
         storyHash: str(body, "storyHash"), graph: body.graph, storyVerify: body.storyVerify,
       });
-    case "POST /api/link/story/upload-bases": return board.uploadBases(link, str(body, "storyId"), body.bases);
+    case "POST /api/link/story/upload-bases":
+      return board.uploadBases(link, store.currentMac(link.member.id), str(body, "storyId"), body.bases);
     case "POST /api/link/story/open": return board.openStory(link, str(body, "storyId"));
     case "POST /api/link/story/add-tasks": return board.addTasks(link, str(body, "storyId"), str(body, "key"), body.graph);
     case "POST /api/link/story/cancel": return board.cancelStory(link, str(body, "storyId"));
