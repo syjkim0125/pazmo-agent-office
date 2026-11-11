@@ -87,6 +87,9 @@ a check before the upload fails.
 | `GIT_FAILED` | Fetching a base branch or pushing `feature/story-<N>/base` failed (network, permission, a branch rule). The Story waits on the Hub as not opened. | Fix the cause and run the same command again; it goes on where it stopped. To give up, cancel the Story on its Hub page. |
 | `BASE_EXISTS` | `feature/story-<N>/base` is already on origin at another commit. | Only if that branch holds no team work, a developer deletes it and the command is run again; otherwise cancel the Story on its Hub page. |
 | `BASES_CHANGED` | The Hub already keeps another base commit for a repo of this Story. | Run the same command again: it uses the commits the Hub keeps. |
+| `STATE` | The Story cannot go on from where it is on the Hub: the same text was put on the Hub another way (not by this command), or the uploaded Story is no longer a draft the command can open. | Open the Story on the Hub and look at its state. To put it up again, change the Story, get a new G1, then run the command. |
+| `HUB_UNREACHABLE` | The command could not reach the Hub (network, VPN, the Hub is restarting). | Check the network and that the Hub page opens, then run the same command again; it goes on where it stopped. |
+| `HUB_BAD_RESPONSE` | The Hub answered in a shape the command does not know (the Hub and this Office are different versions). | Update this Office (and ask the admin about the Hub version), then run the same command again. |
 
 Any other code comes from the Hub or the network with its own sentence; fix what it says and run the same command
 again.

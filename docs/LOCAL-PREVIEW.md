@@ -431,7 +431,7 @@ Hub 웹의 첫 화면(`/`)이 프로젝트별 칸반 보드가 되었고, PL은 
 
 **PL: 자기 Mac의 claude로 Story 올리기**
 
-- 먼저 이 Mac이 Hub에 연결되어 있어야 한다(`pazmo-office mac connect`). 연결할 때 claude용 안내(`~/.claude/skills/pazmo-hub-upload/SKILL.md`)가 이 Mac의 claude에게 복사된다. 이미 연결된 Mac은 `mac connect`를 한 번 더 하면 안내만 새로 받는다. PL이 안내를 고쳐 두었으면 "고친 안내가 있어 그대로 둡니다"라고 하고 건드리지 않는다. 안내는 `pazmo-office team upload --guide`로도 볼 수 있다.
+- 먼저 이 Mac이 Hub에 연결되어 있어야 한다(`pazmo-office mac connect`). 연결할 때 claude용 안내(`~/.claude/skills/pazmo-hub-upload/SKILL.md`)가 이 Mac의 claude에게 복사된다. 이미 연결된 Mac은 `mac connect`를 한 번 더 하면 안내만 새로 받는다. 안내 파일은 저장소의 `skills/pazmo-hub-upload/SKILL.md`와 바이트까지 같고(claude가 맨 앞의 front matter로 skill을 알아본다), Office가 둔 것인지는 옆의 `.pazmo-managed`(쓴 안내의 sha256)로 안다. PL이 안내를 고쳐 두었거나 `.pazmo-managed`가 없거나 안내·폴더가 링크이면 "고친 안내가 있어 그대로 둡니다"라고 하고 건드리지 않는다. 안내는 `pazmo-office team upload --guide`로도 볼 수 있다.
 - claude 대화에서 kit workflow로 Story를 쓰고 G1(높은 위험이면 G3도)을 받은 뒤 이렇게 말한다: **"이 Story 허브에 올려줘."**
 - claude가 하는 일: Task 파일(JSON)을 쓰고 `pazmo-office team upload --story <Story.md> --tasks <tasks.json>`을 실행한다. Task 파일은 프로젝트 이름, 위험(`normal`/`high`. kit 설정이 `requiresG3: true`이거나 Story에 G3 줄이 있으면 `high`여야 한다), 쓰는 repo와 기준 브랜치, Task 목록(Task마다 id·repo·제목·할 일·만질 파일·덮는 M/V·앞 Task·확인 명령), Story 전체 확인으로 되어 있다. 자세한 모양과 한도는 안내 파일에 있다.
 - 명령은 이 Mac에서 다음을 확인한 뒤에만 올린다: G1(과 G3) 기록이 이 Story 글에 묶였는지, 이 Mac이 PL의 지금 연결된 Mac인지, PL이 프로젝트의 모든 repo 담당자인지, Task 그래프, 모든 M·V가 Task로 덮였는지, 프로젝트의 repo와 기준 브랜치. 하나라도 어긋나면 아무것도 올리지 않는다. 통과하면 Story와 Task를 올리고, repo마다 `feature/story-<N>/base`를 만들고(PL의 clone을 쓰되 그 clone의 작업 폴더·index·브랜치·HEAD는 바꾸지 않는다. 가져오기와 base 브랜치 push만 한다) Story를 연다. 보드에는 "로컬 승인 · Mac 이름"으로 보인다.
@@ -452,6 +452,9 @@ Hub 웹의 첫 화면(`/`)이 프로젝트별 칸반 보드가 되었고, PL은 
 | `GIT_FAILED` | base 가져오기나 push 실패(네트워크·권한·브랜치 규칙) | 원인을 고치고 같은 명령을 다시 실행한다 |
 | `BASE_EXISTS` | `feature/story-<N>/base`가 origin에 다른 커밋으로 이미 있음 | 팀 작업이 없는 브랜치면 개발자가 지우고 다시 실행한다. 아니면 Story를 웹에서 취소한다 |
 | `BASES_CHANGED` | Hub가 이미 다른 base 커밋을 기억함 | 같은 명령을 다시 실행한다(Hub가 기억하는 커밋을 쓴다) |
+| `STATE` | 같은 글이 이 명령이 아닌 다른 길로 Hub에 올라가 있거나, 올린 Story가 더는 명령이 열 수 있는 기획 중 상태가 아님 | Hub의 Story 화면에서 상태를 본다. 다시 올리려면 Story 글을 고쳐 새 G1을 받은 뒤 명령을 실행한다 |
+| `HUB_UNREACHABLE` | Hub에 닿지 못함(네트워크·VPN·Hub 재시작 중) | 네트워크와 Hub 화면이 열리는지 확인하고 같은 명령을 다시 실행한다(멈춘 곳부터 이어 한다) |
+| `HUB_BAD_RESPONSE` | Hub의 답을 읽지 못함(Hub와 이 Office의 버전이 다름) | 이 Office를 업데이트하고(Hub 버전은 관리자에게 묻는다) 같은 명령을 다시 실행한다 |
 
 - 열리지 않은 Story는 웹에서 취소할 수 있다(Story 화면의 [취소]. PL이나 Hub 관리자만, 올린 Story가 아직 기획 중일 때만). 웹 기획으로 만든 기획 중 Story는 기획 화면에서 취소한다. 취소한 뒤 같은 글을 올리면 `UPLOAD_CANCELLED`로 거절된다.
 

@@ -185,7 +185,11 @@ test("mac connect copies the claude upload guide into the home, says so, and kee
   const m = await world(t, ["app-be"]);
   const guide = join(m.home, ".claude", "skills", "pazmo-hub-upload", "SKILL.md");
   await m.connect();
-  assert.match(readFileSync(guide, "utf8"), /^<!-- pazmo-office managed: sha256=[0-9a-f]{64} -->\n---\nname: pazmo-hub-upload/);
+  // Byte-for-byte the repo's skill file (front matter at byte 0, so claude loads it); ours by the sidecar's hash.
+  const source = readFileSync(join(packageRoot, "skills", "pazmo-hub-upload", "SKILL.md"), "utf8");
+  assert.equal(readFileSync(guide, "utf8"), source);
+  assert.match(readFileSync(guide, "utf8"), /^---\nname: pazmo-hub-upload\n/);
+  assert.match(readFileSync(join(m.home, ".claude", "skills", "pazmo-hub-upload", ".pazmo-managed"), "utf8"), /^[0-9a-f]{64}\n$/);
   assert.ok(m.lines.some((l) => l.includes("올리기 안내") && l.includes("pazmo-hub-upload")), "said where it went");
 
   writeFileSync(guide, "# 내가 고친 안내\n");
