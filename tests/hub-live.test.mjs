@@ -78,19 +78,39 @@ test("script only on live GET pages", async (t) => {
 });
 
 // ---- the script itself, in a vm with the smallest fakes it needs.
-function run({ hidden = false, active = null, fields = [], responses = [], etag = '"a"' } = {}) {
+/** A <main> whose `<details( open)?><summary>…</summary>` parts are elements with an `open` flag, rebuilt on each swap. */
+function fakeMain(html) {
+  let inner = html;
+  const parse = (text) =>
+    [...text.matchAll(/<details( open)?><summary>([^<]*)<\/summary>/g)].map((m) => ({
+      open: Boolean(m[1]),
+      querySelector: (s) => (s === "summary" ? { textContent: ` ${m[2]} ` } : null),
+    }));
+  let details = parse(html);
+  return {
+    get innerHTML() { return inner; },
+    set innerHTML(v) { inner = v; details = parse(v); },
+    querySelectorAll: (s) => (s === "details" ? details : []),
+    contains: (node) => Boolean(node && node.inMain),
+    details: () => details,
+  };
+}
+function run({ hidden = false, active = null, fields = [], responses = [], etag = '"a"', html = "old", onFetch = () => {} } = {}) {
   const calls = [];
-  const main = { innerHTML: "old" };
+  const main = fakeMain(html);
   const classes = new Set();
-  let tick, period, stopped = false;
+  const focused = [];
+  let tick, period, stopped = false, selection = null;
   const document = {
-    hidden, activeElement: active, title: "old title",
-    documentElement: { classList: { add: (c) => classes.add(c) } },
+    hidden, activeElement: active, title: "old title", body: { tagName: "BODY" },
+    documentElement: { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) } },
     querySelector: (s) => (s === "main" ? main : s === 'meta[name="etag"]' ? { getAttribute: () => etag } : null),
     querySelectorAll: () => fields,
+    getElementById: (id) => ({ id, focus: () => focused.push(id) }),
   };
   const fetch = (url, init) => {
     calls.push({ url, init });
+    onFetch();
     const r = responses.shift();
     return Promise.resolve({ status: r.status, headers: { get: (n) => (n === "ETag" ? r.etag ?? null : null) }, text: () => Promise.resolve(r.text ?? "") });
   };
@@ -98,6 +118,7 @@ function run({ hidden = false, active = null, fields = [], responses = [], etag 
     document, fetch, location: { href: "https://hub/board" },
     setInterval: (fn, ms) => { tick = fn; period = ms; return 1; },
     clearInterval: () => { stopped = true; },
+    getSelection: () => selection,
     DOMParser: class {
       parseFromString(text) {
         const m = /<main>([\s\S]*?)<\/main>/.exec(text);
@@ -107,7 +128,11 @@ function run({ hidden = false, active = null, fields = [], responses = [], etag 
   });
   vm.runInContext(LIVE_SCRIPT, ctx);
   const poll = async () => { tick(); await new Promise((r) => setImmediate(r)); };
-  return { calls, main, document, classes, poll, period, stopped: () => stopped };
+  /** A text selection that does (inMain) or does not reach into <main>. */
+  const select = (inMain) => {
+    selection = { isCollapsed: false, rangeCount: 1, getRangeAt: () => ({ intersectsNode: (node) => inMain && node === main }) };
+  };
+  return { calls, main, document, classes, focused, poll, period, select, stopped: () => stopped };
 }
 const page = (inner, title = "new title") => `<title>${title}</title><main>${inner}</main>`;
 
@@ -169,5 +194,75 @@ test("stops on non-200 non-304 without touching main", async () => {
     assert.equal(r.main.innerHTML, "old", String(status));
     assert.equal(r.document.title, "old title");
     assert.equal(r.stopped(), true, String(status));
+  }
+});
+
+test("stop takes the live class off so the refresh link shows again", async () => {
+  for (const status of [401, 403, 404, 500, 502]) {
+    const r = run({ responses: [{ status, text: page("error page") }] });
+    assert.ok(r.classes.has("live"));
+    await r.poll();
+    assert.equal(r.stopped(), true, String(status));
+    assert.equal(r.classes.has("live"), false, String(status));
+    assert.equal(r.main.innerHTML, "old", String(status));
+  }
+  // A 304 or a network error keeps it on.
+  const kept = run({ responses: [{ status: 304 }] });
+  await kept.poll();
+  assert.ok(kept.classes.has("live"));
+});
+
+test("keeps open details open across a swap", async () => {
+  const fresh = page("<details><summary>개발 정보</summary></details><details><summary>개발 정보</summary></details><details><summary>자세한 이유</summary></details><details><summary>새 접힘</summary></details>");
+  // Matched by summary text and order among the details with that text.
+  const r = run({
+    html: "<details open><summary>개발 정보</summary></details><details><summary>개발 정보</summary></details><details open><summary>자세한 이유</summary></details>",
+    responses: [{ status: 200, text: fresh, etag: '"b"' }],
+  });
+  await r.poll();
+  assert.ok(r.main.innerHTML.includes("새 접힘"), "swapped");
+  assert.deepEqual(r.main.details().map((d) => d.open), [true, false, true, false]);
+  const second = run({
+    html: "<details><summary>개발 정보</summary></details><details open><summary>개발 정보</summary></details>",
+    responses: [{ status: 200, text: fresh, etag: '"b"' }],
+  });
+  await second.poll();
+  assert.deepEqual(second.main.details().map((d) => d.open), [false, true, false, false]);
+});
+
+test("skips the swap while text is selected in main", async () => {
+  let first = true;
+  const same = { status: 200, text: page("new"), etag: '"b"' };
+  const r = run({
+    responses: [same, same, same],
+    // The person selects text while the first request is out.
+    onFetch: () => {
+      if (first) (first = false), r.select(true);
+    },
+  });
+  await r.poll();
+  assert.equal(r.main.innerHTML, "old", "not swapped under a selection");
+  assert.equal(r.document.title, "old title");
+  await r.poll();
+  assert.equal(r.main.innerHTML, "old", "still selected");
+  assert.equal(r.stopped(), false, "tries again next tick");
+  // A selection outside <main> does not hold the swap; the skipped page's tag was never taken.
+  r.select(false);
+  await r.poll();
+  assert.equal(r.main.innerHTML, "new");
+  assert.equal(r.calls.at(-1).init.headers["If-None-Match"], '"a"');
+});
+
+test("restores focus by id after the swap", async () => {
+  const r = run({ active: { tagName: "A", id: "task-7", inMain: true }, responses: [{ status: 200, text: page("new") }] });
+  await r.poll();
+  assert.equal(r.main.innerHTML, "new");
+  assert.deepEqual(r.focused, ["task-7"]);
+  // No id, or focus outside <main> (the swap leaves it alone): nothing is focused.
+  for (const active of [{ tagName: "BUTTON", id: "", inMain: true }, { tagName: "A", id: "me", inMain: false }]) {
+    const n = run({ active, responses: [{ status: 200, text: page("new") }] });
+    await n.poll();
+    assert.equal(n.main.innerHTML, "new");
+    assert.deepEqual(n.focused, [], JSON.stringify(active));
   }
 });
