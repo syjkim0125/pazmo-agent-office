@@ -1,8 +1,9 @@
 import { spawn } from "node:child_process";
 import type { StdioOptions } from "node:child_process";
-import { rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, isAbsolute, join } from "node:path";
+import { basename, dirname, isAbsolute, join } from "node:path";
 import { dataRoot, fail, locate, OfficeError, packageRoot } from "./project.ts";
 import { machinePreflight, up } from "./launcher.ts";
 import { statusTeam as lifecycleStatusTeam, stopTeam as lifecycleStopTeam } from "./lifecycle.ts";
@@ -252,6 +253,31 @@ async function reusable(e: Env, hub: string): Promise<MacLinkFile | null> {
   }
 }
 
+const GUIDE_HEADER = /^<!-- pazmo-office managed: sha256=([0-9a-f]{64}) -->\n/;
+const sha256 = (text: string): string => createHash("sha256").update(text).digest("hex");
+
+/**
+ * Puts the Hub upload guide where the PL's claude finds it: `<home>/.claude/skills/pazmo-hub-upload/SKILL.md`,
+ * the repo's skill file under a first line that carries the hash of the body. A file whose hash matches is ours and
+ * is replaced by the current guide; any other file (edited, or not ours) is the PL's and stays.
+ */
+export function installUploadGuide(home: string): "written" | "kept-user-edit" | "same" {
+  const body = readFileSync(join(packageRoot, "skills", "pazmo-hub-upload", "SKILL.md"), "utf8");
+  const want = `<!-- pazmo-office managed: sha256=${sha256(body)} -->\n${body}`;
+  const target = join(home, ".claude", "skills", "pazmo-hub-upload", "SKILL.md");
+  if (existsSync(target)) {
+    const have = readFileSync(target, "utf8");
+    if (have === want) return "same";
+    const head = GUIDE_HEADER.exec(have);
+    if (!head || sha256(have.slice(head[0].length)) !== head[1]) return "kept-user-edit";
+  }
+  mkdirSync(dirname(target), { recursive: true });
+  const part = `${target}.${process.pid}.tmp`;
+  writeFileSync(part, want);
+  renameSync(part, target);
+  return "written";
+}
+
 /**
  * Pairs this Mac with `hub` (or keeps a link the Hub still answers), brings the clones and the registry in line
  * while the team Office is stopped, and loads the LaunchAgent that starts the team Office at login (and once now).
@@ -350,6 +376,19 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
       "LAUNCHD_FAILED",
       `로그인할 때 Office를 켜는 자동 실행을 등록하지 못했습니다(${printable(error.message)}). 파일은 남아 있어 다음 로그인 때 다시 시도됩니다. ${again(hub)}`,
     );
+  }
+  try {
+    const guide = installUploadGuide(e.home);
+    e.say(
+      guide === "written"
+        ? "claude용 허브 올리기 안내를 ~/.claude/skills/pazmo-hub-upload에 두었습니다"
+        : guide === "same"
+          ? "claude용 허브 올리기 안내는 이미 최신입니다"
+          : "claude용 허브 올리기 안내: 고친 안내가 있어 그대로 둡니다",
+    );
+  } catch (error) {
+    // The pairing stands; the guide is also printed by `team upload --guide`.
+    e.say(`claude용 허브 올리기 안내를 두지 못했습니다(${printable(error instanceof Error ? error.message : String(error))}). pazmo-office team upload --guide로 볼 수 있습니다`);
   }
   e.say(note);
   return { connected: true, member: file.memberName, mac: file.name, repos, problems, launchAgent: "loaded", log, note };
