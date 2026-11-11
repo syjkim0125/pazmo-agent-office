@@ -333,9 +333,9 @@ test("the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 
   let skew = 0;
   const h = await lan(t, { storeNow: () => Date.now() + skew });
   const { admin, b } = await twoMembers(h);
-  const header = async (path = "/", who = admin) => /<nav>.*<\/nav>/.exec((await h.get(path, who)).text)[0];
+  const header = async (path = "/", who = admin) => /<header>.*<\/header>/.exec((await h.get(path, who)).text)[0];
 
-  assert.ok((await header()).endsWith(`${PILL("연결된 Mac 없음")}</nav>`), "the pill closes the menu; no Mac yet");
+  assert.ok((await header()).endsWith(`${PILL("연결된 Mac 없음")}</div></header>`), "the pill closes the header; no Mac yet");
   const mac = h.pair(admin.member, "내 Mac");
   assert.ok((await header()).includes(PILL("꺼짐(아직 연락 없음)")), "a Mac that has not reported is not shown as running");
   for (const [state, label] of [["working", "일하는 중"], ["idle", "대기 중"], ["limited", "쉬는 중(한도)"], ["locked", "잠김"]]) {

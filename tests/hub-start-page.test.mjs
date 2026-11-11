@@ -57,17 +57,23 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", opensh
     assert.deepEqual([dev.status, dev.headers.location], [303, "/start"]);
   });
 
-  test(`${mode}: /start shows the three steps and the menu links to it`, async (t) => {
+  test(`${mode}: /start shows the three steps and the menu or the team page links to it`, async (t) => {
     const h = await make(t);
     const { cookie } = await member(h);
     const res = await h.call("GET", "/start", { cookie });
     assert.equal(res.status, 200);
     for (const title of ["Office 켜기", "연결 문자열", "일 보내기"]) assert.match(res.text, new RegExp(`<h2>[^<]*${title}`), title);
-    assert.match(res.text, /<a href="\/start">내 Office 연결<\/a>/);
     assert.match(res.text, /action="\/start\/connect-code"/);
     assert.equal((await h.call("GET", "/start")).status, 401, "needs a session");
     const board = await h.call("GET", "/requests", { cookie });
-    assert.match(board.text, /<a href="\/start">내 Office 연결<\/a>/, "menu on every page");
+    if (mode.startsWith("LAN")) {
+      // A hub with a Story board: the menu is board and team, and the team page carries the way back to /start.
+      assert.match(board.text, /<nav><a href="\/">보드<\/a><a href="\/team">팀<\/a><\/nav>/, "menu on every page");
+      assert.match((await h.call("GET", "/team", { cookie })).text, /<a href="\/start">내 Office 연결<\/a>/, "the team page links to it");
+    } else {
+      assert.match(res.text, /<a href="\/start">내 Office 연결<\/a>/);
+      assert.match(board.text, /<a href="\/start">내 Office 연결<\/a>/, "menu on every page");
+    }
   });
 
   test(`${mode}: POST /start/connect-code returns a one-use member string that pairs`, async (t) => {

@@ -1,7 +1,7 @@
 /** The team Story pages of the Hub web: the member's work, the board, one Story and one Task. No script; every value goes through `esc`. */
 import { MAC_NUDGE, ago, button, csrfField, esc, layout, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
-import type { MemberWork, ProjectView, StorySummary, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
+import type { MemberWork, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
 import type { PlanCard } from "./plan-store.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -123,7 +123,7 @@ export function home(
   o: { macNudge: boolean; wait: MacWait | null; plans?: PlanCard[] },
   chrome: Chrome,
 ): string {
-  const toggle = `<form class="inline" method="post" action="/me/auto-work">${csrfField(csrf)}<input type="hidden" name="on" value="${w.autoWork ? "0" : "1"}"><button${w.autoWork ? ' class="secondary"' : ""}>${w.autoWork ? "끄기" : "켜기"}</button></form>`;
+  const toggle = `<form class="inline" method="post" action="/me/auto-work">${csrfField(csrf)}<input type="hidden" name="back" value="/me"><input type="hidden" name="on" value="${w.autoWork ? "0" : "1"}"><button${w.autoWork ? ' class="secondary"' : ""}>${w.autoWork ? "끄기" : "켜기"}</button></form>`;
   const switchLine = w.autoWork
     ? "켜져 있어 내 Mac이 받을 수 있는 일을 차례대로 가져갑니다."
     : "꺼져 있어 새 일을 받지 않습니다. 아래에서 직접 고를 수 있습니다.";
@@ -150,7 +150,7 @@ export function home(
     : "";
   return layout("내 할 일", me, [
     o.macNudge ? MAC_NUDGE : "",
-    `<section><h1>내 할 일</h1><p>자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</p><p>${switchLine}</p><p class="muted">${refresh("/")}</p></section>`,
+    `<section><h1>내 할 일</h1><p>자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</p><p>${switchLine}</p><p class="muted">${refresh("/me")}</p></section>`,
     rest && !restInCard ? `<section>${rest}</section>` : "",
     `<section><h2>지금 맡은 일</h2>${openPart}</section>`,
     plans,
@@ -158,33 +158,6 @@ export function home(
     led,
     `<section><h2>끝낸 일</h2>${cards(w.done, "아직 끝낸 일이 없습니다.", done)}</section>`,
   ].join(""), chrome);
-}
-
-type BoardRow = { project: ProjectView; stories: StorySummary[]; plans?: PlanCard[]; canPlan?: boolean };
-/**
- * On a hub with Story plans each row also carries its plans in progress and `canPlan` (the member owns every repo of
- * the project), and `canCreateProject` puts 새 프로젝트 on top; without them the board is drawn as before.
- */
-export function workBoard(me: Member, rows: BoardRow[], chrome: Chrome, o: { canCreateProject?: boolean } = {}): string {
-  const project = ({ project: p, stories, plans, canPlan }: BoardRow) => {
-    const repos = p.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
-    const table = stories.length
-      ? `<div class="scroll"><table><thead><tr><th>번호</th><th>제목</th><th>상태</th><th>머지/전체</th><th>멈춤</th><th>PL</th></tr></thead><tbody>${stories
-          .map((s) => `<tr><td>#${s.number}</td><td><a href="/stories/${esc(s.id)}">${esc(s.title)}</a></td><td>${pill(storyStateLabel(s.state))}</td><td>${s.merged}/${s.total}</td><td>${s.held + s.failed}</td><td>${esc(s.pl.name)}</td></tr>`)
-          .join("")}</tbody></table></div>`
-      : `<p class="muted">아직 Story가 없습니다.</p>`;
-    const start = canPlan ? `<p><a href="/projects/${esc(p.id)}/new-story">새 Story</a></p>` : "";
-    const planning = plans?.length
-      ? `<h3>기획 중</h3><ul>${plans.map((x) => `<li>${planLink(x)} · PL ${esc(x.pl.name)}</li>`).join("")}</ul>`
-      : "";
-    return `<section><h2>${esc(p.name)}</h2><p class="muted">레포: ${repos} · 만든 사람 ${esc(p.createdBy.name)}</p>${start}${planning}${table}</section>`;
-  };
-  const empty = o.canCreateProject
-    ? "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요."
-    : "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
-  const body = rows.length ? rows.map(project).join("") : `<section><p class="muted">${empty}</p></section>`;
-  const create = o.canCreateProject ? `<p><a href="/projects/new">새 프로젝트</a></p>` : "";
-  return layout("보드", me, `<section><h1>보드</h1><p class="muted">팀의 모든 프로젝트와 Story입니다. ${refresh("/board")}</p>${create}</section>${body}`, chrome);
 }
 
 /** The Tasks before `t`, each linked with its state; numbers point into the same Story. */
@@ -203,7 +176,7 @@ export function storyPage(me: Member, s: StoryView, chrome: Chrome): string {
     })
     .join("");
   return layout(`Story #${s.number}`, me, [
-    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${pill(storyStateLabel(s.state))}</p><pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/board">보드</a></p></section>`,
+    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${pill(storyStateLabel(s.state))}</p><pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
     `<section><h2>Story base</h2>${branches}</section>`,
     `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th><th>PR</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
   ].join(""), chrome);

@@ -108,7 +108,8 @@ async function team(t, { now, storeNow, plans, project = true, names = {}, text 
     board.openStory(plBe, pub.storyId);
     return pub;
   };
-  const page = async (id, who = pl) => (await get(`/plans/${id}`, who)).text;
+  // Without the header: its automatic-work switch is a form of every page, and these tests count the plan's own forms.
+  const page = async (id, who = pl) => (await get(`/plans/${id}`, who)).text.replace(/<header>[\s\S]*?<\/header>/, "");
   return {
     ...h, admin, pl, b, c, be, fe, plBe, linkOf, projectId, get, post,
     create, lease, result, view, questions, draft, design, failed, approve, answerAll, publishOpen, page,
@@ -291,13 +292,13 @@ test("POST /projects/<id>/plans makes a queued plan and goes to /plans/<id>; hom
   const later = h.create({ title: "두 번째" });
   now += 1000;
   h.questions(id, [q(1)]); // the first plan changed last
-  const home = (await h.get("/", h.pl)).text;
+  const home = (await h.get("/me", h.pl)).text;
   assert.ok(home.includes("<h2>내가 쓰는 Story</h2>"));
   const first = `<a href="/plans/${id}">쿠폰 발급</a> ${pill("질문")}`, second = `<a href="/plans/${later}">두 번째</a> ${pill("기획 대기")}`;
   assert.ok(home.includes(first) && home.includes(second));
   assert.ok(home.indexOf(first) < home.indexOf(second), "most recently changed first");
   assert.ok(home.includes('<p class="muted">쿠폰 개편</p>'), "the project");
-  assert.ok(!(await h.get("/", h.b)).text.includes("내가 쓰는 Story"), "B writes none");
+  assert.ok(!(await h.get("/me", h.b)).text.includes("내가 쓰는 Story"), "B writes none");
 });
 
 test("a 65536-byte Korean intent with line breaks (about 196 KB urlencoded) is accepted and kept exactly; 65537 bytes comes back as the form with the typed title and intent and the plain message; a body over 1 MiB is 413", async (t) => {
@@ -369,7 +370,7 @@ test("the plan page states each state in plain words (waiting for the PL's Mac, 
   assert.ok(text.includes("G1 승인: PL · ") && text.includes("G3 승인: PL · "), "the approvals");
   assert.ok(!text.includes("/cancel"), "an opened plan is not cancelled here");
   assert.ok(!(await h.get("/board", h.pl)).text.includes(`/plans/${id}`), "no longer in progress");
-  assert.ok(!(await h.get("/", h.pl)).text.includes(`/plans/${id}`));
+  assert.ok(!(await h.get("/me", h.pl)).text.includes(`/plans/${id}`));
 
   const gone = h.create();
   h.plans.cancel({ member: h.pl.member }, gone, h.view(gone).revision);
@@ -696,7 +697,7 @@ test("every new POST is 403 from another origin or without the CSRF token; proje
   const back = await h.post(h.pl, `/projects/${h.projectId}/plans`, { title: text("제목"), intent: "", risk: "normal" });
   assert.equal(back.status, 400);
   const pages = [
-    ["/board", h.b], ["/", h.pl], [`/plans/${id}`, h.pl], [`/plans/${id}`, h.b], [`/plans/${stuck}`, h.pl],
+    ["/board", h.b], ["/me", h.pl], [`/plans/${id}`, h.pl], [`/plans/${id}`, h.b], [`/plans/${stuck}`, h.pl],
     ["/projects/new", h.pl], [`/projects/${h.projectId}/new-story`, h.pl],
   ];
   for (const [path, who] of pages) {
@@ -733,7 +734,7 @@ test("a hub without plans answers 404 for the new pages and draws the board and 
   const board = (await h.get("/board", h.pl)).text;
   assert.ok(board.includes("<h2>쿠폰 개편</h2>"));
   for (const part of ["새 프로젝트", "새 Story", "기획 중", "/projects/"]) assert.ok(!board.includes(part), part);
-  assert.ok(!(await h.get("/", h.pl)).text.includes("내가 쓰는 Story"));
+  assert.ok(!(await h.get("/me", h.pl)).text.includes("내가 쓰는 Story"));
   const empty = await team(t, { plans: false, project: false });
   const text = (await empty.get("/board", empty.pl)).text;
   assert.ok(text.includes(OLD_EMPTY_BOARD));
@@ -791,7 +792,7 @@ test("취소 on a plan whose Story already opened ends the plan open and the pag
   const res = await h.post(h.pl, `/plans/${id}/cancel`, { ...cancel, confirm: "yes" });
   assert.equal(res.status, 303);
   assert.equal(res.headers.location, `/plans/${id}?opened=1`);
-  const text = (await h.get(res.headers.location, h.pl)).text;
+  const text = (await h.get(res.headers.location, h.pl)).text.replace(/<header>[\s\S]*?<\/header>/, "");
   assert.ok(text.includes(`<section role="status"><p><b>${OPENED(pub.number)}</b></p></section>`));
   assert.ok(text.includes(`${pill("열림")} Story #${pub.number}이 열렸습니다.`));
   assert.ok(text.includes(`<a href="/stories/${pub.storyId}">Story #${pub.number} 보기</a>`));

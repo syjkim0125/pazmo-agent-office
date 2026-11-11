@@ -7,6 +7,8 @@ import type { HubTls } from "./tls.ts";
 import * as page from "./pages.ts";
 import * as storyPages from "./story-pages.ts";
 import * as planPages from "./plan-pages.ts";
+import * as boardPages from "./board-pages.ts";
+import { safePath } from "./paths.ts";
 import { COPY_SCRIPT } from "./copy-script.ts";
 import { macApi } from "./mac-api.ts";
 import { createRateLimit } from "./rate-limit.ts";
@@ -167,7 +169,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       c.board?.projects({ member: me }).find((p) => p.id === id) ?? fail404("프로젝트를 찾을 수 없습니다.");
     const tooMany = () => new HubError("RATE_LIMITED", 429, "허용과 거절을 너무 많이 시도했습니다. 10분 뒤 다시 시도하세요.");
     // Read when a page is drawn, so the header shows the state after whatever this request did.
-    const chrome = (): page.Chrome => ({ trust, mac: c.store.macBadge(me.id), autoWork: c.board?.autoWork(me.id) });
+    const chrome = (): page.Chrome => ({
+      trust,
+      mac: c.store.macBadge(me.id),
+      autoWork: c.board?.autoWork(me.id),
+      csrf: s.csrf,
+      ...(safePath(path) ? { path } : {}),
+    });
     // Only a hub that serves the installer can give a Mac the one-line command.
     const install = installer === null ? null : `curl -fsSL ${base}/install.sh | sh`;
     const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
@@ -187,7 +195,21 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (c.board) {
         const board = c.board,
           actor = { member: me };
-        if (path === "/") {
+        if (path === "/" || path === "/board") {
+          const plans = c.plans;
+          const projects = board.board(actor, { mine: url.searchParams.get("mine") === "1", cancelled: url.searchParams.get("cancelled") === "1" });
+          const v = {
+            projects,
+            plans: plans ? projects.flatMap((p) => plans.projectPlans(p.project.id)) : [],
+            badges: c.store.macBadges(),
+            mine: url.searchParams.get("mine") === "1",
+            cancelled: url.searchParams.get("cancelled") === "1",
+            canCreateProject: !!plans,
+            canPlan: new Set(plans ? projects.filter((p) => board.ownsProject(me.id, p.project.id)).map((p) => p.project.id) : []),
+          };
+          return html(res, 200, boardPages.boardPage(me, s.csrf, v, chrome()));
+        }
+        if (path === "/me") {
           const ch = chrome();
           const work = board.memberWork(me.id, c.store.reachableRepos(me.id));
           const o = {
@@ -197,14 +219,24 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           };
           return html(res, 200, storyPages.home(me, s.csrf, work, o, ch));
         }
-        if (path === "/board") {
-          const plans = c.plans;
-          const rows = board.projects(actor).map((project) => ({
-            project,
-            stories: board.stories(actor, project.id),
-            ...(plans ? { plans: plans.projectPlans(project.id), canPlan: board.ownsProject(me.id, project.id) } : {}),
-          }));
-          return html(res, 200, storyPages.workBoard(me, rows, chrome(), { canCreateProject: !!plans }));
+        if (path === "/team") {
+          const badges = c.store.macBadges(),
+            current = board.currentTasks();
+          const rows = c.store
+            .members()
+            .filter((m) => !m.revoked)
+            .map((m) => {
+              const t = current.get(m.id);
+              return {
+                id: m.id,
+                name: m.name,
+                admin: m.admin,
+                mac: badges.get(m.id) ?? { state: "none" as const, lastSeen: null },
+                autoWork: board.autoWork(m.id),
+                task: t ? { taskId: t.taskId, label: `Story #${t.storyNumber} Task #${t.number} ${t.title}` } : null,
+              };
+            });
+          return html(res, 200, page.teamPage(me, rows, { trust }, chrome()));
         }
         if (c.plans) {
           if (path === "/projects/new") return html(res, 200, planPages.newProjectPage(me, s.csrf, projectRepos(), chrome()));
@@ -340,7 +372,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         const on = f("on");
         if (on !== "1" && on !== "0") throw new HubError("INVALID", 400, "켜기 또는 끄기를 골라주세요.");
         board.setAutoWork(me, on === "1");
-        return redirect(res, "/");
+        return redirect(res, safePath(f("back")) ?? "/");
       }
       if ((m = new RegExp(`^/tasks/${ID}/(pick|rerun|release|cancel)$`).exec(path))) {
         const [, id, action] = m;

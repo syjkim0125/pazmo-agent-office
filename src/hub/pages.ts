@@ -19,6 +19,17 @@ button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--ac
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button.secondary{background:transparent;color:var(--accent)}button.danger{border-color:var(--bad);background:transparent;color:var(--bad)}
 .muted{color:var(--muted)}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
+.me{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}.me form{display:inline-block}.me button{padding:2px 10px;font-size:13px;border-radius:999px}
+main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
+.lane{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}.lane:first-of-type{border-top:0;padding-top:0}
+.story{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:baseline;overflow-wrap:anywhere}
+.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.col{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
+.col h3{margin:0 0 6px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
+.cards{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:14px;overflow-wrap:anywhere;min-width:0}.card p{margin:2px 0}
+.toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}a.pill{text-decoration:none}a.pill[aria-current=true]{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:6px;align-items:center}.code{font:600 24px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 export const button = (action: string, csrf: string, label: string, cls = "") =>
@@ -38,16 +49,43 @@ export function ago(at: number | null) {
  * header's state. `autoWork` is the member's automatic-work switch; it is left out on a hub without a Story board,
  * whose menu then has no work pages.
  */
-export type Chrome = { trust?: boolean; mac?: MacBadge | null; autoWork?: boolean };
+export type Chrome = {
+  trust?: boolean;
+  mac?: MacBadge | null;
+  autoWork?: boolean;
+  /** The member's CSRF token, for the header's switch form. */
+  csrf?: string;
+  /** The page the switch returns to (one of `safePath`'s pages); without it the switch returns to the board. */
+  path?: string;
+  /** Whether the page asks to refresh itself while shown (the live script). */
+  live?: boolean;
+};
 /** The newest Mac's state in the header (and on a plan page, the PL's); a Mac whose last beat is older than the store's limit arrives as "off". */
 export const macBadgeLabel = (b: MacBadge) =>
   b.state === "none" ? "연결된 Mac 없음" : b.state === "off" ? `꺼짐(${b.lastSeen === null ? "아직 연락 없음" : ago(b.lastSeen)})` : MAC_LABEL[b.state] ?? b.state;
 /** A Mac's state with the reason it gave, for the tables. */
 const macState = (m: MacView) => `${MAC_LABEL[m.state] ?? m.state}${m.detail ? ` — ${m.detail}` : ""}`;
 
+/** How long a card has stood in its column: minutes, then hours. */
+export function inColumn(at: number): string {
+  const minutes = Math.floor((Date.now() - at) / 60000);
+  return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분째` : `${Math.floor(minutes / 60)}시간째`;
+}
+/** The header of a hub with a Story board: board and team on the left; on the right the member, the automatic-work switch and the Mac. */
+function boardHeader(me: Member, chrome: Chrome): string {
+  const on = chrome.autoWork === true;
+  const sw = chrome.csrf
+    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="secondary" aria-pressed="${on}">자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</button></form>`
+    : "";
+  const mac = chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : "";
+  return `<nav><a href="/">보드</a><a href="/team">팀</a></nav><div class="me"><a href="/me">${esc(me.name)}</a>${sw}${mac}</div>`;
+}
+
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
-  const nav = me
-    ? `<nav>${chrome.autoWork === undefined ? "" : '<a href="/">내 할 일</a><a href="/board">보드</a>'}<a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.autoWork === false ? '<a class="pill" href="/">자동으로 일하기 꺼짐</a>' : ""}${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : ""}</nav>`
+  const nav = me && chrome.autoWork !== undefined
+    ? boardHeader(me, chrome)
+    : me
+    ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? `<a class="pill" href="/mac">내 Mac: ${esc(macBadgeLabel(chrome.mac))}</a>` : ""}</nav>`
     : "";
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><b>Pazmo 팀 허브</b>${nav}</header><main>${body}</main></body></html>`;
 }
@@ -226,4 +264,33 @@ export function macCodeGone(me: Member, chrome: Chrome = {}) {
 }
 export function macSignedOut() {
   return layout("로그인 필요", null, `<section><h1>먼저 이 브라우저로 허브에 들어와야 합니다</h1><p>이 브라우저에서 관리자에게 받은 <b>초대 링크</b>를 먼저 열어주세요. 이미 등록한 팀원이라면 <b>새 기기 링크</b>를 받아 열면 됩니다. 입장한 뒤 이 주소를 다시 열어주세요. 터미널에 나온 허용 주소입니다.</p><p>Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+}
+
+/** Everyone's Mac, switch and current Task: the team page, for every member. `rows` are the members who have not been revoked. */
+export function teamPage(
+  me: Member,
+  rows: { id: string; name: string; admin: boolean; mac: MacBadge; autoWork: boolean; task: { taskId: string; label: string } | null }[],
+  o: { trust: boolean },
+  chrome: Chrome = {},
+) {
+  const table = rows
+    .map(
+      (r) =>
+        `<tr><td>${esc(r.name)}${r.admin ? ' <span class="pill">관리자</span>' : ""}</td><td><span class="pill">${esc(macBadgeLabel(r.mac))}</span></td><td><span class="pill">${r.autoWork ? "켜짐" : "꺼짐"}</span></td><td>${r.task ? `<a href="/tasks/${esc(r.task.taskId)}">${esc(r.task.label)}</a>` : '<span class="muted">없음</span>'}</td></tr>`,
+    )
+    .join("");
+  const links = [
+    '<a href="/me">내 할 일</a>',
+    '<a href="/repos">레포</a>',
+    '<a href="/requests">요청 게시판</a>',
+    '<a href="/start">내 Office 연결</a>',
+    me.admin ? '<a href="/members">팀원·초대</a>' : "",
+    o.trust ? '<a href="/trust">인증서</a>' : "",
+  ].filter(Boolean);
+  return layout(
+    "팀",
+    me,
+    `<section><h1>팀</h1><div class="scroll"><table><thead><tr><th>이름</th><th>Mac</th><th>자동으로 일하기</th><th>지금 하는 일</th></tr></thead><tbody>${table}</tbody></table></div></section><section><h2>더 보기</h2><p class="row">${links.join(" · ")}</p></section>`,
+    chrome,
+  );
 }

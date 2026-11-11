@@ -15,7 +15,7 @@ import { startTestHub } from "./hub-fixture.mjs";
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 const SHA = "c0ffee".padEnd(40, "0");
 const PR = "https://github.example.com/team/app-be/pull/7";
-const OFF_PILL = '<a class="pill" href="/">자동으로 일하기 꺼짐</a>';
+const OFF_PILL = 'aria-pressed="false">자동으로 일하기 꺼짐</button>';
 const NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져가지 않고 있습니다(꺼짐·잠김·연결 문제).";
 const NOT_LINKED_ERROR = "내 Mac이 지금 이 레포의 일을 가져갈 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
 const RERUN_NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
@@ -107,19 +107,19 @@ test("/ is the member's work page with the four sections, and the request board 
   const api = h.board.claimNext(cBe);
   h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
 
-  const home = await h.get("/", h.pl);
+  const home = await h.get("/me", h.pl);
   assert.equal(home.status, 200);
   assert.match(home.text, /<h1>내 할 일<\/h1>/);
   for (const title of ["지금 맡은 일", "받을 수 있는 일", "내 Story에서 멈춘 일", "끝낸 일"]) assert.match(home.text, new RegExp(`<h2>${title}</h2>`), title);
   assert.ok(home.text.includes(`href="/tasks/${s.api}"`), "the PL's failed Task is under 내 Story에서 멈춘 일");
   assert.ok(home.text.includes(`href="/tasks/${s.copy}"`), "copy is ready in the PL's repo");
-  assert.match(home.text, /<nav><a href="\/">내 할 일<\/a><a href="\/board">보드<\/a><a href="\/repos">레포<\/a><a href="\/requests">요청 게시판<\/a><a href="\/start">내 Office 연결<\/a>/);
-  assert.match((await h.get("/", h.admin)).text, /<a href="\/repos">레포<\/a><a href="\/members">팀원·초대<\/a><a href="\/requests">요청 게시판<\/a>/);
+  assert.match(home.text, /<nav><a href="\/">보드<\/a><a href="\/team">팀<\/a><\/nav>/);
+  assert.match((await h.get("/team", h.admin)).text, /<a href="\/repos">레포<\/a> · <a href="\/requests">요청 게시판<\/a> · <a href="\/start">내 Office 연결<\/a> · <a href="\/members">팀원·초대<\/a>/);
 
-  const mine = (await h.get("/", h.c)).text;
+  const mine = (await h.get("/me", h.c)).text;
   assert.doesNotMatch(mine, /내 Story에서 멈춘 일/, "only shown to a PL with a stuck Task");
   assert.ok(mine.includes(`href="/tasks/${s.api}"`), "C's open Task");
-  const empty = (await h.get("/", h.b)).text;
+  const empty = (await h.get("/me", h.b)).text;
   for (const line of ["지금 맡은 일이 없습니다.", "지금 받을 수 있는 일이 없습니다.", "아직 끝낸 일이 없습니다."]) assert.ok(empty.includes(line), line);
 
   const board = await h.get("/requests", h.pl);
@@ -147,16 +147,16 @@ test("a hub without a board keeps the request board at / and answers 404 for /bo
 
 test("home shows the Mac nudge only when the hub installs Macs and the member has none", async (t) => {
   const os = await proxied(t, { installer: true });
-  const first = (await os.get("/")).text;
+  const first = (await os.get("/me")).text;
   assert.ok(first.includes(NUDGE), "OpenShift with the installer and no Mac");
   assert.ok(first.indexOf(NUDGE) < first.indexOf("<h1>내 할 일</h1>"), "at the top");
   assert.ok(first.includes('<a href="/mac">이 Mac 연결</a>'));
   pairMac(os.store, os.admin);
-  assert.ok(!(await os.get("/")).text.includes(NUDGE), "a Mac is connected");
+  assert.ok(!(await os.get("/me")).text.includes(NUDGE), "a Mac is connected");
   const plain = await proxied(t, {});
-  assert.ok(!(await plain.get("/")).text.includes(NUDGE), "no installer behind the router");
+  assert.ok(!(await plain.get("/me")).text.includes(NUDGE), "no installer behind the router");
   const lan = await team(t);
-  assert.ok(!(await lan.get("/", lan.c)).text.includes(NUDGE), "the self-CA hub has no one-line install");
+  assert.ok(!(await lan.get("/me", lan.c)).text.includes(NUDGE), "the self-CA hub has no one-line install");
 });
 
 test("a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac", async (t) => {
@@ -165,7 +165,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   const pickForm = (id) => `<form class="inline" method="post" action="/tasks/${id}/pick"><input type="hidden" name="csrf" value="${h.c.csrf}"><button class="">작업하기</button></form>`;
   const notLinked = `<a href="/mac">${NOT_LINKED}</a>`;
 
-  let home = (await h.get("/", h.c)).text;
+  let home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes(notLinked), "C owns app-be but has no link to it");
   assert.ok(!home.includes(`/tasks/${s.api}/pick`));
   let task = (await h.get(`/tasks/${s.api}`, h.c)).text;
@@ -173,7 +173,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(!task.includes(`/tasks/${s.api}/pick`));
 
   h.linkOf(h.c, h.be);
-  home = (await h.get("/", h.c)).text;
+  home = (await h.get("/me", h.c)).text;
   assert.ok(!home.includes(NOT_LINKED));
   assert.ok(!home.includes("/pick"), "auto work is on: the Mac takes it anyway");
   task = (await h.get(`/tasks/${s.api}`, h.c)).text;
@@ -181,7 +181,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(!task.includes("/pick"));
 
   h.board.setAutoWork(h.c.member, false);
-  home = (await h.get("/", h.c)).text;
+  home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes(pickForm(s.api)) && home.includes(pickForm(s.copy)), "both ready be Tasks");
   task = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(task.includes(pickForm(s.api)));
@@ -189,7 +189,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(!(await h.get(`/tasks/${s.ui}`, h.c)).text.includes("/pick"), "ui is waiting in someone else's repo");
 
   h.board.pickTask(h.c.member, s.copy, h.store.reachableRepos(h.c.member.id));
-  home = (await h.get("/", h.c)).text;
+  home = (await h.get("/me", h.c)).text;
   assert.ok(!home.includes("/pick"), "C holds copy now");
   assert.ok(home.includes(`href="/tasks/${s.api}"`), "api is still listed as ready");
   assert.ok(!(await h.get(`/tasks/${s.api}`, h.c)).text.includes("/pick"));
@@ -200,19 +200,19 @@ test("the header carries 자동으로 일하기 꺼짐 on every page only while 
   const s = h.story();
   const paths = ["/", "/board", "/requests", "/repos", "/start", "/mac", `/stories/${s.storyId}`, `/tasks/${s.api}`];
   for (const path of paths) assert.ok(!(await h.get(path, h.c)).text.includes(OFF_PILL), `on: ${path}`);
-  let home = (await h.get("/", h.c)).text;
+  let home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes("켜져 있어 내 Mac이 받을 수 있는 일을 차례대로 가져갑니다."));
-  assert.ok(home.includes(`<form class="inline" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="${h.c.csrf}"><input type="hidden" name="on" value="0"><button class="secondary">끄기</button></form>`));
+  assert.ok(home.includes(`<form class="inline" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="${h.c.csrf}"><input type="hidden" name="back" value="/me"><input type="hidden" name="on" value="0"><button class="secondary">끄기</button></form>`));
 
   h.board.setAutoWork(h.c.member, false);
   for (const path of paths) {
-    const nav = /<nav>.*<\/nav>/.exec((await h.get(path, h.c)).text)[0];
+    const nav = /<header>.*<\/header>/.exec((await h.get(path, h.c)).text)[0];
     assert.ok(nav.includes(OFF_PILL), `off: ${path}`);
   }
-  home = (await h.get("/", h.c)).text;
+  home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes("꺼져 있어 새 일을 받지 않습니다. 아래에서 직접 고를 수 있습니다."));
   assert.ok(home.includes(`<input type="hidden" name="on" value="1"><button>켜기</button>`));
-  assert.ok(!(await h.get("/", h.b)).text.includes(OFF_PILL), "the switch is each member's own");
+  assert.ok(!(await h.get("/me", h.b)).text.includes(OFF_PILL), "the switch is each member's own");
 });
 
 test("the board lists projects with Story progress; the Story page lists every Task with its state word and stage", async (t) => {
@@ -228,8 +228,7 @@ test("the board lists projects with Story progress; the Story page lists every T
   const board = (await h.get("/board", h.b)).text;
   assert.match(board, /<h2>쿠폰 개편<\/h2>/);
   assert.match(board, /app-be \(main\), app-fe \(develop\)/);
-  assert.ok(board.includes(`<tr><td>#${s.number}</td><td><a href="/stories/${s.storyId}">쿠폰 발급</a></td><td>${pill("진행 중")}</td><td>1/3</td><td>0</td><td>PL</td></tr>`));
-  assert.ok(board.includes('<a href="/board">새로 고침</a>'));
+  assert.ok(board.includes(`<a href="/stories/${s.storyId}"><b>#${s.number} 쿠폰 발급</b></a>${pill("진행 중")}<span class="muted">PL PL`));
 
   const page = (await h.get(`/stories/${s.storyId}`, h.b)).text;
   assert.match(page, /<h1>쿠폰 발급<\/h1>/);
@@ -306,10 +305,10 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
     const page = (await h.get(`/tasks/${s.api}`, h.pl)).text;
     assert.ok(page.includes(plain), reason);
     assert.ok(page.includes(`<details><summary>자세한 이유</summary><pre>${reason}</pre></details>`), reason);
-    const home = (await h.get("/", h.c)).text;
+    const home = (await h.get("/me", h.c)).text;
     assert.ok(home.includes(plain), `home: ${reason}`);
     assert.ok(home.includes(`<a href="/tasks/${s.api}">자세히·다시 시도</a>`));
-    assert.ok((await h.get("/", h.pl)).text.includes(plain), "the PL's stuck list says it too");
+    assert.ok((await h.get("/me", h.pl)).text.includes(plain), "the PL's stuck list says it too");
     h.board.rerunTask(h.c.member, s.api, "", h.store.reachableRepos(h.c.member.id));
     claimId = h.claimOf(cBe);
   }
@@ -344,7 +343,7 @@ test("a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분
   h.store.macHeartbeat(mac, "limited", "claude: limit", Date.now() + 25 * 60_000 + 20_000);
   const wait = "AI 사용 한도라 쉬는 중입니다. 약 25분 뒤 다시 시도합니다.";
   assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(wait), "the Task page names the assignee's wait");
-  assert.ok((await h.get("/", h.c)).text.includes(wait), "and so does the assignee's own open Task");
+  assert.ok((await h.get("/me", h.c)).text.includes(wait), "and so does the assignee's own open Task");
   assert.ok(!(await h.get(`/tasks/${s.copy}`, h.pl)).text.includes("쉬는 중입니다"), "a Task nobody holds");
   skew = MAC_OFFLINE_MS + 1000;
   for (const [path, who] of [[`/tasks/${s.api}`, h.pl], ["/", h.c]]) assert.ok(!(await h.get(path, who)).text.includes("쉬는 중입니다"), path);
@@ -357,26 +356,26 @@ test("a member with no open Task whose newest Mac rests with claude: not_ready s
   h.store.macHeartbeat(mac, "limited", "claude: not_ready", null);
   const line = "Mac의 AI 실행기(claude)가 준비되지 않아 쉬는 중입니다. Mac 터미널에서 claude를 실행해 설치와 로그인을 확인하세요.";
   const count = (text) => text.split(line).length - 1;
-  let home = (await h.get("/", h.c)).text;
+  let home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes("지금 맡은 일이 없습니다."));
   assert.ok(home.includes(`<p>${line}</p>`));
   assert.ok(home.indexOf(line) > home.indexOf("<h1>내 할 일</h1>") && home.indexOf(line) < home.indexOf("<h2>지금 맡은 일</h2>"), "right under the switch");
-  assert.ok(!(await h.get("/", h.b)).text.includes(line), "only the resting member's page");
+  assert.ok(!(await h.get("/me", h.b)).text.includes(line), "only the resting member's page");
   // With a Task open and working, its card says it, once.
   const cBe = h.linkOf(h.c, h.be);
   const api = h.board.claimNext(cBe);
-  home = (await h.get("/", h.c)).text;
+  home = (await h.get("/me", h.c)).text;
   assert.equal(count(home), 1);
   assert.ok(home.indexOf(line) > home.indexOf("<h2>지금 맡은 일</h2>"), "in the open card");
   // Failed, the card is not working any more: the sentence moves back under the switch.
   h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
-  home = (await h.get("/", h.c)).text;
+  home = (await h.get("/me", h.c)).text;
   assert.equal(count(home), 1);
   assert.ok(home.indexOf(line) < home.indexOf("<h2>지금 맡은 일</h2>"));
   assert.ok(home.includes(`href="/tasks/${s.api}"`));
   // The Mac is ready again: nothing to say.
   h.store.macHeartbeat(mac, "idle", null);
-  assert.equal(count((await h.get("/", h.c)).text), 0);
+  assert.equal(count((await h.get("/me", h.c)).text), 0);
 });
 
 test("a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it", async (t) => {
@@ -420,7 +419,7 @@ test("a merged Task shows the summary, the decision lines with ASSUMED in bold a
   assert.ok(page.includes("<pre>api 설명</pre>") && page.includes("<li><code>src/api.ts</code></li>"), "what the Task was");
   const ui = (await h.get(`/tasks/${s.ui}`, h.b)).text;
   assert.ok(ui.includes(`<li><a href="/tasks/${s.api}">#${s.apiNo} api 작업</a> ${pill("완료")}</li>`), "the Task before it, with its state");
-  const done = (await h.get("/", h.c)).text;
+  const done = (await h.get("/me", h.c)).text;
   assert.ok(/<h2>끝낸 일<\/h2>[\s\S]*href="\/tasks\//.test(done) && done.includes(`<a href="${PR}" rel="noreferrer">`), "under 끝낸 일 with the PR");
 });
 
@@ -559,7 +558,7 @@ test("switching auto work off and on from the web changes what claimNext gives",
   assert.equal(res.status, 303);
   assert.equal(res.headers.location, "/");
   assert.equal(h.board.claimNext(cBe), null, "off: nothing is given");
-  assert.ok((await h.get("/", h.c)).text.includes(OFF_PILL));
+  assert.ok((await h.get("/me", h.c)).text.includes(OFF_PILL));
   res = await post(h, h.c, "/me/auto-work", { on: "1" });
   assert.equal(res.status, 303);
   assert.ok(h.board.claimNext(cBe), "on again: the ready Task comes");
@@ -605,12 +604,12 @@ test("a claim the Mac has not taken yet says it waits for the Mac instead of the
   assert.ok(page.includes(`${pill("시작 중")} 맡은 사람: C · ${mine} · <a href="/tasks/${s.api}">새로 고침</a>`));
   assert.ok(!page.includes("마지막 소식"));
   assert.ok((await taskPage(h, h.pl, s.api)).includes(`맡은 사람: C · ${theirs} · `), "seen by another member");
-  const home = (await h.get("/", h.c)).text;
+  const home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes(`<p class="muted">${mine}</p>`), "the home open card");
   assert.ok(!home.includes("마지막 소식"));
   h.board.heartbeat(cBe, api.taskId, api.claimId, "build");
   assert.ok((await taskPage(h, h.c, s.api)).includes("맡은 사람: C · 마지막 소식 방금 · "), "the Mac took it");
-  assert.ok((await h.get("/", h.c)).text.includes(`<p class="muted">마지막 소식 방금</p>`));
+  assert.ok((await h.get("/me", h.c)).text.includes(`<p class="muted">마지막 소식 방금</p>`));
 });
 
 test("작업하기 without a live link is a NOT_LINKED page and changes nothing", async (t) => {
@@ -751,7 +750,7 @@ test("every new POST is 403 from another origin or without the CSRF token", asyn
     assert.equal(wrong.status, 403, `${path} wrong token`);
   }
   assert.ok((await taskPage(h, h.pl, s.api)).includes("할 일"), "nothing changed");
-  assert.ok((await h.get("/", h.c)).text.includes(OFF_PILL), "the switch did not change");
+  assert.ok((await h.get("/me", h.c)).text.includes(OFF_PILL), "the switch did not change");
 });
 
 test("an unknown Task id is a 404 page for every button", async (t) => {
