@@ -31,13 +31,15 @@ const STAGES: { key: "planning" | Exclude<StoryState, "draft" | "cancelled">; la
   { key: "awaiting_g4", label: "승인 대기" },
   { key: "done", label: "완료" },
 ];
-/** The 완료 column shows this many of the newest done Stories; the rest fold under "N개 더 보기". */
+/** The 완료 column shows this many of the Stories that finished last; the rest fold under "이전 완료 보기". */
 const DONE_SHOWN = 5;
 const NO_MAC: MacBadge = { state: "none", lastSeen: null };
 const pill = (label: string, t?: Tone) => (t ? tonePill(t, label) : `<span class="pill">${esc(label)}</span>`);
 /** A card whose Task is taken (or stopped) names who has it, how their Mac is and how long it has stood there. */
 const TAKEN = new Set(["claimed", "held", "failed"]);
 const STOPPED = new Set(["held", "failed"]);
+/** A stopped plan of the viewer's, said with the next step (the plan page shows why and has 다시 시도). */
+const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.";
 
 export type BoardView = {
   projects: BoardProject[];
@@ -133,10 +135,13 @@ function storyLane(s: BoardStory, badges: Map<string, MacBadge>, cancelled: bool
 /** A Story on the Story board: its stage word, stopped Tasks, how many Tasks are done, its PL and who works on it now. */
 function storyCard(s: BoardStory): string {
   const { total, done, stopped } = counts(s);
-  const cls = s.state === "cancelled" ? "gone" : stopped ? "stop" : tone("story", s.state);
+  const gone = s.state === "cancelled";
+  const cls = gone ? "gone" : stopped ? "stop" : tone("story", s.state);
   const stop = stopped ? `<span class="pill stop">멈춘 Task ${stopped}</span>` : "";
-  const prog = total ? progressLine(total, done) : "아직 Task 없음";
-  return `<li class="scard ${cls}" data-story="${s.number}"><p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${pill(storyStateLabel(s.state), tone("story", s.state))}${stop}</p><p class="sprog">${prog}</p><p class="speople">${people(s)}</p></li>`;
+  // A cancelled Story is quiet: a plain word, and what it had instead of a progress bar.
+  const word = gone ? pill(storyStateLabel(s.state)) : pill(storyStateLabel(s.state), tone("story", s.state));
+  const prog = gone ? `Task ${s.cards.length}개 취소됨` : total ? progressLine(total, done) : "아직 Task 없음";
+  return `<li class="scard ${cls}" data-story="${s.number}"><p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${word}${stop}</p><p class="sprog">${prog}</p><p class="speople">${people(s)}</p></li>`;
 }
 /** A Story published but not opened yet: a draft in 기획 중 with its Tasks ready to open. */
 const draftCard = (s: BoardStory) =>
@@ -166,8 +171,8 @@ function waitingOnMe(me: Member, v: BoardView): string {
     }
   for (const x of v.plans) {
     const t = tone("plan", x.state);
-    if (x.pl.id === me.id && (t === "need" || t === "stop"))
-      rows.push(waitItem(`/plans/${x.id}`, t, planStateLabel(x.state, x.leased), x.title, planStateText({ state: x.state, leased: x.leased, isPl: true, story: null })));
+    const why = t === "stop" ? STOPPED_PLAN : planStateText({ state: x.state, leased: x.leased, isPl: true, story: null });
+    if (x.pl.id === me.id && (t === "need" || t === "stop")) rows.push(waitItem(`/plans/${x.id}`, t, planStateLabel(x.state, x.leased), x.title, why));
   }
   if (!rows.length) return "";
   return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${rows.length}</span></h2><ul>${rows.join("")}</ul></section>`;
@@ -206,21 +211,27 @@ function projectsOf(me: Member, v: BoardView, body: (p: BoardProject, plans: Pla
   return `<div class="projects">${html.length ? html.join("") : `<section><p class="empty">${esc(empty)}</p></section>`}</div>`;
 }
 
-/** The first page (D43): per project the Story stages; 기획 중 shows only on a hub with web plans or when it has a draft. */
+/**
+ * The first page (D43): per project the Story stages. 기획 중 shows on a hub with web plans, or on every project once any
+ * project has a draft. 완료 lists the Stories that finished last first; the fold's summary is fixed text, so live.js
+ * keeps it open across a refresh.
+ */
 export function storyBoardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome): string {
   void csrf;
+  // Decided once for the page, so every project's stages line up.
+  const planningShown = v.canCreateProject || v.projects.some((p) => p.stories.some((s) => s.state === "draft"));
   const stages = (p: BoardProject, plans: PlanCard[]) => {
     const drafts = p.stories.filter((s) => s.state === "draft");
-    const done = p.stories.filter((s) => s.state === "done").sort((a, b) => b.number - a.number);
+    const done = p.stories.filter((s) => s.state === "done").sort((a, b) => b.updatedAt - a.updatedAt || b.number - a.number);
     const column = ({ key, label }: (typeof STAGES)[number]) => {
       if (key === "planning") {
-        if (!v.canCreateProject && !drafts.length) return "";
+        if (!planningShown) return "";
         const cards = plans.map(planCard).concat(drafts.map(draftCard));
         return `<div class="stage" data-stage="planning"><h3><span>${label}</span><span>${cards.length}</span></h3><ul class="scards">${cards.join("")}</ul></div>`;
       }
       const list = key === "done" ? done : p.stories.filter((s) => s.state === key);
       const rest = key === "done" ? list.slice(DONE_SHOWN) : [];
-      const more = rest.length ? `<details class="more"><summary>${rest.length}개 더 보기</summary><ul class="scards">${rest.map(storyCard).join("")}</ul></details>` : "";
+      const more = rest.length ? `<details class="more"><summary>이전 완료 보기</summary><ul class="scards">${rest.map(storyCard).join("")}</ul></details>` : "";
       const shown = key === "done" ? list.slice(0, DONE_SHOWN) : list;
       return `<div class="stage" data-stage="${key}"><h3><span>${label}</span><span>${list.length}</span></h3><ul class="scards">${shown.map(storyCard).join("")}</ul>${more}</div>`;
     };

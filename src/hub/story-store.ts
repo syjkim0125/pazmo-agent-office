@@ -58,6 +58,8 @@ export type BoardStory = {
   cards: BoardCard[];
   /** Merged cards beyond the newest BOARD_DONE_MAX that `cards` leaves out. */
   doneMore: number;
+  /** When the Story last changed; for a done Story, when it finished (the Story board sorts 완료 by it). */
+  updatedAt: number;
 };
 export type BoardProject = { project: ProjectView; stories: BoardStory[] };
 /** The board shows this many of a Story's newest merged cards. */
@@ -615,55 +617,73 @@ export class StoryBoard {
    * The board: every project with its Stories and their cards, in a fixed number of queries (projects, Stories,
    * Tasks). `mine` keeps the Stories the member leads or has a card in (all cards of a kept Story); a cancelled
    * Story and its cancelled cards are left out unless `cancelled`. A Story shows its newest BOARD_DONE_MAX merged
-   * cards, most recent merge first, and counts the rest in `doneMore`. With `story`, only that Story, with every card
-   * it has (cancelled and all merged ones): its own page's Task board.
+   * cards, most recent merge first, and counts the rest in `doneMore`.
    */
-  board(a: Actor, o: { mine: boolean; cancelled: boolean; story?: string }): BoardProject[] {
-    const one = o.story !== undefined;
-    if (one) o = { mine: false, cancelled: true, story: o.story };
+  board(a: Actor, o: { mine: boolean; cancelled: boolean }): BoardProject[] {
     const projects = this.projects(a);
-    const stories = this.#all<{ id: string; project_id: string; number: number; title: string; state: StoryState; risk: "normal" | "high"; pl_member_id: string; pl_name: string }>(
-      `SELECT s.id,s.project_id,s.number,s.title,s.state,s.risk,s.pl_member_id,m.name pl_name
-       FROM hub_stories s JOIN hub_members m ON m.id=s.pl_member_id ORDER BY s.number`,
-    );
-    const tasks = this.#all<TaskRow & { column_at: number; column_key: string | null; repo_name: string | null; assignee_name: string | null }>(
-      `SELECT t.*,r.name repo_name,m.name assignee_name FROM hub_story_tasks t
-       LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by ORDER BY t.number`,
-    );
     const cardsOf = new Map<string, { card: BoardCard; mine: boolean }[]>();
-    for (const t of tasks) {
-      const state = this.#viewState(t);
-      const column = this.#columnOf(t);
-      if (column === "hidden" && !o.cancelled) continue;
-      const card: BoardCard = {
-        taskId: t.id, storyId: t.story_id, number: t.number, title: t.title, kind: t.kind,
-        repo: t.repo_id === null ? null : { id: t.repo_id, name: t.repo_name ?? "" },
-        state, stage: t.stage, column, columnAt: t.column_at,
-        assignee: t.claimed_by === null ? null : { id: t.claimed_by, name: t.assignee_name ?? "" },
-        failure: t.failure, heartbeatAt: t.heartbeat_at,
-      };
+    for (const t of this.#boardTasks("")) {
+      const card = this.#boardCard(t);
+      if (card.column === "hidden" && !o.cancelled) continue;
       const list = cardsOf.get(t.story_id) ?? [];
       list.push({ card, mine: t.claimed_by === a.member.id });
       cardsOf.set(t.story_id, list);
     }
     const byProject = new Map<string, BoardStory[]>();
-    for (const s of stories) {
-      if (one && s.id !== o.story) continue;
+    for (const s of this.#boardStories("")) {
       if (s.state === "cancelled" && !o.cancelled) continue;
       const mine = cardsOf.get(s.id) ?? [];
       if (o.mine && s.pl_member_id !== a.member.id && !mine.some((c) => c.mine)) continue;
-      const cards = mine.map((c) => c.card);
-      const done = cards.filter((c) => c.column === "done").sort((x, y) => y.columnAt - x.columnAt || y.number - x.number);
-      const shown = new Set(one ? done : done.slice(0, BOARD_DONE_MAX));
-      const story: BoardStory = {
-        id: s.id, number: s.number, title: s.title, state: s.state, risk: s.risk,
-        pl: { id: s.pl_member_id, name: s.pl_name },
-        cards: [...cards.filter((c) => c.column !== "done"), ...shown],
-        doneMore: one ? 0 : Math.max(0, done.length - BOARD_DONE_MAX),
-      };
-      byProject.set(s.project_id, [...(byProject.get(s.project_id) ?? []), story]);
+      byProject.set(s.project_id, [...(byProject.get(s.project_id) ?? []), this.#boardStory(s, mine.map((c) => c.card), BOARD_DONE_MAX)]);
     }
     return projects.map((project) => ({ project, stories: byProject.get(project.id) ?? [] }));
+  }
+
+  /**
+   * One Story as its own page draws its Task board (D43): every card it has, cancelled and all merged ones, read by
+   * the Story's id alone. Null for an unknown id. Every member may read every Story, as on the board.
+   */
+  storyBoard(a: Actor, storyId: string): BoardStory | null {
+    void a;
+    const s = this.#boardStories("WHERE s.id=?", storyId)[0];
+    if (!s) return null;
+    return this.#boardStory(s, this.#boardTasks("WHERE t.story_id=?", storyId).map((t) => this.#boardCard(t)), Infinity);
+  }
+
+  #boardStories(where: string, ...args: string[]) {
+    return this.#all<{ id: string; project_id: string; number: number; title: string; state: StoryState; risk: "normal" | "high"; pl_member_id: string; pl_name: string; updated_at: number }>(
+      `SELECT s.id,s.project_id,s.number,s.title,s.state,s.risk,s.pl_member_id,m.name pl_name,s.updated_at
+       FROM hub_stories s JOIN hub_members m ON m.id=s.pl_member_id ${where} ORDER BY s.number`,
+      ...args,
+    );
+  }
+  #boardTasks(where: string, ...args: string[]) {
+    return this.#all<TaskRow & { column_at: number; column_key: string | null; repo_name: string | null; assignee_name: string | null }>(
+      `SELECT t.*,r.name repo_name,m.name assignee_name FROM hub_story_tasks t
+       LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by ${where} ORDER BY t.number`,
+      ...args,
+    );
+  }
+  #boardCard(t: TaskRow & { column_at: number; column_key: string | null; repo_name: string | null; assignee_name: string | null }): BoardCard {
+    return {
+      taskId: t.id, storyId: t.story_id, number: t.number, title: t.title, kind: t.kind,
+      repo: t.repo_id === null ? null : { id: t.repo_id, name: t.repo_name ?? "" },
+      state: this.#viewState(t), stage: t.stage, column: this.#columnOf(t), columnAt: t.column_at,
+      assignee: t.claimed_by === null ? null : { id: t.claimed_by, name: t.assignee_name ?? "" },
+      failure: t.failure, heartbeatAt: t.heartbeat_at,
+    };
+  }
+  /** A Story with its cards; of its merged cards it keeps the newest `doneMax`, most recent merge first. */
+  #boardStory(s: { id: string; number: number; title: string; state: StoryState; risk: "normal" | "high"; pl_member_id: string; pl_name: string; updated_at: number }, cards: BoardCard[], doneMax: number): BoardStory {
+    const done = cards.filter((c) => c.column === "done").sort((x, y) => y.columnAt - x.columnAt || y.number - x.number);
+    const shown = done.slice(0, doneMax);
+    return {
+      id: s.id, number: s.number, title: s.title, state: s.state, risk: s.risk,
+      pl: { id: s.pl_member_id, name: s.pl_name },
+      cards: [...cards.filter((c) => c.column !== "done"), ...shown],
+      doneMore: done.length - shown.length,
+      updatedAt: s.updated_at,
+    };
   }
 
   /** Each member's open Task (claimed or failed), by member id: what the team page says they are on. */

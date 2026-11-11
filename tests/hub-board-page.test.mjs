@@ -17,9 +17,9 @@ const COLUMNS = ["백로그", "할 일", "진행 중", "리뷰", "완료"];
  * A LAN hub with a Story board and plans, PL owning app-be and app-fe, B owning app-fe, C owning app-be, every member signed in.
  * `skew`/`macSkew` move the board's and the member store's clocks, so a test can age a card or a Mac beat without waiting.
  */
-async function team(t, { names = {}, text = (s) => s } = {}) {
+async function team(t, { names = {}, text = (s) => s, plans = true } = {}) {
   const clock = { board: 0, store: 0 };
-  const h = await startTestHub(t, { now: () => Date.now() + clock.board, storeNow: () => Date.now() + clock.store });
+  const h = await startTestHub(t, { now: () => Date.now() + clock.board, storeNow: () => Date.now() + clock.store, plans });
   const { store, board, call, enter } = h;
   const signIn = async (raw) => {
     const w = await enter(raw);
@@ -393,6 +393,15 @@ test("hub without a board is unchanged", async (t) => {
   assert.match(res.text, /<h2>요청 게시판<\/h2>/);
   assert.match(res.text, /<a href="\/requests">요청 게시판<\/a>/);
   assert.doesNotMatch(res.text, /href="\/team"|자동으로 일하기/);
+  const tasks = await new Promise((resolve, reject) => {
+    const req = request({ host: "127.0.0.1", port: hub.port, path: "/tasks", headers: { host: "pazmo-hub.apps.example.com", cookie: `pazmo_hub=${a.session}` } }, (r) => {
+      r.resume();
+      r.on("end", () => resolve(r.statusCode));
+    });
+    req.on("error", reject);
+    req.end();
+  });
+  assert.equal(tasks, 404, "no Task board without a board");
 });
 
 test("safePath keeps only known pages", () => {
@@ -580,7 +589,7 @@ test("the Story board keeps 내 Story만 and 취소한 것도 보기, and its ta
   const tasks = (await h.get("/tasks?cancelled=1", h.c)).text;
   assert.ok(tasks.includes('<a href="/?cancelled=1">Story 보드</a><a href="/tasks?cancelled=1" aria-current="page">모든 Task</a>'));
   assert.match(tasks, /<title>모든 Task · /);
-  assert.ok(tasks.includes('href="/tasks?mine=1&amp;cancelled=1"') || tasks.includes('href="/tasks?cancelled=1&amp;mine=1"') || tasks.includes('href="/tasks?mine=1&cancelled=1"'), "the Task board's own filters stay on /tasks");
+  assert.ok(tasks.includes('<a class="filter" href="/tasks?mine=1&cancelled=1">내 Story만</a>'), "the Task board's own filters stay on /tasks");
 });
 
 test("the 완료 column shows the five newest done Stories and folds the rest", async (t) => {
@@ -595,7 +604,7 @@ test("the 완료 column shows the five newest done Stories and folds the rest", 
   assert.equal(done.count, 7);
   const [shown, folded] = done.body.split('<details class="more">');
   for (const s of all.slice(2)) assert.ok(shown.includes(`data-story="${s.number}"`), `newest: #${s.number}`);
-  assert.ok(folded.startsWith("<summary>2개 더 보기</summary>"));
+  assert.ok(folded.startsWith("<summary>이전 완료 보기</summary>"), "a fixed summary, so live.js keeps an open fold open");
   for (const s of all.slice(0, 2)) assert.ok(folded.includes(`data-story="${s.number}"`), `folded: #${s.number}`);
 });
 
@@ -633,10 +642,11 @@ test("the store's board for one Story has every card of it", async (t) => {
   const s = h.open(h.publish("하나", ["a", "b"]));
   h.open(h.publish("다른 것", ["a"]));
   h.board.cancelTask({ member: h.pl.member }, s.tasks.b);
-  const projects = h.board.board({ member: h.c.member }, { mine: false, cancelled: false, story: s.storyId });
-  const stories = projects.flatMap((p) => p.stories);
-  assert.deepEqual(stories.map((x) => x.id), [s.storyId]);
-  assert.ok(stories[0].cards.some((c) => c.taskId === s.tasks.b && c.column === "hidden"), "its cancelled card");
+  const one = h.board.storyBoard({ member: h.c.member }, s.storyId);
+  assert.equal(one.id, s.storyId);
+  assert.deepEqual(one.cards.map((c) => c.taskId).sort(), [...Object.values(s.tasks), s.verify].sort(), "its cards only");
+  assert.ok(one.cards.some((c) => c.taskId === s.tasks.b && c.column === "hidden"), "its cancelled card");
+  assert.equal(h.board.storyBoard({ member: h.c.member }, "00000000-0000-0000-0000-000000000000"), null);
 });
 
 test("나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in", async (t) => {
@@ -652,7 +662,7 @@ test("나를 기다리는 일 also lists a held Task, my stopped plan and which 
   h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "failed", reason: "모델이 멈췄습니다." });
   const box = needsOf((await h.get("/", h.pl)).text);
   assert.ok(box.includes(`<a href="/tasks/${k.taskId}"><span class="pill stop">멈춤(Mac 소식 없음)</span><span><b>a 작업</b> <span class="muted">Story #${s.number}</span> 맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.</span></a>`));
-  assert.ok(box.includes(`<a href="/plans/${planId}"><span class="pill stop">멈춤</span><span><b>멈춘 기획</b> 멈췄습니다.</span></a>`));
+  assert.ok(box.includes(`<a href="/plans/${planId}"><span class="pill stop">멈춤</span><span><b>멈춘 기획</b> 기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.</span></a>`));
   assert.ok(needsOf((await h.get("/tasks", h.pl)).text), "the box is on the Task board too");
 });
 
@@ -664,4 +674,63 @@ test("review fixes: tables keep their width, the count badge reads, focus keeps 
   assert.doesNotMatch(style, /:focus-visible\{[^}]*border-radius/);
   for (const sel of ["nav a", "\\.filter", "button\\.switch", "\\.macchip"]) assert.match(style, new RegExp(`${sel}\\{[^}]*min-height:44px`), sel);
   assert.match(style, /\*,\*::before,\*::after\{transition:none!important\}/);
+});
+
+// U40 review 2 fixes.
+test("a long unbroken word cannot widen a page, and Story cards keep to their column", async (t) => {
+  const h = await team(t);
+  const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
+  assert.match(style, /(^|[}\n])section\{[^}]*grid-template-columns:minmax\(0,1fr\)/, "a grid section never grows past the page");
+  assert.match(style, /\.scard\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
+  assert.doesNotMatch(style, /\.now \.person\{[^}]*white-space:nowrap/);
+  assert.match(style, /\.stages\{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(/, "stage columns wrap before they are too narrow");
+  assert.match(style, /\.steps li\.past::before\{content:"✓ "\}/, "a passed step is marked by more than its colour");
+  assert.match(style, /\.tabs a\[aria-current=page\]\{[^}]*box-shadow:inset 0 -3px 0 var\(--accent\)/, "the selected tab is marked in both themes");
+  assert.match(style, /\.callout pre\{[^}]*font-family:ui-monospace/, "the raw reason keeps its columns");
+});
+
+test("the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft", async (t) => {
+  const h = await team(t, { plans: false });
+  const other = h.board.createProject(h.plBe, "다른 프로젝트", [{ repoId: h.be, baseBranch: "main" }]).projectId;
+  h.open(h.publish("열린 Story", ["a"]));
+  let text = (await h.get("/", h.c)).text;
+  assert.doesNotMatch(text, /data-stage="planning"/, "no web plans and no drafts: no 기획 중 column");
+  h.publish("올리기 전", ["a"]);
+  const pub = h.board.publishStory(h.plBe, {
+    projectId: other, title: "다른 Story", body: "# Story", risk: "normal", key: "other",
+    graph: { nodes: [{ id: "x", repoId: h.be, title: "x", spec: "x", files: ["src/x.ts"], verify: [check] }], edges: [] },
+    storyVerify: [{ repoId: h.be, checks: [check] }],
+  });
+  h.board.openStory(h.plBe, pub.storyId);
+  text = (await h.get("/", h.c)).text;
+  assert.equal((text.match(/data-stage="planning"/g) ?? []).length, 2, "both projects line up");
+});
+
+test("the 완료 column puts the Stories that finished last first, whatever their number", async (t) => {
+  const h = await team(t);
+  const late = h.open(h.publish("늦게 끝난 Story", ["a"]));
+  advance(h, late, "awaiting_g4");
+  const all = [];
+  for (let i = 0; i < 6; i++) {
+    h.clock.board += 1000;
+    const s = h.open(h.publish(`끝 ${i}`, ["a"]));
+    advance(h, s, "done");
+    all.push(s);
+  }
+  h.clock.board += 1000;
+  h.board.completeStory(h.plBe, late.storyId);
+  const [shown, folded] = stageOf((await h.get("/", h.c)).text, "done").body.split('<details class="more">');
+  assert.ok(shown.indexOf(`data-story="${late.number}"`) >= 0 && shown.indexOf(`data-story="${late.number}"`) < shown.indexOf(`data-story="${all[5].number}"`), "the one finished last comes first");
+  assert.ok(folded.includes(`data-story="${all[0].number}"`) && folded.includes(`data-story="${all[1].number}"`), "the two finished first fold");
+});
+
+test("a cancelled Story in the strip is quiet and says what it had", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("그만둔 Story", ["a", "b"]));
+  h.board.cancelStory({ member: h.pl.member }, s.storyId);
+  const text = (await h.get("/?cancelled=1", h.c)).text;
+  assert.ok(text.includes(`<li class="scard gone" data-story="${s.number}"><p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${s.storyId}">그만둔 Story</a><p><span class="pill">취소됨</span></p><p class="sprog">Task 3개 취소됨</p>`));
+  const style = /<style>([\s\S]*?)<\/style>/.exec(text)[1];
+  assert.match(style, /\.cancelled \.scards\{[^}]*grid-template-columns:repeat\(auto-fill,minmax\(/);
+  assert.match(style, /\.scard\.gone \.stitle\{[^}]*color:var\(--muted\)/);
 });

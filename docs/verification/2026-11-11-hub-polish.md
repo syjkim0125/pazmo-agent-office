@@ -21,12 +21,13 @@ Story: D41·D42·D43 · M16 · V20. kit 실행은 `.ai-workflow/runs/U40-two-boa
 
 - **스타일(`src/hub/pages.ts`의 `STYLE`)**: 옅은 회색 바탕과 흰 판, 테두리 대신 그림자, 네 상태 색(답해 주세요 주황·진행 중 파랑·멈춤 빨강·끝남 초록)의 연한 바탕·진한 글자·띠 색을 밝은·어두운 테마 모두 정했다. 본문 16px/1.6, 단어 단위 줄바꿈, 버튼·입력 칸·메뉴·토글·스위치·Mac 표시 44px, 3px 포커스 테두리, `prefers-reduced-motion`이면 움직임 없음. 웹 글꼴·이미지 없이 시스템 한글 글꼴만 쓴다.
 - **머리글**: 이름은 링크 `Pazmo 팀 허브`, 메뉴는 지금 보는 쪽에 `aria-current="page"`(두 보드와 Story·Task·기획 화면은 보드 쪽), 내 이름 앞 이름 동그라미, 자동으로 일하기는 스위치 모양(글자 그대로), 내 Mac은 점과 글자.
-- **Story 보드(`/`, `/board`, D43)**: 프로젝트마다 단계 다섯 칸. Story 카드는 위 띠 색(진행 파랑, 승인 대기 주황, 멈춘 Task가 있으면 빨강, 완료 초록), 상태 글자, "멈춘 Task N", "Task N개 중 M개 끝"과 막대, PL, 지금 일하는 사람. 기획 중의 웹 기획과 열리기 전 Story는 점선·줄 노트 모양의 초안 카드다. 완료는 최근 5개와 "N개 더 보기" 접힘. 취소한 것도 보기를 켜면 취소한 Story가 아래 흐린 줄에 모인다. 두 보드는 "Story 보드 / 모든 Task" 탭으로 오가며 토글이 유지된다.
+- **Story 보드(`/`, `/board`, D43)**: 프로젝트마다 단계 다섯 칸. Story 카드는 위 띠 색(진행 파랑, 승인 대기 주황, 멈춘 Task가 있으면 빨강, 완료 초록), 상태 글자, "멈춘 Task N", "Task N개 중 M개 끝"과 막대, PL, 지금 일하는 사람. 기획 중의 웹 기획과 열리기 전 Story는 점선·줄 노트 모양의 초안 카드다(웹 기획이 없는 Hub는 어느 프로젝트에도 초안이 없으면 이 칸을 그리지 않는다). 완료는 가장 최근에 끝난 5개와 "이전 완료 보기" 접힘(고정 문구라 저절로 업데이트가 열린 접힘을 지킨다). 취소한 것도 보기를 켜면 취소한 Story가 아래 흐린 줄에 "Task N개 취소됨"과 함께 모인다. 두 보드는 "Story 보드 / 모든 Task" 탭으로 오가며 토글이 유지된다.
 - **모든 Task(`/tasks`)**: D42의 보드 그대로(Story 줄과 Task 다섯 칸), A 모양으로. 카드는 왼쪽 상태 띠, 제목 링크(카드 전체가 눌린다), 맡은 사람·Mac 점·머문 시간, 멈춘 이유 상자, 번호·레포 줄.
-- **Story 화면**: 단계 표시(지금 단계 `aria-current="step"`)와 진행 줄, 그 Story만의 Task 보드(합쳐진 카드 전부, 취소한 카드 줄), "표로 보기(앞 Task 포함)"와 "Story 글" 접힘, 승인 대기 안내.
+- **Story 화면**: 단계 표시(지금 단계 `aria-current="step"`, 지난 단계는 ✓)와 진행 줄, 그 Story만의 Task 보드(합쳐진 카드 전부, 취소한 카드 줄), "표로 보기(앞 Task 포함)"와 "Story 글" 접힘, 승인 대기 안내.
 - **나를 기다리는 일**(두 보드 맨 위): 내가 PL인 Story의 결과 승인 대기, 내가 맡았거나 내 Story의 멈춘 Task(어느 Story인지 함께), 내 웹 기획의 질문·초안·설계 승인·멈춤. 보드가 이미 가진 정보만 쓰고 링크만 있다.
 - **팀·Task·기획·내 할 일**: 팀은 이름 동그라미·Mac 점·켜짐/꺼짐 글자, 폰에서는 줄마다 한 덩어리. 멈춘 이유는 붉은 상자, 할 일 폼은 연한 판. 인증서 지문·요청 diff·설계 JSON은 고정폭 글꼴(`pre.mono`).
-- **저장소(`StoryBoard.board`)**: `story` 옵션을 더해 Story 하나의 카드를 모두(취소·합쳐진 것 전부) 읽는다. 읽기만 한다.
+- **저장소**: `StoryBoard.storyBoard(actor, id)`를 더했다. 그 Story와 그 Task만 id로 읽어(취소·합쳐진 것 전부) Story 화면의 Task 보드를 그린다. `BoardStory`에 `updatedAt`(완료 칸 순서)을 더했다. 읽기만 한다.
+- Story 상태 이름을 하나로: 열리기 전 Story는 어디서나 "기획 중"(전에는 Story 화면에서 "준비 중").
 
 ## 리뷰 1차(U40-hub-polish 실행)에서 고친 것
 
@@ -37,10 +38,19 @@ Story: D41·D42·D43 · M16 · V20. kit 실행은 `.ai-workflow/runs/U40-two-boa
 - 숫자 배지 대비 2.15:1: 토큰(`--need` 글자 on `--need-bg`)으로.
 - 작은 것: 멈춘 웹 기획도 상자에, Task 줄에 Story 번호, `:has()` 없는 브라우저에서도 카드 링크의 포커스, 포커스 때 모서리 그대로, 고정폭 `pre`, 44px, 멈춘 이유 글을 고를 수 있게, 움직임 줄이기가 스위치 손잡이에도, Mac 표시 시험에 `href="/mac"`, 보류 줄 문장을 Task 화면과 한 곳에서.
 
+## 리뷰 2차(U40-two-boards 실행)에서 고친 것
+
+리뷰어 둘(화면·접근성, 동작·보안)이 `0f5a46f..5117b8c`를 봤다. 동작·보안은 "준비됨", 화면·접근성은 "고칠 것 있음"(Important 1)이었다. 기록은 `.ai-workflow/runs/U40-two-boards-review-1.md`.
+
+- 긴 낱말 하나가 폰 화면을 옆으로 밀어냄(1차에서 몸글 줄바꿈을 바꾼 탓, 390px 화면이 685px까지): 모든 grid 판(`main`, `section`, 줄, Story 카드, 내 할 일 목록)의 칸을 `minmax(0,1fr)`로, 제목에는 `overflow-wrap:anywhere`. 긴 영어 제목과 띄어쓰기 없는 한글 제목을 넣은 시험 데이터로 21개 화면 × 390·900·1360px × 두 테마에서 넘침 0을 쟀다(바뀌기 전 코드는 같은 제목에서 699px).
+- Story 화면이 Hub의 모든 Story·Task를 읽음(Story 1000개면 80ms, 열린 탭마다 10초에 한 번): 그 Story만 id로 읽는 `storyBoard`로.
+- "N개 더 보기"에 숫자가 있어 저절로 업데이트가 열린 접힘을 닫을 수 있음: 고정 문구 "이전 완료 보기".
+- 작은 것: 900px에서 Story 카드 넘침, 단계 칸은 200px보다 좁아지면 줄을 바꿈, 취소 줄 카드(흐린 제목, 색 없는 "취소됨", "Task N개 취소됨"), 상태 이름 하나로, 기획 중 칸은 Hub 전체 기준, 완료 순서는 끝난 때, 선택된 탭은 아래 파란 줄·지난 단계는 ✓, 멈춘 기획 줄에 다음 할 일, 자세한 이유는 고정폭, 시험(`/tasks`의 스크립트 없음·보드 없는 Hub, 탭 링크 한 가지 철자).
+
 ## 시험
 
-- **RED**: 얼굴 단계에서 73개 중 15개, 두 보드 단계에서 126개 중 22개가 새 화면·주소가 없어 실패했다.
-- **GREEN**: Hub 시험 파일 전부 552/552. 전체 `npm test` **1855/1855**(exit 0, 201초). `npm run typecheck` exit 0. Story 검사 exit 0.
+- **RED**: 얼굴 단계에서 73개 중 15개, 두 보드 단계에서 126개 중 22개, 리뷰 2차 고침에서 65개 중 8개가 새 화면·주소·고침이 없어 실패했다.
+- **GREEN**: Hub 시험 파일 전부 556/556. 전체 `npm test` **1859/1859**(exit 0, 184초, 부하 14–23). 그 전 한 번은 부하 20에서 이 변경과 무관한 `hub-upload-office`의 "upload again after a push failure resumes"가 `ECONNRESET`으로 1개 실패했고, 그 파일만 다시 돌리면 두 번 다 5/5였다. `npm run typecheck` exit 0. Story 검사 exit 0.
 - 새 시험(`tests/hub-board-page.test.mjs` 끝): 카드의 상태 색·이름 동그라미·Mac 점·머문 시간·번호, 나를 기다리는 일(PL·맡은 사람·관계없는 사람·내 Story만, 보류 줄, 멈춘 기획, Story 번호), 진행 막대, 지금 메뉴 표시(`/tasks`, `/plans/<id>` 포함), 머리글, 빈 프로젝트 안내, 스타일 바닥선과 리뷰 고친 것, Story 보드의 다섯 단계와 카드(초안·멈춤·사람), Story 보드의 토글·탭·취소 줄, 완료 5개와 접힘, Story 화면의 단계 표시와 그 Story만의 Task 보드, 저장소의 Story 하나 읽기.
 - 좁게 고친 기대값과 이유(같은 사실을 새 주소·마크업으로 확인한다):
   - `hub-board-page`: Task 카드를 보던 시험들은 `/`에서 `/tasks`로(D43). 팀 화면의 이름 동그라미와 켜짐/꺼짐 글자. 진행 글이 "Task N개 중 M개 끝".
@@ -59,6 +69,7 @@ Story: D41·D42·D43 · M16 · V20. kit 실행은 `.ai-workflow/runs/U40-two-boa
 | 첫 화면 · 폰 · 어두운 | ![전](2026-11-11-hub-polish/before-board-phone-dark.jpg) | ![후](2026-11-11-hub-polish/after-board-phone-dark.jpg) |
 | Story 화면 · 데스크톱 · 밝은 | ![전](2026-11-11-hub-polish/before-story-desktop-light.jpg) | ![후: 단계와 Task 보드](2026-11-11-hub-polish/after-story-desktop-light.jpg) |
 | 모든 Task · 데스크톱 · 밝은 | (없음, 전의 첫 화면) | ![후](2026-11-11-hub-polish/after-tasks-desktop-light.jpg) |
+| 긴 제목 Story · 폰 · 밝은 | ![전: 옆으로 넘침](2026-11-11-hub-polish/before-long-title-phone-light.jpg) | ![후](2026-11-11-hub-polish/after-long-title-phone-light.jpg) |
 | 멈춘 Task · 폰 · 밝은 | ![전](2026-11-11-hub-polish/before-task-failed-phone-light.jpg) | ![후](2026-11-11-hub-polish/after-task-failed-phone-light.jpg) |
 | 팀 · 데스크톱 · 어두운 | ![전](2026-11-11-hub-polish/before-team-desktop-dark.jpg) | ![후](2026-11-11-hub-polish/after-team-desktop-dark.jpg) |
 

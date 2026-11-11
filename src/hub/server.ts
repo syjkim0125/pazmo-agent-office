@@ -295,7 +295,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         }
         if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) {
           const v = board.story(actor, m[1]);
-          const lane = board.board(actor, { mine: false, cancelled: true, story: v.id }).flatMap((p) => p.stories)[0];
+          const lane = board.storyBoard(actor, v.id);
           const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges()) : null;
           return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard }, live()));
         }

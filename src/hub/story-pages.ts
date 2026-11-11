@@ -17,7 +17,7 @@ const TASK_STATE: Record<string, string> = {
   cancelled: "취소됨",
 };
 const STORY_STATE: Record<string, string> = {
-  draft: "준비 중",
+  draft: "기획 중",
   open: "진행 중",
   verifying: "Story 검증 중",
   awaiting_g4: "승인 대기",

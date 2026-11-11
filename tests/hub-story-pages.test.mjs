@@ -292,7 +292,8 @@ test("state words: ready 할 일, claimed with stage build 진행 중(구현), m
     [["merged", null], "완료"], [["passed", null], "검증 통과"], [["cancelled", null], "취소됨"],
   ];
   for (const [[state, stage], label] of words) assert.equal(taskStateLabel(state, stage), label, `${state}/${stage}`);
-  const stories = { draft: "준비 중", open: "진행 중", verifying: "Story 검증 중", awaiting_g4: "승인 대기", done: "완료", cancelled: "취소됨" };
+  // D43: one name per stage, the board's and the Story page's.
+  const stories = { draft: "기획 중", open: "진행 중", verifying: "Story 검증 중", awaiting_g4: "승인 대기", done: "완료", cancelled: "취소됨" };
   for (const [state, label] of Object.entries(stories)) assert.equal(storyStateLabel(state), label, state);
 });
 
@@ -507,7 +508,7 @@ test("an unknown Task or Story id is a 404 page; the new pages load no script", 
     assert.equal(res.status, 404, path);
     assert.ok(res.text.includes(message), path);
   }
-  for (const path of ["/", "/board", "/requests", `/stories/${s.storyId}`, `/tasks/${s.api}`]) {
+  for (const path of ["/", "/board", "/tasks", "/requests", `/stories/${s.storyId}`, `/tasks/${s.api}`]) {
     const res = await h.get(path, h.c);
     assert.equal(res.status, 200, path);
     assert.doesNotMatch(res.text, /<script(?! src="\/live\.js" defer><\/script>)/i, path);
