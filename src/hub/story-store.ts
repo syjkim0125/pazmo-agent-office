@@ -108,6 +108,10 @@ export type StoryView = {
   tasks: TaskView[];
   createdAt: number;
 };
+/** The local approval behind an uploaded Story, for its page. */
+export type StoryUpload = { macName: string; at: number; storyHash: string };
+export type UploadResult = { storyId: string; number: number; state: StoryState; already: boolean; bases: Record<string, string> };
+type UploadRow = { story_id: string; mac_id: string; mac_name: string; story_hash: string; bases: string; created_at: number };
 /** What an Office gets when it takes a Task. The verification Task has no repo, branch, files or spec of its own. */
 export type ClaimedTask = {
   taskId: string;
@@ -252,6 +256,12 @@ const RERUN_REFUSALS = {
 type RerunBlock = keyof typeof RERUN_REFUSALS;
 
 const KEY_MAX = 100;
+/** The kit's Story hash (sha256 hex) and a git commit id, as an upload sends them. */
+const STORY_HASH = /^[0-9a-f]{64}$/;
+const COMMIT = /^[0-9a-f]{40}$/;
+export const NOT_YOUR_MAC_MESSAGE = "이 Mac은 지금 연결된 내 Mac이 아닙니다. 지금 연결된 Mac에서 다시 실행하세요.";
+const isObject = (value: unknown): value is Record<string, unknown> =>
+  value !== null && typeof value === "object" && !Array.isArray(value);
 /** The web's lists: ready Tasks in claim order, and the member's latest merges. */
 const READY_LIST_MAX = 50;
 const DONE_LIST_MAX = 20;
@@ -265,9 +275,10 @@ const FORGET_OWN_LOCK =
   "lock_member=CASE WHEN lock_claim=? THEN NULL ELSE lock_member END,lock_claim=CASE WHEN lock_claim=? THEN NULL ELSE lock_claim END";
 
 /**
- * Tables of the team Story board. `hub_members` and `hub_repos` come from HubStore, so it must run first
+ * Tables of the team Story board. `hub_members`, `hub_repos` and `hub_macs` come from HubStore, so it must run first
  * on the same db. Numbers (`hub_seq`) are one sequence shared by Stories and Tasks. A member without a
- * `hub_work_settings` row works automatically.
+ * `hub_work_settings` row works automatically. `hub_story_uploads` is the local approval of a Story the PL's Mac
+ * uploaded (the Mac and its name then, the kit Story hash, when) and the Story base commits, one per repo.
  */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS hub_seq(id INTEGER PRIMARY KEY CHECK(id=1),next INTEGER NOT NULL);
@@ -282,6 +293,7 @@ CREATE TABLE IF NOT EXISTS hub_task_deps(task_id TEXT NOT NULL REFERENCES hub_st
 CREATE TABLE IF NOT EXISTS hub_story_appends(story_id TEXT NOT NULL REFERENCES hub_stories(id),create_key TEXT NOT NULL,result TEXT NOT NULL,created_at INTEGER NOT NULL,PRIMARY KEY(story_id,create_key));
 CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,story_id TEXT NOT NULL REFERENCES hub_stories(id),task_id TEXT REFERENCES hub_story_tasks(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),mac_id TEXT NOT NULL REFERENCES hub_macs(id),mac_name TEXT NOT NULL,story_hash TEXT NOT NULL,bases TEXT NOT NULL,created_at INTEGER NOT NULL);
 `;
 
 function fail(code: string, status: number, message: string): never {
@@ -780,6 +792,98 @@ export class StoryBoard {
       this.#run("UPDATE hub_stories SET state='cancelled',updated_at=? WHERE id=?", this.#now(), s.id);
       this.#event(s.id, null, a.member.id, "cancelled");
       return { ok: true as const };
+    });
+  }
+
+  /**
+   * A Story the PL approved locally (kit G1), uploaded by the command on the PL's Mac. Refused unless the link was
+   * minted by the member's current Mac (`mac`, from HubStore.currentMac) and the member owns every repo of the
+   * project; a Story under the same text that was cancelled is not made again. Then `publishStory` under the key
+   * `upload:<storyHash>` (one Story per text, a resend gets the first answer) and the approval record, once, all in
+   * one transaction: any refusal leaves no Story and no record. `bases` are the Story base commits stored so far.
+   */
+  uploadStory(
+    l: Link,
+    mac: { id: string; name: string } | null,
+    input: { projectId: string; title: string; body: string; risk: "normal" | "high"; storyHash: string; graph: unknown; storyVerify: unknown },
+  ): UploadResult {
+    return transaction(this.#db, () => {
+      if (typeof input.storyHash !== "string" || !STORY_HASH.test(input.storyHash))
+        fail("INVALID", 400, "Story 해시는 64자리 소문자 16진수여야 합니다. kit이 계산한 해시를 그대로 보내세요.");
+      if (l.macId === null || mac === null || l.macId !== mac.id) fail("NOT_YOUR_MAC", 403, NOT_YOUR_MAC_MESSAGE);
+      const project = this.#project(input.projectId);
+      if (!this.ownsProject(l.member.id, project.id))
+        fail("NOT_OWNER", 403, "프로젝트의 모든 레포 담당자여야 올릴 수 있습니다. 관리자에게 담당자 등록을 요청하세요.");
+      const key = `upload:${input.storyHash}`;
+      if (this.storyByKey(l.member.id, key)?.state === "cancelled")
+        fail("UPLOAD_CANCELLED", 409, "이 Story는 취소됐습니다. Story 글을 고쳐 새 승인을 받은 뒤 올리세요.");
+      const { projectId, title, body, risk, graph, storyVerify } = input;
+      const published = this.publishStory(l, { projectId, title, body, risk, graph, storyVerify, key });
+      if (!this.#upload(published.storyId)) {
+        this.#run(
+          "INSERT INTO hub_story_uploads(story_id,mac_id,mac_name,story_hash,bases,created_at) VALUES (?,?,?,?,'{}',?)",
+          published.storyId, mac.id, mac.name, input.storyHash, this.#now(),
+        );
+        this.#event(published.storyId, null, l.member.id, "uploaded", mac.name);
+      }
+      const row = this.#upload(published.storyId) as UploadRow;
+      return {
+        storyId: published.storyId,
+        number: published.number,
+        state: this.#story(published.storyId).state,
+        already: published.already,
+        bases: JSON.parse(row.bases) as Record<string, string>,
+      };
+    });
+  }
+  #upload(storyId: string) {
+    return this.#get<UploadRow>("SELECT * FROM hub_story_uploads WHERE story_id=?", storyId);
+  }
+  /**
+   * The Story base commits of an uploaded Story ({repoId: commit}), by the PL who uploaded it. Each of the project's
+   * repos is stored once: the same commit again is nothing, another is BASES_CHANGED and nothing changes. A repo not
+   * stored yet is taken only while the Story is not open. Answers every commit stored.
+   */
+  uploadBases(l: Link, storyId: string, bases: unknown): { bases: Record<string, string> } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      const row = this.#upload(s.id) ?? fail("STATE", 409, "명령으로 올린 Story가 아니라 base 커밋을 적을 수 없습니다.");
+      const names = new Map(
+        this.#all<{ id: string; name: string }>(
+          "SELECT r.id,r.name FROM hub_project_repos pr JOIN hub_repos r ON r.id=pr.repo_id WHERE pr.project_id=?", s.project_id,
+        ).map((r) => [r.id, r.name]),
+      );
+      if (!isObject(bases) || !Object.entries(bases).every(([id, sha]) => names.has(id) && typeof sha === "string" && COMMIT.test(sha)))
+        fail("INVALID", 400, "bases는 이 Story 프로젝트의 레포 id마다 40자리 16진수 커밋 id를 적은 객체여야 합니다.");
+      const stored = JSON.parse(row.bases) as Record<string, string>;
+      const added: string[] = [];
+      for (const [id, sha] of Object.entries(bases as Record<string, string>)) {
+        if (!Object.hasOwn(stored, id)) {
+          stored[id] = sha;
+          added.push(id);
+        } else if (stored[id] !== sha)
+          fail("BASES_CHANGED", 409, `레포 ${names.get(id)}의 Story base 커밋은 이미 다른 커밋으로 적혀 있어 바꿀 수 없습니다. Hub에 적힌 커밋으로 다시 실행하세요.`);
+      }
+      if (added.length === 0) return { bases: stored };
+      if (s.state !== "draft") fail("STATE", 409, "열리기 전의 Story에만 새 base 커밋을 적을 수 있습니다.");
+      this.#run("UPDATE hub_story_uploads SET bases=? WHERE story_id=?", JSON.stringify(stored), s.id);
+      this.#event(s.id, null, l.member.id, "bases", added.map((id) => names.get(id)).join(","));
+      return { bases: stored };
+    });
+  }
+  /** The local approval of an uploaded Story; null for any other Story. */
+  storyUpload(storyId: string): StoryUpload | null {
+    const row = this.#upload(storyId);
+    return row ? { macName: row.mac_name, at: row.created_at, storyHash: row.story_hash } : null;
+  }
+  /** The web's [취소] on an uploaded Story that has not opened: by its PL or a hub admin, through `cancelStory`. */
+  cancelUpload(a: Actor, storyId: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPlOrAdmin(a, s);
+      if (!this.#upload(s.id) || s.state !== "draft") fail("STATE", 409, "열리기 전의 올린 Story만 여기서 취소할 수 있습니다.");
+      return this.cancelStory(a, s.id);
     });
   }
 

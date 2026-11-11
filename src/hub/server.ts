@@ -292,7 +292,10 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             return html(res, 200, planPages.planPage(me, s.csrf, v, o, live()));
           }
         }
-        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) return html(res, 200, storyPages.storyPage(me, board.story(actor, m[1]), live()));
+        if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) {
+          const v = board.story(actor, m[1]);
+          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id) }, live()));
+        }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);
           const who = d.task.assignee?.id ?? null;
@@ -425,6 +428,19 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           board.cancelTask({ member: me }, id, { refuseLocked: true });
         }
         return redirect(res, `/tasks/${id}`);
+      }
+      if ((m = new RegExp(`^/stories/${ID}/cancel$`).exec(path))) {
+        const id = m[1];
+        // Cancelling cannot be undone, so the form must carry the box.
+        if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "취소하려면 '정말 취소합니다'를 체크하세요.");
+        try {
+          board.cancelUpload({ member: me }, id);
+        } catch (error) {
+          // A double click: the first submit already cancelled the uploaded Story, so the second shows it too.
+          const done = error instanceof HubError && error.code === "STATE" && board.storyUpload(id) !== null && board.story({ member: me }, id).state === "cancelled";
+          if (!done) throw error;
+        }
+        return redirect(res, `/stories/${id}`);
       }
       if (c.plans) {
         const plans = c.plans;

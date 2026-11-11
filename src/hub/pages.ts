@@ -35,7 +35,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 button.secondary{background:transparent;color:var(--accent)}button.danger{border-color:var(--bad);background:transparent;color:var(--bad)}
 .pill.need{color:var(--need);border-color:var(--need);background:var(--need-bg)}.pill.run{color:var(--accent);border-color:var(--accent);background:var(--run-bg)}.pill.stop{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}.pill.done{color:var(--done);border-color:var(--done);background:var(--done-bg)}
 details.dev{margin-top:8px}details.dev summary{cursor:pointer;color:var(--muted);font-size:13px}
-.muted{color:var(--muted)}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
+.muted{color:var(--muted)}.wrap{overflow-wrap:anywhere}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
 .me{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}.me form{display:inline-block}.me button{padding:2px 10px;font-size:13px;border-radius:999px}
 main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
 .lane{display:grid;gap:10px;border-top:1px solid var(--line);padding-top:12px}.lane:first-of-type{border-top:0;padding-top:0}

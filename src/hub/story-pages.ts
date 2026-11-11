@@ -1,7 +1,7 @@
 /** The team Story pages of the Hub web: the member's work, the board, one Story and one Task. No script; every value goes through `esc`. */
 import { MAC_NUDGE, ago, button, csrfField, esc, layout, tone, tonePill, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
-import type { MemberWork, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
+import type { MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
 import type { PlanCard } from "./plan-store.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -166,7 +166,11 @@ export function home(
 /** The Tasks before `t`, each linked with its state; numbers point into the same Story. */
 const depsOf = (s: StoryView, t: TaskView) => t.deps.map((n) => s.tasks.find((x) => x.number === n)).filter((x): x is TaskView => !!x);
 
-export function storyPage(me: Member, s: StoryView, chrome: Chrome): string {
+/**
+ * `upload` is the local approval of a Story the PL's Mac uploaded (null for any other Story). While such a Story has
+ * not opened, its PL or a hub admin gets the [취소] form.
+ */
+export function storyPage(me: Member, csrf: string, s: StoryView, o: { upload: StoryUpload | null }, chrome: Chrome): string {
   const branches = s.branches.length
     ? `<div class="scroll"><table><thead><tr><th>레포</th><th>base</th><th>Story base</th></tr></thead><tbody>${s.branches
         .map((b) => `<tr><td>${esc(b.repoName)}</td><td>${esc(b.baseBranch)}</td><td>${esc(b.storyBase)}</td></tr>`)
@@ -180,10 +184,17 @@ export function storyPage(me: Member, s: StoryView, chrome: Chrome): string {
     .join("");
   const prList = s.tasks.filter((t) => t.prUrl);
   const prs = prList.length ? `<h3>PR</h3><ul>${prList.map((t) => `<li>#${t.number} ${prLink(t.prUrl ?? "")}</li>`).join("")}</ul>` : "";
+  const up = o.upload;
+  const approval = up ? `<p class="muted wrap">로컬 승인 · ${esc(up.macName)} · ${esc(ago(up.at))}</p>` : "";
+  const cancel =
+    up && s.state === "draft" && (s.isPl || me.admin)
+      ? `<form method="post" action="/stories/${esc(s.id)}/cancel">${csrfField(csrf)}<p>아직 열리지 않았습니다. 취소하면 이 Story는 열리지 않고, 같은 글로는 다시 올릴 수 없습니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
+      : "";
+  const hash = up ? `<h3>로컬 승인</h3><p class="wrap">Story 해시 <code>${esc(up.storyHash)}</code></p>` : "";
   return layout(`Story #${s.number}`, me, [
-    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p><pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
+    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${approval}${cancel}<pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
     `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
-    `<section>${dev(`<h3>Story base</h3>${branches}${prs}`)}</section>`,
+    `<section>${dev(`${hash}<h3>Story base</h3>${branches}${prs}`)}</section>`,
   ].join(""), chrome);
 }
 
