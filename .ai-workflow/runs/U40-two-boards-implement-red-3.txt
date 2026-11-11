@@ -1,0 +1,6 @@
+ℹ fail 2
+ℹ pass 35
+ℹ tests 37
+✖ a cancelled Story card counts only its cancelled Tasks and says how many had finished (63.582375ms)
+✖ a passed step shows its ✓ beside its name, and five stage columns fit a 900px window (69.431333ms)
+✖ failing tests:

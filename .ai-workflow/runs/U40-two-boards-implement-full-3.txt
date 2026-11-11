@@ -1,0 +1,8 @@
+ℹ cancelled 0
+ℹ duration_ms 230907.599375
+ℹ fail 1
+ℹ pass 1860
+ℹ tests 1861
+✖ failing tests:
+✖ upload again after a push failure resumes (22105.116875ms)
+--- hub-upload-office.test.mjs alone, load 16-19, three runs: 5/5, 5/5, 5/5

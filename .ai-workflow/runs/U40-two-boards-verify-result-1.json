@@ -1,0 +1,14 @@
+{
+  "token": "74765a68d17549191fe3fe4e07272fcf1b7cd711deaefbe49abb436dd7e90f44",
+  "output": {
+    "summary": "tests-1of3 579/579 and tests-2of3 618/618 passed; tests-3of3 663/664 failed on the unchanged runtime-state lean close test (18/18 x3 alone) under load 12-31; typecheck and story not run.",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-verify-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "Load-dependent flake in unchanged tests/runtime-state.test.mjs; no code change. Reset workflow-verify and rerun all checks when load is lower."
+  }
+}

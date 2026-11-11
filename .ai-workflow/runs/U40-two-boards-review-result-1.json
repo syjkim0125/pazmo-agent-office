@@ -1,0 +1,14 @@
+{
+  "token": "283ba2b8c7aa39cc3a29c4aa20cf10ffcd5d489dc67508a58bcbdcbaf9fb3e88",
+  "output": {
+    "summary": "Two reviewers on 0f5a46f..5117b8c: D Ready (Minor only); C Ready with fixes — Important: a long unbroken word makes phone pages scroll sideways (grid sections grow); Minor: Story page reads every Story/Task, fold summary count vs live.js, card overflow at 900px, cancelled strip, names, done order, markers, copy, tests.",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-review-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "Fix in implement: section/scard minmax(0,1fr); one-Story read by id; fixed fold summary; cancelled strip; draft name; hub-wide 기획 중 column; done order by finish time; tab/step markers; stopped-plan copy; mono failure text; tests for /tasks no-script and without board, 기획 중 rule, exact tab link."
+  }
+}

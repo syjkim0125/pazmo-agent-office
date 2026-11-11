@@ -1,0 +1,19 @@
+{
+  "token": "9bfde075ffb7c31e3c67c7a23b60eba498521c50f19466e6319a22da7a33b10a",
+  "output": {
+    "summary": "Hub pages restyled to the chosen calm-signal look (commit 0f5a46f): stylesheet, header, board with 나를 기다리는 일 and lane progress, team, Task/Story/plan stop callouts; routes and actions unchanged. RED 15/73 failing first; GREEN full npm test 1848/1848, typecheck 0.",
+    "evidence": [
+      ".ai-workflow/runs/U40-implement-1.md",
+      ".ai-workflow/runs/U40-implement-red-1.txt",
+      ".ai-workflow/runs/U40-implement-green-1.txt",
+      "src/hub/pages.ts",
+      "src/hub/board-pages.ts",
+      "src/hub/story-pages.ts",
+      "src/hub/plan-pages.ts",
+      "tests/hub-board-page.test.mjs"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

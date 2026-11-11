@@ -1,0 +1,12 @@
+ℹ fail 8
+ℹ pass 57
+ℹ tests 65
+✖ a cancelled Story in the strip is quiet and says what it had (56.79425ms)
+✖ a long unbroken word cannot widen a page, and Story cards keep to their column (57.940166ms)
+✖ failing tests:
+✖ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (137.41825ms)
+✖ the store's board for one Story has every card of it (56.812709ms)
+✖ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (64.522542ms)
+✖ the 완료 column puts the Stories that finished last first, whatever their number (65.6595ms)
+✖ the 완료 column shows the five newest done Stories and folds the rest (63.912542ms)
+✖ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (74.871334ms)

@@ -1,0 +1,12 @@
+{
+  "token": "450e771a37538ca15ba4c179f7ca2869c9affbe98932beb78476f98cbfabb6ab",
+  "output": {
+    "summary": "Fresh checks on 0d3baab: 579/579 + 618/618 + 664/664 = 1861/1861, typecheck exit 0, story check PASS.",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-verify-2.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

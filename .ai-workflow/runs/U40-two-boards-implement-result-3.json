@@ -1,0 +1,18 @@
+{
+  "token": "2acb1b2f4d2dfe50bae73ebb18f12f419c5485bb550346d0c42c1cd182eff182",
+  "output": {
+    "summary": "Review-2 Minor fixes (commit 0d3baab): cancelled Story count, step ✓ beside its name, five stage columns at 900 px; test for a cancelled Story with finished Tasks. RED 2/37; Hub tests 558/558, typecheck 0; full run 1860/1861 with one load-dependent upload ECONNRESET in unchanged code (5/5 alone x5).",
+    "evidence": [
+      ".ai-workflow/runs/U40-two-boards-implement-3.md",
+      ".ai-workflow/runs/U40-two-boards-implement-red-3.txt",
+      ".ai-workflow/runs/U40-two-boards-implement-green-3.txt",
+      ".ai-workflow/runs/U40-two-boards-implement-full-3.txt",
+      "src/hub/board-pages.ts",
+      "src/hub/pages.ts",
+      "tests/hub-board-page.test.mjs"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

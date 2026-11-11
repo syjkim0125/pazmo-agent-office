@@ -1,3 +1,20 @@
+# 2026-11-11 Hub 화면 다듬기: 차분한 신호등, 첫 화면은 Story 보드, Story마다 Task 보드 (U40, D43·V20)
+
+- 사용자가 D42 보드가 아직 밋밋하다며 "다섯 살도 바로 쓸 만큼" 쉽고 예쁘게 바꾸자고 했다. [설명 페이지](https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS)에서 두 번 골랐다: 얼굴은 **A 차분한 신호등**(1판, B 그림책·C 촘촘한 작업판 대신), Story와 Task는 **가 두 보드**(2판, 나 한 보드 두 층 대신). 두 번째는 D42의 첫 화면을 바꾸므로 Story에 D43을 더하고 M16·V20에 한 문장씩 더해 G1을 다시 받았다("맞아, 진행해"). 변경 기록은 [2026-11-11-hub-polish.md](verification/2026-11-11-hub-polish.md)(전후 캡처 포함), 사용 안내는 [LOCAL-PREVIEW.md의 "칸반 보드와 로컬 올리기"](LOCAL-PREVIEW.md#칸반-보드와-로컬-올리기), kit 실행은 `.ai-workflow/runs/U40-two-boards.json`(앞의 `U40-hub-polish.json`은 Story가 바뀌기 전의 증거)이다.
+- 범위(웹 모양·문구와 주소 하나):
+  - **모양:** 옅은 회색 바탕과 흰 판, 네 상태 색(답해 주세요·진행 중·멈춤·끝남)을 점 달린 글자와 함께, 이름 동그라미, Mac 상태 점, 스위치 모양의 자동으로 일하기, 지금 메뉴 표시, 44px 버튼·입력 칸, 3px 포커스, 밝은·어두운 테마, 폰에서 가로 스크롤 없음(긴 낱말 제목 포함), 웹 글꼴·이미지 없음(CSP).
+  - **두 보드(D43):** `/`·`/board`는 Story 단계 칸의 Story 보드(Story 카드: 상태, 멈춘 Task 수, "Task N개 중 M개 끝", PL, 지금 일하는 사람; 기획 중은 점선 초안 카드; 완료는 최근 끝난 5개와 "이전 완료 보기"), Story 화면은 단계 표시와 그 Story만의 Task 보드, `/tasks`는 모든 Task 보드(D42의 보드). 탭으로 오가며 내 Story만·취소한 것도 보기가 유지된다. 맨 위 **나를 기다리는 일**(결과 승인 대기, 멈춘 Task와 그 Story, 답을 기다리거나 멈춘 웹 기획)은 링크만 있다.
+  - 그대로: 버튼이 하는 일, 권한, 승인의 해시·revision, CSRF·Origin, POST 뒤 다시 읽기, `/copy.js`·`/live.js`, 옛 주소 전부. 저장소에는 읽기 전용 `StoryBoard.storyBoard`와 `BoardStory.updatedAt`만 더했다.
+- 커밋(기준 `a72a57b`): 얼굴 `0f5a46f`, Story D43·G1 `6038886`, 두 보드와 1차 리뷰 고침 `5117b8c`, 2차 리뷰 고침 `8a42da8`, 3차 리뷰 고침 `0d3baab`. 모든 고침은 실패하는 시험부터 썼다(RED 15/73, 22/126, 8/65, 2/37).
+- **kit 리뷰(네 번):** 얼굴 단계 1차(리뷰어 둘: Important 3 — 폰에서 표가 찌그러짐, 승인 대기 줄이 어디서 승인하는지 말하지 않음, 숫자 배지 대비), 두 보드 1차(둘: Important 1 — 그 고침 때문에 긴 낱말이 폰 화면을 685px까지 넓힘, 더해 Story 화면이 모든 Story를 읽음), 2차(하나: Minor 3 — 취소한 Story 숫자, ✓ 위치, 완료 칸 줄바꿈), 3차(하나: Ready, Critical·Important 0).
+- 자동 검사: 전체 `npm test`는 2차 고침 뒤 **1859/1859**, 3차 고침 뒤 부하 18–22에서 1860/1861(아래 올리기 시험). kit 검증(`0d3baab`): 579/579 + 618/618 + 664/664 = **1861/1861**, 타입 검사·Story 검사 exit 0(1차 시도는 바뀌지 않은 `tests/runtime-state.test.mjs`가 부하 12–31에서 1개 흔들려 다시 했다). `graph.mjs delivery`는 `delivered`다. 화면은 확인용 허브(18444)는 건드리지 않고 그 DB의 `VACUUM INTO` 복사본과 시험 데이터로, 22개 화면 × 390·900·1000·1360px × 두 테마에서 가로 넘침 0을 쟀다(Chromium).
+- G4는 2026-11-11에 기록했다. 사용자는 설명 페이지(3판)의 증거·새 화면·세 질문을 본 뒤 "승인 후 머지"를 골랐고, 세 질문에는 직접 답하지 않았다(D13). [G4 기록](../.ai-workflow/approvals/hub-polish-g4.md)
+- **남은 것:**
+  - 작은 것(머지를 막지 않음): 861–887px 창에서는 완료 칸이 아직 다음 줄로 내려간다(변경 기록의 "861–1087px을 고쳤다"는 888px부터가 맞다). 888–950px쯤에서 Story 카드의 "Story 검증 중"이 두 줄로 나뉜다. 취소한 Story 화면의 "Task N개 중 M개 끝"이 보드 카드의 "Task N개 취소됨 · M개 끝남"과 다르게 센다. 고정 문구 "이전 완료 보기"는 앞 프로젝트에 처음 접힘이 생기면 열린 접힘이 옮겨 갈 수 있다(드묾).
+  - **부하가 높을 때 끊기는 올리기 시험:** `hub-upload-office` "upload again after a push failure resumes"가 부하 ~20의 전체 실행에서 두 번 `ECONNRESET`(`HUB_UNREACHABLE`)으로 실패했다. 그 파일만은 다섯 번 모두 5/5, 올리기·연결 코드는 바뀌지 않았다. 리뷰어는 시험의 동기 git 도우미가 5초 넘게 막히는 사이 서버가 keep-alive 연결을 닫고 두 번째 올리기가 그 연결을 다시 쓰는 경쟁으로 봤다. 바뀌기 전 코드로 재현해 보지는 않았다. 올리기 클라이언트가 이런 연결 끊김을 한 번 다시 시도할지 따로 정한다.
+  - 확인하지 않은 것: Safari·Firefox·Windows 글꼴, 실제 브라우저에서 저절로 업데이트가 새 화면을 바꿔 끼우는 모습, 사내 Hub 재배포와 실제 팀원의 화면, 결과 승인(묶음 4가 없어 승인 대기 Story는 Hub에서 끝낼 수 없다).
+  - U39·U38·U37·U36에서 넘어온 것은 아래 항목 그대로다.
+
 # 2026-11-11 Hub 첫 화면을 칸반 보드로, PL은 자기 claude 대화에서 승인한 Story를 명령 하나로 올린다 (U39, D42·V20)
 
 - 디자인 제안(설명 페이지 https://claude.ai/artifact/GJBHwuZJSNs9xqUJDPQKAR)을 본 사용자가 "① 1단계 먼저"를 고른 뒤, "허브에는 Story와 Task 목록만, 작업은 각자 로컬, 카드마다 누가 하는지"로 방향을 바꿨다(D42, G1 2026-11-11). Task는 지금처럼 각자 Mac의 Office가 자동으로 하고, 웹 기획(묶음 3)은 함께 두며, 묶음 4의 최종 승인과 main 머지는 PL의 로컬 claude 대화에서 한다. 설계는 [hub-board-local-upload-plan.md](understanding/hub-board-local-upload-plan.md)(G3 2026-11-11), 계획은 [2026-11-11-1400-feat-hub-board-plan.md](plans/2026-11-11-1400-feat-hub-board-plan.md), kit 실행은 `.ai-workflow/runs/U39-hub-board.json`, 변경 기록은 [2026-11-11-hub-board.md](verification/2026-11-11-hub-board.md), 사용 안내는 [LOCAL-PREVIEW.md의 "칸반 보드와 로컬 올리기"](LOCAL-PREVIEW.md)다.
