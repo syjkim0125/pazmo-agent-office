@@ -1,5 +1,5 @@
 /** The pages a browser may be sent back to after a form or a sign-in: only these exact paths, never a query or another host. */
-const ALLOWED = [/^\/$/, /^\/board$/, /^\/me$/, /^\/team$/, /^\/mac$/, /^\/(stories|tasks|plans)\/[0-9a-f-]{36}$/];
+const ALLOWED = [/^\/$/, /^\/board$/, /^\/tasks$/, /^\/me$/, /^\/team$/, /^\/mac$/, /^\/(stories|tasks|plans)\/[0-9a-f-]{36}$/];
 const MAX_LENGTH = 300;
 
 /** The path itself when it is one of the allowed pages, otherwise null. */

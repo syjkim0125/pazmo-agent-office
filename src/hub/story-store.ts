@@ -615,9 +615,12 @@ export class StoryBoard {
    * The board: every project with its Stories and their cards, in a fixed number of queries (projects, Stories,
    * Tasks). `mine` keeps the Stories the member leads or has a card in (all cards of a kept Story); a cancelled
    * Story and its cancelled cards are left out unless `cancelled`. A Story shows its newest BOARD_DONE_MAX merged
-   * cards, most recent merge first, and counts the rest in `doneMore`.
+   * cards, most recent merge first, and counts the rest in `doneMore`. With `story`, only that Story, with every card
+   * it has (cancelled and all merged ones): its own page's Task board.
    */
-  board(a: Actor, o: { mine: boolean; cancelled: boolean }): BoardProject[] {
+  board(a: Actor, o: { mine: boolean; cancelled: boolean; story?: string }): BoardProject[] {
+    const one = o.story !== undefined;
+    if (one) o = { mine: false, cancelled: true, story: o.story };
     const projects = this.projects(a);
     const stories = this.#all<{ id: string; project_id: string; number: number; title: string; state: StoryState; risk: "normal" | "high"; pl_member_id: string; pl_name: string }>(
       `SELECT s.id,s.project_id,s.number,s.title,s.state,s.risk,s.pl_member_id,m.name pl_name
@@ -645,17 +648,18 @@ export class StoryBoard {
     }
     const byProject = new Map<string, BoardStory[]>();
     for (const s of stories) {
+      if (one && s.id !== o.story) continue;
       if (s.state === "cancelled" && !o.cancelled) continue;
       const mine = cardsOf.get(s.id) ?? [];
       if (o.mine && s.pl_member_id !== a.member.id && !mine.some((c) => c.mine)) continue;
       const cards = mine.map((c) => c.card);
       const done = cards.filter((c) => c.column === "done").sort((x, y) => y.columnAt - x.columnAt || y.number - x.number);
-      const shown = new Set(done.slice(0, BOARD_DONE_MAX));
+      const shown = new Set(one ? done : done.slice(0, BOARD_DONE_MAX));
       const story: BoardStory = {
         id: s.id, number: s.number, title: s.title, state: s.state, risk: s.risk,
         pl: { id: s.pl_member_id, name: s.pl_name },
         cards: [...cards.filter((c) => c.column !== "done"), ...shown],
-        doneMore: Math.max(0, done.length - BOARD_DONE_MAX),
+        doneMore: one ? 0 : Math.max(0, done.length - BOARD_DONE_MAX),
       };
       byProject.set(s.project_id, [...(byProject.get(s.project_id) ?? []), story]);
     }

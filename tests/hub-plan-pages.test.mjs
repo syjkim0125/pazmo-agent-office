@@ -191,16 +191,16 @@ test("the board shows 새 프로젝트, each project's plans in progress, and �
   for (const who of [h.pl, h.b, h.c, h.admin]) {
     const board = (await h.get("/board", who)).text;
     assert.ok(board.includes('<a class="btn ghost" href="/projects/new">새 프로젝트</a>'), `${who.member.name}: 새 프로젝트`);
-    assert.ok(board.includes("<h3>기획 중</h3>"), who.member.name);
-    assert.ok(board.includes(`<li class="card run"><a class="title" href="/plans/${id}">쿠폰 발급</a><p>${pill("기획 대기")}</p><p class="who"><span class="av av`), who.member.name);
-    assert.match(board, /aria-hidden="true">PL<\/span><span>PL PL<\/span><\/p><\/li>/, who.member.name);
+    // D43: /board is the Story board; a plan in progress is a draft card in its 기획 중 column.
+    assert.match(board, /<div class="stage" data-stage="planning"><h3><span>기획 중<\/span><span>1<\/span><\/h3>/, who.member.name);
+    assert.ok(board.includes(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${id}">쿠폰 발급</a><p>${pill("기획 대기")}</p><p class="sprog">아직 Task 없음</p><p class="speople"><span class="lead"><span class="av av`), who.member.name);
     assert.equal(board.includes(newStory), who === h.pl, `${who.member.name}: 새 Story only for the owner of app-be and app-fe`);
   }
   // A plan that is no longer in progress leaves the list, and so does the heading.
   h.plans.cancel({ member: h.pl.member }, id, h.view(id).revision);
   const board = (await h.get("/board", h.pl)).text;
   assert.ok(!board.includes(`/plans/${id}`));
-  assert.ok(!board.includes("<h3>기획 중</h3>"));
+  assert.ok(board.includes('<p class="empty">아직 Story가 없습니다.'), "with nothing left the project says what comes next");
   assert.ok(board.includes(newStory));
 
   const empty = await team(t, { project: false });
@@ -778,7 +778,7 @@ test("the design shows the stored split in full under 올라갈 Task 전부 보�
   h.approve(odd);
   h.design(odd, DESIGN, { tasks: [{ id: "api", note: EVIL }] });
   text = await h.page(odd);
-  assert.ok(/<details><summary>올라갈 Task 전부 보기<\/summary><pre>[^<]*&#34;tasks&#34;/.test(text));
+  assert.ok(/<details><summary>올라갈 Task 전부 보기<\/summary><pre class="mono">[^<]*&#34;tasks&#34;/.test(text));
   assert.ok(text.includes(SAFE) && !text.includes("<img"));
   // A normal-risk plan has no stored split.
   const normal = h.create();

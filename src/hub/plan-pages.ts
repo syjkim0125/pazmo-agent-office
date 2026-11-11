@@ -139,7 +139,7 @@ function splitDetails(split: unknown, repos: PlanRepo[]): string {
     };
     const story = split.storyVerify.flatMap((v) => v.checks.map((c) => check(c, `${esc(repo(v.repoId))} — `)));
     body = `<ol>${split.graph.nodes.map((n) => task(n)).join("")}</ol><h3>Story 전체 확인</h3>${story.length ? `<ul>${story.join("")}</ul>` : "<p>없음</p>"}`;
-  } else body = `<pre>${esc(JSON.stringify(split, null, 2))}</pre>`;
+  } else body = `<pre class="mono">${esc(JSON.stringify(split, null, 2))}</pre>`;
   return `<details><summary>올라갈 Task 전부 보기</summary>${body}</details>`;
 }
 const when = (at: number) => `${new Date(at).toLocaleString("ko-KR")} (${ago(at)})`;

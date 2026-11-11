@@ -229,7 +229,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       if (c.board) {
         const board = c.board,
           actor = { member: me };
-        if (path === "/" || path === "/board") {
+        // The Story board is the first page (D43); /tasks is the Task board of every Story (D42's board).
+        if (path === "/" || path === "/board" || path === "/tasks") {
           const plans = c.plans;
           const projects = board.board(actor, { mine: url.searchParams.get("mine") === "1", cancelled: url.searchParams.get("cancelled") === "1" });
           const v = {
@@ -241,7 +242,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             canCreateProject: !!plans,
             canPlan: new Set(plans ? projects.filter((p) => board.ownsProject(me.id, p.project.id)).map((p) => p.project.id) : []),
           };
-          return html(res, 200, boardPages.boardPage(me, s.csrf, v, live()));
+          return html(res, 200, (path === "/tasks" ? boardPages.taskBoardPage : boardPages.storyBoardPage)(me, s.csrf, v, live()));
         }
         if (path === "/me") {
           const ch = chrome();
@@ -294,7 +295,9 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         }
         if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) {
           const v = board.story(actor, m[1]);
-          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id) }, live()));
+          const lane = board.board(actor, { mine: false, cancelled: true, story: v.id }).flatMap((p) => p.stories)[0];
+          const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges()) : null;
+          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard }, live()));
         }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);

@@ -92,7 +92,9 @@ const working = (state: TaskViewState) => state === "claimed" || state === "held
 /** Pick and rerun need the member's Office to be taking that repo now (`reachableRepos`); /mac says which it is. */
 const NOT_LINKED = `<a href="/mac">내 Mac이 지금 이 레포의 일을 가져가지 않고 있습니다(꺼짐·잠김·연결 문제).</a>`;
 const RERUN_NOT_LINKED = `<a href="/mac">내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.</a>`;
-const HELD = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다. Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+/** Why a held Task waits, in one sentence: the board's box of what waits on the viewer says only this. */
+export const HELD_SHORT = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.";
+const HELD = `${HELD_SHORT} Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.`;
 /** Held while the assignee's Mac reports: the Office let the claim go or cannot take it, so it will not go on by itself. */
 const HELD_MAC_ON = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
 /**
@@ -163,14 +165,31 @@ export function home(
   ].join(""), chrome);
 }
 
+/** What a Story waiting for its result approval needs, said where the PL looks (D42 (6): approval is local). */
+export const AWAITING_G4 = "모든 Task가 끝났습니다. 결과 승인은 Hub가 아니라 PL의 Mac(claude 대화)에서 합니다.";
+/** A Story's stages in order (D43); the one it is in is marked, the ones before it are passed. */
+const STEPS: [StoryState, string][] = [["draft", "기획 중"], ["open", "진행 중"], ["verifying", "Story 검증"], ["awaiting_g4", "승인 대기"], ["done", "완료"]];
+function steps(state: StoryState): string {
+  const at = STEPS.findIndex(([key]) => key === state);
+  if (at < 0) return "";
+  return `<ol class="steps" aria-label="Story 단계">${STEPS.map(([, label], i) => `<li${i < at ? ' class="past"' : i === at ? ' class="now" aria-current="step"' : ""}>${label}</li>`).join("")}</ol>`;
+}
+
 /** The Tasks before `t`, each linked with its state; numbers point into the same Story. */
 const depsOf = (s: StoryView, t: TaskView) => t.deps.map((n) => s.tasks.find((x) => x.number === n)).filter((x): x is TaskView => !!x);
 
 /**
  * `upload` is the local approval of a Story the PL's Mac uploaded (null for any other Story). While such a Story has
- * not opened, its PL or a hub admin gets the [취소] form.
+ * not opened, its PL or a hub admin gets the [취소] form. `board` is the Story's own Task board and its progress line,
+ * drawn by board-pages (D43); without it the page keeps the table alone.
  */
-export function storyPage(me: Member, csrf: string, s: StoryView, o: { upload: StoryUpload | null }, chrome: Chrome): string {
+export function storyPage(
+  me: Member,
+  csrf: string,
+  s: StoryView,
+  o: { upload: StoryUpload | null; board?: { progress: string; columns: string } | null },
+  chrome: Chrome,
+): string {
   const branches = s.branches.length
     ? `<div class="scroll"><table><thead><tr><th>레포</th><th>base</th><th>Story base</th></tr></thead><tbody>${s.branches
         .map((b) => `<tr><td>${esc(b.repoName)}</td><td>${esc(b.baseBranch)}</td><td>${esc(b.storyBase)}</td></tr>`)
@@ -191,9 +210,15 @@ export function storyPage(me: Member, csrf: string, s: StoryView, o: { upload: S
       ? `<form method="post" action="/stories/${esc(s.id)}/cancel">${csrfField(csrf)}<p>아직 열리지 않았습니다. 취소하면 이 Story는 열리지 않고, 같은 글로는 다시 올릴 수 없습니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
       : "";
   const hash = up ? `<h3>로컬 승인</h3><p class="wrap">Story 해시 <code>${esc(up.storyHash)}</code></p>` : "";
+  const table = `<div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  const board = o.board ?? null;
+  const awaiting = s.state === "awaiting_g4" ? `<p>${AWAITING_G4}</p>` : "";
   return layout(`Story #${s.number}`, me, [
-    `<section class="head"><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${approval}${cancel}<pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
-    `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
+    `<section class="head"><p class="muted"><a href="/">Story 보드</a> · Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${steps(s.state)}${board ? `<p class="sprog">${board.progress}</p>` : ""}${awaiting}${approval}${cancel}<p class="muted">${refresh(`/stories/${s.id}`)}</p></section>`,
+    board
+      ? `<section class="taskboard" aria-labelledby="taskboard"><h2 id="taskboard">Task</h2>${board.columns}<details><summary>표로 보기(앞 Task 포함)</summary>${table}</details></section>`
+      : `<section><h2>Task</h2>${table}</section>`,
+    `<section><details><summary>Story 글</summary><pre>${esc(s.body)}</pre></details></section>`,
     `<section>${dev(`${hash}<h3>Story base</h3>${branches}${prs}`)}</section>`,
   ].join(""), chrome);
 }

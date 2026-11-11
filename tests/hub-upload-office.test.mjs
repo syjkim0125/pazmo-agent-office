@@ -287,7 +287,8 @@ test("upload publishes, makes bases and opens", async (t) => {
   assert.equal(claimed.task.spec, "결제 API를 만든다.\nCovers: M1, V1");
 
   // The board shows the Story's cards.
-  const page = await w.get("/");
+  // D43: Task cards are on the all-Tasks board.
+  const page = await w.get("/tasks");
   assert.equal(page.status, 200);
   // U40: a card's title link holds only the title; its number moves to the card's meta line.
   assert.match(page.text, new RegExp(`href="/tasks/${claimed.taskId}">결제 API</a>`));

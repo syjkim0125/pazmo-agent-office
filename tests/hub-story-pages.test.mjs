@@ -229,7 +229,8 @@ test("the board lists projects with Story progress; the Story page lists every T
   const copy = h.board.claimNext(cBe);
   h.board.heartbeat(cBe, copy.taskId, copy.claimId, "build");
 
-  const board = (await h.get("/board", h.b)).text;
+  // D43: the Task board with Story lanes is /tasks; /board is the Story board.
+  const board = (await h.get("/tasks", h.b)).text;
   assert.match(board, /<h2>쿠폰 개편<\/h2>/);
   assert.match(board, /app-be \(main\), app-fe \(develop\)/);
   // U40: the lane head puts the number in its own span and a name tag before the PL.
@@ -483,7 +484,7 @@ test("untrusted text is escaped on the work, board, Story and Task pages", async
   h.board.reportFailed(cBe, copy.taskId, copy.claimId, `RUNNER_LIMIT ${EVIL}`);
   h.board.rerunTask(h.c.member, s.copy, `메모 ${EVIL}`, h.store.reachableRepos(h.c.member.id));
   h.board.reportFailed(cBe, s.copy, h.claimOf(cBe), `conflict ${EVIL}`);
-  const pages = [["/", h.c], ["/", h.pl], ["/board", h.b], [`/stories/${s.storyId}`, h.b], [`/tasks/${s.api}`, h.b], [`/tasks/${s.copy}`, h.c], [`/tasks/${s.ui}`, h.pl]];
+  const pages = [["/", h.c], ["/", h.pl], ["/board", h.b], ["/tasks", h.b], [`/stories/${s.storyId}`, h.b], [`/tasks/${s.api}`, h.b], [`/tasks/${s.copy}`, h.c], [`/tasks/${s.ui}`, h.pl]];
   for (const [path, who] of pages) {
     const text = (await h.get(path, who)).text;
     assert.ok(!text.includes("<img"), `${path} has no raw markup`);
