@@ -46,6 +46,7 @@ main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
 .cards{list-style:none;margin:0;padding:0;display:grid;gap:6px}
 .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:15px;overflow-wrap:anywhere;min-width:0}.card p{margin:2px 0}
 .toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}a.pill{text-decoration:none}a.pill[aria-current=true]{background:var(--accent);color:var(--panel);border-color:var(--accent)}
+.cancelled{border:1px dashed var(--line);border-radius:6px;padding:8px;color:var(--muted)}.cancelled h3{margin:0 0 6px;font-size:13px;display:flex;justify-content:space-between}.cancelled .cards{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}.cancelled .card{background:transparent;color:var(--muted);font-size:14px}
 @media (max-width:860px){.cols{grid-template-columns:1fr}}
 .live-note{display:none}html.live .live-note{display:inline}html.live .refresh{display:none}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:6px;align-items:center}.code{font:600 24px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace;letter-spacing:.1em}`;

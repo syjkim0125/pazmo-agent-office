@@ -213,6 +213,32 @@ test("mine and cancelled toggles are links", async (t) => {
   assert.equal((await h.get("/board", h.c)).status, 200);
 });
 
+test("cancelled cards show in a strip only with the toggle", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a", "b"]));
+  h.board.cancelTask({ member: h.pl.member }, s.tasks.b);
+  const strip = (lane) => /<div class="cancelled">([\s\S]*?)<\/ul><\/div>/.exec(lane)?.[1] ?? null;
+  // Off: the cancelled Task is nowhere on the board.
+  const plain = laneOf((await h.get("/", h.c)).text, s.number);
+  assert.ok(!plain.includes(`/tasks/${s.tasks.b}`), "hidden by default");
+  assert.equal(strip(plain), null, "no strip without the toggle");
+  assert.ok(colOf(plain, "todo").includes(`/tasks/${s.tasks.a}`));
+  // On: it shows in the lane's muted 취소됨 strip under the five columns, linking to its Task page, and in no column.
+  const shown = laneOf((await h.get("/?cancelled=1", h.c)).text, s.number);
+  const cancelled = strip(shown);
+  assert.ok(cancelled, "a 취소됨 strip");
+  assert.match(cancelled, /취소됨/);
+  assert.ok(cancelled.includes(`href="/tasks/${s.tasks.b}"`));
+  assert.ok(!cancelled.includes(s.tasks.a), "a live card stays in its column");
+  assert.ok(shown.indexOf('class="cancelled"') > shown.lastIndexOf('class="col"'), "under the five columns");
+  for (const name of ["backlog", "todo", "doing", "review", "done"]) assert.ok(!colOf(shown, name).includes(s.tasks.b), name);
+  // A cancelled Story's lane comes back with every card it cancelled.
+  h.board.cancelStory({ member: h.pl.member }, s.storyId);
+  assert.ok(!(await h.get("/", h.c)).text.includes(`/tasks/${s.tasks.a}`));
+  const story = strip(laneOf((await h.get("/?cancelled=1", h.c)).text, s.number));
+  for (const id of [s.tasks.a, s.tasks.b]) assert.ok(story.includes(`href="/tasks/${id}"`), id);
+});
+
 test("board escapes card text", async (t) => {
   const long = "가".repeat(120);
   const h = await team(t, { names: { pl: EVIL, c: EVIL }, text: (s) => `${EVIL}${s}` });

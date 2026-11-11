@@ -1,7 +1,8 @@
 /**
  * The Hub's first page: a board of Story lanes. Each Story is a card (state, PL, who works on it now) over five
- * columns of Task cards; a project's plans in progress and its unopened Stories share one 기획 중 lane. No script of
- * its own; every value goes through `esc`.
+ * columns of Task cards (with "취소한 것도 보기" on, its cancelled cards in a muted 취소됨 strip under them); a
+ * project's plans in progress and its unopened Stories share one 기획 중 lane. No script of its own; every value goes
+ * through `esc`.
  */
 import { esc, inColumn, layout, macBadgeLabel, tone, tonePill, type Chrome } from "./pages.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -45,7 +46,17 @@ function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
   return `<li class="card"><a href="/tasks/${esc(c.taskId)}">#${c.number} ${esc(c.title)}</a>${repo}${state}${who}${why}</li>`;
 }
 
-function storyLane(s: BoardStory, badges: Map<string, MacBadge>): string {
+/** With "취소한 것도 보기" on, a lane's cancelled cards (column "hidden") sit in a muted strip under its five columns. */
+function cancelledStrip(s: BoardStory): string {
+  const cards = s.cards.filter((c) => c.column === "hidden");
+  if (!cards.length) return "";
+  const items = cards
+    .map((c) => `<li class="card"><a href="/tasks/${esc(c.taskId)}">#${c.number} ${esc(c.title)}</a>${c.repo ? ` <span class="muted">${esc(c.repo.name)}</span>` : ""}</li>`)
+    .join("");
+  return `<div class="cancelled"><h3><span>취소됨</span><span>${cards.length}</span></h3><ul class="cards">${items}</ul></div>`;
+}
+
+function storyLane(s: BoardStory, badges: Map<string, MacBadge>, cancelled: boolean): string {
   const workers = [...new Set(s.cards.filter((c) => TAKEN.has(c.state) && c.assignee !== null).map((c) => c.assignee?.name ?? ""))];
   const now = workers.length ? ` · 지금 일하는 사람 ${workers.map(esc).join(", ")}` : "";
   const columns = COLUMNS.map(({ key, label }) => {
@@ -53,7 +64,7 @@ function storyLane(s: BoardStory, badges: Map<string, MacBadge>): string {
     const more = key === "done" && s.doneMore > 0 ? `<li class="muted"><a href="/stories/${esc(s.id)}">${s.doneMore}개 더</a></li>` : "";
     return `<div class="col" data-col="${key}"><h3><span>${label}</span><span>${cards.length}</span></h3><ul class="cards">${cards.map((c) => taskCard(c, badges)).join("")}${more}</ul></div>`;
   }).join("");
-  return `<article class="lane" data-story="${s.number}"><div class="story"><a href="/stories/${esc(s.id)}"><b>#${s.number} ${esc(s.title)}</b></a>${pill(storyStateLabel(s.state), tone("story", s.state))}<span class="muted">PL ${esc(s.pl.name)}${now}</span></div><div class="cols">${columns}</div></article>`;
+  return `<article class="lane" data-story="${s.number}"><div class="story"><a href="/stories/${esc(s.id)}"><b>#${s.number} ${esc(s.title)}</b></a>${pill(storyStateLabel(s.state), tone("story", s.state))}<span class="muted">PL ${esc(s.pl.name)}${now}</span></div><div class="cols">${columns}</div>${cancelled ? cancelledStrip(s) : ""}</article>`;
 }
 
 export function boardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome): string {
@@ -72,7 +83,7 @@ export function boardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome
         : "";
     const start = v.canPlan.has(p.project.id) ? `<a href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
     const repos = p.project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
-    const body = planning + lanes.map((s) => storyLane(s, v.badges)).join("");
+    const body = planning + lanes.map((s) => storyLane(s, v.badges, v.cancelled)).join("");
     return `<section class="project"><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div><p class="muted">레포: ${repos}</p>${body || '<p class="muted">아직 Story가 없습니다.</p>'}</section>`;
   };
   const shown = v.projects.map(projectHtml).filter(Boolean);
