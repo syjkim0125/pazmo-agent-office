@@ -188,3 +188,31 @@ test("macBadges returns the newest Mac per member", () => {
   assert.deepEqual(badges.get(b.id), { state: "off", lastSeen: now - 180_001 });
   assert.equal(badges.has(c.id), false);
 });
+
+test("failed Task stays in the column it failed in", () => {
+  const { board, c, b, be, fe, linkOf, plBe, tick } = opened();
+  const card = (id) => cardsOf(board, plBe).find((x) => x.taskId === id);
+  const l = linkOf(c, be);
+  const t = board.claimNext(l);
+  tick(1000);
+  board.heartbeat(l, t.taskId, t.claimId, "review");
+  const before = card(t.taskId);
+  assert.equal(before.column, "review");
+  tick(1000);
+  board.reportFailed(l, t.taskId, t.claimId, "리뷰 실패");
+  const after = card(t.taskId);
+  assert.deepEqual([after.state, after.stage, after.column, after.columnAt], ["failed", null, "review", before.columnAt]);
+
+  // Failing during build stays in doing: another member takes the next ready Task and fails it before any review.
+  const l2 = linkOf(b, fe);
+  board.releaseTask(plBe, t.taskId);
+  const t2 = board.claimNext(l);
+  tick(1000);
+  board.heartbeat(l, t2.taskId, t2.claimId, "build");
+  const building = card(t2.taskId);
+  tick(1000);
+  board.reportFailed(l, t2.taskId, t2.claimId, "빌드 실패");
+  const built = card(t2.taskId);
+  assert.deepEqual([built.state, built.column, built.columnAt], ["failed", "doing", building.columnAt]);
+  assert.ok(l2);
+});

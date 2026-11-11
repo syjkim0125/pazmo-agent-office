@@ -378,6 +378,14 @@ export class StoryBoard {
     return this.#db.prepare(sql).all(...args).map((row) => ({ ...row }) as T);
   }
   /**
+   * A failed Task has no stage left (the report clears it) but stays in the column it stopped in: its stored
+   * column when that is doing or review, else doing. Every other state follows `taskColumn`.
+   */
+  #columnOf(t: { state: TaskState; stage: string | null; column_key: string | null }): BoardColumn {
+    if (t.state !== "failed") return taskColumn(t.state, t.stage);
+    return t.column_key === "review" || t.column_key === "doing" ? t.column_key : "doing";
+  }
+  /**
    * Stamps `column_at` only when the Task's board column differs from the one stored. Every write of a Task's
    * state or stage calls this after it. `held` is not stored: it is the claimed state, so the column follows the stage.
    */
@@ -386,7 +394,7 @@ export class StoryBoard {
       "SELECT state,stage,column_key FROM hub_story_tasks WHERE id=?", taskId,
     );
     if (!t) return;
-    const column = taskColumn(t.state, t.stage);
+    const column = this.#columnOf(t);
     if (t.column_key !== column)
       this.#run("UPDATE hub_story_tasks SET column_key=?,column_at=? WHERE id=?", column, this.#now(), taskId);
   }
@@ -578,14 +586,14 @@ export class StoryBoard {
       `SELECT s.id,s.project_id,s.number,s.title,s.state,s.risk,s.pl_member_id,m.name pl_name
        FROM hub_stories s JOIN hub_members m ON m.id=s.pl_member_id ORDER BY s.number`,
     );
-    const tasks = this.#all<TaskRow & { column_at: number; repo_name: string | null; assignee_name: string | null }>(
+    const tasks = this.#all<TaskRow & { column_at: number; column_key: string | null; repo_name: string | null; assignee_name: string | null }>(
       `SELECT t.*,r.name repo_name,m.name assignee_name FROM hub_story_tasks t
        LEFT JOIN hub_repos r ON r.id=t.repo_id LEFT JOIN hub_members m ON m.id=t.claimed_by ORDER BY t.number`,
     );
     const cardsOf = new Map<string, { card: BoardCard; mine: boolean }[]>();
     for (const t of tasks) {
       const state = this.#viewState(t);
-      const column = taskColumn(t.state, t.stage);
+      const column = this.#columnOf(t);
       if (column === "hidden" && !o.cancelled) continue;
       const card: BoardCard = {
         taskId: t.id, storyId: t.story_id, number: t.number, title: t.title, kind: t.kind,
