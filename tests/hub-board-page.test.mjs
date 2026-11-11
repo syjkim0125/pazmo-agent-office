@@ -734,3 +734,27 @@ test("a cancelled Story in the strip is quiet and says what it had", async (t) =
   assert.match(style, /\.cancelled \.scards\{[^}]*grid-template-columns:repeat\(auto-fill,minmax\(/);
   assert.match(style, /\.scard\.gone \.stitle\{[^}]*color:var\(--muted\)/);
 });
+
+// U40 review 3 fixes.
+test("a cancelled Story card counts only its cancelled Tasks and says how many had finished", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("반쯤 한 Story", ["a", "b"]));
+  const c = h.cBe();
+  const k = h.board.claimNext(c);
+  h.board.mergeLock(c, k.taskId, k.claimId);
+  h.board.reportMerged(c, k.taskId, k.claimId, merged());
+  h.board.cancelStory({ member: h.pl.member }, s.storyId);
+  const text = (await h.get("/?cancelled=1", h.c)).text;
+  assert.ok(text.includes(`<a class="stitle" href="/stories/${s.storyId}">반쯤 한 Story</a><p><span class="pill">취소됨</span></p><p class="sprog">Task 2개 취소됨 · 1개 끝남</p>`));
+  const g4 = h.open(h.publish("다 한 Story", ["a"]));
+  advance(h, g4, "awaiting_g4");
+  h.board.cancelStory({ member: h.pl.member }, g4.storyId);
+  assert.ok((await h.get("/?cancelled=1", h.c)).text.includes(`<a class="stitle" href="/stories/${g4.storyId}">다 한 Story</a><p><span class="pill">취소됨</span></p><p class="sprog">Task 2개 끝남</p>`), "nothing cancelled, two finished");
+});
+
+test("a passed step shows its ✓ beside its name, and five stage columns fit a 900px window", async (t) => {
+  const h = await team(t);
+  const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
+  assert.match(style, /\.steps li\{display:flex;align-items:center;justify-content:center;/);
+  assert.match(style, /\.stages\{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(160px,1fr\)\)/, "5 × 160px + 4 gaps fit the 860px content of a 900px window");
+});
