@@ -1,5 +1,5 @@
 /** The team Story pages of the Hub web: the member's work, the board, one Story and one Task. No script; every value goes through `esc`. */
-import { MAC_NUDGE, ago, button, csrfField, esc, layout, type Chrome } from "./pages.ts";
+import { MAC_NUDGE, ago, button, csrfField, esc, layout, tone, tonePill, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
 import type { MemberWork, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
@@ -79,6 +79,9 @@ export function waitText(w: MacWait, now: number): string {
 }
 
 const pill = (label: string) => `<span class="pill">${esc(label)}</span>`;
+const taskPill = (x: { state: TaskViewState; stage: string | null }) => tonePill(tone("task", x.state), taskStateLabel(x.state, x.stage));
+const planPill = (p: PlanCard) => tonePill(tone("plan", p.state), planStateLabel(p.state, p.leased));
+const dev = (inner: string) => `<details class="dev"><summary>개발 정보</summary>${inner}</details>`;
 const refresh = (path: string) => `<a class="refresh" href="${esc(path)}">새로 고침</a><span class="live-note">저절로 업데이트</span>`;
 const prLink = (url: string) => `<a href="${esc(url)}" rel="noreferrer">${esc(url)}</a>`;
 const taskLink = (id: string, label: string) => `<a href="/tasks/${esc(id)}">${esc(label)}</a>`;
@@ -104,13 +107,13 @@ const news = (x: { state: TaskViewState; stage: string | null; heartbeatAt: numb
 /** One Task on the work page: where it is, its state, and what this list adds (`extra` is markup). */
 function card(c: WorkCard, extra = "") {
   const where = `Story #${c.story.number} ${esc(c.story.title)}${c.repo ? ` · ${esc(c.repo.name)}` : ""}`;
-  return `<li><p>${taskLink(c.taskId, `#${c.number} ${c.title}`)} ${pill(taskStateLabel(c.state, c.stage))}</p><p class="muted">${where}</p>${extra}</li>`;
+  return `<li><p>${taskLink(c.taskId, `#${c.number} ${c.title}`)} ${taskPill(c)}</p><p class="muted">${where}</p>${extra}</li>`;
 }
 const cards = (list: WorkCard[], empty: string, extra: (c: WorkCard) => string = () => "") =>
   list.length ? `<ul>${list.map((c) => card(c, extra(c))).join("")}</ul>` : `<p class="muted">${esc(empty)}</p>`;
 const failureLine = (c: WorkCard) => (failedNow(c) ? `<p>${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "");
 /** A Story plan in progress: its page and its state word. */
-const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${pill(planStateLabel(p.state, p.leased))}`;
+const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${planPill(p)}`;
 
 /**
  * `macNudge`: the hub can install a Mac in one line and this member has none; `wait`: why the member's Mac rests;
@@ -144,7 +147,7 @@ export function home(
   const led = w.led.length
     ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failureLine(c)}`)}</section>`
     : "";
-  const done = (c: WorkCard) => (c.prUrl ? `<p>PR ${prLink(c.prUrl)}</p>` : "");
+  const done = (c: WorkCard) => (c.prUrl ? dev(`<p>PR ${prLink(c.prUrl)}</p>`) : "");
   const plans = o.plans?.length
     ? `<section><h2>내가 쓰는 Story</h2><ul>${o.plans.map((p) => `<li><p>${planLink(p)}</p><p class="muted">${esc(p.project.name)}</p></li>`).join("")}</ul></section>`
     : "";
@@ -172,13 +175,15 @@ export function storyPage(me: Member, s: StoryView, chrome: Chrome): string {
   const rows = s.tasks
     .map((t) => {
       const deps = depsOf(s, t).map((d) => taskLink(d.id, `#${d.number}`)).join(", ") || "-";
-      return `<tr><td>#${t.number}</td><td>${esc(t.repo?.name ?? "-")}</td><td>${taskLink(t.id, t.title)}</td><td>${pill(taskStateLabel(t.state, t.stage))}</td><td>${esc(t.assignee?.name ?? "-")}</td><td>${deps}</td><td>${t.prUrl ? prLink(t.prUrl) : "-"}</td></tr>`;
+      return `<tr><td>#${t.number}</td><td>${esc(t.repo?.name ?? "-")}</td><td>${taskLink(t.id, t.title)}</td><td>${taskPill(t)}</td><td>${esc(t.assignee?.name ?? "-")}</td><td>${deps}</td></tr>`;
     })
     .join("");
+  const prList = s.tasks.filter((t) => t.prUrl);
+  const prs = prList.length ? `<h3>PR</h3><ul>${prList.map((t) => `<li>#${t.number} ${prLink(t.prUrl ?? "")}</li>`).join("")}</ul>` : "";
   return layout(`Story #${s.number}`, me, [
-    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${pill(storyStateLabel(s.state))}</p><pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
-    `<section><h2>Story base</h2>${branches}</section>`,
-    `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th><th>PR</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
+    `<section><p class="muted">Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p><pre>${esc(s.body)}</pre><p class="muted">${refresh(`/stories/${s.id}`)} · <a href="/">보드</a></p></section>`,
+    `<section><h2>Task</h2><div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div></section>`,
+    `<section>${dev(`<h3>Story base</h3>${branches}${prs}`)}</section>`,
   ].join(""), chrome);
 }
 
@@ -200,13 +205,13 @@ function actionForms(t: TaskView, csrf: string, a: TaskActions) {
         ? `<p>${RERUN_NOT_LINKED}</p>`
         : "";
   const release = a.release
-    ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc(t.kind === "verify" ? "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." : "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 머지 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
+    ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc(t.kind === "verify" ? "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." : "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 합치는 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
     : "";
   const cancel =
     a.cancel === "yes"
       ? `<form method="post" action="${esc(base)}/cancel">${csrfField(csrf)}<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
       : a.cancel === "locked"
-        ? `<p>머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.</p>`
+        ? `<p>합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요.</p>`
         : "";
   return pick + rerun + release + cancel;
 }
@@ -234,22 +239,22 @@ export function taskPage(
   const wait = o.wait && working(t.state) ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
   const result =
     t.summary !== null || t.assumptions.length || t.prUrl || t.mergeCommit
-      ? `<section><h2>결과</h2>${t.summary !== null ? `<h3>3줄 요약</h3><pre>${esc(t.summary)}</pre>` : ""}${
+      ? `<section><h2>결과</h2>${t.summary !== null ? `<h3>요약</h3><pre>${esc(t.summary)}</pre>` : ""}${
           t.assumptions.length
-            ? `<h3>판단 기록</h3><ul>${t.assumptions.map((line) => `<li>${line.startsWith("ASSUMED:") ? `<b>${esc(line)}</b>` : esc(line)}</li>`).join("")}</ul>`
+            ? `<h3>AI가 정한 것</h3><ul>${t.assumptions.map((line) => `<li>${line.startsWith("ASSUMED:") ? esc(`AI가 정한 것:${line.slice("ASSUMED:".length)}`) : esc(line)}</li>`).join("")}</ul>`
             : ""
-        }${t.prUrl ? `<p>PR ${prLink(t.prUrl)}</p>` : ""}${t.mergeCommit ? `<p>머지 커밋 <code>${esc(t.mergeCommit.slice(0, 12))}</code></p>` : ""}</section>`
+        }${t.prUrl || t.mergeCommit ? dev(`${t.prUrl ? `<p>PR ${prLink(t.prUrl)}</p>` : ""}${t.mergeCommit ? `<p>머지 커밋 <code>${esc(t.mergeCommit.slice(0, 12))}</code></p>` : ""}`) : ""}</section>`
       : "";
   const deps = depsOf(s, t);
   const work = [
     t.spec ? `<pre>${esc(t.spec)}</pre>` : "",
-    t.files.length ? `<h3>만질 파일</h3><ul>${t.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul>` : "",
+    t.files.length ? dev(`<h3>만질 파일</h3><ul>${t.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul>`) : "",
     deps.length
-      ? `<h3>앞 Task</h3><ul>${deps.map((x) => `<li>${taskLink(x.id, `#${x.number} ${x.title}`)} ${pill(taskStateLabel(x.state, x.stage))}</li>`).join("")}</ul>`
+      ? `<h3>앞 Task</h3><ul>${deps.map((x) => `<li>${taskLink(x.id, `#${x.number} ${x.title}`)} ${taskPill(x)}</li>`).join("")}</ul>`
       : "",
   ].join("");
   return layout(`Task #${t.number}`, me, [
-    `<section><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${pill(taskStateLabel(t.state, t.stage))} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
+    `<section><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
     result,
     work ? `<section><h2>할 일 내용</h2>${work}</section>` : "",
     t.memo ? `<section><h2>마지막 메모</h2><pre>${esc(t.memo)}</pre></section>` : "",

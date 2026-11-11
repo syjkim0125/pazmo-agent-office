@@ -20,7 +20,9 @@ const EMPTY_BOARD = "아직 프로젝트가 없습니다. [새 프로젝트]로 
 const G3_NOTE = "승인하면 이 설계와 위 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
 const OLD_EMPTY_BOARD = "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
-const pill = (word) => `<span class="pill">${word}</span>`;
+/** State pills carry their tone class (tone() in pages.ts); a word with no entry is a plain pill. */
+const TONES = { "기획 대기": "run", "기획 중": "run", "질문": "need", "초안": "need", "설계 대기": "run", "설계 중": "run", "설계 승인 대기": "need", "나누기 대기": "run", "나누는 중": "run", "열림": "done", "멈춤": "stop", "취소됨": "done" };
+const pill = (word) => `<span class="pill${TONES[word] ? ` ${TONES[word]}` : ""}">${word}</span>`;
 /** The PL's Office instance: the lease holder id the plan helpers send. */
 const H = "a".repeat(32);
 const OPENED = (n) => `Story #${n}이 이미 열려 기획은 끝났습니다. Story 화면에서 진행을 보세요.`;
@@ -367,7 +369,7 @@ test("the plan page states each state in plain words (waiting for the PL's Mac, 
   h.result(id, { kind: "open", storyId: pub.storyId });
   text = await shows("열림", `Story #${pub.number}이 열렸습니다.`);
   assert.ok(text.includes(`<a href="/stories/${pub.storyId}">Story #${pub.number} 보기</a>`));
-  assert.ok(text.includes("G1 승인: PL · ") && text.includes("G3 승인: PL · "), "the approvals");
+  assert.ok(text.includes("초안 승인(G1): PL · ") && text.includes("설계 승인(G3): PL · "), "the approvals");
   assert.ok(!text.includes("/cancel"), "an opened plan is not cancelled here");
   assert.ok(!(await h.get("/board", h.pl)).text.includes(`/plans/${id}`), "no longer in progress");
   assert.ok(!(await h.get("/me", h.pl)).text.includes(`/plans/${id}`));
@@ -751,7 +753,7 @@ test("the design shows the stored split in full under 올라갈 Task 전부 보�
   h.approve(id);
   h.design(id, DESIGN, splitOf(h.be, h.fe));
   let text = await h.page(id, h.b);
-  const block = /<details><summary>올라갈 Task 전부 보기<\/summary>([\s\S]*?)<\/details>/.exec(text);
+  const block = /<details><summary>올라갈 Task 전부 보기<\/summary>([\s\S]*?)<\/details><\/details>/.exec(text);
   assert.ok(block, "the details block, for every member");
   for (const part of [
     "<b>t1 · app-be · 쿠폰 API</b>", "<b>t2 · app-fe · 쿠폰 버튼</b>", "먼저 끝나야 할 Task: 없음", "먼저 끝나야 할 Task: t1",

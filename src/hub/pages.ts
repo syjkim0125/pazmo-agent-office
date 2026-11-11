@@ -1,15 +1,30 @@
 import { HUB_ANSWERABLE } from "./protocol.ts";
 import type { MacBadge, MacView, Member, MemberView, RepoView, RequestRow, RequestView } from "./store.ts";
 import type { OpenTaskRef } from "./story-store.ts";
+import type { StoryState, TaskViewState } from "./story-protocol.ts";
+import type { PlanState } from "./plan-protocol.ts";
+
+export type Tone = "need" | "run" | "stop" | "done";
+/** The color a state pill takes. The kind is explicit: "open" is running for a Story but finished for a plan. need = waits on a person. */
+export function tone(kind: "task", state: TaskViewState): Tone;
+export function tone(kind: "story", state: StoryState): Tone;
+export function tone(kind: "plan", state: PlanState): Tone;
+export function tone(kind: "task" | "story" | "plan", state: string): Tone {
+  if (kind === "task") return state === "failed" || state === "held" ? "stop" : state === "merged" || state === "passed" || state === "cancelled" ? "done" : "run";
+  if (kind === "story") return state === "awaiting_g4" ? "need" : state === "done" || state === "cancelled" ? "done" : "run";
+  if (state === "questions" || state === "draft" || state === "awaiting_g3") return "need";
+  return state === "failed" ? "stop" : state === "open" || state === "cancelled" ? "done" : "run";
+}
+export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${esc(label)}</span>`;
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const STYLE = `:root{--bg:#f6f7f5;--fg:#1c2320;--muted:#5e6964;--line:#d6dcd8;--panel:#fff;--accent:#2b5d8a;--bad:#a8332b;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#141917;--fg:#e3eae6;--muted:#9aa59f;--line:#2b3430;--panel:#1b211e;--accent:#7fb0dc;--bad:#ec7a70;color-scheme:dark}}
+const STYLE = `:root{--bg:#f6f7f5;--fg:#1c2320;--muted:#5e6964;--line:#d6dcd8;--panel:#fff;--accent:#2b5d8a;--bad:#a8332b;--need:#9a5b00;--done:#2f7a3f;--need-bg:#fdf0d5;--done-bg:#dff3e3;--bad-bg:#fbe3e0;--run-bg:#e3eef8;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#141917;--fg:#e3eae6;--muted:#9aa59f;--line:#2b3430;--panel:#1b211e;--accent:#7fb0dc;--bad:#ec7a70;--need:#f0b45a;--done:#7fcf8e;--need-bg:#3a2d12;--done-bg:#16301c;--bad-bg:#3b1b18;--run-bg:#1a2b3b;color-scheme:dark}}
 body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.6 system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif}
 header{display:flex;flex-wrap:wrap;gap:16px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
 nav{display:flex;flex-wrap:wrap;gap:14px;align-items:center}nav span{color:var(--muted)}
 main{max-width:980px;margin:0 auto;padding:20px 16px 48px;display:grid;gap:20px}
-a{color:var(--accent)}h1{font-size:22px;margin:0 0 8px}h2{font-size:17px;margin:0 0 8px}h3{font-size:15px;margin:12px 0 6px}
+a{color:var(--accent)}h1{font-size:26px;margin:0 0 8px}h2{font-size:19px;margin:0 0 8px}h3{font-size:15px;margin:12px 0 6px}
 section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;min-width:0}
 table{width:100%;border-collapse:collapse}td,th{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .scroll{overflow-x:auto}pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:10px;border-radius:6px;margin:0;max-height:480px;overflow:auto}
@@ -18,6 +33,8 @@ textarea,input,select{font:inherit;padding:6px 8px;border:1px solid var(--line);
 button{font:inherit;padding:6px 12px;border-radius:6px;border:1px solid var(--accent);background:var(--accent);color:var(--panel);cursor:pointer}
 button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 button.secondary{background:transparent;color:var(--accent)}button.danger{border-color:var(--bad);background:transparent;color:var(--bad)}
+.pill.need{color:var(--need);border-color:var(--need);background:var(--need-bg)}.pill.run{color:var(--accent);border-color:var(--accent);background:var(--run-bg)}.pill.stop{color:var(--bad);border-color:var(--bad);background:var(--bad-bg)}.pill.done{color:var(--done);border-color:var(--done);background:var(--done-bg)}
+details.dev{margin-top:8px}details.dev summary{cursor:pointer;color:var(--muted);font-size:13px}
 .muted{color:var(--muted)}.pill{display:inline-block;padding:0 8px;border-radius:999px;border:1px solid var(--line);font-size:13px}
 .me{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-left:auto}.me form{display:inline-block}.me button{padding:2px 10px;font-size:13px;border-radius:999px}
 main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
@@ -27,7 +44,7 @@ main:has(.projects){max-width:1400px}.projects{display:grid;gap:20px}
 .col{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;min-width:0}
 .col h3{margin:0 0 6px;font-size:13px;color:var(--muted);display:flex;justify-content:space-between}
 .cards{list-style:none;margin:0;padding:0;display:grid;gap:6px}
-.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:14px;overflow-wrap:anywhere;min-width:0}.card p{margin:2px 0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px;font-size:15px;overflow-wrap:anywhere;min-width:0}.card p{margin:2px 0}
 .toggles{display:flex;flex-wrap:wrap;gap:8px;align-items:center}a.pill{text-decoration:none}a.pill[aria-current=true]{background:var(--accent);color:var(--panel);border-color:var(--accent)}
 @media (max-width:860px){.cols{grid-template-columns:1fr}}
 .live-note{display:none}html.live .live-note{display:inline}html.live .refresh{display:none}

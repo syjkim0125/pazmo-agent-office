@@ -3,7 +3,7 @@
  * columns of Task cards; a project's plans in progress and its unopened Stories share one 기획 중 lane. No script of
  * its own; every value goes through `esc`.
  */
-import { esc, inColumn, layout, macBadgeLabel, type Chrome } from "./pages.ts";
+import { esc, inColumn, layout, macBadgeLabel, tone, tonePill, type Chrome } from "./pages.ts";
 import { planStateLabel } from "./plan-pages.ts";
 import type { PlanCard } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
@@ -19,7 +19,7 @@ const COLUMNS: { key: Exclude<BoardColumn, "hidden">; label: string }[] = [
   { key: "done", label: "완료" },
 ];
 const NO_MAC: MacBadge = { state: "none", lastSeen: null };
-const pill = (label: string) => `<span class="pill">${esc(label)}</span>`;
+const pill = (label: string, t?: "need" | "run" | "stop" | "done") => (t ? tonePill(t, label) : `<span class="pill">${esc(label)}</span>`);
 /** A card whose Task is taken (or stopped) names who has it, how their Mac is and how long it has stood there. */
 const TAKEN = new Set(["claimed", "held", "failed"]);
 
@@ -39,7 +39,7 @@ function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
   const who = taken
     ? `<p>${esc(c.assignee?.name)} · ${esc(macBadgeLabel(badges.get(c.assignee?.id ?? "") ?? NO_MAC))}${timed ? ` · ${esc(inColumn(c.columnAt))}` : ""}</p>`
     : "";
-  const state = TAKEN.has(c.state) ? `<p>${pill(taskStateLabel(c.state, c.stage))}</p>` : "";
+  const state = TAKEN.has(c.state) ? `<p>${pill(taskStateLabel(c.state, c.stage), tone("task", c.state))}</p>` : "";
   const why = c.state === "failed" ? `<p>${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "";
   const repo = c.repo ? `<p class="muted">${esc(c.repo.name)}</p>` : "";
   return `<li class="card"><a href="/tasks/${esc(c.taskId)}">#${c.number} ${esc(c.title)}</a>${repo}${state}${who}${why}</li>`;
@@ -53,7 +53,7 @@ function storyLane(s: BoardStory, badges: Map<string, MacBadge>): string {
     const more = key === "done" && s.doneMore > 0 ? `<li class="muted"><a href="/stories/${esc(s.id)}">${s.doneMore}개 더</a></li>` : "";
     return `<div class="col" data-col="${key}"><h3><span>${label}</span><span>${cards.length}</span></h3><ul class="cards">${cards.map((c) => taskCard(c, badges)).join("")}${more}</ul></div>`;
   }).join("");
-  return `<article class="lane" data-story="${s.number}"><div class="story"><a href="/stories/${esc(s.id)}"><b>#${s.number} ${esc(s.title)}</b></a>${pill(storyStateLabel(s.state))}<span class="muted">PL ${esc(s.pl.name)}${now}</span></div><div class="cols">${columns}</div></article>`;
+  return `<article class="lane" data-story="${s.number}"><div class="story"><a href="/stories/${esc(s.id)}"><b>#${s.number} ${esc(s.title)}</b></a>${pill(storyStateLabel(s.state), tone("story", s.state))}<span class="muted">PL ${esc(s.pl.name)}${now}</span></div><div class="cols">${columns}</div></article>`;
 }
 
 export function boardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome): string {
@@ -66,8 +66,8 @@ export function boardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome
     const planning =
       plans.length || drafts.length
         ? `<article class="lane"><h3>기획 중</h3><ul class="cards">${plans
-            .map((x) => `<li class="card"><a href="/plans/${esc(x.id)}">${esc(x.title)}</a> ${pill(planStateLabel(x.state, x.leased))} · PL ${esc(x.pl.name)}</li>`)
-            .concat(drafts.map((s) => `<li class="card"><a href="/stories/${esc(s.id)}">#${s.number} ${esc(s.title)}</a> ${pill("기획 중")}<p class="muted">PL ${esc(s.pl.name)}</p></li>`))
+            .map((x) => `<li class="card"><a href="/plans/${esc(x.id)}">${esc(x.title)}</a> ${pill(planStateLabel(x.state, x.leased), tone("plan", x.state))} · PL ${esc(x.pl.name)}</li>`)
+            .concat(drafts.map((s) => `<li class="card"><a href="/stories/${esc(s.id)}">#${s.number} ${esc(s.title)}</a> ${pill("기획 중", "run")}<p class="muted">PL ${esc(s.pl.name)}</p></li>`))
             .join("")}</ul></article>`
         : "";
     const start = v.canPlan.has(p.project.id) ? `<a href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";

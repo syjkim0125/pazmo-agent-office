@@ -21,7 +21,9 @@ const NOT_LINKED_ERROR = "내 Mac이 지금 이 레포의 일을 가져갈 수 �
 const RERUN_NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
 const NUDGE = "이 Mac 연결 — 처음 한 번, 명령 한 줄";
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
-const pill = (word) => `<span class="pill">${word}</span>`;
+/** State pills carry their tone class (tone() in pages.ts); a word with no entry is a plain pill. */
+const TONES = { "진행 중": "run", "완료": "done", "시작 중": "run", "할 일": "run", "멈춤(Mac 소식 없음)": "stop", "멈춤(실패)": "stop", "취소됨": "done", "진행 중(구현)": "run", "머지 중": "run", "앞 Task 기다림": "run" };
+const pill = (word) => `<span class="pill${TONES[word] ? ` ${TONES[word]}` : ""}">${word}</span>`;
 const merged = (over = {}) => ({ prUrl: PR, mergeCommit: SHA, summary: "s", assumptions: [], ...over });
 
 /**
@@ -235,12 +237,12 @@ test("the board lists projects with Story progress; the Story page lists every T
   assert.ok(page.includes(pill("진행 중")));
   assert.ok(page.includes("<pre># Story\n본문</pre>"));
   assert.ok(page.includes("PL: PL"));
-  assert.ok(page.includes(`<tr><td>app-be</td><td>main</td><td>feature/story-${s.number}/base</td></tr>`));
+  assert.ok(page.includes(`<details class="dev"><summary>개발 정보</summary><h3>Story base</h3>`) && page.includes(`<tr><td>app-be</td><td>main</td><td>feature/story-${s.number}/base</td></tr>`), "Story base, folded");
   assert.ok(page.includes(`<tr><td>app-fe</td><td>develop</td><td>feature/story-${s.number}/base</td></tr>`));
-  const row = (id) => new RegExp(`<tr><td>#\\d+</td><td>[^<]*</td><td><a href="/tasks/${id}">[^<]+</a></td><td><span class="pill">([^<]+)</span></td><td>([^<]*)</td><td>(.*?)</td><td>(.*?)</td></tr>`).exec(page);
-  const [, apiWord, apiWho, , apiPr] = row(s.api);
+  const row = (id) => new RegExp(`<tr><td>#\\d+</td><td>[^<]*</td><td><a href="/tasks/${id}">[^<]+</a></td><td><span class="pill \\w+">([^<]+)</span></td><td>([^<]*)</td><td>(.*?)</td></tr>`).exec(page);
+  const [, apiWord, apiWho] = row(s.api);
   assert.deepEqual([apiWord, apiWho], ["완료", "C"]);
-  assert.ok(apiPr.includes(`<a href="${PR}" rel="noreferrer">`), "PR link");
+  assert.ok(page.includes(`<details class="dev"><summary>개발 정보</summary>`) && page.includes(`<a href="${PR}" rel="noreferrer">`), "PR link, folded");
   const [, uiWord, , uiDeps] = row(s.ui);
   assert.equal(uiWord, "할 일");
   assert.ok(uiDeps.includes(`<a href="/tasks/${s.api}">#${s.apiNo}</a>`), "the Task before it");
@@ -256,7 +258,7 @@ test("state words: ready 할 일, claimed with stage build 진행 중(구현), m
   const cBe = h.linkOf(h.c, h.be);
   const word = async (id = s.api) => {
     const text = (await h.get(`/tasks/${id}`, h.pl)).text;
-    return /<p class="state"><span class="pill">([^<]+)<\/span>/.exec(text)[1];
+    return /<p class="state"><span class="pill \w+">([^<]+)<\/span>/.exec(text)[1];
   };
   assert.equal(await word(), "할 일");
   const api = h.board.claimNext(cBe);
@@ -413,7 +415,7 @@ test("a merged Task shows the summary, the decision lines with ASSUMED in bold a
   h.board.reportMerged(cBe, api.taskId, api.claimId, merged({ summary, assumptions: ["ASSUMED: 쿠폰 코드는 대문자", "기존 응답 형식을 유지"] }));
   const page = (await h.get(`/tasks/${s.api}`, h.b)).text;
   assert.ok(page.includes(`<pre>${summary}</pre>`));
-  assert.ok(page.includes("<li><b>ASSUMED: 쿠폰 코드는 대문자</b></li><li>기존 응답 형식을 유지</li>"));
+  assert.ok(page.includes("<li>AI가 정한 것: 쿠폰 코드는 대문자</li><li>기존 응답 형식을 유지</li>"));
   assert.ok(page.includes(`<a href="${PR}" rel="noreferrer">${PR}</a>`));
   assert.ok(page.includes(`<code>${SHA.slice(0, 12)}</code>`) && !page.includes(SHA), "the merge commit's first 12 characters");
   assert.ok(page.includes("<pre>api 설명</pre>") && page.includes("<li><code>src/api.ts</code></li>"), "what the Task was");
@@ -454,12 +456,12 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   h.board.mergeLock(s.plBe, copy.taskId, copy.claimId);
   now += HELD_AFTER_MS + 1;
   const page = (await h.get(`/tasks/${s.copy}`, h.admin)).text;
-  assert.ok(page.includes(`<p>${releaseLine} 머지 중이었을 수 있습니다.</p>`));
+  assert.ok(page.includes(`<p>${releaseLine} 합치는 중이었을 수 있습니다.</p>`));
   // And it cannot be cancelled from here: the change may be merged already, so 풀기 comes first.
-  assert.ok(page.includes("<p>머지 잠금을 쥐고 있어 지금은 취소할 수 없습니다. 머지됐을 수 있으니 먼저 풀기를 하세요.</p>"));
+  assert.ok(page.includes("<p>합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요.</p>"));
   assert.ok(!page.includes(`/tasks/${s.copy}/cancel`), "no cancel form");
   assert.ok((await h.get(`/tasks/${s.api}`, h.admin)).text.includes(cancel(h.admin, s.api)), "api holds no lock: the form");
-  assert.ok(!(await h.get(`/tasks/${s.api}`, h.admin)).text.includes("머지 중이었을 수 있습니다."), "api holds no lock");
+  assert.ok(!(await h.get(`/tasks/${s.api}`, h.admin)).text.includes("합치는 중이었을 수 있습니다."), "api holds no lock");
   // An ended Task has nothing to cancel, and the Story verification is never cancelled from here.
   assert.ok(!(await h.get(`/tasks/${s.verify}`, h.pl)).text.includes("/cancel"));
 });
@@ -486,7 +488,7 @@ test("untrusted text is escaped on the work, board, Story and Task pages", async
   const failed = (await h.get(`/tasks/${s.copy}`, h.c)).text;
   for (const part of [`conflict ${SAFE}`, `메모 ${SAFE}`, `C ${SAFE}`]) assert.ok(failed.includes(part), part);
   const done = (await h.get(`/tasks/${s.api}`, h.b)).text;
-  for (const part of [`요약 ${SAFE}`, `<b>ASSUMED: ${SAFE}</b>`, `판단 ${SAFE}`, `api 작업 ${SAFE}`, `api 설명 ${SAFE}`, `src/api.ts ${SAFE}`, `app-be ${SAFE}`]) assert.ok(done.includes(part), part);
+  for (const part of [`요약 ${SAFE}`, `AI가 정한 것: ${SAFE}`, `판단 ${SAFE}`, `api 작업 ${SAFE}`, `api 설명 ${SAFE}`, `src/api.ts ${SAFE}`, `app-be ${SAFE}`]) assert.ok(done.includes(part), part);
   const story = (await h.get(`/stories/${s.storyId}`, h.b)).text;
   for (const part of [`쿠폰 발급 ${SAFE}`, `본문 ${SAFE}`, `PL ${SAFE}`]) assert.ok(story.includes(part), part);
   assert.ok((await h.get("/board", h.b)).text.includes(`쿠폰 개편 ${SAFE}`));

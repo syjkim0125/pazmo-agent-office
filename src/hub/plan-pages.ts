@@ -3,7 +3,7 @@
  * Story. No script; every value goes through `esc`. Each form is drawn only when `PlanView.actions` says the viewer may,
  * and carries the revision it was drawn at, so a second click or an older tab changes nothing.
  */
-import { ago, csrfField, esc, layout, macBadgeLabel, type Chrome } from "./pages.ts";
+import { ago, csrfField, esc, layout, macBadgeLabel, tone, tonePill, type Chrome } from "./pages.ts";
 import { PLAN_LIMITS, type PlanApproval, type PlanQuestion, type PlanRound, type PlanState } from "./plan-protocol.ts";
 import type { PlanRepo, PlanView } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
@@ -135,10 +135,10 @@ function splitDetails(split: unknown, repos: PlanRepo[]): string {
   if (isSplit(split)) {
     const task = (n: SplitNode) => {
       const after = split.graph.edges.filter((e) => e.to === n.id).map((e) => e.from);
-      return `<li><p><b>${esc(n.id)} · ${esc(repo(n.repoId))} · ${esc(n.title)}</b></p><p class="muted">먼저 끝나야 할 Task: ${after.length ? esc(after.join(", ")) : "없음"}</p><pre>${esc(n.spec)}</pre><p>바꿀 파일</p><ul>${n.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul><p>확인 명령</p><ul>${n.verify.map((c) => check(c)).join("")}</ul></li>`;
+      return `<li><p><b>${esc(n.id)} · ${esc(repo(n.repoId))} · ${esc(n.title)}</b></p><p class="muted">먼저 끝나야 할 Task: ${after.length ? esc(after.join(", ")) : "없음"}</p><pre>${esc(n.spec)}</pre><details class="dev"><summary>개발 정보</summary><p>바꿀 파일</p><ul>${n.files.map((f) => `<li><code>${esc(f)}</code></li>`).join("")}</ul><p>확인 명령</p><ul>${n.verify.map((c) => check(c)).join("")}</ul></details></li>`;
     };
     const story = split.storyVerify.flatMap((v) => v.checks.map((c) => check(c, `${esc(repo(v.repoId))} — `)));
-    body = `<ol>${split.graph.nodes.map((n) => task(n)).join("")}</ol><h3>Story 전체 확인</h3>${story.length ? `<ul>${story.join("")}</ul>` : "<p>없음</p>"}`;
+    body = `<ol>${split.graph.nodes.map((n) => task(n)).join("")}</ol><h3>Story 전체 확인</h3>${story.length ? `<details class="dev"><summary>개발 정보</summary><ul>${story.join("")}</ul></details>` : "<p>없음</p>"}`;
   } else body = `<pre>${esc(JSON.stringify(split, null, 2))}</pre>`;
   return `<details><summary>올라갈 Task 전부 보기</summary>${body}</details>`;
 }
@@ -194,7 +194,7 @@ export function planPage(
       ? `<p>${esc(`PL의 Office에 연결되지 않은 레포: ${o.unlinked.join(", ")} — PL Mac의 Office에 이 레포를 연결해야 기획이 시작됩니다.`)}</p>`
       : "";
   const opened = v.state === "open" && v.story ? `<p><a href="/stories/${esc(v.story.id)}">Story #${v.story.number} 보기</a></p>` : "";
-  const head = `<section><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${pill(planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a class="refresh" href="${esc(base)}">새로 고침</a><span class="live-note">저절로 업데이트</span></p></section>`;
+  const head = `<section><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${tonePill(tone("plan", v.state), planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a class="refresh" href="${esc(base)}">새로 고침</a><span class="live-note">저절로 업데이트</span></p></section>`;
 
   let failure = "";
   if (v.state === "failed" && v.failure) {
@@ -226,7 +226,7 @@ export function planPage(
       ? `<section><h2>설계</h2><pre>${esc(v.design.text)}</pre>${v.split === null ? "" : splitDetails(v.split, v.repos)}${v.state === "awaiting_g3" ? approve("G3", v.design.hash, G3_NOTE, "설계 승인") : ""}</section>`
       : "",
     approvals.length
-      ? `<section><h2>승인 기록</h2><ul>${approvals.map((a) => `<li>${a.gate} 승인: ${esc(v.pl.name)} · ${esc(when(a.at))}</li>`).join("")}</ul></section>`
+      ? `<section><h2>승인 기록</h2><ul>${approvals.map((a) => `<li>${a.gate === "G1" ? "초안 승인(G1)" : a.gate === "G3" ? "설계 승인(G3)" : esc(a.gate)}: ${esc(v.pl.name)} · ${esc(when(a.at))}</li>`).join("")}</ul></section>`
       : "",
     v.actions.cancel
       ? `<section>${form("cancel", `<p>${CANCEL}</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div>`)}</section>`
