@@ -976,9 +976,10 @@ test("U44: every control is at least 32px tall with a mouse and 44px square on t
 test("U44: the accent marks only the primary action, the current selection, focus, hover and links", async (t) => {
   const style = await styleOf(await team(t));
   assert.equal(ruleOf(style, "button.secondary,.btn.ghost"), "background:var(--panel);color:var(--fg);border-color:var(--line)", "secondary actions are neutral");
-  const uses = [...style.replace(/@media[^{]*\{/g, "").matchAll(/(?:^|[}\n])([^{}]+)\{([^}]*)\}/g)].filter((m) => /var\(--accent\)/.test(m[2])).map((m) => m[1].trim());
+  const uses = [...style.replace(/@media[^{]*\{/g, "").matchAll(/(?<=^|[}\n])([^{}]+)\{([^}]*)\}/g)].filter((m) => /var\(--accent\)/.test(m[2])).map((m) => m[1].trim());
   const allowed = /^a$|:hover|:focus-visible|aria-current|^button,\.btn$|^input\[type=checkbox\]$/;
   for (const sel of uses) assert.match(sel, allowed, `${sel} uses the accent`);
+  for (const sel of ["button.secondary:hover,.btn.ghost:hover", ".tabs a[aria-current=page]", ".filter[aria-current=true]::before"]) assert.ok(uses.includes(sel), `${sel} is read`);
   assert.equal(ruleOf(style, ".scard:hover"), "border-right-color:var(--accent);border-bottom-color:var(--accent);border-left-color:var(--accent)", "hover keeps the state colour on top");
 });
 
@@ -1014,6 +1015,6 @@ test("U44: the space between groups is at least twice the space inside them", as
 
 test("U44: counts, times and table numbers line up", async (t) => {
   const style = await styleOf(await team(t));
-  const tabular = [...style.matchAll(/(?:^|[}\n])([^{}]+)\{[^}]*font-variant-numeric:tabular-nums/g)].flatMap((m) => m[1].split(",").map((s) => s.trim()));
+  const tabular = [...style.matchAll(/(?<=^|[}\n])([^{}]+)\{[^}]*font-variant-numeric:tabular-nums/g)].flatMap((m) => m[1].split(",").map((s) => s.trim()));
   for (const sel of ["table", ".pill", ".mac", ".macchip", ".meta", ".time", ".count", ".progress", "p.sprog", "ul.work"]) assert.ok(tabular.includes(sel), sel);
 });
