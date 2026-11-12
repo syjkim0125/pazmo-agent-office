@@ -1,7 +1,7 @@
 ---
 title: Keep grid panels from growing to the longest word
 date: "2026-11-11"
-last_updated: "2026-11-11"
+last_updated: "2026-11-12"
 module: Hub web stylesheet
 problem_type: ui_bug
 component: frontend_stimulus
@@ -43,3 +43,4 @@ The Hub restyle (U40) set `overflow-wrap:anywhere` on `body`. Review found that 
 
 - Change record: `docs/verification/2026-11-11-hub-polish.md`; kit reviews `.ai-workflow/runs/U40-review-1.md` and `U40-two-boards-review-1.md`.
 - Preview method: `docs/solutions/workflow-issues/real-check-mac-paired-features-on-a-router-mode-hub.md` ("Preview new web code on real data with a copy").
+- U43 hit it again in the grouped waiting rows (`.needs li`, 390px → 782px with one long word in the shared reason) and fixed it the same way; see `ring-a-mark-in-the-colour-the-browser-draws.md` for the colour lesson from the same change.

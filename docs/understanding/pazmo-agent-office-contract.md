@@ -3,8 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-12 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/hub-polish-leftovers-g4.json · 2026-11-12 · Check-in: accepted
-G4: PASS — U41(D43, Story 보드의 단계 칸이 860px보다 넓은 창에서 언제나 한 줄이고, Story 상태 글자는 "검증 중"이며, 취소한 Story와 열리기 전 Story의 숫자가 카드·Story 화면·`/tasks` 줄에서 같다; 주소·버튼·권한·승인 확인은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/hub-polish-leftovers-g4.md).
+Understanding gate (G4): .ai-workflow/approvals/hub-many-projects-g4.json · 2026-11-12 · Check-in: accepted
+G4: PASS — U43(D44, 나를 기다리는 일은 숨김 없이 같은 상태 글자끼리 한 줄로 묶이고, 프로젝트가 둘 이상이면 두 보드의 프로젝트 칩(`?project=`)이 한 프로젝트만 보이며 거르개와 탭을 건너 유지되고, 전체에서 보이는 Story가 없는 프로젝트는 한 줄에 모이며, 새 프로젝트는 그 칩 보기로 간다; 나를 기다리는 일은 늘 모든 프로젝트, 버튼·권한·승인 확인은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "Approve and merge"를 골랐다(D13). 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/hub-many-projects-g4.md).
 
 ## Goal
 사람이 새 최소 Office(Tasks·작업 상세·Decisions·Agents)에서 일을 만들고 진행·결정·승인을 확인하며, ai-workflow-kit의 역할별 업무 절차가 작업 안의 단계로 돈다. kit가 역할별 절차와 로컬 run 상태를 관리하고 Office가 작업 큐·agent·격리 실행·실제 승인 기록을 관리한다. 팀 협업은 팀 허브와 팀 Story 보드(D24)로 한다. 실패하거나 검증하지 못한 작업은 완료로 표시하지 않는다. 실제 실행·격리·설치 시험과 모의 시험의 증거를 구분한다.

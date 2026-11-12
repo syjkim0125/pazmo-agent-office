@@ -1,0 +1,8 @@
+{
+  "token": "f8065af6c9c88cc9dce3522969c2c09e07dc54688c490fd94b7529e89c2ce8f0",
+  "output": {
+    "summary": "Fresh checks on 03c2f97 with Node v24.19.0 first on PATH (attempt 1 had run under Node v22 and was reset): 576/576 + 636/636 + 655/655 = 1867/1867, typecheck exit 0, story check PASS.",
+    "evidence": [".ai-workflow/runs/U43-hub-many-projects-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

@@ -1,0 +1,1173 @@
+TAP version 13
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/approvals.test.mjs
+not ok 1 - tests/approvals.test.mjs
+  ---
+  duration_ms: 108.235041
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/approvals.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/candidates.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/candidates.test.mjs
+not ok 2 - tests/candidates.test.mjs
+  ---
+  duration_ms: 108.05925
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/candidates.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: bridge exposes exactly the Office tools
+ok 3 - bridge exposes exactly the Office tools
+  ---
+  duration_ms: 145.038833
+  ...
+# Subtest: file tools translate to exec-server methods against the remote cwd
+ok 4 - file tools translate to exec-server methods against the remote cwd
+  ---
+  duration_ms: 148.929833
+  ...
+# Subtest: paths outside the remote cwd are refused without a request
+ok 5 - paths outside the remote cwd are refused without a request
+  ---
+  duration_ms: 97.054292
+  ...
+# Subtest: a write_file request split inside a Korean character keeps its bytes
+ok 6 - a write_file request split inside a Korean character keeps its bytes
+  ---
+  duration_ms: 219.685125
+  ...
+# Subtest: executor errors are returned to the model as tool errors
+ok 7 - executor errors are returned to the model as tool errors
+  ---
+  duration_ms: 95.522084
+  ...
+# Subtest: run_command polls until closed and reports exit code and output
+ok 8 - run_command polls until closed and reports exit code and output
+  ---
+  duration_ms: 98.248417
+  ...
+# Subtest: bridge exits when the relay closes and writes nothing on the host
+ok 9 - bridge exits when the relay closes and writes nothing on the host
+  ---
+  duration_ms: 94.847208
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/candidates.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/codex-profile.test.mjs
+not ok 4 - tests/codex-profile.test.mjs
+  ---
+  duration_ms: 116.307459
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/codex-profile.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/runners/container-verifier.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/container-verifier.test.mjs
+not ok 5 - tests/container-verifier.test.mjs
+  ---
+  duration_ms: 122.515667
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/container-verifier.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/runtime/decision-summary.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/decision-summary.test.mjs
+not ok 6 - tests/decision-summary.test.mjs
+  ---
+  duration_ms: 125.351791
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/decision-summary.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/runners/exec-relay.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/exec-relay.test.mjs
+not ok 7 - tests/exec-relay.test.mjs
+  ---
+  duration_ms: 138.572417
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/exec-relay.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/hub/paths.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-board-page.test.mjs
+not ok 8 - tests/hub-board-page.test.mjs
+  ---
+  duration_ms: 144.412208
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-board-page.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-cli.test.mjs
+not ok 9 - tests/hub-cli.test.mjs
+  ---
+  duration_ms: 146.81575
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-cli.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-installer.test.mjs
+not ok 10 - tests/hub-installer.test.mjs
+  ---
+  duration_ms: 147.203208
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-installer.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-link-system-trust.test.mjs
+not ok 11 - tests/hub-link-system-trust.test.mjs
+  ---
+  duration_ms: 153.584875
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-link-system-trust.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-mac-api.test.mjs
+not ok 12 - tests/hub-mac-api.test.mjs
+  ---
+  duration_ms: 116.26375
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-mac-api.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/hub/run.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-openshift-run.test.mjs
+not ok 13 - tests/hub-openshift-run.test.mjs
+  ---
+  duration_ms: 112.622459
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-openshift-run.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/hub/pages.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-plain-words.test.mjs
+not ok 14 - tests/hub-plain-words.test.mjs
+  ---
+  duration_ms: 109.072209
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-plain-words.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/hub/plan-protocol.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-plan-pages.test.mjs
+not ok 15 - tests/hub-plan-pages.test.mjs
+  ---
+  duration_ms: 110.902666
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-plan-pages.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-snapshot.test.mjs
+not ok 16 - tests/hub-snapshot.test.mjs
+  ---
+  duration_ms: 108.076667
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-snapshot.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-store-incoming.test.mjs
+not ok 17 - tests/hub-store-incoming.test.mjs
+  ---
+  duration_ms: 102.812125
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-store-incoming.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-store.test.mjs
+not ok 18 - tests/hub-store.test.mjs
+  ---
+  duration_ms: 103.304417
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-store.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-story-link-api.test.mjs
+not ok 19 - tests/hub-story-link-api.test.mjs
+  ---
+  duration_ms: 104.696458
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-story-link-api.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-story-store.test.mjs
+not ok 20 - tests/hub-story-store.test.mjs
+  ---
+  duration_ms: 104.495833
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-story-store.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/hub/tls.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/hub-tls.test.mjs
+not ok 21 - tests/hub-tls.test.mjs
+  ---
+  duration_ms: 110.860292
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/hub-tls.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/intake-publication.test.mjs
+not ok 22 - tests/intake-publication.test.mjs
+  ---
+  duration_ms: 111.410042
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/intake-publication.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/cli/launcher.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/launcher.test.mjs
+not ok 23 - tests/launcher.test.mjs
+  ---
+  duration_ms: 108.498083
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/launcher.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/lean/schema.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/lean-office.test.mjs
+not ok 24 - tests/lean-office.test.mjs
+  ---
+  duration_ms: 110.999958
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/lean-office.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# Subtest: columnsView gives the five columns in order, empty ones included
+ok 31 - columnsView gives the five columns in order, empty ones included
+  ---
+  duration_ms: 1.483166
+  ...
+# Subtest: columnsView still gives five empty columns for a missing or partial board
+ok 32 - columnsView still gives five empty columns for a missing or partial board
+  ---
+  duration_ms: 0.178542
+  ...
+# Subtest: stageLabel names every stage in both languages
+ok 33 - stageLabel names every stage in both languages
+  ---
+  duration_ms: 0.1775
+  ...
+# Subtest: decisionView for G1: option 1 needs a note, option 2 does not
+ok 34 - decisionView for G1: option 1 needs a note, option 2 does not
+  ---
+  duration_ms: 0.444583
+  ...
+# Subtest: decisionView for G4 with feedback offers option 3 without a note
+ok 35 - decisionView for G4 with feedback offers option 3 without a note
+  ---
+  duration_ms: 0.131125
+  ...
+# Subtest: decisionView for G4 without feedback: option 1 needs numbered answers, option 2 rejects, no option 3
+ok 36 - decisionView for G4 without feedback: option 1 needs numbered answers, option 2 rejects, no option 3
+  ---
+  duration_ms: 0.209916
+  ...
+# Subtest: decisionView maps the engine's Korean option labels to English
+ok 37 - decisionView maps the engine's Korean option labels to English
+  ---
+  duration_ms: 0.349334
+  ...
+# Subtest: decisionView asks for numbered answers to questions and marks the reject option
+ok 38 - decisionView asks for numbered answers to questions and marks the reject option
+  ---
+  duration_ms: 0.081459
+  ...
+# Subtest: decisionView survives a sparse item
+ok 39 - decisionView survives a sparse item
+  ---
+  duration_ms: 0.382958
+  ...
+# Subtest: el turns string children into text nodes and never parses HTML
+ok 40 - el turns string children into text nodes and never parses HTML
+  ---
+  duration_ms: 0.746583
+  ...
+# Subtest: el appends element children and accepts a single child
+ok 41 - el appends element children and accepts a single child
+  ---
+  duration_ms: 0.421041
+  ...
+# Subtest: el refuses every HTML, inline style and string handler property
+ok 42 - el refuses every HTML, inline style and string handler property
+  ---
+  duration_ms: 0.587541
+  ...
+# Subtest: el takes only fragment or same-origin relative links, and data: only for an image
+ok 43 - el takes only fragment or same-origin relative links, and data: only for an image
+  ---
+  duration_ms: 1.081083
+  ...
+# Subtest: el sets only listed attributes: srcdoc, style, form targets and unknown names are refused
+ok 44 - el sets only listed attributes: srcdoc, style, form targets and unknown names are refused
+  ---
+  duration_ms: 0.470833
+  ...
+# Subtest: the four screen files exist
+ok 45 - the four screen files exist
+  ---
+  duration_ms: 0.563834
+  ...
+# Subtest: no script uses a browser dialog, HTML insertion or eval
+ok 46 - no script uses a browser dialog, HTML insertion or eval
+  ---
+  duration_ms: 5.184166
+  ...
+# Subtest: every script URL is same-origin
+ok 47 - every script URL is same-origin
+  ---
+  duration_ms: 1.990125
+  ...
+# Subtest: index.html loads nothing from elsewhere and has no inline script, style or handler
+ok 48 - index.html loads nothing from elsewhere and has no inline script, style or handler
+  ---
+  duration_ms: 1.114709
+  ...
+# Subtest: style.css loads no font or image from elsewhere and themes light and dark
+ok 49 - style.css loads no font or image from elsewhere and themes light and dark
+  ---
+  duration_ms: 0.484583
+  ...
+# Subtest: Korean text wraps between words, and long unbroken strings still wrap
+ok 50 - Korean text wraps between words, and long unbroken strings still wrap
+  ---
+  duration_ms: 0.851375
+  ...
+# Subtest: t() has every key in both languages
+ok 51 - t() has every key in both languages
+  ---
+  duration_ms: 0.580542
+  ...
+# Subtest: t() fills placeholders and names an unknown key instead of failing
+ok 52 - t() fills placeholders and names an unknown key instead of failing
+  ---
+  duration_ms: 0.179125
+  ...
+# Subtest: langOf picks Korean when the language starts with ko
+ok 53 - langOf picks Korean when the language starts with ko
+  ---
+  duration_ms: 0.081584
+  ...
+# Subtest: routeOf reads the four hash routes and falls back to the board
+ok 54 - routeOf reads the four hash routes and falls back to the board
+  ---
+  duration_ms: 0.343541
+  ...
+# Subtest: runnerLabel names the runner, model and effort it has
+ok 55 - runnerLabel names the runner, model and effort it has
+  ---
+  duration_ms: 0.086166
+  ...
+# Subtest: diffState: evidence pending is preparing, any other error is unavailable
+ok 56 - diffState: evidence pending is preparing, any other error is unavailable
+  ---
+  duration_ms: 0.083375
+  ...
+# Subtest: runnerOptions offers only ready, logged-in, unblocked runners and keeps the others' hints
+ok 57 - runnerOptions offers only ready, logged-in, unblocked runners and keeps the others' hints
+  ---
+  duration_ms: 0.172875
+  ...
+# Subtest: effortChoices is default (null) followed by the model's reasoning levels
+ok 58 - effortChoices is default (null) followed by the model's reasoning levels
+  ---
+  duration_ms: 0.129709
+  ...
+# Subtest: agentPatch sends only what changed, with effort for the stored reasoning
+ok 59 - agentPatch sends only what changed, with effort for the stored reasoning
+  ---
+  duration_ms: 0.199083
+  ...
+# Subtest: taskTitleError allows 1–200 characters after trimming
+ok 60 - taskTitleError allows 1–200 characters after trimming
+  ---
+  duration_ms: 0.217125
+  ...
+# Subtest: errorText shows the server's message, in English for the codes the screen knows
+ok 61 - errorText shows the server's message, in English for the codes the screen knows
+  ---
+  duration_ms: 0.143084
+  ...
+# Subtest: holdReason: a dialog, a confirm, a typed or focused field, or a selection in a copyable field holds the region
+ok 62 - holdReason: a dialog, a confirm, a typed or focused field, or a selection in a copyable field holds the region
+  ---
+  duration_ms: 0.394709
+  ...
+# Subtest: holdReason: a selection holds only inside a copyable field, not plain board text
+ok 63 - holdReason: a selection holds only inside a copyable field, not plain board text
+  ---
+  duration_ms: 0.340625
+  ...
+# Subtest: pollStep: draw changed data unless held; a typed note gets the waiting cue
+ok 64 - pollStep: draw changed data unless held; a typed note gets the waiting cue
+  ---
+  duration_ms: 0.159167
+  ...
+# Subtest: afterCreate: go to the board only when nothing on this screen would be lost
+ok 65 - afterCreate: go to the board only when nothing on this screen would be lost
+  ---
+  duration_ms: 0.080875
+  ...
+# Subtest: modelChoices lists the runner's models, or the CLI's default when it lists none
+ok 66 - modelChoices lists the runner's models, or the CLI's default when it lists none
+  ---
+  duration_ms: 0.145875
+  ...
+# Subtest: delivery, role and time labels for the task detail
+ok 67 - delivery, role and time labels for the task detail
+  ---
+  duration_ms: 31.733625
+  ...
+# Subtest: decisionView opens and names the request; a subtask's title is secondary
+ok 68 - decisionView opens and names the request; a subtask's title is secondary
+  ---
+  duration_ms: 0.263875
+  ...
+# Subtest: a stopped card says so, and the detail's stop note gives the reason and what to do
+ok 69 - a stopped card says so, and the detail's stop note gives the reason and what to do
+  ---
+  duration_ms: 0.180125
+  ...
+# Subtest: rerunDraft fills the dialog from the stopped task: its content, and its agent while it exists, else the oldest
+ok 70 - rerunDraft fills the dialog from the stopped task: its content, and its agent while it exists, else the oldest
+  ---
+  duration_ms: 0.123208
+  ...
+# Subtest: afterRerun opens the new task and says whether the stopped one was cancelled
+ok 71 - afterRerun opens the new task and says whether the stopped one was cancelled
+  ---
+  duration_ms: 0.071208
+  ...
+# Subtest: rerun refusals read in English too; Korean keeps the server's words
+ok 72 - rerun refusals read in English too; Korean keeps the server's words
+  ---
+  duration_ms: 0.048042
+  ...
+# Subtest: taskBodyError allows the title and details together up to the intake's 16384 bytes
+ok 73 - taskBodyError allows the title and details together up to the intake's 16384 bytes
+  ---
+  duration_ms: 0.128334
+  ...
+# Subtest: the connection-lost message says to open the monitor address again after a restart
+ok 74 - the connection-lost message says to open the monitor address again after a restart
+  ---
+  duration_ms: 0.056042
+  ...
+# Subtest: the task detail shows the result summary as plain text that wraps between words
+ok 75 - the task detail shows the result summary as plain text that wraps between words
+  ---
+  duration_ms: 0.765
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/intake.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/live-runtime.test.mjs
+not ok 26 - tests/live-runtime.test.mjs
+  ---
+  duration_ms: 118.457833
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/live-runtime.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/native-office.test.mjs
+not ok 27 - tests/native-office.test.mjs
+  ---
+  duration_ms: 106.172333
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/native-office.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/planning-execution.test.mjs
+not ok 28 - tests/planning-execution.test.mjs
+  ---
+  duration_ms: 105.732666
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/planning-execution.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/planning.test.mjs
+not ok 29 - tests/planning.test.mjs
+  ---
+  duration_ms: 107.048416
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/planning.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/candidates.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/role-profiles.test.mjs
+not ok 30 - tests/role-profiles.test.mjs
+  ---
+  duration_ms: 112.975167
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/role-profiles.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/runtime/runner-jobs.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/runner-jobs.test.mjs
+not ok 31 - tests/runner-jobs.test.mjs
+  ---
+  duration_ms: 108.65425
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/runner-jobs.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/runner-settings.test.mjs
+not ok 32 - tests/runner-settings.test.mjs
+  ---
+  duration_ms: 107.555958
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/runner-settings.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/store.test.mjs
+not ok 33 - tests/store.test.mjs
+  ---
+  duration_ms: 116.12325
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/store.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/lean/schema.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-gate.test.mjs
+not ok 34 - tests/team-gate.test.mjs
+  ---
+  duration_ms: 106.741042
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-gate.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/cli/project.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-lifecycle.test.mjs
+not ok 35 - tests/team-lifecycle.test.mjs
+  ---
+  duration_ms: 105.822083
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-lifecycle.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/team/launch-agent.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-mac-watch.test.mjs
+not ok 36 - tests/team-mac-watch.test.mjs
+  ---
+  duration_ms: 108.237125
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-mac-watch.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/candidates.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-plan-gates.test.mjs
+not ok 37 - tests/team-plan-gates.test.mjs
+  ---
+  duration_ms: 115.570375
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-plan-gates.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/cli/project.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-planner.test.mjs
+not ok 38 - tests/team-planner.test.mjs
+  ---
+  duration_ms: 109.75125
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-planner.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/translators:412
+#     throw new ERR_UNKNOWN_BUILTIN_MODULE(url);
+#           ^
+# Error [ERR_UNKNOWN_BUILTIN_MODULE]: No such built-in module: node:sqlite
+#     at ModuleLoader.builtinStrategy (node:internal/modules/esm/translators:412:11)
+#     at callTranslator (node:internal/modules/esm/loader:429:14)
+#     at ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:30)
+#     at async ModuleJob._link (node:internal/modules/esm/module_job:106:19) {
+#   code: 'ERR_UNKNOWN_BUILTIN_MODULE'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-registry.test.mjs
+not ok 39 - tests/team-registry.test.mjs
+  ---
+  duration_ms: 106.770791
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-registry.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/cli/project.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-story-contract.test.mjs
+not ok 40 - tests/team-story-contract.test.mjs
+  ---
+  duration_ms: 99.166291
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-story-contract.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/kit-role-runs.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/team-upload.test.mjs
+not ok 41 - tests/team-upload.test.mjs
+  ---
+  duration_ms: 83.926167
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/team-upload.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+# node:internal/modules/esm/get_format:176
+#   throw new ERR_UNKNOWN_FILE_EXTENSION(ext, filepath);
+#         ^
+# TypeError [ERR_UNKNOWN_FILE_EXTENSION]: Unknown file extension ".ts" for /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/src/core/contracts.ts
+#     at Object.getFileProtocolModuleFormat [as file:] (node:internal/modules/esm/get_format:176:9)
+#     at defaultGetFormat (node:internal/modules/esm/get_format:219:36)
+#     at defaultLoad (node:internal/modules/esm/load:133:22)
+#     at async ModuleLoader.load (node:internal/modules/esm/loader:554:7)
+#     at async ModuleLoader.moduleProvider (node:internal/modules/esm/loader:435:45) {
+#   code: 'ERR_UNKNOWN_FILE_EXTENSION'
+# }
+# Node.js v22.3.0
+# Subtest: tests/workspace.test.mjs
+not ok 42 - tests/workspace.test.mjs
+  ---
+  duration_ms: 82.125375
+  location: '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-many-projects/tests/workspace.test.mjs:1:1'
+  failureType: 'testCodeFailure'
+  exitCode: 1
+  signal: ~
+  error: 'test failed'
+  code: 'ERR_TEST_FAILURE'
+  ...
+1..92
+# tests 92
+# suites 0
+# pass 52
+# fail 40
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1070.909958

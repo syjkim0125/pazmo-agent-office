@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d",
+  "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd",
+  "runId": "d16972a8-7f16-4a25-9f43-c0e0b99185a3",
+  "responseRef": "Claude Code conversation 2026-11-12 (Hub with many items and projects, U43, session hub-many-projects). The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 6) and the conversation showed the before/after captures (grouped waiting box, project chips, the folded line, phone), the redirect after 새 프로젝트 that the Story does not name, the change size (4 commits), kit verify 1867/1867 with typecheck and Story check exit 0, three review rounds (review 1 Important: colour-only chip marks; review 2 Important: the ring took nav span's grey and the recorded contrast numbers were wrong; review 3 Ready), 0 overflow in 120 layout checks, the phone trade-off (the chip rows use up the height the grouping saves), what was not verified (Safari/Firefox, screen readers, live refresh in a browser) and what was left, the three G4 questions, the options and rollback. Asked 'G4: approve this change and merge it?', the user answered 'Approve and merge' without answering the three questions (D13). Record: .ai-workflow/approvals/hub-many-projects-g4.md",
+  "branch": "claude/hub-many-projects",
+  "head": "03c2f97",
+  "date": "2026-11-12"
+}
