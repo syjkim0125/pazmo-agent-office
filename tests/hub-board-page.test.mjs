@@ -942,7 +942,8 @@ test("chips wrap on a phone and every new target is 44px (D44)", async (t) => {
   for (const sel of ["\\.chips a", "\\.quiet a", "\\.gwhy"]) assert.match(style, new RegExp(`${sel}(,[^{}]*)?\\{overflow-wrap:anywhere\\}`), `a long word breaks inside ${sel}`);
   assert.match(style, /\.needs li\{[^}]*grid-template-columns:minmax\(0,1fr\)/, "a waiting row never grows past the box");
   // Review 1: the two marks differ by shape, not colour alone, and a ring in the chip's text colour keeps 3:1 on either chip.
-  assert.match(style, /\.flag\{[^}]*box-shadow:0 0 0 2px currentColor/);
+  // Review 2: the mark is a span in a nav, and `nav span` colours spans muted; inherit takes the chip's text colour back.
+  assert.match(style, /\.flag\{color:inherit;[^}]*box-shadow:0 0 0 2px currentColor/);
   assert.match(style, /\.flag\.stop\{[^}]*border-radius:2px/, "stopped: a square");
   assert.match(style, /\.flag\.need\{[^}]*border-radius:50%/, "approval: a round dot");
 });
