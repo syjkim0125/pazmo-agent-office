@@ -120,7 +120,7 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", opensh
     const id = h.store.addRepo(admin, "app-be", "https://github.example.com/team/app-be.git");
     const page = await h.call("GET", "/repos", { cookie });
     assert.doesNotMatch(page.text, /내 Office 연결 명령 만들기/);
-    assert.match(page.text, /연결된 Office 없음<\/span><br><a href="\/start">내 Office 연결<\/a>/, "in the repo row, not only the menu");
+    assert.match(page.text, /<p>연결된 Office: 없음 · <a href="\/start">내 Office 연결<\/a><\/p>/, "in the repo row, not only the menu");
     assert.equal((await h.call("POST", `/repos/${id}/link-code`, { cookie, body: `csrf=${csrf}` })).status, 200);
   });
 }

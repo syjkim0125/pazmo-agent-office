@@ -16,7 +16,7 @@ const PUBLIC = "https://pazmo-hub.apps.example.com";
 const SHA = "c0ffee".padEnd(40, "0");
 const PR = "https://github.example.com/team/app-be/pull/7";
 // U40: the switch draws a track before its words.
-const OFF_PILL = 'aria-pressed="false"><span class="track" aria-hidden="true"></span>자동으로 일하기 꺼짐</button>';
+const OFF_PILL = 'aria-pressed="false"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> 꺼짐</span></button>';
 const NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져가지 않고 있습니다(꺼짐·잠김·연결 문제).";
 const NOT_LINKED_ERROR = "내 Mac이 지금 이 레포의 일을 가져갈 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";
 const RERUN_NOT_LINKED = "내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다. 내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.";

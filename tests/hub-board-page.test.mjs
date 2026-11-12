@@ -508,10 +508,10 @@ test("the menu marks the page you are on", async (t) => {
 test("the header shows me, the switch and my Mac with words beside their shapes", async (t) => {
   const h = await team(t);
   const header = /<header>.*<\/header>/.exec((await h.get("/", h.c)).text)[0];
-  assert.match(header, /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span>Pazmo 팀 허브<\/a>/);
-  assert.match(header, /<a class="person" href="\/me"><span class="av av[0-7]" aria-hidden="true">C<\/span>C<\/a>/);
-  assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span>자동으로 일하기 켜짐</button>'));
-  assert.ok(header.endsWith('<a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: 연결된 Mac 없음</a></div></header>'));
+  assert.match(header, /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span><span class="word">Pazmo 팀 허브<\/span><\/a>/);
+  assert.match(header, /<a class="person" href="\/me"><span class="av av[0-7]" aria-hidden="true">C<\/span><span class="name">C<\/span><\/a>/);
+  assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> 켜짐</span></button>'));
+  assert.ok(header.endsWith('<a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span><span class="long">내 Mac: 연결된 Mac 없음</span></a></div></header>'));
   const mac = h.pair(h.c);
   for (const [state, tone] of [["working", "on"], ["idle", "on"], ["limited", "rest"], ["locked", "rest"]]) {
     h.store.macHeartbeat(mac, state, null);
@@ -1018,4 +1018,88 @@ test("U44: counts, times and table numbers line up", async (t) => {
   const style = await styleOf(await team(t));
   const tabular = [...style.matchAll(/(?<=^|[}\n])([^{}]+)\{[^}]*font-variant-numeric:tabular-nums/g)].flatMap((m) => m[1].split(",").map((s) => s.trim()));
   for (const sel of ["table", ".pill", ".mac", ".macchip", ".meta", ".time", ".count", ".progress", "p.sprog", "ul.work"]) assert.ok(tabular.includes(sel), sel);
+});
+
+// U45 (나 결정 카드, PR 1): the shell and the admin lists. Explainer 7판: https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS
+/** A colour token of the light block, or of the dark block when `dark`. */
+const tokenOf = (style, name, dark = false) => {
+  const block = dark ? /@media \(prefers-color-scheme:dark\)\{:root\{([^}]*)\}/.exec(style)?.[1] : /^:root\{([^}]*)\}/.exec(style)?.[1];
+  const m = new RegExp(`(?:^|;)--${name}:#([0-9a-f]{6}|[0-9a-f]{3})(?=;)`).exec(block ?? "");
+  assert.ok(m, `--${name}${dark ? " (dark)" : ""}`);
+  return `#${m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1]}`;
+};
+const contrast = (a, b) => {
+  const lum = (hex) => {
+    const [r, g, bl] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * bl;
+  };
+  const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+};
+
+test("U45: the header keeps short words on a phone and the full words for screen readers", async (t) => {
+  const h = await team(t);
+  const header = /<header>.*<\/header>/.exec((await h.get("/", h.c)).text)[0];
+  assert.match(header, /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span><span class="word">Pazmo 팀 허브<\/span><\/a>/);
+  assert.match(header, /<a class="person" href="\/me"><span class="av av[0-7]" aria-hidden="true">C<\/span><span class="name">C<\/span><\/a>/);
+  assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> 켜짐</span></button>'));
+  assert.ok(header.endsWith('<a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span><span class="long">내 Mac: 연결된 Mac 없음</span></a></div></header>'));
+  const style = await styleOf(h);
+  const narrow = "@media (max-width:860px)";
+  // Clipped, not display:none, so a screen reader still reads "자동으로 일하기 켜짐" and "내 Mac: ...".
+  assert.equal(ruleOf(style, ".brand .word,.person .name,.switch .long,.macchip .long", narrow), "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap");
+  assert.match(ruleOf(style, ".me", narrow), /^margin-left:auto/, "the switch and my name stay on the menu's row");
+  assert.match(ruleOf(style, ".person,.macchip", narrow), /min-width:44px/, "a name tag or a dot alone is still a 44px target");
+  assert.match(ruleOf(style, "form>button"), /justify-self:start/, "a form's button keeps its own width instead of spanning the form");
+});
+
+test("U45: form fields are outlined at 3:1 or more against the panel and the page in both themes", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.match(ruleOf(style, "textarea,input,select"), /border:1px solid var\(--field-line\)/);
+  for (const dark of [false, true])
+    for (const ground of ["panel", "bg"]) {
+      const ratio = contrast(tokenOf(style, "field-line", dark), tokenOf(style, ground, dark));
+      assert.ok(ratio >= 3, `--field-line on --${ground}${dark ? " (dark)" : ""}: ${ratio.toFixed(2)}:1`);
+    }
+});
+
+test("U45: the current menu item is underlined in the accent, like the current tab", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.equal(ruleOf(style, "nav a[aria-current=page]"), "color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)");
+});
+
+test("U45: /members is one row per member; what changes a member sits in a 관리 fold", async (t) => {
+  const h = await team(t);
+  const page = (await h.get("/members", h.admin)).text;
+  assert.doesNotMatch(page, /<table/, "a list, not a table");
+  const rows = [...page.matchAll(/<li class="member">([\s\S]*?)<\/li>/g)].map((m) => m[1]);
+  assert.equal(rows.length, 4, "admin, PL, B, C");
+  for (const row of rows) {
+    const fold = /<details class="manage"><summary>관리<\/summary>([\s\S]*)<\/details>/.exec(row);
+    assert.ok(fold, "every member has a 관리 fold");
+    assert.equal(row.replace(fold[0], "").includes("<form"), false, "no button outside the fold");
+    assert.match(fold[1], /action="\/members\/[^"]+\/device-invite"/);
+    assert.match(fold[1], /action="\/devices\/[^"]+\/revoke"><input type="hidden" name="csrf" value="[^"]+"><button class="secondary">기기 회수: test<\/button>/, "the button names the browser");
+    assert.match(row, /브라우저: test · \d{4}\. \d{1,2}\. \d{1,2}\.까지/, "the expiry is a day in the team's zone (teamDay)");
+  }
+  const revokes = rows.filter((r) => /action="\/members\/[^"]+\/revoke"><input type="hidden" name="csrf" value="[^"]+"><button class="danger">팀원 회수<\/button>/.test(r));
+  assert.equal(revokes.length, 3, "every member but me can be revoked");
+});
+
+test("U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see", async (t) => {
+  const h = await team(t);
+  const asAdmin = (await h.get("/repos", h.admin)).text;
+  assert.doesNotMatch(asAdmin, /<table/);
+  const row = (text, name) => new RegExp(`<li class="repo"><p><b>${name}</b>([\\s\\S]*?)</li>`).exec(text)?.[1];
+  const be = row(asAdmin, "app-be");
+  assert.ok(be, "app-be has a row");
+  assert.match(be, /<p>담당자: C, PL, 관리자<\/p>/, "owners by name");
+  const fold = /<details class="manage"><summary>관리<\/summary>([\s\S]*)<\/details>/.exec(be);
+  assert.ok(fold, "the admin manages every repo");
+  assert.match(fold[1], /action="\/repos\/[^"]+\/owners"/, "add an owner");
+  assert.match(fold[1], /<button class="secondary">빼기: PL<\/button>/, "the button names the owner");
+  assert.equal(be.replace(fold[0], "").includes("<form"), false, "no button outside the fold");
+  const asB = (await h.get("/repos", h.b)).text;
+  assert.doesNotMatch(row(asB, "app-be"), /class="manage"/, "B owns app-fe only");
+  assert.match(row(asB, "app-fe"), /class="manage"/);
 });

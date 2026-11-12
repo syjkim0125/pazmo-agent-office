@@ -18,8 +18,8 @@ export function tone(kind: "task" | "story" | "plan", state: string): Tone {
 export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${esc(label)}</span>`;
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}
+const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}
 *{box-sizing:border-box}
 html,body{overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
@@ -33,7 +33,7 @@ header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 
 .logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}
 nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}
 nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}
-nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}
+nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}
 .me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}
 .person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}
 button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}
@@ -120,6 +120,8 @@ progress::-webkit-progress-bar{background:var(--tray);border-radius:999px}progre
 .tag{font-size:12px;font-weight:600;color:var(--muted);background:var(--tray);border-radius:6px;padding:1px 6px;margin-left:6px}
 .onoff{font-size:14px;font-weight:700}.onoff.on{color:var(--done)}.onoff.off{color:var(--muted)}
 ul.work{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}ul.work>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:12px 14px;border-radius:12px;background:var(--bg)}
+ul.roster{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr)}ul.roster>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:14px 0;border-top:1px solid var(--line)}ul.roster>li:first-child{border-top:0;padding-top:0}
+details.manage .row{margin-top:8px}details.manage .note{font-size:14px;color:var(--muted)}
 .tiles{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.tiles a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--bg);color:var(--fg);font-weight:600;text-decoration:none}.tiles a:hover{background:var(--tray)}
 .callout{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:14px 16px;border-radius:14px;background:var(--stop-bg);color:var(--stop)}.callout pre{background:var(--panel);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}.callout summary{font-size:14px}
 .head form:not(.inline),section>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}.head h1{font-size:26px}
@@ -129,12 +131,12 @@ table{width:100%;border-collapse:collapse}table,.pill,.mac,.macchip,.meta,.code,
 pre{white-space:pre-wrap;word-break:break-word;background:var(--bg);padding:12px 14px;border-radius:12px;margin:0;max-height:480px;overflow:auto;font-size:15px;line-height:1.65;font-family:inherit}pre.mono,pre:has(+p [data-copy-target]){font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}
 code,.code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.92em}
 details>*+*{margin-top:8px}summary{cursor:pointer;font-weight:600;padding:4px 0;min-height:32px}details.dev summary{color:var(--muted);font-size:14px;font-weight:500}
-form{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0}form.inline{display:inline-flex;margin:2px}label{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;font-weight:600}label .muted{font-weight:400}
-textarea,input,select{font:inherit;max-width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg)}
+form{display:grid;grid-template-columns:minmax(0,1fr);gap:10px;margin:0}form.inline{display:inline-flex;margin:2px}form>button{justify-self:start}label{display:grid;grid-template-columns:minmax(0,1fr);gap:6px;font-weight:600}label .muted{font-weight:400}
+textarea,input,select{font:inherit;max-width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--field-line);border-radius:12px;background:var(--panel);color:var(--fg)}
 input[type=checkbox]{width:22px;height:22px;min-height:0;margin:0;accent-color:var(--accent)}
 fieldset{border:1px solid var(--line);border-radius:12px;padding:12px;display:grid;grid-template-columns:minmax(0,1fr);gap:10px}legend{padding:0 6px;font-weight:600}
 .muted{color:var(--muted)}.wrap{overflow-wrap:anywhere}
-ol,ul{padding-left:22px}section>ol,section>ul{margin-block:0}li+li{margin-top:2px}.cards li+li,.needs li+li,ul.work li+li,.tiles li+li{margin-top:0}
+ol,ul{padding-left:22px}section>ol,section>ul{margin-block:0}li+li{margin-top:2px}.cards li+li,.needs li+li,ul.work li+li,.tiles li+li,ul.roster li+li{margin-top:0}
 .live-note{display:none;align-items:center;gap:6px;color:var(--muted)}.live-note::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--done-bar)}html.live .live-note{display:inline-flex}.refresh{display:inline-flex;align-items:center;min-height:32px}html.live .refresh{display:none}
 .row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}label:has(>input[type=checkbox]){display:flex;gap:8px;align-items:center;min-height:32px}.code{font-weight:600;font-size:24px;letter-spacing:.1em}
 .tabs{display:inline-flex;flex-wrap:wrap;justify-self:start;gap:4px;padding:4px;border-radius:14px;background:var(--tray)}
@@ -165,7 +167,10 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .steps li.past{background:var(--done-bg);color:var(--done)}.steps li.past::before{content:"✓ "}.steps li.now{background:var(--fg);color:var(--panel)}
 .taskboard .cols{margin-top:2px}
 @media (width > 860px) and (width <= 960px){.stages{gap:12px}.stage{padding:6px}.stage[data-stage=planning]{padding:4px}.stages .scard{padding:12px}.stages .scards{gap:6px}}
-@media (max-width:860px){header{padding:8px 14px}.me{margin-left:0;width:100%}main{padding:16px 14px 48px}section{padding:18px}
+@media (max-width:860px){header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
+.brand .word,.person .name,.switch .long,.macchip .long{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.person,.macchip{min-width:44px;justify-content:center;padding:0}.brand{min-width:44px;justify-content:center}
+main{padding:16px 14px 48px}section{padding:18px}
 .cols{grid-template-columns:minmax(0,1fr);gap:16px}.col:has(>.cards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.col:has(>.cards:empty) h3{flex:1}.col .cards:empty{display:none}
 .progress{margin-left:0;width:100%}.toggles .btn{margin-left:0}
 .stages{grid-auto-flow:row;grid-template-columns:minmax(0,1fr);gap:16px}.stage:has(>.scards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.stage:has(>.scards:empty) h3{flex:1}.stage>.scards:empty{display:none}.steps{font-size:12px}
@@ -244,7 +249,7 @@ const macTone = (b: MacBadge) => (b.state === "working" || b.state === "idle" ? 
 /** A Mac's state as a dot and its words, for a card or a table. */
 export const macLine = (b: MacBadge) => `<span class="mac ${macTone(b)}"><span class="dot" aria-hidden="true"></span>${esc(macBadgeLabel(b))}</span>`;
 /** The header's link to /mac: my newest Mac's dot and words. */
-const macChip = (b: MacBadge) => `<a class="macchip ${macTone(b)}" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: ${esc(macBadgeLabel(b))}</a>`;
+const macChip = (b: MacBadge) => `<a class="macchip ${macTone(b)}" href="/mac"><span class="dot" aria-hidden="true"></span><span class="long">내 Mac: ${esc(macBadgeLabel(b))}</span></a>`;
 /** The menu item for the page shown: the board for both boards and every Story, Task and plan page; the team page for itself. */
 function menuOf(path: string | undefined): string | null {
   if (path === "/team") return "/team";
@@ -266,12 +271,12 @@ export function inColumn(at: number, now = Date.now()): string {
 function boardHeader(me: Member, chrome: Chrome): string {
   const on = chrome.autoWork === true;
   const sw = chrome.csrf
-    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${on}"><span class="track" aria-hidden="true"></span>자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</button></form>`
+    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${on}"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> ${on ? "켜짐" : "꺼짐"}</span></button></form>`
     : "";
   const mac = chrome.mac ? macChip(chrome.mac) : "";
   const here = menuOf(chrome.path);
   const item = (href: string, label: string) => `<a href="${href}"${here === href ? ' aria-current="page"' : ""}>${label}</a>`;
-  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}${esc(me.name)}</a>${sw}${mac}</div>`;
+  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}<span class="name">${esc(me.name)}</span></a>${sw}${mac}</div>`;
 }
 
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
@@ -280,7 +285,7 @@ export function layout(title: string, me: Member | null, body: string, chrome: C
     : me
     ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : "";
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span>Pazmo 팀 허브</a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
   return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${esc(message)}</p><p><a href="/">처음으로</a></p></section>`);
@@ -382,55 +387,57 @@ export function request(me: Member, csrf: string, v: RequestView, chrome: Chrome
     s?.runners.length ? `<section><h2>실행기</h2><ul>${s.runners.map((r) => `<li>${esc(r.role)} · ${esc(r.runner)} ${esc(r.version)} · ${esc(r.model)}</li>`).join("")}</ul></section>` : "",
   ].join(""), chrome);
 }
+/** One row per repo; owner and link changes sit in a 관리 fold for those who may make them (its owners, an admin, a link's member). */
 export function repos(me: Member, csrf: string, list: RepoView[], members: MemberView[], chrome: Chrome = {}) {
   const active = members.filter((m) => !m.revoked);
   const rows = list
     .map((r) => {
       const manage = r.isOwner || me.admin;
-      const owners = r.owners
-        .map((o) => `${esc(o.name)}${manage && r.owners.length > 1 ? button(`/repos/${r.id}/owners/${o.id}/remove`, csrf, "빼기", "secondary") : ""}`)
-        .join(", ");
       const candidates = active.filter((m) => !r.owners.some((o) => o.id === m.id));
       const add = manage && candidates.length
         ? `<form class="row" method="post" action="/repos/${esc(r.id)}/owners">${csrfField(csrf)}<select name="member" aria-label="담당자로 추가할 팀원">${candidates.map((m) => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("")}</select><button class="secondary">담당자 추가</button></form>`
         : "";
+      const remove = manage && r.owners.length > 1 ? r.owners.map((o) => button(`/repos/${r.id}/owners/${o.id}/remove`, csrf, `빼기: ${o.name}`, "secondary")).join("") : "";
       // A Mac's link ends only with its Mac (its next sync would mint it again), so it points to where the Mac is ended.
-      const release = (l: RepoView["links"][number]) =>
-        l.mac
-          ? l.memberId === me.id
-            ? ' <a href="/mac">내 Mac에서 해제</a>'
-            : me.admin
-              ? ' <a href="/members">팀원·초대에서 Mac 해제</a>'
-              : ""
-          : l.memberId === me.id || me.admin
-            ? button(`/links/${l.id}/revoke`, csrf, "연결 해제", "secondary")
-            : "";
+      const elsewhere = (l: RepoView["links"][number]) =>
+        !l.mac ? "" : l.memberId === me.id ? ' <a href="/mac">내 Mac에서 해제</a>' : me.admin ? ' <a href="/members">팀원·초대에서 Mac 해제</a>' : "";
+      const unlink = r.links
+        .filter((l) => !l.mac && (l.memberId === me.id || me.admin))
+        .map((l) => button(`/links/${l.id}/revoke`, csrf, `연결 해제: ${l.memberName}`, "secondary"))
+        .join("");
       const links = r.links.length
-        ? r.links
-            .map((l) => `${esc(l.memberName)} (${l.mac ? `Mac: ${esc(l.mac.name)}, ` : ""}확인 ${ago(l.lastSeen)})${release(l)}`)
-            .join("<br>")
-        : '<span class="muted">연결된 Office 없음</span>';
-      const link = r.isOwner ? '<a href="/start">내 Office 연결</a>' : "";
-      return `<tr><td><b>${esc(r.name)}</b><br><span class="muted">${esc(r.remote)}</span></td><td>${owners}${add}</td><td>${links}<br>${link}</td></tr>`;
+        ? r.links.map((l) => `${esc(l.memberName)} (${l.mac ? `Mac: ${esc(l.mac.name)}, ` : ""}확인 ${ago(l.lastSeen)})${elsewhere(l)}`).join(", ")
+        : "없음";
+      const office = r.isOwner ? ' · <a href="/start">내 Office 연결</a>' : "";
+      const fold = add || remove || unlink
+        ? `<details class="manage"><summary>관리</summary>${remove || unlink ? `<div class="row">${remove}${unlink}</div>` : ""}${add}</details>`
+        : "";
+      return `<li class="repo"><p><b>${esc(r.name)}</b> <span class="muted wrap">${esc(r.remote)}</span></p><p>담당자: ${r.owners.map((o) => esc(o.name)).join(", ") || "없음"}</p><p>연결된 Office: ${links}${office}</p>${fold}</li>`;
     })
     .join("");
-  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="app-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/app-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<div class="scroll"><table><thead><tr><th>레포</th><th>담당자</th><th>연결된 Office</th></tr></thead><tbody>${rows}</tbody></table></div>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, chrome);
+  return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="app-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/app-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<ul class="roster">${rows}</ul>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, chrome);
 }
+/** One row per member; what changes a member (new browser link, revoking a browser, a Mac or the member) sits in a 관리 fold. */
 export function members(me: Member, csrf: string, list: MemberView[], chrome: Chrome = {}) {
   const rows = list
     .map((m) => {
-      const devices = m.devices
-        .map((d) => `${esc(d.label)}${d.revoked ? " (끊김)" : ` (만료 ${esc(teamDay(d.expiresAt))}) ${button(`/devices/${d.id}/revoke`, csrf, "기기 회수", "secondary")}`}`)
-        .join("<br>");
-      const macs = m.macs.map((k) => `${esc(k.name)} (${esc(macState(k))}) ${button(`/macs/${k.id}/revoke`, csrf, "Mac 해제", "secondary")}`).join("<br>");
-      const actions = m.revoked
+      const browsers = m.devices.length
+        ? m.devices.map((d) => (d.revoked ? `${esc(d.label)}(끊김)` : `${esc(d.label)} · ${esc(teamDay(d.expiresAt))}까지`)).join(", ")
+        : "없음";
+      const macs = m.macs.length ? m.macs.map((k) => `${esc(k.name)} (${esc(macState(k))})`).join(", ") : "없음";
+      const actions =
+        button(`/members/${m.id}/device-invite`, csrf, "새 기기 링크", "secondary") +
+        m.devices.filter((d) => !d.revoked).map((d) => button(`/devices/${d.id}/revoke`, csrf, `기기 회수: ${d.label}`, "secondary")).join("") +
+        m.macs.map((k) => button(`/macs/${k.id}/revoke`, csrf, "Mac 해제", "secondary")).join("") +
+        (m.id === me.id ? "" : button(`/members/${m.id}/revoke`, csrf, "팀원 회수", "danger"));
+      const fold = m.revoked
         ? ""
-        : button(`/members/${m.id}/device-invite`, csrf, "새 기기 링크", "secondary") +
-          (m.id === me.id ? "" : button(`/members/${m.id}/revoke`, csrf, "팀원 회수", "danger"));
-      return `<tr><td>${esc(m.name)}${m.admin ? ' <span class="pill">관리자</span>' : ""}${m.revoked ? ' <span class="pill">회수됨</span>' : ""}</td><td>${devices}</td><td>${macs}</td><td>${actions}</td></tr>`;
+        : `<details class="manage"><summary>관리</summary><p class="note">기기를 회수하면 그 브라우저는 새 기기 링크로 다시 들어와야 합니다. 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다.</p><div class="row">${actions}</div></details>`;
+      return `<li class="member"><p class="row"><span class="person">${avatar(m)}${esc(m.name)}</span>${m.admin ? '<span class="pill">관리자</span>' : ""}${m.revoked ? '<span class="pill">회수됨</span>' : ""}</p><p class="muted">브라우저: ${browsers}</p><p class="muted">Mac: ${macs}</p>${fold}</li>`;
     })
     .join("");
-  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원</h2><div class="scroll"><table><thead><tr><th>이름</th><th>등록한 브라우저</th><th>Mac</th><th></th></tr></thead><tbody>${rows}</tbody></table></div></section>`, chrome);
+  const live = list.filter((m) => !m.revoked).length;
+  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명</h2><ul class="roster">${rows}</ul></section>`, chrome);
 }
 export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: string | null; approved: boolean }, chrome: Chrome = {}) {
   const done = o.approved ? `<section role="status"><h2>허용했습니다. 터미널로 돌아가세요</h2><p>설치가 끝나고 Office가 켜지면 아래 표에서 내 Mac의 상태를 볼 수 있습니다.</p></section>` : "";
