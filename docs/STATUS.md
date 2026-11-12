@@ -14,7 +14,10 @@
 - 자동 검사:
   - 새 시험 `tests/team-upload-link.test.mjs`: 5초 keep-alive를 알리지만 50ms 뒤 유휴 연결을 닫는 TLS 서버에, 올리기의 다섯 호출을 각각 200ms 막힘 뒤에 보낸다. 고치기 전 5번 모두 `read ECONNRESET`, 고친 뒤 5번 모두 통과했다. 호출마다 연결이 하나씩인 것과, 기본 `hubCall` 둘은 한 연결을 같이 쓰는 것도 본다(이 대조는 유휴 연결을 1분 두는 동안 해서 바쁜 Mac에서도 흔들리지 않는다. 리뷰 1차가 찾았다).
   - 관련 시험 파일 8개 110/110, 타입 검사 exit 0. 전체 `npm test` **1862/1862**(exit 0, 190초, 끝날 때 부하 24).
+  - 독립 리뷰 1차는 머지 불가였다(Important 1: 새 시험의 대조 부분이 50ms 유휴 닫힘 아래에서 돌아, 부하로 두 호출 사이가 50ms를 넘으면 `read ECONNRESET`으로 흔들림. 80ms 멈춤으로 재현했다). 대조를 유휴 1분 동안 하도록 고쳤고, `uploadCall`이 `hubCall`의 선택을 넘기게 했고, 문서의 호출 수와 위험 설명을 바로잡았다. 수정분만 본 2차는 머지 가능이었다(문서 Minor 1: 학습 문서의 `uploadCall` 조각과 줄 번호 넷). 그 Minor는 이 전달 커밋에서 고쳤다(kit 리뷰·검증 밖, 문서만). 리뷰어도 원인을 따로 재현했다([1차](../.ai-workflow/runs/U42-review-1.md), [2차](../.ai-workflow/runs/U42-review-2.md)).
+  - kit 검증(`8e241f7`): 571/571 + 636/636 + 655/655 = **1862/1862**, 타입 검사·Story 검사 exit 0([기록](../.ai-workflow/runs/U42-verify-1.md)). 흔들리던 시험은 부하 ~22의 조각 안에서 21.3초 걸리고 통과했다. `graph.mjs delivery`는 `delivered`다.
   - [학습 문서](solutions/runtime-errors/hub-call-pooled-socket-reset-after-event-loop-stall.md)
+- PR syjkim0125/pazmo-agent-office#85. G4는 2026-11-12에 기록했다. 사용자가 [설명 페이지](https://claude.ai/artifact/NHU1i8BCPDKG5z2kQ2Soj1)를 본 뒤 "승인 후 머지"를 골랐고, 세 질문에는 직접 답하지 않았다(D13). [G4 기록](../.ai-workflow/approvals/upload-one-shot-g4.md)
 - **남은 것:**
   - 다른 link 클라이언트(5초마다 도는 Hub 동기화, 보낸 요청, 팀 Office의 claim, 웹 기획 link, Mac 연결, 연결 맺기)는 그대로 연결을 다시 쓴다. 같은 일이 생기면 그 차례가 실패하고 다음 차례에 다시 한다고 코드로 보았고, 따로 시험하지는 않았다.
   - 사내 Hub(라우터 뒤)로 실제로 올려 보지는 않았다.

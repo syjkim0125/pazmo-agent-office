@@ -24,7 +24,7 @@ The LAN Hub keeps Node's server defaults (`src/hub/server.ts:529-534`: only `kin
 
 ## Symptoms
 - "upload again after a push failure resumes" (`tests/hub-upload-office.test.mjs`, around line 297) failed twice in full `npm test` runs at load ~18 to 22, while building U40 (PR syjkim0125/pazmo-agent-office#83).
-- The error came from the second upload's first call, `GET /api/link/story/projects`, mapped by `hubFailure` (`src/team/upload.ts:460`): `HUB_UNREACHABLE` "Hub에 닿지 못했습니다(read ECONNRESET). 네트워크를 확인한 뒤 같은 명령을 다시 실행하세요."
+- The error came from the second upload's first call, `GET /api/link/story/projects`, mapped by `hubFailure` (`src/team/upload.ts:461`): `HUB_UNREACHABLE` "Hub에 닿지 못했습니다(read ECONNRESET). 네트워크를 확인한 뒤 같은 명령을 다시 실행하세요."
 - Alone, the file passed 5/5 every time. Nothing in `src/team`, `src/hub/link-api.ts` or the TLS server had changed.
 
 ## What Didn't Work
@@ -82,15 +82,16 @@ Before (`src/team/upload.ts`):
 export function uploadLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): UploadLink {
 ```
 
-After (`src/team/upload.ts:418-420`):
+After (`src/team/upload.ts:418-421`):
 
 ```ts
-const uploadCall: typeof hubCall = (cfg, method, path, body, protocol) => hubCall(cfg, method, path, body, protocol, { keepAlive: false });
+const uploadCall: typeof hubCall = (cfg, method, path, body, protocol, options) =>
+  hubCall(cfg, method, path, body, protocol, { ...options, keepAlive: false });
 
 export function uploadLink(cfg: HubLinkConfig, call: typeof hubCall = uploadCall): UploadLink {
 ```
 
-`retiredMac` (`src/team/upload.ts:608-611`) also uses `uploadCall`, so no upload path reaches the pooled agent. Default behavior of `hubCall` is unchanged.
+`retiredMac` (`src/team/upload.ts:609-612`) also uses `uploadCall`, so no upload path reaches the pooled agent. Default behavior of `hubCall` is unchanged.
 
 Rejected alternatives:
 - **Retry once on `req.reusedSocket && ECONNRESET`** (Node's documented pattern). It would replay a POST once. The upload routes are built to resume idempotently, but a fresh connection avoids any replay, and it also covers EPIPE and silently dropped connections that a reset-only retry misses.
