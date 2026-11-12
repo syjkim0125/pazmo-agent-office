@@ -143,9 +143,9 @@ export function home(
           failedNow(open) ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>` : ""
         }`,
       )}</ul>`
-    : `<p class="muted">지금 맡은 일이 없습니다.</p>`;
+    : `<p class="muted">${w.ready.some((c) => c.pick === "yes") ? "지금 맡은 일이 없습니다. 아래 받을 수 있는 일에서 [작업하기]로 하나를 맡으세요." : "지금 맡은 일이 없습니다."}</p>`;
   const pick = (c: WorkCard) =>
-    c.pick === "yes" ? `<p>${button(`/tasks/${c.taskId}/pick`, csrf, "작업하기")}</p>` : c.pick === "not-linked" ? `<p>${NOT_LINKED}</p>` : "";
+    c.pick === "yes" ? `<div>${button(`/tasks/${c.taskId}/pick`, csrf, "작업하기")}</div>` : c.pick === "not-linked" ? `<p>${NOT_LINKED}</p>` : "";
   const led = w.led.length
     ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failureLine(c)}`)}</section>`
     : "";
@@ -155,11 +155,11 @@ export function home(
     : "";
   return layout("내 할 일", me, [
     o.macNudge ? MAC_NUDGE : "",
-    `<section><h1>내 할 일</h1><p>자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</p><p>${switchLine}</p><p class="muted">${refresh("/me")}</p></section>`,
+    `<section><h1>내 할 일</h1><div class="row">자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</div><p>${switchLine}</p><p class="muted">${refresh("/me")}</p></section>`,
     rest && !restInCard ? `<section>${rest}</section>` : "",
     `<section><h2>지금 맡은 일</h2>${openPart}</section>`,
     plans,
-    `<section><h2>받을 수 있는 일</h2>${cards(w.ready, "지금 받을 수 있는 일이 없습니다.", pick)}</section>`,
+    `<section><h2>받을 수 있는 일</h2>${cards(w.ready, "지금 받을 수 있는 일이 없습니다. 내가 맡은 레포에 할 일이 생기면 여기에 보입니다.", pick)}</section>`,
     led,
     `<section><h2>끝낸 일</h2>${cards(w.done, "아직 끝낸 일이 없습니다.", done)}</section>`,
   ].join(""), chrome);
@@ -228,7 +228,7 @@ function actionForms(t: TaskView, csrf: string, a: TaskActions) {
   const base = `/tasks/${t.id}`;
   const pick =
     a.pick === "yes"
-      ? `<p>${button(`${base}/pick`, csrf, "작업하기")}</p>`
+      ? `<div>${button(`${base}/pick`, csrf, "작업하기")}</div>`
       : a.pick === "auto-on"
         ? `<p class="muted">자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다.</p>`
         : a.pick === "not-linked"
