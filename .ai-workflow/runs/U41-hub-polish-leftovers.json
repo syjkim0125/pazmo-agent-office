@@ -1,0 +1,632 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "c02ed9b9-2d86-4817-9413-fb57a07082fe",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review-1 Minor fixes (commit a635bcc): draft Story page says Task N개 준비됨 like its card (progressOf), range media query (width > 860px) and (width <= 960px) scoped to stage cards with 2px more in the planning column, exact 검증 중 pill tests on card/lane/page, corrected margins and rename reason in the record and STATUS. RED 2/68; GREEN 68/68, Hub 559/559, typecheck 0; layout 820 checks 0 overflow, all columns 114px at 861px.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-2.md",
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-2.txt",
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-2.txt",
+            "src/hub/board-pages.ts",
+            "src/hub/pages.ts",
+            "tests/hub-board-page.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-2.md": "e8a7de4724c6620928840654cec8038127350a740f1f00a5d80d8b1e34ebcfe8",
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-2.txt": "32e2b9ff4088a795a0b3cbe7b15206f3c698ba2f8c320aa6166c1493d49c878c",
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-2.txt": "bbec05a4373f665c1000ea062be8f25262938a564b4963c23cc9a87780c8f0e0",
+          "src/hub/board-pages.ts": "b0babf3e00fe4281dce675e6fa9f39a172215e69824cae04b455b1951dfdf703",
+          "src/hub/pages.ts": "3d780b8cfa0fbb586f348d27c35c2cb6c6f44ae05e50788760b3c76df7044853",
+          "tests/hub-board-page.test.mjs": "4d5736c24fe46f4bd8036ba86d960f45d1fae043da4b6d8efd9d87109c8b97cf"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae",
+        "output": {
+          "summary": "Review 2 (same independent reviewer, allocation 1; diff ec1ae2b..a635bcc plus the whole change): Ready, Critical 0, Important 0, Minor 0. All four review-1 Minors resolved; new tests fail 2/68 on ec1ae2b and the exact 검증 중 check fails on a3ef064; draft/cancelled probe agrees on card and page; headless Chromium at 860-1000 px and fractional 860.25/860.5/860.75/960.5 px: stages one row, 114 px card text box at 861 px in planning and verifying, strip cards unchanged, no horizontal scroll. Note (not a finding): Safari 15.4-16.3 lacks range syntax and only loses the tighter spacing.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-review-2.md": "c3eee990d459667816b88694f00c3165a6cafb2b4a2cc5812a1c89a8b90714e3"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/df7152d8-d3fe-41c7-b1bf-f41b834d6c30/receipt.json",
+            "hash": "69dbe06fcd3acb305f2f645e2253eaeb246d4ec0d7e8ee0da179e4ba52246d70"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/68e36081-4496-4fe1-95db-cfd311bbd7a1/receipt.json",
+            "hash": "ce35ce303f961a647bb71dc291732d59a6957d586fbcd055264fbe904effb290"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/8bc9297e-f9a6-432d-ad4c-709de9d56cdc/receipt.json",
+            "hash": "b7b575b8a86313ae271f57f3fc49d5a6bff0fb6caf50b8ecba29b49713bcc79c"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/edeb2e7c-69d2-4e3c-ad76-e5a66da57ffe/receipt.json",
+            "hash": "21e8cc4552e7f0055824323b6b99f2af2e8e38f244e3a0d5a92633b6c78b1928"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/8549521e-0a3c-4cb4-b3ca-34ed29ed5b67/receipt.json",
+            "hash": "8c6ca2d0fe21e6b1b0df619f6ab207c25c0b656e314a769e0db904d949f00d59"
+          }
+        },
+        "output": {
+          "summary": "Fresh checks on a635bcc: 580/580 + 618/618 + 664/664 = 1862/1862, typecheck exit 0, story check PASS.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-verify-1.md": "acc1c9cc56ba4f02ad1e0e5079cb17e0e4188a672616a7f4dc66fb5d8adcb9b7"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "4a8560c1bb10235c404ca5e3daf3f2dbd5ac0efcda760857e9c979a7eccadacc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-11T08:49:48.512Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-11T08:56:58.775Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "U41 (commit ec1ae2b): stage columns one row above 860 px (one column per stage, tighter spacing at 861-960 px), Story state word 검증 중, cancelled Story page and /tasks lane say Task N개 취소됨 · M개 끝남 like the card (progressOf). RED 3/68; GREEN 68/68, Hub tests 559/559, typecheck 0; layout 820 checks 0 overflow, stages one row 861-1360 px.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-1.md",
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-1.txt",
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-1.txt",
+            "src/hub/board-pages.ts",
+            "src/hub/pages.ts",
+            "src/hub/story-pages.ts",
+            "tests/hub-board-page.test.mjs",
+            "tests/hub-story-pages.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-1.md": "dfed3deee646198dabcc6d2e62519f006a9a9d2fb66be52f1769072883a58467",
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-1.txt": "bcb0f287e775264fc421e922cf7ae2020d62548ff2bb4eac4e8335f3c4684fb3",
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-1.txt": "1705b66919176d8a0c5d9d35ce74cbcfa6f822136e75dcaaa7ed5bbc636c6fbe",
+          "src/hub/board-pages.ts": "53beae259a25a642de7ebe9cd821c8a4296fc9336f949d8d7917f8b52599b8b5",
+          "src/hub/pages.ts": "a4decfb2df10173ec7d80a107a28c71a90cb3e99da7492cc6ea7845e115c14ad",
+          "src/hub/story-pages.ts": "8edd2f2b33ebd66112604d4b065aa47e38e265d57aab6a282a5f2bb405ca8ff5",
+          "tests/hub-board-page.test.mjs": "cf88bd8b7cd9fbb21e3d2a116d5af9bf0e4980b87df9d22d99b9428e34b162ab",
+          "tests/hub-story-pages.test.mjs": "a6e93f505be23dc2c1de5a15f8815c486e03807183f25510f7dca2615e7d13a1"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-11T08:57:05.270Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:41:13.633Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "81df860686d5064ab1f4fb6b9a3ecd78e9feb300c87ccffc1a79b5604f3683d0",
+        "output": {
+          "summary": "Review 1 (one independent reviewer, allocation 1 of 0-2 for a small change; diff a3ef064..ec1ae2b): Ready, Critical 0, Important 0, Minor 4. The controller applies all four Minor fixes before verify: (1) change record margin numbers measure the wrong column (planning text box ~110px, 3px margin; rename justified by consistency, not padding); (2) draft Story card says 'Task N개 준비됨' but its page says 'Task N개 중 0개 끝' and progressOf's comment overclaims; (3) fractional 860-861px gap between media queries and the 12px card padding reaches cancelled-strip cards; (4) no page-level test pins the exact '검증 중' pill. New tests fail on a3ef064 (4/68) and pass on ec1ae2b (68/68).",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "81df860686d5064ab1f4fb6b9a3ecd78e9feb300c87ccffc1a79b5604f3683d0"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Apply review-1 Minor 1-4 in implement: count drafts in progressOf and use it for the draft card (test), range media query (width > 860px) and (width <= 960px) scoped to .stages .scard plus a little more room in the planning column, exact '검증 중' pill assertions on the board card, /tasks lane and Story page, and correct the margin/rename reasoning in the change record and STATUS."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-review-1.md": "a91e22af22e0dd77774c2d1b9022e4c4e553a74c2d3dca34837643ee86c58917"
+        },
+        "error": "Apply review-1 Minor 1-4 in implement: count drafts in progressOf and use it for the draft card (test), range media query (width > 860px) and (width <= 960px) scoped to .stages .scard plus a little more room in the planning column, exact '검증 중' pill assertions on the board card, /tasks lane and Story page, and correct the margin/rename reasoning in the change record and STATUS."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Apply review-1 Minor 1-4 (draft progress line, media query range and scope, planning column room, exact pill tests, record numbers)",
+      "at": "2026-11-12T01:41:14.163Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T01:41:20.390Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T01:44:55.788Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review-1 Minor fixes (commit a635bcc): draft Story page says Task N개 준비됨 like its card (progressOf), range media query (width > 860px) and (width <= 960px) scoped to stage cards with 2px more in the planning column, exact 검증 중 pill tests on card/lane/page, corrected margins and rename reason in the record and STATUS. RED 2/68; GREEN 68/68, Hub 559/559, typecheck 0; layout 820 checks 0 overflow, all columns 114px at 861px.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-2.md",
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-2.txt",
+            ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-2.txt",
+            "src/hub/board-pages.ts",
+            "src/hub/pages.ts",
+            "tests/hub-board-page.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-2.md": "e8a7de4724c6620928840654cec8038127350a740f1f00a5d80d8b1e34ebcfe8",
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-2.txt": "32e2b9ff4088a795a0b3cbe7b15206f3c698ba2f8c320aa6166c1493d49c878c",
+          ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-2.txt": "bbec05a4373f665c1000ea062be8f25262938a564b4963c23cc9a87780c8f0e0",
+          "src/hub/board-pages.ts": "b0babf3e00fe4281dce675e6fa9f39a172215e69824cae04b455b1951dfdf703",
+          "src/hub/pages.ts": "3d780b8cfa0fbb586f348d27c35c2cb6c6f44ae05e50788760b3c76df7044853",
+          "tests/hub-board-page.test.mjs": "4d5736c24fe46f4bd8036ba86d960f45d1fae043da4b6d8efd9d87109c8b97cf"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:45:01.458Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:48:35.076Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae",
+        "output": {
+          "summary": "Review 2 (same independent reviewer, allocation 1; diff ec1ae2b..a635bcc plus the whole change): Ready, Critical 0, Important 0, Minor 0. All four review-1 Minors resolved; new tests fail 2/68 on ec1ae2b and the exact 검증 중 check fails on a3ef064; draft/cancelled probe agrees on card and page; headless Chromium at 860-1000 px and fractional 860.25/860.5/860.75/960.5 px: stages one row, 114 px card text box at 861 px in planning and verifying, strip cards unchanged, no horizontal scroll. Note (not a finding): Safari 15.4-16.3 lacks range syntax and only loses the tighter spacing.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-review-2.md": "c3eee990d459667816b88694f00c3165a6cafb2b4a2cc5812a1c89a8b90714e3"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T01:48:43.230Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T01:55:38.441Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/df7152d8-d3fe-41c7-b1bf-f41b834d6c30/receipt.json",
+            "hash": "69dbe06fcd3acb305f2f645e2253eaeb246d4ec0d7e8ee0da179e4ba52246d70"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/68e36081-4496-4fe1-95db-cfd311bbd7a1/receipt.json",
+            "hash": "ce35ce303f961a647bb71dc291732d59a6957d586fbcd055264fbe904effb290"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/8bc9297e-f9a6-432d-ad4c-709de9d56cdc/receipt.json",
+            "hash": "b7b575b8a86313ae271f57f3fc49d5a6bff0fb6caf50b8ecba29b49713bcc79c"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/edeb2e7c-69d2-4e3c-ad76-e5a66da57ffe/receipt.json",
+            "hash": "21e8cc4552e7f0055824323b6b99f2af2e8e38f244e3a0d5a92633b6c78b1928"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/c02ed9b9-2d86-4817-9413-fb57a07082fe/8549521e-0a3c-4cb4-b3ca-34ed29ed5b67/receipt.json",
+            "hash": "8c6ca2d0fe21e6b1b0df619f6ab207c25c0b656e314a769e0db904d949f00d59"
+          }
+        },
+        "output": {
+          "summary": "Fresh checks on a635bcc: 580/580 + 618/618 + 664/664 = 1862/1862, typecheck exit 0, story check PASS.",
+          "evidence": [
+            ".ai-workflow/runs/U41-hub-polish-leftovers-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U41-hub-polish-leftovers-verify-1.md": "acc1c9cc56ba4f02ad1e0e5079cb17e0e4188a672616a7f4dc66fb5d8adcb9b7"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "029a3b948d35cccfeb5c5ab9b2852a8af04395633417bafbac8c24fef755a8d2"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "token": "ccc341470b3107cc44adfeaefd7e02c6e91132555d2255ccffeceb84e7f16b95",
+  "output": {
+    "summary": "U41 (commit ec1ae2b): stage columns one row above 860 px (one column per stage, tighter spacing at 861-960 px), Story state word 검증 중, cancelled Story page and /tasks lane say Task N개 취소됨 · M개 끝남 like the card (progressOf). RED 3/68; GREEN 68/68, Hub tests 559/559, typecheck 0; layout 820 checks 0 overflow, stages one row 861-1360 px.",
+    "evidence": [
+      ".ai-workflow/runs/U41-hub-polish-leftovers-implement-1.md",
+      ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-1.txt",
+      ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-1.txt",
+      "src/hub/board-pages.ts",
+      "src/hub/pages.ts",
+      "src/hub/story-pages.ts",
+      "tests/hub-board-page.test.mjs",
+      "tests/hub-story-pages.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}
