@@ -315,9 +315,10 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
     assert.ok(page.includes(plain), reason);
     assert.ok(page.includes(`<details><summary>자세한 이유</summary><pre>${reason}</pre></details>`), reason);
     const home = (await h.get("/me", h.c)).text;
-    assert.ok(home.includes(plain), `home: ${reason}`);
+    const away = plain.replace("아래 이유를", "Task 화면에서 이유를");
+    assert.ok(home.includes(away), `home: ${reason}`);
     assert.ok(home.includes(`<a href="/tasks/${s.api}">자세히·다시 시도</a>`));
-    assert.ok((await h.get("/me", h.pl)).text.includes(plain), "the PL's stuck list says it too");
+    assert.ok((await h.get("/me", h.pl)).text.includes(away), "the PL's stuck list says it too");
     h.board.rerunTask(h.c.member, s.api, "", h.store.reachableRepos(h.c.member.id));
     claimId = h.claimOf(cBe);
   }
@@ -380,7 +381,7 @@ test("a member with no open Task whose newest Mac rests with claude: not_ready s
   h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
   home = (await h.get("/me", h.c)).text;
   assert.equal(count(home), 1);
-  assert.ok(home.indexOf(line) < home.indexOf("<h2>지금 맡은 일</h2>"));
+  assert.ok(home.indexOf(line) < home.indexOf('<h2 id="decide">지금 할 일</h2>'), "the stopped Task's card comes after it");
   assert.ok(home.includes(`href="/tasks/${s.api}"`));
   // The Mac is ready again: nothing to say.
   h.store.macHeartbeat(mac, "idle", null);

@@ -15,7 +15,7 @@ import type { MacBadge, Member } from "./store.ts";
 import type { BoardCard, BoardProject, BoardStory } from "./story-store.ts";
 import type { BoardColumn } from "./board.ts";
 import type { StoryState } from "./story-protocol.ts";
-import { AWAITING_G4, HELD_SHORT, plainFailure, storyStateLabel, taskStateLabel } from "./story-pages.ts";
+import { AWAITING_G4, HELD_SHORT, failureElsewhere, storyStateLabel, taskStateLabel } from "./story-pages.ts";
 
 const COLUMNS: { key: Exclude<BoardColumn, "hidden">; label: string }[] = [
   { key: "backlog", label: "백로그" },
@@ -77,7 +77,7 @@ const boardHref = (base: Base, f: Filters) => {
 const cardTone = (c: BoardCard): Tone | null => (TAKEN.has(c.state) ? tone("task", c.state) : c.state === "merged" || c.state === "passed" ? "done" : null);
 
 /** A failed Task's reason on a board: nothing is below a card or a row there, so it points to the Task page. */
-const boardFailure = (c: BoardCard) => plainFailure(c.failure ?? "", c.kind).replace("아래 이유를", "Task 화면에서 이유를");
+const boardFailure = (c: BoardCard) => failureElsewhere(c.failure ?? "", c.kind);
 
 function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
   const who = TAKEN.has(c.state) ? c.assignee : null;

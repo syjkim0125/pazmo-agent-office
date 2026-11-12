@@ -121,12 +121,13 @@ progress::-webkit-progress-bar{background:var(--tray);border-radius:999px}progre
 .pill.need{background:var(--need-bg);color:var(--need)}.pill.run{background:var(--run-bg);color:var(--run)}.pill.stop{background:var(--stop-bg);color:var(--stop)}.pill.done{background:var(--done-bg);color:var(--done)}
 .tag{font-size:12px;font-weight:600;color:var(--muted);background:var(--tray);border-radius:6px;padding:1px 6px;margin-left:6px}
 .onoff{font-size:14px;font-weight:700}.onoff.on{color:var(--done)}.onoff.off{color:var(--muted)}
-ul.work{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}ul.work>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:12px 14px;border-radius:12px;background:var(--bg)}
+ul.work{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}ul.work>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:12px 0;background:transparent;border-top:1px solid var(--line)}ul.work>li:first-child{border-top:0;padding-top:0}
 ul.roster{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr)}ul.roster>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:14px 0;border-top:1px solid var(--line)}ul.roster>li:first-child{border-top:0;padding-top:0}
 details.manage .row{margin-top:8px}details.manage form.inline{max-width:100%}details.manage button{max-width:100%;min-width:0;overflow-wrap:anywhere;text-align:start;padding-block:6px}details.manage .note{font-size:14px;color:var(--muted)}
 .tiles{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.tiles a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--bg);color:var(--fg);font-weight:600;text-decoration:none}.tiles a:hover{background:var(--tray)}
 .callout{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:14px 16px;border-radius:14px;background:var(--stop-bg);color:var(--stop)}.callout pre{background:var(--panel);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}.callout summary{font-size:14px}
-.head form:not(.inline),section>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}.head h1{font-size:26px}
+.head form:not(.inline),section:not(.decide)>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}
+section.decide{border:2px solid var(--need-bar)}.decide form{background:none;padding:0}details.other>summary{color:var(--muted)}.head h1{font-size:26px}
 p.state{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 table{width:100%;border-collapse:collapse}table,.pill,.mac,.macchip,.meta,.code,ul.work,.glinks{font-variant-numeric:tabular-nums}th{font-size:13px;font-weight:650;color:var(--muted)}td,th{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:last-child td{border-bottom:0}
 .scroll{overflow-x:auto}
@@ -164,8 +165,8 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .speople{gap:4px 14px;font-size:14px;color:var(--muted)}
 .more summary{font-size:14px;color:var(--muted)}.more .scards{margin-top:10px}
 .steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;font-size:13px;font-weight:700;color:var(--muted)}
-.steps li{display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:2px 4px;border-radius:8px;background:var(--tray);text-align:center}.steps li+li{margin-top:0}
-.steps li.past{background:var(--done-bg);color:var(--done)}.steps li.past::before{content:"✓ "}.steps li.now{background:var(--fg);color:var(--panel)}
+.steps li{display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:6px 4px 0;border-top:4px solid var(--line);text-align:center}.steps li+li{margin-top:0}
+.steps li.past{border-top-color:var(--done-bar);color:var(--done)}.steps li.past::before{content:"✓ "}.steps li[aria-current=step]{border-top-color:var(--fg);color:var(--fg)}
 .taskboard .cols{margin-top:2px}
 @media (width > 860px){.needs li{grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:baseline}
 .stage:has(>.scards:empty){flex:0 0 56px;padding:10px 0;align-items:center}.stage:has(>.scards:empty) h3{writing-mode:vertical-rl;text-orientation:mixed;justify-content:flex-start;gap:8px;padding:2px 0;color:var(--muted)}.stage>.scards:empty::before{content:none}}

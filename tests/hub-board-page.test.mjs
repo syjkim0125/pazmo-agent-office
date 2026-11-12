@@ -1224,3 +1224,103 @@ test("U46: the boards' heading is read, not shown twice above the tab of the sam
   for (const [path, title] of [["/", "Story 보드"], ["/tasks", "모든 Task"]]) assert.ok((await h.get(path, h.pl)).text.includes(`<h1>${title}</h1>`), path);
   assert.equal(ruleOf(await styleOf(h), ".titlebar h1"), "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap");
 });
+
+// U47 (나 결정 카드, PR 3): the "지금 할 일" card on the Task, Story and /me pages. Explainer: https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS
+const decideOf = (text) => /<section class="decide" aria-labelledby="decide">([\s\S]*?)<\/section>/.exec(text)?.[1] ?? null;
+const otherOf = (text) => /<details class="other"><summary>([^<]*)<\/summary>([\s\S]*?)<\/details>/.exec(text);
+
+test("U47: a failed Task's page opens with 지금 할 일: the reason and 다시 시도 first, 풀기 and 취소 folded under 다른 방법", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const page = (await h.get(`/tasks/${s.tasks.a}`, h.c)).text;
+  const card = decideOf(page);
+  assert.ok(card, "the assignee has something to do");
+  assert.match(card, /<h2 id="decide">지금 할 일<\/h2>/);
+  assert.match(card, /AI가 세 번 시도했지만 끝내지 못했습니다\. 아래 이유를 보고/, "the reason is below, inside the card");
+  assert.match(card, /<details><summary>자세한 이유<\/summary><pre>tests failed<\/pre><\/details>/);
+  assert.match(card, new RegExp(`<form method="post" action="/tasks/${s.tasks.a}/rerun">`), "다시 시도 is the card's action");
+  const asPl = (await h.get(`/tasks/${s.tasks.a}`, h.pl)).text;
+  const plCard = decideOf(asPl) ?? "";
+  assert.match(plCard, new RegExp(`<form method="post" action="/tasks/${s.tasks.a}/release">`), "the PL's action: 풀기");
+  const other = otherOf(plCard);
+  assert.equal(other?.[1], "다른 방법");
+  assert.match(other[2], new RegExp(`action="/tasks/${s.tasks.a}/cancel"`), "취소 folds");
+  assert.equal(asPl.split(`/tasks/${s.tasks.a}/release"`).length, 2, "풀기 appears once");
+});
+
+test("U47: a Task whose Mac went silent gives its PL 풀기 as 지금 할 일; a running Task has no card and folds 취소 under 이 Task 바꾸기", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a", "b"]));
+  const c = h.cBe();
+  h.clock.board = -20 * 60_000;
+  const held = h.board.claimNext(c);
+  h.board.heartbeat(c, held.taskId, held.claimId, "build");
+  h.clock.board = 0;
+  const card = decideOf((await h.get(`/tasks/${held.taskId}`, h.pl)).text);
+  assert.ok(card, "the PL can act on a silent Mac's Task");
+  assert.match(card, new RegExp(`<form method="post" action="/tasks/${held.taskId}/release">`));
+  assert.match(otherOf(card)?.[2] ?? "", new RegExp(`action="/tasks/${held.taskId}/cancel"`), "취소 is the other way");
+  const b = h.linkOf(h.pl, h.be);
+  const running = h.board.claimNext(b);
+  h.board.heartbeat(b, running.taskId, running.claimId, "build");
+  const page = (await h.get(`/tasks/${running.taskId}`, h.pl)).text;
+  assert.equal(decideOf(page), null, "nothing waits on anyone while it runs");
+  const fold = otherOf(page);
+  assert.equal(fold?.[1], "이 Task 바꾸기");
+  assert.match(fold[2], new RegExp(`action="/tasks/${running.taskId}/cancel"`));
+});
+
+test("U47: a ready Task the viewer may take shows 작업하기 as 지금 할 일", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  h.cBe();
+  h.board.setAutoWork(h.c.member, false);
+  const card = decideOf((await h.get(`/tasks/${s.tasks.a}`, h.c)).text);
+  assert.ok(card, "C may pick it");
+  assert.match(card, new RegExp(`action="/tasks/${s.tasks.a}/pick"`));
+});
+
+test("U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for the result approval, and nobody else", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text);
+  assert.ok(card, "the PL sees the stopped Task");
+  assert.match(card, new RegExp(`<a href="/tasks/${s.tasks.a}">`));
+  assert.match(card, /Task 화면에서 이유를 보고/, "the reason is on the Task page");
+  assert.equal(decideOf((await h.get(`/stories/${s.storyId}`, h.b)).text), null, "B leads nothing here");
+  const g4 = h.open(h.publish("승인 Story", ["a"]));
+  advance(h, g4, "awaiting_g4");
+  const approval = decideOf((await h.get(`/stories/${g4.storyId}`, h.pl)).text);
+  assert.ok(approval?.includes(AWAITING_G4), "the result approval is the PL's to do, on their Mac");
+});
+
+test("U47: /me links each Task's Story, says where a failed Task's reason is, and puts a stopped Task of mine first as 지금 할 일", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const me = (await h.get("/me", h.c)).text;
+  assert.match(me, new RegExp(`<a href="/stories/${s.storyId}">Story #${s.number} 쿠폰 발급</a>`));
+  assert.doesNotMatch(me, /아래 이유를/, "only a link follows on /me");
+  const card = decideOf(me);
+  assert.ok(card?.includes("Task 화면에서 이유를 보고"), "my stopped Task is the card");
+  assert.match(card, new RegExp(`<a href="/tasks/${s.tasks.a}">자세히·다시 시도</a>`));
+});
+
+test("U47: the card, the lists and the Story steps are drawn without trays", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.match(ruleOf(style, "section.decide"), /border:2px solid var\(--need-bar\)/, "the waiting box's border: it waits on you");
+  assert.match(ruleOf(style, ".decide form"), /background:none;padding:0/, "no form tray inside the card");
+  assert.match(ruleOf(style, "ul.work>li"), /background:transparent/);
+  assert.match(ruleOf(style, "ul.work>li"), /border-top:1px solid var\(--line\)/);
+  assert.match(ruleOf(style, ".steps li"), /border-top:4px solid var\(--line\)/, "a step is a bar and its name, not a button");
+  assert.doesNotMatch(ruleOf(style, ".steps li"), /background:var/);
+  assert.match(ruleOf(style, ".steps li[aria-current=step]"), /border-top-color:var\(--fg\)/);
+});
