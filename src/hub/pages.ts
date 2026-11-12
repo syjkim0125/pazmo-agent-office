@@ -18,9 +18,10 @@ export function tone(kind: "task" | "story" | "plan", state: string): Tone {
 export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${esc(label)}</span>`;
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);color-scheme:light}
-@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;color-scheme:dark}}
+const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}
+@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}
 *{box-sizing:border-box}
+html,body{overflow-x:clip}
 body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}
 .card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2{overflow-wrap:anywhere}
 a{color:var(--accent);text-underline-offset:3px}
@@ -36,14 +37,14 @@ nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{back
 .person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}
 button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}
 .track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}
-.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}
+.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}
 .switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}
 .macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}
 .macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}
 .on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}
-.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:#1d2733;flex:none;overflow:hidden;white-space:nowrap}
-.av0{background:#ffd8c2}.av1{background:#cfe3ff}.av2{background:#d4f0dc}.av3{background:#f3d6f2}.av4{background:#fff0b3}.av5{background:#d7d9ff}.av6{background:#c9f0ee}.av7{background:#ffd6dc}
+.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}
+.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}
 main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
 main:has(.projects){max-width:1440px}
 header:not(:has(nav))+main{max-width:600px;padding-top:56px}
@@ -176,10 +177,27 @@ const STATE: Record<string, string> = { open: "맡을 사람 대기", accepted: 
 const STATUS: Record<string, string> = { running: "실행 중", waiting: "답변·승인 대기", done: "완료", cancelled: "취소됨" };
 const KIND: Record<string, string> = { story: "범위 승인 (G1)", questions: "PM 질문", "planning-retry": "계획 재개", G4: "최종 결과 승인 (G4)" };
 const MAC_LABEL: Record<string, string> = { working: "일하는 중", idle: "대기 중", limited: "쉬는 중(한도)", locked: "잠김", off: "꺼짐" };
-export function ago(at: number | null) {
+/** The zone the team's dates are read in (ASSUMED: the team works in Korea, whatever zone the Hub's server runs in). */
+export const HUB_TIME_ZONE = "Asia/Seoul";
+const DATE_PARTS = new Intl.DateTimeFormat("en-US", { timeZone: HUB_TIME_ZONE, year: "numeric", month: "numeric", day: "numeric" });
+function teamDate(at: number) {
+  const p = Object.fromEntries(DATE_PARTS.formatToParts(at).map((x) => [x.type, x.value]));
+  return { year: Number(p.year), month: Number(p.month), day: Number(p.day) };
+}
+/**
+ * How long ago: 방금, N분 전, N시간 전, N일 전, and from seven days the date in the team's zone ("11월 5일", or
+ * "2025년 11월 5일" in another year). A time a little ahead of the clock reads as 방금.
+ */
+export function ago(at: number | null, now = Date.now()) {
   if (!at) return "아직 없음";
-  const minutes = Math.floor((Date.now() - at) / 60000);
-  return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분 전` : `${Math.floor(minutes / 60)}시간 전`;
+  const minutes = Math.floor((now - at) / 60000);
+  if (minutes < 1) return "방금";
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  if (hours < 7 * 24) return `${Math.floor(hours / 24)}일 전`;
+  const d = teamDate(at);
+  return d.year === teamDate(now).year ? `${d.month}월 ${d.day}일` : `${d.year}년 ${d.month}월 ${d.day}일`;
 }
 /**
  * What the layout needs beyond the page itself: `trust` hides the certificate menu behind the router, and `mac` is the
@@ -227,10 +245,13 @@ function menuOf(path: string | undefined): string | null {
   return path === "/" || path === "/board" || path === "/tasks" || /^\/(?:stories|tasks|plans)\//.test(path ?? "") ? "/" : null;
 }
 
-/** How long a card has stood in its column: minutes, then hours. */
-export function inColumn(at: number): string {
-  const minutes = Math.floor((Date.now() - at) / 60000);
-  return minutes < 1 ? "방금" : minutes < 60 ? `${minutes}분째` : `${Math.floor(minutes / 60)}시간째`;
+/** How long a card has stood in its column: minutes, hours, then days. */
+export function inColumn(at: number, now = Date.now()): string {
+  const minutes = Math.floor((now - at) / 60000);
+  if (minutes < 1) return "방금";
+  if (minutes < 60) return `${minutes}분째`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 24 ? `${hours}시간째` : `${Math.floor(hours / 24)}일째`;
 }
 /**
  * The header of a hub with a Story board: board and team on the left (the one shown marked as the current page); on
