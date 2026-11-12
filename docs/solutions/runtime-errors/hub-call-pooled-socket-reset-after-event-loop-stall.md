@@ -18,7 +18,7 @@ tags: [econnreset, keep-alive, https-agent, hub-call, hub-link, upload, event-lo
 # Give each upload Hub call its own connection: a pooled keep-alive one can be reset after a busy pause
 
 ## Problem
-`pazmo-office team upload` talks to the Hub in 5 calls (projects, upload, story, upload-bases, open; up to 7 with a second story read after a 409 or the `retiredMac` check after a 401), with git work (fetch, push) between them. Every call went through `hubCall` (`src/runtime/hub-link.ts:70`), which used Node's pooled global HTTPS agent (keep-alive on). A pooled connection that sits idle can be closed by the Hub, and the next call written to it fails.
+`pazmo-office team upload` talks to the Hub in 5 calls (projects, upload, story, upload-bases, open; a sixth story read when open answers 409), with git work (fetch, push) between them. Every call went through `hubCall` (`src/runtime/hub-link.ts:70`), which used Node's pooled global HTTPS agent (keep-alive on). A pooled connection that sits idle can be closed by the Hub, and the next call written to it fails.
 
 The LAN Hub keeps Node's server defaults (`src/hub/server.ts:529-534`: only `kind === "proxy"` raises `keepAliveTimeout` to 65_000). In Node v24.19.0 that is `keepAliveTimeout` 5000 plus `keepAliveTimeoutBuffer` 1000, so the Hub closes an idle connection at 6 s, not 5 s. The client agent drops its own pooled socket earlier: per Node's agent implementation it lowers the socket timeout to the server's `Keep-Alive: timeout=5` hint minus 1 s, so 4 s (not measured here; observed only that a server hint under 2 s is not pooled at all). Normally the client wins the race. The failure needs the client's timer to not run.
 
@@ -97,7 +97,7 @@ Rejected alternatives:
 - **Raise the LAN Hub's `keepAliveTimeout`** like the proxy mode. It changes the server and only narrows the window.
 - **Make the test's git helpers async.** It hides a client fragility the CLI also has whenever its timers run late.
 
-Cost: one TLS connection per upload call (5 to 7 per upload); the agent still caches TLS sessions.
+Cost: one TLS connection per upload call (5, or 6 after a 409 on open); the agent still caches TLS sessions.
 
 ## Why This Works
 Node's client agent reuses a free pooled socket if it is not yet destroyed, and writes the request to it synchronously. If the process was blocked (synchronous git) so that the connection went from under 4 s idle to over 6 s idle without the event loop running, the client's 4 s timer never ran. The request is written to the pooled socket. The event loop then enters the timers phase, and the Hub's overdue idle timer destroys its side with the request unread. The kernel answers the unread data with RST, and the client sees `read ECONNRESET`.
@@ -105,12 +105,12 @@ Node's client agent reuses a free pooled socket if it is not yet destroyed, and 
 With `keepAlive: false` the agent never pools a socket (it asks the server to close the connection after the answer; the header itself was not inspected here), so no call is ever written to a connection the Hub may have closed as idle. There is no idle window left to race.
 
 ## Prevention
-- A CLI whose Hub calls are separated by long waits (git, network) should not depend on a pooled keep-alive connection. Use `{ keepAlive: false }` for such flows.
+- The risk is not a long wait as such: during an async wait (the CLI runs git through async `runCommand`) the client's 4 s timer runs and drops the pooled connection first. The risk is the event loop being blocked, or its timers running 2 s or more late, across the Hub's idle close. So production exposure is small and the fix mainly protects the test; it also hardens the CLI on a very busy Mac. Use `{ keepAlive: false }` for a client whose calls are few and far apart.
 - Tests that host the server in the same process as the client share its event loop. Synchronous helpers (`execFileSync`) can turn a 2 s timing margin into a reset under load.
 - Other link clients still use the pooled global agent: the 5 s hub sync loop, the outgoing-request gateway (`hub-outgoing.ts`), the claim scheduler's story-link, plan-link, mac and pair. This is unchanged and a possible follow-up. A failed tick there is retried on the next tick (not separately verified).
 - Test technique, `tests/team-upload-link.test.mjs`:
   - A TLS server advertises `keep-alive: timeout=5` but closes idle connections after 50 ms (`keepAliveTimeout = 50`, `keepAliveTimeoutBuffer = 0`), keeping the advertised hint so the client still pools.
-  - A control first shows two default `hubCall`s in a row share one connection.
+  - A control first shows two default `hubCall`s in a row share one connection. It runs while the server still keeps idle connections for a minute; the server switches to 50 ms only after it. With the 50 ms close in force during the control, an 80 ms stall between the two calls failed it with `read ECONNRESET` (the first review found this).
   - Five upload-link calls (projects, upload, story, uploadBases, open) each run, followed by `await setImmediate` plus a 200 ms `Atomics.wait`. Blocking after `setImmediate` puts the block outside the timers phase.
   - It asserts every call reached the Hub once and that each call opened its own connection.
   - RED 5/5 `read ECONNRESET` before the fix, GREEN 5/5 after. Related test files 110/110, typecheck exit 0.

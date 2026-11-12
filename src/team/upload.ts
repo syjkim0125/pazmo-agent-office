@@ -415,7 +415,8 @@ const commits = (value: unknown): Record<string, string> =>
  * connection can sit idle past a LAN Hub's keep-alive (5 s, closed after 6 s) when this process is too busy for Node to
  * drop it first (at 4 s): the next call written to it fails with `read ECONNRESET`.
  */
-const uploadCall: typeof hubCall = (cfg, method, path, body, protocol) => hubCall(cfg, method, path, body, protocol, { keepAlive: false });
+const uploadCall: typeof hubCall = (cfg, method, path, body, protocol, options) =>
+  hubCall(cfg, method, path, body, protocol, { ...options, keepAlive: false });
 
 export function uploadLink(cfg: HubLinkConfig, call: typeof hubCall = uploadCall): UploadLink {
   const send = (method: "GET" | "POST", path: string, body?: unknown): Promise<unknown> =>

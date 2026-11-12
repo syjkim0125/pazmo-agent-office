@@ -22,8 +22,9 @@ const REPLIES = {
 };
 
 /**
- * A TLS Hub that answers the upload routes and, like a LAN Hub, offers a 5 s keep-alive, but closes an idle connection
- * after 50 ms: the real Hub's 6 s, shortened. It counts the connections it accepted and the requests it answered.
+ * A TLS Hub that answers the upload routes and, like a LAN Hub, offers a 5 s keep-alive. It keeps idle connections for
+ * a minute until `closeIdleAfter(ms)` shortens that (the real Hub's 6 s, shortened); each answer reads the value anew.
+ * It counts the connections it accepted and the requests it answered.
  */
 async function idleClosingHub(t) {
   const dir = mkdtempSync(join(tmpdir(), "upload-link-"));
@@ -38,7 +39,7 @@ async function idleClosingHub(t) {
       res.end(JSON.stringify(REPLIES[route] ?? { error: "NOT_FOUND" }));
     });
   });
-  server.keepAliveTimeout = 50;
+  server.keepAliveTimeout = 60_000;
   server.keepAliveTimeoutBuffer = 0;
   server.on("secureConnection", () => seen.connections++);
   await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
@@ -48,7 +49,7 @@ async function idleClosingHub(t) {
     rmSync(dir, { recursive: true, force: true });
   });
   const cfg = { hub: `https://127.0.0.1:${server.address().port}`, caPem: tls.caPem, fingerprint: tls.fingerprint, token: "link-token" };
-  return { cfg, seen };
+  return { cfg, seen, closeIdleAfter: (ms) => (server.keepAliveTimeout = ms) };
 }
 
 /**
@@ -62,13 +63,15 @@ async function busy(ms) {
 }
 
 test("every upload call reaches the Hub even after the Hub closed an idle connection while this process was busy", async (t) => {
-  const { cfg, seen } = await idleClosingHub(t);
-  // The Hub keeps a connection alive between calls that follow each other.
+  const { cfg, seen, closeIdleAfter } = await idleClosingHub(t);
+  // The Hub keeps a connection alive between calls that follow each other (while it keeps idle ones for a minute, so a
+  // busy machine cannot close it between the two).
   await hubCall(cfg, "GET", "/api/link/story/projects", undefined, "3");
   await hubCall(cfg, "GET", "/api/link/story/projects", undefined, "3");
   assert.equal(seen.connections, 1, "two calls in a row share one connection");
   seen.connections = 0;
   seen.requests = [];
+  closeIdleAfter(50);
 
   const link = uploadLink(cfg);
   const calls = [
