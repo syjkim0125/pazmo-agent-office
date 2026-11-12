@@ -1,0 +1,380 @@
+✔ /tasks is the Task board with five columns per Story (258.219083ms)
+✔ backlog holds a Task that waits for another (387.434708ms)
+✔ card shows assignee, Mac state and time in column (298.59075ms)
+✔ story card shows state, PL and who works now; planners get 새 Story (211.187125ms)
+✔ stopped card stays in its column with a plain reason (217.300833ms)
+✔ planning lanes (207.578625ms)
+✔ a web-planned Story and an uploaded Story share one board (223.274583ms)
+✔ mine and cancelled toggles are links (244.024291ms)
+✔ cancelled cards show in a strip only with the toggle (191.342042ms)
+✔ board escapes card text (200.589084ms)
+✔ menu is board and team (166.396667ms)
+✔ auto-work switch returns to the page it was pressed on (210.543625ms)
+✔ old home lives at /me (166.982166ms)
+✔ team page for everyone (158.92925ms)
+✔ old addresses still answer (154.596375ms)
+✔ hub without a board is unchanged (9.932833ms)
+✔ safePath keeps only known pages (0.367625ms)
+✔ a card wears its state: tone, name tag, Mac dot, time and number (155.423458ms)
+✔ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (143.990084ms)
+✔ a lane says how many of its Tasks are done (134.809792ms)
+✔ the menu marks the page you are on (251.926541ms)
+✖ the header shows me, the switch and my Mac with words beside their shapes (131.548709ms)
+✔ an empty project says what comes next (142.601125ms)
+✔ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (114.533292ms)
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (151.466125ms)
+✔ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (177.306625ms)
+✔ the 완료 column shows the five newest done Stories and folds the rest (153.575084ms)
+✔ a Story page carries its stage steps and its own Task board with every card (145.345375ms)
+✔ the store's board for one Story has every card of it (119.573834ms)
+✔ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (128.549792ms)
+✔ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (135.409334ms)
+✔ a long unbroken word cannot widen a page, and Story cards keep to their column (158.293792ms)
+✔ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (152.159125ms)
+✔ the 완료 column puts the Stories that finished last first, whatever their number (147.583708ms)
+✔ a cancelled Story in the strip is quiet and says what it had (139.445041ms)
+✔ a cancelled Story card counts only its cancelled Tasks and says how many had finished (142.706125ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (135.704833ms)
+✔ a cancelled Story's page and Task-board lane say what it had, like its card (145.655417ms)
+✔ 나를 기다리는 일 groups rows of the same word into one row, hides none and puts stopped ones first (D44) (114.672625ms)
+✔ project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44) (156.171917ms)
+✔ on 전체, projects with no Story fold into one line that leads to each one's chip view (D44) (155.241667ms)
+✔ chips wrap on a phone and every new target is 44px (D44) (125.144208ms)
+✔ U44: every control is at least 32px tall with a mouse and 44px square on touch (115.565458ms)
+✔ U44: the accent marks only the primary action, the current selection, focus, hover and links (99.62375ms)
+✔ U44: text never pushes a box wider than its track (133.918125ms)
+✔ U44: the space between groups is at least twice the space inside them (122.361083ms)
+✔ U44: counts, times and table numbers line up (113.339084ms)
+✖ U45: the header keeps short words on a phone and the full words for screen readers (114.076083ms)
+✖ U45: form fields are outlined at 3:1 or more against the panel and the page in both themes (134.103333ms)
+✖ U45: the current menu item is underlined in the accent, like the current tab (341.488375ms)
+✖ U45: /members is one row per member; what changes a member sits in a 관리 fold (445.823291ms)
+✖ U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see (333.541083ms)
+✔ an approve link opened without signing in is 401, says to open the invite or device link first and to refresh, and leaves the code pending; after entering, the same URL approves it (265.921333ms)
+✖ the approve page shows the Mac, its code and when it asked, with the warning and an allow and a deny form (339.008417ms)
+✔ the approve page says an earlier Mac holds an open Task, and only when the member has an earlier live Mac and an open Task (316.269791ms)
+✔ approving binds the Mac to the signed-in member; a second approve is 409 and the token still names the first member; an approve after 600000 ms is 410 (246.112542ms)
+✔ deny makes the Office's poll answer denied (197.187ms)
+✔ approve and deny need this hub's Origin and the CSRF token (215.38525ms)
+✔ the 11th approve attempt by one member in 600000 ms is 429 (224.679333ms)
+✔ 10 missed approve-page lookups by one member in 600000 ms make the 11th GET 429 even for a live code, and it shows nothing (258.39525ms)
+✔ missed approve-page lookups and approve/deny POSTs spend the one allowance (224.635583ms)
+✔ opening a live or a decided code's approve page again and again does not spend the allowance (369.190875ms)
+✔ createRateLimit.full tells whether a key is used up and takes nothing (0.222834ms)
+✖ the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 중(한도), 잠김, 꺼짐(, and 연결된 Mac 없음 with a link to /mac (180.079875ms)
+✔ /mac in OpenShift mode shows curl -fsSL <origin>/install.sh | sh with a copy button and loads copy.js; in self-CA mode it shows the /start note and no command (147.523209ms)
+✔ /mac lists my Macs with name, state, last check and a revoke button, and says how to turn an off Mac on; ?approved=1 says to go back to the terminal (136.065708ms)
+✔ /start nudges a member without a Mac to /mac in OpenShift mode only (110.31375ms)
+✖ a member revokes their own Mac; another member's revoke is 403; an admin revokes from /members (162.574333ms)
+✔ /repos shows a Mac's link as that Mac's with no 연결 해제, pointing to /mac (an admin to /members); a POST revoke of it is 409 and the link stays live; a connection-string link keeps its button (140.162584ms)
+✔ a Mac name with <script> is escaped on the approve page, /mac and /members (120.428875ms)
+✔ pages other than /mac still load no script, with or without a Mac (16.479834ms)
+ℹ tests 71
+ℹ suites 0
+ℹ pass 62
+ℹ fail 9
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 9558.990625
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:508:1
+✖ the header shows me, the switch and my Mac with words beside their shapes (131.548709ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span><span class="word">Pazmo 팀 허브<\/span><\/a>/. Input:
+  
+  '<header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span>Pazmo 팀 허브</a><nav><a href="/" aria-current="page">보드</a><a href="/team">팀</a></nav><div class="me"><a class="person" href="/me"><span class="av av5" aria-hidden="true">C</span>C</a><form class="switch" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="-SyPl_duy_VSz69qFFL6q6wJhp62IPqG1EYp2ePHghg"><input type="hidden" name="on" value="0"><input type="hidden" name="back" value="/"><button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span>자동으로 일하기 켜짐</button></form><a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: 연결된 Mac 없음</a></div></header>'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:511:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span>Pazmo 팀 허브</a><nav><a href="/" aria-current="page">보드</a><a href="/team">팀</a></nav><div class="me"><a class="person" href="/me"><span class="av av5" aria-hidden="true">C</span>C</a><form class="switch" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="-SyPl_duy_VSz69qFFL6q6wJhp62IPqG1EYp2ePHghg"><input type="hidden" name="on" value="0"><input type="hidden" name="back" value="/"><button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span>자동으로 일하기 켜짐</button></form><a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: 연결된 Mac 없음</a></div></header>',
+    expected: /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span><span class="word">Pazmo 팀 허브<\/span><\/a>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1039:1
+✖ U45: the header keeps short words on a phone and the full words for screen readers (114.076083ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span><span class="word">Pazmo 팀 허브<\/span><\/a>/. Input:
+  
+  '<header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span>Pazmo 팀 허브</a><nav><a href="/" aria-current="page">보드</a><a href="/team">팀</a></nav><div class="me"><a class="person" href="/me"><span class="av av4" aria-hidden="true">C</span>C</a><form class="switch" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="Il5BdNqK0R82QcasA7kZ-nSw1q4y_zGocQGPq3SMb_E"><input type="hidden" name="on" value="0"><input type="hidden" name="back" value="/"><button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span>자동으로 일하기 켜짐</button></form><a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: 연결된 Mac 없음</a></div></header>'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1042:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span>Pazmo 팀 허브</a><nav><a href="/" aria-current="page">보드</a><a href="/team">팀</a></nav><div class="me"><a class="person" href="/me"><span class="av av4" aria-hidden="true">C</span>C</a><form class="switch" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="Il5BdNqK0R82QcasA7kZ-nSw1q4y_zGocQGPq3SMb_E"><input type="hidden" name="on" value="0"><input type="hidden" name="back" value="/"><button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span>자동으로 일하기 켜짐</button></form><a class="macchip off" href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: 연결된 Mac 없음</a></div></header>',
+    expected: /^<header><a class="brand" href="\/"><span class="logo" aria-hidden="true"><\/span><span class="word">Pazmo 팀 허브<\/span><\/a>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1054:1
+✖ U45: form fields are outlined at 3:1 or more against the panel and the page in both themes (134.103333ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /border:1px solid var\(--field-line\)/. Input:
+  
+  'font:inherit;max-width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg)'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1056:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'font:inherit;max-width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg)',
+    expected: /border:1px solid var\(--field-line\)/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1064:1
+✖ U45: the current menu item is underlined in the accent, like the current tab (341.488375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'background:var(--fg);color:var(--panel)'
+  - 'color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1066:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'background:var(--fg);color:var(--panel)',
+    expected: 'color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1069:1
+✖ U45: /members is one row per member; what changes a member sits in a 관리 fold (445.823291ms)
+  AssertionError [ERR_ASSERTION]: a list, not a table
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1072:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n.gwhy{color:var(--muted);font-size:14px}\n.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n.needs a:hover{border-color:var(--accent)}\n.chips{display:flex;flex-wrap:wrap;gap:8px}\n.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n.progress{margi'... 16250 more characters,
+    expected: /<table/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1087:1
+✖ U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see (333.541083ms)
+  AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /<table/. Input:
+  
+  '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>레포 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n' +
+    '*{box-sizing:border-box}\n' +
+    'html,body{overflow-x:clip}\n' +
+    'body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n' +
+    '.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n' +
+    ':where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\n' +
+    'a{color:var(--accent);text-underline-offset:3px}\n' +
+    ':focus-visible{outline:3px solid var(--accent);outline-offset:2px}\n' +
+    'h1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\n' +
+    'header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n' +
+    '.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n' +
+    '.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\n' +
+    'nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\n' +
+    'nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\n' +
+    'nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n' +
+    '.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n' +
+    '.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\n' +
+    'button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n' +
+    '.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n' +
+    '.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n' +
+    '.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n' +
+    '.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n' +
+    '.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n' +
+    '.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n' +
+    '.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n' +
+    '.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n' +
+    '.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\n' +
+    'main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\n' +
+    'main:has(.projects){max-width:1440px}\n' +
+    'header:not(:has(nav))+main{max-width:600px;padding-top:56px}\n' +
+    'section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n' +
+    '.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n' +
+    '.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n' +
+    '.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n' +
+    '.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n' +
+    '.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\n' +
+    'button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\n' +
+    'button.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\n' +
+    'button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\n' +
+    'button:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n' +
+    '.toggles .btn{margin-left:auto}\n' +
+    '.needs{border:2px solid var(--need-bar);gap:10px}\n' +
+    '.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n' +
+    '.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n' +
+    '.needs .count{background:var(--need-bg);color:var(--need)}\n' +
+    '.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n' +
+    '.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n' +
+    '.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n' +
+    '.gwhy{color:var(--muted);font-size:14px}\n' +
+    '.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n' +
+    '.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n' +
+    '.needs a:hover{border-color:var(--accent)}\n' +
+    '.chips{display:flex;flex-wrap:wrap;gap:8px}\n' +
+    '.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n' +
+    '.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n' +
+    '.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n' +
+    '.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n' +
+    '.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n' +
+    '.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n' +
+    '.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n' +
+    '.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n' +
+    '.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n' +
+    '.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n' +
+    '.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n' +
+    '.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n' +
+    '.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n' +
+    '.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n' +
+    '.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n' +
+    '.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n' +
+    '.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n' +
+    '.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n' +
+    '.progress{margin-l'... 16405 more characters
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1090:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>레포 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n.gwhy{color:var(--muted);font-size:14px}\n.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n.needs a:hover{border-color:var(--accent)}\n.chips{display:flex;flex-wrap:wrap;gap:8px}\n.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n.progress{margin-l'... 16405 more characters,
+    expected: /<table/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/hub-mac-pages.test.mjs:116:1
+✖ the approve page shows the Mac, its code and when it asked, with the warning and an allow and a deny form (339.008417ms)
+  AssertionError [ERR_ASSERTION]: the header is there on a signed-in page
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-mac-pages.test.mjs:129:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-mac-pages.test.mjs:333:1
+✖ the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 중(한도), 잠김, 꺼짐(, and 연결된 Mac 없음 with a link to /mac (180.079875ms)
+  AssertionError [ERR_ASSERTION]: the pill closes the header; no Mac yet
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-mac-pages.test.mjs:339:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-mac-pages.test.mjs:430:1
+✖ a member revokes their own Mac; another member's revoke is 403; an admin revokes from /members (162.574333ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /Mac: C의 Mac/. Input:
+  
+  '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n' +
+    '*{box-sizing:border-box}\n' +
+    'html,body{overflow-x:clip}\n' +
+    'body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n' +
+    '.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n' +
+    ':where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\n' +
+    'a{color:var(--accent);text-underline-offset:3px}\n' +
+    ':focus-visible{outline:3px solid var(--accent);outline-offset:2px}\n' +
+    'h1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\n' +
+    'header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n' +
+    '.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n' +
+    '.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\n' +
+    'nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\n' +
+    'nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\n' +
+    'nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n' +
+    '.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n' +
+    '.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\n' +
+    'button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n' +
+    '.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n' +
+    '.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n' +
+    '.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n' +
+    '.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n' +
+    '.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n' +
+    '.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n' +
+    '.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n' +
+    '.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n' +
+    '.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\n' +
+    'main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\n' +
+    'main:has(.projects){max-width:1440px}\n' +
+    'header:not(:has(nav))+main{max-width:600px;padding-top:56px}\n' +
+    'section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n' +
+    '.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n' +
+    '.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n' +
+    '.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n' +
+    '.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n' +
+    '.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\n' +
+    'button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\n' +
+    'button.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\n' +
+    'button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\n' +
+    'button:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n' +
+    '.toggles .btn{margin-left:auto}\n' +
+    '.needs{border:2px solid var(--need-bar);gap:10px}\n' +
+    '.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n' +
+    '.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n' +
+    '.needs .count{background:var(--need-bg);color:var(--need)}\n' +
+    '.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n' +
+    '.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n' +
+    '.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n' +
+    '.gwhy{color:var(--muted);font-size:14px}\n' +
+    '.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n' +
+    '.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n' +
+    '.needs a:hover{border-color:var(--accent)}\n' +
+    '.chips{display:flex;flex-wrap:wrap;gap:8px}\n' +
+    '.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n' +
+    '.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n' +
+    '.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n' +
+    '.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n' +
+    '.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n' +
+    '.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n' +
+    '.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n' +
+    '.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n' +
+    '.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n' +
+    '.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n' +
+    '.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n' +
+    '.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n' +
+    '.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n' +
+    '.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n' +
+    '.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n' +
+    '.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n' +
+    '.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n' +
+    '.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n' +
+    '.progress{margi'... 15716 more characters
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-mac-pages.test.mjs:452:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n.gwhy{color:var(--muted);font-size:14px}\n.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n.needs a:hover{border-color:var(--accent)}\n.chips{display:flex;flex-wrap:wrap;gap:8px}\n.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n.progress{margi'... 15716 more characters,
+    expected: /Mac: C의 Mac/,
+    operator: 'match',
+    diff: 'simple'
+  }

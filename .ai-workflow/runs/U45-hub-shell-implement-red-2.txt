@@ -1,0 +1,178 @@
+✔ /tasks is the Task board with five columns per Story (108.779709ms)
+✔ backlog holds a Task that waits for another (68.286125ms)
+✔ card shows assignee, Mac state and time in column (68.023084ms)
+✔ story card shows state, PL and who works now; planners get 새 Story (80.937917ms)
+✔ stopped card stays in its column with a plain reason (61.417792ms)
+✔ planning lanes (63.26425ms)
+✔ a web-planned Story and an uploaded Story share one board (76.475292ms)
+✔ mine and cancelled toggles are links (71.407959ms)
+✔ cancelled cards show in a strip only with the toggle (68.388375ms)
+✔ board escapes card text (64.507208ms)
+✔ menu is board and team (63.151042ms)
+✔ auto-work switch returns to the page it was pressed on (66.513292ms)
+✔ old home lives at /me (68.715375ms)
+✔ team page for everyone (70.0505ms)
+✔ old addresses still answer (91.802209ms)
+✔ hub without a board is unchanged (8.401917ms)
+✔ safePath keeps only known pages (0.317417ms)
+✔ a card wears its state: tone, name tag, Mac dot, time and number (88.537625ms)
+✔ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (78.606959ms)
+✔ a lane says how many of its Tasks are done (75.145958ms)
+✔ the menu marks the page you are on (98.7775ms)
+✖ the header shows me, the switch and my Mac with words beside their shapes (113.560625ms)
+✔ an empty project says what comes next (83.901417ms)
+✔ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (88.293708ms)
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (106.97075ms)
+✔ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (104.225125ms)
+✔ the 완료 column shows the five newest done Stories and folds the rest (113.808458ms)
+✔ a Story page carries its stage steps and its own Task board with every card (105.837792ms)
+✔ the store's board for one Story has every card of it (78.159666ms)
+✔ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (89.525709ms)
+✔ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (75.857375ms)
+✔ a long unbroken word cannot widen a page, and Story cards keep to their column (63.343334ms)
+✔ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (75.363834ms)
+✔ the 완료 column puts the Stories that finished last first, whatever their number (84.221208ms)
+✔ a cancelled Story in the strip is quiet and says what it had (58.409708ms)
+✔ a cancelled Story card counts only its cancelled Tasks and says how many had finished (61.076666ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (55.962042ms)
+✔ a cancelled Story's page and Task-board lane say what it had, like its card (71.172791ms)
+✔ 나를 기다리는 일 groups rows of the same word into one row, hides none and puts stopped ones first (D44) (61.052958ms)
+✔ project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44) (72.771417ms)
+✔ on 전체, projects with no Story fold into one line that leads to each one's chip view (D44) (66.017417ms)
+✔ chips wrap on a phone and every new target is 44px (D44) (57.62425ms)
+✔ U44: every control is at least 32px tall with a mouse and 44px square on touch (59.607209ms)
+✔ U44: the accent marks only the primary action, the current selection, focus, hover and links (54.248834ms)
+✔ U44: text never pushes a box wider than its track (56.676209ms)
+✔ U44: the space between groups is at least twice the space inside them (56.652208ms)
+✔ U44: counts, times and table numbers line up (56.140125ms)
+✖ U45: the header keeps short words on a phone and the full words for screen readers (55.287708ms)
+✔ U45: form fields are outlined at 3:1 or more against the panel and the page in both themes (59.579ms)
+✔ U45: the current menu item is underlined in the accent, like the current tab (59.019458ms)
+✔ U45: /members is one row per member; what changes a member sits in a 관리 fold (60.167833ms)
+✔ U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see (66.863833ms)
+✔ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (130.697083ms)
+✔ a hub without a board keeps the request board at / and answers 404 for /board, /stories/<id> and /tasks/<id> (7.606459ms)
+✔ home shows the Mac nudge only when the hub installs Macs and the member has none (71.769042ms)
+✔ a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac (87.468542ms)
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (86.037083ms)
+✔ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (67.350375ms)
+✔ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (87.29925ms)
+✔ a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conflict and the default, with the raw reason under 자세한 이유 (87.265667ms)
+✔ a Task that failed, was released and is claimed again shows no failure text (79.891458ms)
+✔ a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분 뒤' from until; an off Mac shows no wait text (74.822167ms)
+✔ a member with no open Task whose newest Mac rests with claude: not_ready sees what to do on / (72.051208ms)
+✔ a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it (77.257541ms)
+✔ a merged Task shows the summary, the decision lines with ASSUMED in bold and the PR link (70.216458ms)
+✔ buttons follow taskActions: the assignee sees 다시 시도 on a failed Task, the PL and an admin see 풀기 and 취소, another member sees none (95.49125ms)
+✔ untrusted text is escaped on the work, board, Story and Task pages (120.859541ms)
+✔ an unknown Task or Story id is a 404 page; the new pages load no script (86.549958ms)
+✔ inTime says 곧, 약 25분 뒤, 약 2시간 뒤, 약 1시간 5분 뒤 and 잠시 뒤 for null (0.284292ms)
+✔ plainFailure picks by prefix and falls back to the default (0.089459ms)
+✖ switching auto work off and on from the web changes what claimNext gives (85.85475ms)
+✔ 작업하기 from the web claims the Task for the member; the Task page then says 시작 중 and the member's inbox names it (110.11425ms)
+✔ a claim the Mac has not taken yet says it waits for the Mac instead of the Hub's own claim time (109.481708ms)
+✔ 작업하기 without a live link is a NOT_LINKED page and changes nothing (95.474459ms)
+✔ 다시 시도 from the web reruns the failed Task with the memo; a second click lands on the Task page; after the PL released it, a STATE page that says 다시 시도 (114.60875ms)
+✔ a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page (96.422708ms)
+✔ 풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays (132.826084ms)
+✔ 취소 of a Task that holds the merge lock is a STATE page and the Task stays as it was; after 풀기 it can be cancelled (117.847958ms)
+✔ 풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office (79.37925ms)
+✖ every new POST is 403 from another origin or without the CSRF token (136.646875ms)
+✔ an unknown Task id is a 404 page for every button (70.992167ms)
+✔ a hub without a board answers 404 for the new POSTs (4.732208ms)
+✔ U44: /me's empty parts say what belongs there and the action that fills them (75.961917ms)
+✔ U44: no form sits inside a paragraph on /me or a Task page (71.873042ms)
+ℹ tests 84
+ℹ suites 0
+ℹ pass 79
+ℹ fail 5
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 3906.033334
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:508:1
+✖ the header shows me, the switch and my Mac with words beside their shapes (113.560625ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> 켜짐</span></button>'))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:513:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1039:1
+✖ U45: the header keeps short words on a phone and the full words for screen readers (55.287708ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> 켜짐</span></button>'))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1044:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:202:1
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (86.037083ms)
+  AssertionError [ERR_ASSERTION]: off: /
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-story-pages.test.mjs:214:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:562:1
+✖ switching auto work off and on from the web changes what claimNext gives (85.85475ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok((await h.get("/me", h.c)).text.includes(OFF_PILL))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-story-pages.test.mjs:570:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:746:1
+✖ every new POST is 403 from another origin or without the CSRF token (136.646875ms)
+  AssertionError [ERR_ASSERTION]: the switch did not change
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-story-pages.test.mjs:762:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

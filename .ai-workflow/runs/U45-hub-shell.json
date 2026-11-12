@@ -1,0 +1,690 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "63674f9a-6254-4d0f-a1e8-7ea58db02898",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes (4ab2da0): fold buttons name their item and wrap long names, resting Mac dot is a square, revoked member rows read (끊김) with no fold, switch has one clean accessible name, fold note and member count corrected, tests for escaping/revoked/one-owner/dot shapes. Hub tests 594/594, tsc 0, 112 browser measurements with folds open: overflow 0, drawn past edge 0, small targets 0.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-implement-3.md",
+            ".ai-workflow/runs/U45-hub-shell-implement-red-3.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-green-3.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-hub-5.txt",
+            ".ai-workflow/runs/U45-hub-shell-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-implement-3.md": "100e226be83c0087aa5b5fdea2c29d96721aec40c0ecca63dfee2406ac2d6caf",
+          ".ai-workflow/runs/U45-hub-shell-implement-red-3.txt": "a27b26e83d9259f0a834e5207acf8e1be7d794c248e41801d437dfa203f48146",
+          ".ai-workflow/runs/U45-hub-shell-implement-green-3.txt": "db97b5cbf37adfe3fe7ed6bbd29c7a5f9b40d437125c9e6a51d8400ac7b9c9b2",
+          ".ai-workflow/runs/U45-hub-shell-implement-hub-5.txt": "42cf66ef3a87a1cd3edc01c790fae32b0ab8b73b3e2ea676410a61578ab6f6eb",
+          ".ai-workflow/runs/U45-hub-shell-review-2.md": "f642e46133e9d2a922b45ddbac1823a76e2b6420a39a3695eedff37276d8f696"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 3,
+        "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d",
+        "output": {
+          "summary": "Independent review 3 (same reviewer; fix 9b68c5d..4ab2da0 and whole PR 84e1171..4ab2da0): Ready. I1–I3 and M1–M4 resolved (I1 for browsers only when days differ, pre-existing). No regressions: escaping, accessible names, removed-line check, U44 invariants, routes/CSRF unchanged; 134/134 in five single test files. Minor left: m1 same-day 브라우저 buttons look alike (pre-existing; record sentence to correct), m2 small test gaps and a leftover `void solo;`, m3 checklist rule 5 needs a one-line exception for the phone Mac dot. Review allocation: 1 reviewer (small UI change).",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-review-3.md": "92bbd05f8ac0446c96cbff5b7ab3c906680330eaececa672f2c8b44d2b8e51b5"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 3,
+        "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/e35196f3-d7eb-43a7-b3f3-42778e47c019/receipt.json",
+            "hash": "985d6ffab3e651da12e0ab8f29b6b37a21c4b85511407a38b682e853e98dd6c2"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/13dca8b1-cba4-4a5e-bccc-9d6e74c2d2c6/receipt.json",
+            "hash": "f127cc5edd18fd278ae0631f3bb782cfb486c7d5eabaeccb713b3124b153c35b"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/92f7c3f8-43ac-47df-923b-994fd29068d1/receipt.json",
+            "hash": "cfaba3abd4ffeb1003db66f49e0856be137c2cfb22d93bf75428f4c88dcb6c95"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/b02704c5-d82e-42ca-90a2-781f036649a3/receipt.json",
+            "hash": "d6a2ffe4e9eb01e7af7568d0674acc9fe6ec8b0c612b44c532057ca5bcb168b1"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/24e9ab05-b679-4298-a6e6-15cd90d95a38/receipt.json",
+            "hash": "e98e4b98dbc55c4cd9e7f9d43604542dc6f5d63a364e1a6ed494921e91dd9f3f"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 4ab2da0: tests 635/635 + 586/586 + 677/677 = 1898/1898, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-verify-1.md": "0484a2fee4b1113c039222f25be7e078166866f7a31791cde578564590871296"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T07:43:15.705Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T07:53:41.119Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "One-row header from 390px with full words kept for screen readers, --field-line 3:1 field borders, accent-underlined current menu item, form buttons at their own width, /members and /repos as one row per item with a 관리 fold. Hub tests 585/585, tsc 0, 84 browser measurements with 0 overflow.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-implement-1.md",
+            ".ai-workflow/runs/U45-hub-shell-implement-red-1.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-green-1.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-red-2.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-green-2.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-hub-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-implement-1.md": "74ef8c469702d9c6fda00101e8029b07e006dcbac5582d87db59c0226772d47a",
+          ".ai-workflow/runs/U45-hub-shell-implement-red-1.txt": "8c9b5fdeb06e4c3bd4a77f38a92d005fbbee295cf66e520ebcd5c19ab2c7ac24",
+          ".ai-workflow/runs/U45-hub-shell-implement-green-1.txt": "c1fa8e6f51a2b7853b78f5ccbc8b9f16037af173b8b1704c6236d38c081836eb",
+          ".ai-workflow/runs/U45-hub-shell-implement-red-2.txt": "5dd0b346ece3921f4a69587b394e317bc58c06cd4f9b2322a33f16f49a91e584",
+          ".ai-workflow/runs/U45-hub-shell-implement-green-2.txt": "8180644d7b7de4b54c0af64c91de799dfd10ec0831e633b3fce623e96499b0cd",
+          ".ai-workflow/runs/U45-hub-shell-implement-hub-3.txt": "ef8d8f4a87639a476f1b6d0cf0adcbe244cc9f090d376c39636a4da685342a4e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T07:53:51.607Z"
+    },
+    {
+      "event": "reset",
+      "nodeId": "workflow-review",
+      "affected": [
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Reviewer attempt 1 stopped before reporting: the code under review changed when U45 was rebased onto main 84e1171 (U44 merged)",
+      "at": "2026-11-12T08:02:27.600Z"
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Rebased onto main 84e1171 after U44 merged (PR #87): /members conflict resolved with U44's teamDay(); my own day formatter dropped",
+      "at": "2026-11-12T08:02:27.999Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T08:02:44.083Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T08:02:44.662Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "U45 rebased onto main 84e1171 after U44 merged; /members conflict resolved with U44's teamDay(), own day formatter dropped. Hub tests 590/590, tsc 0, 84 browser measurements with 0 overflow. Commit 9b68c5d.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-implement-2.md",
+            ".ai-workflow/runs/U45-hub-shell-implement-1.md",
+            ".ai-workflow/runs/U45-hub-shell-implement-hub-4.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-implement-2.md": "db817816437edc4aa39ada7a3a95980950e9409f4e07cef9a9f1c85a07ae6935",
+          ".ai-workflow/runs/U45-hub-shell-implement-1.md": "74ef8c469702d9c6fda00101e8029b07e006dcbac5582d87db59c0226772d47a",
+          ".ai-workflow/runs/U45-hub-shell-implement-hub-4.txt": "6d1683627ca379ce0f1d08dc9e20d48d068b5480fbce25a74a56e6950ee94c2d"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T08:02:51.007Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T08:12:24.273Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 2,
+        "snapshot": "a430c6952d3359685aed38c8bce15f823abb4e6304f9b575bfbc94264b636178",
+        "output": {
+          "summary": "Independent review of 84e1171..9b68c5d: Not ready. Important: I1 destructive buttons in the 관리 fold do not name their item (Mac 해제; two 기기 회수: 브라우저), I2 name-carrying buttons clip at 320px with a 40-letter name (overflow hidden by overflow-x:clip), I3 on a phone the Mac dot tells working from resting by colour alone. Minor: M1 a revoked member's devices read as active, M2 switch accessible name gets a space at ≤860px, M3 fold note on own row and member count wording, M4 test gaps (escaping on /members and /repos, revoked row, one-owner repo, non-owner link member) and a duplicated header test. Held: routes, CSRF, who sees what, form>button scope, header names, U44 invariants.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "a430c6952d3359685aed38c8bce15f823abb4e6304f9b575bfbc94264b636178"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1–I3 and M1–M4 in implement: name the item on every destructive fold button (Mac name; device label + expiry), let fold buttons wrap within the column at 320px with long names and measure elements drawn past the edge, give the resting Mac dot its own shape, show a revoked member's devices as unusable, give the switch one clean accessible name, correct the fold note and member count, add tests for escaping, revoked rows, one-owner repo and non-owner link member, drop duplicated header assertions."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-review-2.md": "f642e46133e9d2a922b45ddbac1823a76e2b6420a39a3695eedff37276d8f696"
+        },
+        "error": "Fix I1–I3 and M1–M4 in implement: name the item on every destructive fold button (Mac name; device label + expiry), let fold buttons wrap within the column at 320px with long names and measure elements drawn past the edge, give the resting Mac dot its own shape, show a revoked member's devices as unusable, give the switch one clean accessible name, correct the fold note and member count, add tests for escaping, revoked rows, one-owner repo and non-owner link member, drop duplicated header assertions."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 2 (Not ready): name the item on destructive fold buttons, wrap fold buttons at 320px, Mac rest dot shape, revoked member devices, switch accessible name, fold note and count wording, test gaps",
+      "at": "2026-11-12T08:12:32.389Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T08:12:33.041Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T08:17:04.968Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes (4ab2da0): fold buttons name their item and wrap long names, resting Mac dot is a square, revoked member rows read (끊김) with no fold, switch has one clean accessible name, fold note and member count corrected, tests for escaping/revoked/one-owner/dot shapes. Hub tests 594/594, tsc 0, 112 browser measurements with folds open: overflow 0, drawn past edge 0, small targets 0.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-implement-3.md",
+            ".ai-workflow/runs/U45-hub-shell-implement-red-3.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-green-3.txt",
+            ".ai-workflow/runs/U45-hub-shell-implement-hub-5.txt",
+            ".ai-workflow/runs/U45-hub-shell-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-implement-3.md": "100e226be83c0087aa5b5fdea2c29d96721aec40c0ecca63dfee2406ac2d6caf",
+          ".ai-workflow/runs/U45-hub-shell-implement-red-3.txt": "a27b26e83d9259f0a834e5207acf8e1be7d794c248e41801d437dfa203f48146",
+          ".ai-workflow/runs/U45-hub-shell-implement-green-3.txt": "db97b5cbf37adfe3fe7ed6bbd29c7a5f9b40d437125c9e6a51d8400ac7b9c9b2",
+          ".ai-workflow/runs/U45-hub-shell-implement-hub-5.txt": "42cf66ef3a87a1cd3edc01c790fae32b0ab8b73b3e2ea676410a61578ab6f6eb",
+          ".ai-workflow/runs/U45-hub-shell-review-2.md": "f642e46133e9d2a922b45ddbac1823a76e2b6420a39a3695eedff37276d8f696"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T08:17:06.207Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T08:20:42.924Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 3,
+        "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d",
+        "output": {
+          "summary": "Independent review 3 (same reviewer; fix 9b68c5d..4ab2da0 and whole PR 84e1171..4ab2da0): Ready. I1–I3 and M1–M4 resolved (I1 for browsers only when days differ, pre-existing). No regressions: escaping, accessible names, removed-line check, U44 invariants, routes/CSRF unchanged; 134/134 in five single test files. Minor left: m1 same-day 브라우저 buttons look alike (pre-existing; record sentence to correct), m2 small test gaps and a leftover `void solo;`, m3 checklist rule 5 needs a one-line exception for the phone Mac dot. Review allocation: 1 reviewer (small UI change).",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-review-3.md": "92bbd05f8ac0446c96cbff5b7ab3c906680330eaececa672f2c8b44d2b8e51b5"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T08:20:43.695Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T08:24:11.215Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 3,
+        "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/e35196f3-d7eb-43a7-b3f3-42778e47c019/receipt.json",
+            "hash": "985d6ffab3e651da12e0ab8f29b6b37a21c4b85511407a38b682e853e98dd6c2"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/13dca8b1-cba4-4a5e-bccc-9d6e74c2d2c6/receipt.json",
+            "hash": "f127cc5edd18fd278ae0631f3bb782cfb486c7d5eabaeccb713b3124b153c35b"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/92f7c3f8-43ac-47df-923b-994fd29068d1/receipt.json",
+            "hash": "cfaba3abd4ffeb1003db66f49e0856be137c2cfb22d93bf75428f4c88dcb6c95"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/b02704c5-d82e-42ca-90a2-781f036649a3/receipt.json",
+            "hash": "d6a2ffe4e9eb01e7af7568d0674acc9fe6ec8b0c612b44c532057ca5bcb168b1"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/63674f9a-6254-4d0f-a1e8-7ea58db02898/24e9ab05-b679-4298-a6e6-15cd90d95a38/receipt.json",
+            "hash": "e98e4b98dbc55c4cd9e7f9d43604542dc6f5d63a364e1a6ed494921e91dd9f3f"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 4ab2da0: tests 635/635 + 586/586 + 677/677 = 1898/1898, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U45-hub-shell-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U45-hub-shell-verify-1.md": "0484a2fee4b1113c039222f25be7e078166866f7a31791cde578564590871296"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

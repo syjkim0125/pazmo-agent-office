@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d",
+  "snapshot": "83b1dc328d7bb129bf0ef083b27c88ae1c17ca3d15274bc5884510b527c9da2d",
+  "runId": "63674f9a-6254-4d0f-a1e8-7ea58db02898",
+  "responseRef": "Claude Code conversation 2026-11-12. The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 10, label '8판: U45 G4') showed before/after screenshot pairs (phone header, desktop menu, /members, /repos, field borders), the changes, the checks (three kit reviews, kit verify 1898/1898), what was not verified, the three G4 questions and the options; asked \"U45 G4: which option?\", the user answered \"승인 후 머지\" without answering the three questions (D13). Record: .ai-workflow/approvals/hub-shell-g4.md",
+  "branch": "claude/hub-redesign-b044ca",
+  "head": "4ab2da0",
+  "date": "2026-11-12"
+}
