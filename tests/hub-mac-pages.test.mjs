@@ -450,7 +450,7 @@ test("a member revokes their own Mac; another member's revoke is 403; an admin r
 
   const members = (await h.get("/members", admin)).text;
   assert.match(members, /Mac: C의 Mac/);
-  assert.match(members, new RegExp(`action="/macs/${cMac.macId}/revoke"><input type="hidden" name="csrf" value="${admin.csrf}"><button class="secondary">Mac 해제</button>`));
+  assert.match(members, new RegExp(`action="/macs/${cMac.macId}/revoke"><input type="hidden" name="csrf" value="${admin.csrf}"><button class="secondary">Mac 해제: C의 Mac</button>`));
   assert.doesNotMatch(members, /B의 Mac/, "a revoked Mac is not listed");
   const byAdmin = await h.post(`/macs/${cMac.macId}/revoke`, admin);
   assert.deepEqual([byAdmin.status, byAdmin.headers.location], [303, "/members"], "back to the list the admin came from");

@@ -39,11 +39,12 @@ nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{colo
 button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}
 .track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}
 .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}
+.switch .short{display:none}
 .switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}
 .macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}
 .macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}
-.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}
+.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar);border-radius:2px}.off .dot{background:transparent;border:2px solid var(--idle)}
 .av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}
 .av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}
 main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}
@@ -121,7 +122,7 @@ progress::-webkit-progress-bar{background:var(--tray);border-radius:999px}progre
 .onoff{font-size:14px;font-weight:700}.onoff.on{color:var(--done)}.onoff.off{color:var(--muted)}
 ul.work{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}ul.work>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:12px 14px;border-radius:12px;background:var(--bg)}
 ul.roster{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr)}ul.roster>li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:14px 0;border-top:1px solid var(--line)}ul.roster>li:first-child{border-top:0;padding-top:0}
-details.manage .row{margin-top:8px}details.manage .note{font-size:14px;color:var(--muted)}
+details.manage .row{margin-top:8px}details.manage form.inline{max-width:100%}details.manage button{max-width:100%;min-width:0;overflow-wrap:anywhere;text-align:start;padding-block:6px}details.manage .note{font-size:14px;color:var(--muted)}
 .tiles{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.tiles a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--bg);color:var(--fg);font-weight:600;text-decoration:none}.tiles a:hover{background:var(--tray)}
 .callout{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:14px 16px;border-radius:14px;background:var(--stop-bg);color:var(--stop)}.callout pre{background:var(--panel);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}.callout summary{font-size:14px}
 .head form:not(.inline),section>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}.head h1{font-size:26px}
@@ -168,7 +169,8 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .taskboard .cols{margin-top:2px}
 @media (width > 860px) and (width <= 960px){.stages{gap:12px}.stage{padding:6px}.stage[data-stage=planning]{padding:4px}.stages .scard{padding:12px}.stages .scards{gap:6px}}
 @media (max-width:860px){header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
-.brand .word,.person .name,.switch .long,.macchip .long{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+.switch .short{display:inline}
+.brand .word,.person .name,.switch .full,.macchip .long{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .person,.macchip{min-width:44px;justify-content:center;padding:0}.brand{min-width:44px;justify-content:center}
 main{padding:16px 14px 48px}section{padding:18px}
 .cols{grid-template-columns:minmax(0,1fr);gap:16px}.col:has(>.cards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.col:has(>.cards:empty) h3{flex:1}.col .cards:empty{display:none}
@@ -271,7 +273,7 @@ export function inColumn(at: number, now = Date.now()): string {
 function boardHeader(me: Member, chrome: Chrome): string {
   const on = chrome.autoWork === true;
   const sw = chrome.csrf
-    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${on}"><span class="track" aria-hidden="true"></span><span class="label">자동<span class="long">으로 일하기</span> ${on ? "켜짐" : "꺼짐"}</span></button></form>`
+    ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${on}"><span class="track" aria-hidden="true"></span><span class="short" aria-hidden="true">자동 ${on ? "켜짐" : "꺼짐"}</span><span class="full">자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</span></button></form>`
     : "";
   const mac = chrome.mac ? macChip(chrome.mac) : "";
   const here = menuOf(chrome.path);
@@ -422,22 +424,23 @@ export function members(me: Member, csrf: string, list: MemberView[], chrome: Ch
   const rows = list
     .map((m) => {
       const browsers = m.devices.length
-        ? m.devices.map((d) => (d.revoked ? `${esc(d.label)}(끊김)` : `${esc(d.label)} · ${esc(teamDay(d.expiresAt))}까지`)).join(", ")
+        ? m.devices.map((d) => (d.revoked || m.revoked ? `${esc(d.label)}(끊김)` : `${esc(d.label)} · ${esc(teamDay(d.expiresAt))}까지`)).join(", ")
         : "없음";
       const macs = m.macs.length ? m.macs.map((k) => `${esc(k.name)} (${esc(macState(k))})`).join(", ") : "없음";
       const actions =
         button(`/members/${m.id}/device-invite`, csrf, "새 기기 링크", "secondary") +
-        m.devices.filter((d) => !d.revoked).map((d) => button(`/devices/${d.id}/revoke`, csrf, `기기 회수: ${d.label}`, "secondary")).join("") +
-        m.macs.map((k) => button(`/macs/${k.id}/revoke`, csrf, "Mac 해제", "secondary")).join("") +
+        m.devices.filter((d) => !d.revoked).map((d) => button(`/devices/${d.id}/revoke`, csrf, `기기 회수: ${d.label} (${teamDay(d.expiresAt)}까지)`, "secondary")).join("") +
+        m.macs.map((k) => button(`/macs/${k.id}/revoke`, csrf, `Mac 해제: ${k.name}`, "secondary")).join("") +
         (m.id === me.id ? "" : button(`/members/${m.id}/revoke`, csrf, "팀원 회수", "danger"));
       const fold = m.revoked
         ? ""
-        : `<details class="manage"><summary>관리</summary><p class="note">기기를 회수하면 그 브라우저는 새 기기 링크로 다시 들어와야 합니다. 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다.</p><div class="row">${actions}</div></details>`;
+        : `<details class="manage"><summary>관리</summary><p class="note">기기를 회수하면 그 브라우저는 새 기기 링크로 다시 들어와야 합니다.${m.id === me.id ? "" : " 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다."}</p><div class="row">${actions}</div></details>`;
       return `<li class="member"><p class="row"><span class="person">${avatar(m)}${esc(m.name)}</span>${m.admin ? '<span class="pill">관리자</span>' : ""}${m.revoked ? '<span class="pill">회수됨</span>' : ""}</p><p class="muted">브라우저: ${browsers}</p><p class="muted">Mac: ${macs}</p>${fold}</li>`;
     })
     .join("");
-  const live = list.filter((m) => !m.revoked).length;
-  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명</h2><ul class="roster">${rows}</ul></section>`, chrome);
+  const live = list.filter((m) => !m.revoked).length,
+    gone = list.length - live;
+  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명${gone ? ` · 회수됨 ${gone}명` : ""}</h2><ul class="roster">${rows}</ul></section>`, chrome);
 }
 export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: string | null; approved: boolean }, chrome: Chrome = {}) {
   const done = o.approved ? `<section role="status"><h2>허용했습니다. 터미널로 돌아가세요</h2><p>설치가 끝나고 Office가 켜지면 아래 표에서 내 Mac의 상태를 볼 수 있습니다.</p></section>` : "";
