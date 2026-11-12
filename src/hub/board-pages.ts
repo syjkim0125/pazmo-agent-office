@@ -174,9 +174,14 @@ function storyCard(s: BoardStory): string {
 /** A Story published but not opened yet: a draft in 기획 중 with its Tasks ready to open. */
 const draftCard = (s: BoardStory) =>
   `<li class="scard draft" data-story="${s.number}"><p class="kind">Story #${s.number} · 열리기 전</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${pill("기획 중", "run")}</p><p class="sprog">${progressOf(s)}</p><p class="speople"><span class="lead">${avatar(s.pl)}PL ${esc(s.pl.name)}</span></p></li>`;
-/** A web plan still being written: a draft in 기획 중 with no Tasks yet. */
-const planCard = (x: PlanCard) =>
-  `<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${esc(x.id)}">${esc(x.title)}</a><p>${pill(planStateLabel(x.state, x.leased), tone("plan", x.state))}</p><p class="sprog">아직 Task 없음</p><p class="speople"><span class="lead">${avatar(x.pl)}PL ${esc(x.pl.name)}</span></p></li>`;
+/** A plan's tone for the viewer: its PL is asked (need); anyone else only watches it, so it reads as in progress. */
+const planTone = (me: Member, x: PlanCard): Tone => {
+  const t = tone("plan", x.state);
+  return t === "need" && x.pl.id !== me.id ? "run" : t;
+};
+/** A web plan still being written: a draft in 기획 중 (it has no Tasks yet, so no progress line). */
+const planCard = (me: Member) => (x: PlanCard) =>
+  `<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${esc(x.id)}">${esc(x.title)}</a><p>${pill(planStateLabel(x.state, x.leased), planTone(me, x))}</p><p class="speople"><span class="lead">${avatar(x.pl)}PL ${esc(x.pl.name)}</span></p></li>`;
 
 /** One thing that waits on the viewer: its kind (rank, tone, word), why it waits and the link to where they act. */
 type Wait = { rank: number; tone: Tone; word: string; why: string; link: string };
@@ -204,7 +209,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
             rank: 0,
             tone: "stop",
             word: taskStateLabel(c.state, c.stage),
-            why: c.state === "failed" ? plainFailure(c.failure ?? "", c.kind) : HELD_SHORT,
+            why: c.state === "failed" ? plainFailure(c.failure ?? "", c.kind).replace("아래 이유를", "Task 화면에서 이유를") : HELD_SHORT,
             link: waitLink(`/tasks/${c.taskId}`, c.title, s.number),
           });
     }
@@ -316,7 +321,7 @@ export function storyBoardPage(me: Member, csrf: string, v: BoardView, chrome: C
     const column = ({ key, label }: (typeof STAGES)[number]) => {
       if (key === "planning") {
         if (!planningShown) return "";
-        const cards = plans.map(planCard).concat(drafts.map(draftCard));
+        const cards = plans.map(planCard(me)).concat(drafts.map(draftCard));
         return `<div class="stage" data-stage="planning"><h3><span>${label}</span><span>${cards.length}</span></h3><ul class="scards">${cards.join("")}</ul></div>`;
       }
       const list = key === "done" ? done : p.stories.filter((s) => s.state === key);
@@ -341,7 +346,7 @@ export function taskBoardPage(me: Member, csrf: string, v: BoardView, chrome: Ch
     const planning =
       plans.length || drafts.length
         ? `<article class="lane"><h3>기획 중</h3><ul class="cards">${plans
-            .map((x) => `<li class="card ${tone("plan", x.state)}"><a class="title" href="/plans/${esc(x.id)}">${esc(x.title)}</a><p>${pill(planStateLabel(x.state, x.leased), tone("plan", x.state))}</p><p class="who">${avatar(x.pl)}<span>PL ${esc(x.pl.name)}</span></p></li>`)
+            .map((x) => `<li class="card ${planTone(me, x)}"><a class="title" href="/plans/${esc(x.id)}">${esc(x.title)}</a><p>${pill(planStateLabel(x.state, x.leased), planTone(me, x))}</p><p class="who">${avatar(x.pl)}<span>PL ${esc(x.pl.name)}</span></p></li>`)
             .concat(drafts.map((s) => `<li class="card run"><a class="title" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${pill("기획 중", "run")}</p><p class="who">${avatar(s.pl)}<span>PL ${esc(s.pl.name)}</span></p><p class="meta"><span class="num">#${s.number}</span></p></li>`))
             .join("")}</ul></article>`
         : "";
