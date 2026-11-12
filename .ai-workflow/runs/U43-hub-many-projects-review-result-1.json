@@ -1,0 +1,12 @@
+{
+  "token": "a5a7ababbea2abbdd2650a5d881e9adf9284ade46aaf921b910a0892dfdb3f9e",
+  "output": {
+    "summary": "Review 1 (one independent reviewer, allocation 1 of 0-2 for a small change; diff b54ea6e..dcd8ef8): Ready, Critical 0, Important 1, Minor 6. Important: chip dots tell stopped from approval by colour alone and fall below 3:1 in places (WCAG 1.4.1/1.4.11). Minor: LOCAL-PREVIEW dot wording and no precedence test; 'empty' wording for a project with only cancelled Stories; waiting box under a chosen chip reads as filtered; bare counts for screen readers; tests do not escape project names in chips/line and one test title says /board; one-project redirect carries project= invisibly (acceptable). RED confirmed independently on b54ea6e (36/42, the six named tests).",
+    "evidence": [".ai-workflow/runs/U43-hub-many-projects-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "Apply review-1 in implement: (1) chip dots differ by shape (stop square, need circle) with a currentColor ring for 3:1 on both chip states and a title; (2) LOCAL-PREVIEW wording and a dot precedence test; (3) the folded line says '보이는 Story가 없는 프로젝트'; (4) under a chosen chip the waiting box says it covers every project; (6) escape test for project names in chips and the line, and the hub-plan-pages test title. Leave (5) and (7) as noted."
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "token": "3a3c163d1a1155c8ae906ebb91dfd8f7e0ed39e7382fb14f265959db4b2f7fe6",
+  "output": {
+    "summary": "Review-1 fixes (commit 1d5b256): chip marks differ by shape (stop square, approval round) with a 2px ring in the chip's text colour (13.47-16.46:1 on every chip) and a title; stop outranks approval (test); LOCAL-PREVIEW wording; folded line says 보이는 Story; a note under a chosen chip that the waiting box covers every project; escape test for project names in chips and the line; test title. Minor 5 and 7 left as noted. RED 3/42; GREEN Hub 563/563, typecheck 0; 120 layout checks 0 overflow.",
+    "evidence": [
+      ".ai-workflow/runs/U43-hub-many-projects-implement-2.md",
+      ".ai-workflow/runs/U43-hub-many-projects-implement-red-2.txt",
+      ".ai-workflow/runs/U43-hub-many-projects-implement-green-2.txt",
+      "src/hub/board-pages.ts",
+      "src/hub/pages.ts",
+      "tests/hub-board-page.test.mjs",
+      "tests/hub-plan-pages.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

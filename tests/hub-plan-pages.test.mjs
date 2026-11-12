@@ -209,7 +209,7 @@ test("the board shows 새 프로젝트, each project's plans in progress, and �
   assert.ok(text.includes('<a class="btn ghost" href="/projects/new">새 프로젝트</a>'));
 });
 
-test("/projects/new lists only my repos (an admin sees all) with base branch main; POST /projects makes the project and goes to /board; a repo I do not own is a FORBIDDEN page", async (t) => {
+test("/projects/new lists only my repos (an admin sees all) with base branch main; POST /projects makes the project and opens its own view on /board; a repo I do not own is a FORBIDDEN page", async (t) => {
   const h = await team(t);
   const box = (r) => `<input type="checkbox" name="repo" value="${r}">`;
   const base = (r) => `name="base-${r}" value="main"`;
@@ -225,11 +225,12 @@ test("/projects/new lists only my repos (an admin sees all) with base branch mai
 
   let res = await h.post(h.b, "/projects", [["name", "화면 개편"], ["repo", h.fe], [`base-${h.fe}`, "develop"]]);
   assert.equal(res.status, 303);
-  assert.equal(res.headers.location, "/board");
   const made = h.board.projects({ member: h.b.member }).find((p) => p.name === "화면 개편");
+  // D44: on 전체 a project with no Story is only a name on one line, so a new project opens its own chip view.
+  assert.equal(res.headers.location, `/board?project=${made.id}`);
   assert.deepEqual(made.repos.map((r) => [r.id, r.baseBranch]), [[h.fe, "develop"]]);
   assert.equal(made.createdBy.id, h.b.member.id);
-  const board = (await h.get("/board", h.b)).text;
+  const board = (await h.get(res.headers.location, h.b)).text;
   assert.ok(board.includes("<h2>화면 개편</h2>"));
   assert.ok(board.includes(`<a class="btn ghost" href="/projects/${made.id}/new-story">새 Story</a>`), "B owns every repo of B's project");
 

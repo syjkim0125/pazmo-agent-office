@@ -239,6 +239,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
             badges: c.store.macBadges(),
             mine: url.searchParams.get("mine") === "1",
             cancelled: url.searchParams.get("cancelled") === "1",
+            project: url.searchParams.get("project"),
             canCreateProject: !!plans,
             canPlan: new Set(plans ? projects.filter((p) => board.ownsProject(me.id, p.project.id)).map((p) => p.project.id) : []),
           };
@@ -449,13 +450,15 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         const plans = c.plans;
         if (path === "/projects") {
           const repos = form.getAll("repo").map((repoId) => ({ repoId, baseBranch: f(`base-${repoId}`).trim() }));
+          let made: string;
           try {
-            board.createProject({ member: me }, f("name"), repos, { ownedOnly: true });
+            made = board.createProject({ member: me }, f("name"), repos, { ownedOnly: true }).projectId;
           } catch (error) {
             if (!(error instanceof HubError && error.code === "INVALID")) throw error;
             return html(res, 400, planPages.newProjectPage(me, s.csrf, projectRepos(), chrome(), { error: error.message }));
           }
-          return redirect(res, "/board");
+          // On 전체 a project with no Story is only a name on one line (D44): the new one opens its own view, 새 Story in reach.
+          return redirect(res, `/board?project=${encodeURIComponent(made)}`);
         }
         if ((m = new RegExp(`^/projects/${ID}/plans$`).exec(path))) {
           const values = { title: f("title"), intent: f("intent"), risk: f("risk") };

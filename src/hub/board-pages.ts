@@ -3,9 +3,10 @@
  * Story stages (기획 중, 진행 중, Story 검증, 승인 대기, 완료), web plans and unopened Stories drawn as drafts in 기획 중.
  * `/tasks` is the Task board (D42's board): per Story a lane whose head names the Story over five columns of Task
  * cards (with "취소한 것도 보기" on, its cancelled cards in a muted 취소됨 strip under them). A Story page carries the
- * Task board of that Story alone (`storyTaskBoard`). Above the projects, 나를 기다리는 일 lists what waits on the viewer.
- * A card's color class follows its state word (need, run, stop, done); the words are always written. No script of its
- * own; every value goes through `esc`.
+ * Task board of that Story alone (`storyTaskBoard`). Above the projects, 나를 기다리는 일 lists what waits on the viewer,
+ * one row per kind (D44). With two or more projects, both boards have a chip row that shows one project
+ * (`?project=<id>`) and, on 전체, fold projects with no Story into one line. A card's color class follows its state word
+ * (need, run, stop, done); the words are always written. No script of its own; every value goes through `esc`.
  */
 import { avatar, esc, inColumn, layout, macLine, tone, tonePill, type Chrome, type Tone } from "./pages.ts";
 import { planStateLabel, planStateText } from "./plan-pages.ts";
@@ -38,6 +39,8 @@ const pill = (label: string, t?: Tone) => (t ? tonePill(t, label) : `<span class
 /** A card whose Task is taken (or stopped) names who has it, how their Mac is and how long it has stood there. */
 const TAKEN = new Set(["claimed", "held", "failed"]);
 const STOPPED = new Set(["held", "failed"]);
+/** Under a chosen project chip, 나를 기다리는 일 says it still covers every project (it sits right under the chips). */
+const ALL_PROJECTS = "고른 프로젝트와 관계없이 모든 프로젝트의 일입니다.";
 /** A stopped plan of the viewer's, said with the next step (the plan page shows why and has 다시 시도). */
 const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.";
 
@@ -47,14 +50,26 @@ export type BoardView = {
   badges: Map<string, MacBadge>;
   mine: boolean;
   cancelled: boolean;
+  /** The chosen project chip's id as asked (D44); an id that is not a project here means 전체. */
+  project: string | null;
   canCreateProject: boolean;
   canPlan: Set<string>;
 };
 type Base = "/" | "/tasks";
+type Filters = { mine: boolean; cancelled: boolean; project: string | null };
 
-/** A board's address with its filters; the two boards keep each other's filters through their tabs. */
-const boardHref = (base: Base, mine: boolean, cancelled: boolean) => {
-  const q = [mine ? "mine=1" : "", cancelled ? "cancelled=1" : ""].filter(Boolean).join("&");
+/** The page's filters, with an unknown project id read as 전체. */
+const filtersOf = (v: BoardView): Filters => ({
+  mine: v.mine,
+  cancelled: v.cancelled,
+  project: v.projects.some((p) => p.project.id === v.project) ? v.project : null,
+});
+/**
+ * A board's address with its filters; the two boards keep each other's filters and project through their tabs. The
+ * project id is one of the hub's own (`filtersOf`) and URL-encoded, so the address needs no other escaping.
+ */
+const boardHref = (base: Base, f: Filters) => {
+  const q = [f.mine ? "mine=1" : "", f.cancelled ? "cancelled=1" : "", f.project ? `project=${encodeURIComponent(f.project)}` : ""].filter(Boolean).join("&");
   return q ? `${base}?${q}` : base;
 };
 
@@ -163,49 +178,108 @@ const draftCard = (s: BoardStory) =>
 const planCard = (x: PlanCard) =>
   `<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${esc(x.id)}">${esc(x.title)}</a><p>${pill(planStateLabel(x.state, x.leased), tone("plan", x.state))}</p><p class="sprog">아직 Task 없음</p><p class="speople"><span class="lead">${avatar(x.pl)}PL ${esc(x.pl.name)}</span></p></li>`;
 
-/** One row of 나를 기다리는 일: the state word, then the title (and its Story for a Task) and what it waits for. */
-const waitItem = (href: string, t: Tone, word: string, title: string, why: string, story?: number) =>
-  `<li><a href="${esc(href)}">${tonePill(t, word)}<span><b>${esc(title)}</b>${story === undefined ? "" : ` <span class="muted">Story #${story}</span>`} ${esc(why)}</span></a></li>`;
+/** One thing that waits on the viewer: its kind (rank, tone, word), why it waits and the link to where they act. */
+type Wait = { rank: number; tone: Tone; word: string; why: string; link: string };
+/** A title in a row of 나를 기다리는 일, with its Story for a Task. */
+const waitLink = (href: string, title: string, story?: number) =>
+  `<a href="${esc(href)}"><b>${esc(title)}</b>${story === undefined ? "" : ` <span class="muted">Story #${story}</span>`}</a>`;
 
 /**
- * What waits on the viewer, from what the board already shows: a Story of theirs waiting for its result approval, a
- * stopped Task they hold or that belongs to a Story they lead, and a plan of theirs waiting for their answer or
- * stopped. Read-only: each row only links to the page where the person acts.
+ * What waits on the viewer, from what the board already shows, in every project whatever chip is chosen: a Story of
+ * theirs waiting for its result approval, a stopped Task they hold or that belongs to a Story they lead, and a plan of
+ * theirs waiting for their answer or stopped. Nothing is cut (D44): things with the same state word share one row
+ * (the word, how many, and why once when they all wait for the same reason) with their titles as links; stopped ones
+ * first, then plans waiting for an answer, then approvals. Read-only: each link only leads to the page where the
+ * person acts.
  */
-function waitingOnMe(me: Member, v: BoardView): string {
-  const rows: string[] = [];
+function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
+  const items: Wait[] = [];
   for (const p of v.projects)
     for (const s of p.stories) {
       const lead = s.pl.id === me.id;
-      if (lead && s.state === "awaiting_g4") rows.push(waitItem(`/stories/${s.id}`, "need", storyStateLabel(s.state), s.title, AWAITING_G4));
+      if (lead && s.state === "awaiting_g4") items.push({ rank: 2, tone: "need", word: storyStateLabel(s.state), why: AWAITING_G4, link: waitLink(`/stories/${s.id}`, s.title) });
       for (const c of s.cards)
         if (STOPPED.has(c.state) && (lead || c.assignee?.id === me.id))
-          rows.push(waitItem(`/tasks/${c.taskId}`, "stop", taskStateLabel(c.state, c.stage), c.title, c.state === "failed" ? plainFailure(c.failure ?? "", c.kind) : HELD_SHORT, s.number));
+          items.push({
+            rank: 0,
+            tone: "stop",
+            word: taskStateLabel(c.state, c.stage),
+            why: c.state === "failed" ? plainFailure(c.failure ?? "", c.kind) : HELD_SHORT,
+            link: waitLink(`/tasks/${c.taskId}`, c.title, s.number),
+          });
     }
   for (const x of v.plans) {
     const t = tone("plan", x.state);
     const why = t === "stop" ? STOPPED_PLAN : planStateText({ state: x.state, leased: x.leased, isPl: true, story: null });
-    if (x.pl.id === me.id && (t === "need" || t === "stop")) rows.push(waitItem(`/plans/${x.id}`, t, planStateLabel(x.state, x.leased), x.title, why));
+    if (x.pl.id === me.id && (t === "need" || t === "stop")) items.push({ rank: t === "stop" ? 0 : 1, tone: t, word: planStateLabel(x.state, x.leased), why, link: waitLink(`/plans/${x.id}`, x.title) });
   }
-  if (!rows.length) return "";
-  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${rows.length}</span></h2><ul>${rows.join("")}</ul></section>`;
+  if (!items.length) return "";
+  // A stable sort keeps the board's order inside a kind; a kind's row stands where its first item falls.
+  const kinds = new Map<string, Wait[]>();
+  for (const w of items.sort((a, b) => a.rank - b.rank)) {
+    const key = `${w.tone} ${w.word}`;
+    kinds.set(key, [...(kinds.get(key) ?? []), w]);
+  }
+  const rows = [...kinds.values()].map((k) => {
+    const why = k.every((w) => w.why === k[0].why) ? `<span class="gwhy">${esc(k[0].why)}</span>` : "";
+    return `<li><p class="ghead">${tonePill(k[0].tone, k[0].word)}<span class="count">${k.length}</span>${why}</p><p class="glinks">${k.map((w) => w.link).join("")}</p></li>`;
+  });
+  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
 }
 
-/** The top of both boards: the heading, the two filters, 새 프로젝트 and the tabs between the boards. */
-function titlebar(base: Base, v: BoardView): string {
+/** The web plans a project shows: all of them, or under 내 Story만 the viewer's own. */
+const plansOf = (me: Member, v: BoardView, p: BoardProject) => v.plans.filter((x) => x.project.id === p.project.id && (!v.mine || x.pl.id === me.id));
+/** A chip's mark: a square for a stopped Task, a round dot for an approval, named for screen readers and on hover. */
+const STOP_FLAG = '<span class="flag stop" role="img" aria-label="멈춘 Task 있음" title="멈춘 Task 있음"></span>';
+const NEED_FLAG = '<span class="flag need" role="img" aria-label="승인 대기 있음" title="승인 대기 있음"></span>';
+
+/**
+ * The project chips (D44), only with two or more projects: 전체, then each project with how many Stories (web plans
+ * too) it shows under the filters, and a mark: a square when a Task of it stopped, else a round dot when a Story of it
+ * waits for its result approval. A chip keeps the filters; it wraps onto more lines on a phone instead of sliding sideways.
+ */
+function chips(me: Member, base: Base, v: BoardView, f: Filters): string {
+  if (v.projects.length < 2) return "";
+  const chip = (project: string | null, label: string, n: number, flag: string) =>
+    `<a href="${boardHref(base, { ...f, project })}"${project === f.project ? ' aria-current="true"' : ""}>${flag}${esc(label)} <span class="count">${n}</span></a>`;
+  let all = 0;
+  const each = v.projects.map((p) => {
+    const n = p.stories.length + plansOf(me, v, p).length;
+    all += n;
+    const flag = p.stories.some((s) => counts(s).stopped) ? STOP_FLAG : p.stories.some((s) => s.state === "awaiting_g4") ? NEED_FLAG : "";
+    return chip(p.project.id, p.project.name, n, flag);
+  });
+  return `<nav class="chips" aria-label="프로젝트">${chip(null, "전체", all, "")}${each.join("")}</nav>`;
+}
+
+/** The top of both boards: the heading, the two filters, 새 프로젝트, the tabs between the boards and the project chips. */
+function titlebar(me: Member, base: Base, v: BoardView, f: Filters): string {
   const toggle = (on: boolean, label: string, to: string) =>
     `<a class="filter"${on ? ' aria-current="true"' : ""} href="${to}">${label}${on ? " · 켜짐" : ""}</a>`;
-  const tab = (at: Base, label: string) => `<a href="${boardHref(at, v.mine, v.cancelled)}"${at === base ? ' aria-current="page"' : ""}>${label}</a>`;
-  const filters = `${toggle(v.mine, "내 Story만", boardHref(base, !v.mine, v.cancelled))}${toggle(v.cancelled, "취소한 것도 보기", boardHref(base, v.mine, !v.cancelled))}`;
-  return `<section class="titlebar"><div class="toggles"><h1>${base === "/" ? "Story 보드" : "모든 Task"}</h1>${filters}${v.canCreateProject ? '<a class="btn ghost" href="/projects/new">새 프로젝트</a>' : ""}</div><nav class="tabs" aria-label="보드 보기">${tab("/", "Story 보드")}${tab("/tasks", "모든 Task")}</nav></section>`;
+  const tab = (at: Base, label: string) => `<a href="${boardHref(at, f)}"${at === base ? ' aria-current="page"' : ""}>${label}</a>`;
+  const filters = `${toggle(f.mine, "내 Story만", boardHref(base, { ...f, mine: !f.mine }))}${toggle(f.cancelled, "취소한 것도 보기", boardHref(base, { ...f, cancelled: !f.cancelled }))}`;
+  return `<section class="titlebar"><div class="toggles"><h1>${base === "/" ? "Story 보드" : "모든 Task"}</h1>${filters}${v.canCreateProject ? '<a class="btn ghost" href="/projects/new">새 프로젝트</a>' : ""}</div><nav class="tabs" aria-label="보드 보기">${tab("/", "Story 보드")}${tab("/tasks", "모든 Task")}</nav>${chips(me, base, v, f)}</section>`;
 }
 
-/** Each shown project with its heading, 새 Story, repos and `body`; a project with nothing under 내 Story만 is left out. */
-function projectsOf(me: Member, v: BoardView, body: (p: BoardProject, plans: PlanCard[]) => string): string {
+/**
+ * Each shown project (the chosen chip's, or all) with its heading, 새 Story, repos and `body`. A project with nothing
+ * under 내 Story만 is left out; on 전체 with chips, a project with no Story is only a name on one line that leads to its
+ * chip view, where it says what comes next (D44).
+ */
+function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: BoardProject, plans: PlanCard[]) => string): string {
+  const fold = !f.project && v.projects.length >= 2;
+  const quiet: BoardProject[] = [];
   const html = v.projects
+    .filter((p) => !f.project || p.project.id === f.project)
     .map((p) => {
-      const plans = v.plans.filter((x) => x.project.id === p.project.id && (!v.mine || x.pl.id === me.id));
-      if (v.mine && !p.stories.length && !plans.length) return "";
+      const plans = plansOf(me, v, p);
+      if (!p.stories.length && !plans.length) {
+        if (v.mine) return "";
+        if (fold) {
+          quiet.push(p);
+          return "";
+        }
+      }
       const canPlan = v.canPlan.has(p.project.id);
       const start = canPlan ? `<a class="btn ghost" href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
       const repos = p.project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
@@ -216,12 +290,15 @@ function projectsOf(me: Member, v: BoardView, body: (p: BoardProject, plans: Pla
       return `<section class="project"><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div><p class="muted">레포: ${repos}</p>${inner}</section>`;
     })
     .filter(Boolean);
+  const line = quiet.length
+    ? `<p class="quiet"><span>보이는 Story가 없는 프로젝트</span>${quiet.map((p) => `<a href="${boardHref(base, { ...f, project: p.project.id })}">${esc(p.project.name)}</a>`).join("")}</p>`
+    : "";
   const empty = v.mine
     ? "내가 맡거나 이끄는 Story가 없습니다."
     : v.canCreateProject
       ? "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요."
       : "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
-  return `<div class="projects">${html.length ? html.join("") : `<section><p class="empty">${esc(empty)}</p></section>`}</div>`;
+  return `<div class="projects">${html.length || line ? html.join("") + line : `<section><p class="empty">${esc(empty)}</p></section>`}</div>`;
 }
 
 /**
@@ -252,7 +329,8 @@ export function storyBoardPage(me: Member, csrf: string, v: BoardView, chrome: C
     const strip = gone.length ? `<div class="cancelled"><h3><span>취소됨</span><span>${gone.length}</span></h3><ul class="scards">${gone.map(storyCard).join("")}</ul></div>` : "";
     return `<div class="stages">${STAGES.map(column).join("")}</div>${strip}`;
   };
-  return layout("Story 보드", me, `${titlebar("/", v)}${waitingOnMe(me, v)}${projectsOf(me, v, stages)}`, chrome);
+  const f = filtersOf(v);
+  return layout("Story 보드", me, `${titlebar(me, "/", v, f)}${waitingOnMe(me, v, f)}${projectsOf(me, "/", v, f, stages)}`, chrome);
 }
 
 /** `/tasks` (D43): the Task board of every Story, D42's board, with the same filters, box and tabs. */
@@ -269,5 +347,6 @@ export function taskBoardPage(me: Member, csrf: string, v: BoardView, chrome: Ch
         : "";
     return planning + p.stories.filter((s) => s.state !== "draft").map((s) => storyLane(s, v.badges, v.cancelled)).join("");
   };
-  return layout("모든 Task", me, `${titlebar("/tasks", v)}${waitingOnMe(me, v)}${projectsOf(me, v, lanes)}`, chrome);
+  const f = filtersOf(v);
+  return layout("모든 Task", me, `${titlebar(me, "/tasks", v, f)}${waitingOnMe(me, v, f)}${projectsOf(me, "/tasks", v, f, lanes)}`, chrome);
 }

@@ -1,0 +1,744 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "d16972a8-7f16-4a25-9f43-c0e0b99185a3",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review-2 fix (commit 03c2f97): .flag{color:inherit} so the currentColor ring is the chip's text colour, not nav span's muted grey; CSS test requires it (RED 1/42). Measured on the drawn marks (4 pages x 2 themes, hover too): ring 16.46:1 light, 13.47:1 dark on every chip, chosen included; change record corrected (attempt-2 numbers had measured the chip colour). GREEN Hub 563/563, typecheck 0.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-implement-3.md",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-red-3.txt",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-green-3.txt",
+            "src/hub/pages.ts",
+            "tests/hub-board-page.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-implement-3.md": "202ce0560321bc815c8a2640e30036578edc08d944b499c261863d693d32dcc1",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-red-3.txt": "adf0538b5f60e496e53049575d037be5165ddf10c345c90a1b9a8dde2f4722bd",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-green-3.txt": "4cd565594f5d02bd62769556ce2e22b4043a6fda135d59d7845da83c1aed6fb8",
+          "src/hub/pages.ts": "b31478473d22344738822de959c927cf35c01d4004b02e7186770e5e9821642b",
+          "tests/hub-board-page.test.mjs": "12a9887267ec7f86fdcdadc96973a70a6773e6ac736d827c5b93c3cbf20ae652"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd",
+        "output": {
+          "summary": "Review 3 (same reviewer; diff 1d5b256..03c2f97 plus a final pass over b54ea6e..03c2f97): Ready, Critical 0, Important 0, Minor 1 (the color:inherit test regex depends on declaration order; not blocking, left since implement used its three attempts). Ring colour verified in the browser on 12 chip states (16.46:1 light, 13.47:1 dark, chosen and hover), record numbers match, RED 3 reproduced 1/42, GREEN 66/66 and tsc 0; every earlier check still holds.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-review-3.md": "6eee59d66a4cfa869c9c2d7bc73a29d931d7cb91248348ba985ae999edaedfd0"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 3,
+        "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/a5529213-689b-4acc-a139-35c3d9b04c19/receipt.json",
+            "hash": "7f9e70dd9f9f5a05f194fd6422367c0a5ebf97ca5a8667d5ebbf9ccae65b2058"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/2a20359c-3e34-4fbb-a690-178343f49b26/receipt.json",
+            "hash": "b13c1b52a31ce453fe388571032253d1c27b5c3071541978e79662f39c7193ed"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/e4fa764c-a696-4fd4-8b0d-8d7f36e69713/receipt.json",
+            "hash": "e90887bd86b88cb5e457e5f3935cbbbb7cf0f1446f302886778bd5989f4eddb6"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/1becaf1e-1706-4c29-83e8-b81bc2aee471/receipt.json",
+            "hash": "489be7210fa18ef68b56d6afaa2b61e31c42dfbe417c740905427806968246eb"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/ff735d14-dbd6-416f-a11a-346edc19114e/receipt.json",
+            "hash": "9af0b02aa53c6fa288d515cc2459243bdecc204576deb98290b340c7f4a5e8f3"
+          }
+        },
+        "output": {
+          "summary": "Fresh checks on 03c2f97 with Node v24.19.0 first on PATH (attempt 1 had run under Node v22 and was reset): 576/576 + 636/636 + 655/655 = 1867/1867, typecheck exit 0, story check PASS.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-verify-1.md": "8a77b79c4675b58d5aa4efb88c56b448efaf9358271b7b3550790c5c18e0c0b5"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T02:16:07.980Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T02:34:12.882Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D44 (commit dcd8ef8): 나를 기다리는 일 groups same-word items into one row (count, shared reason once, titles as links; stopped, plans, approvals) and hides none; both boards get a project chip row (?project=<id>, only with 2+ projects, counts and stop/need dots, keeps filters and tabs, waiting box keeps every project, unknown id = 전체); on 전체 projects with no Story fold into one line to their chip view; a new project redirects to its chip view. RED 6/42 (+ redirect and .gwhy layout REDs); GREEN Hub 563/563, typecheck 0; 120 layout checks 0 overflow, targets >= 44px.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-implement-1.md",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-red-1.txt",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-green-1.txt",
+            "src/hub/board-pages.ts",
+            "src/hub/pages.ts",
+            "src/hub/server.ts",
+            "tests/hub-board-page.test.mjs",
+            "tests/hub-plan-pages.test.mjs",
+            "tests/hub-plan-office.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-implement-1.md": "8719c7062f02b7d8a604ee5604a3514f4fe3d8596b8c7d59d4e883470794b0f7",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-red-1.txt": "8603c1cf943d9cd75895112e68ed15a693eb9f13b5cfe043652bf7352272f09e",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-green-1.txt": "8602a2e0cb71669d7ea23afcbe6fc7c7acc4a25db40f82e61bb0230910c51c5b",
+          "src/hub/board-pages.ts": "0d7594e56f19ba8c0d9cf21af9f304da2b15d2773fac0f119cb9d0ba01d2685d",
+          "src/hub/pages.ts": "bfee63e1e765374ce7385d0b9cd601fbfd58aa6870203144b42889e61292fd21",
+          "src/hub/server.ts": "2a8fad5ef4e646fdb192fdbd472b53dd49257ef97caa62da3ee7aa9c5d83ab5b",
+          "tests/hub-board-page.test.mjs": "fe9d62786a514b65b7950e98cf8470e0aa289cd7777fbef68c7449a9921b1f95",
+          "tests/hub-plan-pages.test.mjs": "0b794a754ae6e154c7c29c1e8b945ecdaeaafa311549a5d54c11afcf8bb7efb4",
+          "tests/hub-plan-office.test.mjs": "5c5f86f2ae1c71806803507481d0fc0d7792bf1e150ff122aba10bedfab65d71"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T02:34:21.304Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T02:44:27.127Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d335dbe09b2fe3d77a8dd6c1292793657f982395f1e495a328c68b7d0853488d",
+        "output": {
+          "summary": "Review 1 (one independent reviewer, allocation 1 of 0-2 for a small change; diff b54ea6e..dcd8ef8): Ready, Critical 0, Important 1, Minor 6. Important: chip dots tell stopped from approval by colour alone and fall below 3:1 in places (WCAG 1.4.1/1.4.11). Minor: LOCAL-PREVIEW dot wording and no precedence test; 'empty' wording for a project with only cancelled Stories; waiting box under a chosen chip reads as filtered; bare counts for screen readers; tests do not escape project names in chips/line and one test title says /board; one-project redirect carries project= invisibly (acceptable). RED confirmed independently on b54ea6e (36/42, the six named tests).",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d335dbe09b2fe3d77a8dd6c1292793657f982395f1e495a328c68b7d0853488d"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Apply review-1 in implement: (1) chip dots differ by shape (stop square, need circle) with a currentColor ring for 3:1 on both chip states and a title; (2) LOCAL-PREVIEW wording and a dot precedence test; (3) the folded line says '보이는 Story가 없는 프로젝트'; (4) under a chosen chip the waiting box says it covers every project; (6) escape test for project names in chips and the line, and the hub-plan-pages test title. Leave (5) and (7) as noted."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-review-1.md": "68ba170b4bf8c84cd24d5d2ae2f6e9fd77e0dab440a0573f8952f3c603199639"
+        },
+        "error": "Apply review-1 in implement: (1) chip dots differ by shape (stop square, need circle) with a currentColor ring for 3:1 on both chip states and a title; (2) LOCAL-PREVIEW wording and a dot precedence test; (3) the folded line says '보이는 Story가 없는 프로젝트'; (4) under a chosen chip the waiting box says it covers every project; (6) escape test for project names in chips and the line, and the hub-plan-pages test title. Leave (5) and (7) as noted."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Apply review-1 Important 1 (chip dot shape and contrast) and Minor 2, 3, 4, 6",
+      "at": "2026-11-12T02:44:39.175Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T02:44:43.324Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T02:48:39.684Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review-1 fixes (commit 1d5b256): chip marks differ by shape (stop square, approval round) with a 2px ring in the chip's text colour (13.47-16.46:1 on every chip) and a title; stop outranks approval (test); LOCAL-PREVIEW wording; folded line says 보이는 Story; a note under a chosen chip that the waiting box covers every project; escape test for project names in chips and the line; test title. Minor 5 and 7 left as noted. RED 3/42; GREEN Hub 563/563, typecheck 0; 120 layout checks 0 overflow.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-implement-2.md",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-red-2.txt",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-green-2.txt",
+            "src/hub/board-pages.ts",
+            "src/hub/pages.ts",
+            "tests/hub-board-page.test.mjs",
+            "tests/hub-plan-pages.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-implement-2.md": "5e3db1ee82edff464c8a9009289c19bdadd23af10e0538d0ba7c3b02a4f4385a",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-red-2.txt": "4cef83011a94752c372e565474f7ebc629fab91adc276ac833a54b6d9c333f8f",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-green-2.txt": "2128620fe73e08f0f5c5ef5160f6592f9828907a6d320a1f471552c619f33573",
+          "src/hub/board-pages.ts": "365c2ab0060783ce455e11daebba83b7c356a00e43941f4144c573ef7c968848",
+          "src/hub/pages.ts": "d4378d4bbbee660a76765799057a916fde98e85ae6d2c94cb794169af51643b9",
+          "tests/hub-board-page.test.mjs": "31cd2f2b19df070c73144fa0735395502c3fcc980b6c9354971085f0d5dce276",
+          "tests/hub-plan-pages.test.mjs": "3159fc4c66762ddf9f24be38f07eba9c1bb1d4e4a9432b4a892d4d029b903f6c"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T02:48:50.383Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T02:51:41.212Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "4c175bc5a0a71defc5cc8eb16cf976eb3c6bc4dc65af3cc8b4d75490aef868f1",
+        "output": {
+          "summary": "Review 2 (same reviewer; diff dcd8ef8..1d5b256): Not ready, Critical 0, Important 1, Minor 0 new. The mark ring uses currentColor but nav span{color:var(--muted)} colours the mark, so the ring is muted grey: on the chosen chip in dark the ring is 2.03:1 and the fills 1.81/2.58:1 (review-1 failure remains); the change record's 16.46/13.47:1 are fg-vs-panel numbers, not what is drawn; the CSS-text test cannot catch it. Fix: .flag{color:inherit}, assert it, re-measure the drawn colours and correct the record. Minors 2, 3, 4, 6 confirmed fixed; RED 2 reproduced 3/42.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "4c175bc5a0a71defc5cc8eb16cf976eb3c6bc4dc65af3cc8b4d75490aef868f1"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Apply review-2 Important 1 in implement: .flag{color:inherit} so the ring is the chip's text colour; assert color:inherit in the CSS test; re-measure the mark's computed ring colour against every chip state (light/dark, chosen/not) in the browser and correct the contrast claims in the change record."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-review-2.md": "1df270436782a8d07baae055f0a6ab8b1c826047e4f22a1ca4aefe087b36ce3a"
+        },
+        "error": "Apply review-2 Important 1 in implement: .flag{color:inherit} so the ring is the chip's text colour; assert color:inherit in the CSS test; re-measure the mark's computed ring colour against every chip state (light/dark, chosen/not) in the browser and correct the contrast claims in the change record."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Apply review-2 Important 1 (mark ring colour: color:inherit, re-measure drawn contrast)",
+      "at": "2026-11-12T02:51:41.534Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T02:51:46.558Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T02:54:10.064Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review-2 fix (commit 03c2f97): .flag{color:inherit} so the currentColor ring is the chip's text colour, not nav span's muted grey; CSS test requires it (RED 1/42). Measured on the drawn marks (4 pages x 2 themes, hover too): ring 16.46:1 light, 13.47:1 dark on every chip, chosen included; change record corrected (attempt-2 numbers had measured the chip colour). GREEN Hub 563/563, typecheck 0.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-implement-3.md",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-red-3.txt",
+            ".ai-workflow/runs/U43-hub-many-projects-implement-green-3.txt",
+            "src/hub/pages.ts",
+            "tests/hub-board-page.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-implement-3.md": "202ce0560321bc815c8a2640e30036578edc08d944b499c261863d693d32dcc1",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-red-3.txt": "adf0538b5f60e496e53049575d037be5165ddf10c345c90a1b9a8dde2f4722bd",
+          ".ai-workflow/runs/U43-hub-many-projects-implement-green-3.txt": "4cd565594f5d02bd62769556ce2e22b4043a6fda135d59d7845da83c1aed6fb8",
+          "src/hub/pages.ts": "b31478473d22344738822de959c927cf35c01d4004b02e7186770e5e9821642b",
+          "tests/hub-board-page.test.mjs": "12a9887267ec7f86fdcdadc96973a70a6773e6ac736d827c5b93c3cbf20ae652"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T02:54:21.432Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T02:56:07.698Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd",
+        "output": {
+          "summary": "Review 3 (same reviewer; diff 1d5b256..03c2f97 plus a final pass over b54ea6e..03c2f97): Ready, Critical 0, Important 0, Minor 1 (the color:inherit test regex depends on declaration order; not blocking, left since implement used its three attempts). Ring colour verified in the browser on 12 chip states (16.46:1 light, 13.47:1 dark, chosen and hover), record numbers match, RED 3 reproduced 1/42, GREEN 66/66 and tsc 0; every earlier check still holds.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-review-3.md": "6eee59d66a4cfa869c9c2d7bc73a29d931d7cb91248348ba985ae999edaedfd0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T02:56:15.408Z"
+    },
+    {
+      "event": "reset",
+      "nodeId": "workflow-verify",
+      "affected": [
+        "workflow-verify"
+      ],
+      "reason": "Attempt 1 ran tests-1of3 under the default Node v22.3.0 on PATH (40 of 92 files failed to load in 1.2 s, environment not code); rerun with Node v24.19.0 first on PATH",
+      "at": "2026-11-12T02:57:02.894Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T02:57:08.773Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T03:01:13.421Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 3,
+        "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/a5529213-689b-4acc-a139-35c3d9b04c19/receipt.json",
+            "hash": "7f9e70dd9f9f5a05f194fd6422367c0a5ebf97ca5a8667d5ebbf9ccae65b2058"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/2a20359c-3e34-4fbb-a690-178343f49b26/receipt.json",
+            "hash": "b13c1b52a31ce453fe388571032253d1c27b5c3071541978e79662f39c7193ed"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/e4fa764c-a696-4fd4-8b0d-8d7f36e69713/receipt.json",
+            "hash": "e90887bd86b88cb5e457e5f3935cbbbb7cf0f1446f302886778bd5989f4eddb6"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/1becaf1e-1706-4c29-83e8-b81bc2aee471/receipt.json",
+            "hash": "489be7210fa18ef68b56d6afaa2b61e31c42dfbe417c740905427806968246eb"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/d16972a8-7f16-4a25-9f43-c0e0b99185a3/ff735d14-dbd6-416f-a11a-346edc19114e/receipt.json",
+            "hash": "9af0b02aa53c6fa288d515cc2459243bdecc204576deb98290b340c7f4a5e8f3"
+          }
+        },
+        "output": {
+          "summary": "Fresh checks on 03c2f97 with Node v24.19.0 first on PATH (attempt 1 had run under Node v22 and was reset): 576/576 + 636/636 + 655/655 = 1867/1867, typecheck exit 0, story check PASS.",
+          "evidence": [
+            ".ai-workflow/runs/U43-hub-many-projects-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "f4f23d02bed534a6e79379e7f7fd32d93fe066cbc69dd411b31336e16e683afd"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U43-hub-many-projects-verify-1.md": "8a77b79c4675b58d5aa4efb88c56b448efaf9358271b7b3550790c5c18e0c0b5"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

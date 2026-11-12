@@ -300,10 +300,13 @@ async function newStory(w, risk = "normal") {
     ["repo", w.repos["app-fe"]],
     ["base-" + w.repos["app-fe"], "develop"],
   ]);
-  assert.deepEqual([made.status, made.headers.location], [303, "/board"], made.text);
-  const board = (await w.get("/board")).text;
+  // D44: the new project opens its own view on the board.
+  assert.equal(made.status, 303, made.text);
+  assert.match(made.headers.location, /^\/board\?project=[0-9a-f-]{36}$/);
+  const board = (await w.get(made.headers.location)).text;
   const projectId = /href="\/projects\/([^"]+)\/new-story"/.exec(board)?.[1];
   assert.ok(projectId, "the board offers [새 Story] to the PL");
+  assert.equal(made.headers.location, `/board?project=${projectId}`);
   assert.equal((await w.get(`/projects/${projectId}/new-story`)).status, 200);
   const started = await w.post(`/projects/${projectId}/plans`, { title: TITLE, intent: INTENT, risk });
   assert.equal(started.status, 303, started.text);
