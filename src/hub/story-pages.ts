@@ -192,7 +192,7 @@ export function storyPage(
 ): string {
   const branches = s.branches.length
     ? `<div class="scroll"><table><thead><tr><th>레포</th><th>base</th><th>Story base</th></tr></thead><tbody>${s.branches
-        .map((b) => `<tr><td>${esc(b.repoName)}</td><td>${esc(b.baseBranch)}</td><td>${esc(b.storyBase)}</td></tr>`)
+        .map((b) => `<tr><td>${esc(b.repoName)}</td><td class="wrap">${esc(b.baseBranch)}</td><td class="wrap">${esc(b.storyBase)}</td></tr>`)
         .join("")}</tbody></table></div>`
     : `<p class="muted">아직 레포가 없습니다.</p>`;
   const rows = s.tasks

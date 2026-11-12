@@ -242,8 +242,8 @@ test("the board lists projects with Story progress; the Story page lists every T
   assert.ok(page.includes(pill("진행 중")));
   assert.ok(page.includes("<pre># Story\n본문</pre>"));
   assert.ok(page.includes("PL: PL"));
-  assert.ok(page.includes(`<details class="dev"><summary>개발 정보</summary><h3>Story base</h3>`) && page.includes(`<tr><td>app-be</td><td>main</td><td>feature/story-${s.number}/base</td></tr>`), "Story base, folded");
-  assert.ok(page.includes(`<tr><td>app-fe</td><td>develop</td><td>feature/story-${s.number}/base</td></tr>`));
+  assert.ok(page.includes(`<details class="dev"><summary>개발 정보</summary><h3>Story base</h3>`) && page.includes(`<tr><td>app-be</td><td class="wrap">main</td><td class="wrap">feature/story-${s.number}/base</td></tr>`), "Story base, folded; a long branch name breaks (U44)");
+  assert.ok(page.includes(`<tr><td>app-fe</td><td class="wrap">develop</td><td class="wrap">feature/story-${s.number}/base</td></tr>`));
   const row = (id) => new RegExp(`<tr><td>#\\d+</td><td>[^<]*</td><td><a href="/tasks/${id}">[^<]+</a></td><td><span class="pill \\w+">([^<]+)</span></td><td>([^<]*)</td><td>(.*?)</td></tr>`).exec(page);
   const [, apiWord, apiWho] = row(s.api);
   assert.deepEqual([apiWord, apiWho], ["완료", "C"]);

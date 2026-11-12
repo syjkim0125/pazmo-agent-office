@@ -170,7 +170,7 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .progress{margin-left:0;width:100%}.toggles .btn{margin-left:0}
 .stages{grid-auto-flow:row;grid-template-columns:minmax(0,1fr);gap:16px}.stage:has(>.scards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.stage:has(>.scards:empty) h3{flex:1}.stage>.scards:empty{display:none}.steps{font-size:12px}
 table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block}table.stack tr{padding:10px 0;border-bottom:1px solid var(--line)}table.stack td{border:0;padding:3px 0}table.stack td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:13px}}
-@media (pointer:coarse){.brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a{min-height:44px}nav a,.tabs a{min-width:44px;justify-content:center}.story-title{padding-block:8px}summary{padding-block:10px}}
+@media (pointer:coarse){.brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a{min-height:44px}nav a,.tabs a,a.person{min-width:44px;justify-content:center}.story-title{padding-block:8px}summary{padding-block:10px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 export const button = (action: string, csrf: string, label: string, cls = "") =>
@@ -187,6 +187,9 @@ function teamDate(at: number) {
   const p = Object.fromEntries(DATE_PARTS.formatToParts(at).map((x) => [x.type, x.value]));
   return { year: Number(p.year), month: Number(p.month), day: Number(p.day) };
 }
+/** An absolute time or day in the team's zone, like ago()'s dates, so one event never shows two days. */
+export const teamTime = (at: number) => new Date(at).toLocaleString("ko-KR", { timeZone: HUB_TIME_ZONE });
+export const teamDay = (at: number) => new Date(at).toLocaleDateString("ko-KR", { timeZone: HUB_TIME_ZONE });
 /**
  * How long ago: 방금, N분 전, N시간 전, N일 전, and from seven days the date in the team's zone ("11월 5일", or
  * "2025년 11월 5일" in another year). A time a little ahead of the clock reads as 방금.
@@ -357,7 +360,9 @@ export function request(me: Member, csrf: string, v: RequestView, chrome: Chrome
         .map((a) => {
           const state = a.state === "applied" ? "전달됨" : a.state === "rejected" ? "전달 실패" : "전달 대기";
           const why = a.state === "rejected" ? (a.result?.startsWith("STALE_APPROVAL") ? " — 질문이 바뀌었어요. 새 질문에 다시 답해주세요." : ` — ${esc(a.result)}`) : "";
-          return `<li>${state} · ${esc(a.note.slice(0, 120))}${why}</li>`;
+          // A long note is cut on the page; the cut says so and the whole note stays in its title.
+          const note = a.note.length > 120 ? `<span title="${esc(a.note)}">${esc(a.note.slice(0, 120))}…</span>` : esc(a.note);
+          return `<li>${state} · ${note}${why}</li>`;
         })
         .join("")}</ul>`
     : "";
@@ -372,7 +377,7 @@ export function request(me: Member, csrf: string, v: RequestView, chrome: Chrome
     decisions || answers ? `<section><h2>질문·승인</h2>${decisions}${answers}</section>` : "",
     s?.diff ? `<section><h2>변경 내용</h2>${s.diff.truncated ? '<p class="muted">길어서 앞부분만 보여 줍니다.</p>' : ""}<pre class="mono">${esc(s.diff.text)}</pre></section>` : "",
     s?.conversation.length
-      ? `<section><h2>역할 대화</h2><div class="scroll"><table><tbody>${s.conversation.map((m) => `<tr><td class="muted">${esc(new Date(m.at).toLocaleString("ko-KR"))}</td><td>${esc(m.who)}</td><td><pre>${esc(m.text)}</pre></td></tr>`).join("")}</tbody></table></div></section>`
+      ? `<section><h2>역할 대화</h2><div class="scroll"><table><tbody>${s.conversation.map((m) => `<tr><td class="muted">${esc(teamTime(m.at))}</td><td>${esc(m.who)}</td><td><pre>${esc(m.text)}</pre></td></tr>`).join("")}</tbody></table></div></section>`
       : "",
     s?.runners.length ? `<section><h2>실행기</h2><ul>${s.runners.map((r) => `<li>${esc(r.role)} · ${esc(r.runner)} ${esc(r.version)} · ${esc(r.model)}</li>`).join("")}</ul></section>` : "",
   ].join(""), chrome);
@@ -415,7 +420,7 @@ export function members(me: Member, csrf: string, list: MemberView[], chrome: Ch
   const rows = list
     .map((m) => {
       const devices = m.devices
-        .map((d) => `${esc(d.label)}${d.revoked ? " (끊김)" : ` (만료 ${esc(new Date(d.expiresAt).toLocaleDateString("ko-KR"))}) ${button(`/devices/${d.id}/revoke`, csrf, "기기 회수", "secondary")}`}`)
+        .map((d) => `${esc(d.label)}${d.revoked ? " (끊김)" : ` (만료 ${esc(teamDay(d.expiresAt))}) ${button(`/devices/${d.id}/revoke`, csrf, "기기 회수", "secondary")}`}`)
         .join("<br>");
       const macs = m.macs.map((k) => `${esc(k.name)} (${esc(macState(k))}) ${button(`/macs/${k.id}/revoke`, csrf, "Mac 해제", "secondary")}`).join("<br>");
       const actions = m.revoked
@@ -447,7 +452,7 @@ export function macApprove(me: Member, csrf: string, code: string, info: { name:
   const task = held
     ? `<p><b>이전 Mac이 맡은 Task가 있습니다: Story #${held.storyNumber} Task #${held.taskNumber}${held.repoName ? ` (${esc(held.repoName)})` : ""}. 이 Mac을 허용하면 그 Task는 PL이 풀어 줘야 합니다.</b></p>`
     : "";
-  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(new Date(info.createdAt).toLocaleString("ko-KR"))} (${ago(info.createdAt)})</p><p>Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
+  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(teamTime(info.createdAt))} (${ago(info.createdAt)})</p><p>Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
 }
 export function macCodeGone(me: Member, chrome: Chrome = {}) {
   return layout("코드 만료", me, `<section><h1>이 코드는 쓸 수 없습니다</h1><p>코드가 만료됐거나 이미 쓰였거나 잘못된 코드입니다. Mac 터미널에서 설치 명령을 다시 실행하면 새 코드가 나옵니다.</p><p><a href="/mac">내 Mac</a></p></section>`, chrome);

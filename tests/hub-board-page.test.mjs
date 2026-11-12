@@ -774,7 +774,8 @@ test("a passed step shows its ✓ beside its name, and the stages stay one row o
   // Narrow windows above a phone tighten the stage spacing so the longest state words stay on one line.
   // Range syntax leaves no gap at fractional widths between 860 and 861px; only stage cards (not the 취소됨 strip) tighten,
   // and the dashed 기획 중 column (its own 2px border) gets 2px less padding so its cards are as wide as the others.
-  // U44: stages 12px apart over cards 6px apart (twice), paid for by 2px less stage padding: still 114px of card text at 861px.
+  // U44: stages 12px apart over cards 6px apart (twice), paid for by 2px less stage padding: ~114.6px of card text at 861px
+  // (115 measured; 114 before).
   assert.match(style, /@media \(width > 860px\) and \(width <= 960px\)\{\.stages\{gap:12px\}\.stage\{padding:6px\}\.stage\[data-stage=planning\]\{padding:4px\}\.stages \.scard\{padding:12px\}\.stages \.scards\{gap:6px\}\}/);
   // A phone stacks the stages again (U44: 16px apart, twice the 8px between cards).
   assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{grid-auto-flow:row;grid-template-columns:minmax\(0,1fr\);gap:16px\}/);
@@ -967,7 +968,7 @@ test("U44: every control is at least 32px tall with a mouse and 44px square on t
   assert.match(ruleOf(style, ".story-title"), /padding-block:2px/, "18px line + 4px");
   const coarse = ruleOf(style, ".brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a", "@media (pointer:coarse)");
   assert.equal(px(coarse, "min-height"), 44);
-  assert.equal(px(ruleOf(style, "nav a,.tabs a", "@media (pointer:coarse)"), "min-width"), 44, "a one-letter menu item (팀) is 44px wide");
+  assert.equal(px(ruleOf(style, "nav a,.tabs a,a.person", "@media (pointer:coarse)"), "min-width"), 44, "a one-letter menu item (팀) or name tag is 44px wide");
   assert.match(ruleOf(style, ".story-title", "@media (pointer:coarse)"), /padding-block:8px/);
   assert.match(ruleOf(style, "summary", "@media (pointer:coarse)"), /padding-block:10px/);
   assert.equal(ruleOf(style, ".cancelled .card>a::after"), 'content:"";position:absolute;inset:0', "a cancelled card's link covers its card like the others");
