@@ -31,7 +31,7 @@ and 7 also need a browser measurement in the change record (see "How to measure"
    never `100vw` (it counts the scrollbar). Clipping is a last guard, not the fix: rule 6 keeps content inside.
 3. **Hit targets.** With a mouse no control is under 32px tall; on touch (`@media (pointer:coarse)`) every control is at
    least 44×44px. Controls are buttons, the auto-work switch, chips and filter toggles, menu and tab links, disclosure
-   `summary`, form controls (a checkbox counts its `<label>`), the no-script 새로 고침 link, and card links that act as
+   `summary`, form controls (a checkbox counts its `<label>`), the header name tag, the no-script 새로 고침 link, and card links that act as
    the whole card (a positioned card with the link's `::after` at `inset:0`). Grow the box (min-height, padding,
    `min-width` with centred content) without changing the layout beyond that. Links inside a sentence, a breadcrumb or a
    table cell are text links and keep their line height (the WCAG 2.5.8 inline exception).
@@ -50,17 +50,22 @@ and 7 also need a browser measurement in the change record (see "How to measure"
    responsive tracks are `repeat(auto-fill,minmax(min(Npx,100%),1fr))`; flex items that hold text have `min-width:0`
    (`:where(...)>*{min-width:0}`, zero specificity so a badge's own `min-width` still wins); form controls
    `max-width:100%`. Korean wraps by word (`body{word-break:keep-all;overflow-wrap:break-word}`), and
-   `overflow-wrap:anywhere` goes only on boxes that hold long tokens (titles, cards, names, branch names, URLs), never
+   `overflow-wrap:anywhere` goes only on boxes that hold long tokens (titles, cards, names, branch-name cells via `.wrap`, URLs), never
    on `body` (it squeezes table cells). Text cut with an ellipsis needs a way to the full value (a link to its page or a
    `title`). No clipping or overlap at 320px and at 200% zoom (measured as 640px), in both themes.
 7. **Spacing between groups is at least twice the spacing inside a group.** Now: sections 32px apart, items in a section
    12px (16px before an `h3`, whose margin adds 4px; a list in a section has no UA margin); Task columns 16px over cards
    8px; Story stages 16px over cards 8px (12px over 6px in the 861–960px band, where the stage padding is 2px less so
    card text keeps its width); lanes 16px over cards 8px; projects 32px over 16px inside a project. Do not nest a
-   `<form>` in a `<p>`: the parser closes the `<p>` and leaves an empty one that doubles a grid gap.
+   `<form>` in a `<p>`: the parser closes the `<p>` and leaves an empty one that doubles a grid gap. One exception: on
+   /tasks a lane's header sits 14px above its columns, which are 16px apart. The lane's filled panel does the grouping
+   (it encloses its header and columns), so that header gap is not held to the 2× rule.
 8. **Relative time.** `ago()`: under 1 minute "방금", under 60 minutes "N분 전", under 24 hours "N시간 전", under 7 days
    "N일 전", then a date in `HUB_TIME_ZONE` (Asia/Seoul): "11월 5일" in the same year, "2025년 11월 5일" otherwise. Null
-   is "아직 없음". Time in a column (`inColumn()`): "N분째", "N시간째", from 24 hours "N일째".
+   is "아직 없음". Time in a column (`inColumn()`): "N분째", "N시간째", from 24 hours "N일째". An absolute time printed
+   anywhere (often beside `ago()`) uses `teamTime()`/`teamDay()`, which read it in the same zone, so one event never
+   shows two days; a test fails on any `toLocale*String` call in `src/hub` without `timeZone: HUB_TIME_ZONE`, and the
+   date tests run with `TZ=UTC` (set before the Hub modules are imported).
 9. **`font-variant-numeric: tabular-nums`** on counts, times and numbers that line up: count badges, progress lines,
    time in column, tables, pills, Mac lines, card meta, work lists.
 
