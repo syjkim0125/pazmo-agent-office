@@ -773,10 +773,12 @@ test("a passed step shows its ✓ beside its name, and the stages stay one row o
   assert.doesNotMatch(style, /\.stages\{[^}]*auto-fit/);
   // Narrow windows above a phone tighten the stage spacing so the longest state words stay on one line.
   // Range syntax leaves no gap at fractional widths between 860 and 861px; only stage cards (not the 취소됨 strip) tighten,
-  // and the dashed 기획 중 column (its own 2px border) gets 2px more so "설계 승인 대기" keeps its margin.
-  assert.match(style, /@media \(width > 860px\) and \(width <= 960px\)\{\.stages\{gap:8px\}\.stage\{padding:8px\}\.stage\[data-stage=planning\]\{padding:6px\}\.stages \.scard\{padding:12px\}\}/);
-  // A phone stacks the stages again.
-  assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{grid-auto-flow:row;grid-template-columns:minmax\(0,1fr\);gap:8px\}/);
+  // and the dashed 기획 중 column (its own 2px border) gets 2px less padding so its cards are as wide as the others.
+  // U44: stages 12px apart over cards 6px apart (twice), paid for by 2px less stage padding: ~114.6px of card text at 861px
+  // (115 measured; 114 before).
+  assert.match(style, /@media \(width > 860px\) and \(width <= 960px\)\{\.stages\{gap:12px\}\.stage\{padding:6px\}\.stage\[data-stage=planning\]\{padding:4px\}\.stages \.scard\{padding:12px\}\.stages \.scards\{gap:6px\}\}/);
+  // A phone stacks the stages again (U44: 16px apart, twice the 8px between cards).
+  assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{grid-auto-flow:row;grid-template-columns:minmax\(0,1fr\);gap:16px\}/);
 });
 
 // U41: a cancelled Story says the same thing on its card, its page and its /tasks lane.
@@ -946,4 +948,74 @@ test("chips wrap on a phone and every new target is 44px (D44)", async (t) => {
   assert.match(style, /\.flag\{color:inherit;[^}]*box-shadow:0 0 0 2px currentColor/);
   assert.match(style, /\.flag\.stop\{[^}]*border-radius:2px/, "stopped: a square");
   assert.match(style, /\.flag\.need\{[^}]*border-radius:50%/, "approval: a round dot");
+});
+
+// U44: the Hub design checklist (docs/solutions/conventions/hub-design-checklist.md). The stylesheet-wide invariants are
+// in hub-design-invariants.test.mjs; these pin the rules the checklist added to particular parts.
+const styleOf = async (h) => /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
+/** The declarations of the rule whose selector is exactly `sel` (at the top level unless `inside` names its at-rule). */
+const ruleOf = (style, sel, inside = null) => {
+  const scope = inside === null ? style.replace(/@media[^{]*\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, "") : new RegExp(`${inside.replace(/[()]/g, "\\$&")}\\{((?:[^{}]*\\{[^}]*\\})*)[^{}]*\\}`).exec(style)?.[1] ?? "";
+  const m = new RegExp(`(?:^|[}\\n])${sel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\{([^}]*)\\}`).exec(scope);
+  assert.ok(m, `rule ${sel}${inside ? ` in ${inside}` : ""}`);
+  return m[1];
+};
+const px = (decls, prop) => Number(new RegExp(`(?:^|;)${prop}:(\\d+)px`).exec(decls)?.[1]);
+
+test("U44: every control is at least 32px tall with a mouse and 44px square on touch", async (t) => {
+  const style = await styleOf(await team(t));
+  for (const sel of ["summary", "label:has(>input[type=checkbox])", ".refresh", ".cards>li:not(.card)>a"]) assert.equal(px(ruleOf(style, sel), "min-height"), 32, sel);
+  assert.match(ruleOf(style, ".story-title"), /padding-block:2px/, "18px line + 4px");
+  const coarse = ruleOf(style, ".brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a", "@media (pointer:coarse)");
+  assert.equal(px(coarse, "min-height"), 44);
+  assert.equal(px(ruleOf(style, "nav a,.tabs a,a.person", "@media (pointer:coarse)"), "min-width"), 44, "a one-letter menu item (팀) or name tag is 44px wide");
+  assert.match(ruleOf(style, ".story-title", "@media (pointer:coarse)"), /padding-block:8px/);
+  assert.match(ruleOf(style, "summary", "@media (pointer:coarse)"), /padding-block:10px/);
+  assert.equal(ruleOf(style, ".cancelled .card>a::after"), 'content:"";position:absolute;inset:0', "a cancelled card's link covers its card like the others");
+});
+
+test("U44: the accent marks only the primary action, the current selection, focus, hover and links", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.equal(ruleOf(style, "button.secondary,.btn.ghost"), "background:var(--panel);color:var(--fg);border-color:var(--line)", "secondary actions are neutral");
+  const uses = [...style.replace(/@media[^{]*\{/g, "").matchAll(/(?<=^|[}\n])([^{}]+)\{([^}]*)\}/g)].filter((m) => /var\(--accent\)/.test(m[2])).map((m) => m[1].trim());
+  const allowed = /^a$|:hover|:focus-visible|aria-current|^button,\.btn$|^input\[type=checkbox\]$/;
+  for (const sel of uses) assert.match(sel, allowed, `${sel} uses the accent`);
+  for (const sel of ["button.secondary:hover,.btn.ghost:hover", ".tabs a[aria-current=page]", ".filter[aria-current=true]::before"]) assert.ok(uses.includes(sel), `${sel} is read`);
+  assert.equal(ruleOf(style, ".scard:hover"), "border-right-color:var(--accent);border-bottom-color:var(--accent);border-left-color:var(--accent)", "hover keeps the state colour on top");
+});
+
+test("U44: text never pushes a box wider than its track", async (t) => {
+  const style = await styleOf(await team(t));
+  for (const sel of [".cards", ".scards", ".card", ".needs ul", ".project", ".projects", ".titlebar", ".cancelled", "form", "label", "fieldset", ".callout", "ul.work"])
+    assert.match(ruleOf(style, sel), /grid-template-columns:minmax\(0,1fr\)/, sel);
+  assert.match(ruleOf(style, ".cancelled .scards"), /repeat\(auto-fill,minmax\(min\(240px,100%\),1fr\)\)/);
+  assert.match(ruleOf(style, ".lane:not([data-story]) .cards"), /repeat\(auto-fill,minmax\(min\(240px,100%\),1fr\)\)/);
+  assert.match(ruleOf(style, ".cancelled .cards"), /repeat\(auto-fill,minmax\(min\(200px,100%\),1fr\)\)/);
+  assert.match(style, /@media \(max-width:860px\)\{[^@]*\.cols\{grid-template-columns:minmax\(0,1fr\);/);
+  const shrink = /:where\(([^)]*)\)>\*\{min-width:0\}/.exec(style);
+  assert.ok(shrink, "flex items that hold text may shrink");
+  for (const box of ["header", ".me", ".toggles", ".row", ".story", ".who", ".ghead", "p.state", ".person"]) assert.ok(shrink[1].split(",").includes(box), box);
+  assert.match(style, /,\.person,\.me,\.who,\.lead,p\.state\{overflow-wrap:anywhere\}/, "a long name breaks instead of pushing the header out");
+  assert.match(ruleOf(style, "textarea,input,select"), /max-width:100%/, "a long option cannot widen a form");
+});
+
+test("U44: the space between groups is at least twice the space inside them", async (t) => {
+  const style = await styleOf(await team(t));
+  const gap = (sel, inside) => px(ruleOf(style, sel, inside), "gap");
+  const atLeastTwice = (outer, inner, what) => assert.ok(outer >= 2 * inner, `${what}: ${outer} vs ${inner}`);
+  atLeastTwice(gap("main"), gap("section") + 4, "sections vs inside a section (a sub-heading's margin adds 4px)");
+  atLeastTwice(gap(".cols"), gap(".cards"), "Task columns vs cards");
+  atLeastTwice(gap(".stages"), gap(".scards"), "Story stages vs Story cards");
+  atLeastTwice(gap(".project"), gap(".cards"), "Story lanes vs cards");
+  atLeastTwice(gap(".projects"), gap(".project"), "projects vs inside a project");
+  const band = "@media (width > 860px) and (width <= 960px)";
+  atLeastTwice(gap(".stages", band), gap(".stages .scards", band), "Story stages vs cards in the narrow band");
+  atLeastTwice(gap(".cols", "@media (max-width:860px)"), gap(".cards"), "stacked Task columns vs cards");
+  assert.match(ruleOf(style, "section>ol,section>ul"), /margin-block:0/, "a list in a section keeps the section's gap");
+});
+
+test("U44: counts, times and table numbers line up", async (t) => {
+  const style = await styleOf(await team(t));
+  const tabular = [...style.matchAll(/(?<=^|[}\n])([^{}]+)\{[^}]*font-variant-numeric:tabular-nums/g)].flatMap((m) => m[1].split(",").map((s) => s.trim()));
+  for (const sel of ["table", ".pill", ".mac", ".macchip", ".meta", ".time", ".count", ".progress", "p.sprog", "ul.work"]) assert.ok(tabular.includes(sel), sel);
 });

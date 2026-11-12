@@ -242,8 +242,8 @@ test("the board lists projects with Story progress; the Story page lists every T
   assert.ok(page.includes(pill("진행 중")));
   assert.ok(page.includes("<pre># Story\n본문</pre>"));
   assert.ok(page.includes("PL: PL"));
-  assert.ok(page.includes(`<details class="dev"><summary>개발 정보</summary><h3>Story base</h3>`) && page.includes(`<tr><td>app-be</td><td>main</td><td>feature/story-${s.number}/base</td></tr>`), "Story base, folded");
-  assert.ok(page.includes(`<tr><td>app-fe</td><td>develop</td><td>feature/story-${s.number}/base</td></tr>`));
+  assert.ok(page.includes(`<details class="dev"><summary>개발 정보</summary><h3>Story base</h3>`) && page.includes(`<tr><td>app-be</td><td class="wrap">main</td><td class="wrap">feature/story-${s.number}/base</td></tr>`), "Story base, folded; a long branch name breaks (U44)");
+  assert.ok(page.includes(`<tr><td>app-fe</td><td class="wrap">develop</td><td class="wrap">feature/story-${s.number}/base</td></tr>`));
   const row = (id) => new RegExp(`<tr><td>#\\d+</td><td>[^<]*</td><td><a href="/tasks/${id}">[^<]+</a></td><td><span class="pill \\w+">([^<]+)</span></td><td>([^<]*)</td><td>(.*?)</td></tr>`).exec(page);
   const [, apiWord, apiWho] = row(s.api);
   assert.deepEqual([apiWord, apiWho], ["완료", "C"]);
@@ -790,4 +790,36 @@ test("a hub without a board answers 404 for the new POSTs", async (t) => {
   const csrf = /name="csrf" value="([^"]+)"/.exec((await h.get("/repos")).text)[1];
   for (const path of ["/me/auto-work", `/tasks/${randomUUID()}/pick`])
     assert.equal((await raw("POST", path, new URLSearchParams({ csrf, on: "1" }).toString())).status, 404, path);
+});
+
+// U44: an empty part of /me says what belongs there and, when the member may take one, the action that fills it.
+test("U44: /me's empty parts say what belongs there and the action that fills them", async (t) => {
+  const h = await team(t);
+  const NONE_OPEN = '<p class="muted">지금 맡은 일이 없습니다.</p>';
+  const PICK = '<p class="muted">지금 맡은 일이 없습니다. 아래 받을 수 있는 일에서 [작업하기]로 하나를 맡으세요.</p>';
+  const NONE_READY = '<p class="muted">지금 받을 수 있는 일이 없습니다. 내가 맡은 레포에 할 일이 생기면 여기에 보입니다.</p>';
+  let home = (await h.get("/me", h.c)).text;
+  assert.ok(home.includes(NONE_OPEN) && home.includes(NONE_READY), "nothing to take: what will show up");
+  h.story();
+  h.linkOf(h.c, h.be);
+  h.board.setAutoWork(h.c.member, false);
+  home = (await h.get("/me", h.c)).text;
+  assert.ok(home.includes(PICK), "a ready Task the member may pick: the action that fills it");
+  h.board.setAutoWork(h.c.member, true);
+  home = (await h.get("/me", h.c)).text;
+  assert.ok(home.includes(NONE_OPEN) && !home.includes("[작업하기]"), "auto work takes it anyway: the switch line says so, no button to name");
+});
+
+// U44: a <form> inside a <p> makes the parser close the <p> early and leave an empty one, which doubled the gap under
+// /me's switch line (26px inside a section whose items are 12px apart). Buttons sit in a <div>.
+test("U44: no form sits inside a paragraph on /me or a Task page", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  h.linkOf(h.c, h.be);
+  h.board.setAutoWork(h.c.member, false);
+  const home = (await h.get("/me", h.c)).text;
+  const task = (await h.get(`/tasks/${s.api}`, h.c)).text;
+  assert.ok(home.includes("/pick") && task.includes("/pick"), "both pages draw 작업하기");
+  for (const [name, page] of [["/me", home], ["task", task]]) assert.doesNotMatch(page, /<p(?: [^>]*)?>(?:(?!<\/p>)[\s\S])*<form/, name);
+  assert.ok(home.includes('<div class="row">자동으로 일하기 <span class="pill">꺼짐</span> <form class="inline" method="post" action="/me/auto-work">'));
 });

@@ -1,0 +1,12 @@
+{
+  "token": "1c544906abeeee07d3d31ec5f97b2b141a91ec4c67a6d81fb64ae558eab9f31d",
+  "output": {
+    "summary": "Scoped re-review: all eight findings addressed, no new Critical/Important; Ready.",
+    "evidence": [
+      ".ai-workflow/runs/U44-review-2.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

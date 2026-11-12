@@ -1,0 +1,14 @@
+{
+  "token": "7f941039ef257ad2468970410c4e979bf8072ad63e57161b48b1f669c9fe0b3f",
+  "output": {
+    "summary": "Whole-branch review: Ready with fixes, Critical 0, Important 0, Minor 8 (zones, TZ guard, named colours, a.person target, record numbers and omissions, truncation and branch wrapping, lane spacing note).",
+    "evidence": [
+      ".ai-workflow/runs/U44-review-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "Fix the eight Minor findings in .ai-workflow/runs/U44-review-1.md, then review again."
+  }
+}

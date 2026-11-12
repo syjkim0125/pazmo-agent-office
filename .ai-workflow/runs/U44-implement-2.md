@@ -1,0 +1,5 @@
+# U44 implement — attempt 2 (fix round after review 1; 74fc4e7..3848f40)
+
+Commits: 1c09fbf (one zone for every date via teamTime()/teamDay() in HUB_TIME_ZONE on the plan page, Mac approval, request conversation and device expiry; a reply note cut at 120 characters ends in "…" and keeps its full text, escaped, in a title; branch cells wrap; a.person 44px wide on touch; the invariants test runs under TZ=UTC with dynamic imports, knows all 148 CSS named colours and flags outline:none on :focus-visible except card titles), 3848f40 (checklist doc and change record: corrected avatar contrast ranges, the /me button moving beside its pill, the /tasks lane-header exemption).
+
+TDD: RED 6/94 failing in the three changed test files for the intended reasons; GREEN Hub tests 585/585, full npm test 1889/1889, typecheck exit 0. The TZ guard was checked against a copy whose ago() formatter has no zone: 3 tests fail, as intended. Existing tests changed: two Story base rows (now `<td class="wrap">`), the touch-width selector and one comment. No server started; only .ai-workflow/runs/U44-* untracked.

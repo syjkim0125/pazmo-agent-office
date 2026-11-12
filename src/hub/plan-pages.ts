@@ -3,7 +3,7 @@
  * Story. No script; every value goes through `esc`. Each form is drawn only when `PlanView.actions` says the viewer may,
  * and carries the revision it was drawn at, so a second click or an older tab changes nothing.
  */
-import { ago, csrfField, esc, layout, macBadgeLabel, tone, tonePill, type Chrome } from "./pages.ts";
+import { ago, csrfField, esc, layout, macBadgeLabel, teamTime, tone, tonePill, type Chrome } from "./pages.ts";
 import { PLAN_LIMITS, type PlanApproval, type PlanQuestion, type PlanRound, type PlanState } from "./plan-protocol.ts";
 import type { PlanRepo, PlanView } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
@@ -142,7 +142,7 @@ function splitDetails(split: unknown, repos: PlanRepo[]): string {
   } else body = `<pre class="mono">${esc(JSON.stringify(split, null, 2))}</pre>`;
   return `<details><summary>올라갈 Task 전부 보기</summary>${body}</details>`;
 }
-const when = (at: number) => `${new Date(at).toLocaleString("ko-KR")} (${ago(at)})`;
+const when = (at: number) => `${teamTime(at)} (${ago(at)})`;
 
 /**
  * `plMac` and `plOpenTask` are the PL's, read by the caller, and `unlinked` the names of the plan's repos the PL's Office

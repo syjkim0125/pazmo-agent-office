@@ -1,0 +1,12 @@
+{
+  "token": "8f799f7d0cb7ec58048d916deeae08682a59a298e34b55ff890aaa393819e2f3",
+  "output": {
+    "summary": "Fresh kit checks at 3848f40: story and typecheck exit 0, tests 626/626 + 586/586 + 677/677 = 1889/1889.",
+    "evidence": [
+      ".ai-workflow/runs/U44-verify-1.md"
+    ]
+  },
+  "evaluation": {
+    "passed": true
+  }
+}

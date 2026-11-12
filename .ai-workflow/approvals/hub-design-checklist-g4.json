@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d",
+  "snapshot": "fcffee0e8b96ca4280712deefe424ffdb45ec4904e85fcfb1d53174b446f5c86",
+  "runId": "187277bd-5fa3-478b-98a7-e337688cca26",
+  "responseRef": "Claude Code conversation 2026-11-12. The G4 section of https://claude.ai/artifact/GJBHwuZJSNs9xqUJDPQKAR (version 8) showed three before/after screenshot pairs, the changes, the checks (two kit reviews, kit verify 1889/1889), what was not verified, the three G4 questions and the options; asked \"U44 G4: 어느 선택지로 할까요?\", the user answered \"① 승인 후 머지\" without answering the three questions (D13). Record: .ai-workflow/approvals/hub-design-checklist-g4.md",
+  "branch": "feat/hub-design-checklist",
+  "head": "3848f40",
+  "date": "2026-11-12"
+}
