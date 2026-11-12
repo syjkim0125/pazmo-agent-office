@@ -1,0 +1,622 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "cf5c65a0-d437-4fc1-9a7f-50f30e84414e",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes (d39c036): /tasks plan-tone test, boardFailure() wording on every board, visible waiting count chip, checklist rule 5 and How to measure, board comment. Hub tests 600/600, tsc 0, 70 browser checks clean.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-implement-2.md",
+            ".ai-workflow/runs/U46-hub-boards-implement-red-2.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-green-3.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-hub-2.txt",
+            ".ai-workflow/runs/U46-hub-boards-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-implement-2.md": "d2bac59b1f03e182c3dc7f81d1b5dcf977b0e3799b76fec07515b0cf872e495d",
+          ".ai-workflow/runs/U46-hub-boards-implement-red-2.txt": "1c56dede7de5d075b9179e2503a9d28948c1be2fa0a35057e9a8b4a2a0d057dc",
+          ".ai-workflow/runs/U46-hub-boards-implement-green-3.txt": "15b1134701b992fe40cf207969e9bd639a3781c60da37224ec95ab22292cecd9",
+          ".ai-workflow/runs/U46-hub-boards-implement-hub-2.txt": "8a4e1bdbb68b77ac10ffdcd2ce5b960864491e458544de0711bb27db29c5e955",
+          ".ai-workflow/runs/U46-hub-boards-review-1.md": "97eb00b837af9aea531de67ac75f98277339da7991ab3ca460040a1762c96492"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30",
+        "output": {
+          "summary": "Independent review 2 (same reviewer; fixes 841dcbe..d39c036 and whole PR c6b7ca7..d39c036): Ready. Minor 1, 2, 3 and 5 of review 1 resolved and each guarded by a test that fails when reverted; 80/80 layout checks with folds open; no new findings except a docs Minor (/me still says 아래 이유를, record it for PR 3) and a line-length nit in the checklist.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-review-2.md": "5827a8b7112c97fcf0b8d0f6fd235a7ccde32e47f3b14f3a417c7cdd122906fb"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/4212b8ea-78ba-4a5d-ba0c-ee92aecdd278/receipt.json",
+            "hash": "79c117af96d38aff9b6fdac1c9bcd56350320c86f3029ca4575a7409d19c9972"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/6797e94c-9225-44e7-be7f-81f05cda4691/receipt.json",
+            "hash": "943cc4f04eedfe96f034e03cfa04d9d627804c1b31a56e9aab690a4cfeb7a087"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/c0c03a8f-aeb7-40b5-84a0-15f000ae9b52/receipt.json",
+            "hash": "8c2f837230f52575eb62aa235bbab6d56c754125db58e0aa41dfe44893357b54"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/978f8f80-fc52-48f9-ace1-baeb0be0fd8a/receipt.json",
+            "hash": "e3688837bdcbdaf6fd9022c339f0731ac4ab932dfbe31c15d874d7da5009a6cf"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/6406d5ea-8fe1-453a-8b7f-a49a7ce805ff/receipt.json",
+            "hash": "9044c84551d49ff11a9dec6f499d82ba2aa8f14b05c78e4b9b941cff7fa67556"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on d39c036: tests 641/641 + 586/586 + 677/677 = 1904/1904, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-verify-1.md": "34776ab9b525f3378b723cb88a9437f39244add6771a41638f8c5bf5788b3ff0"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T08:43:29.776Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T08:50:56.858Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Both boards: flat waiting rows (two columns wide), board copy for failed Tasks, no 8px state bar, draft cards without ruled lines, plan cards need-toned only for their PL, empty stages as 56px rails on one row, visually hidden h1. Hub tests 600/600, tsc 0, 70 browser checks with 0 overflow/past-edge/small/split rows. Commit 841dcbe.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-implement-1.md",
+            ".ai-workflow/runs/U46-hub-boards-implement-red-1.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-green-2.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-hub-1.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-hub-1b.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-implement-1.md": "ef26dd6ae8a3bfc31fa4a5a9e4cef1931798c2dbe58329e908e41b0888102c32",
+          ".ai-workflow/runs/U46-hub-boards-implement-red-1.txt": "de0efc5548b53ff57458e748bb0a274a653e1a1cb8be7c5553318a83fbee5b35",
+          ".ai-workflow/runs/U46-hub-boards-implement-green-2.txt": "96d5fbde5d41b3036297238425dc5ba9c4ebd72f9fee454849f7d2144497cb48",
+          ".ai-workflow/runs/U46-hub-boards-implement-hub-1.txt": "648aaa298962aaffb0ef675b8cdf295e6feb18b31a103f470b75f9d3f00e9fda",
+          ".ai-workflow/runs/U46-hub-boards-implement-hub-1b.txt": "176c5541cfffabaf41bcd45b0e12edafd3fc6fb9996088f048d829960a05a287"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T08:51:03.682Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:01:51.642Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d4a4eeeb1adc684778606bb7888394c7d2359311f231627d83133ec0afae15aa",
+        "output": {
+          "summary": "Independent review 1 of c6b7ca7..841dcbe: Ready, Critical 0, Important 0, Minor 6. Applying 1-3 and 5 now (test for the /tasks plan tone, board-wide failed-Task copy, invisible waiting count badge, stale checklist words and comment); 4 (plan page tone for non-PLs) recorded for PR 4, 6 (dark card edges) left.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d4a4eeeb1adc684778606bb7888394c7d2359311f231627d83133ec0afae15aa"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Ready with fixes chosen: add a /tasks plan-tone test; use the board wording for failed Task cards on both boards (boardFailure helper); give the waiting count badge a visible background; update checklist rule 5 (no top bar), its How to measure (open every details), and the board-pages comment about stages lining up."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-review-1.md": "97eb00b837af9aea531de67ac75f98277339da7991ab3ca460040a1762c96492"
+        },
+        "error": "Ready with fixes chosen: add a /tasks plan-tone test; use the board wording for failed Task cards on both boards (boardFailure helper); give the waiting count badge a visible background; update checklist rule 5 (no top bar), its How to measure (open every details), and the board-pages comment about stages lining up."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1 (Ready, Minor 6): apply 1-3 and 5 — /tasks plan-tone test, board-wide failed-Task wording, visible waiting count badge, stale checklist words and comment",
+      "at": "2026-11-12T09:01:52.123Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:01:59.715Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:04:34.223Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes (d39c036): /tasks plan-tone test, boardFailure() wording on every board, visible waiting count chip, checklist rule 5 and How to measure, board comment. Hub tests 600/600, tsc 0, 70 browser checks clean.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-implement-2.md",
+            ".ai-workflow/runs/U46-hub-boards-implement-red-2.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-green-3.txt",
+            ".ai-workflow/runs/U46-hub-boards-implement-hub-2.txt",
+            ".ai-workflow/runs/U46-hub-boards-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-implement-2.md": "d2bac59b1f03e182c3dc7f81d1b5dcf977b0e3799b76fec07515b0cf872e495d",
+          ".ai-workflow/runs/U46-hub-boards-implement-red-2.txt": "1c56dede7de5d075b9179e2503a9d28948c1be2fa0a35057e9a8b4a2a0d057dc",
+          ".ai-workflow/runs/U46-hub-boards-implement-green-3.txt": "15b1134701b992fe40cf207969e9bd639a3781c60da37224ec95ab22292cecd9",
+          ".ai-workflow/runs/U46-hub-boards-implement-hub-2.txt": "8a4e1bdbb68b77ac10ffdcd2ce5b960864491e458544de0711bb27db29c5e955",
+          ".ai-workflow/runs/U46-hub-boards-review-1.md": "97eb00b837af9aea531de67ac75f98277339da7991ab3ca460040a1762c96492"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:04:40.959Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:08:13.494Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30",
+        "output": {
+          "summary": "Independent review 2 (same reviewer; fixes 841dcbe..d39c036 and whole PR c6b7ca7..d39c036): Ready. Minor 1, 2, 3 and 5 of review 1 resolved and each guarded by a test that fails when reverted; 80/80 layout checks with folds open; no new findings except a docs Minor (/me still says 아래 이유를, record it for PR 3) and a line-length nit in the checklist.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-review-2.md": "5827a8b7112c97fcf0b8d0f6fd235a7ccde32e47f3b14f3a417c7cdd122906fb"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T09:08:20.783Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T09:11:57.531Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/4212b8ea-78ba-4a5d-ba0c-ee92aecdd278/receipt.json",
+            "hash": "79c117af96d38aff9b6fdac1c9bcd56350320c86f3029ca4575a7409d19c9972"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/6797e94c-9225-44e7-be7f-81f05cda4691/receipt.json",
+            "hash": "943cc4f04eedfe96f034e03cfa04d9d627804c1b31a56e9aab690a4cfeb7a087"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/c0c03a8f-aeb7-40b5-84a0-15f000ae9b52/receipt.json",
+            "hash": "8c2f837230f52575eb62aa235bbab6d56c754125db58e0aa41dfe44893357b54"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/978f8f80-fc52-48f9-ace1-baeb0be0fd8a/receipt.json",
+            "hash": "e3688837bdcbdaf6fd9022c339f0731ac4ab932dfbe31c15d874d7da5009a6cf"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/cf5c65a0-d437-4fc1-9a7f-50f30e84414e/6406d5ea-8fe1-453a-8b7f-a49a7ce805ff/receipt.json",
+            "hash": "9044c84551d49ff11a9dec6f499d82ba2aa8f14b05c78e4b9b941cff7fa67556"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on d39c036: tests 641/641 + 586/586 + 677/677 = 1904/1904, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U46-hub-boards-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "6dd34f7cd1b07b29b6d99f8a4641658a7e6225c18264e244fbc563c643f5ef30"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U46-hub-boards-verify-1.md": "34776ab9b525f3378b723cb88a9437f39244add6771a41638f8c5bf5788b3ff0"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

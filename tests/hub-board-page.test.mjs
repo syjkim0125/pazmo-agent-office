@@ -582,7 +582,7 @@ test("/ and /board are the Story board: Story cards in the five Story-stage colu
   assert.match(stageOf(text, "awaiting_g4").body, new RegExp(`<li class="scard need" data-story="${g4.number}">`));
   assert.match(stageOf(text, "done").body, new RegExp(`<li class="scard done" data-story="${done.number}">`));
   assert.ok(stageOf(text, "planning").body.includes(`<li class="scard draft" data-story="${draft.number}"><p class="kind">Story #${draft.number} · 열리기 전</p><a class="stitle" href="/stories/${draft.storyId}">올리기 전 Story</a><p><span class="pill run">기획 중</span></p><p class="sprog">Task 2개 준비됨</p>`), "an unopened Story looks like a draft");
-  assert.ok(stageOf(text, "planning").body.includes(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${planId}">웹 기획</a><p><span class="pill run">기획 대기</span></p><p class="sprog">아직 Task 없음</p>`), "a web plan looks like a draft");
+  assert.ok(stageOf(text, "planning").body.includes(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${planId}">웹 기획</a><p><span class="pill run">기획 대기</span></p><p class="speople">`), "a web plan looks like a draft, without 아직 Task 없음");
 });
 
 test("the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them", async (t) => {
@@ -695,7 +695,8 @@ test("a long unbroken word cannot widen a page, and Story cards keep to their co
   assert.match(style, /(^|[}\n])section\{[^}]*grid-template-columns:minmax\(0,1fr\)/, "a grid section never grows past the page");
   assert.match(style, /\.scard\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.doesNotMatch(style, /\.now \.person\{[^}]*white-space:nowrap/);
-  assert.match(style, /\.stages\{[^}]*grid-auto-columns:minmax\(0,1fr\)/, "a long word in a Story card cannot widen its stage column");
+  // U46: stages are flex items of equal share that may shrink below their longest word (flex:1 1 0; min-width:0).
+  assert.match(style, /\.stage\{flex:1 1 0;[^}]*min-width:0/, "a long word in a Story card cannot widen its stage column");
   assert.match(style, /\.steps li\.past::before\{content:"✓ "\}/, "a passed step is marked by more than its colour");
   assert.match(style, /\.tabs a\[aria-current=page\]\{[^}]*box-shadow:inset 0 -3px 0 var\(--accent\)/, "the selected tab is marked in both themes");
   assert.match(style, /\.callout pre\{[^}]*font-family:ui-monospace/, "the raw reason keeps its columns");
@@ -769,8 +770,9 @@ test("a passed step shows its ✓ beside its name, and the stages stay one row o
   const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
   assert.match(style, /\.steps li\{display:flex;align-items:center;justify-content:center;/);
   // U41: one column per stage shown (four or five), so 완료 never wraps alone (it did at 861–887px with minmax(160px,1fr)).
-  assert.match(style, /\.stages\{display:grid;grid-auto-flow:column;grid-auto-columns:minmax\(0,1fr\);/);
-  assert.doesNotMatch(style, /\.stages\{[^}]*auto-fit/);
+  // U46: one flex row that never wraps (an empty stage shrinks to a rail instead of moving to a second row).
+  assert.match(style, /\.stages\{display:flex;gap:16px;align-items:flex-start\}/);
+  assert.doesNotMatch(style, /\.stages\{[^}]*(auto-fit|flex-wrap)/);
   // Narrow windows above a phone tighten the stage spacing so the longest state words stay on one line.
   // Range syntax leaves no gap at fractional widths between 860 and 861px; only stage cards (not the 취소됨 strip) tighten,
   // and the dashed 기획 중 column (its own 2px border) gets 2px less padding so its cards are as wide as the others.
@@ -778,7 +780,7 @@ test("a passed step shows its ✓ beside its name, and the stages stay one row o
   // (115 measured; 114 before).
   assert.match(style, /@media \(width > 860px\) and \(width <= 960px\)\{\.stages\{gap:12px\}\.stage\{padding:6px\}\.stage\[data-stage=planning\]\{padding:4px\}\.stages \.scard\{padding:12px\}\.stages \.scards\{gap:6px\}\}/);
   // A phone stacks the stages again (U44: 16px apart, twice the 8px between cards).
-  assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{grid-auto-flow:row;grid-template-columns:minmax\(0,1fr\);gap:16px\}/);
+  assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{flex-direction:column;align-items:stretch;gap:16px\}\.stage\{flex:none\}/);
 });
 
 // U41: a cancelled Story says the same thing on its card, its page and its /tasks lane.
@@ -981,7 +983,7 @@ test("U44: the accent marks only the primary action, the current selection, focu
   const allowed = /^a$|:hover|:focus-visible|aria-current|^button,\.btn$|^input\[type=checkbox\]$/;
   for (const sel of uses) assert.match(sel, allowed, `${sel} uses the accent`);
   for (const sel of ["button.secondary:hover,.btn.ghost:hover", ".tabs a[aria-current=page]", ".filter[aria-current=true]::before"]) assert.ok(uses.includes(sel), `${sel} is read`);
-  assert.equal(ruleOf(style, ".scard:hover"), "border-right-color:var(--accent);border-bottom-color:var(--accent);border-left-color:var(--accent)", "hover keeps the state colour on top");
+  assert.equal(ruleOf(style, ".scard:hover"), "border-color:var(--accent)", "U46: no state bar to keep, the state is the card's word");
 });
 
 test("U44: text never pushes a box wider than its track", async (t) => {
@@ -1156,4 +1158,69 @@ test("U45: /repos is one row per repo; owner and link changes sit in a 관리 fo
   const asB = (await h.get("/repos", h.b)).text;
   assert.doesNotMatch(row(asB, "app-be"), /class="manage"/, "B owns app-fe only");
   assert.match(row(asB, "app-fe"), /class="manage"/);
+});
+
+// U46 (나 결정 카드, PR 2): both boards. Explainer: https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS
+test("U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.match(ruleOf(style, ".needs li"), /background:transparent/, "no tray inside the panel");
+  assert.match(ruleOf(style, ".needs li"), /border-top:1px solid var\(--line\)/);
+  assert.match(ruleOf(style, ".needs a"), /border:0/, "a title is a link, not a boxed button");
+  assert.match(ruleOf(style, ".needs .ghead .count"), /background:var\(--tray\)/, "the count is a tray chip, not panel on panel");
+  assert.match(ruleOf(style, ".needs a"), /min-height:44px/, "still a 44px target");
+  assert.match(ruleOf(style, ".needs li", "@media (width > 860px)"), /grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\)/, "what and why | the titles");
+});
+
+test("U46: on the board a failed Task's reason points to the Task page, not to a reason below", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const box = /<section class="needs"[\s\S]*?<\/section>/.exec((await h.get("/", h.pl)).text)[0];
+  assert.doesNotMatch(box, /아래 이유를/, "nothing is below on the board");
+  assert.match(box, /Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요/);
+  assert.match((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text, /아래 이유를 보고/, "the Task page keeps its own words");
+  for (const path of ["/tasks", `/stories/${s.storyId}`]) {
+    const text = (await h.get(path, h.pl)).text;
+    assert.doesNotMatch(text, /아래 이유를/, `${path}: a failed card on a board has nothing below it`);
+    assert.match(text, /<p class="why">AI가 세 번 시도했지만 끝내지 못했습니다\. Task 화면에서 이유를 보고/, path);
+  }
+});
+
+test("U46: a Story card has no thick state bar; its state is its word", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.doesNotMatch(ruleOf(style, ".scard"), /border-top/, "no 8px bar on a rounded card");
+  for (const kind of ["need", "stop", "done"]) assert.ok(!new RegExp(`\\.scard\\.${kind}\\{[^}]*border-top`).test(style), kind);
+  assert.doesNotMatch(style, /repeating-linear-gradient/, "a draft card has no ruled lines across its words");
+});
+
+test("U46: another member sees a web plan's question or draft as the PL's turn, not as theirs", async (t) => {
+  const h = await team(t);
+  const HOLDER = "c".repeat(32);
+  const planId = h.plans.createPlan(h.pl.member, { projectId: h.projectId, title: "초안 기획", intent: "쿠폰", risk: "normal" }).planId;
+  const l = h.plans.next(h.plBe, HOLDER);
+  h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "draft", text: "# Story: 초안 기획\n", story: { title: "초안 기획" } });
+  const cardOf = (text) => new RegExp(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${planId}">초안 기획</a><p>(<span class="pill \\w+">[^<]*</span>)</p>`).exec(text)?.[1];
+  assert.equal(cardOf((await h.get("/", h.pl)).text), '<span class="pill need">초안</span>', "the PL is asked");
+  assert.equal(cardOf((await h.get("/", h.b)).text), '<span class="pill run">초안</span>', "B only watches it");
+  const laneCard = (text) => new RegExp(`<li class="card (\\w+)"><a class="title" href="/plans/${planId}">초안 기획</a><p><span class="pill (\\w+)">초안</span>`).exec(text)?.slice(1).join(" ");
+  assert.equal(laneCard((await h.get("/tasks", h.pl)).text), "need need", "/tasks: the PL is asked");
+  assert.equal(laneCard((await h.get("/tasks", h.b)).text), "run run", "/tasks: B only watches it");
+});
+
+test("U46: on a wide screen an empty stage is a narrow rail, every stage still on one row", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.match(ruleOf(style, ".stages"), /display:flex/);
+  assert.match(ruleOf(style, ".stage"), /flex:1 1 0/);
+  const wide = "@media (width > 860px)";
+  assert.match(ruleOf(style, ".stage:has(>.scards:empty)", wide), /flex:0 0 56px/);
+  assert.match(ruleOf(style, ".stage:has(>.scards:empty) h3", wide), /writing-mode:vertical-rl/);
+  assert.match(ruleOf(style, ".stage>.scards:empty::before", wide), /content:none/, "a rail needs no 없음");
+});
+
+test("U46: the boards' heading is read, not shown twice above the tab of the same name", async (t) => {
+  const h = await team(t);
+  for (const [path, title] of [["/", "Story 보드"], ["/tasks", "모든 Task"]]) assert.ok((await h.get(path, h.pl)).text.includes(`<h1>${title}</h1>`), path);
+  assert.equal(ruleOf(await styleOf(h), ".titlebar h1"), "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap");
 });

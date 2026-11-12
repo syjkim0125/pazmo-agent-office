@@ -1,0 +1,19 @@
+✔ taskColumn maps every state and stage (0.619083ms)
+✔ column_at changes only when the column changes (9.486667ms)
+✔ held keeps the column its stage gives (5.232ms)
+✔ migrated rows fall back to claimed or created time (5.467166ms)
+✔ board caps done at five and counts the rest (7.820875ms)
+✔ board hides cancelled unless asked (5.486625ms)
+✔ mine keeps my Stories and Stories with my cards (4.771083ms)
+✔ board query count does not grow with projects (15.823708ms)
+✔ currentTasks maps a member to the Task they hold (3.161584ms)
+✔ macBadges returns the newest Mac per member (2.184416ms)
+✔ failed Task stays in the column it failed in (4.466916ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 214.90775

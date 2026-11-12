@@ -193,7 +193,7 @@ test("the board shows 새 프로젝트, each project's plans in progress, and �
     assert.ok(board.includes('<a class="btn ghost" href="/projects/new">새 프로젝트</a>'), `${who.member.name}: 새 프로젝트`);
     // D43: /board is the Story board; a plan in progress is a draft card in its 기획 중 column.
     assert.match(board, /<div class="stage" data-stage="planning"><h3><span>기획 중<\/span><span>1<\/span><\/h3>/, who.member.name);
-    assert.ok(board.includes(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${id}">쿠폰 발급</a><p>${pill("기획 대기")}</p><p class="sprog">아직 Task 없음</p><p class="speople"><span class="lead"><span class="av av`), who.member.name);
+    assert.ok(board.includes(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${id}">쿠폰 발급</a><p>${pill("기획 대기")}</p><p class="speople"><span class="lead"><span class="av av`), who.member.name);
     assert.equal(board.includes(newStory), who === h.pl, `${who.member.name}: 새 Story only for the owner of app-be and app-fe`);
   }
   // A plan that is no longer in progress leaves the list, and so does the heading.
