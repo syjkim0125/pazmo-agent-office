@@ -42,8 +42,8 @@ and 7 also need a browser measurement in the change record (see "How to measure"
    does this.
 5. **Accent restraint, no isolation inflation.** `--accent` marks only the primary action (the filled button), the
    current selection (current menu item, chosen chip, filter, tab), focus, hover and links. Secondary and ghost buttons
-   are neutral (`--fg` on `--panel`). Hover must not paint over a state colour (a Story card's hover leaves its top
-   state bar alone). State is never told by colour alone: a word, plus a shape where colour is used (square vs round
+   are neutral (`--fg` on `--panel`). Hover must not paint over a state colour (a Task card's hover leaves its left
+   state bar alone; a Story card has no state bar since U46, its state is its word). State is never told by colour alone: a word, plus a shape where colour is used (square vs round
    chip mark, ✓ on a passed step, a square dot for a resting Mac and a hollow one for an off Mac). One exception (U45):
    on a phone (≤860px) the header's Mac chip hides its words and tells its state by the dot's shape (round on, square
    resting, hollow ring off) and colour; the words stay in its accessible name and on /mac. Before adding emphasis, count the emphasis treatments
@@ -79,6 +79,10 @@ A quick count: `git diff -U0 -- src/hub | grep '^-[^-]' | grep -oF ':focus-visib
 `+` lines; then compare the removed rules with the added ones.
 
 ## How to measure
+
+Open every `<details>` first, and count elements drawn past the window edge outside a scroll box: with
+`overflow-x: clip` the page never scrolls sideways, so `scrollWidth` cannot see what is cut off (U45; see
+[count-elements-drawn-past-the-edge-when-overflow-is-clipped.md](../ui-bugs/count-elements-drawn-past-the-edge-when-overflow-is-clipped.md)).
 
 Run the branch on a copy of a Hub's data (see
 [real-check-mac-paired-features-on-a-router-mode-hub.md](../workflow-issues/real-check-mac-paired-features-on-a-router-mode-hub.md)),

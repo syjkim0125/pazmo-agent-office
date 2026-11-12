@@ -76,6 +76,9 @@ const boardHref = (base: Base, f: Filters) => {
 /** A taken card takes its state's color; a merged one is quiet (done); a card nobody holds has no color. */
 const cardTone = (c: BoardCard): Tone | null => (TAKEN.has(c.state) ? tone("task", c.state) : c.state === "merged" || c.state === "passed" ? "done" : null);
 
+/** A failed Task's reason on a board: nothing is below a card or a row there, so it points to the Task page. */
+const boardFailure = (c: BoardCard) => plainFailure(c.failure ?? "", c.kind).replace("아래 이유를", "Task 화면에서 이유를");
+
 function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
   const who = TAKEN.has(c.state) ? c.assignee : null;
   const timed = who !== null && (c.column === "doing" || c.column === "review");
@@ -84,7 +87,7 @@ function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
   const person = who
     ? `<p class="who">${avatar(who)}<span>${esc(who.name)}</span>${macLine(badges.get(who.id) ?? NO_MAC)}${timed ? `<span class="time">${esc(inColumn(c.columnAt))}</span>` : ""}</p>`
     : "";
-  const why = c.state === "failed" ? `<p class="why">${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "";
+  const why = c.state === "failed" ? `<p class="why">${esc(boardFailure(c))}</p>` : "";
   const meta = `<p class="meta"><span class="num">#${c.number}</span>${c.repo ? ` ${esc(c.repo.name)}` : ""}</p>`;
   return `<li class="card${t ? ` ${t}` : ""}"><a class="title" href="/tasks/${esc(c.taskId)}">${esc(c.title)}</a>${state}${person}${why}${meta}</li>`;
 }
@@ -209,7 +212,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
             rank: 0,
             tone: "stop",
             word: taskStateLabel(c.state, c.stage),
-            why: c.state === "failed" ? plainFailure(c.failure ?? "", c.kind).replace("아래 이유를", "Task 화면에서 이유를") : HELD_SHORT,
+            why: c.state === "failed" ? boardFailure(c) : HELD_SHORT,
             link: waitLink(`/tasks/${c.taskId}`, c.title, s.number),
           });
     }
@@ -313,7 +316,7 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
  */
 export function storyBoardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome): string {
   void csrf;
-  // Decided once for the page, so every project's stages line up.
+  // Decided once for the page, so every project shows the same stages (on a wide screen an empty one is a rail, so widths differ).
   const planningShown = v.canCreateProject || v.projects.some((p) => p.stories.some((s) => s.state === "draft"));
   const stages = (p: BoardProject, plans: PlanCard[]) => {
     const drafts = p.stories.filter((s) => s.state === "draft");

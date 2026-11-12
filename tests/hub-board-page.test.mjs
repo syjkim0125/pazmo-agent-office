@@ -1166,6 +1166,7 @@ test("U46: 나를 기다리는 일 is one panel of rows split by lines, its titl
   assert.match(ruleOf(style, ".needs li"), /background:transparent/, "no tray inside the panel");
   assert.match(ruleOf(style, ".needs li"), /border-top:1px solid var\(--line\)/);
   assert.match(ruleOf(style, ".needs a"), /border:0/, "a title is a link, not a boxed button");
+  assert.match(ruleOf(style, ".needs .ghead .count"), /background:var\(--tray\)/, "the count is a tray chip, not panel on panel");
   assert.match(ruleOf(style, ".needs a"), /min-height:44px/, "still a 44px target");
   assert.match(ruleOf(style, ".needs li", "@media (width > 860px)"), /grid-template-columns:minmax\(0,2fr\) minmax\(0,3fr\)/, "what and why | the titles");
 });
@@ -1180,6 +1181,11 @@ test("U46: on the board a failed Task's reason points to the Task page, not to a
   assert.doesNotMatch(box, /아래 이유를/, "nothing is below on the board");
   assert.match(box, /Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요/);
   assert.match((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text, /아래 이유를 보고/, "the Task page keeps its own words");
+  for (const path of ["/tasks", `/stories/${s.storyId}`]) {
+    const text = (await h.get(path, h.pl)).text;
+    assert.doesNotMatch(text, /아래 이유를/, `${path}: a failed card on a board has nothing below it`);
+    assert.match(text, /<p class="why">AI가 세 번 시도했지만 끝내지 못했습니다\. Task 화면에서 이유를 보고/, path);
+  }
 });
 
 test("U46: a Story card has no thick state bar; its state is its word", async (t) => {
@@ -1198,6 +1204,9 @@ test("U46: another member sees a web plan's question or draft as the PL's turn, 
   const cardOf = (text) => new RegExp(`<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${planId}">초안 기획</a><p>(<span class="pill \\w+">[^<]*</span>)</p>`).exec(text)?.[1];
   assert.equal(cardOf((await h.get("/", h.pl)).text), '<span class="pill need">초안</span>', "the PL is asked");
   assert.equal(cardOf((await h.get("/", h.b)).text), '<span class="pill run">초안</span>', "B only watches it");
+  const laneCard = (text) => new RegExp(`<li class="card (\\w+)"><a class="title" href="/plans/${planId}">초안 기획</a><p><span class="pill (\\w+)">초안</span>`).exec(text)?.slice(1).join(" ");
+  assert.equal(laneCard((await h.get("/tasks", h.pl)).text), "need need", "/tasks: the PL is asked");
+  assert.equal(laneCard((await h.get("/tasks", h.b)).text), "run run", "/tasks: B only watches it");
 });
 
 test("U46: on a wide screen an empty stage is a narrow rail, every stage still on one row", async (t) => {
