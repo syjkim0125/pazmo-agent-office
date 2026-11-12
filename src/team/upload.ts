@@ -410,7 +410,15 @@ const badResponse = (): never => fail("HUB_BAD_RESPONSE", "Hub의 답을 읽지 
 const commits = (value: unknown): Record<string, string> =>
   isObject(value) && Object.values(value).every((sha) => typeof sha === "string") ? (value as Record<string, string>) : badResponse();
 
-export function uploadLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): UploadLink {
+/**
+ * Every Hub call of the upload opens its own connection (U42). The command waits on git between calls, and a pooled
+ * connection can sit idle past a LAN Hub's keep-alive (5 s, closed after 6 s) when this process is too busy for Node to
+ * drop it first (at 4 s): the next call written to it fails with `read ECONNRESET`.
+ */
+const uploadCall: typeof hubCall = (cfg, method, path, body, protocol, options) =>
+  hubCall(cfg, method, path, body, protocol, { ...options, keepAlive: false });
+
+export function uploadLink(cfg: HubLinkConfig, call: typeof hubCall = uploadCall): UploadLink {
   const send = (method: "GET" | "POST", path: string, body?: unknown): Promise<unknown> =>
     call(cfg, method, `/api/link/story/${path}`, body, HUB_STORY_PROTOCOL);
   return {
@@ -601,7 +609,7 @@ export async function runUpload(o: {
 async function retiredMac(cfg: HubLinkConfig, error: unknown): Promise<OfficeError | null> {
   if ((isObject(error) ? error : {}).status !== 401) return null;
   try {
-    await hubCall(cfg, "POST", "/api/link/story/upload", {}, HUB_STORY_PROTOCOL);
+    await uploadCall(cfg, "POST", "/api/link/story/upload", {}, HUB_STORY_PROTOCOL);
   } catch (second) {
     const { status, code } = (isObject(second) ? second : {}) as Record<string, unknown>;
     if (status === 403 && code === "NOT_YOUR_MAC") return hubFailure(second);
