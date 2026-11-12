@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "4a8560c1bb10235c404ca5e3daf3f2dbd5ac0efcda760857e9c979a7eccadacc",
+  "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+  "runId": "ad41a05a-9ca1-4a56-93be-899159faadf6",
+  "responseRef": "Claude Code conversation 2026-11-12 (upload ECONNRESET flake, U42). The G4 explainer https://claude.ai/artifact/NHU1i8BCPDKG5z2kQ2Soj1 (version 1) and the conversation showed the cause reproductions, the change (each upload Hub call opens its own connection), the checks (new test RED 5/5 -> GREEN 5/5, kit verify 1862/1862, typecheck and Story check, review round 1 Not ready with Important 1 fixed and round 2 Ready), what was not verified (the 4->6 s window in full runs is inferred, no upload to the company Hub, other link clients unchanged), the three G4 questions, the options and rollback. Asked \"G4: 어느 쪽으로 할까요?\", the user answered \"승인 후 머지\" without answering the three questions (D13). Record: .ai-workflow/approvals/upload-one-shot-g4.md",
+  "branch": "claude/elegant-ritchie-715793",
+  "head": "8e241f7",
+  "date": "2026-11-12"
+}

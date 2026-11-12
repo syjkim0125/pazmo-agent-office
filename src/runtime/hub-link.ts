@@ -1,4 +1,4 @@
-import { request } from "node:https";
+import { Agent, request } from "node:https";
 import { X509Certificate, randomUUID } from "node:crypto";
 import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -60,11 +60,21 @@ function trustMode(cfg: Target): "system" | "pinned" {
   if (isStr(cfg.caPem) && isStr(cfg.fingerprint)) return "pinned";
   throw new Error("HUB_LINK_CONFIG_INVALID");
 }
+/** Closes each connection after its answer, so no call is ever written to a connection the hub already closed as idle. */
+const oneShot = new Agent({ keepAlive: false });
 /** With a pinned CA, trusts only that CA: Node's `ca` replaces the system roots.
  * With system trust, passes no `ca`, so Node's default roots (plus NODE_EXTRA_CA_CERTS)
  * verify the hub. `rejectUnauthorized: true` is explicit so that
- * NODE_TLS_REJECT_UNAUTHORIZED=0 in the environment cannot disable verification here. */
-export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?: unknown, protocol: string = HUB_PROTOCOL): Promise<any> {
+ * NODE_TLS_REJECT_UNAUTHORIZED=0 in the environment cannot disable verification here.
+ * `keepAlive: false` opens a connection for this call alone instead of reusing a pooled one (U42). */
+export function hubCall(
+  cfg: Target,
+  method: "GET" | "POST",
+  path: string,
+  body?: unknown,
+  protocol: string = HUB_PROTOCOL,
+  { keepAlive = true }: { keepAlive?: boolean } = {},
+): Promise<any> {
   let mode: "system" | "pinned";
   try {
     mode = trustMode(cfg); // rejected before any request is made
@@ -75,6 +85,7 @@ export function hubCall(cfg: Target, method: "GET" | "POST", path: string, body?
     const payload = body === undefined ? undefined : JSON.stringify(body);
     const req = request(new URL(path, cfg.hub), {
       method,
+      ...(keepAlive ? {} : { agent: oneShot }),
       rejectUnauthorized: true,
       ...(mode === "pinned" ? { ca: [cfg.caPem as string] } : {}),
       timeout: 15000,

@@ -1,0 +1,1 @@
+{ "token": "6f063ea26855507da94a320061c812c9a9436c51211e82bf6dff558c5edbb725", "output": { "summary": "Kit verify: 571/571 + 636/636 + 655/655 = 1862/1862, typecheck and story exit 0", "evidence": [".ai-workflow/runs/U42-verify-1.md"] }, "evaluation": { "passed": true } }

@@ -1,0 +1,1 @@
+{ "token": "a31df60d6fddc5794de847b82aa074dfa838174934a70dbd0199308a673c5f17", "output": { "summary": "Upload Hub calls use a connection per call; RED/GREEN shown; 1862/1862", "evidence": [".ai-workflow/runs/U42-implement-1.md", "src/runtime/hub-link.ts", "src/team/upload.ts", "tests/team-upload-link.test.mjs"] }, "evaluation": { "passed": true } }

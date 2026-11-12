@@ -3,8 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-11 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/hub-polish-g4.json · 2026-11-11 · Check-in: accepted
-G4: PASS — U40(D43, Hub 웹이 차분한 신호등 모양이 되고 첫 화면이 Story 단계 칸의 Story 보드, Story 화면에 그 Story의 Task 보드, `/tasks`에 모든 Task가 있으며 맨 위에 나를 기다리는 일이 모인다; 버튼·권한·승인 확인은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/hub-polish-g4.md).
+Understanding gate (G4): .ai-workflow/approvals/upload-one-shot-g4.json · 2026-11-12 · Check-in: accepted
+G4: PASS — U42(D42·M16, 올리기 명령은 Hub에 보내는 호출마다 연결을 새로 열고 답을 받으면 닫아, 프로세스가 오래 바빴어도 Hub가 닫은 연결에 요청을 실어 HUB_UNREACHABLE로 실패하지 않는다; 요청은 한 번만 가고 프로토콜·권한·오류 코드·인증서 확인과 다른 Hub 연결은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/upload-one-shot-g4.md).
 
 ## Goal
 사람이 새 최소 Office(Tasks·작업 상세·Decisions·Agents)에서 일을 만들고 진행·결정·승인을 확인하며, ai-workflow-kit의 역할별 업무 절차가 작업 안의 단계로 돈다. kit가 역할별 절차와 로컬 run 상태를 관리하고 Office가 작업 큐·agent·격리 실행·실제 승인 기록을 관리한다. 팀 협업은 팀 허브와 팀 Story 보드(D24)로 한다. 실패하거나 검증하지 못한 작업은 완료로 표시하지 않는다. 실제 실행·격리·설치 시험과 모의 시험의 증거를 구분한다.

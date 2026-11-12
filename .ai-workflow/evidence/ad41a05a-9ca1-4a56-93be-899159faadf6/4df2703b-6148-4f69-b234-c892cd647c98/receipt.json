@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "runId": "ad41a05a-9ca1-4a56-93be-899159faadf6",
+  "storyHash": "4a8560c1bb10235c404ca5e3daf3f2dbd5ac0efcda760857e9c979a7eccadacc",
+  "nodeId": "workflow-verify",
+  "token": "6f063ea26855507da94a320061c812c9a9436c51211e82bf6dff558c5edbb725",
+  "checkId": "tests-1of3",
+  "covers": [
+    "V1",
+    "V2",
+    "V3",
+    "V4",
+    "V5",
+    "V6",
+    "V8",
+    "V9",
+    "V10",
+    "V13",
+    "V14",
+    "V17",
+    "V18",
+    "V19",
+    "V20"
+  ],
+  "recipe": {
+    "path": "docs/verification/kit-checks.md",
+    "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+  },
+  "argv": [
+    "node",
+    "scripts/kit-test-shard.mjs",
+    "0",
+    "3"
+  ],
+  "cwd": ".",
+  "startedAt": "2026-11-12T01:56:40.873Z",
+  "finishedAt": "2026-11-12T01:57:47.488Z",
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "truncated": false,
+  "outputIncomplete": false,
+  "stdout": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/4df2703b-6148-4f69-b234-c892cd647c98/stdout.log",
+  "stderr": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/4df2703b-6148-4f69-b234-c892cd647c98/stderr.log",
+  "stdoutHash": "aad47082d76026bce2bd0402bd127b12caff177d20758a0ddfbd3e12add94cce",
+  "stderrHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "snapshotBefore": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+  "snapshotAfter": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+  "passed": true
+}

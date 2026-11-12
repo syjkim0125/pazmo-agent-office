@@ -1,0 +1,616 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "ad41a05a-9ca1-4a56-93be-899159faadf6",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: test control steady under load (stall repro before/after), uploadCall forwards options, doc counts and risk wording; related 110/110, typecheck 0",
+          "evidence": [
+            ".ai-workflow/runs/U42-implement-2.md",
+            "src/runtime/hub-link.ts",
+            "src/team/upload.ts",
+            "tests/team-upload-link.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-implement-2.md": "c3fad17b498b36a929e17350fe97a3337e75e513771081f53fb4ea467caf23bb",
+          "src/runtime/hub-link.ts": "9496890372182e3461184dc4d3d5c876343c207f1a2906e51e263f7385daab62",
+          "src/team/upload.ts": "a8f68dcdc04eac7903907673692766d95375fc01365004b5d6b92ec0bb627ba0",
+          "tests/team-upload-link.test.mjs": "08ead2e1737866c4a6ef837c764d8cd214ade1ad701b608fa8eb9635f2975556"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+        "output": {
+          "summary": "Re-review of the fix commit: Ready, Critical/Important 0, one doc-only Minor deferred to the delivery commit",
+          "evidence": [
+            ".ai-workflow/runs/U42-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-review-2.md": "ce1fdb9b70f386a2b4a0079c64c9205554d50cbcc5328715b213c0c3f26a94dc"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/4df2703b-6148-4f69-b234-c892cd647c98/receipt.json",
+            "hash": "87de99501bf8fa51ece627c52bb71ea0b74e1fc537bf4dd4c10cca62507d66e2"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/875cab03-f7a9-407d-8f5d-6773bcbc7cf0/receipt.json",
+            "hash": "3873b94a6502a8e9c2621ab1142cc28e4157803152206db9e507ee35a3870c0f"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/eb6fc96e-0ff1-4137-b460-919fc2cf0d90/receipt.json",
+            "hash": "6ccd274502aedb1d64e1ecd3cdef556f5e58ab81710cdfd36c037af56e121c1d"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/70f84b0e-2bba-42e4-bb1d-dbb5e6102fe3/receipt.json",
+            "hash": "5af65603858c67e5b33dac17738f7ba6bdb52b99a338af3a9622bcd276509ba1"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/3e70543c-553e-4566-885f-36e275e2a187/receipt.json",
+            "hash": "190541b207071d3b3a1969a750693df99cf742361c9aa015cadeb32a6c541fc7"
+          }
+        },
+        "output": {
+          "summary": "Kit verify: 571/571 + 636/636 + 655/655 = 1862/1862, typecheck and story exit 0",
+          "evidence": [
+            ".ai-workflow/runs/U42-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-verify-1.md": "eaa10eb73fd920c211f1fa50b8e865738b4de0efbec2b8c385aa18f13e5f77a7"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "4a8560c1bb10235c404ca5e3daf3f2dbd5ac0efcda760857e9c979a7eccadacc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-11T08:53:04.498Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-11T09:03:03.378Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Upload Hub calls use a connection per call; RED/GREEN shown; 1862/1862",
+          "evidence": [
+            ".ai-workflow/runs/U42-implement-1.md",
+            "src/runtime/hub-link.ts",
+            "src/team/upload.ts",
+            "tests/team-upload-link.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-implement-1.md": "825ab67d3a33f936c0197466932b43b84e212ac2de5664f638f6e170684eccc1",
+          "src/runtime/hub-link.ts": "9496890372182e3461184dc4d3d5c876343c207f1a2906e51e263f7385daab62",
+          "src/team/upload.ts": "47e7a5062d4248d381905a7c9fa69920c900ca87842190c91714a2ce4e6c8f0b",
+          "tests/team-upload-link.test.mjs": "a8ac138bd4c2e9234106d0719de3abd5e8c4685c3078b77449b1c32fe4836a07"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:40:45.214Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:50:52.065Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d9a35dfc473c45479ca65997542de8aef46a49852c454626af9ca4798786d0ec",
+        "output": {
+          "summary": "Independent review: code correct, cause reproduced; Important 1 (control part of the new test can flake under load), Minor 4",
+          "evidence": [
+            ".ai-workflow/runs/U42-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d9a35dfc473c45479ca65997542de8aef46a49852c454626af9ca4798786d0ec"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "implement: make the new test's control use a long keep-alive and switch to 50 ms after it; correct the call counts (5-6), make uploadCall forward options honestly, narrow the learning doc's Prevention wording"
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-review-1.md": "4817b36092f54b2903e272542c588ff9facb34e21506c5486e4e671f41662b8f"
+        },
+        "error": "implement: make the new test's control use a long keep-alive and switch to 50 ms after it; correct the call counts (5-6), make uploadCall forward options honestly, narrow the learning doc's Prevention wording"
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1: the new test's control can flake under load; fix counts, uploadCall typing and doc wording",
+      "at": "2026-11-12T01:50:52.904Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T01:51:04.023Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T01:54:37.995Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: test control steady under load (stall repro before/after), uploadCall forwards options, doc counts and risk wording; related 110/110, typecheck 0",
+          "evidence": [
+            ".ai-workflow/runs/U42-implement-2.md",
+            "src/runtime/hub-link.ts",
+            "src/team/upload.ts",
+            "tests/team-upload-link.test.mjs"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-implement-2.md": "c3fad17b498b36a929e17350fe97a3337e75e513771081f53fb4ea467caf23bb",
+          "src/runtime/hub-link.ts": "9496890372182e3461184dc4d3d5c876343c207f1a2906e51e263f7385daab62",
+          "src/team/upload.ts": "a8f68dcdc04eac7903907673692766d95375fc01365004b5d6b92ec0bb627ba0",
+          "tests/team-upload-link.test.mjs": "08ead2e1737866c4a6ef837c764d8cd214ade1ad701b608fa8eb9635f2975556"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:54:44.969Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T01:56:23.622Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+        "output": {
+          "summary": "Re-review of the fix commit: Ready, Critical/Important 0, one doc-only Minor deferred to the delivery commit",
+          "evidence": [
+            ".ai-workflow/runs/U42-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-review-2.md": "ce1fdb9b70f386a2b4a0079c64c9205554d50cbcc5328715b213c0c3f26a94dc"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T01:56:32.705Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-12T02:02:22.966Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/4df2703b-6148-4f69-b234-c892cd647c98/receipt.json",
+            "hash": "87de99501bf8fa51ece627c52bb71ea0b74e1fc537bf4dd4c10cca62507d66e2"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/875cab03-f7a9-407d-8f5d-6773bcbc7cf0/receipt.json",
+            "hash": "3873b94a6502a8e9c2621ab1142cc28e4157803152206db9e507ee35a3870c0f"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/eb6fc96e-0ff1-4137-b460-919fc2cf0d90/receipt.json",
+            "hash": "6ccd274502aedb1d64e1ecd3cdef556f5e58ab81710cdfd36c037af56e121c1d"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/70f84b0e-2bba-42e4-bb1d-dbb5e6102fe3/receipt.json",
+            "hash": "5af65603858c67e5b33dac17738f7ba6bdb52b99a338af3a9622bcd276509ba1"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/ad41a05a-9ca1-4a56-93be-899159faadf6/3e70543c-553e-4566-885f-36e275e2a187/receipt.json",
+            "hash": "190541b207071d3b3a1969a750693df99cf742361c9aa015cadeb32a6c541fc7"
+          }
+        },
+        "output": {
+          "summary": "Kit verify: 571/571 + 636/636 + 655/655 = 1862/1862, typecheck and story exit 0",
+          "evidence": [
+            ".ai-workflow/runs/U42-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "a1f3a439a93e493b3b5b21f4c519f798a2ff589e31cd7f477c10a6b6b23242eb"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U42-verify-1.md": "eaa10eb73fd920c211f1fa50b8e865738b4de0efbec2b8c385aa18f13e5f77a7"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "029a3b948d35cccfeb5c5ab9b2852a8af04395633417bafbac8c24fef755a8d2"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}
