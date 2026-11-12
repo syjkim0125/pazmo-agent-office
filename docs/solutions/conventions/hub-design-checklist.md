@@ -44,7 +44,9 @@ and 7 also need a browser measurement in the change record (see "How to measure"
    current selection (current menu item, chosen chip, filter, tab), focus, hover and links. Secondary and ghost buttons
    are neutral (`--fg` on `--panel`). Hover must not paint over a state colour (a Story card's hover leaves its top
    state bar alone). State is never told by colour alone: a word, plus a shape where colour is used (square vs round
-   chip mark, ✓ on a passed step, a hollow dot for an off Mac). Before adding emphasis, count the emphasis treatments
+   chip mark, ✓ on a passed step, a square dot for a resting Mac and a hollow one for an off Mac). One exception (U45):
+   on a phone (≤860px) the header's Mac chip hides its words and tells its state by the dot's shape (round on, square
+   resting, hollow ring off) and colour; the words stay in its accessible name and on /mac. Before adding emphasis, count the emphasis treatments
    on the page and drop any that is not one of these.
 6. **Overflow.** Grid tracks that hold text are `minmax(0,1fr)` (an implicit `auto` track grows to the longest word);
    responsive tracks are `repeat(auto-fill,minmax(min(Npx,100%),1fr))`; flex items that hold text have `min-width:0`

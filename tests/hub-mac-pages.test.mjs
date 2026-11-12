@@ -16,7 +16,7 @@ const FORM = { "content-type": "application/x-www-form-urlencoded" };
 const EVIL = "https://evil.example.com";
 const INSTALLER = { officeRepo: DEFAULT_OFFICE_REPO, officeRef: DEFAULT_OFFICE_REF };
 // U40: the header's Mac chip carries a dot (its color class is checked in hub-board-page) before the same words.
-const PILL = (label) => `href="/mac"><span class="dot" aria-hidden="true"></span>내 Mac: ${label}</a>`;
+const PILL = (label) => `href="/mac"><span class="dot" aria-hidden="true"></span><span class="long">내 Mac: ${label}</span></a>`;
 
 /** Browser-side helpers over one hub: `enter` joins through a real invite, `get`/`post` act as that browser. */
 function harness({ store, board, origin, call, api }) {
@@ -449,9 +449,8 @@ test("a member revokes their own Mac; another member's revoke is 403; an admin r
   assert.ok(h.store.mac(cMac.macToken), "nothing of that revoked it");
 
   const members = (await h.get("/members", admin)).text;
-  assert.match(members, /<th>Mac<\/th>/);
-  assert.match(members, /C의 Mac/);
-  assert.match(members, new RegExp(`action="/macs/${cMac.macId}/revoke"><input type="hidden" name="csrf" value="${admin.csrf}"><button class="secondary">Mac 해제</button>`));
+  assert.match(members, /Mac: C의 Mac/);
+  assert.match(members, new RegExp(`action="/macs/${cMac.macId}/revoke"><input type="hidden" name="csrf" value="${admin.csrf}"><button class="secondary">Mac 해제: C의 Mac</button>`));
   assert.doesNotMatch(members, /B의 Mac/, "a revoked Mac is not listed");
   const byAdmin = await h.post(`/macs/${cMac.macId}/revoke`, admin);
   assert.deepEqual([byAdmin.status, byAdmin.headers.location], [303, "/members"], "back to the list the admin came from");

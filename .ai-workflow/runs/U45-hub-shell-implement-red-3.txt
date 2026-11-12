@@ -1,0 +1,428 @@
+✔ /tasks is the Task board with five columns per Story (121.440292ms)
+✔ backlog holds a Task that waits for another (67.798792ms)
+✔ card shows assignee, Mac state and time in column (67.191083ms)
+✔ story card shows state, PL and who works now; planners get 새 Story (81.933125ms)
+✔ stopped card stays in its column with a plain reason (65.222125ms)
+✔ planning lanes (69.802666ms)
+✔ a web-planned Story and an uploaded Story share one board (81.879541ms)
+✔ mine and cancelled toggles are links (80.807917ms)
+✔ cancelled cards show in a strip only with the toggle (75.224458ms)
+✔ board escapes card text (68.4355ms)
+✔ menu is board and team (64.80575ms)
+✔ auto-work switch returns to the page it was pressed on (70.200208ms)
+✔ old home lives at /me (113.693292ms)
+✔ team page for everyone (70.437542ms)
+✔ old addresses still answer (78.852708ms)
+✔ hub without a board is unchanged (5.001083ms)
+✔ safePath keeps only known pages (0.154667ms)
+✔ a card wears its state: tone, name tag, Mac dot, time and number (69.686083ms)
+✔ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (77.876708ms)
+✔ a lane says how many of its Tasks are done (71.531125ms)
+✔ the menu marks the page you are on (91.657875ms)
+✖ the header shows me, the switch and my Mac with words beside their shapes (64.576292ms)
+✔ an empty project says what comes next (62.418792ms)
+✔ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (60.657167ms)
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (67.827416ms)
+✔ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (69.787959ms)
+✔ the 완료 column shows the five newest done Stories and folds the rest (68.224083ms)
+✔ a Story page carries its stage steps and its own Task board with every card (71.41025ms)
+✔ the store's board for one Story has every card of it (61.186042ms)
+✔ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (68.122334ms)
+✔ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (63.078542ms)
+✔ a long unbroken word cannot widen a page, and Story cards keep to their column (69.572584ms)
+✔ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (72.04325ms)
+✔ the 완료 column puts the Stories that finished last first, whatever their number (71.909541ms)
+✔ a cancelled Story in the strip is quiet and says what it had (60.52725ms)
+✔ a cancelled Story card counts only its cancelled Tasks and says how many had finished (66.910083ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (61.518334ms)
+✔ a cancelled Story's page and Task-board lane say what it had, like its card (78.0715ms)
+✔ 나를 기다리는 일 groups rows of the same word into one row, hides none and puts stopped ones first (D44) (65.718208ms)
+✔ project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44) (79.720416ms)
+✔ on 전체, projects with no Story fold into one line that leads to each one's chip view (D44) (69.576625ms)
+✔ chips wrap on a phone and every new target is 44px (D44) (93.209125ms)
+✔ U44: every control is at least 32px tall with a mouse and 44px square on touch (141.756709ms)
+✔ U44: the accent marks only the primary action, the current selection, focus, hover and links (63.988917ms)
+✔ U44: text never pushes a box wider than its track (64.625875ms)
+✔ U44: the space between groups is at least twice the space inside them (59.309292ms)
+✔ U44: counts, times and table numbers line up (64.642667ms)
+✖ U45: the header keeps short words on a phone and one full name for screen readers (59.713625ms)
+✔ U45: form fields are outlined at 3:1 or more against the panel and the page in both themes (59.302042ms)
+✖ U45: a Mac dot differs by shape: round when on, square when resting, a hollow ring when off (59.862167ms)
+✔ U45: the current menu item is underlined in the accent, like the current tab (59.312125ms)
+✖ U45: /members is one row per member; what changes a member sits in a 관리 fold (58.415583ms)
+✖ U45: on /members a Mac button names the Mac, and a revoked member's row has no fold and no usable browser (60.129666ms)
+✔ U45: names with markup are escaped on /members and /repos (69.899125ms)
+✖ U45: a repo with one owner offers no 빼기, and fold buttons wrap inside the column instead of running past it (64.123583ms)
+✔ U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see (65.841958ms)
+✔ an approve link opened without signing in is 401, says to open the invite or device link first and to refresh, and leaves the code pending; after entering, the same URL approves it (113.787958ms)
+✔ the approve page shows the Mac, its code and when it asked, with the warning and an allow and a deny form (69.028667ms)
+✔ the approve page says an earlier Mac holds an open Task, and only when the member has an earlier live Mac and an open Task (61.609625ms)
+✔ approving binds the Mac to the signed-in member; a second approve is 409 and the token still names the first member; an approve after 600000 ms is 410 (75.75075ms)
+✔ deny makes the Office's poll answer denied (62.152166ms)
+✔ approve and deny need this hub's Origin and the CSRF token (85.511875ms)
+✔ the 11th approve attempt by one member in 600000 ms is 429 (89.469334ms)
+✔ 10 missed approve-page lookups by one member in 600000 ms make the 11th GET 429 even for a live code, and it shows nothing (83.938833ms)
+✔ missed approve-page lookups and approve/deny POSTs spend the one allowance (106.963959ms)
+✔ opening a live or a decided code's approve page again and again does not spend the allowance (147.3985ms)
+✔ createRateLimit.full tells whether a key is used up and takes nothing (0.23475ms)
+✔ the header names my newest Mac's state: 일하는 중, 대기 중, 쉬는 중(한도), 잠김, 꺼짐(, and 연결된 Mac 없음 with a link to /mac (121.64175ms)
+✔ /mac in OpenShift mode shows curl -fsSL <origin>/install.sh | sh with a copy button and loads copy.js; in self-CA mode it shows the /start note and no command (61.788334ms)
+✔ /mac lists my Macs with name, state, last check and a revoke button, and says how to turn an off Mac on; ?approved=1 says to go back to the terminal (65.896791ms)
+✔ /start nudges a member without a Mac to /mac in OpenShift mode only (62.463416ms)
+✖ a member revokes their own Mac; another member's revoke is 403; an admin revokes from /members (72.0595ms)
+✔ /repos shows a Mac's link as that Mac's with no 연결 해제, pointing to /mac (an admin to /members); a POST revoke of it is 409 and the link stays live; a connection-string link keeps its button (69.36ms)
+✔ a Mac name with <script> is escaped on the approve page, /mac and /members (60.447041ms)
+✔ pages other than /mac still load no script, with or without a Mac (10.741208ms)
+✔ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (135.513416ms)
+✔ a hub without a board keeps the request board at / and answers 404 for /board, /stories/<id> and /tasks/<id> (7.830625ms)
+✔ home shows the Mac nudge only when the hub installs Macs and the member has none (72.945833ms)
+✔ a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac (88.696083ms)
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (93.090542ms)
+✔ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (73.697166ms)
+✔ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (97.183542ms)
+✔ a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conflict and the default, with the raw reason under 자세한 이유 (96.3345ms)
+✔ a Task that failed, was released and is claimed again shows no failure text (90.747667ms)
+✔ a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분 뒤' from until; an off Mac shows no wait text (75.078417ms)
+✔ a member with no open Task whose newest Mac rests with claude: not_ready sees what to do on / (78.005583ms)
+✔ a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it (119.869791ms)
+✔ a merged Task shows the summary, the decision lines with ASSUMED in bold and the PR link (70.458125ms)
+✔ buttons follow taskActions: the assignee sees 다시 시도 on a failed Task, the PL and an admin see 풀기 and 취소, another member sees none (83.565708ms)
+✔ untrusted text is escaped on the work, board, Story and Task pages (94.273417ms)
+✔ an unknown Task or Story id is a 404 page; the new pages load no script (88.0645ms)
+✔ inTime says 곧, 약 25분 뒤, 약 2시간 뒤, 약 1시간 5분 뒤 and 잠시 뒤 for null (0.265833ms)
+✔ plainFailure picks by prefix and falls back to the default (0.09ms)
+✖ switching auto work off and on from the web changes what claimNext gives (79.733417ms)
+✔ 작업하기 from the web claims the Task for the member; the Task page then says 시작 중 and the member's inbox names it (79.731542ms)
+✔ a claim the Mac has not taken yet says it waits for the Mac instead of the Hub's own claim time (72.034167ms)
+✔ 작업하기 without a live link is a NOT_LINKED page and changes nothing (66.765458ms)
+✔ 다시 시도 from the web reruns the failed Task with the memo; a second click lands on the Task page; after the PL released it, a STATE page that says 다시 시도 (68.037458ms)
+✔ a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page (67.085791ms)
+✔ 풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays (85.152333ms)
+✔ 취소 of a Task that holds the merge lock is a STATE page and the Task stays as it was; after 풀기 it can be cancelled (81.011334ms)
+✔ 풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office (63.261416ms)
+✖ every new POST is 403 from another origin or without the CSRF token (95.227ms)
+✔ an unknown Task id is a 404 page for every button (67.902417ms)
+✔ a hub without a board answers 404 for the new POSTs (4.173375ms)
+✔ U44: /me's empty parts say what belongs there and the action that fills them (73.655291ms)
+✔ U44: no form sits inside a paragraph on /me or a Task page (69.648708ms)
+ℹ tests 107
+ℹ suites 0
+ℹ pass 97
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4109.614958
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:508:1
+✖ the header shows me, the switch and my Mac with words beside their shapes (64.576292ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(header.includes('<button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"></span><span class="short" aria-hidden="true">자동 켜짐</span><span class="full">자동으로 일하기 켜짐</span></button>'))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:513:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1040:1
+✖ U45: the header keeps short words on a phone and one full name for screen readers (59.713625ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(header.includes('<span class="short" aria-hidden="true">자동 켜짐</span><span class="full">자동으로 일하기 켜짐</span>'))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1044:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1066:1
+✖ U45: a Mac dot differs by shape: round when on, square when resting, a hollow ring when off (59.862167ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /border-radius:2px/. Input:
+  
+  'background:var(--need-bar)'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1068:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'background:var(--need-bar)',
+    expected: /border-radius:2px/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1078:1
+✖ U45: /members is one row per member; what changes a member sits in a 관리 fold (58.415583ms)
+  AssertionError [ERR_ASSERTION]: the button names the browser and its day, so two browsers of one name differ
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1089:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<p class="note">기기를 회수하면 그 브라우저는 새 기기 링크로 다시 들어와야 합니다. 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다.</p><div class="row"><form class="inline" method="post" action="/members/4f4ae713-0d4a-4618-a174-510f36843070/device-invite"><input type="hidden" name="csrf" value="FZXy3P0-me-QJp5SMOQMZlh1vsJF7xOFA4vh-ufuoIo"><button class="secondary">새 기기 링크</button></form><form class="inline" method="post" action="/devices/3d1711a8-d7d1-45c5-904d-ea5f8178f35c/revoke"><input type="hidden" name="csrf" value="FZXy3P0-me-QJp5SMOQMZlh1vsJF7xOFA4vh-ufuoIo"><button class="secondary">기기 회수: test</button></form></div>',
+    expected: /action="\/devices\/[^"]+\/revoke"><input type="hidden" name="csrf" value="[^"]+"><button class="secondary">기기 회수: test \(\d{4}\. \d{1,2}\. \d{1,2}\.까지\)<\/button>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1100:1
+✖ U45: on /members a Mac button names the Mac, and a revoked member's row has no fold and no usable browser (60.129666ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /<button class="secondary">Mac 해제: C의 맥북<\/button>/. Input:
+  
+  '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n' +
+    '*{box-sizing:border-box}\n' +
+    'html,body{overflow-x:clip}\n' +
+    'body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n' +
+    '.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n' +
+    ':where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\n' +
+    'a{color:var(--accent);text-underline-offset:3px}\n' +
+    ':focus-visible{outline:3px solid var(--accent);outline-offset:2px}\n' +
+    'h1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\n' +
+    'header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n' +
+    '.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n' +
+    '.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\n' +
+    'nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\n' +
+    'nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\n' +
+    'nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}\n' +
+    '.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n' +
+    '.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\n' +
+    'button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n' +
+    '.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n' +
+    '.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n' +
+    '.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n' +
+    '.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n' +
+    '.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n' +
+    '.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n' +
+    '.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n' +
+    '.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n' +
+    '.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\n' +
+    'main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\n' +
+    'main:has(.projects){max-width:1440px}\n' +
+    'header:not(:has(nav))+main{max-width:600px;padding-top:56px}\n' +
+    'section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n' +
+    '.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n' +
+    '.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n' +
+    '.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n' +
+    '.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n' +
+    '.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\n' +
+    'button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\n' +
+    'button.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\n' +
+    'button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\n' +
+    'button:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n' +
+    '.toggles .btn{margin-left:auto}\n' +
+    '.needs{border:2px solid var(--need-bar);gap:10px}\n' +
+    '.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n' +
+    '.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n' +
+    '.needs .count{background:var(--need-bg);color:var(--need)}\n' +
+    '.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n' +
+    '.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n' +
+    '.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n' +
+    '.gwhy{color:var(--muted);font-size:14px}\n' +
+    '.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n' +
+    '.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n' +
+    '.needs a:hover{border-color:var(--accent)}\n' +
+    '.chips{display:flex;flex-wrap:wrap;gap:8px}\n' +
+    '.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n' +
+    '.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n' +
+    '.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n' +
+    '.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n' +
+    '.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n' +
+    '.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n' +
+    '.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n' +
+    '.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n' +
+    '.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n' +
+    '.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n' +
+    '.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n' +
+    '.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n' +
+    '.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n' +
+    '.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n' +
+    '.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n' +
+    '.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n' +
+    '.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n' +
+    '.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap'... 17745 more characters
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1105:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n.gwhy{color:var(--muted);font-size:14px}\n.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n.needs a:hover{border-color:var(--accent)}\n.chips{display:flex;flex-wrap:wrap;gap:8px}\n.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap'... 17745 more characters,
+    expected: /<button class="secondary">Mac 해제: C의 맥북<\/button>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1129:1
+✖ U45: a repo with one owner offers no 빼기, and fold buttons wrap inside the column instead of running past it (64.123583ms)
+  AssertionError [ERR_ASSERTION]: rule details.manage form.inline
+      at ruleOf (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:960:10)
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-board-page.test.mjs:1139:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-mac-pages.test.mjs:430:1
+✖ a member revokes their own Mac; another member's revoke is 403; an admin revokes from /members (72.0595ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /action="\/macs\/730e5a6c-59b8-45a2-b5ec-2aa6a3b10114\/revoke"><input type="hidden" name="csrf" value="GFUJFCY5vvMdn0i_vMgJWo5hAnHwdU1EpG3sbH9ir-Y"><button class="secondary">Mac 해제: C의 Mac<\/button>/. Input:
+  
+  '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n' +
+    '*{box-sizing:border-box}\n' +
+    'html,body{overflow-x:clip}\n' +
+    'body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n' +
+    '.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n' +
+    ':where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\n' +
+    'a{color:var(--accent);text-underline-offset:3px}\n' +
+    ':focus-visible{outline:3px solid var(--accent);outline-offset:2px}\n' +
+    'h1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\n' +
+    'header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n' +
+    '.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n' +
+    '.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\n' +
+    'nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\n' +
+    'nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\n' +
+    'nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}\n' +
+    '.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n' +
+    '.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\n' +
+    'button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n' +
+    '.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n' +
+    '.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n' +
+    '.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n' +
+    '.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n' +
+    '.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n' +
+    '.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n' +
+    '.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n' +
+    '.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n' +
+    '.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\n' +
+    'main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\n' +
+    'main:has(.projects){max-width:1440px}\n' +
+    'header:not(:has(nav))+main{max-width:600px;padding-top:56px}\n' +
+    'section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n' +
+    '.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n' +
+    '.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n' +
+    '.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n' +
+    '.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n' +
+    '.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\n' +
+    'button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\n' +
+    'button.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\n' +
+    'button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\n' +
+    'button:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n' +
+    '.toggles .btn{margin-left:auto}\n' +
+    '.needs{border:2px solid var(--need-bar);gap:10px}\n' +
+    '.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n' +
+    '.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n' +
+    '.needs .count{background:var(--need-bg);color:var(--need)}\n' +
+    '.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n' +
+    '.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n' +
+    '.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n' +
+    '.gwhy{color:var(--muted);font-size:14px}\n' +
+    '.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n' +
+    '.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n' +
+    '.needs a:hover{border-color:var(--accent)}\n' +
+    '.chips{display:flex;flex-wrap:wrap;gap:8px}\n' +
+    '.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n' +
+    '.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n' +
+    '.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n' +
+    '.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n' +
+    '.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n' +
+    '.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n' +
+    '.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n' +
+    '.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n' +
+    '.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n' +
+    '.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n' +
+    '.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n' +
+    '.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n' +
+    '.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n' +
+    '.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n' +
+    '.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n' +
+    '.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n' +
+    '.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n' +
+    '.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap'... 17500 more characters
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-mac-pages.test.mjs:453:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>팀원·초대 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:8px}\n.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:10px 12px;border-radius:12px;background:var(--bg)}\n.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--panel);color:var(--fg)}\n.gwhy{color:var(--muted);font-size:14px}\n.glinks{display:flex;flex-wrap:wrap;gap:6px 8px}\n.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:6px 12px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--fg);text-decoration:none}\n.needs a:hover{border-color:var(--accent)}\n.chips{display:flex;flex-wrap:wrap;gap:8px}\n.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap'... 17500 more characters,
+    expected: /action="\/macs\/730e5a6c-59b8-45a2-b5ec-2aa6a3b10114\/revoke"><input type="hidden" name="csrf" value="GFUJFCY5vvMdn0i_vMgJWo5hAnHwdU1EpG3sbH9ir-Y"><button class="secondary">Mac 해제: C의 Mac<\/button>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:202:1
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (93.090542ms)
+  AssertionError [ERR_ASSERTION]: off: /
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-story-pages.test.mjs:214:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:562:1
+✖ switching auto work off and on from the web changes what claimNext gives (79.733417ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok((await h.get("/me", h.c)).text.includes(OFF_PILL))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-story-pages.test.mjs:570:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:746:1
+✖ every new POST is 403 from another origin or without the CSRF token (95.227ms)
+  AssertionError [ERR_ASSERTION]: the switch did not change
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-redesign-b044ca/tests/hub-story-pages.test.mjs:762:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
