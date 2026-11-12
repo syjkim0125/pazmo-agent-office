@@ -164,6 +164,11 @@ test("story card shows state, PL and who works now; planners get 새 Story", asy
   }
   assert.ok(laneOf(text, open.number).includes("에이"), "C works on a Task of the open Story");
   assert.equal((laneOf(text, open.number).match(/에이/g) ?? []).length >= 1, true);
+  // U41: the whole state word is "검증 중" (not "Story 검증 중") on the card, the /tasks lane and the Story page.
+  const word = '<span class="pill run">검증 중</span>';
+  assert.ok(laneOf(text, ver.number).includes(`<p>${word}`), "the card");
+  assert.ok(laneOf((await h.get("/tasks", h.c)).text, ver.number).includes(`</a>${word}`), "the /tasks lane");
+  assert.ok((await h.get(`/stories/${ver.storyId}`, h.c)).text.includes(`<p>${word}</p>`), "the Story page");
   assert.ok((await h.get("/", h.pl)).text.includes(`/projects/${h.projectId}/new-story`), "PL owns every repo");
   assert.ok(!(await h.get("/", h.c)).text.includes(`/projects/${h.projectId}/new-story`), "C does not own app-fe");
   assert.ok(text.includes('href="/projects/new"'), "새 프로젝트");
@@ -191,6 +196,11 @@ test("planning lanes", async (t) => {
   assert.ok(text.includes(`href="/plans/${plan.planId}"`));
   assert.ok(text.includes(`href="/stories/${draft.storyId}"`));
   assert.ok(text.includes("새 기획"));
+  // U41: a Story not opened yet says the same on its draft card and its page: its Tasks are ready, no bar.
+  assert.ok(text.includes(`<p class="sprog">Task 2개 준비됨</p>`), "the draft card");
+  const page = (await h.get(`/stories/${draft.storyId}`, h.pl)).text;
+  assert.ok(page.includes(`<p class="sprog">Task 2개 준비됨</p>`), "the Story page");
+  assert.ok(!page.includes("<progress"), "no bar before it opens");
 });
 
 test("a web-planned Story and an uploaded Story share one board", async (t) => {
@@ -760,7 +770,9 @@ test("a passed step shows its ✓ beside its name, and the stages stay one row o
   assert.match(style, /\.stages\{display:grid;grid-auto-flow:column;grid-auto-columns:minmax\(0,1fr\);/);
   assert.doesNotMatch(style, /\.stages\{[^}]*auto-fit/);
   // Narrow windows above a phone tighten the stage spacing so the longest state words stay on one line.
-  assert.match(style, /@media \(min-width:861px\) and \(max-width:960px\)\{\.stages\{gap:8px\}\.stage\{padding:8px\}\.scard\{padding:12px\}\}/);
+  // Range syntax leaves no gap at fractional widths between 860 and 861px; only stage cards (not the 취소됨 strip) tighten,
+  // and the dashed 기획 중 column (its own 2px border) gets 2px more so "설계 승인 대기" keeps its margin.
+  assert.match(style, /@media \(width > 860px\) and \(width <= 960px\)\{\.stages\{gap:8px\}\.stage\{padding:8px\}\.stage\[data-stage=planning\]\{padding:6px\}\.stages \.scard\{padding:12px\}\}/);
   // A phone stacks the stages again.
   assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{grid-auto-flow:row;grid-template-columns:minmax\(0,1fr\);gap:8px\}/);
 });

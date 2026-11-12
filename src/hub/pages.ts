@@ -150,7 +150,7 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .steps li{display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:2px 4px;border-radius:8px;background:var(--tray);text-align:center}.steps li+li{margin-top:0}
 .steps li.past{background:var(--done-bg);color:var(--done)}.steps li.past::before{content:"✓ "}.steps li.now{background:var(--fg);color:var(--panel)}
 .taskboard .cols{margin-top:2px}
-@media (min-width:861px) and (max-width:960px){.stages{gap:8px}.stage{padding:8px}.scard{padding:12px}}
+@media (width > 860px) and (width <= 960px){.stages{gap:8px}.stage{padding:8px}.stage[data-stage=planning]{padding:6px}.stages .scard{padding:12px}}
 @media (max-width:860px){header{padding:8px 14px}.me{margin-left:0;width:100%}main{padding:16px 14px 48px}section{padding:18px}
 .cols{grid-template-columns:1fr;gap:8px}.col:has(>.cards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.col:has(>.cards:empty) h3{flex:1}.col .cards:empty{display:none}
 .progress{margin-left:0;width:100%}.toggles .btn{margin-left:0}

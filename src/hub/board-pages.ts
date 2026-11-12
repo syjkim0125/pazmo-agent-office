@@ -137,11 +137,12 @@ function goneLine(cancelled: number, done: number): string {
   return done ? `Task ${done}개 끝남` : "아직 Task 없음";
 }
 /**
- * How far a Story's Tasks got, the same on its card, its page and its /tasks lane: a bar and "Task N개 중 M개 끝" while
- * it lives; once cancelled, no bar, only what it had.
+ * How far a Story's Tasks got, the same on its card and its page (and its /tasks lane, where drafts have none): before it
+ * opens, how many Tasks are ready; while it lives, a bar and "Task N개 중 M개 끝"; once cancelled, no bar, only what it had.
  */
 function progressOf(s: BoardStory): string {
   const { total, done } = counts(s);
+  if (s.state === "draft") return `Task ${total}개 준비됨`;
   if (s.state === "cancelled") return goneLine(s.cards.filter((c) => c.column === "hidden").length, done);
   return total ? progressLine(total, done) : "아직 Task 없음";
 }
@@ -157,7 +158,7 @@ function storyCard(s: BoardStory): string {
 }
 /** A Story published but not opened yet: a draft in 기획 중 with its Tasks ready to open. */
 const draftCard = (s: BoardStory) =>
-  `<li class="scard draft" data-story="${s.number}"><p class="kind">Story #${s.number} · 열리기 전</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${pill("기획 중", "run")}</p><p class="sprog">Task ${counts(s).total}개 준비됨</p><p class="speople"><span class="lead">${avatar(s.pl)}PL ${esc(s.pl.name)}</span></p></li>`;
+  `<li class="scard draft" data-story="${s.number}"><p class="kind">Story #${s.number} · 열리기 전</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${pill("기획 중", "run")}</p><p class="sprog">${progressOf(s)}</p><p class="speople"><span class="lead">${avatar(s.pl)}PL ${esc(s.pl.name)}</span></p></li>`;
 /** A web plan still being written: a draft in 기획 중 with no Tasks yet. */
 const planCard = (x: PlanCard) =>
   `<li class="scard draft"><p class="kind">웹 기획</p><a class="stitle" href="/plans/${esc(x.id)}">${esc(x.title)}</a><p>${pill(planStateLabel(x.state, x.leased), tone("plan", x.state))}</p><p class="sprog">아직 Task 없음</p><p class="speople"><span class="lead">${avatar(x.pl)}PL ${esc(x.pl.name)}</span></p></li>`;
