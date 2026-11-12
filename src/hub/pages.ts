@@ -73,7 +73,7 @@ button:hover,.btn:hover{filter:brightness(1.06)}
 .chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}
 .chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}
 .chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}
-.flag{width:10px;height:10px;border-radius:50%;flex:none}.flag.stop{background:var(--stop-bar)}.flag.need{background:var(--need-bar)}
+.flag{width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}
 .projects{display:grid;gap:32px}.project{display:grid;gap:14px}
 .project>.row h2{font-size:22px}.project>.row{gap:10px 14px}
 .empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}

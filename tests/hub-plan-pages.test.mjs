@@ -209,7 +209,7 @@ test("the board shows 새 프로젝트, each project's plans in progress, and �
   assert.ok(text.includes('<a class="btn ghost" href="/projects/new">새 프로젝트</a>'));
 });
 
-test("/projects/new lists only my repos (an admin sees all) with base branch main; POST /projects makes the project and goes to /board; a repo I do not own is a FORBIDDEN page", async (t) => {
+test("/projects/new lists only my repos (an admin sees all) with base branch main; POST /projects makes the project and opens its own view on /board; a repo I do not own is a FORBIDDEN page", async (t) => {
   const h = await team(t);
   const box = (r) => `<input type="checkbox" name="repo" value="${r}">`;
   const base = (r) => `name="base-${r}" value="main"`;

@@ -39,6 +39,8 @@ const pill = (label: string, t?: Tone) => (t ? tonePill(t, label) : `<span class
 /** A card whose Task is taken (or stopped) names who has it, how their Mac is and how long it has stood there. */
 const TAKEN = new Set(["claimed", "held", "failed"]);
 const STOPPED = new Set(["held", "failed"]);
+/** Under a chosen project chip, 나를 기다리는 일 says it still covers every project (it sits right under the chips). */
+const ALL_PROJECTS = "고른 프로젝트와 관계없이 모든 프로젝트의 일입니다.";
 /** A stopped plan of the viewer's, said with the next step (the plan page shows why and has 다시 시도). */
 const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.";
 
@@ -190,7 +192,7 @@ const waitLink = (href: string, title: string, story?: number) =>
  * first, then plans waiting for an answer, then approvals. Read-only: each link only leads to the page where the
  * person acts.
  */
-function waitingOnMe(me: Member, v: BoardView): string {
+function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
   const items: Wait[] = [];
   for (const p of v.projects)
     for (const s of p.stories) {
@@ -222,18 +224,19 @@ function waitingOnMe(me: Member, v: BoardView): string {
     const why = k.every((w) => w.why === k[0].why) ? `<span class="gwhy">${esc(k[0].why)}</span>` : "";
     return `<li><p class="ghead">${tonePill(k[0].tone, k[0].word)}<span class="count">${k.length}</span>${why}</p><p class="glinks">${k.map((w) => w.link).join("")}</p></li>`;
   });
-  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${items.length}</span></h2><ul>${rows.join("")}</ul></section>`;
+  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
 }
 
 /** The web plans a project shows: all of them, or under 내 Story만 the viewer's own. */
 const plansOf = (me: Member, v: BoardView, p: BoardProject) => v.plans.filter((x) => x.project.id === p.project.id && (!v.mine || x.pl.id === me.id));
-const STOP_FLAG = '<span class="flag stop" role="img" aria-label="멈춘 Task 있음"></span>';
-const NEED_FLAG = '<span class="flag need" role="img" aria-label="승인 대기 있음"></span>';
+/** A chip's mark: a square for a stopped Task, a round dot for an approval, named for screen readers and on hover. */
+const STOP_FLAG = '<span class="flag stop" role="img" aria-label="멈춘 Task 있음" title="멈춘 Task 있음"></span>';
+const NEED_FLAG = '<span class="flag need" role="img" aria-label="승인 대기 있음" title="승인 대기 있음"></span>';
 
 /**
  * The project chips (D44), only with two or more projects: 전체, then each project with how many Stories (web plans
- * too) it shows under the filters, and a dot when a Task of it stopped or a Story of it waits for its result approval.
- * A chip keeps the filters; it wraps onto more lines on a phone instead of sliding sideways.
+ * too) it shows under the filters, and a mark: a square when a Task of it stopped, else a round dot when a Story of it
+ * waits for its result approval. A chip keeps the filters; it wraps onto more lines on a phone instead of sliding sideways.
  */
 function chips(me: Member, base: Base, v: BoardView, f: Filters): string {
   if (v.projects.length < 2) return "";
@@ -288,7 +291,7 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
     })
     .filter(Boolean);
   const line = quiet.length
-    ? `<p class="quiet"><span>아직 Story가 없는 프로젝트</span>${quiet.map((p) => `<a href="${boardHref(base, { ...f, project: p.project.id })}">${esc(p.project.name)}</a>`).join("")}</p>`
+    ? `<p class="quiet"><span>보이는 Story가 없는 프로젝트</span>${quiet.map((p) => `<a href="${boardHref(base, { ...f, project: p.project.id })}">${esc(p.project.name)}</a>`).join("")}</p>`
     : "";
   const empty = v.mine
     ? "내가 맡거나 이끄는 Story가 없습니다."
@@ -327,7 +330,7 @@ export function storyBoardPage(me: Member, csrf: string, v: BoardView, chrome: C
     return `<div class="stages">${STAGES.map(column).join("")}</div>${strip}`;
   };
   const f = filtersOf(v);
-  return layout("Story 보드", me, `${titlebar(me, "/", v, f)}${waitingOnMe(me, v)}${projectsOf(me, "/", v, f, stages)}`, chrome);
+  return layout("Story 보드", me, `${titlebar(me, "/", v, f)}${waitingOnMe(me, v, f)}${projectsOf(me, "/", v, f, stages)}`, chrome);
 }
 
 /** `/tasks` (D43): the Task board of every Story, D42's board, with the same filters, box and tabs. */
@@ -345,5 +348,5 @@ export function taskBoardPage(me: Member, csrf: string, v: BoardView, chrome: Ch
     return planning + p.stories.filter((s) => s.state !== "draft").map((s) => storyLane(s, v.badges, v.cancelled)).join("");
   };
   const f = filtersOf(v);
-  return layout("모든 Task", me, `${titlebar(me, "/tasks", v, f)}${waitingOnMe(me, v)}${projectsOf(me, "/tasks", v, f, lanes)}`, chrome);
+  return layout("모든 Task", me, `${titlebar(me, "/tasks", v, f)}${waitingOnMe(me, v, f)}${projectsOf(me, "/tasks", v, f, lanes)}`, chrome);
 }

@@ -867,8 +867,11 @@ test("project chips show one project, keep the other filters and the tabs, and l
   const chips = chipsOf(all);
   assert.ok(chips, "two projects: a chip row");
   assert.ok(chips.startsWith('<nav class="chips" aria-label="프로젝트"><a href="/" aria-current="true">전체 <span class="count">2</span></a>'), "전체 first, chosen, with every Story");
-  assert.ok(chips.includes(`<a href="/?project=${h.projectId}"><span class="flag need" role="img" aria-label="승인 대기 있음"></span>쿠폰 개편 <span class="count">1</span></a>`));
-  assert.ok(chips.includes(`<a href="/?project=${other.projectId}"><span class="flag stop" role="img" aria-label="멈춘 Task 있음"></span>회원 등급 <span class="count">1</span></a>`));
+  const NEED = '<span class="flag need" role="img" aria-label="승인 대기 있음" title="승인 대기 있음"></span>';
+  const STOP = '<span class="flag stop" role="img" aria-label="멈춘 Task 있음" title="멈춘 Task 있음"></span>';
+  assert.ok(chips.includes(`<a href="/?project=${h.projectId}">${NEED}쿠폰 개편 <span class="count">1</span></a>`));
+  assert.ok(chips.includes(`<a href="/?project=${other.projectId}">${STOP}회원 등급 <span class="count">1</span></a>`));
+  assert.ok(!needsOf(all).includes('<p class="muted">'), "on 전체 the box needs no note");
   assert.ok(all.includes("<h2>쿠폰 개편</h2>") && all.includes("<h2>회원 등급</h2>"));
 
   const one = (await h.get(`/?project=${other.projectId}`, h.pl)).text;
@@ -876,6 +879,7 @@ test("project chips show one project, keep the other filters and the tabs, and l
   assert.ok(chipsOf(one).includes(`<a href="/?project=${other.projectId}" aria-current="true">`) && chipsOf(one).includes('<a href="/">전체'));
   const box = needsOf(one);
   assert.ok(box.includes(`/stories/${g4.storyId}`) && box.includes(`/tasks/${k.taskId}`), "the box keeps every project");
+  assert.match(box, /^<h2 id="needs">나를 기다리는 일 <span class="count">2<\/span><\/h2><p class="muted">고른 프로젝트와 관계없이 모든 프로젝트의 일입니다.<\/p><ul>/, "and says so under a chosen chip");
   assert.ok(one.includes(`<a href="/?project=${other.projectId}" aria-current="page">Story 보드</a><a href="/tasks?project=${other.projectId}">모든 Task</a>`), "the tabs keep the project");
   assert.ok(one.includes(`<a class="filter" href="/?mine=1&project=${other.projectId}">내 Story만</a>`), "a filter keeps the project");
 
@@ -893,6 +897,13 @@ test("project chips show one project, keep the other filters and the tabs, and l
   assert.ok(unknown.includes("<h2>쿠폰 개편</h2>") && unknown.includes("<h2>회원 등급</h2>"), "an unknown id shows 전체");
   assert.ok(chipsOf(unknown).includes('<a href="/" aria-current="true">전체'));
   assert.ok(unknown.includes('<a href="/" aria-current="page">Story 보드</a><a href="/tasks">모든 Task</a>'), "and does not carry the id");
+
+  // A stopped Task outranks an approval: 쿠폰 개편 gets the stop mark once one of its Tasks stops.
+  const more = h.open(h.publish("또 하나", ["a"]));
+  const p = h.board.claimNext(h.plBe);
+  assert.equal(p.taskId, more.tasks.a);
+  h.board.reportFailed(h.plBe, p.taskId, p.claimId, "RUNNER_LIMIT claude: usage limit");
+  assert.ok(chipsOf((await h.get("/", h.pl)).text).includes(`<a href="/?project=${h.projectId}">${STOP}쿠폰 개편 <span class="count">2</span></a>`));
 });
 
 test("on 전체, projects with no Story fold into one line that leads to each one's chip view (D44)", async (t) => {
@@ -900,7 +911,8 @@ test("on 전체, projects with no Story fold into one line that leads to each on
   h.open(h.publish("쿠폰 발급", ["a"]));
   const e1 = another(h, "빈 하나"), e2 = another(h, "빈 둘");
   const all = (await h.get("/", h.pl)).text;
-  const line = /<p class="quiet"><span>아직 Story가 없는 프로젝트<\/span>([\s\S]*?)<\/p>/.exec(all)?.[1];
+  // "보이는": a project whose only Story is cancelled has Stories, just none shown without 취소한 것도 보기.
+  const line = /<p class="quiet"><span>보이는 Story가 없는 프로젝트<\/span>([\s\S]*?)<\/p>/.exec(all)?.[1];
   assert.ok(line, "one line");
   for (const [e, name] of [[e1, "빈 하나"], [e2, "빈 둘"]]) assert.ok(line.includes(`<a href="/?project=${e.projectId}">${name}</a>`), name);
   assert.ok(!all.includes("<h2>빈 하나</h2>") && !all.includes('<p class="empty">'), "no empty five columns");
@@ -911,6 +923,14 @@ test("on 전체, projects with no Story fold into one line that leads to each on
   const tasks = (await h.get("/tasks?cancelled=1", h.pl)).text;
   assert.ok(tasks.includes(`<a href="/tasks?cancelled=1&project=${e2.projectId}">빈 둘</a>`), "on the Task board the line keeps its board and filters");
   assert.ok(!(await h.get("/?mine=1", h.c)).text.includes('class="quiet"'), "내 Story만 leaves out projects with nothing of mine, as before");
+
+  // Project names are escaped in the chips and on the line.
+  const evil = another(h, EVIL);
+  const text = (await h.get("/", h.pl)).text;
+  assert.ok(!text.includes(EVIL), "no raw markup from a project name");
+  const safe = "&#60;img src=x onerror=alert(1)&#62;";
+  assert.ok(chipsOf(text).includes(`<a href="/?project=${evil.projectId}">${safe} <span class="count">0</span></a>`));
+  assert.ok(text.includes(`<a href="/?project=${evil.projectId}">${safe}</a>`), "on the line");
 });
 
 test("chips wrap on a phone and every new target is 44px (D44)", async (t) => {
@@ -921,4 +941,8 @@ test("chips wrap on a phone and every new target is 44px (D44)", async (t) => {
   assert.match(style, /\.chips a\[aria-current=true\]\{/, "the chosen chip is marked");
   for (const sel of ["\\.chips a", "\\.quiet a", "\\.gwhy"]) assert.match(style, new RegExp(`${sel}(,[^{}]*)?\\{overflow-wrap:anywhere\\}`), `a long word breaks inside ${sel}`);
   assert.match(style, /\.needs li\{[^}]*grid-template-columns:minmax\(0,1fr\)/, "a waiting row never grows past the box");
+  // Review 1: the two marks differ by shape, not colour alone, and a ring in the chip's text colour keeps 3:1 on either chip.
+  assert.match(style, /\.flag\{[^}]*box-shadow:0 0 0 2px currentColor/);
+  assert.match(style, /\.flag\.stop\{[^}]*border-radius:2px/, "stopped: a square");
+  assert.match(style, /\.flag\.need\{[^}]*border-radius:50%/, "approval: a round dot");
 });
