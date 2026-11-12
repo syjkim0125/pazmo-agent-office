@@ -155,7 +155,7 @@ test("story card shows state, PL and who works now; planners get 새 Story", asy
   const c = h.cBe();
   h.board.claimNext(c);
   const text = (await h.get("/", h.c)).text;
-  const words = [[done, "완료"], [g4, "승인 대기"], [ver, "Story 검증"], [open, "진행 중"]];
+  const words = [[done, "완료"], [g4, "승인 대기"], [ver, "검증 중"], [open, "진행 중"]];
   for (const [s, word] of words) {
     const lane = laneOf(text, s.number);
     assert.ok(lane.includes(word), `#${s.number} says ${word}`);
@@ -164,6 +164,11 @@ test("story card shows state, PL and who works now; planners get 새 Story", asy
   }
   assert.ok(laneOf(text, open.number).includes("에이"), "C works on a Task of the open Story");
   assert.equal((laneOf(text, open.number).match(/에이/g) ?? []).length >= 1, true);
+  // U41: the whole state word is "검증 중" (not "Story 검증 중") on the card, the /tasks lane and the Story page.
+  const word = '<span class="pill run">검증 중</span>';
+  assert.ok(laneOf(text, ver.number).includes(`<p>${word}`), "the card");
+  assert.ok(laneOf((await h.get("/tasks", h.c)).text, ver.number).includes(`</a>${word}`), "the /tasks lane");
+  assert.ok((await h.get(`/stories/${ver.storyId}`, h.c)).text.includes(`<p>${word}</p>`), "the Story page");
   assert.ok((await h.get("/", h.pl)).text.includes(`/projects/${h.projectId}/new-story`), "PL owns every repo");
   assert.ok(!(await h.get("/", h.c)).text.includes(`/projects/${h.projectId}/new-story`), "C does not own app-fe");
   assert.ok(text.includes('href="/projects/new"'), "새 프로젝트");
@@ -191,6 +196,11 @@ test("planning lanes", async (t) => {
   assert.ok(text.includes(`href="/plans/${plan.planId}"`));
   assert.ok(text.includes(`href="/stories/${draft.storyId}"`));
   assert.ok(text.includes("새 기획"));
+  // U41: a Story not opened yet says the same on its draft card and its page: its Tasks are ready, no bar.
+  assert.ok(text.includes(`<p class="sprog">Task 2개 준비됨</p>`), "the draft card");
+  const page = (await h.get(`/stories/${draft.storyId}`, h.pl)).text;
+  assert.ok(page.includes(`<p class="sprog">Task 2개 준비됨</p>`), "the Story page");
+  assert.ok(!page.includes("<progress"), "no bar before it opens");
 });
 
 test("a web-planned Story and an uploaded Story share one board", async (t) => {
@@ -683,7 +693,7 @@ test("a long unbroken word cannot widen a page, and Story cards keep to their co
   assert.match(style, /(^|[}\n])section\{[^}]*grid-template-columns:minmax\(0,1fr\)/, "a grid section never grows past the page");
   assert.match(style, /\.scard\{[^}]*grid-template-columns:minmax\(0,1fr\)/);
   assert.doesNotMatch(style, /\.now \.person\{[^}]*white-space:nowrap/);
-  assert.match(style, /\.stages\{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(/, "stage columns wrap before they are too narrow");
+  assert.match(style, /\.stages\{[^}]*grid-auto-columns:minmax\(0,1fr\)/, "a long word in a Story card cannot widen its stage column");
   assert.match(style, /\.steps li\.past::before\{content:"✓ "\}/, "a passed step is marked by more than its colour");
   assert.match(style, /\.tabs a\[aria-current=page\]\{[^}]*box-shadow:inset 0 -3px 0 var\(--accent\)/, "the selected tab is marked in both themes");
   assert.match(style, /\.callout pre\{[^}]*font-family:ui-monospace/, "the raw reason keeps its columns");
@@ -752,9 +762,40 @@ test("a cancelled Story card counts only its cancelled Tasks and says how many h
   assert.ok((await h.get("/?cancelled=1", h.c)).text.includes(`<a class="stitle" href="/stories/${g4.storyId}">다 한 Story</a><p><span class="pill">취소됨</span></p><p class="sprog">Task 2개 끝남</p>`), "nothing cancelled, two finished");
 });
 
-test("a passed step shows its ✓ beside its name, and five stage columns fit a 900px window", async (t) => {
+test("a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone", async (t) => {
   const h = await team(t);
   const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
   assert.match(style, /\.steps li\{display:flex;align-items:center;justify-content:center;/);
-  assert.match(style, /\.stages\{[^}]*grid-template-columns:repeat\(auto-fit,minmax\(160px,1fr\)\)/, "5 × 160px + 4 gaps fit the 860px content of a 900px window");
+  // U41: one column per stage shown (four or five), so 완료 never wraps alone (it did at 861–887px with minmax(160px,1fr)).
+  assert.match(style, /\.stages\{display:grid;grid-auto-flow:column;grid-auto-columns:minmax\(0,1fr\);/);
+  assert.doesNotMatch(style, /\.stages\{[^}]*auto-fit/);
+  // Narrow windows above a phone tighten the stage spacing so the longest state words stay on one line.
+  // Range syntax leaves no gap at fractional widths between 860 and 861px; only stage cards (not the 취소됨 strip) tighten,
+  // and the dashed 기획 중 column (its own 2px border) gets 2px more so "설계 승인 대기" keeps its margin.
+  assert.match(style, /@media \(width > 860px\) and \(width <= 960px\)\{\.stages\{gap:8px\}\.stage\{padding:8px\}\.stage\[data-stage=planning\]\{padding:6px\}\.stages \.scard\{padding:12px\}\}/);
+  // A phone stacks the stages again.
+  assert.match(style, /@media \(max-width:860px\)\{[\s\S]*\.stages\{grid-auto-flow:row;grid-template-columns:minmax\(0,1fr\);gap:8px\}/);
+});
+
+// U41: a cancelled Story says the same thing on its card, its page and its /tasks lane.
+test("a cancelled Story's page and Task-board lane say what it had, like its card", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("반쯤 한 Story", ["a", "b"]));
+  const c = h.cBe();
+  const k = h.board.claimNext(c);
+  h.board.mergeLock(c, k.taskId, k.claimId);
+  h.board.reportMerged(c, k.taskId, k.claimId, merged());
+  h.board.cancelStory({ member: h.pl.member }, s.storyId);
+  const said = "Task 2개 취소됨 · 1개 끝남";
+  const page = (await h.get(`/stories/${s.storyId}`, h.c)).text;
+  assert.ok(page.includes(`<p class="sprog">${said}</p>`), "the Story page");
+  assert.ok(!page.includes("개 중 1개 끝"), "not the open Story's count");
+  const lane = laneOf((await h.get("/tasks?cancelled=1", h.c)).text, s.number);
+  assert.ok(lane.includes(`<span class="progress">${said}</span>`), "the /tasks lane");
+  // An open Story keeps its bar and count on all three.
+  const open = h.open(h.publish("열린 Story", ["a"]));
+  const bar = `<progress value="0" max="2" aria-hidden="true"></progress>Task 2개 중 0개 끝`;
+  assert.ok((await h.get(`/stories/${open.storyId}`, h.c)).text.includes(`<p class="sprog">${bar}</p>`));
+  assert.ok(laneOf((await h.get("/tasks", h.c)).text, open.number).includes(`<span class="progress">${bar}</span>`));
+  assert.ok((await h.get("/", h.c)).text.includes(`<p class="sprog">${bar}</p>`));
 });

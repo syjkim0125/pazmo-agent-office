@@ -1,0 +1,8 @@
+{
+  "token": "0e51d1906799c2b3bc4cb85659adb757ac4268875cbe7dc32936c5ae0c52e2e2",
+  "output": {
+    "summary": "Fresh checks on a635bcc: 580/580 + 618/618 + 664/664 = 1862/1862, typecheck exit 0, story check PASS.",
+    "evidence": [".ai-workflow/runs/U41-hub-polish-leftovers-verify-1.md"]
+  },
+  "evaluation": { "passed": true }
+}

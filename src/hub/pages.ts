@@ -127,7 +127,7 @@ ol,ul{padding-left:22px}li+li{margin-top:2px}.cards li+li,.needs li+li,ul.work l
 .tabs a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:10px;color:var(--muted);font-weight:700;text-decoration:none}
 .tabs a:hover{color:var(--fg)}.tabs a[aria-current=page]{background:var(--panel);color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}
 .titlebar{display:grid;gap:12px}
-.stages{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px}
+.stages{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:12px}
 .stage{background:var(--tray);border-radius:16px;padding:10px;display:flex;flex-direction:column;gap:10px;min-width:0}
 .stage[data-stage=planning]{background:transparent;border:2px dashed var(--line)}
 .stage h3{margin:0;padding:2px 4px;display:flex;align-items:center;justify-content:space-between;font-size:15px;color:var(--fg)}
@@ -150,10 +150,11 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .steps li{display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:2px 4px;border-radius:8px;background:var(--tray);text-align:center}.steps li+li{margin-top:0}
 .steps li.past{background:var(--done-bg);color:var(--done)}.steps li.past::before{content:"✓ "}.steps li.now{background:var(--fg);color:var(--panel)}
 .taskboard .cols{margin-top:2px}
+@media (width > 860px) and (width <= 960px){.stages{gap:8px}.stage{padding:8px}.stage[data-stage=planning]{padding:6px}.stages .scard{padding:12px}}
 @media (max-width:860px){header{padding:8px 14px}.me{margin-left:0;width:100%}main{padding:16px 14px 48px}section{padding:18px}
 .cols{grid-template-columns:1fr;gap:8px}.col:has(>.cards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.col:has(>.cards:empty) h3{flex:1}.col .cards:empty{display:none}
 .progress{margin-left:0;width:100%}.toggles .btn{margin-left:0}
-.stages{grid-template-columns:minmax(0,1fr);gap:8px}.stage:has(>.scards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.stage:has(>.scards:empty) h3{flex:1}.stage>.scards:empty{display:none}.steps{font-size:12px}
+.stages{grid-auto-flow:row;grid-template-columns:minmax(0,1fr);gap:8px}.stage:has(>.scards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.stage:has(>.scards:empty) h3{flex:1}.stage>.scards:empty{display:none}.steps{font-size:12px}
 table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block}table.stack tr{padding:10px 0;border-bottom:1px solid var(--line)}table.stack td{border:0;padding:3px 0}table.stack td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:13px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;

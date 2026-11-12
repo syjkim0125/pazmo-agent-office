@@ -32,7 +32,7 @@ The Hub restyle (U40) set `overflow-wrap:anywhere` on `body`. Review found that 
 - Keep `body{overflow-wrap:break-word}` so tables keep their width and scroll inside `.scroll`.
 - Give every grid container that holds text an explicit shrinkable track: `grid-template-columns:minmax(0,1fr)` on `main`, `section`, lanes, Story cards and list items (`ul.work>li`).
 - Put `overflow-wrap:anywhere` only where long words must break: cards, Story cards, the needs box links, headings, `.wrap`.
-- For multi-column boards use `repeat(auto-fit,minmax(160px,1fr))` so columns wrap before they get too narrow, and check the widths in between (861–887px still wrapped one column in U40).
+- For a board whose columns must stay on one row above the phone breakpoint, use one shrinkable column per item (`grid-auto-flow:column; grid-auto-columns:minmax(0,1fr)`) and switch back to `grid-auto-flow:row` in the phone query. `repeat(auto-fit,minmax(160px,1fr))` left a gap: in U40 the 821–847px box of an 861–887px window fit only four 160px columns, so 완료 wrapped alone (fixed in U41). Then measure the longest single-line label (state pills) in the narrowest column of each kind (a column with its own border is narrower) and tighten padding only in that width range. Write that range with range syntax, `(width > 860px) and (width <= 960px)`: `min-width:861px` next to `max-width:860px` leaves fractional widths (browser zoom) matching neither.
 
 ## Prevention
 

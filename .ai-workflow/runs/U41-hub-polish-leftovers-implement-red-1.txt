@@ -1,0 +1,210 @@
+✔ /tasks is the Task board with five columns per Story (195.697584ms)
+✔ backlog holds a Task that waits for another (148.094375ms)
+✔ card shows assignee, Mac state and time in column (135.454917ms)
+✔ story card shows state, PL and who works now; planners get 새 Story (228.091959ms)
+✔ stopped card stays in its column with a plain reason (98.669708ms)
+✔ planning lanes (94.947166ms)
+✔ a web-planned Story and an uploaded Story share one board (110.401541ms)
+✔ mine and cancelled toggles are links (103.576917ms)
+✔ cancelled cards show in a strip only with the toggle (102.6235ms)
+✔ board escapes card text (90.911042ms)
+✔ menu is board and team (85.234083ms)
+✔ auto-work switch returns to the page it was pressed on (89.323875ms)
+✔ old home lives at /me (91.405834ms)
+✔ team page for everyone (103.177208ms)
+✔ old addresses still answer (100.227417ms)
+✔ hub without a board is unchanged (6.124791ms)
+✔ safePath keeps only known pages (0.239459ms)
+✔ a card wears its state: tone, name tag, Mac dot, time and number (95.33975ms)
+✔ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (99.715334ms)
+✔ a lane says how many of its Tasks are done (88.970917ms)
+✔ the menu marks the page you are on (127.440584ms)
+✔ the header shows me, the switch and my Mac with words beside their shapes (207.387167ms)
+✔ an empty project says what comes next (118.124ms)
+✔ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (83.569ms)
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (101.60025ms)
+✔ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (94.420917ms)
+✔ the 완료 column shows the five newest done Stories and folds the rest (98.705208ms)
+✔ a Story page carries its stage steps and its own Task board with every card (92.877834ms)
+✔ the store's board for one Story has every card of it (89.756041ms)
+✔ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (79.321166ms)
+✔ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (73.811291ms)
+✔ a long unbroken word cannot widen a page, and Story cards keep to their column (73.95175ms)
+✔ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (84.52025ms)
+✔ the 완료 column puts the Stories that finished last first, whatever their number (91.176041ms)
+✔ a cancelled Story in the strip is quiet and says what it had (74.965375ms)
+✔ a cancelled Story card counts only its cancelled Tasks and says how many had finished (80.786583ms)
+✖ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (78.045875ms)
+✖ a cancelled Story's page and Task-board lane say what it had, like its card (76.558666ms)
+✔ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (229.208375ms)
+✔ a hub without a board keeps the request board at / and answers 404 for /board, /stories/<id> and /tasks/<id> (26.619416ms)
+✔ home shows the Mac nudge only when the hub installs Macs and the member has none (143.953125ms)
+✔ a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac (257.739042ms)
+✔ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (192.110125ms)
+✔ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (101.528ms)
+✖ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (121.650958ms)
+✔ a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conflict and the default, with the raw reason under 자세한 이유 (137.691333ms)
+✔ a Task that failed, was released and is claimed again shows no failure text (121.704167ms)
+✔ a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분 뒤' from until; an off Mac shows no wait text (100.630958ms)
+✔ a member with no open Task whose newest Mac rests with claude: not_ready sees what to do on / (96.2905ms)
+✔ a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it (105.78375ms)
+✔ a merged Task shows the summary, the decision lines with ASSUMED in bold and the PR link (97.042708ms)
+✔ buttons follow taskActions: the assignee sees 다시 시도 on a failed Task, the PL and an admin see 풀기 and 취소, another member sees none (108.458584ms)
+✔ untrusted text is escaped on the work, board, Story and Task pages (130.64575ms)
+✔ an unknown Task or Story id is a 404 page; the new pages load no script (112.6755ms)
+✔ inTime says 곧, 약 25분 뒤, 약 2시간 뒤, 약 1시간 5분 뒤 and 잠시 뒤 for null (0.314625ms)
+✔ plainFailure picks by prefix and falls back to the default (0.088458ms)
+✔ switching auto work off and on from the web changes what claimNext gives (114.672291ms)
+✔ 작업하기 from the web claims the Task for the member; the Task page then says 시작 중 and the member's inbox names it (220.975875ms)
+✔ a claim the Mac has not taken yet says it waits for the Mac instead of the Hub's own claim time (117.884708ms)
+✔ 작업하기 without a live link is a NOT_LINKED page and changes nothing (93.570791ms)
+✔ 다시 시도 from the web reruns the failed Task with the memo; a second click lands on the Task page; after the PL released it, a STATE page that says 다시 시도 (98.989292ms)
+✔ a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page (96.803333ms)
+✔ 풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays (110.051208ms)
+✔ 취소 of a Task that holds the merge lock is a STATE page and the Task stays as it was; after 풀기 it can be cancelled (93.230583ms)
+✔ 풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office (95.073542ms)
+✔ every new POST is 403 from another origin or without the CSRF token (123.443875ms)
+✔ an unknown Task id is a 404 page for every button (78.640042ms)
+✔ a hub without a board answers 404 for the new POSTs (6.250625ms)
+ℹ tests 68
+ℹ suites 0
+ℹ pass 65
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4032.123125
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:755:1
+✖ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (78.045875ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /\.stages\{display:grid;grid-auto-flow:column;grid-auto-columns:minmax\(0,1fr\);/. Input:
+  
+  ':root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);color-scheme:light}\n' +
+    '@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;color-scheme:dark}}\n' +
+    '*{box-sizing:border-box}\n' +
+    'body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n' +
+    '.card,.story,.scard,.needs a,.wrap,ul.work,h1,h2{overflow-wrap:anywhere}\n' +
+    'a{color:var(--accent);text-underline-offset:3px}\n' +
+    ':focus-visible{outline:3px solid var(--accent);outline-offset:2px}\n' +
+    'h1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\n' +
+    'header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n' +
+    '.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n' +
+    '.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\n' +
+    'nav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\n' +
+    'nav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\n' +
+    'nav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n' +
+    '.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n' +
+    '.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\n' +
+    'button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n' +
+    '.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n' +
+    '.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}\n' +
+    '.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n' +
+    '.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n' +
+    '.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n' +
+    '.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n' +
+    '.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n' +
+    '.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:#1d2733;flex:none;overflow:hidden;white-space:nowrap}\n' +
+    '.av0{background:#ffd8c2}.av1{background:#cfe3ff}.av2{background:#d4f0dc}.av3{background:#f3d6f2}.av4{background:#fff0b3}.av5{background:#d7d9ff}.av6{background:#c9f0ee}.av7{background:#ffd6dc}\n' +
+    'main{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}\n' +
+    'main:has(.projects){max-width:1440px}\n' +
+    'header:not(:has(nav))+main{max-width:600px;padding-top:56px}\n' +
+    'section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n' +
+    '.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n' +
+    '.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n' +
+    '.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n' +
+    '.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n' +
+    '.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\n' +
+    'button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\n' +
+    'button.secondary,.btn.ghost{background:var(--panel);color:var(--accent);border-color:var(--line)}\n' +
+    'button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\n' +
+    'button:hover,.btn:hover{filter:brightness(1.06)}\n' +
+    '.toggles .btn{margin-left:auto}\n' +
+    '.needs{border:2px solid var(--need-bar);gap:10px}\n' +
+    '.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n' +
+    '.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n' +
+    '.needs .count{background:var(--need-bg);color:var(--need)}\n' +
+    '.needs ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}\n' +
+    '.needs a{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--fg);text-decoration:none}\n' +
+    '.needs a:hover{background:var(--tray)}\n' +
+    '.projects{display:grid;gap:32px}.project{display:grid;gap:14px}\n' +
+    '.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n' +
+    '.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n' +
+    '.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n' +
+    '.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n' +
+    '.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n' +
+    '.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}\n' +
+    '.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n' +
+    '.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none}.story-title:hover{text-decoration:underline}\n' +
+    '.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n' +
+    '.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n' +
+    '.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n' +
+    '.progress{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}\n' +
+    'progress{-webkit-appearance:none;appearance:none;width:96px;height:8px;border:0;border-radius:999px;background:var(--tray);overflow:hidden}\n' +
+    'progress::-webkit-progress-bar{background:var(--tray);border-radius:999px}progress::-webkit-progress-value{background:var(--done-bar);border-radius:999px}progress::-moz-progress-bar{background:var(--done-bar);border-radius:999px}\n' +
+    '.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}\n' +
+    '.col{background:var(--tray);border-radius:14px;padding:10px;min-width:0;display:flex;flex-direction:column;gap:8px}\n' +
+    '.col h3{margin:0;padding:2px 4px;display:flex;align-items:center;justify-content:space-between;font-size:14px;color:var(--muted)}\n' +
+    '.col h3 span:last-child,.cancelled h3 span:last-child{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--panel);font-size:13px;font-variant-numeric:tabular-nums}\n' +
+    '.cards{list-style:none;margin:0;padding:0;display:grid;gap:8px}\n' +
+    '.col .cards:empty::before{content:"비어 있음";display:block;padding:8px 4px;text-align:center;font-size:14px;color:var(--muted)}\n' +
+    '.card{position:relative;display:grid;gap:6px;min-width:0;padding:12px 12px 10px 15px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden;font-size:15px}\n' +
+    '.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--idle)}\n' +
+    '.card.run::before{background:var(--run-bar)}.card.stop::before{background:var(--stop-bar)}.card.need::before{background:var(--need-bar)}.card.done::before{background:var(--done-bar)}\n' +
+    '.card.done{box-shadow:none}.card.done .title{color:var(--muted)}\n' +
+    '.card .title{color:var(--fg);font-weight:700;line-height:1.4;text-decoration:none}\n' +
+    '.card .title::after{content:"";position:absolute;inset:0}\n' +
+    '.card:hover{border-color:var(--accent)}.card:has(.title:focus-visible){outline:3px solid var(--accent);outline-offset:2px}.card:has(.title:focus-visible) .title:focus-visible{outline:none}\n' +
+    '.card .why{position:relative;z-index:1}\n' +
+    '.who{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px}\n' +
+    '.time{color:var(--muted);font-variant-numeric:tabular-nums}\n' +
+    '.why{font-size:14px;color:var(--stop);background:var(--stop-bg);border-radius:8px;padding:6px 8px}\n' +
+    '.meta{fo'... 8538 more characters
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/agitated-matsumoto-1b5bed/tests/hub-board-page.test.mjs:760:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: ':root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;color-scheme:dark}}\n*{box-sizing:border-box}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.wrap,ul.work,h1,h2{overflow-wrap:anywhere}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{background:var(--fg);color:var(--panel)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:left .15s}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar)}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:#1d2733;flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:#ffd8c2}.av1{background:#cfe3ff}.av2{background:#d4f0dc}.av3{background:#f3d6f2}.av4{background:#fff0b3}.av5{background:#d7d9ff}.av6{background:#c9f0ee}.av7{background:#ffd6dc}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:20px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--accent);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;gap:8px}\n.needs a{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:10px 12px;border-radius:12px;background:var(--bg);color:var(--fg);text-decoration:none}\n.needs a:hover{background:var(--tray)}\n.projects{display:grid;gap:32px}.project{display:grid;gap:14px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.people{display:flex;flex-wrap:wrap;align-items:center;gap:4px 14px;font-size:14px;color:var(--muted)}\n.lead,.now,.now .person{display:inline-flex;align-items:center;gap:6px}.now{flex-wrap:wrap;gap:4px 8px}.now .person{font-weight:500}\n.progress{margin-left:auto;display:inline-flex;align-items:center;gap:8px;font-size:14px;color:var(--muted);font-variant-numeric:tabular-nums}\nprogress{-webkit-appearance:none;appearance:none;width:96px;height:8px;border:0;border-radius:999px;background:var(--tray);overflow:hidden}\nprogress::-webkit-progress-bar{background:var(--tray);border-radius:999px}progress::-webkit-progress-value{background:var(--done-bar);border-radius:999px}progress::-moz-progress-bar{background:var(--done-bar);border-radius:999px}\n.cols{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}\n.col{background:var(--tray);border-radius:14px;padding:10px;min-width:0;display:flex;flex-direction:column;gap:8px}\n.col h3{margin:0;padding:2px 4px;display:flex;align-items:center;justify-content:space-between;font-size:14px;color:var(--muted)}\n.col h3 span:last-child,.cancelled h3 span:last-child{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--panel);font-size:13px;font-variant-numeric:tabular-nums}\n.cards{list-style:none;margin:0;padding:0;display:grid;gap:8px}\n.col .cards:empty::before{content:"비어 있음";display:block;padding:8px 4px;text-align:center;font-size:14px;color:var(--muted)}\n.card{position:relative;display:grid;gap:6px;min-width:0;padding:12px 12px 10px 15px;border-radius:12px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow);overflow:hidden;font-size:15px}\n.card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:var(--idle)}\n.card.run::before{background:var(--run-bar)}.card.stop::before{background:var(--stop-bar)}.card.need::before{background:var(--need-bar)}.card.done::before{background:var(--done-bar)}\n.card.done{box-shadow:none}.card.done .title{color:var(--muted)}\n.card .title{color:var(--fg);font-weight:700;line-height:1.4;text-decoration:none}\n.card .title::after{content:"";position:absolute;inset:0}\n.card:hover{border-color:var(--accent)}.card:has(.title:focus-visible){outline:3px solid var(--accent);outline-offset:2px}.card:has(.title:focus-visible) .title:focus-visible{outline:none}\n.card .why{position:relative;z-index:1}\n.who{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px}\n.time{color:var(--muted);font-variant-numeric:tabular-nums}\n.why{font-size:14px;color:var(--stop);background:var(--stop-bg);border-radius:8px;padding:6px 8px}\n.meta{fo'... 8538 more characters,
+    expected: /\.stages\{display:grid;grid-auto-flow:column;grid-auto-columns:minmax\(0,1fr\);/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:769:1
+✖ a cancelled Story's page and Task-board lane say what it had, like its card (76.558666ms)
+  AssertionError [ERR_ASSERTION]: the Story page
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/agitated-matsumoto-1b5bed/tests/hub-board-page.test.mjs:779:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:259:1
+✖ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (121.650958ms)
+  AssertionError [ERR_ASSERTION]: verifying
+  + actual - expected
+  
+  + 'Story 검증 중'
+  - '검증 중'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/agitated-matsumoto-1b5bed/tests/hub-story-pages.test.mjs:298:64)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Story 검증 중',
+    expected: '검증 중',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

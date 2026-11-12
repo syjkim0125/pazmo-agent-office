@@ -292,8 +292,9 @@ test("state words: ready 할 일, claimed with stage build 진행 중(구현), m
     [["merged", null], "완료"], [["passed", null], "검증 통과"], [["cancelled", null], "취소됨"],
   ];
   for (const [[state, stage], label] of words) assert.equal(taskStateLabel(state, stage), label, `${state}/${stage}`);
-  // D43: one name per stage, the board's and the Story page's.
-  const stories = { draft: "기획 중", open: "진행 중", verifying: "Story 검증 중", awaiting_g4: "승인 대기", done: "완료", cancelled: "취소됨" };
+  // D43: one name per stage, the board's and the Story page's. U41: "검증 중" (not "Story 검증 중") stays one line on a
+  // Story card in the narrowest five-column board, like its siblings; the 단계 column and step keep "Story 검증".
+  const stories = { draft: "기획 중", open: "진행 중", verifying: "검증 중", awaiting_g4: "승인 대기", done: "완료", cancelled: "취소됨" };
   for (const [state, label] of Object.entries(stories)) assert.equal(storyStateLabel(state), label, state);
 });
 

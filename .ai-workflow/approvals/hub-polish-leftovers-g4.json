@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "4a8560c1bb10235c404ca5e3daf3f2dbd5ac0efcda760857e9c979a7eccadacc",
+  "snapshot": "568c7a362c7784f45f6cc24f6edbaf7020f6547584caba8c115adb92c0a21cae",
+  "runId": "c02ed9b9-2d86-4817-9413-fb57a07082fe",
+  "responseRef": "Claude Code conversation 2026-11-12 (Hub polish leftovers, U41, session agitated-matsumoto-1b5bed). The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 5) and the conversation showed the before/after captures of the three fixes, the change size (2 commits, 18 files), kit verify 1862/1862 with typecheck and Story check exit 0, two review rounds (Minor 4 fixed, then Ready with 0 findings), 0 overflow in 820 layout checks, what was not verified (Safari/Firefox/Windows fonts) and what was left (Task-card pills, the cancelled Story's pill colour), the three G4 questions, the options and rollback. Asked 'G4: how should U41 (PR #84) go?', the user answered '승인 후 머지' without answering the three questions (D13). Record: .ai-workflow/approvals/hub-polish-leftovers-g4.md",
+  "branch": "claude/agitated-matsumoto-1b5bed",
+  "head": "a635bcc",
+  "date": "2026-11-12"
+}

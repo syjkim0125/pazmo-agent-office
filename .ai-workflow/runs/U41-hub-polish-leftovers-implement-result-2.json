@@ -1,0 +1,15 @@
+{
+  "token": "a5863829fb65ce67a2fe94937db7b66d2de4860d347fb23fbe40d0ec6354d9c7",
+  "output": {
+    "summary": "Review-1 Minor fixes (commit a635bcc): draft Story page says Task N개 준비됨 like its card (progressOf), range media query (width > 860px) and (width <= 960px) scoped to stage cards with 2px more in the planning column, exact 검증 중 pill tests on card/lane/page, corrected margins and rename reason in the record and STATUS. RED 2/68; GREEN 68/68, Hub 559/559, typecheck 0; layout 820 checks 0 overflow, all columns 114px at 861px.",
+    "evidence": [
+      ".ai-workflow/runs/U41-hub-polish-leftovers-implement-2.md",
+      ".ai-workflow/runs/U41-hub-polish-leftovers-implement-red-2.txt",
+      ".ai-workflow/runs/U41-hub-polish-leftovers-implement-green-2.txt",
+      "src/hub/board-pages.ts",
+      "src/hub/pages.ts",
+      "tests/hub-board-page.test.mjs"
+    ]
+  },
+  "evaluation": { "passed": true }
+}

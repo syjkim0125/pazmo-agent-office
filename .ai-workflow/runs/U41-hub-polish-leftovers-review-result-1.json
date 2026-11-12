@@ -1,0 +1,12 @@
+{
+  "token": "92dfc33fc165cda1760bf98f749bfda5140802b4c0d3209b2e3919e9624668e5",
+  "output": {
+    "summary": "Review 1 (one independent reviewer, allocation 1 of 0-2 for a small change; diff a3ef064..ec1ae2b): Ready, Critical 0, Important 0, Minor 4. The controller applies all four Minor fixes before verify: (1) change record margin numbers measure the wrong column (planning text box ~110px, 3px margin; rename justified by consistency, not padding); (2) draft Story card says 'Task N개 준비됨' but its page says 'Task N개 중 0개 끝' and progressOf's comment overclaims; (3) fractional 860-861px gap between media queries and the 12px card padding reaches cancelled-strip cards; (4) no page-level test pins the exact '검증 중' pill. New tests fail on a3ef064 (4/68) and pass on ec1ae2b (68/68).",
+    "evidence": [".ai-workflow/runs/U41-hub-polish-leftovers-review-1.md"]
+  },
+  "evaluation": {
+    "passed": false,
+    "action": "fix",
+    "feedback": "Apply review-1 Minor 1-4 in implement: count drafts in progressOf and use it for the draft card (test), range media query (width > 860px) and (width <= 960px) scoped to .stages .scard plus a little more room in the planning column, exact '검증 중' pill assertions on the board card, /tasks lane and Story page, and correct the margin/rename reasoning in the change record and STATUS."
+  }
+}
