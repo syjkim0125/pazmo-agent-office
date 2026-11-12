@@ -100,6 +100,17 @@ const RERUN_NOT_LINKED = `<a href="/mac">내 Mac이 지금 이 레포의 일을 
 export const HELD_SHORT = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.";
 const HELD = `${HELD_SHORT} Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.`;
 /** Held while the assignee's Mac reports: the Office let the claim go or cannot take it, so it will not go on by itself. */
+/** My own Task whose Mac went silent, on /me. */
+const HELD_MINE = "내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다.";
+/** A failed Task read by someone who cannot retry it here (a lead with 풀기 only): what stopped it, then who can act. */
+const failureForLead = (reason: string) => {
+  const plain = plainFailure(reason, "work");
+  const cut = plain.indexOf(". ");
+  return `${cut < 0 ? plain : plain.slice(0, cut + 1)} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 풀 수 있습니다.`;
+};
+/** A failed Story check: the fix is new Tasks from the PL's Mac; 풀기 checks again without fixes. */
+const verifyFailed = (pl: boolean) =>
+  `Story 검증이 실패했습니다. ${pl ? "고칠 Task는 내 Mac(claude 대화)에서 더하세요." : "고칠 Task는 PL이 Mac(claude 대화)에서 더합니다."}`;
 const HELD_MAC_ON = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
 /**
  * The news line of a Task: a claim with no stage yet (a pick, a rerun or a claim the Mac has not beaten for) has only
@@ -144,7 +155,11 @@ export function home(
     ? `<ul class="work">${card(
         open,
         `<p class="muted">${esc(news(open, true))}</p>${restInCard ? rest : ""}${
-          failedNow(open) ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>` : ""
+          failedNow(open)
+            ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>`
+            : open.state === "held"
+              ? `<p>${HELD_MINE}</p><p>${taskLink(open.taskId, "자세히")}</p>`
+              : ""
         }`,
       )}</ul>`
     : `<p class="muted">${w.ready.some((c) => c.pick === "yes") ? "지금 맡은 일이 없습니다. 아래 받을 수 있는 일에서 [작업하기]로 하나를 맡으세요." : "지금 맡은 일이 없습니다."}</p>`;
@@ -223,7 +238,7 @@ export function storyPage(
     ? [
         stopped.length
           ? `<p>멈춘 Task ${stopped.length}개. Task 화면에서 다시 시도하거나 풀어 주세요.</p><ul class="work">${stopped
-              .map((t) => `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)} ${taskPill(t)}</p><p class="muted">${esc(t.state === "held" ? HELD_SHORT : failureElsewhere(t.failure ?? "", t.kind))}</p></li>`)
+              .map((t) => `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)} ${taskPill(t)}</p><p class="muted">${esc(t.state === "held" ? HELD_SHORT : t.kind === "verify" ? verifyFailed(true) : failureElsewhere(t.failure ?? "", t.kind))}</p></li>`)
               .join("")}</ul>`
           : "",
         s.state === "awaiting_g4" ? `<p>${AWAITING_G4}</p>` : "",
@@ -289,7 +304,13 @@ export function taskPage(
     t.state === "held"
       ? `<div class="callout"><p><b>${esc(macOn ? HELD_MAC_ON : HELD + macOff)}</b></p></div>`
       : failedNow(t)
-        ? `<div class="callout"><p><b>${esc(plainFailure(t.failure ?? "", t.kind))}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}</div>`
+        ? `<div class="callout"><p><b>${esc(
+            t.kind === "verify"
+              ? `${verifyFailed(s.isPl)} 풀기는 고치지 않고 다시 검증합니다.`
+              : o.actions.rerun === "yes" || !o.actions.release
+                ? plainFailure(t.failure ?? "", t.kind)
+                : failureForLead(t.failure ?? ""),
+          )}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}</div>`
         : "";
   const wait = o.wait && working(t.state) ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
   const result =
@@ -311,11 +332,11 @@ export function taskPage(
   const acts = actionForms(t, csrf, o.actions);
   // One action is the viewer's to do now: the card holds it with why the Task stopped; the others fold under it.
   const decide = acts.primary
-    ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2>${stop}${acts.primary}${acts.rest ? `<details class="other"><summary>다른 방법</summary>${acts.rest}</details>` : ""}</section>`
+    ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2>${stop}${wait}${acts.notes}${acts.primary}${acts.rest ? `<details class="other"><summary>다른 방법</summary>${acts.rest}</details>` : ""}</section>`
     : "";
   const fold = !acts.primary && acts.rest ? `<details class="other"><summary>이 Task 바꾸기</summary>${acts.rest}</details>` : "";
   return layout(`Task #${t.number}`, me, [
-    `<section class="head"><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${decide ? "" : stop}${wait}${acts.notes}${fold}</section>`,
+    `<section class="head"><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${decide ? "" : stop + wait + acts.notes}${fold}</section>`,
     decide,
     result,
     work ? `<section><h2>할 일 내용</h2>${work}</section>` : "",

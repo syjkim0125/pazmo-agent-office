@@ -311,8 +311,11 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
   ];
   for (const [reason, plain] of cases) {
     h.board.reportFailed(cBe, s.api, claimId, reason);
-    const page = (await h.get(`/tasks/${s.api}`, h.pl)).text;
+    // The one who can retry reads the whole sentence; the PL (풀기 only) reads what stopped it and who can act (U47).
+    const page = (await h.get(`/tasks/${s.api}`, h.c)).text;
     assert.ok(page.includes(plain), reason);
+    const cause = plain.slice(0, plain.indexOf(". ") + 1);
+    assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다.`), `PL: ${reason}`);
     assert.ok(page.includes(`<details><summary>자세한 이유</summary><pre>${reason}</pre></details>`), reason);
     const home = (await h.get("/me", h.c)).text;
     const away = plain.replace("아래 이유를", "Task 화면에서 이유를");

@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { startTestHub } from "./hub-fixture.mjs";
-import { AWAITING_G4, plainFailure } from "../src/hub/story-pages.ts";
+import { AWAITING_G4, HELD_SHORT, plainFailure } from "../src/hub/story-pages.ts";
 import { safePath } from "../src/hub/paths.ts";
 import { planStoryKey } from "../src/hub/plan-protocol.ts";
 import { kitStoryHash } from "../src/core/kit-role-runs.ts";
@@ -1180,7 +1180,7 @@ test("U46: on the board a failed Task's reason points to the Task page, not to a
   const box = /<section class="needs"[\s\S]*?<\/section>/.exec((await h.get("/", h.pl)).text)[0];
   assert.doesNotMatch(box, /아래 이유를/, "nothing is below on the board");
   assert.match(box, /Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요/);
-  assert.match((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text, /아래 이유를 보고/, "the Task page keeps its own words");
+  assert.match((await h.get(`/tasks/${s.tasks.a}`, h.c)).text, /아래 이유를 보고/, "the Task page keeps its own words for the one who retries");
   for (const path of ["/tasks", `/stories/${s.storyId}`]) {
     const text = (await h.get(path, h.pl)).text;
     assert.doesNotMatch(text, /아래 이유를/, `${path}: a failed card on a board has nothing below it`);
@@ -1323,4 +1323,96 @@ test("U47: the card, the lists and the Story steps are drawn without trays", asy
   assert.match(ruleOf(style, ".steps li"), /border-top:4px solid var\(--line\)/, "a step is a bar and its name, not a button");
   assert.doesNotMatch(ruleOf(style, ".steps li"), /background:var/);
   assert.match(ruleOf(style, ".steps li[aria-current=step]"), /border-top-color:var\(--fg\)/);
+});
+
+// U47 review 1: the card's invariants (I3), who it speaks to (I2), my silent Mac on /me (I1), the current step (m1).
+const countOf = (text, part) => text.split(part).length - 1;
+const silentClaim = (h, link) => {
+  h.clock.board = -20 * 60_000;
+  const claim = h.board.claimNext(link);
+  h.board.heartbeat(link, claim.taskId, claim.claimId, "build");
+  h.clock.board = 0;
+  return claim;
+};
+
+test("U47: a stopped Task's reason shows once, in the card when there is one, otherwise in the head; one card per page", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  for (const who of [h.c, h.pl, h.b]) {
+    const page = (await h.get(`/tasks/${s.tasks.a}`, who)).text;
+    assert.equal(countOf(page, "<summary>자세한 이유</summary>"), 1, `${who.member.name}: once`);
+    assert.ok(countOf(page, 'id="decide"') <= 1, `${who.member.name}: one card at most`);
+    const card = decideOf(page);
+    if (card) assert.ok(card.includes("<summary>자세한 이유</summary>"), `${who.member.name}: in the card`);
+  }
+  assert.equal(decideOf((await h.get(`/tasks/${s.tasks.a}`, h.b)).text), null, "B can do nothing here");
+});
+
+test("U47: a lead who also holds the Task gets 다시 시도 as the card's action and 풀기 folded", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const claim = h.board.claimNext(h.plBe);
+  h.board.reportFailed(h.plBe, claim.taskId, claim.claimId, "tests failed");
+  const card = decideOf((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text);
+  assert.ok(card, "the PL holds it");
+  const other = otherOf(card);
+  assert.ok(card.indexOf(`/tasks/${s.tasks.a}/rerun"`) < card.indexOf("<details class=\"other\">"), "다시 시도 first");
+  assert.match(other?.[2] ?? "", new RegExp(`/tasks/${s.tasks.a}/release"`), "풀기 folds");
+});
+
+test("U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const pl = decideOf((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text);
+  assert.match(pl, /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\. 오래 멈춰 있으면 풀 수 있습니다\./);
+  assert.doesNotMatch(pl, /메모와 함께 다시 시도하세요/, "the PL has no 다시 시도 here");
+  assert.match(decideOf((await h.get(`/tasks/${s.tasks.a}`, h.c)).text), /아래 이유를 보고 메모와 함께 다시 시도하세요/, "the holder is told to retry");
+  const v = h.open(h.publish("검증 Story", ["a"]));
+  const tk = h.board.claimNext(h.plBe);
+  h.board.mergeLock(h.plBe, tk.taskId, tk.claimId);
+  h.board.reportMerged(h.plBe, tk.taskId, tk.claimId, merged());
+  const check = h.board.claimVerify(h.plBe, v.storyId);
+  h.board.reportVerify(h.plBe, check.taskId, check.claimId, { passed: false, summary: "e2e failed" });
+  const verifyCard = decideOf((await h.get(`/tasks/${check.taskId}`, h.pl)).text) ?? "";
+  assert.match(verifyCard, /고칠 Task는 내 Mac\(claude 대화\)에서 더하세요\. 풀기는 고치지 않고 다시 검증합니다\./);
+  const storyCard = decideOf((await h.get(`/stories/${v.storyId}`, h.pl)).text) ?? "";
+  assert.match(storyCard, /고칠 Task는 내 Mac\(claude 대화\)에서 더하세요\./);
+  assert.doesNotMatch(storyCard, /PL이 고칠 Task를 더한 뒤/, "not in the third person to the PL");
+});
+
+test("U47: the Story card lists a Task whose Mac went silent, and the result approval reads once for everyone", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const held = silentClaim(h, h.cBe());
+  const card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text) ?? "";
+  assert.ok(card.includes(`<a href="/tasks/${held.taskId}">`) && card.includes(HELD_SHORT), "the silent Task and why");
+  const g4 = h.open(h.publish("승인 Story", ["b"]));
+  advance(h, g4, "awaiting_g4");
+  for (const who of [h.pl, h.b, h.admin]) {
+    const page = (await h.get(`/stories/${g4.storyId}`, who)).text;
+    assert.equal(countOf(page, AWAITING_G4), 1, who.member.name);
+    assert.equal(decideOf(page) !== null, who === h.pl, `${who.member.name}: the card is the PL's`);
+  }
+});
+
+test("U47: on /me my Task whose Mac went silent says so and links its page", async (t) => {
+  const h = await team(t);
+  h.open(h.publish("쿠폰 발급", ["a"]));
+  const held = silentClaim(h, h.cBe());
+  const card = decideOf((await h.get("/me", h.c)).text) ?? "";
+  assert.match(card, /내 Mac에서 10분 넘게 소식이 없습니다\. Mac을 켜면 이어서 합니다\./);
+  assert.ok(card.includes(`<a href="/tasks/${held.taskId}">자세히</a>`));
+});
+
+test("U47: the step you are on is the bolder one", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.match(ruleOf(style, ".steps li"), /font-weight:500/);
+  assert.match(ruleOf(style, ".steps li[aria-current=step]"), /font-weight:700/);
+  assert.match(ruleOf(style, ".steps li.past"), /border-top-color:var\(--done-bar\)/);
 });
