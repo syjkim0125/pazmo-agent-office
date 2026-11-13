@@ -155,7 +155,7 @@ ol,ul{padding-left:22px}section>ol,section>ul{margin-block:0}li+li{margin-top:2p
 .stage>.scards:empty::before{content:"없음";display:block;padding:8px 4px;text-align:center;font-size:14px;color:var(--muted)}
 .scard{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0;padding:14px 16px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
 .scard.draft{border:1.5px dashed var(--idle);background:var(--panel);box-shadow:none}
-.scard.stop{border:2px solid var(--stop-bar)}
+.scard.stop{border:2px solid var(--stop-bar)}.scard.stop:hover{border-color:var(--stop)}
 .scard.gone{box-shadow:none;color:var(--muted)}.scard.gone .stitle{color:var(--muted);font-size:16px}
 .cancelled .scards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}
 .scard:hover{border-color:var(--accent)}.scard:has(.stitle:focus-visible){outline:3px solid var(--accent);outline-offset:2px}.scard:has(.stitle:focus-visible) .stitle:focus-visible{outline:none}

@@ -1534,11 +1534,12 @@ test("U47: the PL's own silent Task reads as my Mac in the Story card", async (t
 
 // U48 (Story 보드 다시 보기 after U46): a stopped Story stands out by colour and by its first line; every project's stages
 // line up. Chosen on the explainer: ① (d) a 2px stop border and 멈춘 Task N first, ② (c) equal stage widths.
-test("U48: a stopped Story's card has a 2px stop border on all four sides; other cards keep the plain edge, and hover still shows", async (t) => {
+test("U48: a stopped Story's card has a 2px stop border on all four sides that hover darkens but never paints over; other cards keep the plain edge", async (t) => {
   const style = await styleOf(await team(t));
   assert.equal(ruleOf(style, ".scard.stop"), "border:2px solid var(--stop-bar)");
   for (const kind of ["need", "run", "done"]) assert.doesNotMatch(style, new RegExp(`\\.scard\\.${kind}\\{`), `${kind}: no colour edge`);
-  assert.ok(style.indexOf(".scard.stop{") < style.indexOf(".scard:hover{"), "the hover border comes later, so a stopped card shows it too");
+  // Checklist rule 5: hover must not paint over a state colour, so a stopped card stays red on hover (a darker red).
+  assert.equal(ruleOf(style, ".scard.stop:hover"), "border-color:var(--stop)");
 });
 
 test("U48: only a stopped Story's card opens with 멈춘 Task N, before its number", async (t) => {
@@ -1562,4 +1563,9 @@ test("U48: on a wide screen an empty stage keeps its equal share, so each stage 
   assert.doesNotMatch(wide, /\.stage:has\(>\.scards:empty\)/, "no narrower rule for an empty stage");
   assert.doesNotMatch(style, /flex:0 0 56px|writing-mode:vertical-rl/, "no rail, no upright names");
   assert.match(ruleOf(style, ".stage>.scards:empty::before"), /content:"없음"/, "an empty stage says 없음");
+  // Only the phone block may treat an empty stage differently (a short header row); no other block narrows it or hides 없음.
+  const off = style.replace(/@media \(max-width:860px\)\{(?:[^{}]*\{[^}]*\})*[^{}]*\}/g, "");
+  assert.ok(off.length < style.length, "the phone block was found");
+  assert.doesNotMatch(off, /\.stage:has\(>\.scards:empty\)/, "no empty-stage rule outside the phone block");
+  assert.doesNotMatch(off, /\.scards:empty::before\{content:none/, "없음 is never hidden outside the phone block");
 });
