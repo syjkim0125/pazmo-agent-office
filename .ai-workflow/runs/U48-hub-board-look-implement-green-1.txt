@@ -1,0 +1,18 @@
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (133.780875ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (69.769167ms)
+✔ U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen (64.85825ms)
+✔ U46: on the board a failed Task's reason points to the Task page, not to a reason below (74.040542ms)
+✔ U46: a Story card has no thick state bar; its state is its word (64.118291ms)
+✔ U46: another member sees a web plan's question or draft as the PL's turn, not as theirs (69.530459ms)
+✔ U46: the boards' heading is read, not shown twice above the tab of the same name (128.060333ms)
+✔ U48: a stopped Story's card has a 2px stop border on all four sides; other cards keep the plain edge, and hover still shows (66.48675ms)
+✔ U48: only a stopped Story's card opens with 멈춘 Task N, before its number (105.066292ms)
+✔ U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project (213.300708ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1175.957125

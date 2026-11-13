@@ -1,0 +1,616 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "42ec31b2-b72d-4d6e-b8b9-53dd364bc821",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: a stopped Story card stays red on hover (.scard.stop:hover darkens to --stop) as checklist rule 5 asks, rule 5's Story-card clause updated; the equal-stage test fails on any empty-stage rule or 없음 hide outside the phone block. RED 1/11 -> GREEN 11/11, Hub tests 620/620, tsc 0, hover colours checked in a browser in both themes. Commit d5c8ee6.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-implement-2.md",
+            ".ai-workflow/runs/U48-hub-board-look-implement-red-2.txt",
+            ".ai-workflow/runs/U48-hub-board-look-implement-green-2.txt",
+            ".ai-workflow/runs/U48-hub-board-look-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-implement-2.md": "7eae8daf2ee3770d62d23c7832f5c5876d8783cce666a1e7a8e70862a8364e6c",
+          ".ai-workflow/runs/U48-hub-board-look-implement-red-2.txt": "dec5aa3267e41fb7aa43c0e7c67635ccc9618329ba911e1a2b4b0a6c08590080",
+          ".ai-workflow/runs/U48-hub-board-look-implement-green-2.txt": "719b16f1d2e456899020ae551754b42e8508c027ffd013b41e72a8320b349aee",
+          ".ai-workflow/runs/U48-hub-board-look-implement-hub-2.txt": "fdba4f2e1fba368e10fbebaf67c8adbca5ce02607ae55af4b82a2ccca9295577"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570",
+        "output": {
+          "summary": "Independent review 2 of 055c875..d5c8ee6 and the whole PR b5602d7..d5c8ee6: Ready. I1 fixed in CSS, checklist and test (hover keeps the stop colour: light 229,72,59 -> 173,35,24, dark 240,104,92 -> 255,154,144; focus outline unchanged); all ten deliberate breakages, including review 1's three slipping rail reverts, fail a test; 84/84 browser runs clean (aligned stages, 2px stopped cards with the chip first, nothing past the edge). Minor, fine to ship: checklist rule 5 and the test title say 'darkens' though dark mode lightens; the chip is outside the link name and the board is taller, as judged in review 1.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-review-2.md": "f4c5c647a1c1d8909bfa6f8477334b3ad0f4ac3d6bd43c6b1a8c1f733b1112a1"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/fc20cc13-61f6-478a-8bb3-cb187cc41169/receipt.json",
+            "hash": "0787e700ca2892d22b3789799bf7d9e0075d5ff792bb177aaa0c6b8ccf373a4d"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/89831325-402a-4a30-b30b-02794e9380be/receipt.json",
+            "hash": "a7778b4248de1580557e5d03493cbb9f5baf51217c5114e780b5ca27de06d8b5"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/5d78716b-6060-4245-8c13-6850f0318ef5/receipt.json",
+            "hash": "4b976b6489afd9f3bc2b6bc82656fab8aa85f4a7a86185b3657f4b361422bdff"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/bac02771-1883-43e5-9c6e-2eff4d291312/receipt.json",
+            "hash": "b317c33e70e7c49a9686234bc34914c8584bf65922f10c293a0a38ca411e14c9"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/d81ee1eb-bf20-4cca-b5e2-5ec3936e358b/receipt.json",
+            "hash": "a9a1aa1d6c60c2aa8c599c855882e71babefdc4474aa5a026f81b9f7176e8a20"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on d5c8ee6: tests 661/661 + 586/586 + 677/677 = 1924/1924, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-verify-1.md": "3af872d1a6688523a6cf8954972317df616a9cd89cdde6aa29db77f74431a80b"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-13T03:59:33.364Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-13T04:05:02.379Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Story board: a stopped Story's card gets a 2px stop border and 멈춘 Task N as its first line; wide screens drop the 56px rails so every stage keeps an equal share and sits at the same place in every project. RED 4/10 -> GREEN 10/10, Hub tests 620/620, tsc 0, 56 browser checks with 0 overflow/past-edge/small and all stages aligned. Commit 055c875.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-implement-1.md",
+            ".ai-workflow/runs/U48-hub-board-look-implement-red-1.txt",
+            ".ai-workflow/runs/U48-hub-board-look-implement-green-1.txt",
+            ".ai-workflow/runs/U48-hub-board-look-implement-hub-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-implement-1.md": "db65e7ac2a8080f88287322a05286589403cb7fbd94ccb72b3ff4e9ef5748400",
+          ".ai-workflow/runs/U48-hub-board-look-implement-red-1.txt": "8f770c4e0702dfb1c70ee5a99564ae1f2b3ad1711f9eabedf9a133498a369d83",
+          ".ai-workflow/runs/U48-hub-board-look-implement-green-1.txt": "e7b6c8bbab4fcba4f092f1eb5990ccdc09d01ff05d621eba5590c6c336e30f20",
+          ".ai-workflow/runs/U48-hub-board-look-implement-hub-1.txt": "a6d6a618351d132b2a3af116146b3254cdd308bb7c86aefc05b75c165d91d094"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-13T04:05:08.492Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-13T04:11:56.117Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "7ebc1a9a541d373d937a283947f717d69df4cb86326dc58f20c18ef9f14354b7",
+        "output": {
+          "summary": "Independent review 1 of b5602d7..055c875: Not ready. Important I1: hovering a stopped Story card paints its stop border in the accent, against checklist rule 5 (hover must not paint over a state colour), whose Story-card clause is now false. Minor: rail reverts in another media block or a wide-only 없음 hide slip past the tests; the chip is outside the link name (as before); the board is taller (accepted). Markup, CSS, alignment (84/84 runs), contrast (light 3.95/3.35:1, dark 5.22/5.52:1) and reading order verified; every revert of what the PR changed fails a test.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "7ebc1a9a541d373d937a283947f717d69df4cb86326dc58f20c18ef9f14354b7"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1: keep the stop colour on hover (.scard.stop:hover darkens to --stop instead of the accent) and update checklist rule 5's Story-card clause; tighten the rail test so any empty-stage rule outside the phone block or a wide-only 없음 hide fails."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-review-1.md": "7d5f05485e5a716ac08a91eabb76faeddff0074792075c7363f9ca6653a9513e"
+        },
+        "error": "Fix I1: keep the stop colour on hover (.scard.stop:hover darkens to --stop instead of the accent) and update checklist rule 5's Story-card clause; tighten the rail test so any empty-stage rule outside the phone block or a wide-only 없음 hide fails."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 1: hover paints over the stop border (checklist rule 5); rail test gaps",
+      "at": "2026-11-13T04:12:00.875Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-13T04:12:05.242Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-13T04:14:37.369Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: a stopped Story card stays red on hover (.scard.stop:hover darkens to --stop) as checklist rule 5 asks, rule 5's Story-card clause updated; the equal-stage test fails on any empty-stage rule or 없음 hide outside the phone block. RED 1/11 -> GREEN 11/11, Hub tests 620/620, tsc 0, hover colours checked in a browser in both themes. Commit d5c8ee6.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-implement-2.md",
+            ".ai-workflow/runs/U48-hub-board-look-implement-red-2.txt",
+            ".ai-workflow/runs/U48-hub-board-look-implement-green-2.txt",
+            ".ai-workflow/runs/U48-hub-board-look-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-implement-2.md": "7eae8daf2ee3770d62d23c7832f5c5876d8783cce666a1e7a8e70862a8364e6c",
+          ".ai-workflow/runs/U48-hub-board-look-implement-red-2.txt": "dec5aa3267e41fb7aa43c0e7c67635ccc9618329ba911e1a2b4b0a6c08590080",
+          ".ai-workflow/runs/U48-hub-board-look-implement-green-2.txt": "719b16f1d2e456899020ae551754b42e8508c027ffd013b41e72a8320b349aee",
+          ".ai-workflow/runs/U48-hub-board-look-implement-hub-2.txt": "fdba4f2e1fba368e10fbebaf67c8adbca5ce02607ae55af4b82a2ccca9295577"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-13T04:14:42.885Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-13T04:17:32.400Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570",
+        "output": {
+          "summary": "Independent review 2 of 055c875..d5c8ee6 and the whole PR b5602d7..d5c8ee6: Ready. I1 fixed in CSS, checklist and test (hover keeps the stop colour: light 229,72,59 -> 173,35,24, dark 240,104,92 -> 255,154,144; focus outline unchanged); all ten deliberate breakages, including review 1's three slipping rail reverts, fail a test; 84/84 browser runs clean (aligned stages, 2px stopped cards with the chip first, nothing past the edge). Minor, fine to ship: checklist rule 5 and the test title say 'darkens' though dark mode lightens; the chip is outside the link name and the board is taller, as judged in review 1.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-review-2.md": "f4c5c647a1c1d8909bfa6f8477334b3ad0f4ac3d6bd43c6b1a8c1f733b1112a1"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-13T04:17:38.587Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-13T04:21:38.768Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/fc20cc13-61f6-478a-8bb3-cb187cc41169/receipt.json",
+            "hash": "0787e700ca2892d22b3789799bf7d9e0075d5ff792bb177aaa0c6b8ccf373a4d"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/89831325-402a-4a30-b30b-02794e9380be/receipt.json",
+            "hash": "a7778b4248de1580557e5d03493cbb9f5baf51217c5114e780b5ca27de06d8b5"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/5d78716b-6060-4245-8c13-6850f0318ef5/receipt.json",
+            "hash": "4b976b6489afd9f3bc2b6bc82656fab8aa85f4a7a86185b3657f4b361422bdff"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/bac02771-1883-43e5-9c6e-2eff4d291312/receipt.json",
+            "hash": "b317c33e70e7c49a9686234bc34914c8584bf65922f10c293a0a38ca411e14c9"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/42ec31b2-b72d-4d6e-b8b9-53dd364bc821/d81ee1eb-bf20-4cca-b5e2-5ec3936e358b/receipt.json",
+            "hash": "a9a1aa1d6c60c2aa8c599c855882e71babefdc4474aa5a026f81b9f7176e8a20"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on d5c8ee6: tests 661/661 + 586/586 + 677/677 = 1924/1924, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U48-hub-board-look-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "c745a1338d19a86e275429eb4753ae965ec3f8e451ee1b312244d44490102570"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U48-hub-board-look-verify-1.md": "3af872d1a6688523a6cf8954972317df616a9cd89cdde6aa29db77f74431a80b"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}
