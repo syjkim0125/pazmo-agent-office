@@ -18,6 +18,25 @@ export function tone(kind: "task" | "story" | "plan", state: string): Tone {
 export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${esc(label)}</span>`;
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+/**
+ * U49: a passage one sentence per line (each sentence escaped). `lead` bolds the first one (what happened). Lines are
+ * joined by a space, so the page's text still reads as one passage.
+ */
+export const say = (text: string, lead = false) =>
+  String(text ?? "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(/(?<=[다요까오][.?!])\s+(?=\S)/)
+    .map((s, i) => (i === 0 && lead ? `<b class="ln">${esc(s)}</b>` : `<span class="ln">${esc(s)}</span>`))
+    .join(" ");
+/** U49: trusted markup pieces (already escaped), one per line. */
+export const lns = (...parts: string[]) => parts.filter(Boolean).map((p) => `<span class="ln">${p}</span>`).join(" ");
+/**
+ * U49: a side note behind an ⓘ button: a native popover, opened without a script and closed by Esc or a click elsewhere.
+ * `id` is unique on the page; `label` names the button for a screen reader.
+ */
+export const info = (id: string, label: string, text: string) =>
+  `<button type="button" class="info" popovertarget="${esc(id)}" aria-label="${esc(label)}">i</button><span id="${esc(id)}" popover class="infobox">${esc(text)}</span>`;
 const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}
 @media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}
 *{box-sizing:border-box}
@@ -60,7 +79,7 @@ section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(-
 button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}
 button.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}
 button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}
-button:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}
+button:hover,.btn:hover{filter:brightness(1.06)}.ln{display:block}fieldset.repopick{grid-template-columns:minmax(0,1fr) minmax(0,240px);align-items:center;column-gap:16px;row-gap:8px}.rphead,.rp{display:contents}.rphead span{font-size:13px;font-weight:600;color:var(--muted)}.rp>label{display:flex;align-items:center;gap:8px;min-height:44px}button.info{display:inline-grid;place-items:center;flex:none;width:32px;height:32px;min-height:32px;padding:0;margin-left:6px;border-radius:999px;border:1.5px solid var(--line);background:var(--panel);color:var(--muted);font:italic 700 16px/1 Georgia,"Times New Roman",serif;vertical-align:middle;cursor:pointer}button.info:hover,button.info:focus-visible{border-color:var(--accent);color:var(--accent)}[popover].infobox{margin:0;max-width:min(340px,calc(100% - 32px));padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg);box-shadow:var(--shadow);font-size:14px;line-height:1.55;font-weight:400;font-style:normal;text-align:left;white-space:normal}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}
 .toggles .btn{margin-left:auto}
 .needs{border:2px solid var(--need-bar);gap:10px}
 .needs h2{display:flex;align-items:center;gap:8px;font-size:18px}
@@ -171,7 +190,7 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .taskboard .cols{margin-top:2px}
 @media (width > 860px){.needs li{grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:baseline}}
 @media (width > 860px) and (width <= 960px){.stages{gap:12px}.stage{padding:6px}.stage[data-stage=planning]{padding:4px}.stages .scard{padding:12px}.stages .scards{gap:6px}}
-@media (max-width:860px){header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
+@media (max-width:860px){[popover].infobox{inset:auto 16px 16px;max-width:none}fieldset.repopick{grid-template-columns:minmax(0,1fr)}.rphead{display:none}header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
 .switch .short{display:inline}
 .brand .word,.person .name,.switch .full,.macchip .long{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .person,.macchip{min-width:44px;justify-content:center;padding:0}.brand{min-width:44px;justify-content:center}
@@ -180,8 +199,10 @@ main{padding:16px 14px 48px}section{padding:18px}
 .progress{margin-left:0;width:100%}.toggles .btn{margin-left:0}
 .stages{flex-direction:column;align-items:stretch;gap:16px}.stage{flex:none}.stage:has(>.scards:empty){flex-direction:row;align-items:center;justify-content:space-between;padding:6px 10px}.stage:has(>.scards:empty) h3{flex:1}.stage>.scards:empty{display:none}.steps{font-size:12px}
 table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block}table.stack tr{padding:10px 0;border-bottom:1px solid var(--line)}table.stack td{border:0;padding:3px 0}table.stack td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:13px}}
-@media (pointer:coarse){.brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a{min-height:44px}nav a,.tabs a,a.person{min-width:44px;justify-content:center}.story-title{padding-block:8px}summary{padding-block:10px}}
-@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}`;
+@media (pointer:coarse){button.info{width:44px;height:44px;min-height:44px}.brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a{min-height:44px}nav a,.tabs a,a.person{min-width:44px;justify-content:center}.story-title{padding-block:8px}summary{padding-block:10px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
+/* U49: on a wide screen an ⓘ note opens beside its button where the browser can anchor it, centred otherwise. */
+@supports (position-area:bottom){@media (width > 860px){[popover].infobox{inset:auto;position-area:bottom span-right;margin-top:6px;position-try-fallbacks:flip-inline,flip-block}}}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 export const button = (action: string, csrf: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${esc(action)}">${csrfField(csrf)}<button class="${cls}">${esc(label)}</button></form>`;
@@ -293,31 +314,32 @@ export function layout(title: string, me: Member | null, body: string, chrome: C
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
-  return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${esc(message)}</p><p><a href="/">처음으로</a></p></section>`);
+  return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${say(message)}</p><p><a href="/">처음으로</a></p></section>`);
 }
 export function signedOut() {
-  return layout("초대 필요", null, `<section><h1>초대받은 사람만 들어올 수 있습니다</h1><p>관리자에게 초대 링크를 받아 열어주세요. 이미 등록한 브라우저라면 회수됐거나 30일 동안 쓰지 않아 만료된 것입니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+  return layout("초대 필요", null, `<section><h1>초대받은 사람만 들어올 수 있습니다</h1><p>${say("관리자에게 초대 링크를 받아 열어주세요. 이미 등록한 브라우저라면 회수됐거나 30일 동안 쓰지 않아 만료된 것입니다.")}</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
 }
 export function invite(name: string | null) {
   if (!name)
-    return layout("초대 링크", null, `<section><h1>쓸 수 없는 초대 링크입니다</h1><p>만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.</p></section>`);
-  return layout("초대", null, `<section><h1>${esc(name)}님, Pazmo 팀 허브에 초대됐습니다</h1><p>입장하면 이 브라우저가 등록되고, 쓰는 동안 30일씩 로그인이 유지됩니다. 링크는 한 번만 쓸 수 있습니다.</p><form method="post"><label>이 기기 이름 (선택)<input name="label" maxlength="60" placeholder="예: 회사 맥북"></label><button>입장하기</button></form></section>`);
+    return layout("초대 링크", null, `<section><h1>쓸 수 없는 초대 링크입니다</h1><p>${say("만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.")}</p></section>`);
+  return layout("초대", null, `<section><h1>${esc(name)}님, Pazmo 팀 허브에 초대됐습니다</h1><p>입장하면 이 브라우저가 등록됩니다.${info("info-invite", "초대 링크 설명", "쓰는 동안 30일씩 로그인이 유지됩니다. 링크는 한 번만 쓸 수 있습니다.")}</p><form method="post"><label>이 기기 이름 (선택)<input name="label" maxlength="60" placeholder="예: 회사 맥북"></label><button>입장하기</button></form></section>`);
 }
 export function trust(fingerprint: string) {
-  return layout("인증서 신뢰", null, `<section><h1>허브 인증서를 한 번 신뢰해주세요</h1><ol><li><a href="/ca.pem">허브 인증 기관 파일</a>을 받습니다.</li><li>파일을 열어 키체인 접근에 추가하고, 항목을 두 번 눌러 <b>신뢰 → 이 인증서 사용 시: 항상 신뢰</b>로 바꿉니다.</li><li>키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요.</li></ol><pre class="mono">${esc(fingerprint)}</pre></section>`);
+  return layout("인증서 신뢰", null, `<section><h1>허브 인증서를 한 번 신뢰해주세요</h1><ol><li><a href="/ca.pem">허브 인증 기관 파일</a>을 받습니다.</li><li>파일을 열어 키체인 접근에 추가하고, 항목을 두 번 눌러 <b>신뢰 → 이 인증서 사용 시: 항상 신뢰</b>로 바꿉니다.</li><li>${say("키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요.")}</li></ol><pre class="mono">${esc(fingerprint)}</pre></section>`);
 }
 /** Shown at the top of /start and the member's work page when the hub can install a Mac in one line and this member has none yet. */
-export const MAC_NUDGE = `<section><h2>이 Mac 연결 — 처음 한 번, 명령 한 줄</h2><p>Mac 터미널에서 명령 한 줄이면 필요한 프로그램 설치, 로그인, 담당 레포 내려받기, 자동 실행까지 끝납니다. <a href="/mac">이 Mac 연결</a>에서 명령을 복사하세요.</p></section>`;
+export const MAC_NUDGE = `<section><h2>이 Mac 연결 — 처음 한 번, 명령 한 줄</h2><p>${lns("Mac 터미널에서 명령 한 줄이면 필요한 프로그램 설치, 로그인, 담당 레포 내려받기, 자동 실행까지 끝납니다.", '<a href="/mac">이 Mac 연결</a>에서 명령을 복사하세요.')}</p></section>`;
 /** `macNudge`: the hub can install a Mac in one line and this member has none yet. */
 export function start(me: Member, csrf: string, o: { macNudge: boolean }, chrome: Chrome = {}) {
   const nudge = o.macNudge ? MAC_NUDGE : "";
-  return layout("내 Office 연결", me, `${nudge}<section><h1>내 Office 연결</h1><p class="muted">세 단계면 이 허브로 일을 주고받을 수 있습니다.</p></section><section><h2>1. Office 켜기</h2><p>이 레포를 클론해 둔 내 PC에서 Office를 켭니다. 처음이면 관리자에게 설치 방법을 받으세요.</p></section><section><h2>2. 연결 문자열</h2><p>이 허브가 Mac 한 줄 설치를 쓸 수 없을 때의 방법입니다. 아래 버튼으로 연결 문자열을 만든 뒤 복사해, 레포 폴더마다 터미널에서 <code>pazmo-office hub-link --project &lt;레포 폴더&gt; --connect '&lt;연결 문자열&gt;'</code> 를 실행하세요. 10분 안에 한 번만 쓸 수 있습니다.</p><form method="post" action="/start/connect-code">${csrfField(csrf)}<div><button>연결 문자열 만들기</button></div></form></section><section><h2>3. 일 보내기</h2><p>연결이 끝나면 허브 보드에서 Story와 Task를 보고, 다른 레포 담당자와 일을 주고받습니다.</p></section>`, chrome);
+  return layout("내 Office 연결", me, `${nudge}<section><h1>내 Office 연결</h1><p class="muted">세 단계면 이 허브로 일을 주고받을 수 있습니다.</p></section><section><h2>1. Office 켜기</h2><p>${say("이 레포를 클론해 둔 내 PC에서 Office를 켭니다. 처음이면 관리자에게 설치 방법을 받으세요.")}</p></section><section><h2>2. 연결 문자열</h2><p>${lns("이 허브가 Mac 한 줄 설치를 쓸 수 없을 때의 방법입니다.", `아래 버튼으로 연결 문자열을 만든 뒤 복사해, 레포 폴더마다 터미널에서 <code>pazmo-office hub-link --project &lt;레포 폴더&gt; --connect '&lt;연결 문자열&gt;'</code> 를 실행하세요.${info("info-connect", "연결 문자열 설명", "10분 안에 한 번만 쓸 수 있습니다.")}`)}</p><form method="post" action="/start/connect-code">${csrfField(csrf)}<div><button>연결 문자열 만들기</button></div></form></section><section><h2>3. 일 보내기</h2><p>연결이 끝나면 허브 보드에서 Story와 Task를 보고, 다른 레포 담당자와 일을 주고받습니다.</p></section>`, chrome);
 }
 export function connectHelp() {
-  return layout("Office에 붙여넣기", null, `<section><h1>Office에 붙여넣기</h1><p>이 주소는 연결 문자열입니다. Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 터미널에서 <code>pazmo-office hub-link --project &lt;레포 폴더&gt; --connect '&lt;연결 문자열&gt;'</code> 를 실행하세요.</p><p class="muted">연결 문자열은 허브의 <a href="/start">내 Office 연결</a>에서 만들 수 있습니다.</p></section>`);
+  return layout("Office에 붙여넣기", null, `<section><h1>Office에 붙여넣기</h1><p>${lns("이 주소는 연결 문자열입니다.", "Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 터미널에서 <code>pazmo-office hub-link --project &lt;레포 폴더&gt; --connect '&lt;연결 문자열&gt;'</code> 를 실행하세요.")}</p><p class="muted">연결 문자열은 허브의 <a href="/start">내 Office 연결</a>에서 만들 수 있습니다.</p></section>`);
 }
-export function created(me: Member, title: string, note: string, value: string, chrome: Chrome = {}) {
-  return layout(title, me, `<section><h1>${esc(title)}</h1><p>${esc(note)}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, chrome);
+/** `side`: a note behind an ⓘ (U49), such as how long the value stays usable. */
+export function created(me: Member, title: string, note: string, value: string, chrome: Chrome = {}, side = "") {
+  return layout(title, me, `<section><h1>${esc(title)}</h1><p>${say(note)}${side ? info("info-created", `${title} 설명`, side) : ""}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, chrome);
 }
 export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoView[], view: string, chrome: Chrome = {}) {
   const tabs = [["all", "전체"], ["mine", "내 요청·맡은 일"], ["repos", "내 레포"]]
@@ -379,7 +401,7 @@ export function request(me: Member, csrf: string, v: RequestView, chrome: Chrome
   const progress = s
     ? `<section><h2>진행</h2><p><span class="pill">${esc(STATUS[s.status] ?? s.status)}</span> ${esc(s.message)}</p><p class="muted">마지막 소식 ${ago(v.snapshotAt)} · Office 연결 확인 ${ago(v.officeSeen)} · <a class="refresh" href="/requests/${esc(v.id)}">새로 고침</a></p>${s.summary ? `<pre>${esc(s.summary)}</pre>` : ""}</section>`
     : v.state === "accepted"
-      ? `<section><h2>진행</h2><p>맡은 사람의 Office가 아직 작업을 받지 않았습니다. Office 연결 확인 ${ago(v.officeSeen)}.</p></section>`
+      ? `<section><h2>진행</h2><p>${lns("맡은 사람의 Office가 아직 작업을 받지 않았습니다.", `Office 연결 확인 ${ago(v.officeSeen)}.`)}</p></section>`
       : "";
   return layout("요청", me, [
     `<section><p class="muted">${esc(v.repo.name)} · 요청자 ${esc(v.requester.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p>${v.source ? `<p class="muted">출처: ${esc(v.source)}${v.parentId ? ` · <a href="/requests/${esc(v.parentId)}">상위 요청</a>` : ""}</p>` : ""}<h1>${esc(s?.title ?? v.body.slice(0, 80))}</h1><pre>${esc(v.body)}</pre><p><span class="pill">${esc(stateLabel(v.state, v.declined))}</span> 맡은 사람: ${esc(v.assignee?.name ?? "없음")}</p>${v.declined ? `${v.declineNote ? `<p>거절 사유: ${esc(v.declineNote)}</p>` : ""}${v.declinedBy ? `<p class="muted">거절한 사람: ${esc(v.declinedBy)}</p>` : ""}` : ""}<div class="row">${actions}</div></section>`,
@@ -448,8 +470,8 @@ export function members(me: Member, csrf: string, list: MemberView[], chrome: Ch
 export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: string | null; approved: boolean }, chrome: Chrome = {}) {
   const done = o.approved ? `<section role="status"><h2>허용했습니다. 터미널로 돌아가세요</h2><p>설치가 끝나고 Office가 켜지면 아래 표에서 내 Mac의 상태를 볼 수 있습니다.</p></section>` : "";
   const connect = o.install
-    ? `<section><h1>이 Mac 연결</h1><p>Apple Silicon Mac의 터미널에서 아래 한 줄을 실행하세요. 처음 한 번이면 되고, 관리자 암호는 필요 없습니다.</p><pre id="copy-value">${esc(o.install)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><h3>이 명령이 하는 일</h3><ol><li>필요한 프로그램(Node, git, GitHub CLI, Colima, Docker, Claude Code)을 설치합니다. 이미 있으면 건너뛰고, Homebrew가 먼저 있어야 합니다.</li><li>브라우저가 열리면 GitHub와 Claude에 로그인합니다.</li><li>터미널에 코드가 나오고 이 허브의 허용 화면이 열립니다. 터미널의 코드와 같은지 확인하고 허용하세요.</li><li>내가 담당하는 레포를 이 Mac에 clone합니다.</li><li>이 Mac에 로그인할 때마다 Office가 자동으로 켜집니다.</li></ol><p class="muted">연결된 Mac은 한 사람에 하나입니다. 새 Mac을 연결하면 이전 Mac 연결은 해제됩니다.</p></section><script src="/copy.js" defer></script>`
-    : `<section><h1>이 Mac 연결</h1><p>이 허브는 사내 인증서를 써서 설치 한 줄을 쓸 수 없습니다. 지금처럼 <a href="/start">내 Office 연결</a>(/start)로 레포마다 연결하세요.</p></section>`;
+    ? `<section><h1>이 Mac 연결</h1><p>Apple Silicon Mac의 터미널에서 아래 한 줄을 실행하세요.${info("info-install", "설치 명령 설명", "처음 한 번이면 되고, 관리자 암호는 필요 없습니다.")}</p><pre id="copy-value">${esc(o.install)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><h3>이 명령이 하는 일</h3><ol><li>${say("필요한 프로그램(Node, git, GitHub CLI, Colima, Docker, Claude Code)을 설치합니다. 이미 있으면 건너뛰고, Homebrew가 먼저 있어야 합니다.")}</li><li>브라우저가 열리면 GitHub와 Claude에 로그인합니다.</li><li>${say("터미널에 코드가 나오고 이 허브의 허용 화면이 열립니다. 터미널의 코드와 같은지 확인하고 허용하세요.")}</li><li>내가 담당하는 레포를 이 Mac에 clone합니다.</li><li>이 Mac에 로그인할 때마다 Office가 자동으로 켜집니다.</li></ol><p class="muted">${say("연결된 Mac은 한 사람에 하나입니다. 새 Mac을 연결하면 이전 Mac 연결은 해제됩니다.")}</p></section><script src="/copy.js" defer></script>`
+    : `<section><h1>이 Mac 연결</h1><p>${lns("이 허브는 사내 인증서를 써서 설치 한 줄을 쓸 수 없습니다.", '지금처럼 <a href="/start">내 Office 연결</a>(/start)로 레포마다 연결하세요.')}</p></section>`;
   const off = o.macs.some((k) => k.state === "off");
   const table = o.macs.length
     ? `<div class="scroll"><table><thead><tr><th>이름</th><th>상태</th><th>마지막 확인</th><th></th></tr></thead><tbody>${o.macs
@@ -465,13 +487,13 @@ export function macApprove(me: Member, csrf: string, code: string, info: { name:
   const task = held
     ? `<p><b>이전 Mac이 맡은 Task가 있습니다: Story #${held.storyNumber} Task #${held.taskNumber}${held.repoName ? ` (${esc(held.repoName)})` : ""}. 이 Mac을 허용하면 그 Task는 PL이 풀어 줘야 합니다.</b></p>`
     : "";
-  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(teamTime(info.createdAt))} (${ago(info.createdAt)})</p><p>Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
+  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(teamTime(info.createdAt))} (${ago(info.createdAt)})</p><p>${say("Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.")}</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
 }
 export function macCodeGone(me: Member, chrome: Chrome = {}) {
-  return layout("코드 만료", me, `<section><h1>이 코드는 쓸 수 없습니다</h1><p>코드가 만료됐거나 이미 쓰였거나 잘못된 코드입니다. Mac 터미널에서 설치 명령을 다시 실행하면 새 코드가 나옵니다.</p><p><a href="/mac">내 Mac</a></p></section>`, chrome);
+  return layout("코드 만료", me, `<section><h1>이 코드는 쓸 수 없습니다</h1><p>${say("코드가 만료됐거나 이미 쓰였거나 잘못된 코드입니다. Mac 터미널에서 설치 명령을 다시 실행하면 새 코드가 나옵니다.")}</p><p><a href="/mac">내 Mac</a></p></section>`, chrome);
 }
 export function macSignedOut() {
-  return layout("로그인 필요", null, `<section><h1>먼저 이 브라우저로 허브에 들어와야 합니다</h1><p>이 브라우저에서 관리자에게 받은 <b>초대 링크</b>를 먼저 열어주세요. 이미 등록한 팀원이라면 <b>새 기기 링크</b>를 받아 열면 됩니다. 입장한 뒤 이 주소를 다시 열어주세요. 터미널에 나온 허용 주소입니다.</p><p>Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+  return layout("로그인 필요", null, `<section><h1>먼저 이 브라우저로 허브에 들어와야 합니다</h1><p>${lns("이 브라우저에서 관리자에게 받은 <b>초대 링크</b>를 먼저 열어주세요.", "이미 등록한 팀원이라면 <b>새 기기 링크</b>를 받아 열면 됩니다.", "입장한 뒤 이 주소를 다시 열어주세요.", "터미널에 나온 허용 주소입니다.")}</p><p>Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
 }
 
 /**

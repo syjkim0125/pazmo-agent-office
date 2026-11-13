@@ -5,6 +5,8 @@ import { AWAITING_G4, HELD_SHORT, plainFailure } from "../src/hub/story-pages.ts
 import { safePath } from "../src/hub/paths.ts";
 import { planStoryKey } from "../src/hub/plan-protocol.ts";
 import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+/** U49: a page with its one-sentence-per-line marks taken off, for tests that compare words (the U49 tests pin the marks). */
+const unline = (html) => html.replace(/<(?:span|b) class="ln">([^<]*)<\/(?:span|b)>/g, "$1");
 
 const SHA = "c0ffee".padEnd(40, "0");
 const PR = "https://github.example.com/team/app-be/pull/7";
@@ -184,7 +186,7 @@ test("stopped card stays in its column with a plain reason", async (t) => {
   const review = colOf(laneOf((await h.get("/tasks", h.pl)).text, s.number), "review");
   assert.ok(review.includes(`/tasks/${claim.taskId}`));
   assert.ok(review.includes("멈춤"));
-  assert.ok(review.includes(plainFailure("RUNNER_LIMIT claude: usage limit", "work")));
+  assert.ok(unline(review).includes("AI 사용 한도가 6시간 안에 풀리지 않았습니다. 맡은 사람이 다시 시도할 수 있습니다."), "the PL reads what stopped it and who can retry (U49)");
 });
 
 test("planning lanes", async (t) => {
@@ -447,7 +449,7 @@ test("a card wears its state: tone, name tag, Mac dot, time and number", async (
   h.board.reportFailed(c, doing.taskId, doing.claimId, "RUNNER_LIMIT claude: usage limit");
   lane = laneOf((await h.get("/tasks", h.pl)).text, s.number);
   assert.match(colOf(lane, "doing"), new RegExp(`<li class="card stop"><a class="title" href="/tasks/${doing.taskId}">`));
-  assert.ok(colOf(lane, "doing").includes(`<p class="why">${plainFailure("RUNNER_LIMIT claude: usage limit", "work")}</p>`));
+  assert.ok(unline(colOf(lane, "doing")).includes('<p class="why">AI 사용 한도가 6시간 안에 풀리지 않았습니다. 맡은 사람이 다시 시도할 수 있습니다.</p>'), "read by the PL (U49)");
 });
 
 test("나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does", async (t) => {
@@ -468,8 +470,9 @@ test("나를 기다리는 일 lists what waits on the viewer, and is gone when n
   assert.ok(pl, "the PL has a box");
   assert.match(pl, /^<h2 id="needs">나를 기다리는 일 <span class="count">3<\/span><\/h2>/);
   // D44: each kind is one row (word, count, shared reason) with its titles as links.
-  assert.ok(pl.includes(`<p class="ghead"><span class="pill need">승인 대기</span><span class="count">1</span><span class="gwhy">${AWAITING_G4}</span></p><p class="glinks"><a href="/stories/${g4.storyId}"><b>승인 Story</b></a></p>`), "the Story waiting for its result approval");
-  assert.ok(pl.includes(`<p class="ghead"><span class="pill stop">멈춤(실패)</span><span class="count">1</span><span class="gwhy">${plainFailure("RUNNER_LIMIT claude: usage limit", "work")}</span></p><p class="glinks"><a href="/tasks/${claim.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p>`), "a stopped Task of the PL's Story");
+  assert.ok(unline(pl).includes(`<p class="ghead"><span class="pill need">승인 대기</span><span class="count">1</span><span class="gwhy">${AWAITING_G4}</span></p><p class="glinks"><a href="/stories/${g4.storyId}"><b>승인 Story</b></a></p>`), "the Story waiting for its result approval");
+  // C's Task, read by the PL: what stopped it and who can retry (U49).
+  assert.ok(unline(pl).includes(`<p class="ghead"><span class="pill stop">멈춤(실패)</span><span class="count">1</span><span class="gwhy">AI 사용 한도가 6시간 안에 풀리지 않았습니다. 맡은 사람이 다시 시도할 수 있습니다.</span></p><p class="glinks"><a href="/tasks/${claim.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p>`), "a stopped Task of the PL's Story");
   assert.ok(pl.includes(`<p class="ghead"><span class="pill need">초안</span><span class="count">1</span>`) && pl.includes(`<a href="/plans/${planId}"><b>초안 기획</b></a>`), "the PL's draft to read");
 
   const mine = needsOf((await h.get("/", h.c)).text);
@@ -522,7 +525,7 @@ test("the header shows me, the switch and my Mac with words beside their shapes"
 test("an empty project says what comes next", async (t) => {
   const h = await team(t);
   const { projectId } = h.board.createProject(h.plBe, "빈 프로젝트", [{ repoId: h.be, baseBranch: "main" }]);
-  const empty = (text) => /<h2>빈 프로젝트<\/h2>[\s\S]*?<p class="empty">([^<]*)<\/p>/.exec(text)?.[1];
+  const empty = (text) => /<h2>빈 프로젝트<\/h2>[\s\S]*?<p class="empty">([^<]*)<\/p>/.exec(unline(text))?.[1];
   // D44: with two projects an empty one folds into one line on 전체; its own chip view says what comes next.
   assert.equal(empty((await h.get(`/?project=${projectId}`, h.pl)).text), "아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다.");
   assert.equal(empty((await h.get(`/?project=${projectId}`, h.b)).text), "아직 Story가 없습니다. 이 프로젝트의 레포를 모두 맡은 사람이 Story를 올리면 여기에 보입니다.");
@@ -645,7 +648,7 @@ test("a Story page carries its stage steps and its own Task board with every car
   assert.ok(page.includes('<a href="/">Story 보드</a>'), "the way back");
   const waiting = (await h.get(`/stories/${g4.storyId}`, h.pl)).text;
   assert.ok(waiting.includes('<li class="now" aria-current="step">승인 대기</li>'));
-  assert.ok(waiting.includes("<p>모든 Task가 끝났습니다. 결과 승인은 Hub가 아니라 PL의 Mac(claude 대화)에서 합니다.</p>"));
+  assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 결과 승인은 Hub가 아니라 PL의 Mac(claude 대화)에서 합니다.</p>"));
 });
 
 test("the store's board for one Story has every card of it", async (t) => {
@@ -673,8 +676,8 @@ test("나를 기다리는 일 also lists a held Task, my stopped plan and which 
   h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "failed", reason: "모델이 멈췄습니다." });
   const box = needsOf((await h.get("/", h.pl)).text);
   // D44: one row per kind, the reason once, the titles as links.
-  assert.ok(box.includes(`<li><p class="ghead"><span class="pill stop">멈춤(Mac 소식 없음)</span><span class="count">1</span><span class="gwhy">맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.</span></p><p class="glinks"><a href="/tasks/${k.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p></li>`));
-  assert.ok(box.includes(`<li><p class="ghead"><span class="pill stop">멈춤</span><span class="count">1</span><span class="gwhy">기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.</span></p><p class="glinks"><a href="/plans/${planId}"><b>멈춘 기획</b></a></p></li>`));
+  assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤(Mac 소식 없음)</span><span class="count">1</span><span class="gwhy">맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.</span></p><p class="glinks"><a href="/tasks/${k.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p></li>`));
+  assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤</span><span class="count">1</span><span class="gwhy">기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.</span></p><p class="glinks"><a href="/plans/${planId}"><b>멈춘 기획</b></a></p></li>`));
   assert.ok(needsOf((await h.get("/tasks", h.pl)).text), "the box is on the Task board too");
 });
 
@@ -852,9 +855,9 @@ test("나를 기다리는 일 groups rows of the same word into one row, hides n
   for (const k of [one, two]) assert.ok(groups[0].links.includes(`<a href="/tasks/${k.taskId}"><b>${nameOf(k.taskId)}</b> <span class="muted">Story #${s.number}</span></a>`));
   assert.equal(groups[0].links.match(/<a /g).length, 2);
   assert.ok(groups[1].links === `<a href="/plans/${planId}"><b>초안 기획</b></a>`);
-  assert.equal(groups[2].head, `<span class="pill need">승인 대기</span><span class="count">2</span><span class="gwhy">${AWAITING_G4}</span>`, "one shared reason, said once");
+  assert.equal(unline(groups[2].head), `<span class="pill need">승인 대기</span><span class="count">2</span><span class="gwhy">${AWAITING_G4}</span>`, "one shared reason, said once");
   assert.equal(groups[2].links, g4.map((x, i) => `<a href="/stories/${x.storyId}"><b>${["승인 하나", "승인 둘"][i]}</b></a>`).join(""), "no row hidden");
-  assert.equal(box.split(AWAITING_G4).length, 2);
+  assert.equal(unline(box).split(AWAITING_G4).length, 2);
 });
 
 test("project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44)", async (t) => {
@@ -922,7 +925,7 @@ test("on 전체, projects with no Story fold into one line that leads to each on
   assert.ok(!all.includes("<h2>빈 하나</h2>") && !all.includes('<p class="empty">'), "no empty five columns");
   assert.ok(all.includes("<h2>쿠폰 개편</h2>"));
   const one = (await h.get(`/?project=${e1.projectId}`, h.pl)).text;
-  assert.ok(one.includes("<h2>빈 하나</h2>") && one.includes('<p class="empty">아직 Story가 없습니다.'), "its chip view says what comes next");
+  assert.ok(one.includes("<h2>빈 하나</h2>") && unline(one).includes('<p class="empty">아직 Story가 없습니다.'), "its chip view says what comes next");
   assert.ok(one.includes(`<a class="btn ghost" href="/projects/${e1.projectId}/new-story">새 Story</a>`));
   const tasks = (await h.get("/tasks?cancelled=1", h.pl)).text;
   assert.ok(tasks.includes(`<a href="/tasks?cancelled=1&project=${e2.projectId}">빈 둘</a>`), "on the Task board the line keeps its board and filters");
@@ -1179,12 +1182,12 @@ test("U46: on the board a failed Task's reason points to the Task page, not to a
   h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
   const box = /<section class="needs"[\s\S]*?<\/section>/.exec((await h.get("/", h.pl)).text)[0];
   assert.doesNotMatch(box, /아래 이유를/, "nothing is below on the board");
-  assert.match(box, /Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요/);
+  assert.match(unline(box), /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\./, "the PL reads who can retry (U49)");
   assert.match((await h.get(`/tasks/${s.tasks.a}`, h.c)).text, /아래 이유를 보고/, "the Task page keeps its own words for the one who retries");
   for (const path of ["/tasks", `/stories/${s.storyId}`]) {
     const text = (await h.get(path, h.pl)).text;
     assert.doesNotMatch(text, /아래 이유를/, `${path}: a failed card on a board has nothing below it`);
-    assert.match(text, /<p class="why">AI가 세 번 시도했지만 끝내지 못했습니다\. Task 화면에서 이유를 보고/, path);
+    assert.match(unline(text), /<p class="why">AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\./, path);
   }
 });
 
@@ -1229,7 +1232,7 @@ test("U47: a failed Task's page opens with 지금 할 일: the reason and 다시
   const card = decideOf(page);
   assert.ok(card, "the assignee has something to do");
   assert.match(card, /<h2 id="decide">지금 할 일<\/h2>/);
-  assert.match(card, /AI가 세 번 시도했지만 끝내지 못했습니다\. 아래 이유를 보고/, "the reason is below, inside the card");
+  assert.match(unline(card), /AI가 세 번 시도했지만 끝내지 못했습니다\. 아래 이유를 보고/, "the reason is below, inside the card");
   assert.match(card, /<details><summary>자세한 이유<\/summary><pre>tests failed<\/pre><\/details>/);
   assert.match(card, new RegExp(`<form method="post" action="/tasks/${s.tasks.a}/rerun">`), "다시 시도 is the card's action");
   const asPl = (await h.get(`/tasks/${s.tasks.a}`, h.pl)).text;
@@ -1287,7 +1290,7 @@ test("U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for 
   const g4 = h.open(h.publish("승인 Story", ["a"]));
   advance(h, g4, "awaiting_g4");
   const approval = decideOf((await h.get(`/stories/${g4.storyId}`, h.pl)).text);
-  assert.ok(approval?.includes(AWAITING_G4), "the result approval is the PL's to do, on their Mac");
+  assert.ok(unline(approval ?? "").includes(AWAITING_G4), "the result approval is the PL's to do, on their Mac");
 });
 
 test("U47: /me links each Task's Story, says where a failed Task's reason is, and puts a stopped Task of mine first as 지금 할 일", async (t) => {
@@ -1360,7 +1363,7 @@ test("U47: the card speaks to who reads it: the PL on someone else's failed Task
   const claim = h.board.claimNext(c);
   h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
   const pl = decideOf((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text);
-  assert.match(pl, /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\. 오래 멈춰 있으면 풀 수 있습니다\./);
+  assert.match(unline(pl), /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\. 오래 멈춰 있으면 풀 수 있습니다\./);
   assert.doesNotMatch(pl, /메모와 함께 다시 시도하세요/, "the PL has no 다시 시도 here");
   assert.match(decideOf((await h.get(`/tasks/${s.tasks.a}`, h.c)).text), /아래 이유를 보고 메모와 함께 다시 시도하세요/, "the holder is told to retry");
   const v = h.open(h.publish("검증 Story", ["a"]));
@@ -1370,7 +1373,7 @@ test("U47: the card speaks to who reads it: the PL on someone else's failed Task
   const check = h.board.claimVerify(h.plBe, v.storyId);
   h.board.reportVerify(h.plBe, check.taskId, check.claimId, { passed: false, summary: "e2e failed" });
   const verifyCard = decideOf((await h.get(`/tasks/${check.taskId}`, h.pl)).text) ?? "";
-  assert.match(verifyCard, /고칠 Task는 내 Mac\(claude 대화\)에서 더하세요\. 풀기는 고치지 않고 다시 검증합니다\./);
+  assert.match(unline(verifyCard), /고칠 Task는 내 Mac\(claude 대화\)에서 더하세요\. 풀기는 고치지 않고 다시 검증합니다\./);
   const storyCard = decideOf((await h.get(`/stories/${v.storyId}`, h.pl)).text) ?? "";
   assert.match(storyCard, /고칠 Task는 내 Mac\(claude 대화\)에서 더하세요\./);
   assert.doesNotMatch(storyCard, /PL이 고칠 Task를 더한 뒤/, "not in the third person to the PL");
@@ -1386,7 +1389,7 @@ test("U47: the Story card lists a Task whose Mac went silent, and the result app
   advance(h, g4, "awaiting_g4");
   for (const who of [h.pl, h.b, h.admin]) {
     const page = (await h.get(`/stories/${g4.storyId}`, who)).text;
-    assert.equal(countOf(page, AWAITING_G4), 1, who.member.name);
+    assert.equal(countOf(unline(page), AWAITING_G4), 1, who.member.name);
     assert.equal(decideOf(page) !== null, who === h.pl, `${who.member.name}: the card is the PL's`);
   }
 });
@@ -1396,7 +1399,7 @@ test("U47: on /me my Task whose Mac went silent says so and links its page", asy
   h.open(h.publish("쿠폰 발급", ["a"]));
   const held = silentClaim(h, h.cBe());
   const card = decideOf((await h.get("/me", h.c)).text) ?? "";
-  assert.match(card, /내 Mac에서 10분 넘게 소식이 없습니다\. Mac을 켜면 이어서 합니다\./);
+  assert.match(unline(card), /내 Mac에서 10분 넘게 소식이 없습니다\. Mac을 켜면 이어서 합니다\./);
   assert.ok(card.includes(`<a href="/tasks/${held.taskId}">자세히</a>`));
 });
 
@@ -1415,7 +1418,7 @@ test("U47: my held Task asks me to turn my Mac on only while no Mac reports; on 
   const h = await team(t);
   h.open(h.publish("쿠폰 발급", ["a"]));
   const held = silentClaim(h, h.cBe());
-  const read = async () => [decideOf((await h.get("/me", h.c)).text) ?? "", (await h.get(`/tasks/${held.taskId}`, h.c)).text];
+  const read = async () => [unline(decideOf((await h.get("/me", h.c)).text) ?? ""), unline((await h.get(`/tasks/${held.taskId}`, h.c)).text)];
   let [me, task] = await read();
   for (const [where, text] of [["/me", me], ["Task", task]]) {
     assert.ok(text.includes("내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다."), `${where}: no Mac reports`);
@@ -1434,7 +1437,7 @@ test("U47: my held Task asks me to turn my Mac on only while no Mac reports; on 
   assert.ok(rest >= 0 && rest < me.indexOf(HELD_ON_MINE), "why it rests, then this Task");
   assert.doesNotMatch(me, /Mac을 켜면/);
   assert.ok(
-    (await h.get(`/tasks/${held.taskId}`, h.pl)).text.includes("Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다."),
+    unline((await h.get(`/tasks/${held.taskId}`, h.pl)).text).includes("Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다."),
     "the PL reads it about the assignee",
   );
 });
@@ -1446,11 +1449,11 @@ test("U47: a failed Task's sentence follows the reader: its holder is told to re
   const theirs = h.board.claimNext(c);
   h.board.reportFailed(c, theirs.taskId, theirs.claimId, "tests failed");
   const cause = "AI가 세 번 시도했지만 끝내지 못했습니다.";
-  const b = (await h.get(`/tasks/${theirs.taskId}`, h.b)).text;
+  const b = unline((await h.get(`/tasks/${theirs.taskId}`, h.b)).text);
   assert.ok(b.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.`), "B can do neither");
   assert.doesNotMatch(b, /다시 시도하세요/);
   const admin = decideOf((await h.get(`/tasks/${theirs.taskId}`, h.admin)).text) ?? "";
-  assert.ok(admin.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 풀 수 있습니다.`), "the admin may release");
+  assert.ok(unline(admin).includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 풀 수 있습니다.`), "the admin may release");
   const mine = h.board.claimNext(h.plBe);
   h.board.reportFailed(h.plBe, mine.taskId, mine.claimId, "tests failed");
   h.clock.store = 4 * 60_000; // past MAC_OFFLINE_MS: the PL's link is quiet, so 다시 시도 waits on the Mac and 풀기 is the card's action
@@ -1493,7 +1496,7 @@ test("U47: a failed Story check gives 풀기's sentence only to who can release,
   const b = (await h.get(`/tasks/${check.taskId}`, h.b)).text;
   assert.match(b, /고칠 Task는 PL이 Mac\(claude 대화\)에서 더합니다\./);
   assert.doesNotMatch(b, /풀기는 고치지 않고/, "B has no 풀기");
-  assert.match((await h.get(`/tasks/${check.taskId}`, h.admin)).text, /고칠 Task는 PL이 Mac\(claude 대화\)에서 더합니다\. 풀기는 고치지 않고 다시 검증합니다\./);
+  assert.match(unline((await h.get(`/tasks/${check.taskId}`, h.admin)).text), /고칠 Task는 PL이 Mac\(claude 대화\)에서 더합니다\. 풀기는 고치지 않고 다시 검증합니다\./);
   const card = decideOf((await h.get(`/stories/${v.storyId}`, h.pl)).text) ?? "";
   assert.ok(card.includes("멈춘 Task 1개. 각 Task 화면에서 풀 수 있습니다."));
   assert.doesNotMatch(card, /다시 시도/, "a check is not retried");
@@ -1511,10 +1514,10 @@ test("U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: 
   const others = "AI가 세 번 시도했지만 끝내지 못했습니다. 맡은 사람이 다시 시도할 수 있습니다.";
   let card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text) ?? "";
   assert.ok(card.includes("멈춘 Task 1개. 각 Task 화면에서 풀 수 있습니다."), "nothing here is the PL's to retry");
-  assert.ok(card.includes(others));
+  assert.ok(unline(card).includes(others));
   assert.doesNotMatch(card, /다시 시도하세요/);
   const led = ledOf((await h.get("/me", h.pl)).text);
-  assert.ok(led.includes(others), "/me");
+  assert.ok(unline(led).includes(others), "/me");
   assert.doesNotMatch(led, /다시 시도하세요/);
   const mine = h.board.claimNext(h.plBe);
   h.board.reportFailed(h.plBe, mine.taskId, mine.claimId, "tests failed");
@@ -1568,4 +1571,91 @@ test("U48: on a wide screen an empty stage keeps its equal share, so each stage 
   assert.ok(off.length < style.length, "the phone block was found");
   assert.doesNotMatch(off, /\.stage:has\(>\.scards:empty\)/, "no empty-stage rule outside the phone block");
   assert.doesNotMatch(off, /\.scards:empty::before\{content:none/, "없음 is never hidden outside the phone block");
+});
+
+// U49 (줄바꿈과 ⓘ, the user's G4 feedback on U47): one meaning per line, side notes behind an ⓘ popover (no script), the
+// boards' failure wording by reader, and the new-project base branches in two columns. Explainer version 20.
+const popoversOf = (text) => ({
+  targets: [...text.matchAll(/popovertarget="([^"]+)"/g)].map((m) => m[1]),
+  boxes: [...text.matchAll(/<span id="([^"]+)" popover class="infobox">/g)].map((m) => m[1]),
+  unnamed: [...text.matchAll(/<button type="button" class="info"(?![^>]*aria-label="[^"]+")[^>]*>/g)].length,
+});
+
+test("U49: the line and ⓘ styles: one sentence per line, a 32px ⓘ (44px on touch), a popover box from tokens, a sheet on a phone", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.equal(ruleOf(style, ".ln"), "display:block");
+  assert.match(ruleOf(style, "button.info"), /width:32px;height:32px;min-height:32px/);
+  assert.match(style, /@media \(pointer:coarse\)\{[^@]*button\.info\{width:44px;height:44px;min-height:44px\}/);
+  const box = ruleOf(style, "[popover].infobox");
+  for (const decl of ["background:var(--panel)", "color:var(--fg)", "font-weight:400", "border:1px solid var(--line)"]) assert.ok(box.includes(decl), decl);
+  assert.match(style, /@media \(max-width:860px\)\{[^@]*\[popover\]\.infobox\{inset:auto 16px 16px;max-width:none\}/, "a sheet at the bottom of a phone");
+});
+
+test("U49: a failed Task's reason reads one sentence per line, the first in bold; 풀기's note sits behind an ⓘ beside it; 취소's stays in view", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const card = decideOf((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text) ?? "";
+  assert.ok(card.includes('<p><b class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</b> <span class="ln">맡은 사람이 다시 시도할 수 있습니다.</span> <span class="ln">오래 멈춰 있으면 풀 수 있습니다.</span></p>'));
+  const release = /<form method="post" action="\/tasks\/[^"]+\/release">([\s\S]*?)<\/form>/.exec(card)?.[1] ?? "";
+  assert.ok(release.includes('<button class="secondary">풀기</button><button type="button" class="info" popovertarget="info-release" aria-label="풀기 설명">i</button>'));
+  assert.ok(release.includes('<span id="info-release" popover class="infobox">풀면 이 Task는 다시 &#39;할 일&#39;이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.</span>'));
+  assert.doesNotMatch(release, /<p>풀면/, "the note is out of the way");
+  assert.ok(otherOf(card)?.[2].includes("<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p>"), "취소 cannot be undone: its result stays in view");
+});
+
+test("U49: every ⓘ opens one popover of its own, and every ⓘ is named", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a", "b"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const raw = h.store.createInvite(h.admin.member, "새 사람");
+  const pages = [
+    (await h.get(`/tasks/${s.tasks.a}`, h.pl)).text,
+    (await h.get(`/tasks/${s.tasks.a}`, h.c)).text,
+    (await h.get("/projects/new", h.pl)).text,
+    (await h.get(`/projects/${h.projectId}/new-story`, h.pl)).text,
+    (await h.get("/start", h.c)).text,
+    (await h.call("GET", `/invite/${raw}`, {})).text,
+  ];
+  const counts = [];
+  for (const [i, text] of pages.entries()) {
+    const { targets, boxes, unnamed } = popoversOf(text);
+    counts.push(targets.length);
+    assert.equal(new Set(boxes).size, boxes.length, `page ${i}: popover ids are unique`);
+    assert.deepEqual([...targets].sort(), [...boxes].sort(), `page ${i}: each ⓘ has its own box`);
+    assert.equal(unnamed, 0, `page ${i}: every ⓘ has a name`);
+  }
+  // 풀기 for the PL (C, the assignee, has no 풀기), the project note, the new-Story note, the connect string, the invite.
+  assert.deepEqual(counts, [1, 0, 1, 1, 1, 1]);
+});
+
+test("U49: a failed Task on the boards speaks to its reader: its assignee is told to retry, others read who can", async (t) => {
+  const h = await team(t);
+  h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  assert.ok((await h.get("/tasks", h.c)).text.includes('<p class="why"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요.</span></p>'));
+  for (const who of [h.pl, h.b]) {
+    const text = (await h.get("/tasks", who)).text;
+    assert.ok(text.includes('<p class="why"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">맡은 사람이 다시 시도할 수 있습니다.</span></p>'), who.member.name);
+    assert.doesNotMatch(text, /메모와 함께 다시 시도하세요/, `${who.member.name}: not told to retry`);
+  }
+  const box = /<section class="needs"[\s\S]*?<\/section>/.exec((await h.get("/", h.pl)).text)?.[0] ?? "";
+  assert.ok(box.includes('<span class="gwhy"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">맡은 사람이 다시 시도할 수 있습니다.</span></span>'), "the PL's waiting box");
+});
+
+test("U49: the new-project form lines repos and base branches up in two columns, each branch named for its repo", async (t) => {
+  const h = await team(t);
+  const text = (await h.get("/projects/new", h.pl)).text;
+  assert.ok(text.includes('<fieldset class="repopick"><legend>넣을 레포와 기준 브랜치</legend><div class="rphead" aria-hidden="true"><span>레포</span><span>기준 브랜치</span></div>'));
+  assert.ok(text.includes(`<div class="rp"><label><input type="checkbox" name="repo" value="${h.be}"> app-be</label><input name="base-${h.be}" value="main" aria-label="app-be 기준 브랜치"></div>`));
+  const style = await styleOf(h);
+  assert.match(ruleOf(style, "fieldset.repopick"), /grid-template-columns:minmax\(0,1fr\) minmax\(0,240px\)/);
+  assert.match(ruleOf(style, "fieldset.repopick"), /align-items:center/);
+  assert.equal(ruleOf(style, ".rphead,.rp"), "display:contents");
 });

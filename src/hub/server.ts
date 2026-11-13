@@ -297,7 +297,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         if ((m = new RegExp(`^/stories/${ID}$`).exec(path))) {
           const v = board.story(actor, m[1]);
           const lane = board.storyBoard(actor, v.id);
-          const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges()) : null;
+          const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges(), me) : null;
           return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard }, live()));
         }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
@@ -366,22 +366,22 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if ((m = new RegExp(`^/repos/${ID}/link-code$`).exec(path))) {
       const code = c.store.createLinkCode(me, m[1]);
       return html(res, 200, page.created(me, "내 Office 연결",
-        "10분 안에, 이 레포를 클론해 둔 내 PC에서 실행하세요. 한 번만 쓸 수 있습니다.",
-        `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code}${pin}`, chrome()));
+        "10분 안에, 이 레포를 클론해 둔 내 PC에서 실행하세요.",
+        `pazmo-office hub-link --project <이 레포의 로컬 경로> --hub ${base} --code ${code}${pin}`, chrome(), "한 번만 쓸 수 있습니다."));
     }
     if (path === "/start/connect-code") {
       const code = c.store.createConnectCode(me);
       const value = `${base}/connect#c=${code}${tls ? `&fp=${tls.fingerprint}` : ""}`;
       return html(res, 200, page.created(me, "내 Office 연결",
-        "10분 안에 한 번만 쓸 수 있습니다. Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 pazmo-office hub-link --project <레포 폴더> --connect '이 문자열' 을 실행하세요.", value, chrome()));
+        "Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 pazmo-office hub-link --project <레포 폴더> --connect '이 문자열' 을 실행하세요.", value, chrome(), "10분 안에 한 번만 쓸 수 있습니다."));
     }
     if (path === "/invites") {
       const raw = c.store.createInvite(me, f("name"));
-      return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요. 72시간 동안 한 번만 쓸 수 있습니다.${fingerprintNote}`, `${base}/invite/${raw}`, chrome()));
+      return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요.${fingerprintNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다."));
     }
     if ((m = new RegExp(`^/members/${ID}/device-invite$`).exec(path))) {
       const raw = c.store.createDeviceInvite(me, m[1]);
-      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요. 72시간 동안 한 번만 쓸 수 있습니다.${deviceNote}`, `${base}/invite/${raw}`, chrome()));
+      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요.${deviceNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다."));
     }
     if ((m = new RegExp(`^/members/${ID}/revoke$`).exec(path))) {
       c.store.revokeMember(me, m[1]);

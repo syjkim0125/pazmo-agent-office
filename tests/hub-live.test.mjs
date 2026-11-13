@@ -87,7 +87,15 @@ function fakeMain(html) {
       querySelector: (s) => (s === "summary" ? { textContent: ` ${m[2]} ` } : null),
     }));
   let details = parse(html);
+  // U49: an ⓘ popover may be open (true), closed (false), or unknown to an older browser ("unsupported": the selector throws).
+  let popover = false;
   return {
+    querySelector: (s) => {
+      if (s !== ":popover-open") return null;
+      if (popover === "unsupported") throw new SyntaxError("unknown pseudo-class");
+      return popover ? {} : null;
+    },
+    setPopover: (v) => { popover = v; },
     get innerHTML() { return inner; },
     set innerHTML(v) { inner = v; details = parse(v); },
     querySelectorAll: (s) => (s === "details" ? details : []),
@@ -95,9 +103,10 @@ function fakeMain(html) {
     details: () => details,
   };
 }
-function run({ hidden = false, active = null, fields = [], responses = [], etag = '"a"', html = "old", onFetch = () => {} } = {}) {
+function run({ hidden = false, active = null, fields = [], responses = [], etag = '"a"', html = "old", onFetch = () => {}, popover = false } = {}) {
   const calls = [];
   const main = fakeMain(html);
+  main.setPopover(popover);
   const classes = new Set();
   const focused = [];
   let tick, period, stopped = false, selection = null;
@@ -265,4 +274,21 @@ test("restores focus by id after the swap", async () => {
     assert.equal(n.main.innerHTML, "new");
     assert.deepEqual(n.focused, [], JSON.stringify(active));
   }
+});
+
+test("skips the swap while an ⓘ popover is open, and swaps once it is closed (U49)", async () => {
+  const same = { status: 200, text: page("new"), etag: '"b"' };
+  const r = run({ responses: [same, same], popover: true });
+  await r.poll();
+  assert.equal(r.main.innerHTML, "old", "an open note is not swapped away");
+  assert.equal(r.stopped(), false, "tries again next tick");
+  r.main.setPopover(false);
+  await r.poll();
+  assert.equal(r.main.innerHTML, "new");
+});
+
+test("a browser that does not know :popover-open still swaps (U49)", async () => {
+  const r = run({ responses: [{ status: 200, text: page("new"), etag: '"b"' }], popover: "unsupported" });
+  await r.poll();
+  assert.equal(r.main.innerHTML, "new");
 });
