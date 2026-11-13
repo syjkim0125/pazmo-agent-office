@@ -100,18 +100,36 @@ const RERUN_NOT_LINKED = `<a href="/mac">내 Mac이 지금 이 레포의 일을 
 export const HELD_SHORT = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.";
 const HELD = `${HELD_SHORT} Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.`;
 /** Held while the assignee's Mac reports: the Office let the claim go or cannot take it, so it will not go on by itself. */
-/** My own Task whose Mac went silent, on /me. */
-const HELD_MINE = "내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다.";
-/** A failed Task read by someone who cannot retry it here (a lead with 풀기 only): what stopped it, then who can act. */
-const failureForLead = (reason: string) => {
+const HELD_MAC_ON = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+/** My own held Task, in one sentence. */
+const HELD_MINE_SHORT = "내 Mac에서 10분 넘게 소식이 없습니다.";
+/** A Mac that reports (any state but off, and a member who has one) is on; with no Mac at all nothing is known. */
+const macOn = (b: MacBadge | null | undefined) => !!b && b.state !== "off" && b.state !== "none";
+/** Why a held Task waits, said to its assignee (`mine`) or to anyone else, by whether the assignee's Mac reports (`on`). */
+const heldText = (mine: boolean, on: boolean) =>
+  on ? (mine ? `내 ${HELD_MAC_ON}` : HELD_MAC_ON) : mine ? `${HELD_MINE_SHORT} Mac을 켜면 이어서 합니다.` : HELD;
+/** What stopped a failed work Task: the first sentence of its plain reason (the rest tells its assignee what to do). */
+const failureCause = (reason: string) => {
   const plain = plainFailure(reason, "work");
   const cut = plain.indexOf(". ");
-  return `${cut < 0 ? plain : plain.slice(0, cut + 1)} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 풀 수 있습니다.`;
+  return cut < 0 ? plain : plain.slice(0, cut + 1);
 };
+/** A failed work Task read by someone who does not hold it: what stopped it, then who can act (`release`: this reader may). */
+const failureForOthers = (reason: string, release: boolean) =>
+  `${failureCause(reason)} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 ${release ? "" : "PL이 "}풀 수 있습니다.`;
 /** A failed Story check: the fix is new Tasks from the PL's Mac; 풀기 checks again without fixes. */
 const verifyFailed = (pl: boolean) =>
   `Story 검증이 실패했습니다. ${pl ? "고칠 Task는 내 Mac(claude 대화)에서 더하세요." : "고칠 Task는 PL이 Mac(claude 대화)에서 더합니다."}`;
-const HELD_MAC_ON = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+/** A stopped Task in a list its lead reads (the Story card, /me's 내 Story에서 멈춘 일): why it stopped, said to that lead. */
+const stoppedForLead = (
+  x: { state: TaskViewState; kind: "work" | "verify"; failure: string | null; assignee: { id: string } | null },
+  me: Member,
+) => {
+  const mine = x.assignee?.id === me.id;
+  if (x.state === "held") return mine ? HELD_MINE_SHORT : HELD_SHORT;
+  if (x.kind === "verify") return verifyFailed(true);
+  return mine ? failureElsewhere(x.failure ?? "", "work") : `${failureCause(x.failure ?? "")} 맡은 사람이 다시 시도할 수 있습니다.`;
+};
 /**
  * The news line of a Task: a claim with no stage yet (a pick, a rerun or a claim the Mac has not beaten for) has only
  * the Hub's own claim time, so it says it waits for the Mac instead.
@@ -158,7 +176,7 @@ export function home(
           failedNow(open)
             ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>`
             : open.state === "held"
-              ? `<p>${HELD_MINE}</p><p>${taskLink(open.taskId, "자세히")}</p>`
+              ? `<p>${esc(heldText(true, macOn(chrome.mac)))}</p><p>${taskLink(open.taskId, "자세히")}</p>`
               : ""
         }`,
       )}</ul>`
@@ -166,7 +184,7 @@ export function home(
   const pick = (c: WorkCard) =>
     c.pick === "yes" ? `<div>${button(`/tasks/${c.taskId}/pick`, csrf, "작업하기")}</div>` : c.pick === "not-linked" ? `<p>${NOT_LINKED}</p>` : "";
   const led = w.led.length
-    ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failureLine(c)}`)}</section>`
+    ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failedNow(c) ? `<p>${esc(stoppedForLead(c, me))}</p>` : ""}`)}</section>`
     : "";
   const done = (c: WorkCard) => (c.prUrl ? dev(`<p>PR ${prLink(c.prUrl)}</p>`) : "");
   const plans = o.plans?.length
@@ -234,11 +252,13 @@ export function storyPage(
   const table = `<div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const board = o.board ?? null;
   const stopped = s.tasks.filter((t) => t.state === "failed" || t.state === "held");
+  // The PL can release each of these; only a failed work Task of their own can they retry.
+  const retry = stopped.some((t) => failedNow(t) && t.kind === "work" && t.assignee?.id === me.id);
   const todo = s.isPl
     ? [
         stopped.length
-          ? `<p>멈춘 Task ${stopped.length}개. Task 화면에서 다시 시도하거나 풀어 주세요.</p><ul class="work">${stopped
-              .map((t) => `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)} ${taskPill(t)}</p><p class="muted">${esc(t.state === "held" ? HELD_SHORT : t.kind === "verify" ? verifyFailed(true) : failureElsewhere(t.failure ?? "", t.kind))}</p></li>`)
+          ? `<p>멈춘 Task ${stopped.length}개. 각 Task 화면에서 ${retry ? "다시 시도하거나 " : ""}풀 수 있습니다.</p><ul class="work">${stopped
+              .map((t) => `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)} ${taskPill(t)}</p><p class="muted">${esc(stoppedForLead(t, me))}</p></li>`)
               .join("")}</ul>`
           : "",
         s.state === "awaiting_g4" ? `<p>${AWAITING_G4}</p>` : "",
@@ -298,18 +318,16 @@ export function taskPage(
   const mine = t.assignee?.id === me.id;
   const macOff =
     o.assigneeMac?.state === "off" ? ` (${mine ? "내 Mac" : "맡은 사람의 Mac"}: 꺼짐, 마지막 확인 ${ago(o.assigneeMac.lastSeen)})` : "";
-  // A Mac that reports (any state but off, and a member who has one) is on; with no Mac at all nothing is known.
-  const macOn = o.assigneeMac !== null && o.assigneeMac.state !== "off" && o.assigneeMac.state !== "none";
   const stop =
     t.state === "held"
-      ? `<div class="callout"><p><b>${esc(macOn ? HELD_MAC_ON : HELD + macOff)}</b></p></div>`
+      ? `<div class="callout"><p><b>${esc(heldText(mine, macOn(o.assigneeMac)) + macOff)}</b></p></div>`
       : failedNow(t)
         ? `<div class="callout"><p><b>${esc(
             t.kind === "verify"
-              ? `${verifyFailed(s.isPl)} 풀기는 고치지 않고 다시 검증합니다.`
-              : o.actions.rerun === "yes" || !o.actions.release
+              ? `${verifyFailed(s.isPl)}${o.actions.release ? " 풀기는 고치지 않고 다시 검증합니다." : ""}`
+              : mine
                 ? plainFailure(t.failure ?? "", t.kind)
-                : failureForLead(t.failure ?? ""),
+                : failureForOthers(t.failure ?? "", o.actions.release),
           )}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}</div>`
         : "";
   const wait = o.wait && working(t.state) ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
