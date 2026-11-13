@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d",
+  "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3",
+  "runId": "ba4692eb-2463-40d2-be26-384b3f4e2824",
+  "responseRef": "Claude Code conversation 2026-11-13. The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 14, label 'U47 G4') showed before/after screenshot pairs (Task failed as PL 1360, Story as PL 1360, /me as PL 1360, phone 390), a table of the sentence each reader gets, the checks (three kit reviews, kit verify 1922/1922), what was not verified, the three G4 questions and the options. The user gave feedback that the Hub's sentences run together (wanted line breaks by meaning and supplementary explanations behind an info toggle), then chose 'Hub screens' and 'U47 먼저, 다음 PR (Recommended)' — merge U47 as it is and apply line breaks and info toggles to every Hub screen in a separate PR — without answering the three questions (D13). Record: .ai-workflow/approvals/hub-pages-g4.md",
+  "branch": "hub-na-pages",
+  "head": "c0084be",
+  "date": "2026-11-13"
+}

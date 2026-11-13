@@ -51,6 +51,10 @@ export function plainFailure(reason: string, kind: "work" | "verify"): string {
   return FAILURES.find(([test]) => test.test(reason))?.[1] ?? DEFAULT_FAILURE;
 }
 
+/** A failed Task's reason where nothing is below it (a board, /me, a Story's card): it points to the Task page. */
+export const failureElsewhere = (reason: string, kind: "work" | "verify") =>
+  plainFailure(reason, kind).replace("아래 이유를", "Task 화면에서 이유를");
+
 /** Relative, because the hub's time zone may not be the reader's. */
 export function inTime(until: number | null, now: number): string {
   if (until === null) return "잠시 뒤";
@@ -97,6 +101,35 @@ export const HELD_SHORT = "맡은 사람의 Mac에서 10분 넘게 소식이 없
 const HELD = `${HELD_SHORT} Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.`;
 /** Held while the assignee's Mac reports: the Office let the claim go or cannot take it, so it will not go on by itself. */
 const HELD_MAC_ON = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+/** My own held Task, in one sentence. */
+const HELD_MINE_SHORT = "내 Mac에서 10분 넘게 소식이 없습니다.";
+/** A Mac that reports (any state but off, and a member who has one) is on; with no Mac at all nothing is known. */
+const macOn = (b: MacBadge | null | undefined) => !!b && b.state !== "off" && b.state !== "none";
+/** Why a held Task waits, said to its assignee (`mine`) or to anyone else, by whether the assignee's Mac reports (`on`). */
+const heldText = (mine: boolean, on: boolean) =>
+  on ? (mine ? `내 ${HELD_MAC_ON}` : HELD_MAC_ON) : mine ? `${HELD_MINE_SHORT} Mac을 켜면 이어서 합니다.` : HELD;
+/** What stopped a failed work Task: the first sentence of its plain reason (the rest tells its assignee what to do). */
+const failureCause = (reason: string) => {
+  const plain = plainFailure(reason, "work");
+  const cut = plain.indexOf(". ");
+  return cut < 0 ? plain : plain.slice(0, cut + 1);
+};
+/** A failed work Task read by someone who does not hold it: what stopped it, then who can act (`release`: this reader may). */
+const failureForOthers = (reason: string, release: boolean) =>
+  `${failureCause(reason)} 맡은 사람이 다시 시도할 수 있습니다. 오래 멈춰 있으면 ${release ? "" : "PL이 "}풀 수 있습니다.`;
+/** A failed Story check: the fix is new Tasks from the PL's Mac; 풀기 checks again without fixes. */
+const verifyFailed = (pl: boolean) =>
+  `Story 검증이 실패했습니다. ${pl ? "고칠 Task는 내 Mac(claude 대화)에서 더하세요." : "고칠 Task는 PL이 Mac(claude 대화)에서 더합니다."}`;
+/** A stopped Task in a list its lead reads (the Story card, /me's 내 Story에서 멈춘 일): why it stopped, said to that lead. */
+const stoppedForLead = (
+  x: { state: TaskViewState; kind: "work" | "verify"; failure: string | null; assignee: { id: string } | null },
+  me: Member,
+) => {
+  const mine = x.assignee?.id === me.id;
+  if (x.state === "held") return mine ? HELD_MINE_SHORT : HELD_SHORT;
+  if (x.kind === "verify") return verifyFailed(true);
+  return mine ? failureElsewhere(x.failure ?? "", "work") : `${failureCause(x.failure ?? "")} 맡은 사람이 다시 시도할 수 있습니다.`;
+};
 /**
  * The news line of a Task: a claim with no stage yet (a pick, a rerun or a claim the Mac has not beaten for) has only
  * the Hub's own claim time, so it says it waits for the Mac instead.
@@ -108,12 +141,12 @@ const news = (x: { state: TaskViewState; stage: string | null; heartbeatAt: numb
 
 /** One Task on the work page: where it is, its state, and what this list adds (`extra` is markup). */
 function card(c: WorkCard, extra = "") {
-  const where = `Story #${c.story.number} ${esc(c.story.title)}${c.repo ? ` · ${esc(c.repo.name)}` : ""}`;
+  const where = `<a href="/stories/${esc(c.story.id)}">Story #${c.story.number} ${esc(c.story.title)}</a>${c.repo ? ` · ${esc(c.repo.name)}` : ""}`;
   return `<li><p>${taskLink(c.taskId, `#${c.number} ${c.title}`)} ${taskPill(c)}</p><p class="muted">${where}</p>${extra}</li>`;
 }
 const cards = (list: WorkCard[], empty: string, extra: (c: WorkCard) => string = () => "") =>
   list.length ? `<ul class="work">${list.map((c) => card(c, extra(c))).join("")}</ul>` : `<p class="muted">${esc(empty)}</p>`;
-const failureLine = (c: WorkCard) => (failedNow(c) ? `<p>${esc(plainFailure(c.failure ?? "", c.kind))}</p>` : "");
+const failureLine = (c: WorkCard) => (failedNow(c) ? `<p>${esc(failureElsewhere(c.failure ?? "", c.kind))}</p>` : "");
 /** A Story plan in progress: its page and its state word. */
 const planLink = (p: PlanCard) => `<a href="/plans/${esc(p.id)}">${esc(p.title)}</a> ${planPill(p)}`;
 
@@ -140,14 +173,18 @@ export function home(
     ? `<ul class="work">${card(
         open,
         `<p class="muted">${esc(news(open, true))}</p>${restInCard ? rest : ""}${
-          failedNow(open) ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>` : ""
+          failedNow(open)
+            ? `${failureLine(open)}<p>${taskLink(open.taskId, "자세히·다시 시도")}</p>`
+            : open.state === "held"
+              ? `<p>${esc(heldText(true, macOn(chrome.mac)))}</p><p>${taskLink(open.taskId, "자세히")}</p>`
+              : ""
         }`,
       )}</ul>`
     : `<p class="muted">${w.ready.some((c) => c.pick === "yes") ? "지금 맡은 일이 없습니다. 아래 받을 수 있는 일에서 [작업하기]로 하나를 맡으세요." : "지금 맡은 일이 없습니다."}</p>`;
   const pick = (c: WorkCard) =>
     c.pick === "yes" ? `<div>${button(`/tasks/${c.taskId}/pick`, csrf, "작업하기")}</div>` : c.pick === "not-linked" ? `<p>${NOT_LINKED}</p>` : "";
   const led = w.led.length
-    ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failureLine(c)}`)}</section>`
+    ? `<section><h2>내 Story에서 멈춘 일</h2>${cards(w.led, "", (c) => `<p class="muted">맡은 사람: ${esc(c.assignee?.name ?? "없음")}</p>${failedNow(c) ? `<p>${esc(stoppedForLead(c, me))}</p>` : ""}`)}</section>`
     : "";
   const done = (c: WorkCard) => (c.prUrl ? dev(`<p>PR ${prLink(c.prUrl)}</p>`) : "");
   const plans = o.plans?.length
@@ -157,7 +194,9 @@ export function home(
     o.macNudge ? MAC_NUDGE : "",
     `<section><h1>내 할 일</h1><div class="row">자동으로 일하기 ${pill(w.autoWork ? "켜짐" : "꺼짐")} ${toggle}</div><p>${switchLine}</p><p class="muted">${refresh("/me")}</p></section>`,
     rest && !restInCard ? `<section>${rest}</section>` : "",
-    `<section><h2>지금 맡은 일</h2>${openPart}</section>`,
+    open && (failedNow(open) || open.state === "held")
+      ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2><p>내가 맡은 Task가 멈췄습니다.</p>${openPart}</section>`
+      : `<section><h2>지금 맡은 일</h2>${openPart}</section>`,
     plans,
     `<section><h2>받을 수 있는 일</h2>${cards(w.ready, "지금 받을 수 있는 일이 없습니다. 내가 맡은 레포에 할 일이 생기면 여기에 보입니다.", pick)}</section>`,
     led,
@@ -207,14 +246,30 @@ export function storyPage(
   const approval = up ? `<p class="muted wrap">로컬 승인 · ${esc(up.macName)} · ${esc(ago(up.at))}</p>` : "";
   const cancel =
     up && s.state === "draft" && (s.isPl || me.admin)
-      ? `<form method="post" action="/stories/${esc(s.id)}/cancel">${csrfField(csrf)}<p>아직 열리지 않았습니다. 취소하면 이 Story는 열리지 않고, 같은 글로는 다시 올릴 수 없습니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
+      ? `<details class="other"><summary>이 Story 취소</summary><form method="post" action="/stories/${esc(s.id)}/cancel">${csrfField(csrf)}<p>아직 열리지 않았습니다. 취소하면 이 Story는 열리지 않고, 같은 글로는 다시 올릴 수 없습니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form></details>`
       : "";
   const hash = up ? `<h3>로컬 승인</h3><p class="wrap">Story 해시 <code>${esc(up.storyHash)}</code></p>` : "";
   const table = `<div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const board = o.board ?? null;
-  const awaiting = s.state === "awaiting_g4" ? `<p>${AWAITING_G4}</p>` : "";
+  const stopped = s.tasks.filter((t) => t.state === "failed" || t.state === "held");
+  // The PL can release each of these; only a failed work Task of their own can they retry.
+  const retry = stopped.some((t) => failedNow(t) && t.kind === "work" && t.assignee?.id === me.id);
+  const todo = s.isPl
+    ? [
+        stopped.length
+          ? `<p>멈춘 Task ${stopped.length}개. 각 Task 화면에서 ${retry ? "다시 시도하거나 " : ""}풀 수 있습니다.</p><ul class="work">${stopped
+              .map((t) => `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)} ${taskPill(t)}</p><p class="muted">${esc(stoppedForLead(t, me))}</p></li>`)
+              .join("")}</ul>`
+          : "",
+        s.state === "awaiting_g4" ? `<p>${AWAITING_G4}</p>` : "",
+      ].join("")
+    : "";
+  const decide = todo ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2>${todo}</section>` : "";
+  // The PL reads the result approval in the card; everyone else sees it under the steps.
+  const awaiting = s.state === "awaiting_g4" && !s.isPl ? `<p>${AWAITING_G4}</p>` : "";
   return layout(`Story #${s.number}`, me, [
     `<section class="head"><p class="muted"><a href="/">Story 보드</a> · Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${steps(s.state)}${board ? `<p class="sprog">${board.progress}</p>` : ""}${awaiting}${approval}${cancel}<p class="muted">${refresh(`/stories/${s.id}`)}</p></section>`,
+    decide,
     board
       ? `<section class="taskboard" aria-labelledby="taskboard"><h2 id="taskboard">Task</h2>${board.columns}<details><summary>표로 보기(앞 Task 포함)</summary>${table}</details></section>`
       : `<section><h2>Task</h2>${table}</section>`,
@@ -223,33 +278,32 @@ export function storyPage(
   ].join(""), chrome);
 }
 
-/** Forms Task 5's POST routes receive; each is shown only when `taskActions` says the viewer may. */
+/**
+ * Forms Task 5's POST routes receive, each only when `taskActions` says the viewer may, and the notes that say why one
+ * is missing. The page puts one form in its 지금 할 일 card (rerun, else release, else pick) and folds the others.
+ */
 function actionForms(t: TaskView, csrf: string, a: TaskActions) {
   const base = `/tasks/${t.id}`;
-  const pick =
-    a.pick === "yes"
-      ? `<div>${button(`${base}/pick`, csrf, "작업하기")}</div>`
-      : a.pick === "auto-on"
-        ? `<p class="muted">자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다.</p>`
-        : a.pick === "not-linked"
-          ? `<p>${NOT_LINKED}</p>`
-          : "";
+  const pick = a.pick === "yes" ? `<div>${button(`${base}/pick`, csrf, "작업하기")}</div>` : "";
+  const notes = [
+    a.pick === "auto-on" ? `<p class="muted">자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다.</p>` : a.pick === "not-linked" ? `<p>${NOT_LINKED}</p>` : "",
+    a.rerun === "not-linked" ? `<p>${RERUN_NOT_LINKED}</p>` : "",
+    a.cancel === "locked" ? `<p>합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요.</p>` : "",
+  ].join("");
   const rerun =
     a.rerun === "yes"
       ? `<form method="post" action="${esc(base)}/rerun">${csrfField(csrf)}<label>메모 <span class="muted">(선택, ${LIMITS.memoMax}자까지)</span><textarea name="memo" rows="3" maxlength="${LIMITS.memoMax}"></textarea></label><div class="row"><button>다시 시도</button></div></form>`
-      : a.rerun === "not-linked"
-        ? `<p>${RERUN_NOT_LINKED}</p>`
-        : "";
+      : "";
   const release = a.release
     ? `<form method="post" action="${esc(base)}/release">${csrfField(csrf)}<p>${esc(t.kind === "verify" ? "풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다." : "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.")}${t.mergeLock ? " 합치는 중이었을 수 있습니다." : ""}</p><div class="row"><button class="secondary">풀기</button></div></form>`
     : "";
   const cancel =
     a.cancel === "yes"
       ? `<form method="post" action="${esc(base)}/cancel">${csrfField(csrf)}<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`
-      : a.cancel === "locked"
-        ? `<p>합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요.</p>`
-        : "";
-  return pick + rerun + release + cancel;
+      : "";
+  const primary = rerun || release || pick;
+  const rest = [rerun, release, pick, cancel].filter((f) => f && f !== primary).join("");
+  return { primary, rest, notes };
 }
 
 /** `wait` and `assigneeMac` are the assignee's, read by the caller; both are null when nobody holds the Task. */
@@ -264,13 +318,17 @@ export function taskPage(
   const mine = t.assignee?.id === me.id;
   const macOff =
     o.assigneeMac?.state === "off" ? ` (${mine ? "내 Mac" : "맡은 사람의 Mac"}: 꺼짐, 마지막 확인 ${ago(o.assigneeMac.lastSeen)})` : "";
-  // A Mac that reports (any state but off, and a member who has one) is on; with no Mac at all nothing is known.
-  const macOn = o.assigneeMac !== null && o.assigneeMac.state !== "off" && o.assigneeMac.state !== "none";
   const stop =
     t.state === "held"
-      ? `<div class="callout"><p><b>${esc(macOn ? HELD_MAC_ON : HELD + macOff)}</b></p></div>`
+      ? `<div class="callout"><p><b>${esc(heldText(mine, macOn(o.assigneeMac)) + macOff)}</b></p></div>`
       : failedNow(t)
-        ? `<div class="callout"><p><b>${esc(plainFailure(t.failure ?? "", t.kind))}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}</div>`
+        ? `<div class="callout"><p><b>${esc(
+            t.kind === "verify"
+              ? `${verifyFailed(s.isPl)}${o.actions.release ? " 풀기는 고치지 않고 다시 검증합니다." : ""}`
+              : mine
+                ? plainFailure(t.failure ?? "", t.kind)
+                : failureForOthers(t.failure ?? "", o.actions.release),
+          )}</b></p>${t.failure ? `<details><summary>자세한 이유</summary><pre>${esc(t.failure)}</pre></details>` : ""}</div>`
         : "";
   const wait = o.wait && working(t.state) ? `<p>${esc(waitText(o.wait, Date.now()))}</p>` : "";
   const result =
@@ -289,8 +347,15 @@ export function taskPage(
       ? `<h3>앞 Task</h3><ul>${deps.map((x) => `<li>${taskLink(x.id, `#${x.number} ${x.title}`)} ${taskPill(x)}</li>`).join("")}</ul>`
       : "",
   ].join("");
+  const acts = actionForms(t, csrf, o.actions);
+  // One action is the viewer's to do now: the card holds it with why the Task stopped; the others fold under it.
+  const decide = acts.primary
+    ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2>${stop}${wait}${acts.notes}${acts.primary}${acts.rest ? `<details class="other"><summary>다른 방법</summary>${acts.rest}</details>` : ""}</section>`
+    : "";
+  const fold = !acts.primary && acts.rest ? `<details class="other"><summary>이 Task 바꾸기</summary>${acts.rest}</details>` : "";
   return layout(`Task #${t.number}`, me, [
-    `<section class="head"><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${stop}${wait}${actionForms(t, csrf, o.actions)}</section>`,
+    `<section class="head"><p class="muted"><a href="/stories/${esc(s.id)}">Story #${s.number} ${esc(s.title)}</a>${t.repo ? ` · ${esc(t.repo.name)}` : ""}</p><h1>Task #${t.number} ${esc(t.title)}</h1><p class="state">${taskPill(t)} 맡은 사람: ${esc(t.assignee?.name ?? "없음")} · ${esc(news(t, mine))} · ${refresh(`/tasks/${t.id}`)}</p>${decide ? "" : stop + wait + acts.notes}${fold}</section>`,
+    decide,
     result,
     work ? `<section><h2>할 일 내용</h2>${work}</section>` : "",
     t.memo ? `<section><h2>마지막 메모</h2><pre>${esc(t.memo)}</pre></section>` : "",

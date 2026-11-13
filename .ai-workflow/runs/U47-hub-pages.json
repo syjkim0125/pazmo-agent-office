@@ -1,0 +1,710 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "ba4692eb-2463-40d2-be26-384b3f4e2824",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes: held sentences by reader and Mac state (my Task asks to turn the Mac on only while no Mac reports; on or resting says it is on), failed sentences by reader (assignee retries; others read the cause and who can act), the 풀기 sentence on a failed check only for who can release, the Story card and /me led speak to the PL, HELD_MAC_ON comment. RED 6/18 -> GREEN 145/145, Hub tests 618/618, tsc 0, 80 browser checks with 0 overflow/past-edge. Commit c0084be.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-implement-3.md",
+            ".ai-workflow/runs/U47-hub-pages-implement-red-3.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-green-3.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-hub-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-implement-3.md": "33ed60a0773c578a2b13963d64478c53bd4f2c7701bf6c68ed4506026bf6b5ec",
+          ".ai-workflow/runs/U47-hub-pages-implement-red-3.txt": "94fa98527e8c552f9dfdd25cf42e7e7a1e1c6e2b078c2e808586c305bbbb5fc8",
+          ".ai-workflow/runs/U47-hub-pages-implement-green-3.txt": "fbad6b65cb00087ee99bb08043d5e284f727a3c81e00bbca0bda4af85448281b",
+          ".ai-workflow/runs/U47-hub-pages-implement-hub-3.txt": "2a82c4bccdb13b80e7c7ed2bfda42803cf0bb9932bb08b1187f296d4e846858f"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3",
+        "output": {
+          "summary": "Independent review 3 of b3d5d03..c0084be and the whole PR 2a5c7d7..c0084be: Ready. No Critical or Important. I1' and the five review-2 Minors fixed and tested; 1,080 + 34,560 rendered taskPage combinations (5 readers x states x kinds x Mac states x actions) with no lost or duplicated forms, no wrong-reader sentence and nothing unescaped; storyPage and home rendered for every case; 19 deliberate breakages each fail a test; 145/145 page tests, tsc 0; 64/64 browser runs clean; server.ts and story-store.ts untouched. Minor, acceptable to ship: a locked Mac counts as on without saying unlock; the PL reads PL in the third person on their own silent Task; the Story card offers 다시 시도 when the PL's own retry is not-linked; board wording (U46) unchanged; a fold can close when the Task's state changes.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-review-3.md": "11321ce383d486934acae9db671878829db8113bf9b449ea783a673bf6831502"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/6623f191-3374-48d6-a276-f8addaaa2516/receipt.json",
+            "hash": "259ad332113e3438bb50aa8e83bfcefcc130b08ad2612bac8a1ad0452b23ca67"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/acf48c4f-e6ce-439b-8226-7ea348324f8a/receipt.json",
+            "hash": "a32255a5c1889db5b881e2226bea57ae33f11c74c78040e2695f643bfb8b18a4"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/c06d6f29-119a-4dd2-a657-126d3492e1a4/receipt.json",
+            "hash": "9fb1a81d6b8618588ab687a400071d055c92538db635125cdc2cd1ce804c7302"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/a168c818-42ae-40bb-ae05-986492ff600f/receipt.json",
+            "hash": "0e3f0131d4a8ce20318e7984d2a0dda9ca42c8f90ce579e6f3f4c4f642f75c96"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/1d3cb11e-d4b2-4322-8331-dc93db837ef2/receipt.json",
+            "hash": "a0b9d0f9b1caeeed43fd81e7a4e2ab22000ed2fc3a691cfa1efff94fbc6b85c3"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on c0084be: tests 659/659 + 586/586 + 677/677 = 1922/1922, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-verify-1.md": "543ecc6bec48582ea9a9fb218496ade06d264b8c38e15f45687f5fbfb39af89d"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:26:30.912Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:32:26.279Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "지금 할 일 card on the Task page (one action: rerun, else release, else pick; the rest folded), the Story page (PL only: stopped Tasks and the result approval), and /me (a stopped Task of mine); /me links Stories and uses board wording; Story steps as bars; list rows without trays. Hub tests 606/606, tsc 0, 80 browser checks with 0 overflow/past-edge. Commit 1b6e01a.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-implement-1.md",
+            ".ai-workflow/runs/U47-hub-pages-implement-red-1.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-green-1.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-hub-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-implement-1.md": "b1b9092eceb4e6e32c7c2b7961e30bc1aea867d0d847afc6e12e322fd20bde8c",
+          ".ai-workflow/runs/U47-hub-pages-implement-red-1.txt": "b81232f60cfc7d4df730343efd3f7f72931633c478a36f0fb6198921a92f1e7a",
+          ".ai-workflow/runs/U47-hub-pages-implement-green-1.txt": "96697f70979e8cac05914d40b33c5067fcb95e9a104637eb6f2368ca9d8522fd",
+          ".ai-workflow/runs/U47-hub-pages-implement-hub-1.txt": "d076d25e30b38659607e76b9c78249c44d12ca4488b8765b70d98c8dddb2a80e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:32:32.943Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:44:39.421Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "8e9c4a583ff4dbcc412c9a975347479eec97bcaab44d424a53f3274baf72e767",
+        "output": {
+          "summary": "Independent review 1 of 2a5c7d7..1b6e01a: Not ready. Important: I1 /me makes a held Task a 지금 할 일 card with nothing to do; I2 the card text speaks to the assignee when the PL reads it, and a failed verify Task does not name its real next step; I3 the PR invariants (stop reason once, AWAITING_G4 once, held Tasks in the Story card, action order, one id=decide, step bar colour) are not guarded by tests. Minor: current step not bolder, notes above the card, uneven card coverage. No regressions in behaviour, permissions or forms across 1,080 rendered combinations.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "8e9c4a583ff4dbcc412c9a975347479eec97bcaab44d424a53f3274baf72e767"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1 (held Task on /me: say my Mac is silent and link 자세히), I2 (reason text by viewer and kind; verify: add fix Tasks from the PL Mac, 풀기 re-verifies without fixes), I3 (count tests for the invariants), m1 (current step bold), m2 (notes and Mac rest inside the card); record m3 as intended."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-review-1.md": "ccd8299bdae656a77e0e3a755a619eb7487391b43dd5c63b6df0da9a5207beec"
+        },
+        "error": "Fix I1 (held Task on /me: say my Mac is silent and link 자세히), I2 (reason text by viewer and kind; verify: add fix Tasks from the PL Mac, 풀기 re-verifies without fixes), I3 (count tests for the invariants), m1 (current step bold), m2 (notes and Mac rest inside the card); record m3 as intended."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1 (Not ready): I1 held Task on /me, I2 card text by viewer and kind, I3 invariant tests, m1 bold current step, m2 notes in the card",
+      "at": "2026-11-12T09:44:39.914Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:44:49.588Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:50:19.870Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: /me held card says my Mac is silent and links 자세히; card words by reader (PL with 풀기 only reads the cause and who can retry) and kind (failed Story check: add fixing Tasks from the PL Mac; 풀기 re-checks); notes and Mac rest inside the card; current step bold; tests pin the card invariants. RED 3/12 -> GREEN 139/139, Hub tests 612/612, tsc 0, 80 browser checks with 0 overflow/past-edge. Commit b3d5d03.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-implement-2.md",
+            ".ai-workflow/runs/U47-hub-pages-implement-red-2.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-green-2.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-implement-2.md": "d87d905adb4837a9279eaefad8190d5e866a597bcdc76d877523ffe1b12f7501",
+          ".ai-workflow/runs/U47-hub-pages-implement-red-2.txt": "063271c7321cd28d39ae110b95e13c76f32fcfa857926ab4b882ae39b30aeb88",
+          ".ai-workflow/runs/U47-hub-pages-implement-green-2.txt": "80bf7ecd08ed80bb307e8b57755e01bc63cca4f2085cb3cc0364f0bcf00b66c8",
+          ".ai-workflow/runs/U47-hub-pages-implement-hub-2.txt": "843994e36d0647cbb40680a7037e2a18845a29939ab969aa56afd915b24fed2b"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:50:31.727Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-12T09:58:21.132Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "036d206e27a7de2475cf4122c64c5cb8af9327b1782df68619d9462f5a309beb",
+        "output": {
+          "summary": "Independent review 2 of 1b6e01a..b3d5d03 and the whole PR 2a5c7d7..b3d5d03: Not ready. Important I1': /me tells me to turn on a Mac that is already on (HELD_MINE for every held Task of mine; the Task page uses macOn). Minor: tests miss N2 (sentence by mine), M13 (one decide on the Story page), N6 (wait in the card), N8 (notes before the action); the 풀기 sentence on a failed check shows without 풀기; a PL's own not-linked failed Task reads 맡은 사람이 다시 시도할 수 있습니다; the Story card line says 다시 시도 when only checks failed; HELD_MAC_ON's doc comment moved. I2, I3, m1, m2 fixed; m3 recorded; 1,080 + 6,144 rendered combinations with no lost or duplicated forms and no unescaped text; 64/64 browser runs clean.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "036d206e27a7de2475cf4122c64c5cb8af9327b1782df68619d9462f5a309beb"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1' (/me held card by my Mac badge: on or resting says the Mac is on but this Task has no news; off or none keeps Mac을 켜면), the wording minors (풀기 sentence only with release; lead sentence by mine; Story card line without 다시 시도 when only checks failed; HELD_MAC_ON comment), and add tests for N2, M13, N6, N8 and I1'."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-review-2.md": "8444375ecd8593948c3de5e3409501e95ec5ab66be46cca5852b7890da5ae6f6"
+        },
+        "error": "Fix I1' (/me held card by my Mac badge: on or resting says the Mac is on but this Task has no news; off or none keeps Mac을 켜면), the wording minors (풀기 sentence only with release; lead sentence by mine; Story card line without 다시 시도 when only checks failed; HELD_MAC_ON comment), and add tests for N2, M13, N6, N8 and I1'."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 2: /me held card ignores my Mac badge; wording minors; test gaps",
+      "at": "2026-11-12T09:58:25.531Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-12T09:58:30.046Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-13T01:50:52.224Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes: held sentences by reader and Mac state (my Task asks to turn the Mac on only while no Mac reports; on or resting says it is on), failed sentences by reader (assignee retries; others read the cause and who can act), the 풀기 sentence on a failed check only for who can release, the Story card and /me led speak to the PL, HELD_MAC_ON comment. RED 6/18 -> GREEN 145/145, Hub tests 618/618, tsc 0, 80 browser checks with 0 overflow/past-edge. Commit c0084be.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-implement-3.md",
+            ".ai-workflow/runs/U47-hub-pages-implement-red-3.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-green-3.txt",
+            ".ai-workflow/runs/U47-hub-pages-implement-hub-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-implement-3.md": "33ed60a0773c578a2b13963d64478c53bd4f2c7701bf6c68ed4506026bf6b5ec",
+          ".ai-workflow/runs/U47-hub-pages-implement-red-3.txt": "94fa98527e8c552f9dfdd25cf42e7e7a1e1c6e2b078c2e808586c305bbbb5fc8",
+          ".ai-workflow/runs/U47-hub-pages-implement-green-3.txt": "fbad6b65cb00087ee99bb08043d5e284f727a3c81e00bbca0bda4af85448281b",
+          ".ai-workflow/runs/U47-hub-pages-implement-hub-3.txt": "2a82c4bccdb13b80e7c7ed2bfda42803cf0bb9932bb08b1187f296d4e846858f"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-13T01:50:59.750Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-13T01:58:30.029Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3",
+        "output": {
+          "summary": "Independent review 3 of b3d5d03..c0084be and the whole PR 2a5c7d7..c0084be: Ready. No Critical or Important. I1' and the five review-2 Minors fixed and tested; 1,080 + 34,560 rendered taskPage combinations (5 readers x states x kinds x Mac states x actions) with no lost or duplicated forms, no wrong-reader sentence and nothing unescaped; storyPage and home rendered for every case; 19 deliberate breakages each fail a test; 145/145 page tests, tsc 0; 64/64 browser runs clean; server.ts and story-store.ts untouched. Minor, acceptable to ship: a locked Mac counts as on without saying unlock; the PL reads PL in the third person on their own silent Task; the Story card offers 다시 시도 when the PL's own retry is not-linked; board wording (U46) unchanged; a fold can close when the Task's state changes.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-review-3.md": "11321ce383d486934acae9db671878829db8113bf9b449ea783a673bf6831502"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-13T01:58:45.316Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-13T02:04:22.578Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/6623f191-3374-48d6-a276-f8addaaa2516/receipt.json",
+            "hash": "259ad332113e3438bb50aa8e83bfcefcc130b08ad2612bac8a1ad0452b23ca67"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/acf48c4f-e6ce-439b-8226-7ea348324f8a/receipt.json",
+            "hash": "a32255a5c1889db5b881e2226bea57ae33f11c74c78040e2695f643bfb8b18a4"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/c06d6f29-119a-4dd2-a657-126d3492e1a4/receipt.json",
+            "hash": "9fb1a81d6b8618588ab687a400071d055c92538db635125cdc2cd1ce804c7302"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/a168c818-42ae-40bb-ae05-986492ff600f/receipt.json",
+            "hash": "0e3f0131d4a8ce20318e7984d2a0dda9ca42c8f90ce579e6f3f4c4f642f75c96"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/ba4692eb-2463-40d2-be26-384b3f4e2824/1d3cb11e-d4b2-4322-8331-dc93db837ef2/receipt.json",
+            "hash": "a0b9d0f9b1caeeed43fd81e7a4e2ab22000ed2fc3a691cfa1efff94fbc6b85c3"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on c0084be: tests 659/659 + 586/586 + 677/677 = 1922/1922, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U47-hub-pages-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b7025c8cc11e3d7e7b1f8d067406024cd3fb338c12901182b078c1a42044f4b3"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U47-hub-pages-verify-1.md": "543ecc6bec48582ea9a9fb218496ade06d264b8c38e15f45687f5fbfb39af89d"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

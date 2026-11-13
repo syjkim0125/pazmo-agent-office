@@ -1,0 +1,76 @@
+✔ U47: a failed Task's page opens with 지금 할 일: the reason and 다시 시도 first, 풀기 and 취소 folded under 다른 방법 (134.195333ms)
+✔ U47: a Task whose Mac went silent gives its PL 풀기 as 지금 할 일; a running Task has no card and folds 취소 under 이 Task 바꾸기 (98.908542ms)
+✔ U47: a ready Task the viewer may take shows 작업하기 as 지금 할 일 (77.637625ms)
+✔ U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for the result approval, and nobody else (102.413167ms)
+✔ U47: /me links each Task's Story, says where a failed Task's reason is, and puts a stopped Task of mine first as 지금 할 일 (204.128417ms)
+✔ U47: the card, the lists and the Story steps are drawn without trays (82.331459ms)
+✔ U47: a stopped Task's reason shows once, in the card when there is one, otherwise in the head; one card per page (94.498917ms)
+✔ U47: a lead who also holds the Task gets 다시 시도 as the card's action and 풀기 folded (84.413208ms)
+✖ U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check (89.539125ms)
+✔ U47: the Story card lists a Task whose Mac went silent, and the result approval reads once for everyone (343.826084ms)
+✖ U47: on /me my Task whose Mac went silent says so and links its page (175.470709ms)
+✖ U47: the step you are on is the bolder one (112.235667ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 9
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1834.4685
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:1366:1
+✖ U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check (89.539125ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\. 오래 멈춰 있으면 풀 수 있습니다\./. Input:
+  
+  '<h2 id="decide">지금 할 일</h2><div class="callout"><p><b>AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요.</b></p><details><summary>자세한 이유</summary><pre>tests failed</pre></details></div><form method="post" action="/tasks/b6f16cd9-6f9d-4dae-9b7a-9725a91bcc44/release"><input type="hidden" name="csrf" value="Tq-VeN_lorGUYbC_2C2IXfYZ5TyDixSPPkFsiWNMPPw"><p>풀면 이 Task는 다시 &#39;할 일&#39;이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.</p><div class="row"><button class="secondary">풀기</button></div></form><details class="other"><summary>다른 방법</summary><form method="post" action="/tasks/b6f16cd9-6f9d-4dae-9b7a-9725a91bcc44/cancel"><input type="hidden" name="csrf" value="Tq-VeN_lorGUYbC_2C2IXfYZ5TyDixSPPkFsiWNMPPw"><p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form></details>'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1373:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><div class="callout"><p><b>AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요.</b></p><details><summary>자세한 이유</summary><pre>tests failed</pre></details></div><form method="post" action="/tasks/b6f16cd9-6f9d-4dae-9b7a-9725a91bcc44/release"><input type="hidden" name="csrf" value="Tq-VeN_lorGUYbC_2C2IXfYZ5TyDixSPPkFsiWNMPPw"><p>풀면 이 Task는 다시 &#39;할 일&#39;이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.</p><div class="row"><button class="secondary">풀기</button></div></form><details class="other"><summary>다른 방법</summary><form method="post" action="/tasks/b6f16cd9-6f9d-4dae-9b7a-9725a91bcc44/cancel"><input type="hidden" name="csrf" value="Tq-VeN_lorGUYbC_2C2IXfYZ5TyDixSPPkFsiWNMPPw"><p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form></details>',
+    expected: /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\. 오래 멈춰 있으면 풀 수 있습니다\./,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1404:1
+✖ U47: on /me my Task whose Mac went silent says so and links its page (175.470709ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /내 Mac에서 10분 넘게 소식이 없습니다\. Mac을 켜면 이어서 합니다\./. Input:
+  
+  '<h2 id="decide">지금 할 일</h2><p>내가 맡은 Task가 멈췄습니다.</p><ul class="work"><li><p><a href="/tasks/52406f8e-a712-4e53-819f-154e30b1f978">#2 a 작업</a> <span class="pill stop">멈춤(Mac 소식 없음)</span></p><p class="muted"><a href="/stories/351f4d5e-9c92-4fa1-95e7-cc660d8e56fc">Story #1 쿠폰 발급</a> · app-be</p><p class="muted">마지막 소식 20분 전</p></li></ul>'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1409:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><p>내가 맡은 Task가 멈췄습니다.</p><ul class="work"><li><p><a href="/tasks/52406f8e-a712-4e53-819f-154e30b1f978">#2 a 작업</a> <span class="pill stop">멈춤(Mac 소식 없음)</span></p><p class="muted"><a href="/stories/351f4d5e-9c92-4fa1-95e7-cc660d8e56fc">Story #1 쿠폰 발급</a> · app-be</p><p class="muted">마지막 소식 20분 전</p></li></ul>',
+    expected: /내 Mac에서 10분 넘게 소식이 없습니다\. Mac을 켜면 이어서 합니다\./,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1413:1
+✖ U47: the step you are on is the bolder one (112.235667ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /font-weight:500/. Input:
+  
+  'display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:6px 4px 0;border-top:4px solid var(--line);text-align:center'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1415:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:6px 4px 0;border-top:4px solid var(--line);text-align:center',
+    expected: /font-weight:500/,
+    operator: 'match',
+    diff: 'simple'
+  }

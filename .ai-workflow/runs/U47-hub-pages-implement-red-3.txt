@@ -1,0 +1,121 @@
+✔ U47: a failed Task's page opens with 지금 할 일: the reason and 다시 시도 first, 풀기 and 취소 folded under 다른 방법 (2510.400125ms)
+✔ U47: a Task whose Mac went silent gives its PL 풀기 as 지금 할 일; a running Task has no card and folds 취소 under 이 Task 바꾸기 (2644.468417ms)
+✔ U47: a ready Task the viewer may take shows 작업하기 as 지금 할 일 (2062.486916ms)
+✖ U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for the result approval, and nobody else (1636.048167ms)
+✔ U47: /me links each Task's Story, says where a failed Task's reason is, and puts a stopped Task of mine first as 지금 할 일 (1358.954ms)
+✔ U47: the card, the lists and the Story steps are drawn without trays (1337.590458ms)
+✔ U47: a stopped Task's reason shows once, in the card when there is one, otherwise in the head; one card per page (1133.450166ms)
+✔ U47: a lead who also holds the Task gets 다시 시도 as the card's action and 풀기 folded (1166.254791ms)
+✔ U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check (1076.354541ms)
+✔ U47: the Story card lists a Task whose Mac went silent, and the result approval reads once for everyone (348.413459ms)
+✔ U47: on /me my Task whose Mac went silent says so and links its page (716.381875ms)
+✔ U47: the step you are on is the bolder one (809.974875ms)
+✖ U47: my held Task asks me to turn my Mac on only while no Mac reports; on or resting it says the Mac is on, on /me and on the Task page (788.493958ms)
+✖ U47: a failed Task's sentence follows the reader: its holder is told to retry even when 풀기 is the card's action; others read who can act (895.41425ms)
+✔ U47: in the card, why the Mac rests and the notes come before its action (681.657875ms)
+✖ U47: a failed Story check gives 풀기's sentence only to who can release, and the Story card does not ask its PL to retry a check (553.9285ms)
+✖ U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: someone else's failed Task says who can retry, mine says to retry (1306.79025ms)
+✖ U47: the PL's own silent Task reads as my Mac in the Story card (1251.906292ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 12
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 23418.555542
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:1286:1
+✖ U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for the result approval, and nobody else (1636.048167ms)
+  AssertionError [ERR_ASSERTION]: C's Task: the PL reads who can retry (U47 review 2)
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1295:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><p>멈춘 Task 1개. Task 화면에서 다시 시도하거나 풀어 주세요.</p><ul class="work"><li><p><a href="/tasks/1da5ea01-b3fb-4233-9e02-52c7b51f4f90">#2 a 작업</a> <span class="pill stop">멈춤(실패)</span></p><p class="muted">AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요.</p></li></ul>',
+    expected: /맡은 사람이 다시 시도할 수 있습니다\./,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1424:1
+✖ U47: my held Task asks me to turn my Mac on only while no Mac reports; on or resting it says the Mac is on, on /me and on the Task page (788.493958ms)
+  AssertionError [ERR_ASSERTION]: Task: no Mac reports
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1431:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1452:1
+✖ U47: a failed Task's sentence follows the reader: its holder is told to retry even when 풀기 is the card's action; others read who can act (895.41425ms)
+  AssertionError [ERR_ASSERTION]: B can do neither
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1460:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1495:1
+✖ U47: a failed Story check gives 풀기's sentence only to who can release, and the Story card does not ask its PL to retry a check (553.9285ms)
+  AssertionError [ERR_ASSERTION]: B has no 풀기
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1505:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="etag" content="&quot;d83bbd2f3b53578e&quot;"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Task #3 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch .short{display:none}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar);border-radius:2px}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.titlebar h1{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}\n.toggles .btn{margin-left:auto}\n.needs{border:2px solid var(--need-bar);gap:10px}\n.needs h2{display:flex;align-items:center;gap:8px;font-size:18px}\n.count{display:inline-grid;place-items:center;min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--tray);color:var(--muted);font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}\n.needs .count{background:var(--need-bg);color:var(--need)}\n.needs ul{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:minmax(0,1fr);gap:0}\n.needs li{display:grid;grid-template-columns:minmax(0,1fr);gap:4px 24px;padding:12px 0;background:transparent;border-top:1px solid var(--line)}\n.ghead{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}.needs .ghead .count{background:var(--tray);color:var(--fg)}\n.gwhy{color:var(--muted);font-size:14px}\n.glinks{display:flex;flex-wrap:wrap;gap:0 16px}\n.needs a{display:inline-flex;flex-wrap:wrap;align-items:center;gap:2px 8px;max-width:100%;min-height:44px;padding:0 2px;border:0;color:var(--fg);text-decoration:underline;text-underline-offset:3px}\n.needs a:hover{color:var(--accent)}\n.chips{display:flex;flex-wrap:wrap;gap:8px}\n.chips a{display:inline-flex;align-items:center;gap:8px;max-width:100%;min-height:44px;padding:0 16px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-weight:650;text-decoration:none}\n.chips a:hover{border-color:var(--accent);color:var(--fg);background:var(--panel)}\n.chips a[aria-current=true]{background:var(--fg);border-color:var(--fg);color:var(--panel)}.chips a[aria-current=true] .count{background:var(--panel);color:var(--fg)}\n.flag{color:inherit;width:10px;height:10px;flex:none;box-shadow:0 0 0 2px currentColor}.flag.stop{background:var(--stop-bar);border-radius:2px}.flag.need{background:var(--need-bar);border-radius:50%}\n.projects{display:grid;grid-template-columns:minmax(0,1fr);gap:32px}.project{display:grid;grid-template-columns:minmax(0,1fr);gap:16px}\n.project>.row h2{font-size:22px}.project>.row{gap:10px 14px}\n.empty{background:var(--panel);border:2px dashed var(--line);border-radius:16px;padding:20px;color:var(--muted)}\n.quiet{display:flex;flex-wrap:wrap;align-items:center;gap:0 16px;padding:6px 18px;border-radius:16px;border:2px dashed var(--line);color:var(--muted)}\n.quiet a{display:inline-flex;align-items:center;min-height:44px;font-weight:650}\n.lane{background:var(--panel);border-radius:18px;padding:16px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:14px;min-width:0}\n.lane:not([data-story]){background:transparent;box-shadow:none;border:2px dashed var(--line);padding:12px}\n.lane:not([data-story])>h3{margin:0;font-size:14px;color:var(--muted)}\n.lane:not([data-story]) .cards{grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}\n.story{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px}\n.story-title{color:var(--fg);font-size:18px;font-weight:750;text-decoration:none;padding-block:2px}.story-title:hover{text-decoration:underline}\n.num{color:var(--muted);font-weight:500;font-variant-numeric:tabular-nums}\n.peopl'... 15395 more characters,
+    expected: /풀기는 고치지 않고/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1515:1
+✖ U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: someone else's failed Task says who can retry, mine says to retry (1306.79025ms)
+  AssertionError [ERR_ASSERTION]: nothing here is the PL's to retry
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1523:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1536:1
+✖ U47: the PL's own silent Task reads as my Mac in the Story card (1251.906292ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(card.includes("내 Mac에서 10분 넘게 소식이 없습니다."))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1541:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

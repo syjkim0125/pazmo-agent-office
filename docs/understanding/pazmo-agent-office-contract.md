@@ -3,7 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-12 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/hub-boards-g4.json · 2026-11-12 · Check-in: accepted
+Understanding gate (G4): .ai-workflow/approvals/hub-pages-g4.json · 2026-11-13 · Check-in: accepted
+G4: PASS — U47(D41, "나 결정 카드"의 세 번째 PR: Task·Story 화면과 내 할 일 맨 위에 "지금 할 일" 카드 하나와 그 행동 하나, 나머지 행동은 접힘; 멈춘 Task의 문장은 읽는 사람(맡은 사람·PL·다른 사람)과 Mac 상태에 맞춤; Story 단계는 막대와 이름; 권한·버튼이 보이는 조건·확인 상자·주소는 그대로): 사용자가 G4 설명 페이지를 본 뒤 문장이 이어져 읽기 어렵다는 피드백을 주고 "U47 먼저, 다음 PR"(지금대로 머지, 줄바꿈·ⓘ 설명은 다음 PR)을 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U46(D41, "나 결정 카드"의 두 번째 PR: 두 보드에서 나를 기다리는 일은 상자 없이 줄로 나뉘고 넓은 화면에서 두 칸, 멈춘 Task의 이유는 "Task 화면에서", Story 카드에 굵은 윗줄이 없고, 질문·초안 기획은 그 PL에게만 주황, 넓은 화면의 빈 단계는 얇은 띠로 한 줄 유지; 카드 항목·기다리는 일의 묶음과 순서·주소·권한은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U45(D41, 사용자가 고른 "나 결정 카드"의 첫 PR: 폰에서도 머리가 한 줄이고 낭독기는 전체 글을 읽으며, 지금 메뉴는 밑줄, 입력 칸 테두리 대비 3:1, 팀원·레포는 한 줄씩이고 바꾸는 단추는 대상을 말하며 "관리" 안에 있고, Mac 점은 모양으로도 갈린다; 주소·버튼이 하는 일·권한·승인 확인은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U44(D41, 허브 화면에 디자인 체크리스트를 적용했다: 색은 토큰만, 가로 넘침 막기, 누르는 곳 44px, 빈 칸이 채울 방법을 말함, 강조색 절제, 일주일 넘으면 서울 날짜, 숫자 폭 고정, 이를 지키는 시험과 체크리스트 문서): 사용자가 G4 설명 페이지를 본 뒤 "① 승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다(기록: .ai-workflow/approvals/hub-design-checklist-g4.md).

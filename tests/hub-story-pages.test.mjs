@@ -311,13 +311,17 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
   ];
   for (const [reason, plain] of cases) {
     h.board.reportFailed(cBe, s.api, claimId, reason);
-    const page = (await h.get(`/tasks/${s.api}`, h.pl)).text;
+    // The one who can retry reads the whole sentence; the PL (풀기 only) reads what stopped it and who can act (U47).
+    const page = (await h.get(`/tasks/${s.api}`, h.c)).text;
     assert.ok(page.includes(plain), reason);
+    const cause = plain.slice(0, plain.indexOf(". ") + 1);
+    assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다.`), `PL: ${reason}`);
     assert.ok(page.includes(`<details><summary>자세한 이유</summary><pre>${reason}</pre></details>`), reason);
     const home = (await h.get("/me", h.c)).text;
-    assert.ok(home.includes(plain), `home: ${reason}`);
+    const away = plain.replace("아래 이유를", "Task 화면에서 이유를");
+    assert.ok(home.includes(away), `home: ${reason}`);
     assert.ok(home.includes(`<a href="/tasks/${s.api}">자세히·다시 시도</a>`));
-    assert.ok((await h.get("/me", h.pl)).text.includes(plain), "the PL's stuck list says it too");
+    assert.ok((await h.get("/me", h.pl)).text.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다.`), "the PL's stuck list: what stopped it and who can retry (U47)");
     h.board.rerunTask(h.c.member, s.api, "", h.store.reachableRepos(h.c.member.id));
     claimId = h.claimOf(cBe);
   }
@@ -380,7 +384,7 @@ test("a member with no open Task whose newest Mac rests with claude: not_ready s
   h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
   home = (await h.get("/me", h.c)).text;
   assert.equal(count(home), 1);
-  assert.ok(home.indexOf(line) < home.indexOf("<h2>지금 맡은 일</h2>"));
+  assert.ok(home.indexOf(line) < home.indexOf('<h2 id="decide">지금 할 일</h2>'), "the stopped Task's card comes after it");
   assert.ok(home.includes(`href="/tasks/${s.api}"`));
   // The Mac is ready again: nothing to say.
   h.store.macHeartbeat(mac, "idle", null);
@@ -395,20 +399,23 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   h.board.claimNext(cBe);
   now += HELD_AFTER_MS + 1;
   const held = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다. Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+  // The assignee reads it about their own Mac (U47).
+  const mine = "내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다.";
   let page = (await h.get(`/tasks/${s.api}`, h.c)).text;
-  assert.ok(page.includes(held));
+  assert.ok(page.includes(mine));
+  assert.ok(!page.includes(held));
   assert.ok(!page.includes("꺼짐"), "C has no Mac at all");
   const mac = pairMac(h.store, h.c.member);
   page = (await h.get(`/tasks/${s.api}`, h.c)).text;
-  assert.ok(page.includes(`${held} (내 Mac: 꺼짐, 마지막 확인 아직 없음)`), "the assignee's own Mac");
+  assert.ok(page.includes(`${mine} (내 Mac: 꺼짐, 마지막 확인 아직 없음)`), "the assignee's own Mac");
   assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(`${held} (맡은 사람의 Mac: 꺼짐, 마지막 확인 아직 없음)`), "seen by the PL");
   // The Mac is on, yet nothing about this Task: it will not go on by itself (the Office let the claim go, or cannot take it).
   h.store.macHeartbeat(mac, "idle", null);
   const on = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
-  for (const who of [h.c, h.pl]) {
+  for (const [who, line] of [[h.c, `내 ${on}`], [h.pl, on]]) {
     const text = (await h.get(`/tasks/${s.api}`, who)).text;
-    assert.ok(text.includes(`<p><b>${on}</b></p>`), "the Mac reports");
-    assert.ok(!text.includes(held) && !text.includes("꺼짐"));
+    assert.ok(text.includes(`<p><b>${line}</b></p>`), `the Mac reports: ${who.member.name}`);
+    assert.ok(!text.includes(held) && !text.includes(mine) && !text.includes("꺼짐"));
   }
 });
 
