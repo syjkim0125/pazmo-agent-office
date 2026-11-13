@@ -155,6 +155,7 @@ ol,ul{padding-left:22px}section>ol,section>ul{margin-block:0}li+li{margin-top:2p
 .stage>.scards:empty::before{content:"없음";display:block;padding:8px 4px;text-align:center;font-size:14px;color:var(--muted)}
 .scard{position:relative;display:grid;grid-template-columns:minmax(0,1fr);gap:8px;min-width:0;padding:14px 16px;border-radius:16px;background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow)}
 .scard.draft{border:1.5px dashed var(--idle);background:var(--panel);box-shadow:none}
+.scard.stop{border:2px solid var(--stop-bar)}
 .scard.gone{box-shadow:none;color:var(--muted)}.scard.gone .stitle{color:var(--muted);font-size:16px}
 .cancelled .scards{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(240px,100%),1fr))}
 .scard:hover{border-color:var(--accent)}.scard:has(.stitle:focus-visible){outline:3px solid var(--accent);outline-offset:2px}.scard:has(.stitle:focus-visible) .stitle:focus-visible{outline:none}
@@ -168,8 +169,7 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .steps li{display:flex;align-items:center;justify-content:center;gap:2px;min-height:32px;padding:6px 4px 0;border-top:4px solid var(--line);text-align:center;font-weight:500}.steps li+li{margin-top:0}
 .steps li.past{border-top-color:var(--done-bar);color:var(--done)}.steps li.past::before{content:"✓ "}.steps li[aria-current=step]{border-top-color:var(--fg);color:var(--fg);font-weight:700}
 .taskboard .cols{margin-top:2px}
-@media (width > 860px){.needs li{grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:baseline}
-.stage:has(>.scards:empty){flex:0 0 56px;padding:10px 0;align-items:center}.stage:has(>.scards:empty) h3{writing-mode:vertical-rl;text-orientation:mixed;justify-content:flex-start;gap:8px;padding:2px 0;color:var(--muted)}.stage>.scards:empty::before{content:none}}
+@media (width > 860px){.needs li{grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:baseline}}
 @media (width > 860px) and (width <= 960px){.stages{gap:12px}.stage{padding:6px}.stage[data-stage=planning]{padding:4px}.stages .scard{padding:12px}.stages .scards{gap:6px}}
 @media (max-width:860px){header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
 .switch .short{display:inline}

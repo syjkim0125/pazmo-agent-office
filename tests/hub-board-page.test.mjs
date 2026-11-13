@@ -577,7 +577,7 @@ test("/ and /board are the Story board: Story cards in the five Story-stage colu
     assert.ok(stageOf(text, "planning").body.includes(`href="/plans/${planId}"`), "the web plan is planned too");
   }
   const text = (await h.get("/", h.b)).text;
-  const card = new RegExp(`<li class="scard stop" data-story="${open.number}"><p class="kind">Story #${open.number}</p><a class="stitle" href="/stories/${open.storyId}">열린 Story</a><p><span class="pill run">진행 중</span><span class="pill stop">멈춘 Task 1</span></p><p class="sprog"><progress value="1" max="4" aria-hidden="true"></progress>Task 4개 중 1개 끝</p><p class="speople"><span class="lead"><span class="av av[0-7]" aria-hidden="true">리더</span>PL 리더</span><span class="now">지금 일하는 사람 <span class="person"><span class="av av[0-7]" aria-hidden="true">에이</span>에이</span></span></p></li>`);
+  const card = new RegExp(`<li class="scard stop" data-story="${open.number}"><p class="sflag"><span class="pill stop">멈춘 Task 1</span></p><p class="kind">Story #${open.number}</p><a class="stitle" href="/stories/${open.storyId}">열린 Story</a><p><span class="pill run">진행 중</span></p><p class="sprog"><progress value="1" max="4" aria-hidden="true"></progress>Task 4개 중 1개 끝</p><p class="speople"><span class="lead"><span class="av av[0-7]" aria-hidden="true">리더</span>PL 리더</span><span class="now">지금 일하는 사람 <span class="person"><span class="av av[0-7]" aria-hidden="true">에이</span>에이</span></span></p></li>`);
   assert.match(stageOf(text, "open").body, card, "stage, PL, done/total, who works now, stopped Tasks");
   assert.match(stageOf(text, "awaiting_g4").body, new RegExp(`<li class="scard need" data-story="${g4.number}">`));
   assert.match(stageOf(text, "done").body, new RegExp(`<li class="scard done" data-story="${done.number}">`));
@@ -770,7 +770,7 @@ test("a passed step shows its ✓ beside its name, and the stages stay one row o
   const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
   assert.match(style, /\.steps li\{display:flex;align-items:center;justify-content:center;/);
   // U41: one column per stage shown (four or five), so 완료 never wraps alone (it did at 861–887px with minmax(160px,1fr)).
-  // U46: one flex row that never wraps (an empty stage shrinks to a rail instead of moving to a second row).
+  // U46: one flex row that never wraps. U48: every stage keeps an equal share, empty or not (no rails).
   assert.match(style, /\.stages\{display:flex;gap:16px;align-items:flex-start\}/);
   assert.doesNotMatch(style, /\.stages\{[^}]*(auto-fit|flex-wrap)/);
   // Narrow windows above a phone tighten the stage spacing so the longest state words stay on one line.
@@ -1209,16 +1209,6 @@ test("U46: another member sees a web plan's question or draft as the PL's turn, 
   assert.equal(laneCard((await h.get("/tasks", h.b)).text), "run run", "/tasks: B only watches it");
 });
 
-test("U46: on a wide screen an empty stage is a narrow rail, every stage still on one row", async (t) => {
-  const style = await styleOf(await team(t));
-  assert.match(ruleOf(style, ".stages"), /display:flex/);
-  assert.match(ruleOf(style, ".stage"), /flex:1 1 0/);
-  const wide = "@media (width > 860px)";
-  assert.match(ruleOf(style, ".stage:has(>.scards:empty)", wide), /flex:0 0 56px/);
-  assert.match(ruleOf(style, ".stage:has(>.scards:empty) h3", wide), /writing-mode:vertical-rl/);
-  assert.match(ruleOf(style, ".stage>.scards:empty::before", wide), /content:none/, "a rail needs no 없음");
-});
-
 test("U46: the boards' heading is read, not shown twice above the tab of the same name", async (t) => {
   const h = await team(t);
   for (const [path, title] of [["/", "Story 보드"], ["/tasks", "모든 Task"]]) assert.ok((await h.get(path, h.pl)).text.includes(`<h1>${title}</h1>`), path);
@@ -1540,4 +1530,36 @@ test("U47: the PL's own silent Task reads as my Mac in the Story card", async (t
   const card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text) ?? "";
   assert.ok(card.includes("내 Mac에서 10분 넘게 소식이 없습니다."));
   assert.ok(!card.includes(HELD_SHORT), "not 맡은 사람의 Mac");
+});
+
+// U48 (Story 보드 다시 보기 after U46): a stopped Story stands out by colour and by its first line; every project's stages
+// line up. Chosen on the explainer: ① (d) a 2px stop border and 멈춘 Task N first, ② (c) equal stage widths.
+test("U48: a stopped Story's card has a 2px stop border on all four sides; other cards keep the plain edge, and hover still shows", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.equal(ruleOf(style, ".scard.stop"), "border:2px solid var(--stop-bar)");
+  for (const kind of ["need", "run", "done"]) assert.doesNotMatch(style, new RegExp(`\\.scard\\.${kind}\\{`), `${kind}: no colour edge`);
+  assert.ok(style.indexOf(".scard.stop{") < style.indexOf(".scard:hover{"), "the hover border comes later, so a stopped card shows it too");
+});
+
+test("U48: only a stopped Story's card opens with 멈춘 Task N, before its number", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("멈춘 Story", ["a"]));
+  const calm = h.open(h.publish("조용한 Story", ["b"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  const text = (await h.get("/", h.b)).text;
+  assert.ok(text.includes(`<li class="scard stop" data-story="${s.number}"><p class="sflag"><span class="pill stop">멈춘 Task 1</span></p><p class="kind">Story #${s.number}</p>`));
+  assert.ok(text.includes(`<li class="scard run" data-story="${calm.number}"><p class="kind">Story #${calm.number}</p>`), "a calm card starts with its number");
+  assert.equal(countOf(text, 'class="sflag"'), 1);
+});
+
+test("U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project", async (t) => {
+  const style = await styleOf(await team(t));
+  assert.match(ruleOf(style, ".stage"), /flex:1 1 0/);
+  const wide = /@media \(width > 860px\)\{((?:[^{}]*\{[^}]*\})*)[^{}]*\}/.exec(style)?.[1] ?? "";
+  assert.ok(wide.includes(".needs li{"), "the wide block was found");
+  assert.doesNotMatch(wide, /\.stage:has\(>\.scards:empty\)/, "no narrower rule for an empty stage");
+  assert.doesNotMatch(style, /flex:0 0 56px|writing-mode:vertical-rl/, "no rail, no upright names");
+  assert.match(ruleOf(style, ".stage>.scards:empty::before"), /content:"없음"/, "an empty stage says 없음");
 });
