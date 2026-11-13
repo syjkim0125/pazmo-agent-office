@@ -10,7 +10,7 @@ applies_when:
   - "Changing a Hub web page (src/hub/*-pages.ts) or the stylesheet STYLE in src/hub/pages.ts"
   - "Adding a control, a list, a board column or an empty state to the Hub web"
   - "Reviewing a Hub PR"
-tags: [hub, design, checklist, css, tokens, touch-targets, accent, overflow, spacing, relative-time, review]
+tags: [hub, design, checklist, css, tokens, touch-targets, accent, overflow, spacing, relative-time, wording, review]
 ---
 
 # Hub design checklist
@@ -71,6 +71,14 @@ and 7 also need a browser measurement in the change record (see "How to measure"
    date tests run with `TZ=UTC` (set before the Hub modules are imported).
 9. **`font-variant-numeric: tabular-nums`** on counts, times and numbers that line up: count badges, progress lines,
    time in column, tables, pills, Mac lines, card meta, work lists.
+10. **Say each sentence to the person reading it.** A page several people open (a Task, a Story, /me's lists) picks
+   its words by who reads it and what they can do there: the assignee is told what to do ("… 다시 시도하세요"),
+   anyone else what stopped it and who can act ("맡은 사람이 다시 시도할 수 있습니다", "PL이 풀 수 있습니다" when they
+   cannot release), and a sentence about a Mac follows that Mac's reported state (never "turn it on" to a Mac that
+   reports). Check it by calling the page function for every reader × state × Mac state, not only the cases the demo
+   data shows: U47's reviews kept finding wrong-reader sentences that no demo page showed. Helpers in
+   `story-pages.ts`: `heldText`, `failureForOthers`, `stoppedForLead`. The boards' `boardFailure` (U46) does not
+   follow this yet.
 
 ## Review step
 
