@@ -164,15 +164,18 @@ function progressOf(s: BoardStory): string {
   if (s.state === "cancelled") return goneLine(s.cards.filter((c) => c.column === "hidden").length, done);
   return total ? progressLine(total, done) : "아직 Task 없음";
 }
-/** A Story on the Story board: its stage word, stopped Tasks, how many Tasks are done, its PL and who works on it now. */
+/**
+ * A Story on the Story board: its stopped Tasks first when it has any (with the card's stop border, seen from across the
+ * board), then its number, title, stage word, how many Tasks are done, its PL and who works on it now.
+ */
 function storyCard(s: BoardStory): string {
   const { stopped } = counts(s);
   const gone = s.state === "cancelled";
   const cls = gone ? "gone" : stopped ? "stop" : tone("story", s.state);
-  const stop = stopped ? `<span class="pill stop">멈춘 Task ${stopped}</span>` : "";
+  const stop = stopped ? `<p class="sflag"><span class="pill stop">멈춘 Task ${stopped}</span></p>` : "";
   // A cancelled Story is quiet: a plain word, and what it had instead of a progress bar.
   const word = gone ? pill(storyStateLabel(s.state)) : pill(storyStateLabel(s.state), tone("story", s.state));
-  return `<li class="scard ${cls}" data-story="${s.number}"><p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${word}${stop}</p><p class="sprog">${progressOf(s)}</p><p class="speople">${people(s)}</p></li>`;
+  return `<li class="scard ${cls}" data-story="${s.number}">${stop}<p class="kind">Story #${s.number}</p><a class="stitle" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${word}</p><p class="sprog">${progressOf(s)}</p><p class="speople">${people(s)}</p></li>`;
 }
 /** A Story published but not opened yet: a draft in 기획 중 with its Tasks ready to open. */
 const draftCard = (s: BoardStory) =>
@@ -316,7 +319,7 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
  */
 export function storyBoardPage(me: Member, csrf: string, v: BoardView, chrome: Chrome): string {
   void csrf;
-  // Decided once for the page, so every project shows the same stages (on a wide screen an empty one is a rail, so widths differ).
+  // Decided once for the page, so every project shows the same stages at the same places (U48: equal shares, no rails).
   const planningShown = v.canCreateProject || v.projects.some((p) => p.stories.some((s) => s.state === "draft"));
   const stages = (p: BoardProject, plans: PlanCard[]) => {
     const drafts = p.stories.filter((s) => s.state === "draft");

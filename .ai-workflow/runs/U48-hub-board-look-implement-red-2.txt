@@ -1,0 +1,37 @@
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (110.189042ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (60.841375ms)
+✔ U44: the accent marks only the primary action, the current selection, focus, hover and links (61.29325ms)
+✔ U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen (63.268709ms)
+✔ U46: on the board a failed Task's reason points to the Task page, not to a reason below (67.944125ms)
+✔ U46: a Story card has no thick state bar; its state is its word (59.209833ms)
+✔ U46: another member sees a web plan's question or draft as the PL's turn, not as theirs (64.519875ms)
+✔ U46: the boards' heading is read, not shown twice above the tab of the same name (65.226209ms)
+✖ U48: a stopped Story's card has a 2px stop border on all four sides that hover darkens but never paints over; other cards keep the plain edge (64.812292ms)
+✔ U48: only a stopped Story's card opens with 멈춘 Task N, before its number (64.480917ms)
+✔ U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project (59.395ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 10
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 902.361708
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:1537:1
+✖ U48: a stopped Story's card has a 2px stop border on all four sides that hover darkens but never paints over; other cards keep the plain edge (64.812292ms)
+  AssertionError [ERR_ASSERTION]: rule .scard.stop:hover
+      at ruleOf (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:962:10)
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1542:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

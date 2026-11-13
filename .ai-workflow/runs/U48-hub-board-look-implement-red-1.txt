@@ -1,0 +1,84 @@
+✖ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (110.268375ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (61.964ms)
+✔ U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen (60.887459ms)
+✔ U46: on the board a failed Task's reason points to the Task page, not to a reason below (84.682292ms)
+✔ U46: a Story card has no thick state bar; its state is its word (71.151917ms)
+✔ U46: another member sees a web plan's question or draft as the PL's turn, not as theirs (107.941916ms)
+✔ U46: the boards' heading is read, not shown twice above the tab of the same name (129.181791ms)
+✖ U48: a stopped Story's card has a 2px stop border on all four sides; other cards keep the plain edge, and hover still shows (94.894417ms)
+✖ U48: only a stopped Story's card opens with 멈춘 Task N, before its number (70.011042ms)
+✖ U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project (56.921042ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 6
+ℹ fail 4
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1045.854042
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:551:1
+✖ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (110.268375ms)
+  AssertionError [ERR_ASSERTION]: stage, PL, done/total, who works now, stopped Tasks
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:581:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<ul class="scards"><li class="scard stop" data-story="10"><p class="kind">Story #10</p><a class="stitle" href="/stories/157edb98-c3fc-4143-a7ab-111f5a1c9210">열린 Story</a><p><span class="pill run">진행 중</span><span class="pill stop">멈춘 Task 1</span></p><p class="sprog"><progress value="1" max="4" aria-hidden="true"></progress>Task 4개 중 1개 끝</p><p class="speople"><span class="lead"><span class="av av1" aria-hidden="true">리더</span>PL 리더</span><span class="now">지금 일하는 사람 <span class="person"><span class="av av2" aria-hidden="true">에이</span>에이</span></span></p></li></ul></div>',
+    expected: /<li class="scard stop" data-story="10"><p class="sflag"><span class="pill stop">멈춘 Task 1<\/span><\/p><p class="kind">Story #10<\/p><a class="stitle" href="\/stories\/157edb98-c3fc-4143-a7ab-111f5a1c9210">열린 Story<\/a><p><span class="pill run">진행 중<\/span><\/p><p class="sprog"><progress value="1" max="4" aria-hidden="true"><\/progress>Task 4개 중 1개 끝<\/p><p class="speople"><span class="lead"><span class="av av[0-7]" aria-hidden="true">리더<\/span>PL 리더<\/span><span class="now">지금 일하는 사람 <span class="person"><span class="av av[0-7]" aria-hidden="true">에이<\/span>에이<\/span><\/span><\/p><\/li>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1537:1
+✖ U48: a stopped Story's card has a 2px stop border on all four sides; other cards keep the plain edge, and hover still shows (94.894417ms)
+  AssertionError [ERR_ASSERTION]: rule .scard.stop
+      at ruleOf (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:962:10)
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1539:16)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: null,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1544:1
+✖ U48: only a stopped Story's card opens with 멈춘 Task N, before its number (70.011042ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(text.includes(`<li class="scard stop" data-story="${s.number}"><p class="sflag"><span class="pill stop">멈춘 Task 1</span></p><p class="kind">Story #${s.number}</p>`))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1552:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1557:1
+✖ U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project (56.921042ms)
+  AssertionError [ERR_ASSERTION]: no narrower rule for an empty stage
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-na-boards/tests/hub-board-page.test.mjs:1562:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '.needs li{grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:baseline}\n.stage:has(>.scards:empty){flex:0 0 56px;padding:10px 0;align-items:center}.stage:has(>.scards:empty) h3{writing-mode:vertical-rl;text-orientation:mixed;justify-content:flex-start;gap:8px;padding:2px 0;color:var(--muted)}.stage>.scards:empty::before{content:none}',
+    expected: /\.stage:has\(>\.scards:empty\)/,
+    operator: 'doesNotMatch',
+    diff: 'simple'
+  }
