@@ -278,9 +278,9 @@ test("/projects/<id>/new-story is a 403 page for a member missing a project repo
   const form = await h.get(path, h.pl);
   assert.equal(form.status, 200);
   for (const part of [
-    `<form method="post" action="/projects/${h.projectId}/plans">`, 'name="title"', '<textarea name="intent"', '<select name="risk">',
-    '<option value="normal" selected>보통</option>', '<option value="high">높음</option>',
-    "높음이면 Task로 나누기 전에 AI가 쓴 설계를 한 번 더 승인합니다.", "기획 문서를 붙여 넣어도 됩니다", "64KB", "쿠폰 개편",
+    `<form method="post" action="/projects/${h.projectId}/plans">`, 'name="title"', '<textarea id="intent" name="intent"',
+    '<input type="radio" name="risk" value="normal" checked>', '<input type="radio" name="risk" value="high">',
+    "초안 다음에 설계와 Task 목록을 한 번 더 확인합니다.", "기획 문서를 붙여 넣어도 됩니다", "64KB", "쿠폰 개편",
   ]) assert.ok(form.text.includes(part), part);
   assert.equal((await h.get(`/projects/${randomUUID()}/new-story`, h.pl)).status, 404);
 });
@@ -327,7 +327,7 @@ test("a 65536-byte Korean intent with line breaks (about 196 KB urlencoded) is a
   assert.ok(back.text.includes(INTENT_BYTES));
   assert.ok(back.text.includes('value="긴 &#34;기획&#34;"'), "the typed title");
   assert.ok(back.text.includes(`>\n${over}</textarea>`), "the typed intent");
-  assert.ok(back.text.includes('<option value="high" selected>높음</option>'), "the chosen risk");
+  assert.ok(back.text.includes('<input type="radio" name="risk" value="high" checked>'), "the chosen risk");
   assert.equal(h.plans.projectPlans(h.projectId).length, 1, "nothing more made");
 
   const big = await refused(h, h.pl, path, `csrf=${h.pl.csrf}&title=x&risk=normal&intent=${"a".repeat(1024 * 1024)}`);
@@ -338,36 +338,45 @@ test("a 65536-byte Korean intent with line breaks (about 196 KB urlencoded) is a
 test("the plan page states each state in plain words (waiting for the PL's Mac, planning while leased, questions, draft, design, awaiting G3, splitting, open with the Story link, failed with its reason, cancelled)", async (t) => {
   const h = await team(t);
   const id = h.create({ risk: "high" });
+  // U50: the PL's turn (질문, 초안, 설계 승인 대기) is orange only for the PL; anyone else only watches it (blue).
   const shows = async (label, sentence, who = h.pl) => {
     const text = await h.page(id, who);
-    assert.ok(text.includes(`${pill(label)} ${sentence}`), `${label}: ${sentence}`);
+    const mark = who === h.pl || TONES[label] !== "need" ? pill(label) : `<span class="pill run">${label}</span>`;
+    assert.ok(text.includes(`${mark} ${sentence}`), `${label}: ${sentence}`);
+    return text;
+  };
+  // U50: where the PL has a 지금 할 일 card, the head keeps the state's word and the card says what to do.
+  const carded = async (label, doing) => {
+    const text = await h.page(id);
+    assert.ok(text.includes(`${pill(label)}</p>`), `${label}: the word alone`);
+    assert.ok(text.includes(`<p class="do">${doing}</p>`), `${label}: ${doing}`);
     return text;
   };
   let text = await shows("기획 대기", WAITING);
-  for (const part of ["<h1>쿠폰 발급</h1>", "쿠폰 개편", "PL: PL", "위험도 높음", `<a class="refresh" href="/plans/${id}">새로 고침</a>`, "<details><summary>하고 싶은 일</summary><pre>쿠폰을 한 번에 발급하고 싶어요.</pre></details>"])
+  for (const part of ["<h1>쿠폰 발급</h1>", "쿠폰 개편", "PL PL · 위험도 높음", `<a class="refresh" href="/plans/${id}">새로 고침</a>`, "<details><summary>처음에 적은 하고 싶은 일</summary><pre>쿠폰을 한 번에 발급하고 싶어요.</pre></details>"])
     assert.ok(text.includes(part), part);
   h.lease(id);
   await shows("기획 중", "AI가 기획하고 있습니다.");
   h.questions(id, [q(1)]);
-  await shows("질문", "AI가 묻습니다. 답하면 이어서 씁니다.");
+  await carded("질문", "AI의 질문 1개에 답해 주세요");
   await shows("질문", "PL의 답을 기다립니다.", h.b);
   h.answerAll(id);
   h.draft(id);
-  await shows("초안", "Story 초안이 나왔습니다. 읽고 승인하거나, 고칠 점을 적어 다시 쓰게 하세요.");
+  await carded("초안", "Story 초안을 확인해 주세요");
   await shows("초안", "PL의 승인을 기다립니다.", h.b);
   h.approve(id);
   await shows("설계 대기", WAITING);
   h.lease(id);
   await shows("설계 중", "AI가 Task를 나누고 설계를 쓰고 있습니다.");
   h.design(id);
-  await shows("설계 승인 대기", "설계를 읽고 승인하면 Task를 올리고 엽니다.");
+  await carded("설계 승인 대기", "설계와 Task를 확인해 주세요");
   await shows("설계 승인 대기", "PL의 설계 승인을 기다립니다.", h.b);
   h.approve(id, "G3");
   await shows("나누기 대기", WAITING);
   h.lease(id);
   await shows("나누는 중", "AI가 Task로 나누고 올리는 중입니다.");
   h.failed(id, `app-fe의 Story base를 올리지 못했습니다.\ngit push: rejected\n권한 없음`);
-  text = await shows("멈춤", "멈췄습니다.");
+  text = await carded("멈춤", "기획이 멈췄습니다");
   assert.ok(text.includes("<p><b>app-fe의 Story base를 올리지 못했습니다.</b></p>"));
   assert.ok(text.includes("<details><summary>자세한 이유</summary><pre>git push: rejected\n권한 없음</pre></details>"));
   h.plans.retry(h.pl.member, id, h.view(id).revision);
@@ -415,7 +424,7 @@ test("a waiting plan says the PL's Mac is off with its last beat, or names the T
   assert.ok(h.board.claimNext(h.plBe));
   const held = h.board.openTaskOfMember(h.pl.member.id);
   assert.equal(held.repoName, "app-be");
-  const task = `<p>PL의 Office가 Story #${pub.number} Task #${held.taskNumber}(app-be)을 맡고 있어, 그 Task가 끝나면 이어서 기획합니다.</p>`;
+  const task = `${pill("기획 대기")} PL의 Office가 Story #${pub.number} Task #${held.taskNumber}(app-be)을 맡고 있어, 그 Task가 끝나면 이어서 기획합니다.</p>`;
   let text = await h.page(id, h.b);
   assert.ok(text.includes(task));
   assert.ok(!text.includes("꺼져 있습니다"));
@@ -446,10 +455,11 @@ test("questions show one form per round with a 4000-character box per question a
   assert.deepEqual(formOf(text, action), { revision: String(h.view(id).revision) });
   for (const n of [1, 2, 3]) {
     assert.ok(text.includes(`<textarea name="answer-Q${n}" rows="4" maxlength="4000" required></textarea>`), `Q${n}`);
-    assert.ok(text.includes(`질문 ${n}`) && text.includes(`이유: 이유 ${n}`), `Q${n} text and reason`);
+    assert.ok(text.includes(`질문 ${n}`) && text.includes(`왜 묻나요: 이유 ${n}`), `Q${n} text and reason`);
   }
-  assert.equal(count(text, pill("막는 결정")), 1, "Q1 only");
-  assert.ok(text.indexOf(pill("막는 결정")) < text.indexOf("질문 2"));
+  const must = '<span class="pill need">꼭 정해야 함</span>';
+  assert.equal(count(text, must), 1, "Q1 only");
+  assert.ok(text.indexOf(must) < text.indexOf("질문 2"));
 
   // Each answer is 4000 characters once the browser's CRLF is LF.
   const answer = (n) => `${"가".repeat(1999)}\n${"나".repeat(1999)}${n}`;
@@ -479,7 +489,7 @@ test("the draft shows its text with 승인 (hidden revision and hash) and 고쳐
   assert.ok(text.includes(`<pre># Story: 쿠폰 발급\n\n## Decisions\n- ASSUMED: 쿠폰은 한 번만 쓴다\n</pre>`));
   assert.deepEqual(formOf(text, `/plans/${id}/approve`), { revision: String(h.view(id).revision), gate: "G1", hash: planTextHash(DRAFT) });
   assert.ok(text.includes("승인하면 AI가 Task로 나눠 바로 올리고 엽니다."));
-  assert.ok(text.includes("<button>승인</button>"));
+  assert.ok(text.includes("<button>초안 승인</button>"));
   assert.deepEqual(formOf(text, `/plans/${id}/rewrite`), { revision: String(h.view(id).revision) });
   assert.ok(text.includes('<textarea name="note" rows="4" maxlength="4000" required></textarea>'));
   assert.ok(text.includes('<button class="secondary">고쳐 써 주세요</button>'));
@@ -591,7 +601,7 @@ test("설계 승인, 다시 시도 and 취소 work for the PL; 취소 without �
   const g3 = formOf(text, `/plans/${id}/approve`);
   assert.deepEqual(g3, { revision: String(h.view(id).revision), gate: "G3", hash: planTextHash(DESIGN) });
   assert.ok(text.includes(G3_NOTE));
-  assert.ok(text.includes("<button>설계 승인</button>"));
+  assert.ok(text.includes("<button>설계 승인하고 시작</button>"));
   assert.ok(!text.includes(`/plans/${id}/rewrite`), "a design is not rewritten");
   let res = await h.post(h.pl, `/plans/${id}/approve`, g3);
   assert.equal(res.headers.location, `/plans/${id}`);
@@ -828,7 +838,7 @@ test("a waiting plan whose PL holds a failed Task says that Task must be retried
   const claimed = h.board.claimNext(h.plBe);
   h.board.reportFailed(h.plBe, claimed.taskId, claimed.claimId, "검사가 실패했습니다.");
   const text = await h.page(id, h.b);
-  assert.ok(text.includes(`<p>PL의 Office가 Story #${pub.number} Task #${claimed.number}(app-be)을 맡고 있는데 그 Task가 멈췄습니다. 그 Task를 다시 시도하거나 풀어야 기획이 이어집니다.</p>`));
+  assert.ok(text.includes(`${pill("기획 대기")} PL의 Office가 Story #${pub.number} Task #${claimed.number}(app-be)을 맡고 있는데 그 Task가 멈췄습니다. 그 Task를 다시 시도하거나 풀어야 기획이 이어집니다.</p>`));
   assert.ok(!text.includes("끝나면 이어서"));
   assert.ok(!text.includes("PL의 Office에 연결되지 않은"), "a busy Office reads only its Task's repo, so the others are not named");
 });
@@ -873,4 +883,139 @@ test("a plan whose project changed one of its repos since it started shows why i
   assert.ok(unline(html).includes("<p>기획을 시작한 뒤 프로젝트의 레포나 기준 브랜치가 바뀌어 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.</p>"));
   assert.ok(!html.includes(`/plans/${v.id}/approve`));
   assert.ok(html.includes(`/plans/${v.id}/rewrite`));
+});
+
+// U50 (나 결정 카드 PR 4, the Story creation flow): steps on the plan, one 지금 할 일 card per state, the draft read in
+// Korean heads with its raw text bound to the approval, the tasks a design publishes, the way out folded, tone by viewer.
+const FULL = "# Story: 쿠폰 발급\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\n\n## Goal\n회원에게 쿠폰을 한 번에 발급한다.\n\n## MUST\n- M1. 발급 버튼을 누르면 쿠폰이 생긴다.\n\n## OUT\n- 문자 발송\n\n## Decisions\n- D1. ASSUMED: 쿠폰은 한 번만 쓴다.\n- D2. PL 답: 몇 장? → 한 장\n\n## Verify\n- V1 [M1]. npm test로 발급을 확인한다.\n";
+const stepsOf = (text) => {
+  const ol = /<ol class="steps plansteps" aria-label="기획 단계">([\s\S]*?)<\/ol>/.exec(text)?.[1] ?? "";
+  return [...ol.matchAll(/<li( class="past"| class="now" aria-current="step")?><span class="sn">([^<]+)<\/span><\/li>/g)].map((m) => `${m[1] ? (m[1].includes("now") ? "▶" : "✓") : "·"}${m[2]}`);
+};
+const cardOf = (text) => /<section class="decide" aria-labelledby="decide">([\s\S]*?)<\/section>/.exec(text)?.[1] ?? null;
+
+test("U50: the plan shows its steps, with the one it is on marked, and on a phone 'N/M단계 · name'", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  assert.deepEqual(stepsOf(await h.page(id)), ["✓하고 싶은 일", "▶AI 질문", "·초안 확인", "·Task로 나누기", "·보드에서 시작"]);
+  h.draft(id);
+  let text = await h.page(id);
+  assert.deepEqual(stepsOf(text), ["✓하고 싶은 일", "✓AI 질문", "▶초안 확인", "·Task로 나누기", "·보드에서 시작"]);
+  assert.ok(text.includes('<p class="stepnow" aria-hidden="true">3/5단계 · 초안 확인</p>'));
+  const high = h.create({ risk: "high" });
+  h.draft(high);
+  h.approve(high);
+  h.design(high, DESIGN, splitOf(h.be, h.fe));
+  text = await h.page(high);
+  assert.deepEqual(stepsOf(text), ["✓하고 싶은 일", "✓AI 질문", "✓초안 확인", "▶설계 확인", "·Task로 나누기", "·보드에서 시작"]);
+  assert.ok(text.includes("4/6단계 · 설계 확인"));
+  const np = (await h.get(`/projects/${h.projectId}/new-story`, h.pl)).text;
+  assert.deepEqual(stepsOf(np), ["▶하고 싶은 일", "·AI 질문", "·초안 확인", "·Task로 나누기", "·보드에서 시작"]);
+});
+
+test("U50: AI questions are the PL's 지금 할 일: how many, what happens next, 꼭 정해야 함 and 왜 묻나요", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  h.questions(id, [q(1, true), q(2)]);
+  const text = await h.page(id);
+  const card = cardOf(text) ?? "";
+  assert.ok(card.includes('<p class="do">AI의 질문 2개에 답해 주세요</p>'));
+  assert.ok(card.includes("답을 보내면 내 Mac의 AI가 이어서 Story 초안을 씁니다."));
+  assert.ok(card.includes(`<form method="post" action="/plans/${id}/answer">`), "the answer form is in the card");
+  assert.ok(card.includes('<span class="pill need">꼭 정해야 함</span>') && card.includes("왜 묻나요: 이유 1"));
+  assert.doesNotMatch(text, /막는 결정|번째 질문|이유: /);
+  assert.equal(cardOf(await h.page(id, h.b)), null, "nothing for another member to do");
+  h.answerAll(id);
+  h.questions(id, [q(1)]);
+  assert.match(await h.page(id), /<h3>질문\(1차\)<\/h3>/, "the answered round, by its round");
+});
+
+test("U50: the draft card: what approval does, what the AI assumed, 초안 승인, and 고쳐 달라고 하기 folded", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  h.draft(id, FULL);
+  const text = await h.page(id);
+  const card = cardOf(text) ?? "";
+  assert.ok(card.includes('<p class="do">Story 초안을 확인해 주세요</p>'));
+  assert.ok(card.includes("승인하면 AI가 Task로 나눠 바로 올리고 엽니다."));
+  assert.ok(card.includes('<div class="assumed"><p><b>AI가 스스로 정한 것 1개 — 맞는지 보세요</b></p><ul><li>쿠폰은 한 번만 쓴다.</li></ul></div>'));
+  assert.ok(card.includes("<button>초안 승인</button>"));
+  assert.match(card, new RegExp(`<details class="other"><summary>고쳐 달라고 하기</summary><form method="post" action="/plans/${id}/rewrite">`));
+  assert.ok(card.indexOf("초안 승인") < card.indexOf("고쳐 달라고 하기"));
+});
+
+test("U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its raw text is the one the approval is bound to", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  h.draft(id, FULL);
+  const text = await h.page(id);
+  const doc = /<section><h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(text)?.[1] ?? "";
+  for (const part of ["<h3>목표</h3><p>회원에게 쿠폰을 한 번에 발급한다.</p>", '<h3>꼭 할 것</h3><ul><li><span class="id">M1</span>발급 버튼을 누르면 쿠폰이 생긴다.</li></ul>',
+    "<h3>이번에 하지 않을 것</h3><ul><li>문자 발송</li></ul>", '<li><span class="id">D1</span>AI가 정한 것: 쿠폰은 한 번만 쓴다.</li>', '<li><span class="id">D2</span>PL 답: 몇 장? → 한 장</li>',
+    '<h3>확인 방법</h3><ul><li><span class="id">V1 [M1]</span>npm test로 발급을 확인한다.</li></ul>']) assert.ok(doc.includes(part), part);
+  assert.doesNotMatch(doc, /Status:|Owner:|Understanding gate|# Story|ASSUMED|## /, "no kit header or English heads");
+  const raw = /<details><summary>원문 그대로 보기<\/summary><pre>([\s\S]*?)<\/pre><\/details>/.exec(text)?.[1] ?? "";
+  const unesc = raw.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
+  assert.equal(unesc, FULL, "the raw text shown is the draft itself");
+  assert.equal(formOf(text, `/plans/${id}/approve`).hash, planTextHash(unesc), "and it is what 초안 승인 is bound to");
+});
+
+test("U50: a design waiting for G3 lists the Tasks it publishes in the card, by number, with what each waits for and checks", async (t) => {
+  const h = await team(t);
+  const id = h.create({ risk: "high" });
+  h.draft(id);
+  h.approve(id);
+  h.design(id, DESIGN, splitOf(h.be, h.fe));
+  const text = await h.page(id);
+  const card = cardOf(text) ?? "";
+  assert.ok(card.includes('<p class="do">설계와 Task 2개를 확인해 주세요</p>'));
+  assert.match(card, /<ol class="tasks"><li><span class="num">1<\/span><div><p><b>[^<]+<\/b> · app-be<\/p><p class="muted">먼저 시작 · 바꿀 파일 \d+개 · 확인: [^<]+<\/p><\/div><\/li><li><span class="num">2<\/span><div><p><b>[^<]+<\/b> · app-fe<\/p><p class="muted">1번이 끝난 뒤 · /);
+  assert.match(card, /모두 끝나면 Story 전체 확인: /);
+  assert.ok(card.includes("<summary>올라갈 Task 전부 보기</summary>"), "every detail one click away, in the card");
+  assert.ok(card.includes("<button>설계 승인하고 시작</button>"));
+  assert.ok(card.includes("고칠 것이 있으면 이 기획을 그만두고 새로 시작하세요."));
+  assert.match(text, /<details><summary>승인한 초안<\/summary>/, "the approved draft is a past step");
+});
+
+test("U50: while the AI works the PL may close the page; a held Task of the PL's Office is said instead of the Mac wait", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  let text = await h.page(id);
+  assert.equal(cardOf(text), null);
+  assert.ok(text.includes("이 화면을 닫아도 됩니다. 답하거나 확인할 차례가 오면 보드의 나를 기다리는 일에 뜹니다."));
+  assert.ok(!(await h.page(id, h.b)).includes("이 화면을 닫아도 됩니다"), "only the PL waits for a turn");
+  const pub = h.board.publishStory(h.plBe, {
+    projectId: h.projectId, title: "다른 Story", body: "# Story", risk: "normal", key: "k1",
+    graph: { nodes: [{ id: "api", repoId: h.be, title: "api", spec: "api 설명", files: ["src/api.ts"], verify: [check] }], edges: [] },
+    storyVerify: [{ repoId: h.be, checks: [check] }],
+  });
+  h.board.openStory(h.plBe, pub.storyId);
+  assert.ok(h.board.claimNext(h.plBe));
+  text = await h.page(id);
+  assert.ok(text.includes(`${pill("기획 대기")} PL의 Office가 Story #${pub.number} Task #`), "the state line names the Task the PL's Office holds");
+  assert.ok(!text.includes(WAITING), "not also 'waiting for the Mac to take it'");
+});
+
+test("U50: the way out is folded at the bottom with the plan's PL, risk and start; the plan's tone is the PL's turn only for the PL", async (t) => {
+  const h = await team(t);
+  const id = h.create();
+  h.draft(id);
+  const text = await h.page(id);
+  assert.match(text, new RegExp(`<section class="end"><details class="other"><summary>이 기획 그만두기</summary><form method="post" action="/plans/${id}/cancel">`));
+  assert.match(text, /<p class="muted">PL PL · 위험도 보통 · \d+월 \d+일 시작<\/p><\/section>/, "the day as ago() writes one");
+  assert.ok(text.indexOf("이 기획 그만두기") > text.indexOf("초안 전체"), "below the draft");
+  assert.ok(text.includes(`${pill("초안")}</p>`), "the PL is asked (the card says what to do)");
+  assert.ok((await h.page(id, h.b)).includes('<span class="pill run">초안</span> '), "another member only watches");
+});
+
+test("U50: a new Story picks its risk with two described choices and says what happens next; branch fields are not autocorrected", async (t) => {
+  const h = await team(t);
+  const text = (await h.get(`/projects/${h.projectId}/new-story`, h.pl)).text;
+  assert.ok(text.includes('<fieldset class="choices"><legend>위험도</legend><label class="choice"><input type="radio" name="risk" value="normal" checked><span><b>보통</b><span class="muted">초안만 확인하면 바로 Task로 나뉩니다.</span></span></label><label class="choice"><input type="radio" name="risk" value="high"><span><b>높음</b><span class="muted">초안 다음에 설계와 Task 목록을 한 번 더 확인합니다.</span></span></label></fieldset>'));
+  assert.ok(!text.includes("<select"), "no select");
+  assert.match(text, /<b>다음에 일어나는 일<\/b> 내 Mac의 AI가 레포를 읽고, 필요하면 묻고, 초안을 씁니다\./);
+  assert.ok(text.includes("그동안 이 화면을 닫아도 됩니다."));
+  const style = (await h.get("/", h.pl)).text;
+  assert.match(style, /label\.choice:has\(input:checked\)\{border:2px solid var\(--fg\)/);
+  assert.match((await h.get("/projects/new", h.pl)).text, /<input name="base-[^"]+" value="main" aria-label="[^"]+ 기준 브랜치" autocapitalize="off" autocorrect="off" spellcheck="false">/);
 });

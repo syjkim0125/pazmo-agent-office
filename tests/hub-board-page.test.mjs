@@ -984,7 +984,7 @@ test("U44: the accent marks only the primary action, the current selection, focu
   const style = await styleOf(await team(t));
   assert.equal(ruleOf(style, "button.secondary,.btn.ghost"), "background:var(--panel);color:var(--fg);border-color:var(--line)", "secondary actions are neutral");
   const uses = [...style.replace(/@media[^{]*\{/g, "").matchAll(/(?<=^|[}\n])([^{}]+)\{([^}]*)\}/g)].filter((m) => /var\(--accent\)/.test(m[2])).map((m) => m[1].trim());
-  const allowed = /^a$|:hover|:focus-visible|aria-current|^button,\.btn$|^input\[type=checkbox\]$/;
+  const allowed = /^a$|:hover|:focus-visible|aria-current|^button,\.btn$|^input\[type=(?:checkbox|radio)\]$/;
   for (const sel of uses) assert.match(sel, allowed, `${sel} uses the accent`);
   for (const sel of ["button.secondary:hover,.btn.ghost:hover", ".tabs a[aria-current=page]", ".filter[aria-current=true]::before"]) assert.ok(uses.includes(sel), `${sel} is read`);
   assert.equal(ruleOf(style, ".scard:hover"), "border-color:var(--accent)", "U46: no state bar to keep, the state is the card's word");
@@ -1658,7 +1658,7 @@ test("U49: the new-project form lines repos and base branches up in two columns,
   const h = await team(t);
   const text = (await h.get("/projects/new", h.pl)).text;
   assert.ok(text.includes('<fieldset class="repopick"><legend>넣을 레포와 기준 브랜치</legend><div class="rphead" aria-hidden="true"><span>레포</span><span>기준 브랜치</span></div>'));
-  assert.ok(text.includes(`<div class="rp"><label><input type="checkbox" name="repo" value="${h.be}"> app-be</label><span class="rpl" aria-hidden="true">기준 브랜치</span><input name="base-${h.be}" value="main" aria-label="app-be 기준 브랜치"></div>`));
+  assert.ok(text.includes(`<div class="rp"><label><input type="checkbox" name="repo" value="${h.be}"> app-be</label><span class="rpl" aria-hidden="true">기준 브랜치</span><input name="base-${h.be}" value="main" aria-label="app-be 기준 브랜치" autocapitalize="off" autocorrect="off" spellcheck="false"></div>`));
   const style = await styleOf(h);
   assert.match(ruleOf(style, "fieldset.repopick"), /grid-template-columns:minmax\(0,1fr\) minmax\(0,240px\)/);
   assert.match(ruleOf(style, "fieldset.repopick"), /align-items:center/);
