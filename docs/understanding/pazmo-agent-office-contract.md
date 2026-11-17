@@ -3,7 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-12 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/hub-line-breaks-g4.json · 2026-11-17 · Check-in: accepted
+Understanding gate (G4): .ai-workflow/approvals/hub-plan-flow-g4.json · 2026-11-17 · Check-in: accepted
+G4: PASS — U50(D41, Story 만들기 흐름: 기획 화면과 새 Story의 단계 막대, PL에게만 할 일마다 지금 할 일 카드(질문·초안·설계·멈춤), 초안과 설계를 한국어 머리로 보이고 승인에 묶인 원문은 한 번 눌러 보기, 지난 단계 모음과 접은 그만두기, 보는 사람에 맞춘 색, 위험도 라디오; 단추가 하는 일·권한·승인 해시·주소·스크립트 없이 쓰기는 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U49(D41, 모든 허브 화면의 줄바꿈과 ⓘ 설명: 붙어 있던 문장을 뜻마다 한 줄로, 덧붙인 설명은 브라우저 기본 팝오버 ⓘ 뒤로(넓은 화면은 ⓘ 아래, 폰은 아래 시트, 붙이지 못하면 가운데), 되돌릴 수 없는 일의 결과와 보안 확인은 늘 보임, 보드 실패 문구는 읽는 사람에 맞춤, 새 프로젝트의 기준 브랜치 두 칸; 단추가 하는 일·권한·주소·스크립트 없이 쓰기는 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U48(D41, Story 보드 다시 보기: 멈춘 Story 카드만 2px 빨간 테두리와 첫 줄 "멈춘 Task N", 마우스를 올려도 빨강 유지; 넓은 화면의 빈 단계 띠를 없애 모든 단계가 같은 폭이라 같은 단계가 모든 프로젝트에서 같은 자리; D43·D44·주소·권한·폰 화면은 그대로): 사용자가 비교 페이지에서 두 안을 고르고 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U47(D41, "나 결정 카드"의 세 번째 PR: Task·Story 화면과 내 할 일 맨 위에 "지금 할 일" 카드 하나와 그 행동 하나, 나머지 행동은 접힘; 멈춘 Task의 문장은 읽는 사람(맡은 사람·PL·다른 사람)과 Mac 상태에 맞춤; Story 단계는 막대와 이름; 권한·버튼이 보이는 조건·확인 상자·주소는 그대로): 사용자가 G4 설명 페이지를 본 뒤 문장이 이어져 읽기 어렵다는 피드백을 주고 "U47 먼저, 다음 PR"(지금대로 머지, 줄바꿈·ⓘ 설명은 다음 PR)을 골랐다(D13). 세 질문에 직접 답하지는 않았다.
