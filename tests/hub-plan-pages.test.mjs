@@ -1109,3 +1109,25 @@ test("U50 review 1: the intent box is described by the hint alone; each answer b
   assert.ok(html.includes('<label>1번 질문의 답 <span class="muted">(4000자까지)</span><textarea name="answer-Q1" '));
   assert.ok(html.includes('<label>2번 질문의 답 <span class="muted">(4000자까지)</span><textarea name="answer-Q2" '));
 });
+
+test("U50 review 2: the Office's real draft and design read without kit lines; a year before a numbered list stays a sentence", async () => {
+  const { renderPlanningStory } = await import("../src/runners/planning.ts");
+  const { renderTeamDesign } = await import("../src/runners/team-planning.ts");
+  const story = { title: "생일 쿠폰", goal: "2026. 12. 1.부터 생일 쿠폰을 발급한다.", domain: "회원 혜택", must: ["쿠폰을 만든다."], should: [], out: [], assumptions: ["한 장"], verify: [{ must: [1], scenario: "발급을 본다." }] };
+  const draft = renderPlanningStory(story);
+  let html = await render({ draft: docOf(draft), actions: { approve: "yes", rewrite: true } });
+  let body = /<h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? "";
+  assert.ok(body.includes("<h3>목표</h3><p>2026. 12. 1.부터 생일 쿠폰을 발급한다.</p>"), body);
+  assert.doesNotMatch(body, /Understanding gate|Status:|Owner:|# Story/, "the kit's lines are left out");
+  const split = { plan: "결제 취소를 받으면 쿠폰을 되돌린다.", graph: { nodes: [{ id: "t1", repoId: "r", title: "쿠폰 API", spec: "s", files: ["a.ts"], verify: [check] }], edges: [] }, storyVerify: [] };
+  const design = renderTeamDesign(split, [{ folder: "app-be", repoId: "r", name: "app-be", baseBranch: "main" }]);
+  assert.match(design, /\nUnderstanding gate \(G3\): pending\n/, "the Office writes the gate line after the Task list");
+  html = await render({ state: "awaiting_g3", risk: "high", draft: docOf(draft), g1: AT, design: docOf(design), split, isPl: false });
+  body = /<section><h2>설계<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? "";
+  assert.ok(body.includes("<p>결제 취소를 받으면 쿠폰을 되돌린다.</p><h3>Task 목록</h3><ul><li>t1 · app-be · 쿠폰 API</li></ul><p>나누기 지문: "), body);
+  assert.doesNotMatch(body, /Understanding gate|Decision requiring/, "no kit line in the design");
+  assert.ok(html.includes("Understanding gate (G3): pending"), "the raw text G3 binds keeps it");
+  // A year line followed by a numbered list: the year stays a sentence, the list keeps its numbers.
+  html = await render({ draft: docOf("## Goal\n2026. 12. 1.부터 시작한다.\n1. 쿠폰을 만든다.\n2. 알림을 보낸다.\n"), actions: { approve: "yes", rewrite: true } });
+  assert.ok(html.includes('<h3>목표</h3><p>2026. 12. 1.부터 시작한다.</p><ol><li value="1">쿠폰을 만든다.</li><li value="2">알림을 보낸다.</li></ol>'));
+});

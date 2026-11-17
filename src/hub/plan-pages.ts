@@ -219,7 +219,8 @@ function docLine(text: string, bullet = false): string {
 /**
  * A draft or design read as sections (U50): `##` heads in Korean, list items as lists, other lines as paragraphs, every
  * word kept as written. Only the kit's header at the top (the `# ` title, Status, Owner and gate lines before anything
- * else) is left out; the raw text, which the approval is bound to, stays one click away.
+ * else) and the Office's gate line (`Understanding gate (G3): pending`, which a design carries after its Task list) are
+ * left out; the raw text, which the approval is bound to, stays one click away.
  */
 function docBody(text: string): string {
   const out: string[] = [];
@@ -236,7 +237,7 @@ function docBody(text: string): string {
       flush();
       continue;
     }
-    if (header && /^(#\s|(Status|Owner|Understanding gate[^:]*):)/.test(line)) continue;
+    if (/^Understanding gate \(G\d\): /.test(line) || (header && /^(#\s|(Status|Owner|Understanding gate[^:]*):)/.test(line))) continue;
     header = false;
     const head = /^#{2,6}\s+(.*)$/.exec(line);
     if (head) {
