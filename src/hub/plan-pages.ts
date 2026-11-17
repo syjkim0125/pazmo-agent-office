@@ -68,7 +68,7 @@ const alert = (error?: string) => (error ? `<p role="alert">${say(error, true)}<
 /** `repos`: the ones the member may put in a project (their own; every repo for a hub admin). */
 export function newProjectPage(me: Member, csrf: string, repos: { id: string; name: string }[], chrome: Chrome, o: { error?: string } = {}): string {
   const row = (r: { id: string; name: string }) =>
-    `<div class="rp"><label><input type="checkbox" name="repo" value="${esc(r.id)}"> ${esc(r.name)}</label><input name="base-${esc(r.id)}" value="main" aria-label="${esc(r.name)} 기준 브랜치"></div>`;
+    `<div class="rp"><label><input type="checkbox" name="repo" value="${esc(r.id)}"> ${esc(r.name)}</label><span class="rpl" aria-hidden="true">기준 브랜치</span><input name="base-${esc(r.id)}" value="main" aria-label="${esc(r.name)} 기준 브랜치"></div>`;
   const form = repos.length
     ? `<form method="post" action="/projects">${csrfField(csrf)}<label>프로젝트 이름 <span class="muted">(${LIMITS.projectNameMax}자까지)</span><input name="name" required maxlength="${LIMITS.projectNameMax}"></label><fieldset class="repopick"><legend>넣을 레포와 기준 브랜치</legend><div class="rphead" aria-hidden="true"><span>레포</span><span>기준 브랜치</span></div>${repos.map(row).join("")}</fieldset><div class="row"><button>프로젝트 만들기</button></div></form>`
     : `<p>내가 담당인 레포가 없습니다. <a href="/repos">레포</a> 화면에서 레포를 등록하거나, 관리자에게 담당자 등록을 요청하세요.</p>`;

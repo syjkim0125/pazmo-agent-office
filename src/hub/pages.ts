@@ -19,15 +19,16 @@ export const tonePill = (t: Tone, label: string) => `<span class="pill ${t}">${e
 
 export const esc = (value: unknown) => String(value ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 /**
- * U49: a passage one sentence per line (each sentence escaped). `lead` bolds the first one (what happened). Lines are
- * joined by a space, so the page's text still reads as one passage.
+ * U49: a passage one sentence per line (each sentence escaped). `lead` bolds the first one (what happened). `after` is
+ * trusted markup (an ⓘ) kept at the end of the first line. Lines are joined by a space, so the page's text still reads
+ * as one passage. A sentence ends with 다/요/까/오 or a closing parenthesis, then . ? or !.
  */
-export const say = (text: string, lead = false) =>
+export const say = (text: string, lead = false, after = "") =>
   String(text ?? "")
     .replace(/\s+/g, " ")
     .trim()
-    .split(/(?<=[다요까오][.?!])\s+(?=\S)/)
-    .map((s, i) => (i === 0 && lead ? `<b class="ln">${esc(s)}</b>` : `<span class="ln">${esc(s)}</span>`))
+    .split(/(?<=(?:[다요까오]|\))[.?!])\s+(?=\S)/)
+    .map((s, i) => (i === 0 && lead ? `<b class="ln">${esc(s)}${after}</b>` : `<span class="ln">${esc(s)}${i === 0 ? after : ""}</span>`))
     .join(" ");
 /** U49: trusted markup pieces (already escaped), one per line. */
 export const lns = (...parts: string[]) => parts.filter(Boolean).map((p) => `<span class="ln">${p}</span>`).join(" ");
@@ -79,7 +80,7 @@ section{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(-
 button,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}
 button.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}
 button.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}
-button:hover,.btn:hover{filter:brightness(1.06)}.ln{display:block}fieldset.repopick{grid-template-columns:minmax(0,1fr) minmax(0,240px);align-items:center;column-gap:16px;row-gap:8px}.rphead,.rp{display:contents}.rphead span{font-size:13px;font-weight:600;color:var(--muted)}.rp>label{display:flex;align-items:center;gap:8px;min-height:44px}button.info{display:inline-grid;place-items:center;flex:none;width:32px;height:32px;min-height:32px;padding:0;margin-left:6px;border-radius:999px;border:1.5px solid var(--line);background:var(--panel);color:var(--muted);font:italic 700 16px/1 Georgia,"Times New Roman",serif;vertical-align:middle;cursor:pointer}button.info:hover,button.info:focus-visible{border-color:var(--accent);color:var(--accent)}[popover].infobox{margin:0;max-width:min(340px,calc(100% - 32px));padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg);box-shadow:var(--shadow);font-size:14px;line-height:1.55;font-weight:400;font-style:normal;text-align:left;white-space:normal}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}
+button:hover,.btn:hover{filter:brightness(1.06)}.ln{display:block}fieldset.repopick{grid-template-columns:minmax(0,1fr) minmax(0,240px);align-items:center;column-gap:16px;row-gap:8px}.rphead,.rp{display:contents}.rphead span{font-size:13px;font-weight:600;color:var(--muted)}.rp>label{display:flex;align-items:center;gap:8px;min-height:44px}.rpl{display:none}button.info{display:inline-grid;place-items:center;flex:none;width:32px;height:32px;min-height:32px;padding:0;margin-left:6px;border-radius:999px;border:1.5px solid var(--line);background:var(--panel);color:var(--muted);font:italic 700 16px/1 Georgia,"Times New Roman",serif;vertical-align:middle;cursor:pointer}button.info:hover,button.info:focus-visible{border-color:var(--accent);color:var(--accent)}[popover].infobox{max-width:min(340px,calc(100% - 32px));padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:var(--panel);color:var(--fg);box-shadow:var(--shadow);font-size:14px;line-height:1.55;font-weight:400;font-style:normal;text-align:left;white-space:normal}button.secondary:hover,.btn.ghost:hover{border-color:var(--accent)}
 .toggles .btn{margin-left:auto}
 .needs{border:2px solid var(--need-bar);gap:10px}
 .needs h2{display:flex;align-items:center;gap:8px;font-size:18px}
@@ -190,7 +191,7 @@ p.sprog{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;co
 .taskboard .cols{margin-top:2px}
 @media (width > 860px){.needs li{grid-template-columns:minmax(0,2fr) minmax(0,3fr);align-items:baseline}}
 @media (width > 860px) and (width <= 960px){.stages{gap:12px}.stage{padding:6px}.stage[data-stage=planning]{padding:4px}.stages .scard{padding:12px}.stages .scards{gap:6px}}
-@media (max-width:860px){[popover].infobox{inset:auto 16px 16px;max-width:none}fieldset.repopick{grid-template-columns:minmax(0,1fr)}.rphead{display:none}header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
+@media (max-width:860px){[popover].infobox{inset:auto 16px 16px;margin:0;width:auto;max-width:none}fieldset.repopick{grid-template-columns:minmax(0,1fr)}.rphead{display:none}.rpl{display:block;font-size:13px;font-weight:600;color:var(--muted)}header{padding:6px 12px;gap:4px 8px}.me{margin-left:auto;gap:4px}nav a{padding:0 10px}button.switch{padding:0 10px 0 6px;gap:6px}
 .switch .short{display:inline}
 .brand .word,.person .name,.switch .full,.macchip .long{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
 .person,.macchip{min-width:44px;justify-content:center;padding:0}.brand{min-width:44px;justify-content:center}
@@ -202,7 +203,7 @@ table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,tabl
 @media (pointer:coarse){button.info{width:44px;height:44px;min-height:44px}.brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a{min-height:44px}nav a,.tabs a,a.person{min-width:44px;justify-content:center}.story-title{padding-block:8px}summary{padding-block:10px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
 /* U49: on a wide screen an ⓘ note opens beside its button where the browser can anchor it, centred otherwise. */
-@supports (position-area:bottom){@media (width > 860px){[popover].infobox{inset:auto;position-area:bottom span-right;margin-top:6px;position-try-fallbacks:flip-inline,flip-block}}}`;
+@supports (position-area:bottom){@media (width > 860px){[popover].infobox{inset:auto;margin:0;margin-top:6px;position-area:bottom span-right;position-try-fallbacks:flip-inline,flip-block}}}`;
 export const csrfField = (csrf: string) => `<input type="hidden" name="csrf" value="${esc(csrf)}">`;
 export const button = (action: string, csrf: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${esc(action)}">${csrfField(csrf)}<button class="${cls}">${esc(label)}</button></form>`;
@@ -339,7 +340,7 @@ export function connectHelp() {
 }
 /** `side`: a note behind an ⓘ (U49), such as how long the value stays usable. */
 export function created(me: Member, title: string, note: string, value: string, chrome: Chrome = {}, side = "") {
-  return layout(title, me, `<section><h1>${esc(title)}</h1><p>${say(note)}${side ? info("info-created", `${title} 설명`, side) : ""}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, chrome);
+  return layout(title, me, `<section><h1>${esc(title)}</h1><p>${say(note, false, side ? info("info-created", `${title} 설명`, side) : "")}</p><pre id="copy-value">${esc(value)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><p class="muted">이 값은 다시 보여 주지 않습니다.</p><p><a href="/">돌아가기</a></p></section><script src="/copy.js" defer></script>`, chrome);
 }
 export function board(me: Member, csrf: string, rows: RequestRow[], repos: RepoView[], view: string, chrome: Chrome = {}) {
   const tabs = [["all", "전체"], ["mine", "내 요청·맡은 일"], ["repos", "내 레포"]]
@@ -483,11 +484,11 @@ export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: str
 const macForm = (action: string, csrf: string, code: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${action}">${csrfField(csrf)}<input type="hidden" name="code" value="${esc(code)}"><button${cls ? ` class="${cls}"` : ""}>${label}</button></form>`;
 /** `held`: a Task the member holds while an earlier Mac is live; allowing strands it, so the page says so. */
-export function macApprove(me: Member, csrf: string, code: string, info: { name: string; createdAt: number }, held: OpenTaskRef | null, chrome: Chrome = {}) {
+export function macApprove(me: Member, csrf: string, code: string, pending: { name: string; createdAt: number }, held: OpenTaskRef | null, chrome: Chrome = {}) {
   const task = held
     ? `<p><b>이전 Mac이 맡은 Task가 있습니다: Story #${held.storyNumber} Task #${held.taskNumber}${held.repoName ? ` (${esc(held.repoName)})` : ""}. 이 Mac을 허용하면 그 Task는 PL이 풀어 줘야 합니다.</b></p>`
     : "";
-  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(info.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(teamTime(info.createdAt))} (${ago(info.createdAt)})</p><p>${say("Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.")}</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
+  return layout("Mac 허용", me, `<section><h1>이 Mac을 허용할까요?</h1><p>Mac 이름: <b>${esc(pending.name)}</b></p><p>코드 <span class="code">${esc(code)}</span></p><p class="muted">요청한 때 ${esc(teamTime(pending.createdAt))} (${ago(pending.createdAt)})</p><p>${say("Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다.")}</p>${task}<div class="row">${macForm("/mac/approve", csrf, code, "이 Mac 허용")}${macForm("/mac/deny", csrf, code, "거절", "danger")}</div></section>`, chrome);
 }
 export function macCodeGone(me: Member, chrome: Chrome = {}) {
   return layout("코드 만료", me, `<section><h1>이 코드는 쓸 수 없습니다</h1><p>${say("코드가 만료됐거나 이미 쓰였거나 잘못된 코드입니다. Mac 터미널에서 설치 명령을 다시 실행하면 새 코드가 나옵니다.")}</p><p><a href="/mac">내 Mac</a></p></section>`, chrome);

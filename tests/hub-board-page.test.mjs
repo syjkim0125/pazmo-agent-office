@@ -2,6 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { startTestHub } from "./hub-fixture.mjs";
 import { AWAITING_G4, HELD_SHORT, plainFailure } from "../src/hub/story-pages.ts";
+import { say } from "../src/hub/pages.ts";
 import { safePath } from "../src/hub/paths.ts";
 import { planStoryKey } from "../src/hub/plan-protocol.ts";
 import { kitStoryHash } from "../src/core/kit-role-runs.ts";
@@ -1588,7 +1589,11 @@ test("U49: the line and ⓘ styles: one sentence per line, a 32px ⓘ (44px on t
   assert.match(style, /@media \(pointer:coarse\)\{[^@]*button\.info\{width:44px;height:44px;min-height:44px\}/);
   const box = ruleOf(style, "[popover].infobox");
   for (const decl of ["background:var(--panel)", "color:var(--fg)", "font-weight:400", "border:1px solid var(--line)"]) assert.ok(box.includes(decl), decl);
-  assert.match(style, /@media \(max-width:860px\)\{[^@]*\[popover\]\.infobox\{inset:auto 16px 16px;max-width:none\}/, "a sheet at the bottom of a phone");
+  assert.match(style, /@media \(max-width:860px\)\{[^@]*\[popover\]\.infobox\{inset:auto 16px 16px;margin:0;width:auto;max-width:none\}/, "a sheet at the bottom of a phone");
+  // Review 1 (I1): no margin on the base box, so a browser that cannot anchor it centres it (the popover's own inset:0;
+  // margin:auto) instead of drawing it in the top-left corner; only the anchored rule takes the margin off.
+  assert.doesNotMatch(box, /margin/);
+  assert.match(style, /@supports \(position-area:bottom\)\{@media \(width > 860px\)\{\[popover\]\.infobox\{inset:auto;margin:0;margin-top:6px;position-area:bottom span-right;/);
 });
 
 test("U49: a failed Task's reason reads one sentence per line, the first in bold; 풀기's note sits behind an ⓘ beside it; 취소's stays in view", async (t) => {
@@ -1653,9 +1658,83 @@ test("U49: the new-project form lines repos and base branches up in two columns,
   const h = await team(t);
   const text = (await h.get("/projects/new", h.pl)).text;
   assert.ok(text.includes('<fieldset class="repopick"><legend>넣을 레포와 기준 브랜치</legend><div class="rphead" aria-hidden="true"><span>레포</span><span>기준 브랜치</span></div>'));
-  assert.ok(text.includes(`<div class="rp"><label><input type="checkbox" name="repo" value="${h.be}"> app-be</label><input name="base-${h.be}" value="main" aria-label="app-be 기준 브랜치"></div>`));
+  assert.ok(text.includes(`<div class="rp"><label><input type="checkbox" name="repo" value="${h.be}"> app-be</label><span class="rpl" aria-hidden="true">기준 브랜치</span><input name="base-${h.be}" value="main" aria-label="app-be 기준 브랜치"></div>`));
   const style = await styleOf(h);
   assert.match(ruleOf(style, "fieldset.repopick"), /grid-template-columns:minmax\(0,1fr\) minmax\(0,240px\)/);
   assert.match(ruleOf(style, "fieldset.repopick"), /align-items:center/);
   assert.equal(ruleOf(style, ".rphead,.rp"), "display:contents");
+  // Review 1: on a phone the header row is gone, so each branch field keeps its name in view.
+  assert.equal(ruleOf(style, ".rpl"), "display:none");
+  assert.match(style, /@media \(max-width:860px\)\{[^@]*\.rphead\{display:none\}\.rpl\{display:block;[^}]*\}/);
+});
+
+// U49 review 1: what must stay in view (I2), bold first lines, the Story page board's lead, the created ⓘ, say().
+/** A page as it shows before any ⓘ is opened: the popover boxes taken out, the line marks taken off. */
+const shown = (html) => unline(html.replace(/<span id="[^"]+" popover class="infobox">[^<]*<\/span>/g, ""));
+
+test("U49: what cannot be undone and the security checks stay in view, never behind an ⓘ", async (t) => {
+  const h = await team(t);
+  const invite = shown((await h.post("/invites", h.admin, "name=새 사람")).text);
+  const device = shown((await h.post(`/members/${h.c.member.id}/device-invite`, h.admin)).text);
+  for (const [name, text, first] of [["invite", invite, "받는 사람에게만 전달하세요."], ["device", device, "그 팀원의 새 브라우저에서 열게 하세요."]]) {
+    assert.ok(text.includes(first), name);
+    assert.match(text, /링크와 별도로 허브 인증서 지문\([^)]+\)도 함께 전달해/, `${name}: send the fingerprint too`);
+  }
+  const started = h.store.startMac("새 Mac");
+  const approve = shown((await h.get(`/mac/approve?code=${started.userCode}`, h.c)).text);
+  assert.ok(approve.includes("Mac 터미널의 코드와 같고 지금 내 앞의 Mac일 때만 허용하세요. 허용하면 이 Mac이 내 이름으로 이 허브에 연결되고, 이전에 연결한 내 Mac은 해제됩니다."), "the Mac code check");
+  const trust = shown((await h.call("GET", "/trust", {})).text);
+  assert.ok(trust.includes("키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요."), "the fingerprint check");
+  const planId = h.plans.createPlan(h.pl.member, { projectId: h.projectId, title: "취소할 기획", intent: "쿠폰", risk: "normal" }).planId;
+  assert.ok(shown((await h.get(`/plans/${planId}`, h.pl)).text).includes("취소하면 이 기획을 멈춥니다. 이미 올라간 Story가 아직 열리지 않았으면 함께 취소됩니다."), "plan 취소");
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  const c = h.cBe();
+  const claim = h.board.claimNext(c);
+  h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
+  assert.ok(shown((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text).includes("취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다."), "Task 취소");
+  const v = h.open(h.publish("합치는 Story", ["b"]));
+  h.clock.board = -20 * 60_000;
+  const lock = h.board.claimNext(h.plBe);
+  h.board.heartbeat(h.plBe, lock.taskId, lock.claimId, "merge");
+  h.board.mergeLock(h.plBe, lock.taskId, lock.claimId);
+  h.clock.board = 0;
+  const locked = shown((await h.get(`/tasks/${v.tasks.b}`, h.admin)).text);
+  assert.ok(locked.includes("<p>합치는 중이었을 수 있습니다.</p>"), "the merge warning before 풀기");
+  assert.ok(locked.includes("합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요."), "why 취소 waits");
+});
+
+test("U49: an alert's first line is bold: a held Task, a refused form", async (t) => {
+  const h = await team(t);
+  const s = h.open(h.publish("쿠폰 발급", ["a"]));
+  silentClaim(h, h.cBe());
+  assert.ok((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text.includes('<div class="callout"><p><b class="ln">맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.</b> <span class="ln">'));
+  const refused = await h.post("/projects", h.pl, "name=");
+  assert.equal(refused.status, 400);
+  assert.match(refused.text, /<p role="alert"><b class="ln">[^<]+<\/b>/);
+});
+
+test("U49: the Story page's own board tells a failed check's lead to add Tasks from their Mac, and anyone else that the PL does", async (t) => {
+  const h = await team(t);
+  const v = h.open(h.publish("검증 Story", ["a"]));
+  const tk = h.board.claimNext(h.plBe);
+  h.board.mergeLock(h.plBe, tk.taskId, tk.claimId);
+  h.board.reportMerged(h.plBe, tk.taskId, tk.claimId, merged());
+  const check = h.board.claimVerify(h.plBe, v.storyId);
+  h.board.reportVerify(h.plBe, check.taskId, check.claimId, { passed: false, summary: "e2e failed" });
+  const why = (text) => /<p class="why">([\s\S]*?)<\/p>/.exec(text)?.[1] ?? "";
+  assert.equal(why((await h.get(`/stories/${v.storyId}`, h.pl)).text), '<span class="ln">Story 검증이 실패했습니다.</span> <span class="ln">고칠 Task는 내 Mac(claude 대화)에서 더하세요.</span>');
+  assert.equal(why((await h.get(`/stories/${v.storyId}`, h.admin)).text), '<span class="ln">Story 검증이 실패했습니다.</span> <span class="ln">고칠 Task는 PL이 Mac(claude 대화)에서 더합니다.</span>');
+});
+
+test("U49: a created link's ⓘ sits beside its first line", async (t) => {
+  const h = await team(t);
+  const text = (await h.post("/invites", h.admin, "name=새 사람")).text;
+  assert.ok(text.includes('<p><span class="ln">받는 사람에게만 전달하세요.<button type="button" class="info" popovertarget="info-created" aria-label="초대 링크 설명">i</button><span id="info-created" popover class="infobox">72시간 동안 한 번만 쓸 수 있습니다.</span></span> <span class="ln">링크와 별도로'));
+});
+
+test("U49: say() puts each sentence on its own line, after a closing parenthesis too, escaped, and keeps a parenthesis whole", () => {
+  assert.equal(say("PL의 Mac이 꺼져 있습니다(마지막 확인 4일 전). 켜지면 이어서 합니다."), '<span class="ln">PL의 Mac이 꺼져 있습니다(마지막 확인 4일 전).</span> <span class="ln">켜지면 이어서 합니다.</span>');
+  assert.equal(say("멈췄습니다. 다시 하세요.", true), '<b class="ln">멈췄습니다.</b> <span class="ln">다시 하세요.</span>');
+  assert.equal(say("<b>&\"x 입니다."), '<span class="ln">&#60;b&#62;&#38;&#34;x 입니다.</span>');
+  assert.equal(say("메모 (선택, 2000자까지)를 적습니다."), '<span class="ln">메모 (선택, 2000자까지)를 적습니다.</span>');
 });
