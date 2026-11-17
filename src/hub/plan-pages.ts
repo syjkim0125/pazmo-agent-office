@@ -31,7 +31,7 @@ const OPEN_BLOCKING = "막는 결정이 남은 초안은 승인할 수 없습니
 const NOT_OWNER = "프로젝트의 모든 레포 담당자여야 승인할 수 있습니다. 관리자에게 담당자 등록을 요청하세요.";
 const REPOS_CHANGED = "기획을 시작한 뒤 프로젝트의 레포나 기준 브랜치가 바뀌어 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.";
 /** G3 publishes the stored split exactly; the design's digest line binds all of it, so the note says so. */
-const G3_NOTE = "승인하면 이 설계와 위 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
+const G3_NOTE = "승인하면 이 설계와 아래 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
 /** A plan in `open` is not cancellable, and cancel takes its Story along only while that Story is unopened (F4). */
 const CANCEL = "취소하면 이 기획을 멈춥니다. 이미 올라간 Story가 아직 열리지 않았으면 함께 취소됩니다.";
 
@@ -108,7 +108,8 @@ function stepOf(v: PlanView): number {
     case "failed":
       return office(v.failure?.from ?? "queued");
     case "cancelled":
-      return v.design ? 3 : v.draft ? 2 : 1;
+      // After G1 a plan designs (high risk) or splits; after G3 it splits.
+      return v.g3 ? split : v.g1 ? 3 : v.draft ? 2 : 1;
   }
 }
 
@@ -125,7 +126,7 @@ export function newStoryPage(
     `<label class="choice"><input type="radio" name="risk" value="${value}"${v.risk === value ? " checked" : ""}><span><b>${label}</b><span class="muted">${what}</span></span></label>`;
   const repos = project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
   // The newline after <textarea> is dropped by the parser, so a typed text that starts with one keeps it.
-  const form = `<form method="post" action="/projects/${esc(project.id)}/plans">${csrfField(csrf)}<label>제목 <span class="muted">(${PLAN_LIMITS.titleMax}자까지)</span><input name="title" required maxlength="${PLAN_LIMITS.titleMax}" value="${esc(v.title)}"></label><label for="intent">하고 싶은 일</label><p class="muted hint" id="intent-hint">평소 말로 적으세요.${info("info-plan", "하고 싶은 일 설명", "기획 문서를 붙여 넣어도 됩니다. 64KB, 한글 약 2만 자까지 적을 수 있습니다.")}</p><textarea id="intent" name="intent" rows="14" required aria-describedby="intent-hint" placeholder="예: 쿠폰이 만료되기 전에 회원에게 알림을 보내고 싶어요.">\n${esc(v.intent)}</textarea><fieldset class="choices"><legend>위험도</legend>${choice("normal", "보통", "초안만 확인하면 바로 Task로 나뉩니다.")}${choice("high", "높음", "초안 다음에 설계와 Task 목록을 한 번 더 확인합니다.")}</fieldset><p>${lns("<b>다음에 일어나는 일</b> 내 Mac의 AI가 레포를 읽고, 필요하면 묻고, 초안을 씁니다.", "초안을 승인하면 Task로 나눠 팀에 올립니다.", "그동안 이 화면을 닫아도 됩니다.")}</p><div class="row"><button>기획 시작</button></div></form>`;
+  const form = `<form method="post" action="/projects/${esc(project.id)}/plans">${csrfField(csrf)}<label>제목 <span class="muted">(${PLAN_LIMITS.titleMax}자까지)</span><input name="title" required maxlength="${PLAN_LIMITS.titleMax}" value="${esc(v.title)}"></label><label for="intent">하고 싶은 일</label><p class="muted hint"><span id="intent-hint">평소 말로 적으세요.</span>${info("info-plan", "하고 싶은 일 설명", "기획 문서를 붙여 넣어도 됩니다. 64KB, 한글 약 2만 자까지 적을 수 있습니다.")}</p><textarea id="intent" name="intent" rows="14" required aria-describedby="intent-hint" placeholder="예: 쿠폰이 만료되기 전에 회원에게 알림을 보내고 싶어요.">\n${esc(v.intent)}</textarea><fieldset class="choices"><legend>위험도</legend>${choice("normal", "보통", "초안만 확인하면 바로 Task로 나뉩니다.")}${choice("high", "높음", "초안 다음에 설계와 Task 목록을 한 번 더 확인합니다.")}</fieldset><p>${lns("<b>다음에 일어나는 일</b> 내 Mac의 AI가 레포를 읽고, 필요하면 묻고, 초안을 씁니다.", "초안을 승인하면 Task로 나눠 팀에 올립니다.", "그동안 이 화면을 닫아도 됩니다.")}</p><div class="row"><button>기획 시작</button></div></form>`;
   return layout("새 Story", me, `<section><p class="muted"><a href="/board">${esc(project.name)}</a> · 레포: ${repos}</p><h1>새 Story</h1>${stepsBar(false, 0)}${alert(o.error)}${form}</section>`, chrome);
 }
 
@@ -204,33 +205,39 @@ const HEADS: Record<string, string> = {
   Decisions: "정한 것",
   Verify: "확인 방법",
 };
-/** One line of a draft or design: its id (M1, V1 [M1], D2) aside, and the kit's English markers in words. */
-function docLine(text: string): string {
+/**
+ * One line of a draft or design: its id (M1, V1 [M1], D2) aside, and the kit's English markers in words. OPEN BLOCKING
+ * is put in words only where the store counts it (`hasOpenBlocking`): a list line that starts with it.
+ */
+function docLine(text: string, bullet = false): string {
   const id = /^([A-Z]{1,3}\d+(?:\s*\[[^\]]*\])?)\.\s+(.*)$/.exec(text);
   const [label, body] = id ? [id[1], id[2]] : ["", text];
-  const words = body
-    .replace(/^ASSUMED:\s*/, "AI가 정한 것: ")
-    .replace(/^OPEN\s+BLOCKING:?\s*/i, "꼭 정해야 함: ")
-    .replace(/^None\.$/, "없음");
+  const blocking = bullet && !label ? body.replace(/^OPEN\s+BLOCKING\b:?\s*/i, "꼭 정해야 함: ") : body;
+  const words = blocking.replace(/^ASSUMED:\s*/, "AI가 정한 것: ").replace(/^None\.$/, "없음");
   return `${label ? `<span class="id">${esc(label)}</span>` : ""}${esc(words)}`;
 }
 /**
- * A draft or design read as sections (U50): `##` heads in Korean, list items as lists, other lines as paragraphs. The
- * kit's title and status lines are left out; the raw text, which the approval is bound to, stays one click away.
+ * A draft or design read as sections (U50): `##` heads in Korean, list items as lists, other lines as paragraphs, every
+ * word kept as written. Only the kit's header at the top (the `# ` title, Status, Owner and gate lines before anything
+ * else) is left out; the raw text, which the approval is bound to, stays one click away.
  */
 function docBody(text: string): string {
   const out: string[] = [];
-  let list: { tag: "ul" | "ol"; items: string[] } | null = null;
+  let list: { tag: "ul" | "ol"; items: { html: string; line: string }[] } | null = null;
   const flush = () => {
-    if (list) out.push(`<${list.tag}>${list.items.join("")}</${list.tag}>`);
+    // A numbered line alone is a sentence that starts with a number (a date, say), not a list: shown as written.
+    if (list) out.push(list.tag === "ol" && list.items.length === 1 ? `<p>${docLine(list.items[0].line)}</p>` : `<${list.tag}>${list.items.map((i) => i.html).join("")}</${list.tag}>`);
     list = null;
   };
+  let header = true;
   for (const src of text.split("\n")) {
     const line = src.trim();
-    if (!line || /^#\s/.test(line) || /^(Status|Owner|Understanding gate[^:]*):/.test(line)) {
+    if (!line) {
       flush();
       continue;
     }
+    if (header && /^(#\s|(Status|Owner|Understanding gate[^:]*):)/.test(line)) continue;
+    header = false;
     const head = /^#{2,6}\s+(.*)$/.exec(line);
     if (head) {
       flush();
@@ -238,12 +245,14 @@ function docBody(text: string): string {
       out.push(`<h3>${esc(HEADS[name] ?? name)}</h3>`);
       continue;
     }
-    const item = /^(?:([-*])|\d+\.)\s+(.*)$/.exec(line);
+    // A numbered item keeps its own number (1-999; a year starts a sentence); an indented item stays indented.
+    const item = /^(?:([-*])|([1-9]\d{0,2})\.)\s+(.*)$/.exec(line);
     if (item) {
       const tag = item[1] ? "ul" : "ol";
       if (list && list.tag !== tag) flush();
       list ??= { tag, items: [] };
-      list.items.push(`<li>${docLine(item[2])}</li>`);
+      const attrs = `${/^\s{2,}/.test(src) ? ' class="sub"' : ""}${item[2] ? ` value="${item[2]}"` : ""}`;
+      list.items.push({ html: `<li${attrs}>${docLine(item[3], tag === "ul")}</li>`, line });
       continue;
     }
     flush();
@@ -304,11 +313,11 @@ export function planPage(
   const last = v.rounds.length - 1;
   if (v.state === "questions" && last >= 0 && answerable(last)) {
     const r = v.rounds[last];
-    const box = (q: PlanQuestion) =>
-      `<li>${ask(q)}<label>답 <span class="muted">(${PLAN_LIMITS.answerMax}자까지)</span><textarea name="answer-${esc(q.id)}" rows="4" maxlength="${PLAN_LIMITS.answerMax}" required></textarea></label></li>`;
+    const box = (q: PlanQuestion, i: number) =>
+      `<li>${ask(q)}<label>${i + 1}번 질문의 답 <span class="muted">(${PLAN_LIMITS.answerMax}자까지)</span><textarea name="answer-${esc(q.id)}" rows="4" maxlength="${PLAN_LIMITS.answerMax}" required></textarea></label></li>`;
     decide = card(
       `AI의 질문 ${r.questions.length}개에 답해 주세요`,
-      `<p>${say("답을 보내면 내 Mac의 AI가 이어서 Story 초안을 씁니다.")}</p>${form("answer", `<ol class="qs">${r.questions.map(box).join("")}</ol><div class="row"><button>답 보내기</button></div>`)}`,
+      `<p>${say("답을 보내면 내 Mac의 AI가 이어서 Story 초안을 씁니다.")}</p>${form("answer", `<ol class="qs">${r.questions.map((q, i) => box(q, i)).join("")}</ol><div class="row"><button>답 보내기</button></div>`)}`,
     );
   } else if (v.state === "draft" && v.draft && (v.actions.approve === "yes" || (refusal && v.actions.rewrite))) {
     const assumed = assumedOf(v.draft.text);

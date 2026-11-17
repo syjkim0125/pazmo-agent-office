@@ -19,7 +19,7 @@ const WAITING = "PL의 Mac이 가져가기를 기다립니다(보통 1분 안)."
 const NEW_STORY_FORBIDDEN = "프로젝트의 모든 레포 담당자만 새 Story를 만들 수 있습니다.";
 const INTENT_BYTES = "하고 싶은 일은 64KB(한글 약 2만 자)까지 적을 수 있습니다.";
 const EMPTY_BOARD = "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요.";
-const G3_NOTE = "승인하면 이 설계와 위 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
+const G3_NOTE = "승인하면 이 설계와 아래 [올라갈 Task 전부 보기]의 모든 내용(Task마다 설명, 바꿀 파일, 확인 명령과 Story 전체 확인)을 그대로 올리고 엽니다.";
 const OLD_EMPTY_BOARD = "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
 const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
 /** State pills carry their tone class (tone() in pages.ts); a word with no entry is a plain pill. */
@@ -1018,4 +1018,94 @@ test("U50: a new Story picks its risk with two described choices and says what h
   const style = (await h.get("/", h.pl)).text;
   assert.match(style, /label\.choice:has\(input:checked\)\{border:2px solid var\(--fg\)/);
   assert.match((await h.get("/projects/new", h.pl)).text, /<input name="base-[^"]+" value="main" aria-label="[^"]+ 기준 브랜치" autocapitalize="off" autocorrect="off" spellcheck="false">/);
+});
+
+// U50 review 1: six steps on one row, the draft and design as written outside the kit's header, the step of every state,
+// a blocked G3 and what another member sees, the split fold once, the intent hint and the answer labels.
+const ME = { id: "m", name: "PL", admin: false };
+const AT = { approvalId: "a", gate: "G1", memberId: "m", at: 0, textHash: H };
+const docOf = (text) => ({ text, hash: planTextHash(text) });
+const viewOf = (over = {}) => ({
+  id: "p1", project: { id: "pr", name: "쿠폰 개편" }, pl: { id: "m", name: "PL" }, title: "쿠폰 발급", intent: "쿠폰", risk: "normal",
+  state: "draft", revision: 3, repos: [], rounds: [], draft: null, rewrite: null, design: null, split: null,
+  g1: null, g3: null, failure: null, story: null, leased: false, heartbeatAt: null, createdAt: 0, updatedAt: 0, isPl: true,
+  ...over,
+  actions: { answer: false, rewrite: false, approve: "no", retry: false, cancel: true, ...over.actions },
+});
+const render = async (over) => {
+  const { planPage } = await import("../src/hub/plan-pages.ts");
+  return unline(planPage(ME, "c", viewOf(over), { plMac: { state: "none", lastSeen: null }, plOpenTask: null, changed: false, unlinked: [], opened: false }, {}));
+};
+const stepNow = (html) => /<li class="now" aria-current="step"><span class="sn">([^<]+)<\/span><\/li>/.exec(html)?.[1];
+
+test("U50 review 1: a high-risk plan's six steps stay on one row; on a phone the step names stay for a screen reader", async () => {
+  const style = /<style>([\s\S]*?)<\/style>/.exec(await render({}))[1];
+  assert.match(style, /\.steps\.plansteps\{display:flex\}/, "more specific than the five-column .steps grid that comes later");
+  assert.match(style, /@media \(max-width:860px\)\{[^@]*\.plansteps \.sn\{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset\(50%\)/);
+  assert.doesNotMatch(style, /\.sn\{[^}]*display:none/, "never taken out of the accessibility tree");
+});
+
+test("U50 review 1: only the kit's header at the top is left out; a line starting with a number or # elsewhere shows as written", async () => {
+  const text = "# Story: 생일 쿠폰\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\n\n## Goal\n2026. 12. 1.부터 생일 쿠폰을 자동 발급한다.\n\n## Domain\n# 회원 혜택 영역\nStatus: 운영 중인 쿠폰과 같은 표\n\n## MUST\n- M1. 쿠폰을 만든다.\n  - 하루 한 번\n\n## SHOULD\n1. 하나뿐인 줄\n\n## Verify\n3. 발급을 본다.\n4. 사용을 본다.\n";
+  const html = await render({ draft: docOf(text), actions: { approve: "yes", rewrite: true } });
+  const body = /<h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? "";
+  for (const part of [
+    "<h3>목표</h3><p>2026. 12. 1.부터 생일 쿠폰을 자동 발급한다.</p>",
+    "<h3>영역</h3><p># 회원 혜택 영역</p><p>Status: 운영 중인 쿠폰과 같은 표</p>",
+    '<h3>꼭 할 것</h3><ul><li><span class="id">M1</span>쿠폰을 만든다.</li><li class="sub">하루 한 번</li></ul>',
+    "<h3>하면 좋은 것</h3><p>1. 하나뿐인 줄</p>",
+    '<h3>확인 방법</h3><ol><li value="3">발급을 본다.</li><li value="4">사용을 본다.</li></ol>',
+  ]) assert.ok(body.includes(part), part);
+  assert.doesNotMatch(body, /Story: 생일 쿠폰|Status: Draft|Owner: Human|Understanding gate/, "the kit's header is left out");
+  // OPEN BLOCKING is said in words only where the store counts it: a list line that starts with it.
+  const blocked = await render({ draft: docOf("## Decisions\n- OPEN BLOCKING: 결제 수단\n- D1. OPEN BLOCKING: 이름표\n"), actions: { approve: "open-blocking", rewrite: true } });
+  assert.ok(blocked.includes("<li>꼭 정해야 함: 결제 수단</li>"));
+  assert.ok(blocked.includes('<li><span class="id">D1</span>OPEN BLOCKING: 이름표</li>'));
+});
+
+test("U50 review 1: a stopped or cancelled plan marks the step it stopped on; splitting and open mark theirs", async () => {
+  const d = docOf(DRAFT), g = docOf(DESIGN);
+  const stop = (from) => ({ reason: "멈춤", from });
+  for (const [over, step] of [
+    [{ state: "splitting", draft: d, g1: AT }, "Task로 나누기"],
+    [{ state: "splitting", risk: "high", draft: d, g1: AT, g3: AT, design: g }, "Task로 나누기"],
+    [{ state: "open", draft: d, g1: AT, story: { id: "s", number: 7 } }, "보드에서 시작"],
+    [{ state: "failed", failure: stop("queued") }, "AI 질문"],
+    [{ state: "failed", draft: d, failure: stop("queued") }, "초안 확인"],
+    [{ state: "failed", risk: "high", draft: d, g1: AT, failure: stop("design") }, "설계 확인"],
+    [{ state: "failed", draft: d, g1: AT, failure: stop("splitting") }, "Task로 나누기"],
+    [{ state: "cancelled" }, "AI 질문"],
+    [{ state: "cancelled", draft: d }, "초안 확인"],
+    [{ state: "cancelled", draft: d, g1: AT }, "Task로 나누기"],
+    [{ state: "cancelled", risk: "high", draft: d, g1: AT }, "설계 확인"],
+    [{ state: "cancelled", risk: "high", draft: d, g1: AT, g3: AT, design: g }, "Task로 나누기"],
+  ]) assert.equal(stepNow(await render(over)), step, JSON.stringify(over));
+});
+
+test("U50 review 1: a blocked G3 says why without a card; another member sees the failure, the open questions and the design in sections; the split fold shows once", async () => {
+  const split = { graph: { nodes: [{ id: "t1", repoId: "r", title: "쿠폰 API", spec: "s", files: ["a.ts"], verify: [check] }], edges: [] }, storyVerify: [] };
+  const g3 = { state: "awaiting_g3", risk: "high", draft: docOf(DRAFT), g1: AT, design: docOf("# 설계\n\n## 순서\n- api 먼저\n"), split };
+  let html = await render({ ...g3, actions: { approve: "not-owner" } });
+  assert.ok(!html.includes('class="decide"') && !html.includes("/approve"), "no card and no approval");
+  assert.ok(html.includes("<p>프로젝트의 모든 레포 담당자여야 승인할 수 있습니다. 관리자에게 담당자 등록을 요청하세요.</p>"));
+  for (const over of [{ actions: { approve: "yes" } }, { isPl: false }, { state: "splitting", g3: AT }])
+    assert.equal(count(await render({ ...g3, ...over }), "<summary>올라갈 Task 전부 보기</summary>"), 1, JSON.stringify(over));
+  html = await render({ ...g3, isPl: false });
+  assert.ok(html.includes('<section><h2>설계</h2><div class="doc"><h3>순서</h3><ul><li>api 먼저</li></ul></div>'), "the design in sections, not only raw");
+  html = await render({ state: "failed", draft: docOf(DRAFT), failure: { reason: "push 실패\n권한 없음", from: "splitting" }, isPl: false });
+  assert.ok(html.includes('<section><h2>멈춘 이유</h2><div class="callout"><p><b>push 실패</b></p><details><summary>자세한 이유</summary><pre>권한 없음</pre></details></div></section>'));
+  html = await render({ state: "questions", rounds: [{ questions: [q(1, true)], answers: null }], isPl: false });
+  assert.ok(html.includes('<section><h2>AI의 질문</h2><h3>질문(1차)</h3><ol class="qs"><li><p class="q">질문 1 <span class="pill need">꼭 정해야 함</span></p><p class="muted">왜 묻나요: 이유 1</p></li></ol></section>'));
+  assert.ok(!html.includes("/answer"), "nothing to answer for another member");
+});
+
+test("U50 review 1: the intent box is described by the hint alone; each answer box names its question", async (t) => {
+  const h = await team(t);
+  const text = (await h.get(`/projects/${h.projectId}/new-story`, h.pl)).text;
+  assert.ok(text.includes('<label for="intent">하고 싶은 일</label>'));
+  assert.match(text, /<p class="muted hint"><span id="intent-hint">평소 말로 적으세요\.<\/span><button type="button" class="info"/);
+  assert.match(text, /<textarea id="intent" name="intent" [^>]*aria-describedby="intent-hint"/);
+  const html = await render({ state: "questions", rounds: [{ questions: [q(1), q(2)], answers: null }], actions: { answer: true } });
+  assert.ok(html.includes('<label>1번 질문의 답 <span class="muted">(4000자까지)</span><textarea name="answer-Q1" '));
+  assert.ok(html.includes('<label>2번 질문의 답 <span class="muted">(4000자까지)</span><textarea name="answer-Q2" '));
 });
