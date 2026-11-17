@@ -11,6 +11,8 @@ import { linkApi } from "../src/hub/link-api.ts";
 import { DEFAULT_OFFICE_REF, DEFAULT_OFFICE_REPO } from "../src/hub/installer.ts";
 import { inTime, plainFailure, storyStateLabel, taskStateLabel, waitText } from "../src/hub/story-pages.ts";
 import { startTestHub } from "./hub-fixture.mjs";
+/** U49: a page with its one-sentence-per-line marks taken off, for tests that compare words (the U49 tests pin the marks). */
+const unline = (html) => html.replace(/<(?:span|b) class="ln">([^<]*)<\/(?:span|b)>/g, "$1");
 
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 const SHA = "c0ffee".padEnd(40, "0");
@@ -34,7 +36,8 @@ const merged = (over = {}) => ({ prUrl: PR, mergeCommit: SHA, summary: "s", assu
  */
 async function team(t, { now, storeNow, names = {}, text = (s) => s } = {}) {
   const h = await startTestHub(t, { now, storeNow });
-  const { store, board, call, enter } = h;
+  const { store, board, enter } = h;
+  const call = async (...a) => { const r = await h.call(...a); return { ...r, text: unline(r.text) }; };
   const signIn = async (raw) => {
     const w = await enter(raw);
     return { ...w, member: store.session(w.cookie.split("=")[1]).member };
@@ -63,7 +66,7 @@ async function team(t, { now, storeNow, names = {}, text = (s) => s } = {}) {
   }
   const get = (path, who) => call("GET", path, { cookie: who.cookie });
   const claimOf = (l) => board.inbox(l).mine.claimId;
-  return { ...h, admin, pl, b, c, be, fe, linkOf, story, get, claimOf };
+  return { ...h, call, admin, pl, b, c, be, fe, linkOf, story, get, claimOf };
 }
 
 /** A hub behind the OpenShift router, with or without a Story board and the installer; `admin` is signed in. */
@@ -414,7 +417,7 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   const on = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
   for (const [who, line] of [[h.c, `내 ${on}`], [h.pl, on]]) {
     const text = (await h.get(`/tasks/${s.api}`, who)).text;
-    assert.ok(text.includes(`<p><b>${line}</b></p>`), `the Mac reports: ${who.member.name}`);
+    assert.ok(text.includes(`<p>${line}</p>`), `the Mac reports: ${who.member.name}`);
     assert.ok(!text.includes(held) && !text.includes(mine) && !text.includes("꺼짐"));
   }
 });
@@ -458,7 +461,7 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   assert.ok(!mine.includes("/release") && !mine.includes("/cancel"));
   for (const who of [h.pl, h.admin]) {
     const page = (await h.get(`/tasks/${s.api}`, who)).text;
-    assert.ok(page.includes(`<form method="post" action="/tasks/${s.api}/release"><input type="hidden" name="csrf" value="${who.csrf}"><p>${releaseLine}</p><div class="row"><button class="secondary">풀기</button></div></form>`), "release");
+    assert.ok(page.includes(`<form method="post" action="/tasks/${s.api}/release"><input type="hidden" name="csrf" value="${who.csrf}"><div class="row"><button class="secondary">풀기</button><button type="button" class="info" popovertarget="info-release" aria-label="풀기 설명">i</button><span id="info-release" popover class="infobox">${releaseLine}</span></div></form>`), "release");
     assert.ok(page.includes(cancel(who, s.api)), "cancel");
     assert.ok(!page.includes("/rerun"), "only the assignee reruns");
   }
@@ -470,7 +473,9 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   h.board.mergeLock(s.plBe, copy.taskId, copy.claimId);
   now += HELD_AFTER_MS + 1;
   const page = (await h.get(`/tasks/${s.copy}`, h.admin)).text;
-  assert.ok(page.includes(`<p>${releaseLine} 합치는 중이었을 수 있습니다.</p>`));
+  // The warning stays in view; what 풀기 does is behind the ⓘ (U49).
+  assert.ok(page.includes('<p>합치는 중이었을 수 있습니다.</p><div class="row"><button class="secondary">풀기</button><button type="button" class="info"'));
+  assert.ok(page.includes(`popover class="infobox">${releaseLine}</span>`));
   // And it cannot be cancelled from here: the change may be merged already, so 풀기 comes first.
   assert.ok(page.includes("<p>합치는 중이라 지금은 취소할 수 없습니다. 이미 합쳐졌을 수 있으니 먼저 풀기를 하세요.</p>"));
   assert.ok(!page.includes(`/tasks/${s.copy}/cancel`), "no cancel form");
@@ -746,7 +751,7 @@ test("풀기 on a failed Story verification Task says the Story verification is 
   const v = h.board.claimVerify(s.plBe, s.storyId);
   h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: false, summary: "be V1 실패" });
   const page = await taskPage(h, h.pl, s.verify);
-  assert.ok(page.includes(`<form method="post" action="/tasks/${s.verify}/release"><input type="hidden" name="csrf" value="${h.pl.csrf}"><p>풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다.</p><div class="row"><button class="secondary">풀기</button></div></form>`));
+  assert.ok(page.includes(`<form method="post" action="/tasks/${s.verify}/release"><input type="hidden" name="csrf" value="${h.pl.csrf}"><div class="row"><button class="secondary">풀기</button><button type="button" class="info" popovertarget="info-release" aria-label="풀기 설명">i</button><span id="info-release" popover class="infobox">풀면 Story 검증이 다시 준비되고, PL의 Office가 다시 검증합니다.</span></div></form>`));
   assert.ok(!page.includes("그 레포 담당자"), "a verification Task has no repo");
 });
 

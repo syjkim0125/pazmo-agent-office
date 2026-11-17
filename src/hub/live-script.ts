@@ -2,6 +2,7 @@
  * Static script for the board's GET pages: it re-reads the page every 10 s while the tab is shown, and swaps in the new
  * <main> and title only when nothing in a form is being typed and no text in <main> is selected (a skipped swap is
  * tried again next tick). Open <details> stay open (matched by summary text and order) and focus comes back by id.
+ * An open ⓘ popover (U49) holds the swap too; a browser that does not know :popover-open swaps as before.
  * A failed read stops it and takes `html.live` off, so the 새로 고침 link shows again. It holds no secret and sends the
  * page's own address only.
  */
@@ -32,6 +33,9 @@ export const LIVE_SCRIPT = `(function () {
     for (var i = 0; i < sel.rangeCount; i++) if (sel.getRangeAt(i).intersectsNode(main)) return true;
     return false;
   }
+  function noting(main) {
+    try { return !!main.querySelector(":popover-open"); } catch (e) { return false; }
+  }
   // Each <details> of <main> by its summary text and its place among the details with that text.
   function eachDetails(main, fn) {
     var seen = {}, all = main.querySelectorAll("details");
@@ -49,7 +53,7 @@ export const LIVE_SCRIPT = `(function () {
   }
   function tick() {
     var main = document.querySelector("main");
-    if (busy || document.hidden || typing() || (main && selecting(main))) return;
+    if (busy || document.hidden || typing() || (main && (selecting(main) || noting(main)))) return;
     busy = true;
     var headers = {};
     if (etag) headers["If-None-Match"] = etag;
@@ -59,7 +63,7 @@ export const LIVE_SCRIPT = `(function () {
       return res.text().then(function (text) {
         // The form may have been touched while the request was out.
         var main = document.querySelector("main");
-        if (document.hidden || typing() || !main || selecting(main)) return;
+        if (document.hidden || typing() || !main || selecting(main) || noting(main)) return;
         var next = new DOMParser().parseFromString(text, "text/html");
         var fresh = next.querySelector("main");
         if (!fresh) return;

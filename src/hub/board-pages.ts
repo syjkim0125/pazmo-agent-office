@@ -8,14 +8,14 @@
  * (`?project=<id>`) and, on 전체, fold projects with no Story into one line. A card's color class follows its state word
  * (need, run, stop, done); the words are always written. No script of its own; every value goes through `esc`.
  */
-import { avatar, esc, inColumn, layout, macLine, tone, tonePill, type Chrome, type Tone } from "./pages.ts";
+import { avatar, esc, inColumn, layout, macLine, say, tone, tonePill, type Chrome, type Tone } from "./pages.ts";
 import { planStateLabel, planStateText } from "./plan-pages.ts";
 import type { PlanCard } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
 import type { BoardCard, BoardProject, BoardStory } from "./story-store.ts";
 import type { BoardColumn } from "./board.ts";
 import type { StoryState } from "./story-protocol.ts";
-import { AWAITING_G4, HELD_SHORT, failureElsewhere, storyStateLabel, taskStateLabel } from "./story-pages.ts";
+import { AWAITING_G4, stoppedReason, storyStateLabel, taskStateLabel } from "./story-pages.ts";
 
 const COLUMNS: { key: Exclude<BoardColumn, "hidden">; label: string }[] = [
   { key: "backlog", label: "백로그" },
@@ -76,10 +76,13 @@ const boardHref = (base: Base, f: Filters) => {
 /** A taken card takes its state's color; a merged one is quiet (done); a card nobody holds has no color. */
 const cardTone = (c: BoardCard): Tone | null => (TAKEN.has(c.state) ? tone("task", c.state) : c.state === "merged" || c.state === "passed" ? "done" : null);
 
-/** A failed Task's reason on a board: nothing is below a card or a row there, so it points to the Task page. */
-const boardFailure = (c: BoardCard) => failureElsewhere(c.failure ?? "", c.kind);
+/**
+ * A stopped Task's reason on a board, said to its reader (U49): its assignee is told to retry on the Task page, anyone
+ * else reads what stopped it and who can retry; a failed Story check reads as its lead's when `lead`.
+ */
+const boardWhy = (c: BoardCard, me: Member, lead: boolean) => stoppedReason(c, me, lead);
 
-function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
+function taskCard(c: BoardCard, badges: Map<string, MacBadge>, me: Member, lead: boolean): string {
   const who = TAKEN.has(c.state) ? c.assignee : null;
   const timed = who !== null && (c.column === "doing" || c.column === "review");
   const t = cardTone(c);
@@ -87,7 +90,7 @@ function taskCard(c: BoardCard, badges: Map<string, MacBadge>): string {
   const person = who
     ? `<p class="who">${avatar(who)}<span>${esc(who.name)}</span>${macLine(badges.get(who.id) ?? NO_MAC)}${timed ? `<span class="time">${esc(inColumn(c.columnAt))}</span>` : ""}</p>`
     : "";
-  const why = c.state === "failed" ? `<p class="why">${esc(boardFailure(c))}</p>` : "";
+  const why = c.state === "failed" ? `<p class="why">${say(boardWhy(c, me, lead))}</p>` : "";
   const meta = `<p class="meta"><span class="num">#${c.number}</span>${c.repo ? ` ${esc(c.repo.name)}` : ""}</p>`;
   return `<li class="card${t ? ` ${t}` : ""}"><a class="title" href="/tasks/${esc(c.taskId)}">${esc(c.title)}</a>${state}${person}${why}${meta}</li>`;
 }
@@ -103,11 +106,11 @@ function cancelledStrip(s: BoardStory): string {
 }
 
 /** The five Task columns of one Story; on the Task board the 완료 column links to the Story page for older cards. */
-function taskColumns(s: BoardStory, badges: Map<string, MacBadge>): string {
+function taskColumns(s: BoardStory, badges: Map<string, MacBadge>, me: Member): string {
   const columns = COLUMNS.map(({ key, label }) => {
     const cards = s.cards.filter((c) => c.column === key);
     const more = key === "done" && s.doneMore > 0 ? `<li class="muted"><a href="/stories/${esc(s.id)}">${s.doneMore}개 더</a></li>` : "";
-    return `<div class="col" data-col="${key}"><h3><span>${label}</span><span>${cards.length}</span></h3><ul class="cards">${cards.map((c) => taskCard(c, badges)).join("")}${more}</ul></div>`;
+    return `<div class="col" data-col="${key}"><h3><span>${label}</span><span>${cards.length}</span></h3><ul class="cards">${cards.map((c) => taskCard(c, badges, me, s.pl.id === me.id)).join("")}${more}</ul></div>`;
   }).join("");
   return `<div class="cols">${columns}</div>`;
 }
@@ -116,8 +119,8 @@ function taskColumns(s: BoardStory, badges: Map<string, MacBadge>): string {
  * A Story page's own Task board (every card it has, its cancelled ones in the strip: the store leaves none out) and its
  * progress line.
  */
-export function storyTaskBoard(s: BoardStory, badges: Map<string, MacBadge>): { progress: string; columns: string } {
-  return { progress: progressOf(s), columns: taskColumns(s, badges) + cancelledStrip(s) };
+export function storyTaskBoard(s: BoardStory, badges: Map<string, MacBadge>, me: Member): { progress: string; columns: string } {
+  return { progress: progressOf(s), columns: taskColumns(s, badges, me) + cancelledStrip(s) };
 }
 
 /** Done and total Tasks of a Story (the Story check counts; cancelled cards do not), and how many are stopped. */
@@ -142,10 +145,10 @@ function people(s: BoardStory): string {
   return `<span class="lead">${avatar(s.pl)}PL ${esc(s.pl.name)}</span>${now}`;
 }
 
-function storyLane(s: BoardStory, badges: Map<string, MacBadge>, cancelled: boolean): string {
+function storyLane(s: BoardStory, badges: Map<string, MacBadge>, cancelled: boolean, me: Member): string {
   const prog = `<span class="progress">${progressOf(s)}</span>`;
   const title = `<a class="story-title" href="/stories/${esc(s.id)}"><span class="num">#${s.number}</span> ${esc(s.title)}</a>`;
-  return `<article class="lane" data-story="${s.number}"><div class="story">${title}${pill(storyStateLabel(s.state), tone("story", s.state))}<span class="people">${people(s)}</span>${prog}</div>${taskColumns(s, badges)}${cancelled ? cancelledStrip(s) : ""}</article>`;
+  return `<article class="lane" data-story="${s.number}"><div class="story">${title}${pill(storyStateLabel(s.state), tone("story", s.state))}<span class="people">${people(s)}</span>${prog}</div>${taskColumns(s, badges, me)}${cancelled ? cancelledStrip(s) : ""}</article>`;
 }
 
 /** What a cancelled Story had: its cancelled Tasks, and the ones that had finished before it was cancelled. */
@@ -215,7 +218,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
             rank: 0,
             tone: "stop",
             word: taskStateLabel(c.state, c.stage),
-            why: c.state === "failed" ? boardFailure(c) : HELD_SHORT,
+            why: stoppedReason(c, me, lead),
             link: waitLink(`/tasks/${c.taskId}`, c.title, s.number),
           });
     }
@@ -232,7 +235,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
     kinds.set(key, [...(kinds.get(key) ?? []), w]);
   }
   const rows = [...kinds.values()].map((k) => {
-    const why = k.every((w) => w.why === k[0].why) ? `<span class="gwhy">${esc(k[0].why)}</span>` : "";
+    const why = k.every((w) => w.why === k[0].why) ? `<span class="gwhy">${say(k[0].why)}</span>` : "";
     return `<li><p class="ghead">${tonePill(k[0].tone, k[0].word)}<span class="count">${k.length}</span>${why}</p><p class="glinks">${k.map((w) => w.link).join("")}</p></li>`;
   });
   return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
@@ -297,7 +300,7 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
       const empty = canPlan
         ? "아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다."
         : "아직 Story가 없습니다. 이 프로젝트의 레포를 모두 맡은 사람이 Story를 올리면 여기에 보입니다.";
-      const inner = p.stories.length || plans.length ? body(p, plans) : `<p class="empty">${empty}</p>`;
+      const inner = p.stories.length || plans.length ? body(p, plans) : `<p class="empty">${say(empty)}</p>`;
       return `<section class="project"><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div><p class="muted">레포: ${repos}</p>${inner}</section>`;
     })
     .filter(Boolean);
@@ -309,7 +312,7 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
     : v.canCreateProject
       ? "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요."
       : "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";
-  return `<div class="projects">${html.length || line ? html.join("") + line : `<section><p class="empty">${esc(empty)}</p></section>`}</div>`;
+  return `<div class="projects">${html.length || line ? html.join("") + line : `<section><p class="empty">${say(empty)}</p></section>`}</div>`;
 }
 
 /**
@@ -356,7 +359,7 @@ export function taskBoardPage(me: Member, csrf: string, v: BoardView, chrome: Ch
             .concat(drafts.map((s) => `<li class="card run"><a class="title" href="/stories/${esc(s.id)}">${esc(s.title)}</a><p>${pill("기획 중", "run")}</p><p class="who">${avatar(s.pl)}<span>PL ${esc(s.pl.name)}</span></p><p class="meta"><span class="num">#${s.number}</span></p></li>`))
             .join("")}</ul></article>`
         : "";
-    return planning + p.stories.filter((s) => s.state !== "draft").map((s) => storyLane(s, v.badges, v.cancelled)).join("");
+    return planning + p.stories.filter((s) => s.state !== "draft").map((s) => storyLane(s, v.badges, v.cancelled, me)).join("");
   };
   const f = filtersOf(v);
   return layout("모든 Task", me, `${titlebar(me, "/tasks", v, f)}${waitingOnMe(me, v, f)}${projectsOf(me, "/tasks", v, f, lanes)}`, chrome);

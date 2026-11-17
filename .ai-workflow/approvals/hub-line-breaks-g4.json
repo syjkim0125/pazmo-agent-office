@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d",
+  "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a",
+  "runId": "865ee288-3918-44ca-8d6d-b57cd585bdc9",
+  "responseRef": "Claude Code conversation 2026-11-17. The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 21, label 'U49 G4') showed before/after screenshot pairs (Task failed as PL 1360 and phone with the ⓘ open, new project with the base-branch columns and the ⓘ open, the Story board's waiting box), the changes, the checks (two kit reviews, kit verify 1936/1936), what was not verified, the three G4 questions and the options; asked \"U49 G4: 어떻게 할까요?\", the user answered \"승인 후 머지\" without answering the three questions (D13). Record: .ai-workflow/approvals/hub-line-breaks-g4.md",
+  "branch": "hub-line-breaks",
+  "head": "13319de",
+  "date": "2026-11-17"
+}

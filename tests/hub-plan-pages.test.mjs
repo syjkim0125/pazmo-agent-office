@@ -6,6 +6,8 @@ import { checkServerIdentity } from "node:tls";
 import { MAC_OFFLINE_MS } from "../src/hub/store.ts";
 import { planStoryKey, planTextHash } from "../src/hub/plan-protocol.ts";
 import { startTestHub } from "./hub-fixture.mjs";
+/** U49: a page with its one-sentence-per-line marks taken off, for tests that compare words (the U49 tests pin the marks). */
+const unline = (html) => html.replace(/<(?:span|b) class="ln">([^<]*)<\/(?:span|b)>/g, "$1");
 
 const EVIL = "<img src=x onerror=alert(1)>";
 const SAFE = "&#60;img src=x onerror=alert(1)&#62;";
@@ -49,7 +51,8 @@ const q = (n, blocking = false, text = (s) => s) => ({ id: `Q${n}`, text: text(`
  */
 async function team(t, { now, storeNow, plans, project = true, names = {}, text = (s) => s } = {}) {
   const h = await startTestHub(t, { now, storeNow, plans });
-  const { store, board, call, enter } = h;
+  const { store, board, enter } = h;
+  const call = async (...a) => { const r = await h.call(...a); return { ...r, text: unline(r.text) }; };
   const signIn = async (raw) => {
     const w = await enter(raw);
     return { ...w, member: store.session(w.cookie.split("=")[1]).member };
@@ -799,7 +802,7 @@ test("취소 on a plan whose Story already opened ends the plan open and the pag
   assert.equal(res.status, 303);
   assert.equal(res.headers.location, `/plans/${id}?opened=1`);
   const text = (await h.get(res.headers.location, h.pl)).text.replace(/<header>[\s\S]*?<\/header>/, "");
-  assert.ok(text.includes(`<section role="status"><p><b>${OPENED(pub.number)}</b></p></section>`));
+  assert.ok(text.includes(`<section role="status"><p>${OPENED(pub.number)}</p></section>`), "the first line in bold, the next on its own (U49)");
   assert.ok(text.includes(`${pill("열림")} Story #${pub.number}이 열렸습니다.`));
   assert.ok(text.includes(`<a href="/stories/${pub.storyId}">Story #${pub.number} 보기</a>`));
   assert.ok(!text.includes("<form "), "nothing left to do");
@@ -867,7 +870,7 @@ test("a plan whose project changed one of its repos since it started shows why i
     actions: { answer: false, rewrite: true, approve: "repos-changed", retry: false, cancel: true },
   };
   const html = planPage({ id: "m", name: "PL", admin: false }, "c", v, { plMac: { state: "none", lastSeen: null }, plOpenTask: null, changed: false, unlinked: [], opened: false }, {});
-  assert.ok(html.includes("<p><b>기획을 시작한 뒤 프로젝트의 레포나 기준 브랜치가 바뀌어 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.</b></p>"));
+  assert.ok(unline(html).includes("<p>기획을 시작한 뒤 프로젝트의 레포나 기준 브랜치가 바뀌어 승인할 수 없습니다. 프로젝트를 처음대로 되돌리거나, 취소하고 새 Story로 시작하세요.</p>"));
   assert.ok(!html.includes(`/plans/${v.id}/approve`));
   assert.ok(html.includes(`/plans/${v.id}/rewrite`));
 });

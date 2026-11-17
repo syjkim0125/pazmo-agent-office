@@ -1,0 +1,616 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "865ee288-3918-44ca-8d6d-b57cd585bdc9",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: the ⓘ box centres where the browser cannot anchor (no margin on the base rule), anchored 6px under its ⓘ otherwise, a bottom sheet on phones; tests find every never-hidden sentence with the popovers taken out (fingerprint notes, Mac code check, /trust, plan and Task 취소, merge lock), bold first lines, the Story-page board by reader, the created ⓘ beside its first line, say() splitting after ')' and escaping; a visible branch label on phones; macApprove parameter renamed. RED 4/12 -> GREEN 12/12, Hub tests 632/632, tsc 0, 120 browser checks clean. Commit 13319de.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-2.md",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-red-2.txt",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-green-2.txt",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-2.md": "b6c5a56cb83fd796a02dc8cfd200fe55b5fed7bb33e386c7532c3fb04245ee0d",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-red-2.txt": "fead9f61ed1db39992535219cab4f53b8a9907ac3d556ed120f2be5b167c0237",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-green-2.txt": "6f9dbbc3b461e46baa06ebe3fae156f610fd7f3f16220dc72b5313020931ec55",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-hub-2.txt": "290211a4da6ec86f2e7e853cc42b92fe34c3ab7d8aff27b7d285afac4b013262"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a",
+        "output": {
+          "summary": "Independent review 2 of b5a76ea..13319de and the whole PR add28e9..13319de: Ready. I1 fixed: without anchoring the ⓘ box opens centred (510,415 in 1360x900), anchored 6px under its ⓘ, a 16px-sided bottom sheet at 390; pinned by a test. I2 fixed: the four never-hidden reverts from review 1 now fail the new test. Fixed Minors each pinned (eleven deliberate breakages fail tests); 231/231 page tests; 36 page/width/anchor runs with no duplicate ids; live.js and no-JS unchanged. Minor, fine to ship: a Mac rest detail containing a sentence end could split inside its parentheses (escaped); the Mac-approve held warning stays one bold line; held note visible and .ln layout effects as judged.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-review-2.md": "a10e39449e62fa01d0e0d2cccf225fe26810d80b6dc2caebcdfee33f73456895"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/b7570352-6067-4ed8-9896-42d4c6b671be/receipt.json",
+            "hash": "45d41a499c037a9edbcfcc8092c9116ec6c134c3bd4344d2e347f4bf401b70b3"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/04a052cd-0101-4aa5-a2d2-dccb379a4241/receipt.json",
+            "hash": "88d52bf3807ce88e4a60747a3989cbbdd1b32354faec8686cd0cb0c558d4048b"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/6ff4667e-956c-4474-9aec-57d6ff2c393a/receipt.json",
+            "hash": "a66967c89a45cc5f27b9cf765c7c13841ca2f466762309995289189c334573e6"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/e30bf253-57c1-48d9-ae93-8b2db68cc532/receipt.json",
+            "hash": "3d667dae95299e6e3c1e8b5d2c77789411df64b4e83f20cdd6486a7f492010c6"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/a63e373e-99b2-45f7-8076-f5d8c7a60a57/receipt.json",
+            "hash": "2489c99d739d8d87cfaae6ea6e8325c979bfe31e45dd9bea980a4e6a1426b82a"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 13319de: tests 673/673 + 586/586 + 677/677 = 1936/1936, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-verify-1.md": "53b8f5342f8561c5e7d21fcb94dda2d572967b9c2c19a08d90671a5aa3a4a613"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-13T05:50:40.839Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-17T01:45:52.184Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "One meaning per line on every Hub page (say/lns), side notes behind a native ⓘ popover (info) with a phone sheet, live.js holding the swap while a note is open, board failure wording by reader (stoppedReason), and the new-project repo|base-branch columns. RED 6/7 -> GREEN 7/7, Hub tests 627/627, tsc 0, 120 browser checks with 0 overflow/past-edge/small, 10 ⓘ boxes on screen and closing on Esc. Commits 89699c8, b5a76ea.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-1.md",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-red-1.txt",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-green-1.txt",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-hub-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-1.md": "bad1dd9489c5e32bba63c0d85f8351874befcc081065dc266278e2730bc78c46",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-red-1.txt": "fcb17e8b751055283382b181bab435d34e3abb5024c7f7fd40ac3766c72019fc",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-green-1.txt": "b566c3562e4de2ab302fa787cc0cf2850a6050ba1d5e91d03d5d6f2f3e2f405e",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-hub-1.txt": "9cc8f56d6f44086271e561c1085c55be3f0e9b7fbf73f9ce49a5e46856f9d80e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T01:45:59.220Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T01:58:18.284Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "a4eb524efabeeca636b34fe68933d2d88e059dfe34c54e7d95dc6466a0c6c00a",
+        "output": {
+          "summary": "Independent review 1 of add28e9..b5a76ea: Not ready. Content right (nothing that must stay visible is hidden, meaning kept, escaping, unique popover ids, no ⓘ in a label, live.js and no-JS, board wording by reader). Important I1: without anchor positioning the ⓘ box opens at (0,0) because the base rule's margin:0 cancels the popover's centring, though the code, change record and explainer say centred. Important I2: tests guard only two of six never-hidden items (invite fingerprint note, Mac code check, plan 취소, /trust check slip). Minor: bold first lines barely tested; the Story page board's lead flag untested; phones lose the visible 기준 브랜치 label; the created pages' ⓘ sits on its own line; say() does not split after ').'; held text keeps a note in view (safe); .ln layout effects fine; macApprove's info parameter shadows info().",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "a4eb524efabeeca636b34fe68933d2d88e059dfe34c54e7d95dc6466a0c6c00a"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1 (no margin:0 on the base popover rule so it centres; anchored placement only inside @supports; a test pins the fallback) and I2 (one test strips popovers and finds every never-hidden sentence: invite and device link with TLS, Mac approve, /trust, plan 취소, Task 취소, merge lock); also the minors: bold first-line tests, the Story-page board lead test, a visible 기준 브랜치 label on phones, the created ⓘ beside its first line, split after ').', rename macApprove's info parameter."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-review-1.md": "9392a76b58ff68922043e2ff0e3b088bc3bca45b895e12858acc197d94cc0202"
+        },
+        "error": "Fix I1 (no margin:0 on the base popover rule so it centres; anchored placement only inside @supports; a test pins the fallback) and I2 (one test strips popovers and finds every never-hidden sentence: invite and device link with TLS, Mac approve, /trust, plan 취소, Task 취소, merge lock); also the minors: bold first-line tests, the Story-page board lead test, a visible 기준 브랜치 label on phones, the created ⓘ beside its first line, split after ').', rename macApprove's info parameter."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 1: popover fallback at (0,0); never-hidden items untested; minors",
+      "at": "2026-11-17T01:58:18.896Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-17T01:58:26.026Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-17T02:03:48.272Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes: the ⓘ box centres where the browser cannot anchor (no margin on the base rule), anchored 6px under its ⓘ otherwise, a bottom sheet on phones; tests find every never-hidden sentence with the popovers taken out (fingerprint notes, Mac code check, /trust, plan and Task 취소, merge lock), bold first lines, the Story-page board by reader, the created ⓘ beside its first line, say() splitting after ')' and escaping; a visible branch label on phones; macApprove parameter renamed. RED 4/12 -> GREEN 12/12, Hub tests 632/632, tsc 0, 120 browser checks clean. Commit 13319de.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-2.md",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-red-2.txt",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-green-2.txt",
+            ".ai-workflow/runs/U49-hub-line-breaks-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-2.md": "b6c5a56cb83fd796a02dc8cfd200fe55b5fed7bb33e386c7532c3fb04245ee0d",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-red-2.txt": "fead9f61ed1db39992535219cab4f53b8a9907ac3d556ed120f2be5b167c0237",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-green-2.txt": "6f9dbbc3b461e46baa06ebe3fae156f610fd7f3f16220dc72b5313020931ec55",
+          ".ai-workflow/runs/U49-hub-line-breaks-implement-hub-2.txt": "290211a4da6ec86f2e7e853cc42b92fe34c3ab7d8aff27b7d285afac4b013262"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T02:03:58.526Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T02:09:20.354Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a",
+        "output": {
+          "summary": "Independent review 2 of b5a76ea..13319de and the whole PR add28e9..13319de: Ready. I1 fixed: without anchoring the ⓘ box opens centred (510,415 in 1360x900), anchored 6px under its ⓘ, a 16px-sided bottom sheet at 390; pinned by a test. I2 fixed: the four never-hidden reverts from review 1 now fail the new test. Fixed Minors each pinned (eleven deliberate breakages fail tests); 231/231 page tests; 36 page/width/anchor runs with no duplicate ids; live.js and no-JS unchanged. Minor, fine to ship: a Mac rest detail containing a sentence end could split inside its parentheses (escaped); the Mac-approve held warning stays one bold line; held note visible and .ln layout effects as judged.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-review-2.md": "a10e39449e62fa01d0e0d2cccf225fe26810d80b6dc2caebcdfee33f73456895"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-17T02:09:33.577Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-17T02:15:32.327Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/b7570352-6067-4ed8-9896-42d4c6b671be/receipt.json",
+            "hash": "45d41a499c037a9edbcfcc8092c9116ec6c134c3bd4344d2e347f4bf401b70b3"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/04a052cd-0101-4aa5-a2d2-dccb379a4241/receipt.json",
+            "hash": "88d52bf3807ce88e4a60747a3989cbbdd1b32354faec8686cd0cb0c558d4048b"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/6ff4667e-956c-4474-9aec-57d6ff2c393a/receipt.json",
+            "hash": "a66967c89a45cc5f27b9cf765c7c13841ca2f466762309995289189c334573e6"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/e30bf253-57c1-48d9-ae93-8b2db68cc532/receipt.json",
+            "hash": "3d667dae95299e6e3c1e8b5d2c77789411df64b4e83f20cdd6486a7f492010c6"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/865ee288-3918-44ca-8d6d-b57cd585bdc9/a63e373e-99b2-45f7-8076-f5d8c7a60a57/receipt.json",
+            "hash": "2489c99d739d8d87cfaae6ea6e8325c979bfe31e45dd9bea980a4e6a1426b82a"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 13319de: tests 673/673 + 586/586 + 677/677 = 1936/1936, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U49-hub-line-breaks-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "da6bb41fe2aa00eae5ee03f36a2cf64c14e6cbe006cd96d7079942031ffe177a"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U49-hub-line-breaks-verify-1.md": "53b8f5342f8561c5e7d21fcb94dda2d572967b9c2c19a08d90671a5aa3a4a613"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

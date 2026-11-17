@@ -3,7 +3,7 @@
  * Story. No script; every value goes through `esc`. Each form is drawn only when `PlanView.actions` says the viewer may,
  * and carries the revision it was drawn at, so a second click or an older tab changes nothing.
  */
-import { ago, csrfField, esc, layout, macBadgeLabel, teamTime, tone, tonePill, type Chrome } from "./pages.ts";
+import { ago, csrfField, esc, info, layout, lns, macBadgeLabel, say, teamTime, tone, tonePill, type Chrome } from "./pages.ts";
 import { PLAN_LIMITS, type PlanApproval, type PlanQuestion, type PlanRound, type PlanState } from "./plan-protocol.ts";
 import type { PlanRepo, PlanView } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
@@ -63,16 +63,16 @@ export function planStateText(v: Pick<PlanView, "state" | "leased" | "isPl" | "s
 }
 
 const pill = (label: string) => `<span class="pill">${esc(label)}</span>`;
-const alert = (error?: string) => (error ? `<p role="alert"><b>${esc(error)}</b></p>` : "");
+const alert = (error?: string) => (error ? `<p role="alert">${say(error, true)}</p>` : "");
 
 /** `repos`: the ones the member may put in a project (their own; every repo for a hub admin). */
 export function newProjectPage(me: Member, csrf: string, repos: { id: string; name: string }[], chrome: Chrome, o: { error?: string } = {}): string {
   const row = (r: { id: string; name: string }) =>
-    `<div class="row"><label><input type="checkbox" name="repo" value="${esc(r.id)}"> ${esc(r.name)}</label><label>기준 브랜치<input name="base-${esc(r.id)}" value="main" aria-label="${esc(r.name)} 기준 브랜치"></label></div>`;
+    `<div class="rp"><label><input type="checkbox" name="repo" value="${esc(r.id)}"> ${esc(r.name)}</label><span class="rpl" aria-hidden="true">기준 브랜치</span><input name="base-${esc(r.id)}" value="main" aria-label="${esc(r.name)} 기준 브랜치"></div>`;
   const form = repos.length
-    ? `<form method="post" action="/projects">${csrfField(csrf)}<label>프로젝트 이름 <span class="muted">(${LIMITS.projectNameMax}자까지)</span><input name="name" required maxlength="${LIMITS.projectNameMax}"></label><fieldset><legend>넣을 레포와 기준 브랜치</legend>${repos.map(row).join("")}</fieldset><div class="row"><button>프로젝트 만들기</button></div></form>`
+    ? `<form method="post" action="/projects">${csrfField(csrf)}<label>프로젝트 이름 <span class="muted">(${LIMITS.projectNameMax}자까지)</span><input name="name" required maxlength="${LIMITS.projectNameMax}"></label><fieldset class="repopick"><legend>넣을 레포와 기준 브랜치</legend><div class="rphead" aria-hidden="true"><span>레포</span><span>기준 브랜치</span></div>${repos.map(row).join("")}</fieldset><div class="row"><button>프로젝트 만들기</button></div></form>`
     : `<p>내가 담당인 레포가 없습니다. <a href="/repos">레포</a> 화면에서 레포를 등록하거나, 관리자에게 담당자 등록을 요청하세요.</p>`;
-  return layout("새 프로젝트", me, `<section><h1>새 프로젝트</h1><p class="muted">함께 바꿀 레포를 묶습니다. Story는 레포마다 기준 브랜치에서 시작합니다. 만든 뒤 보드의 [새 Story]로 기획을 시작하세요.</p>${alert(o.error)}${form}</section>`, chrome);
+  return layout("새 프로젝트", me, `<section><h1>새 프로젝트</h1><p class="muted">${lns(`함께 바꿀 레포를 묶습니다.${info("info-project", "프로젝트 설명", "Story는 레포마다 기준 브랜치에서 시작합니다.")}`, "만든 뒤 보드의 [새 Story]로 기획을 시작하세요.")}</p>${alert(o.error)}${form}</section>`, chrome);
 }
 
 /** `values`: what the member typed, sent back with `error` when the hub refused it. */
@@ -87,8 +87,8 @@ export function newStoryPage(
   const option = (value: string, label: string) => `<option value="${value}"${v.risk === value ? " selected" : ""}>${label}</option>`;
   const repos = project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
   // The newline after <textarea> is dropped by the parser, so a typed text that starts with one keeps it.
-  const form = `<form method="post" action="/projects/${esc(project.id)}/plans">${csrfField(csrf)}<label>제목 <span class="muted">(${PLAN_LIMITS.titleMax}자까지)</span><input name="title" required maxlength="${PLAN_LIMITS.titleMax}" value="${esc(v.title)}"></label><label>하고 싶은 일 <span class="muted">(평소 말로 적으세요. 기획 문서를 붙여 넣어도 됩니다. 64KB, 한글 약 2만 자까지)</span><textarea name="intent" rows="14" required>\n${esc(v.intent)}</textarea></label><label>위험도<select name="risk">${option("normal", "보통")}${option("high", "높음")}</select></label><p class="muted">높음이면 Task로 나누기 전에 AI가 쓴 설계를 한 번 더 승인합니다.</p><div class="row"><button>기획 시작</button></div></form>`;
-  return layout("새 Story", me, `<section><p class="muted"><a href="/board">${esc(project.name)}</a> · 레포: ${repos}</p><h1>새 Story</h1><p class="muted">하고 싶은 일을 적으면 내 Mac의 AI가 읽고, 필요하면 묻고, Story 초안을 씁니다. 초안을 승인하면 Task로 나눠 팀에 올립니다.</p>${alert(o.error)}${form}</section>`, chrome);
+  const form = `<form method="post" action="/projects/${esc(project.id)}/plans">${csrfField(csrf)}<label>제목 <span class="muted">(${PLAN_LIMITS.titleMax}자까지)</span><input name="title" required maxlength="${PLAN_LIMITS.titleMax}" value="${esc(v.title)}"></label><label>하고 싶은 일 <span class="muted">(평소 말로 적으세요)</span><textarea name="intent" rows="14" required>\n${esc(v.intent)}</textarea></label><label>위험도<select name="risk">${option("normal", "보통")}${option("high", "높음")}</select></label><p class="muted">높음이면 Task로 나누기 전에 AI가 쓴 설계를 한 번 더 승인합니다.</p><div class="row"><button>기획 시작</button></div></form>`;
+  return layout("새 Story", me, `<section><p class="muted"><a href="/board">${esc(project.name)}</a> · 레포: ${repos}</p><h1>새 Story</h1><p class="muted">하고 싶은 일을 적으면 내 Mac의 AI가 읽고, 필요하면 묻고, Story 초안을 씁니다.${info("info-plan", "새 Story 설명", "초안을 승인하면 Task로 나눠 팀에 올립니다. 기획 문서를 붙여 넣어도 됩니다. 64KB, 한글 약 2만 자까지 적을 수 있습니다.")}</p>${alert(o.error)}${form}</section>`, chrome);
 }
 
 /** The PL's Mac when it is off: said even while a lease is live, since a Mac asleep mid-step holds it for up to 600000 ms. */
@@ -176,25 +176,25 @@ export function planPage(
   };
   const approve = (gate: "G1" | "G3", hash: string, note: string, label: string) =>
     v.actions.approve === "yes"
-      ? form("approve", `<input type="hidden" name="gate" value="${gate}"><input type="hidden" name="hash" value="${esc(hash)}"><p>${esc(note)}</p><div class="row"><button>${esc(label)}</button></div>`)
+      ? form("approve", `<input type="hidden" name="gate" value="${gate}"><input type="hidden" name="hash" value="${esc(hash)}"><p>${say(note)}</p><div class="row"><button>${esc(label)}</button></div>`)
       : v.actions.approve === "open-blocking"
-        ? `<p><b>${OPEN_BLOCKING}</b></p>`
+        ? `<p>${say(OPEN_BLOCKING, true)}</p>`
         : v.actions.approve === "not-owner"
-          ? `<p><b>${NOT_OWNER}</b></p>`
+          ? `<p>${say(NOT_OWNER, true)}</p>`
           : v.actions.approve === "repos-changed"
-            ? `<p><b>${REPOS_CHANGED}</b></p>`
+            ? `<p>${say(REPOS_CHANGED, true)}</p>`
             : "";
 
   const office = OFFICE.includes(v.state);
   const off = o.plMac.state === "off";
-  const mac = !office ? "" : !v.leased ? `<p>${esc(macLine(o.plMac, o.plOpenTask))}</p>` : off ? `<p>${esc(macOff(o.plMac))}</p>` : "";
+  const mac = !office ? "" : !v.leased ? `<p>${say(macLine(o.plMac, o.plOpenTask))}</p>` : off ? `<p>${say(macOff(o.plMac))}</p>` : "";
   // A held Task, an off or locked Mac already say why; and a busy or off Office leaves its other links unreached anyway.
   const unlinked =
     office && !v.leased && !o.plOpenTask && !off && o.plMac.state !== "locked" && o.unlinked.length
       ? `<p>${esc(`PL의 Office에 연결되지 않은 레포: ${o.unlinked.join(", ")} — PL Mac의 Office에 이 레포를 연결해야 기획이 시작됩니다.`)}</p>`
       : "";
   const opened = v.state === "open" && v.story ? `<p><a href="/stories/${esc(v.story.id)}">Story #${v.story.number} 보기</a></p>` : "";
-  const head = `<section class="head"><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${tonePill(tone("plan", v.state), planStateLabel(v.state, v.leased))} ${esc(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a class="refresh" href="${esc(base)}">새로 고침</a><span class="live-note">저절로 업데이트</span></p></section>`;
+  const head = `<section class="head"><p class="muted"><a href="/board">${esc(v.project.name)}</a> · PL: ${esc(v.pl.name)} · 위험도 ${v.risk === "high" ? "높음" : "보통"}</p><h1>${esc(v.title)}</h1><p>${tonePill(tone("plan", v.state), planStateLabel(v.state, v.leased))} ${say(planStateText(v))}</p>${mac}${unlinked}${opened}<p class="muted"><a class="refresh" href="${esc(base)}">새로 고침</a><span class="live-note">저절로 업데이트</span></p></section>`;
 
   let failure = "";
   if (v.state === "failed" && v.failure) {
@@ -210,9 +210,9 @@ export function planPage(
     v.risk === "high" ? "승인하면 AI가 Task를 나누고 설계를 보여 드립니다." : "승인하면 AI가 Task로 나눠 바로 올리고 엽니다.";
   const approvals = [v.g1, v.g3].filter((a): a is PlanApproval => a !== null);
   return layout(v.title, me, [
-    o.changed ? `<section role="status"><p><b>${CHANGED}</b></p></section>` : "",
+    o.changed ? `<section role="status"><p>${say(CHANGED, true)}</p></section>` : "",
     o.opened && v.state === "open" && v.story
-      ? `<section role="status"><p><b>Story #${v.story.number}이 이미 열려 기획은 끝났습니다. Story 화면에서 진행을 보세요.</b></p></section>`
+      ? `<section role="status"><p>${say(`Story #${v.story.number}이 이미 열려 기획은 끝났습니다. Story 화면에서 진행을 보세요.`, true)}</p></section>`
       : "",
     head,
     failure,
@@ -229,7 +229,7 @@ export function planPage(
       ? `<section><h2>승인 기록</h2><ul>${approvals.map((a) => `<li>${a.gate === "G1" ? "초안 승인(G1)" : a.gate === "G3" ? "설계 승인(G3)" : esc(a.gate)}: ${esc(v.pl.name)} · ${esc(when(a.at))}</li>`).join("")}</ul></section>`
       : "",
     v.actions.cancel
-      ? `<section>${form("cancel", `<p>${CANCEL}</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div>`)}</section>`
+      ? `<section>${form("cancel", `<p>${say(CANCEL)}</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div>`)}</section>`
       : "",
   ].join(""), chrome);
 }
