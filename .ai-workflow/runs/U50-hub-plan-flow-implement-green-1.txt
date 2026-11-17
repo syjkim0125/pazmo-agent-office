@@ -1,0 +1,16 @@
+✔ U50: the plan shows its steps, with the one it is on marked, and on a phone 'N/M단계 · name' (116.011125ms)
+✔ U50: AI questions are the PL's 지금 할 일: how many, what happens next, 꼭 정해야 함 and 왜 묻나요 (78.1225ms)
+✔ U50: the draft card: what approval does, what the AI assumed, 초안 승인, and 고쳐 달라고 하기 folded (63.67625ms)
+✔ U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its raw text is the one the approval is bound to (62.989334ms)
+✔ U50: a design waiting for G3 lists the Tasks it publishes in the card, by number, with what each waits for and checks (62.111583ms)
+✔ U50: while the AI works the PL may close the page; a held Task of the PL's Office is said instead of the Mac wait (74.986416ms)
+✔ U50: the way out is folded at the bottom with the plan's PL, risk and start; the plan's tone is the PL's turn only for the PL (74.31375ms)
+✔ U50: a new Story picks its risk with two described choices and says what happens next; branch fields are not autocorrected (86.094208ms)
+ℹ tests 8
+ℹ suites 0
+ℹ pass 8
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 794.409167

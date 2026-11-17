@@ -219,7 +219,8 @@ test("the plan page dates its approvals in the team's zone", () => {
     g1: { gate: "G1", at: EARLY }, g3: null, actions: { answer: false, approve: "no", rewrite: false, retry: false, cancel: false },
   };
   const html = planPage(ME, "csrf", v, { plMac: { state: "none", lastSeen: null }, plOpenTask: null, changed: false, unlinked: [], opened: false }, {});
-  sameDay(/<h2>승인 기록<\/h2>([\s\S]*?)<\/section>/.exec(html)[1]);
+  // U50: the approvals are a past step.
+  sameDay(/<p class="muted">승인 기록<\/p>([\s\S]*?)<\/section>/.exec(html)[1]);
 });
 
 test("every absolute date in the Hub web names the team's zone", () => {

@@ -1,0 +1,25 @@
+✖ U50 review 2: the Office's real draft and design read without kit lines; a year before a numbered list stays a sentence (13.053ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 944.860375
+
+✖ failing tests:
+
+test at tests/hub-plan-pages.test.mjs:1113:1
+✖ U50 review 2: the Office's real draft and design read without kit lines; a year before a numbered list stays a sentence (13.053ms)
+  AssertionError [ERR_ASSERTION]: <p>결제 취소를 받으면 쿠폰을 되돌린다.</p><h3>Task 목록</h3><ul><li>t1 · app-be · 쿠폰 API</li></ul><p>Understanding gate (G3): pending</p><p>나누기 지문: 637b57b7bdf515166fb92db8c0acfc3f4c3acaa816cf8c1666168b507197666c</p>
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-plan-pages.test.mjs:1127:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

@@ -1,0 +1,710 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "49170f63-6a82-46f4-af1d-fddd754fbc1b",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 was Ready; the caller took up two of its minors before verify (commit b1a0018). Minor 1: docBody now leaves out the Office's 'Understanding gate (G<n>): ' line wherever it appears, so a high-risk design reads without English kit jargon; the raw text G3 binds keeps the line. Minor 2: a new test renders the real renderPlanningStory and renderTeamDesign output, and pins a year line followed by a numbered list. Results: RED 1/1 then GREEN 19/19; Hub 646/646; tsc exit 0. 80 browser checks: 0 overflow, 0 past-edge, 0 small targets, 0 two-row step bars.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-3.md",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-red-3.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-green-3.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-3.md": "36d69ca380c56e974e1839fea887cb197314b5bb0817b66a87f5a735d713059f",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-red-3.txt": "2654deb0621fc32d7d360f055665d010658624e62264ed92e3101a40dac1941f",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-green-3.txt": "ae3244b34242bbdeab9e2a2494c1932cfbaab3f3eb71f5e3761873676db0942e",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-3.txt": "9f937f7cd1008c572bfac2a9ddaa22657e0a346c6d35831e5af403fc8d2a7989"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5",
+        "output": {
+          "summary": "Independent review 3 of 5002b94..b1a0018 and the whole change 4a4aa8a..b1a0018: Ready. No Critical or Important findings. Review-2 Minors 1 and 2 are fixed and pinned by a test, and nothing from reviews 1-2 regressed. The real renderTeamDesign output no longer shows the gate line or the 'Decision requiring' title in the 설계 section, and the raw text keeps it. Reverts on a scratch copy: 142/142 pass untouched, and each of 7 reverts fails at least one test. Forms are identical to main for 18/18 state x viewer pairs. The browser sweep is 78/78 clean, with step bars on one row. Minor (fine to ship): '##' inside a code fence still becomes a heading, but the planner fields are single-line. The gate-line rule applies anywhere, but only to the exact Office phrase.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-review-3.md": "de0cddfd6e3976fec3b4508235559cb1d53c9cf049d481c961c10d1d365c5c83"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/0a72620e-ea0b-4c4b-9fce-2873246a734f/receipt.json",
+            "hash": "8d3e06671464e6cc4f154d476d7ae3898473c8bcd293abf221deb724e0859675"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/ae272a42-e2ba-4ef2-88c5-6aadefc5a30c/receipt.json",
+            "hash": "87fd28c3d53e754987ab3902035248e0d469c4ce1983437961a0278164fd2936"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/b6357ce8-c886-4043-90c2-e97ab45b627f/receipt.json",
+            "hash": "74a1ffc3ed93d45ca917dc1ed15a5b8bd6f5efebb2e9f67f1f454f78c8c447d3"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/df74dacc-4134-4ade-9ba0-b2f4ee11ca86/receipt.json",
+            "hash": "79ae7cc518689f2a761f36f094ed1143c54e2722d83bdd952a92aae984b5118e"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/f27caad9-eb45-4c5a-883e-1be7742a4ae2/receipt.json",
+            "hash": "82ae41344379164a943b0eea7ebd3f5a135759e380357aeb3561e103ec4371c4"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on b1a0018: tests 673/673 + 600/600 + 677/677 = 1950/1950, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-verify-1.md": "c2837a9722504f4b33cf6323bea7beefb65ac7acd1f671a88a679e491b5469df"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "edf0cb7a7c6ef405fff95e11ee7144d8478267194c5ccab302a280f83e28fb6d"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-17T03:54:32.786Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-17T04:08:12.200Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The Story creation flow: a steps bar on the plan and new Story pages, one 지금 할 일 card per actionable state for the PL (questions, draft with the ASSUMED box and folded rewrite, design with the Task rows and every detail, failed), the draft and design as Korean sections with the raw text bound to the approval one click away, the past steps together, the way out folded, the PL's turn orange only for the PL, a held Task said as the state, risk as two described radios, branch fields not autocorrected. RED 8/8 -> GREEN 8/8, Hub tests 640/640, tsc 0, 80 browser checks with 0 overflow/past-edge/small. Commit 71b4533.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-1.md",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-red-1.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-green-1.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-1.md": "4e25f26b7e0c43afe1f16a3ef682aa17d4899fcfabb0deb4de4832749147aca2",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-red-1.txt": "e8f65a4dba680b5ebba624d700b6bf1bf15403e1ea1820f9cfe1bf75c8b58422",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-green-1.txt": "e4708d11b9609d02bd32ac68da3c3331ae214d194ecc9afe3605f3b77030c460",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-1.txt": "3343e19a9d53e2240018410534818cb804be00fc661ce0967fa739860962a6e0"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T04:08:13.819Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T04:21:52.255Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "3e7e24cf074e73bb14b80210e2e9250193585c7d332bcca2ed2a12657563a213",
+        "output": {
+          "summary": "Independent review 1 of 4a4aa8a..71b4533: Not ready. Behaviour unchanged (forms identical before/after for every state and viewer: actions, revision, gate, hash, required fields, confirm; server.ts and plan-store.ts untouched; approve hash = sha256 of the raw text shown). Important I1: high-risk plans draw the six-step bar on two rows because .steps{display:grid;repeat(5)} comes later than .plansteps{display:flex} with the same specificity. Important I2: docBody drops any '# ', Status:, Owner:, gate line anywhere and turns any 'N. ' line into a list item, so a Goal starting with a Korean date ('2026. 12. 1.부터') loses the year and a Domain '# …' vanishes. Minor: G3_NOTE says 위 for a fold now below; stepOf for cancelled plans ignores approvals; test gaps (stepOf failed/cancelled/splitting/open, blocked G3 refusal, failure and open questions to others, design raw-only, duplicate split fold, for/aria-describedby, phone names display:none); textarea description includes the ⓘ label; OPEN BLOCKING after an id; nested lists flattened; answer boxes labelled only 답.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "3e7e24cf074e73bb14b80210e2e9250193585c7d332bcca2ed2a12657563a213"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Fix I1 (.steps.plansteps flex so six steps stay on one row; a style test) and I2 (drop only the first '# ' title and Status/Owner/gate lines before the first '##'; a lone 'N.' paragraph stays a paragraph; tests for both); also the minors: G3_NOTE 아래, stepOf for cancelled uses approvals, the listed test gaps, aria-describedby on the hint text only, OPEN BLOCKING only at the line start, the answer label names its question. Re-measure rows in the browser."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-review-1.md": "40622ac56cd8c7541c595a22a9e4171b4c5ab7d2658f22c7af1d192810c3fd9c"
+        },
+        "error": "Fix I1 (.steps.plansteps flex so six steps stay on one row; a style test) and I2 (drop only the first '# ' title and Status/Owner/gate lines before the first '##'; a lone 'N.' paragraph stays a paragraph; tests for both); also the minors: G3_NOTE 아래, stepOf for cancelled uses approvals, the listed test gaps, aria-describedby on the hint text only, OPEN BLOCKING only at the line start, the answer label names its question. Re-measure rows in the browser."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 1: I1 six steps on two rows, I2 docBody drops/rewrites lines; minors",
+      "at": "2026-11-17T04:21:55.957Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-17T04:22:00.539Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-17T04:30:44.264Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes (commit 5002b94): .steps.plansteps flex keeps a high-risk plan's six steps on one row; docBody leaves out only the kit header at the top, keeps '#'/Status: lines in the body, numbered items keep their numbers and a lone numbered line or a year stays a sentence, indented items stay indented; OPEN BLOCKING in words only where the store counts it; G3 note 아래; cancelled step by approvals; intent described by the hint alone; answer labels name their question. RED 5 of 6 (one guard test) -> GREEN 18/18, Hub 645/645, tsc 0, 80 browser checks with 0 overflow/past-edge/small and 0 two-row step bars.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-2.md",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-red-2.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-green-2.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-2.md": "822361bdf21788e3e03f3dbe15fb3abf9dead108576a9f8cdbb62c28371f9aa6",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-red-2.txt": "46cce61e59762e1a7eec9d516f53e80c9eb4be85a892494ffd5a927497ea949d",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-green-2.txt": "8d07e74612e190abeda527d499c78b7cd36f9c9e391e281c1a77272b62554856",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-2.txt": "3b25f4c83064e0a5bca083f17bfeb3145e7b0220da8eb9ff7bae1f03cdd2f95a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T04:30:50.747Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T04:36:05.541Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "69d9377bc4912ce629d965e1b4889660971b69525d74155e3b44be7cbbdb4ffd",
+        "output": {
+          "summary": "Independent review 2 of 71b4533..5002b94 and the whole 4a4aa8a..5002b94: the reviewer's verdict is Ready, with no Important findings. I1 and I2 are fixed and pinned by tests: six steps on one row (flex), and the draft and design kept as written outside the top header. The minors taken up are fixed too. Forms are identical to main for 18/18 state x viewer pairs. The browser sweep was 78/78 clean. Reverting fixes one at a time: 10 of 11 reverts fail a test. Minor 1: a real renderTeamDesign output shows 'Understanding gate (G3): pending' in the 설계 section, because the Office writes it after the Task list rather than in the header. Minor 2: no test stops item numbers widening to \\d+, which matters only when a year line is directly followed by a numbered list. Minor 3: '## ' inside a code fence becomes a heading; this cannot happen today because planner fields are single-line.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "69d9377bc4912ce629d965e1b4889660971b69525d74155e3b44be7cbbdb4ffd"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "The reviewer found the change Ready. The caller chose to take up Minor 1 and Minor 2 before verify, because Minor 1 puts English kit jargon on every high-risk design that a PL approves (the U50 goal is plain Korean). Fixes: drop the Office-written '^Understanding gate (G<n>): ' line wherever it appears, as kit-role-runs does; add a test with the real renderTeamDesign and renderPlanningStory output; add a test where a year line is followed by a numbered list. Leave Minor 3: no single-line field can carry a code fence."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-review-2.md": "ca06261a584f56b3352c06b508798aa4314f980a9518e75096b955a4d642bacd"
+        },
+        "error": "The reviewer found the change Ready. The caller chose to take up Minor 1 and Minor 2 before verify, because Minor 1 puts English kit jargon on every high-risk design that a PL approves (the U50 goal is plain Korean). Fixes: drop the Office-written '^Understanding gate (G<n>): ' line wherever it appears, as kit-role-runs does; add a test with the real renderTeamDesign and renderPlanningStory output; add a test where a year line is followed by a numbered list. Leave Minor 3: no single-line field can carry a code fence."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 2 Ready; caller takes up Minor 1 (G3 kit line on screen) and Minor 2 (year-before-list test)",
+      "at": "2026-11-17T04:36:27.346Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-17T04:36:38.767Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-17T04:43:16.913Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 was Ready; the caller took up two of its minors before verify (commit b1a0018). Minor 1: docBody now leaves out the Office's 'Understanding gate (G<n>): ' line wherever it appears, so a high-risk design reads without English kit jargon; the raw text G3 binds keeps the line. Minor 2: a new test renders the real renderPlanningStory and renderTeamDesign output, and pins a year line followed by a numbered list. Results: RED 1/1 then GREEN 19/19; Hub 646/646; tsc exit 0. 80 browser checks: 0 overflow, 0 past-edge, 0 small targets, 0 two-row step bars.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-3.md",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-red-3.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-green-3.txt",
+            ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-3.md": "36d69ca380c56e974e1839fea887cb197314b5bb0817b66a87f5a735d713059f",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-red-3.txt": "2654deb0621fc32d7d360f055665d010658624e62264ed92e3101a40dac1941f",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-green-3.txt": "ae3244b34242bbdeab9e2a2494c1932cfbaab3f3eb71f5e3761873676db0942e",
+          ".ai-workflow/runs/U50-hub-plan-flow-implement-hub-3.txt": "9f937f7cd1008c572bfac2a9ddaa22657e0a346c6d35831e5af403fc8d2a7989"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T04:43:32.527Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-17T04:52:27.029Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5",
+        "output": {
+          "summary": "Independent review 3 of 5002b94..b1a0018 and the whole change 4a4aa8a..b1a0018: Ready. No Critical or Important findings. Review-2 Minors 1 and 2 are fixed and pinned by a test, and nothing from reviews 1-2 regressed. The real renderTeamDesign output no longer shows the gate line or the 'Decision requiring' title in the 설계 section, and the raw text keeps it. Reverts on a scratch copy: 142/142 pass untouched, and each of 7 reverts fails at least one test. Forms are identical to main for 18/18 state x viewer pairs. The browser sweep is 78/78 clean, with step bars on one row. Minor (fine to ship): '##' inside a code fence still becomes a heading, but the planner fields are single-line. The gate-line rule applies anywhere, but only to the exact Office phrase.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-review-3.md": "de0cddfd6e3976fec3b4508235559cb1d53c9cf049d481c961c10d1d365c5c83"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-17T04:52:45.323Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-17T06:40:56.887Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/0a72620e-ea0b-4c4b-9fce-2873246a734f/receipt.json",
+            "hash": "8d3e06671464e6cc4f154d476d7ae3898473c8bcd293abf221deb724e0859675"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/ae272a42-e2ba-4ef2-88c5-6aadefc5a30c/receipt.json",
+            "hash": "87fd28c3d53e754987ab3902035248e0d469c4ce1983437961a0278164fd2936"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/b6357ce8-c886-4043-90c2-e97ab45b627f/receipt.json",
+            "hash": "74a1ffc3ed93d45ca917dc1ed15a5b8bd6f5efebb2e9f67f1f454f78c8c447d3"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/df74dacc-4134-4ade-9ba0-b2f4ee11ca86/receipt.json",
+            "hash": "79ae7cc518689f2a761f36f094ed1143c54e2722d83bdd952a92aae984b5118e"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/49170f63-6a82-46f4-af1d-fddd754fbc1b/f27caad9-eb45-4c5a-883e-1be7742a4ae2/receipt.json",
+            "hash": "82ae41344379164a943b0eea7ebd3f5a135759e380357aeb3561e103ec4371c4"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on b1a0018: tests 673/673 + 600/600 + 677/677 = 1950/1950, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U50-hub-plan-flow-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b0728dd96cd6e169dea712f2e0f6dd6df5202ca90f14f85f2e6db01549c2a7e5"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U50-hub-plan-flow-verify-1.md": "c2837a9722504f4b33cf6323bea7beefb65ac7acd1f671a88a679e491b5469df"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "220762f72412d036aaa6fd54bea6169e9394d9da90a1a538bd4661c06e4848b6"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

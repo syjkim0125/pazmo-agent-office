@@ -1,0 +1,26 @@
+✔ planStateLabel and planStateText say each state in plain words (1.261083ms)
+✔ the plan page states each state in plain words (waiting for the PL's Mac, planning while leased, questions, draft, design, awaiting G3, splitting, open with the Story link, failed with its reason, cancelled) (194.145459ms)
+✔ questions show one form per round with a 4000-character box per question and 막는 결정 on blocking ones; three 4000-character Korean answers (about 108 KB urlencoded) are accepted (137.222125ms)
+✔ the draft shows its text with 승인 (hidden revision and hash) and 고쳐 써 주세요; a draft with OPEN BLOCKING shows why there is no 승인 (105.901292ms)
+✔ the design shows the stored split in full under 올라갈 Task 전부 보기 (each Task's repo, title, what it waits for, spec, files, checks with their commands; the Story checks) before 설계 승인, whose note says it covers all of it (101.395375ms)
+✔ U50: the plan shows its steps, with the one it is on marked, and on a phone 'N/M단계 · name' (114.157167ms)
+✔ U50: AI questions are the PL's 지금 할 일: how many, what happens next, 꼭 정해야 함 and 왜 묻나요 (99.456291ms)
+✔ U50: the draft card: what approval does, what the AI assumed, 초안 승인, and 고쳐 달라고 하기 folded (87.401625ms)
+✔ U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its raw text is the one the approval is bound to (72.295708ms)
+✔ U50: a design waiting for G3 lists the Tasks it publishes in the card, by number, with what each waits for and checks (71.22ms)
+✔ U50: while the AI works the PL may close the page; a held Task of the PL's Office is said instead of the Mac wait (115.106333ms)
+✔ U50: the way out is folded at the bottom with the plan's PL, risk and start; the plan's tone is the PL's turn only for the PL (86.980542ms)
+✔ U50: a new Story picks its risk with two described choices and says what happens next; branch fields are not autocorrected (117.546042ms)
+✔ U50 review 1: a high-risk plan's six steps stay on one row; on a phone the step names stay for a screen reader (0.584583ms)
+✔ U50 review 1: only the kit's header at the top is left out; a line starting with a number or # elsewhere shows as written (1.006584ms)
+✔ U50 review 1: a stopped or cancelled plan marks the step it stopped on; splitting and open mark theirs (3.77925ms)
+✔ U50 review 1: a blocked G3 says why without a card; another member sees the failure, the open questions and the design in sections; the split fold shows once (2.745708ms)
+✔ U50 review 1: the intent box is described by the hint alone; each answer box names its question (94.67925ms)
+ℹ tests 18
+ℹ suites 0
+ℹ pass 18
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1591.949083
