@@ -761,6 +761,35 @@ test("풀기 on a failed Story verification Task says the Story verification is 
   assert.ok(!page.includes("그 레포 담당자"), "a verification Task has no repo");
 });
 
+test("the Story page shows the PL Office's Story check result: the summary once passed, the failure while it stays failed (D47)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be), bFe = h.linkOf(h.b, h.fe);
+  let n = 0;
+  const done = (l) => {
+    const x = h.board.claimNext(l);
+    h.board.mergeLock(l, x.taskId, x.claimId);
+    h.board.reportMerged(l, x.taskId, x.claimId, merged({ mergeCommit: String(++n).padStart(40, "0") }));
+  };
+  done(cBe);
+  done(cBe);
+  done(bFe);
+  const storyPage = async (who) => (await h.get(`/stories/${s.storyId}`, who)).text;
+  assert.ok(!(await storyPage(h.pl)).includes("Story 검증 결과"), "nothing before a check ends");
+  let v = h.board.claimVerify(s.plBe, s.storyId);
+  assert.ok(!(await storyPage(h.pl)).includes("Story 검증 결과"), "nothing while it runs");
+  h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: false, summary: "Story 검사 실패: app-be V1.\n- app-be @ 0123456789ab: V1 실패\n\n[app-be V1]\n<boom>" });
+  const failed = await storyPage(h.c);
+  assert.ok(failed.includes(`<h2 id="checked">Story 검증 결과</h2><pre>Story 검사 실패: app-be V1.\n- app-be @ 0123456789ab: V1 실패\n\n[app-be V1]\n&#60;boom&#62;</pre>`), "escaped, for anyone");
+  h.board.releaseTask(s.plBe, s.verify);
+  assert.ok(!(await storyPage(h.pl)).includes("Story 검증 결과"), "a released check is ready again, so its old failure is not shown");
+  v = h.board.claimVerify(s.plBe, s.storyId);
+  h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: true, summary: "Story 검사 통과: 레포 1개, 검사 1개.\n- app-be @ 0123456789ab: V1 통과" });
+  const passed = await storyPage(h.pl);
+  assert.ok(passed.includes(`<h2 id="checked">Story 검증 결과</h2><pre>Story 검사 통과: 레포 1개, 검사 1개.\n- app-be @ 0123456789ab: V1 통과</pre>`));
+  assert.ok(passed.includes("결과 승인은 PL의 Mac(claude 대화)에서 합니다."));
+});
+
 test("every new POST is 403 from another origin or without the CSRF token", async (t) => {
   const h = await team(t);
   const s = h.story();

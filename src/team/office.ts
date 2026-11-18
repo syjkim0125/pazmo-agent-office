@@ -1,5 +1,5 @@
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { OfficeError, fail, locate } from "../cli/project.ts";
 import { createLeanOffice } from "../lean/office.ts";
@@ -9,7 +9,7 @@ import { printable, readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
-import { STORY_CHECKOUT } from "./branch.ts";
+import { STORY_CHECKOUT, checkoutStoryBase } from "./branch.ts";
 import { branchOps, createExecutor, prOps } from "./executor.ts";
 import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
@@ -26,6 +26,8 @@ import type { PlanGit, PlanLane } from "./planner.ts";
 import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
+import { createStoryChecker } from "./story-check.ts";
+import type { CheckLane, StoryCheckGit } from "./story-check.ts";
 import { openTeamStore, waitingOf } from "./store.ts";
 import type { ClaimPhase, RunnerWaiting, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
@@ -104,6 +106,8 @@ export type TeamConfig = {
   planLinkOf?: (dataDir: string, holder: string) => PlanLink | null;
   /** Tests only: the host git of a plan's planning tree; default `planGitOps(host)`. */
   planGit?: PlanGit;
+  /** Tests only: the host git of a Story check (D47); default `checkoutStoryBase` with `host`. */
+  checkGit?: StoryCheckGit;
   /** The gh login for a Git host; default: `gh auth status --hostname` with `host`'s PATH and HOME. */
   ghOf?: (host: string) => Promise<GhResult>;
   /** The person's own HOME and PATH (and ssh agent) for the host git and gh of a Story Task; default: this
@@ -743,6 +747,40 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       log,
       now: c.now,
     });
+  /** The lanes a Story check can use: ready, with a link and its Hub repo id, each with its checkout and engine. */
+  function checkLanes(): CheckLane[] {
+    return lanes.flatMap((lane) => {
+      const plan = planLinks.get(lane) ?? null;
+      if (lane.state !== "ready" || lane.link === null || plan === null) return [];
+      const engine = engineOf(lane.project);
+      let repoName = basename(lane.project);
+      try {
+        repoName = readLinkConfig(where.get(lane)!.dataDir)?.repoName ?? repoName;
+      } catch {
+        // a link file that cannot be read was said by `linkFor`; the folder name will do
+      }
+      return [{ project: lane.project, repoId: plan.repoId, repoName, checkout: engine.checkout, link: lane.link, engine: engine.office! }];
+    });
+  }
+  // The PL's Story check (D47), only when live: whatever the PL's 자동으로 일하기 says, but not while paused, and only
+  // where a Task could run (runners ready, no record open, no run, no restart held) and the executor's drive is idle.
+  const checker = live
+    ? createStoryChecker({
+        lanes: checkLanes,
+        canStart: () =>
+          live &&
+          runnersReady &&
+          teamStore.openClaim() === null &&
+          !gate.busy() &&
+          !ex.busy() &&
+          !watch.holding() &&
+          !stopped &&
+          !teamStore.settings().paused,
+        git: c.checkGit ?? { checkoutStoryBase: (checkout, task) => checkoutStoryBase(checkout, task, hostEnv) },
+        beatMs: c.beatMs ?? BEAT_MS,
+        log,
+      })
+    : undefined;
   every(c.claimMs ?? CLAIM_MS, "claim tick", async () => {
     await runnersBeforeTick();
     if (stopped) return;
@@ -750,6 +788,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     try {
       // Plan work first (the PL waits for it on the web); a tick that did a plan step claims nothing.
       if (planner && (await planner.tick()).ran) return;
+      if (stopped) return;
+      // Then the PL's Story check; a tick that ran one claims nothing.
+      if (checker && (await checker.tick()).ran) return;
       if (stopped) return;
       return await scheduler.tick();
     } finally {
@@ -796,6 +837,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     beginStop() {
       stopTimers();
       planner?.stop();
+      checker?.stop();
       gate.stop();
       for (const engine of engines) engine.office!.beginStop();
     },
