@@ -8,7 +8,7 @@
  * (`?project=<id>`) and, on 전체, fold projects with no Story into one line. A card's color class follows its state word
  * (need, run, stop, done); the words are always written. No script of its own; every value goes through `esc`.
  */
-import { avatar, esc, inColumn, layout, macLine, say, tone, tonePill, type Chrome, type Tone } from "./pages.ts";
+import { avatar, esc, inColumn, info, layout, macLine, say, tone, tonePill, type Chrome, type Tone } from "./pages.ts";
 import { planStateLabel, planStateText } from "./plan-pages.ts";
 import type { PlanCard } from "./plan-store.ts";
 import type { MacBadge, Member } from "./store.ts";
@@ -40,9 +40,9 @@ const pill = (label: string, t?: Tone) => (t ? tonePill(t, label) : `<span class
 const TAKEN = new Set(["claimed", "held", "failed"]);
 const STOPPED = new Set(["held", "failed"]);
 /** Under a chosen project chip, 나를 기다리는 일 says it still covers every project (it sits right under the chips). */
-const ALL_PROJECTS = "고른 프로젝트와 관계없이 모든 프로젝트의 일입니다.";
+const ALL_PROJECTS = "모든 프로젝트의 일입니다.";
 /** A stopped plan of the viewer's, said with the next step (the plan page shows why and has 다시 시도). */
-const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.";
+const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 다시 시도하세요.";
 
 export type BoardView = {
   projects: BoardProject[];
@@ -297,10 +297,10 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
       const canPlan = v.canPlan.has(p.project.id);
       const start = canPlan ? `<a class="btn ghost" href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
       const repos = p.project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
-      const empty = canPlan
-        ? "아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다."
-        : "아직 Story가 없습니다. 이 프로젝트의 레포를 모두 맡은 사람이 Story를 올리면 여기에 보입니다.";
-      const inner = p.stories.length || plans.length ? body(p, plans) : `<p class="empty">${say(empty)}</p>`;
+      const empty = canPlan ? "아직 Story가 없습니다. [새 Story]로 시작하세요." : "아직 Story가 없습니다.";
+      // U53: who posts a Story, behind an i for a member who cannot.
+      const who = canPlan ? "" : info(`info-empty-${p.project.id}`, "Story를 올리는 사람", "이 프로젝트의 레포를 모두 맡은 사람이 Story를 올립니다.");
+      const inner = p.stories.length || plans.length ? body(p, plans) : `<p class="empty">${say(empty)}${who}</p>`;
       return `<section class="project"><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div><p class="muted">레포: ${repos}</p>${inner}</section>`;
     })
     .filter(Boolean);
@@ -308,7 +308,7 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
     ? `<p class="quiet"><span>보이는 Story가 없는 프로젝트</span>${quiet.map((p) => `<a href="${boardHref(base, { ...f, project: p.project.id })}">${esc(p.project.name)}</a>`).join("")}</p>`
     : "";
   const empty = v.mine
-    ? "내가 맡거나 이끄는 Story가 없습니다."
+    ? "내 Story가 없습니다."
     : v.canCreateProject
       ? "아직 프로젝트가 없습니다. [새 프로젝트]로 레포를 묶은 뒤 [새 Story]로 시작하세요."
       : "아직 프로젝트가 없습니다. PL이 Office에서 Story를 올리면 여기에 보입니다.";

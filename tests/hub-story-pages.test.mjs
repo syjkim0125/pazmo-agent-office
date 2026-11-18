@@ -127,7 +127,7 @@ test("/ is the member's work page with the four sections, and the request board 
   assert.doesNotMatch(mine, /내 Story에서 멈춘 일/, "only shown to a PL with a stuck Task");
   assert.ok(mine.includes(`href="/tasks/${s.api}"`), "C's open Task");
   const empty = (await h.get("/me", h.b)).text;
-  for (const line of ["지금 맡은 일이 없습니다.", "지금 받을 수 있는 일이 없습니다.", "아직 끝낸 일이 없습니다."]) assert.ok(empty.includes(line), line);
+  for (const line of ["지금 맡은 일이 없습니다.", "받을 수 있는 일이 없습니다.", "아직 없습니다."]) assert.ok(empty.includes(line), line);
 
   const board = await h.get("/requests", h.pl);
   assert.equal(board.status, 200);
@@ -184,7 +184,7 @@ test("a ready Task shows 작업하기 only with auto work off, a live link and n
   assert.ok(!home.includes(NOT_LINKED));
   assert.ok(!home.includes("/pick"), "auto work is on: the Mac takes it anyway");
   task = (await h.get(`/tasks/${s.api}`, h.c)).text;
-  assert.ok(task.includes("자동으로 일하기가 켜져 있으면 내 Mac이 차례대로 가져갑니다."));
+  assert.ok(task.includes("자동으로 일하기가 켜져 있어 내 Mac이 가져갑니다."));
   assert.ok(!task.includes("/pick"));
 
   h.board.setAutoWork(h.c.member, false);
@@ -208,7 +208,7 @@ test("the header carries 자동으로 일하기 꺼짐 on every page only while 
   const paths = ["/", "/board", "/requests", "/repos", "/start", "/mac", `/stories/${s.storyId}`, `/tasks/${s.api}`];
   for (const path of paths) assert.ok(!(await h.get(path, h.c)).text.includes(OFF_PILL), `on: ${path}`);
   let home = (await h.get("/me", h.c)).text;
-  assert.ok(home.includes("켜져 있어 내 Mac이 받을 수 있는 일을 차례대로 가져갑니다."));
+  assert.ok(home.includes("내 Mac이 받을 수 있는 일을 차례로 가져갑니다."));
   assert.ok(home.includes(`<form class="inline" method="post" action="/me/auto-work"><input type="hidden" name="csrf" value="${h.c.csrf}"><input type="hidden" name="back" value="/me"><input type="hidden" name="on" value="0"><button class="secondary">끄기</button></form>`));
 
   h.board.setAutoWork(h.c.member, false);
@@ -217,7 +217,7 @@ test("the header carries 자동으로 일하기 꺼짐 on every page only while 
     assert.ok(nav.includes(OFF_PILL), `off: ${path}`);
   }
   home = (await h.get("/me", h.c)).text;
-  assert.ok(home.includes("꺼져 있어 새 일을 받지 않습니다. 아래에서 직접 고를 수 있습니다."));
+  assert.ok(home.includes("새 일을 받지 않습니다. 아래에서 직접 고르세요."));
   assert.ok(home.includes(`<input type="hidden" name="on" value="1"><button>켜기</button>`));
   assert.ok(!(await h.get("/me", h.b)).text.includes(OFF_PILL), "the switch is each member's own");
 });
@@ -310,7 +310,7 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
     ["RUNNER_LIMIT claude: usage limit reached", "AI 사용 한도가 6시간 안에 풀리지 않았습니다. 한도가 풀린 뒤 다시 시도하세요."],
     ["PR #7 was closed on GitHub; reopen it, then run team rerun", "GitHub에서 이 Task의 PR이 닫혔습니다. PR을 다시 연 뒤 다시 시도하세요."],
     [`Merging feature/story-${s.number}/base into the Task branch left a conflict.`, "Story base와 합치다 충돌이 났습니다. 다시 시도하면 AI가 충돌을 풀며 처음부터 합니다."],
-    ["V1 failed three times", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
+    ["V1 failed three times", "AI가 세 번 시도했지만 끝내지 못했습니다. 이유를 보고 메모를 남겨 다시 시도하세요."],
   ];
   for (const [reason, plain] of cases) {
     h.board.reportFailed(cBe, s.api, claimId, reason);
@@ -321,7 +321,7 @@ test("a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conf
     assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다.`), `PL: ${reason}`);
     assert.ok(page.includes(`<details><summary>자세한 이유</summary><pre>${reason}</pre></details>`), reason);
     const home = (await h.get("/me", h.c)).text;
-    const away = plain.replace("아래 이유를", "Task 화면에서 이유를");
+    const away = plain.replace(/(^|\. )이유를/, "$1Task 화면에서 이유를");
     assert.ok(home.includes(away), `home: ${reason}`);
     assert.ok(home.includes(`<a href="/tasks/${s.api}">자세히·다시 시도</a>`));
     assert.ok((await h.get("/me", h.pl)).text.includes(`${cause} 맡은 사람이 다시 시도할 수 있습니다.`), "the PL's stuck list: what stopped it and who can retry (U47)");
@@ -401,9 +401,9 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   const cBe = h.linkOf(h.c, h.be);
   h.board.claimNext(cBe);
   now += HELD_AFTER_MS + 1;
-  const held = "맡은 사람의 Mac에서 10분 넘게 소식이 없습니다. Mac이 켜지면 이어서 합니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
+  const held = "맡은 사람의 Mac이 10분 넘게 조용합니다. Mac이 켜지면 이어서 합니다.";
   // The assignee reads it about their own Mac (U47).
-  const mine = "내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다.";
+  const mine = "내 Mac이 10분 넘게 조용합니다. Mac을 켜면 이어서 합니다.";
   let page = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(page.includes(mine));
   assert.ok(!page.includes(held));
@@ -453,9 +453,9 @@ test("buttons follow taskActions: the assignee sees 다시 시도 on a failed Ta
   h.board.reportFailed(cBe, api.taskId, api.claimId, "tests failed");
   h.board.rerunTask(h.c.member, s.api, "범위를 줄여 주세요", h.store.reachableRepos(h.c.member.id));
   h.board.reportFailed(cBe, s.api, h.claimOf(cBe), "tests failed again");
-  const rerun = `<form method="post" action="/tasks/${s.api}/rerun"><input type="hidden" name="csrf" value="${h.c.csrf}"><label>메모 <span class="muted">(선택, 2000자까지)</span><textarea name="memo" rows="3" maxlength="2000"></textarea></label><div class="row"><button>다시 시도</button></div></form>`;
+  const rerun = `<form method="post" action="/tasks/${s.api}/rerun"><input type="hidden" name="csrf" value="${h.c.csrf}"><label>메모 <span class="muted">(선택, 2000자)</span><textarea name="memo" rows="3" maxlength="2000"></textarea></label><div class="row"><button>다시 시도</button></div></form>`;
   const releaseLine = "풀면 이 Task는 다시 '할 일'이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.".replaceAll("'", "&#39;");
-  const cancel = (who, id) => `<form method="post" action="/tasks/${id}/cancel"><input type="hidden" name="csrf" value="${who.csrf}"><p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`;
+  const cancel = (who, id) => `<form method="post" action="/tasks/${id}/cancel"><input type="hidden" name="csrf" value="${who.csrf}"><p>취소하면 이 Task를 건너뛰고 뒤 Task만 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form>`;
 
   const mine = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(mine.includes(rerun), "the assignee's rerun form");
@@ -552,16 +552,16 @@ test("plainFailure picks by prefix and falls back to the default", () => {
     ["RUNNER_LOGIN claude: expired", "Mac의 AI 로그인이 풀렸습니다. Mac 터미널에서 claude를 실행해 로그인한 뒤 다시 시도하세요."],
     ["RUNNER_NOT_READY codex: missing", "Mac의 AI 실행기가 준비되지 않았습니다. Mac에서 claude 설치와 로그인을 확인한 뒤 다시 시도하세요."],
     ["PR #12 was closed on GitHub; reopen it, then run team rerun", "GitHub에서 이 Task의 PR이 닫혔습니다. PR을 다시 연 뒤 다시 시도하세요."],
-    ["BUILD_TIMEOUT: engine task x ran for more than 90 minutes.", "구현이 90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요."],
+    ["BUILD_TIMEOUT: engine task x ran for more than 90 minutes.", "90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요."],
     ["The verified change still holds CONFLICT markers in 2 file(s).", "Story base와 합치다 충돌이 났습니다. 다시 시도하면 AI가 충돌을 풀며 처음부터 합니다."],
-    ["git push failed 3 times in a row: rejected (non-fast-forward)", "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. 아래 이유를 확인한 뒤 다시 시도하세요."],
-    ["attempt checkout failed 3 times in a row: CONFLICT: the attempt folder already exists", "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. 아래 이유를 확인한 뒤 다시 시도하세요."],
-    ["PR #12 was merged elsewhere", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
-    ["V1 failed: RUNNER_LIMIT later in the text", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
-    ["", "AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요."],
+    ["git push failed 3 times in a row: rejected (non-fast-forward)", "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. 이유를 확인한 뒤 다시 시도하세요."],
+    ["attempt checkout failed 3 times in a row: CONFLICT: the attempt folder already exists", "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. 이유를 확인한 뒤 다시 시도하세요."],
+    ["PR #12 was merged elsewhere", "AI가 세 번 시도했지만 끝내지 못했습니다. 이유를 보고 메모를 남겨 다시 시도하세요."],
+    ["V1 failed: RUNNER_LIMIT later in the text", "AI가 세 번 시도했지만 끝내지 못했습니다. 이유를 보고 메모를 남겨 다시 시도하세요."],
+    ["", "AI가 세 번 시도했지만 끝내지 못했습니다. 이유를 보고 메모를 남겨 다시 시도하세요."],
   ];
   for (const [reason, text] of cases) assert.equal(plainFailure(reason, "work"), text, reason);
-  assert.equal(plainFailure("RUNNER_LIMIT claude: limit", "verify"), "Story 검증이 실패했습니다. PL이 고칠 Task를 더한 뒤 다시 검증합니다.");
+  assert.equal(plainFailure("RUNNER_LIMIT claude: limit", "verify"), "Story 검증 실패. PL이 고칠 Task를 더하면 다시 검증합니다.");
 });
 
 // ---- Task 5: the buttons' POST routes ----
@@ -811,7 +811,7 @@ test("U44: /me's empty parts say what belongs there and the action that fills th
   const h = await team(t);
   const NONE_OPEN = '<p class="muted">지금 맡은 일이 없습니다.</p>';
   const PICK = '<p class="muted">지금 맡은 일이 없습니다. 아래 받을 수 있는 일에서 [작업하기]로 하나를 맡으세요.</p>';
-  const NONE_READY = '<p class="muted">지금 받을 수 있는 일이 없습니다. 내가 맡은 레포에 할 일이 생기면 여기에 보입니다.</p>';
+  const NONE_READY = '<p class="muted">받을 수 있는 일이 없습니다.<button type="button" class="info" popovertarget="info-ready" aria-label="받을 수 있는 일 설명">i</button><span id="info-ready" popover class="infobox">내 레포에 일이 생기면 여기에 보입니다.</span></p>';
   let home = (await h.get("/me", h.c)).text;
   assert.ok(home.includes(NONE_OPEN) && home.includes(NONE_READY), "nothing to take: what will show up");
   h.story();
@@ -836,4 +836,12 @@ test("U44: no form sits inside a paragraph on /me or a Task page", async (t) => 
   assert.ok(home.includes("/pick") && task.includes("/pick"), "both pages draw 작업하기");
   for (const [name, page] of [["/me", home], ["task", task]]) assert.doesNotMatch(page, /<p(?: [^>]*)?>(?:(?!<\/p>)[\s\S])*<form/, name);
   assert.ok(home.includes('<div class="row">자동으로 일하기 <span class="pill">꺼짐</span> <form class="inline" method="post" action="/me/auto-work">'));
+});
+
+test("U53: off the Task page a failure says where its reason is; the held note is behind an i for those who are not its assignee", async () => {
+  const { failureElsewhere, AWAITING_G4, HELD_SHORT } = await import("../src/hub/story-pages.ts");
+  assert.equal(failureElsewhere("", "work"), "AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모를 남겨 다시 시도하세요.");
+  assert.equal(failureElsewhere("git push failed 3 times in a row: x", "work"), "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. Task 화면에서 이유를 확인한 뒤 다시 시도하세요.");
+  assert.equal(AWAITING_G4, "모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.");
+  assert.equal(HELD_SHORT, "맡은 사람의 Mac이 10분 넘게 조용합니다.");
 });
