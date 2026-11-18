@@ -951,7 +951,7 @@ test("U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its 
   const text = await h.page(id);
   const doc = /<section><h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(text)?.[1] ?? "";
   for (const part of ["<h3>목표</h3><p>회원에게 쿠폰을 한 번에 발급한다.</p>", '<h3>꼭 할 것 <span class="count">1</span></h3><ul class="items"><li><span class="id">M1</span><span class="tx">발급 버튼을 누르면 쿠폰이 생긴다.</span></li></ul>',
-    '<h3>이번에 하지 않을 것 <span class="count">1</span></h3><ul class="items"><li><span class="id" aria-hidden="true">•</span><span class="tx">문자 발송</span></li></ul>', '<li><span class="id">D1</span><span class="tx">AI가 정한 것: 쿠폰은 한 번만 쓴다.</span></li>', '<li><span class="id">D2</span><span class="tx">PL 답 <b>한 장</b><details class="pq"><summary>질문 보기</summary>몇 장?</details></span></li>',
+    '<h3>이번에 하지 않을 것 <span class="count">1</span></h3><ul class="items"><li><span class="id" aria-hidden="true">•</span><span class="tx">문자 발송</span></li></ul>', '<li><span class="id">D1</span><span class="tx">AI가 정한 것: 쿠폰은 한 번만 쓴다.</span></li>', '<li><span class="id">D2</span><span class="tx">PL 답: 몇 장? → 한 장</span></li>',
     '<h3>확인 방법 <span class="count">1</span></h3><ul class="items"><li><span class="id">V1</span><span class="tx"><span class="refs">[M1]</span> npm test로 발급을 확인한다.</span></li></ul>']) assert.ok(doc.includes(part), part);
   assert.doesNotMatch(doc, /Status:|Owner:|Understanding gate|# Story|ASSUMED|## /, "no kit header or English heads");
   const raw = /<details><summary>원문 그대로 보기<\/summary><pre>([\s\S]*?)<\/pre><\/details>/.exec(text)?.[1] ?? "";
@@ -1150,7 +1150,7 @@ test("U51: each question is a box with 질문 N and 필수 on top, one sentence 
   assert.ok(card.includes('<li class="qbox"><p class="qh">질문 1 <span class="pill need">필수</span></p><p class="qt"><span class="ln ctx">앞의 답이 모두 테스트였습니다.</span> <b class="ln">이것을 시험용 범위로 해석해도 될까요?</b> <span class="ln">다르다면 범위와 저장소를 알려주세요.</span></p>'));
   assert.ok(card.includes('<p class="qwhy"><span class="wl">Why</span> <span class="ln">Story 범위가 이 해석에 달려 있습니다.</span> <span class="ln">틀리면 다시 써야 합니다.</span></p>'));
   assert.ok(card.includes('<label for="answer-Q1"><span class="vh">질문 1의 </span><span>답 <span class="muted">(4000자)</span></span></label><textarea id="answer-Q1" name="answer-Q1" rows="4" maxlength="4000" required></textarea>'));
-  assert.ok(card.includes('<p class="qt"><b class="ln">범위는 무엇인가요?</b> <span class="ln">예를 들어<span class="opt">(a) 요청만,</span><span class="opt">(b) 취소까지,</span><span class="opt">(c) 조회까지 중 어디까지 필요한지 알려주세요.</span></span></p>'), "options one per line, no word changed");
+  assert.ok(card.includes('<p class="qt"><b class="ln">범위는 무엇인가요?</b> <span class="ln">예를 들어 <span class="opt">(a) 요청만,</span> <span class="opt">(b) 취소까지,</span> <span class="opt">(c) 조회까지 중 어디까지 필요한지 알려주세요.</span></span></p>'), "options one per line, no word changed");
   assert.ok(card.includes('<p class="qh">질문 3</p><p class="qt"><b class="ln">통화는 KRW만 쓰면 됩니다</b></p>'), "without a question mark the last sentence is the ask");
   assert.doesNotMatch(html, /왜 묻나요|꼭 정해야 함|번 질문의 답|AI의 질문/);
   assert.doesNotMatch(html, /class="(?:why|stitle)"/, "not the board's stop-reason box or Story card title");
@@ -1193,7 +1193,8 @@ test("U51: the plan page wording is short — 초안 확인 with what the AI dec
 
 test("U51: the draft body shows its Story title, bold heads with counts, ids in a left column, one sentence per line, and PL answers first with the question folded", async () => {
   const text = "# Story: 모의 결제 처리\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\n\n## Goal\n결제를 흉내 낸다. 외부 연동은 없다.\n\n## MUST\n- M1. 함수를 export한다. 결과 객체를 돌려준다.\n- M2. 한도를 넘으면 실패한다.\n\n## OUT\n- 환불\n\n## Decisions\n- D1. PL 답: 범위는 무엇인가요? (a) 요청만, (b) 취소까지 → 테스트\n- D2. PL 답: 잘린 질문…\n\n## Verify\n- V1 [M1, M2]. node --test로 본다. 모두 통과한다.\n3. 셋째 줄.\n4. 넷째 줄.\n";
-  const html = await renderRaw({ draft: docOf(text), actions: { approve: "yes", rewrite: true } });
+  const asked = [{ questions: [{ id: "Q1", text: "범위는 무엇인가요? (a) 요청만, (b) 취소까지", reason: "r", blocking: false }], answers: [{ id: "Q1", answer: "테스트" }] }];
+  const html = await renderRaw({ draft: docOf(text), rounds: asked, actions: { approve: "yes", rewrite: true } });
   const body = /<h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div><details><summary>원문 그대로 보기/.exec(html)?.[1] ?? "";
   for (const part of [
     '<p class="dtitle"><span class="muted">Story 제목</span> <b>모의 결제 처리</b></p>',
@@ -1211,4 +1212,17 @@ test("U51: the draft body shows its Story title, bold heads with counts, ids in 
   const g = await renderRaw({ state: "awaiting_g3", risk: "high", draft: docOf(DRAFT), g1: AT, design: docOf("# Decision requiring human G3\n\n계획.\n"), isPl: false });
   const design = /<section><h2>설계<\/h2><div class="doc">([\s\S]*?)<\/div><details><summary>원문 그대로 보기/.exec(g)?.[1] ?? "";
   assert.ok(design.startsWith("<p>") && !design.includes("Decision") && !design.includes("dtitle"), design);
+});
+
+test("U51 review 1: a PL answer is split right after a question the plan asked, so an arrow in the answer or the question stays where it was; a line with no asked question shows as written", async () => {
+  const draft = "## Decisions\n- D1. PL 답: 어떤 순서로 처리할까요? → 결제 → 환불 순서로\n- D2. PL 답: 상태 흐름(대기 → 완료)을 그대로 둘까요? → 네\n- D3. PL 답: 묻지 않은 질문? → 답\n";
+  const rounds = [{ questions: [{ id: "Q1", text: "어떤 순서로  처리할까요?", reason: "r", blocking: false }, { id: "Q2", text: "상태 흐름(대기 → 완료)을\n그대로 둘까요?", reason: "r", blocking: false }], answers: [{ id: "Q1", answer: "결제 → 환불 순서로" }, { id: "Q2", answer: "네" }] }];
+  const html = await renderRaw({ draft: docOf(draft), rounds, actions: { approve: "yes", rewrite: true } });
+  assert.ok(html.includes('<li><span class="id">D1</span><span class="tx">PL 답 <b>결제 → 환불 순서로</b><details class="pq"><summary>질문 보기</summary><span class="ln">어떤 순서로 처리할까요?</span></details></span></li>'), "the whole answer, arrow and all");
+  assert.ok(html.includes('<li><span class="id">D2</span><span class="tx">PL 답 <b>네</b><details class="pq"><summary>질문 보기</summary><span class="ln">상태 흐름(대기 → 완료)을 그대로 둘까요?</span></details></span></li>'), "an arrow in the question stays in the question");
+  assert.ok(html.includes('<li><span class="id">D3</span><span class="tx"><span class="ln">PL 답: 묻지 않은 질문? → 답</span></span></li>'), "no asked question: as written");
+  // Options read with their spaces when the line's marks are taken away.
+  const q = await renderRaw({ state: "questions", rounds: [{ questions: [OPTS], answers: null }], actions: { answer: true } });
+  const text = /<p class="qt">([\s\S]*?)<\/p>/.exec(q)[1].replace(/<[^>]+>/g, "");
+  assert.equal(text, OPTS.text, "the words and spaces exactly as the AI wrote them");
 });

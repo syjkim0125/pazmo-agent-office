@@ -218,13 +218,16 @@ function docParts(text: string, bullet = false): { label: string; refs: string; 
 }
 /**
  * An item's words one sentence per line (U51). Office's `PL 답: <question> → <answer>` decision shows the answer first
- * and folds the question, which the past questions already show; a line Office cut short (no arrow) shows as written.
+ * and folds the question, which the past questions already show. It is split right after a question the plan asked
+ * (`asked`, folded to one line as Office writes it), so an arrow inside the question or the answer stays where it is;
+ * a line with no asked question at its start (one Office cut short, say) shows as written.
  */
-function docWords(refs: string, words: string): string {
-  const pl = /^PL 답: (.*) → (.*)$/.exec(words);
-  const text = pl
-    ? `PL 답 <b>${esc(pl[2])}</b><details class="pq"><summary>질문 보기</summary>${say(pl[1])}</details>`
-    : say(words);
+function docWords(refs: string, words: string, asked: readonly string[] = []): string {
+  const q = asked.filter((a) => words.startsWith(`PL 답: ${a} → `)).sort((a, b) => b.length - a.length)[0];
+  const text =
+    q === undefined
+      ? say(words)
+      : `PL 답 <b>${esc(words.slice(`PL 답: ${q} → `.length))}</b><details class="pq"><summary>질문 보기</summary>${say(q)}</details>`;
   return `${refs ? `<span class="refs">${esc(refs)}</span> ` : ""}${text}`;
 }
 /** How many top-level items each `##` section of a draft has ("None." counts none), by its kit head. */
@@ -247,8 +250,10 @@ function sectionCounts(text: string): Map<string, number> {
  * Office's gate line (`Understanding gate (G3): pending`, which a design carries after its Task list) are left out; a
  * `# Story:` title is shown as the Story's title. The raw text, which the approval is bound to, stays one click away.
  */
-function docBody(text: string): string {
+function docBody(text: string, questions: readonly string[] = []): string {
   const counts = sectionCounts(text);
+  // The questions the plan asked, one line each as Office writes them into its `PL 답:` decisions.
+  const asked = questions.map((q) => q.replace(/[\s\x00-\x1f\x7f]+/gu, " ").trim());
   const out: string[] = [];
   let list: { tag: "ul" | "ol"; items: { html: string; line: string }[] } | null = null;
   const flush = () => {
@@ -287,12 +292,12 @@ function docBody(text: string): string {
       const attrs = `${/^\s{2,}/.test(src) ? ' class="sub"' : ""}${item[2] ? ` value="${item[2]}"` : ""}`;
       const p = tag === "ul" ? docParts(item[3], true) : { label: "", refs: "", words: item[3] };
       const id = item[2] ? `<span class="id">${item[2]}.</span>` : p.label ? `<span class="id">${esc(p.label)}</span>` : '<span class="id" aria-hidden="true">•</span>';
-      list.items.push({ html: `<li${attrs}>${id}<span class="tx">${docWords(p.refs, p.words)}</span></li>`, line });
+      list.items.push({ html: `<li${attrs}>${id}<span class="tx">${docWords(p.refs, p.words, asked)}</span></li>`, line });
       continue;
     }
     flush();
     const p = docParts(line);
-    out.push(`<p>${p.label ? `<span class="id">${esc(p.label)}</span>` : ""}${docWords(p.refs, p.words)}</p>`);
+    out.push(`<p>${p.label ? `<span class="id">${esc(p.label)}</span>` : ""}${docWords(p.refs, p.words, asked)}</p>`);
   }
   flush();
   return `<div class="doc">${out.join("")}</div>`;
@@ -313,7 +318,8 @@ function optionLines(sentence: string): string {
   const at = marks.map((m) => m.index + m[0].indexOf("("));
   const lead = sentence.slice(0, at[0]).trim();
   const opts = at.map((s, i) => sentence.slice(s, at[i + 1] ?? sentence.length).trim());
-  return `${esc(lead)}${opts.map((o) => `<span class="opt">${esc(o)}</span>`).join("")}`;
+  // The spaces stay between the pieces, so a screen reader and a copy read the words as written.
+  return [...(lead ? [esc(lead)] : []), ...opts.map((o) => `<span class="opt">${esc(o)}</span>`)].join(" ");
 }
 /**
  * A question one sentence per line (U51). To answer it, the sentences ending in "?" are bold (the last one when none
@@ -453,7 +459,8 @@ export function planPage(
         })()
       : "";
   // The draft in full while it is the step; past it (or sent back), with the other past steps.
-  const draftNow = v.state === "draft" && v.draft ? `<section><h2>초안 전체</h2>${docBody(v.draft.text)}${raw(v.draft.text)}</section>` : "";
+  const asked = v.rounds.flatMap((r) => r.questions.map((q) => q.text));
+  const draftNow = v.state === "draft" && v.draft ? `<section><h2>초안 전체</h2>${docBody(v.draft.text, asked)}${raw(v.draft.text)}</section>` : "";
   const designNow =
     v.design && (v.state === "design" || v.state === "awaiting_g3" || v.state === "splitting" || v.state === "open" || v.state === "failed" || v.state === "cancelled")
       ? `<section><h2>설계</h2>${docBody(v.design.text)}${raw(v.design.text)}${v.split === null || (v.state === "awaiting_g3" && v.actions.approve === "yes") ? "" : splitDetails(v.split, v.repos)}</section>`
@@ -461,7 +468,7 @@ export function planPage(
   // The rounds still waiting for an answer the viewer cannot give are shown as they are; answered ones are past steps.
   const openRound = last >= 0 && v.rounds[last].answers === null && !answerable(last) ? `<section><h2>AI의 질문</h2>${waiting(v.rounds[last], last)}</section>` : "";
   const pastRounds = v.rounds.map((r, i) => (r.answers === null ? "" : answered(r, i))).join("");
-  const pastDraft = v.draft && v.state !== "draft" ? `<details><summary>${v.g1 ? "승인한 초안" : "지난 초안"}</summary>${docBody(v.draft.text)}${raw(v.draft.text)}</details>` : "";
+  const pastDraft = v.draft && v.state !== "draft" ? `<details><summary>${v.g1 ? "승인한 초안" : "지난 초안"}</summary>${docBody(v.draft.text, asked)}${raw(v.draft.text)}</details>` : "";
   const approvals = [v.g1, v.g3].filter((a): a is PlanApproval => a !== null);
   const past = [
     pastRounds,
