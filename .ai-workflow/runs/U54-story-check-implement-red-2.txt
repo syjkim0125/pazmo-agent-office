@@ -1,0 +1,100 @@
+✔ a team Office opens one story engine per repo on its checkout and never opens <repo dataDir>/lean (1027.794375ms)
+✔ with --live, the open record is driven every 10000 ms: a claimed Task goes to its repo's Story engine on the checkout (885.568167ms)
+✖ a live PL Office takes a ready Story check on the claim tick before claiming, checks the Story base in the VM and reports it (D47) (405.843375ms)
+✔ a PL Office with an open Task record takes no Story check (388.048042ms)
+✖ a paused PL Office goes on with the Story check it already holds (after a restart), so the claim keeps its heartbeat (12793.304292ms)
+✔ a paused PL Office takes no Story check (448.180541ms)
+✖ a ready Story check is taken and every repo's latest Story base is checked in the VM; passing reports the summary (D47) (1.037833ms)
+✖ a Story check this member already holds is checked again from the start after a restart, without taking another (0.165083ms)
+✖ a Story base that is not this Story's own is never checked out (0.253208ms)
+✖ over a real Hub: the PL's Office takes the Story check and the Story waits for the result approval (77.046666ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 4
+ℹ fail 6
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 16197.46625
+
+✖ failing tests:
+
+test at tests/team-office.test.mjs:1858:1
+✖ a live PL Office takes a ready Story check on the claim tick before claiming, checks the Story base in the VM and reports it (D47) (405.843375ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'Story 검사 통과: 레포 1개, 검사 1개.\n- alpha @ aaaaaaaaaaaa: V1 통과'
+  - 'Story 검사 통과: 레포 1개, 검사 1개.\n' +
+  -   '- alpha @ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: V1 통과'
+  
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-office.test.mjs:1881:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'Story 검사 통과: 레포 1개, 검사 1개.\n- alpha @ aaaaaaaaaaaa: V1 통과',
+    expected: 'Story 검사 통과: 레포 1개, 검사 1개.\n- alpha @ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa: V1 통과',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/team-office.test.mjs:1904:1
+✖ a paused PL Office goes on with the Story check it already holds (after a restart), so the claim keeps its heartbeat (12793.304292ms)
+  AssertionError [ERR_ASSERTION]: timed out waiting: the held check's report
+      at until (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-office.test.mjs:55:10)
+      at async TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-office.test.mjs:1918:3)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: undefined,
+    expected: undefined,
+    operator: 'fail',
+    diff: 'simple'
+  }
+
+test at tests/team-story-check.test.mjs:99:1
+✖ a ready Story check is taken and every repo's latest Story base is checked in the VM; passing reports the summary (D47) (1.037833ms)
+  TypeError: d.canStart is not a function
+      at runTick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:215:23)
+      at Object.tick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:242:19)
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-story-check.test.mjs:101:36)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.start (node:internal/test_runner/test:1242:17)
+      at startSubtestAfterBootstrap (node:internal/test_runner/harness:387:17)
+
+test at tests/team-story-check.test.mjs:137:1
+✖ a Story check this member already holds is checked again from the start after a restart, without taking another (0.165083ms)
+  TypeError: d.canStart is not a function
+      at runTick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:215:23)
+      at Object.tick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:242:19)
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-story-check.test.mjs:140:36)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+
+test at tests/team-story-check.test.mjs:246:1
+✖ a Story base that is not this Story's own is never checked out (0.253208ms)
+  TypeError: d.canStart is not a function
+      at runTick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:215:23)
+      at Object.tick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:242:19)
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-story-check.test.mjs:251:19)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at node:internal/test_runner/test:1285:31
+      at node:internal/process/task_queues:151:7
+      at AsyncResource.runInAsyncScope (node:async_hooks:227:14)
+
+test at tests/team-story-check.test.mjs:334:1
+✖ over a real Hub: the PL's Office takes the Story check and the Story waits for the result approval (77.046666ms)
+  TypeError: d.canStart is not a function
+      at runTick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:215:23)
+      at Object.tick (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/src/team/story-check.ts:242:19)
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54b/tests/team-story-check.test.mjs:361:34)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
