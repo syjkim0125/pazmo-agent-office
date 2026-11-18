@@ -535,7 +535,8 @@ test("an empty project says what comes next", async (t) => {
 test("the stylesheet keeps both themes, visible focus, large targets and no sideways scroll", async (t) => {
   const h = await team(t);
   const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
-  assert.match(style, /@media \(prefers-color-scheme:dark\)\{:root\{/);
+  assert.match(style, /@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{/);
+  assert.match(style, /:root\[data-theme=dark\]\{/);
   assert.match(style, /:focus-visible\{outline:3px solid var\(--accent\)/);
   assert.match(style, /button,\.btn\{[^}]*min-height:44px/);
   assert.match(style, /overflow-wrap:anywhere/);
@@ -1029,7 +1030,7 @@ test("U44: counts, times and table numbers line up", async (t) => {
 // U45 (나 결정 카드, PR 1): the shell and the admin lists. Explainer 7판: https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS
 /** A colour token of the light block, or of the dark block when `dark`. */
 const tokenOf = (style, name, dark = false) => {
-  const block = dark ? /@media \(prefers-color-scheme:dark\)\{:root\{([^}]*)\}/.exec(style)?.[1] : /^:root\{([^}]*)\}/.exec(style)?.[1];
+  const block = dark ? /@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{([^}]*)\}/.exec(style)?.[1] : /^:root\{([^}]*)\}/.exec(style)?.[1];
   const m = new RegExp(`(?:^|;)--${name}:#([0-9a-f]{6}|[0-9a-f]{3})(?=;)`).exec(block ?? "");
   assert.ok(m, `--${name}${dark ? " (dark)" : ""}`);
   return `#${m[1].length === 3 ? [...m[1]].map((c) => c + c).join("") : m[1]}`;
@@ -1737,4 +1738,42 @@ test("U49: say() puts each sentence on its own line, after a closing parenthesis
   assert.equal(say("멈췄습니다. 다시 하세요.", true), '<b class="ln">멈췄습니다.</b> <span class="ln">다시 하세요.</span>');
   assert.equal(say("<b>&\"x 입니다."), '<span class="ln">&#60;b&#62;&#38;&#34;x 입니다.</span>');
   assert.equal(say("메모 (선택, 2000자까지)를 적습니다."), '<span class="ln">메모 (선택, 2000자까지)를 적습니다.</span>');
+});
+
+// U51 (D45): a 다크 모드 switch beside 자동으로 일하기; the choice is a cookie per browser, applied to every page.
+test("U51: the 다크 모드 switch posts /me/theme, keeps a cookie per browser and every page follows it; without the cookie the device setting decides", async (t) => {
+  const h = await team(t);
+  let text = (await h.get("/", h.c)).text;
+  assert.ok(text.startsWith('<!doctype html><html lang="ko"><head>'), "no cookie: the device setting decides");
+  // Two switches; the stylesheet shows the one that matches the theme in effect (no script needed).
+  assert.match(text, /<form class="switch tsw-on" method="post" action="\/me\/theme"><input type="hidden" name="csrf" value="[^"]+"><input type="hidden" name="theme" value="light"><input type="hidden" name="back" value="\/"><button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"><\/span><span class="tsw-short" aria-hidden="true">다크<\/span><span class="tsw-full">다크 모드 켜짐<\/span><\/button><\/form>/);
+  assert.match(text, /<form class="switch tsw-off" method="post" action="\/me\/theme">[^]*?name="theme" value="dark">[^]*?aria-pressed="false">[^]*?<span class="tsw-full">다크 모드 꺼짐<\/span>/);
+  assert.match(text, /\.switch \.tsw-short\{display:inline\}\.switch \.tsw-full\{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset\(50%\)/, "다크 at every width, the whole name for a screen reader");
+  const style = /<style>([\s\S]*?)<\/style>/.exec(text)[1];
+  assert.match(style, /@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{--bg:#121821;/);
+  assert.match(style, /:root\[data-theme=dark\]\{--bg:#121821;/);
+  assert.match(style, /\.tsw-on\{display:none\}/);
+  assert.match(style, /:root\[data-theme=dark\] \.tsw-on\{display:inline-flex\}:root\[data-theme=dark\] \.tsw-off\{display:none\}/);
+  assert.match(style, /@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\) \.tsw-on\{display:inline-flex\}:root:not\(\[data-theme=light\]\) \.tsw-off\{display:none\}\}/);
+
+  let res = await h.post("/me/theme", h.c, "theme=dark&back=%2Fteam");
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, "/team");
+  assert.deepEqual(res.headers["set-cookie"], ["pazmo_theme=dark; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Strict"]);
+  res = await h.post("/me/theme", h.c, `theme=light&back=${encodeURIComponent("https://evil.example/")}`);
+  assert.equal(res.headers.location, "/");
+  assert.match(res.headers["set-cookie"][0], /^pazmo_theme=light;/);
+  assert.equal((await h.post("/me/theme", h.c, "theme=blue")).status, 400);
+  assert.equal((await h.post("/me/theme", h.c, "theme=dark", { origin: "https://evil.example" })).status, 403, "Origin is checked");
+  assert.equal((await h.call("POST", "/me/theme", { cookie: h.c.cookie, body: "theme=dark", headers: { origin: h.hub.url } })).status, 403, "CSRF is checked");
+
+  const as = (theme, path = "/") => h.call("GET", path, { cookie: `${h.c.cookie}; pazmo_theme=${theme}` });
+  assert.ok((await as("dark")).text.startsWith('<!doctype html><html lang="ko" data-theme="dark">'));
+  assert.ok((await as("light", "/team")).text.startsWith('<!doctype html><html lang="ko" data-theme="light">'));
+  assert.ok((await as("blue")).text.startsWith('<!doctype html><html lang="ko"><head>'), "an unknown value is ignored");
+  // A page outside the board's header (an error page) follows it too.
+  const missing = await as("dark", `/stories/${"0".repeat(8)}-0000-4000-8000-${"0".repeat(12)}`);
+  assert.ok(missing.text.startsWith('<!doctype html><html lang="ko" data-theme="dark">'), `status ${missing.status}`);
+  // Two themes are two pages: the live refresh tag differs.
+  assert.notEqual((await as("dark")).headers.etag, (await as("light")).headers.etag);
 });

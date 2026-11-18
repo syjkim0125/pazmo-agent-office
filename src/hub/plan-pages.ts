@@ -206,28 +206,54 @@ const HEADS: Record<string, string> = {
   Verify: "확인 방법",
 };
 /**
- * One line of a draft or design: its id (M1, V1 [M1], D2) aside, and the kit's English markers in words. OPEN BLOCKING
- * is put in words only where the store counts it (`hasOpenBlocking`): a list line that starts with it.
+ * One line of a draft or design split into its id (M1, V1, D2), the ids it covers ([M1, M2]) and its words, with the
+ * kit's English markers in words. OPEN BLOCKING is put in words only where the store counts it (`hasOpenBlocking`): a
+ * list line that starts with it.
  */
-function docLine(text: string, bullet = false): string {
-  const id = /^([A-Z]{1,3}\d+(?:\s*\[[^\]]*\])?)\.\s+(.*)$/.exec(text);
-  const [label, body] = id ? [id[1], id[2]] : ["", text];
-  const blocking = bullet && !label ? body.replace(/^OPEN\s+BLOCKING\b:?\s*/i, "꼭 정해야 함: ") : body;
-  const words = blocking.replace(/^ASSUMED:\s*/, "AI가 정한 것: ").replace(/^None\.$/, "없음");
-  return `${label ? `<span class="id">${esc(label)}</span>` : ""}${esc(words)}`;
+function docParts(text: string, bullet = false): { label: string; refs: string; words: string } {
+  const id = /^([A-Z]{1,3}\d+)(?:\s*(\[[^\]]*\]))?\.\s+(.*)$/.exec(text);
+  const [label, refs, body] = id ? [id[1], id[2] ?? "", id[3]] : ["", "", text];
+  const blocking = bullet && !label ? body.replace(/^OPEN\s+BLOCKING\b:?\s*/i, "필수: ") : body;
+  return { label, refs, words: blocking.replace(/^ASSUMED:\s*/, "AI가 정한 것: ").replace(/^None\.$/, "없음") };
 }
 /**
- * A draft or design read as sections (U50): `##` heads in Korean, list items as lists, other lines as paragraphs, every
- * word kept as written. Only the kit's header at the top (the `# ` title, Status, Owner and gate lines before anything
- * else) and the Office's gate line (`Understanding gate (G3): pending`, which a design carries after its Task list) are
- * left out; the raw text, which the approval is bound to, stays one click away.
+ * An item's words one sentence per line (U51). Office's `PL 답: <question> → <answer>` decision shows the answer first
+ * and folds the question, which the past questions already show; a line Office cut short (no arrow) shows as written.
+ */
+function docWords(refs: string, words: string): string {
+  const pl = /^PL 답: (.*) → (.*)$/.exec(words);
+  const text = pl
+    ? `PL 답 <b>${esc(pl[2])}</b><details class="pq"><summary>질문 보기</summary>${say(pl[1])}</details>`
+    : say(words);
+  return `${refs ? `<span class="refs">${esc(refs)}</span> ` : ""}${text}`;
+}
+/** How many top-level items each `##` section of a draft has ("None." counts none), by its kit head. */
+function sectionCounts(text: string): Map<string, number> {
+  const counts = new Map<string, number>();
+  let head = "";
+  for (const src of text.split("\n")) {
+    const h = /^#{2,6}\s+(.*)$/.exec(src.trim());
+    if (h) {
+      head = h[1].trim();
+      counts.set(head, 0);
+    } else if (head && /^(?:[-*]|[1-9]\d{0,2}\.)\s+/.test(src) && !/^[-*]\s+None\.$/.test(src.trim())) counts.set(head, (counts.get(head) ?? 0) + 1);
+  }
+  return counts;
+}
+/**
+ * A draft or design read as sections (U50, U51): the draft's Story title, `##` heads in Korean with how many items they
+ * hold, items with their id in a left column, every item and paragraph one sentence per line, every word kept as
+ * written. Only the kit's header at the top (the `# ` title, Status, Owner and gate lines before anything else) and the
+ * Office's gate line (`Understanding gate (G3): pending`, which a design carries after its Task list) are left out; a
+ * `# Story:` title is shown as the Story's title. The raw text, which the approval is bound to, stays one click away.
  */
 function docBody(text: string): string {
+  const counts = sectionCounts(text);
   const out: string[] = [];
   let list: { tag: "ul" | "ol"; items: { html: string; line: string }[] } | null = null;
   const flush = () => {
     // A numbered line alone is a sentence that starts with a number (a date, say), not a list: shown as written.
-    if (list) out.push(list.tag === "ol" && list.items.length === 1 ? `<p>${docLine(list.items[0].line)}</p>` : `<${list.tag}>${list.items.map((i) => i.html).join("")}</${list.tag}>`);
+    if (list) out.push(list.tag === "ol" && list.items.length === 1 ? `<p>${say(list.items[0].line)}</p>` : `<${list.tag} class="items">${list.items.map((i) => i.html).join("")}</${list.tag}>`);
     list = null;
   };
   let header = true;
@@ -237,13 +263,19 @@ function docBody(text: string): string {
       flush();
       continue;
     }
-    if (/^Understanding gate \(G\d\): /.test(line) || (header && /^(#\s|(Status|Owner|Understanding gate[^:]*):)/.test(line))) continue;
+    if (/^Understanding gate \(G\d\): /.test(line)) continue;
+    if (header && /^(#\s|(Status|Owner|Understanding gate[^:]*):)/.test(line)) {
+      const title = /^#\s+Story:\s*(.+)$/.exec(line);
+      if (title) out.push(`<p class="dtitle"><span class="muted">Story 제목</span> <b>${esc(title[1].trim())}</b></p>`);
+      continue;
+    }
     header = false;
     const head = /^#{2,6}\s+(.*)$/.exec(line);
     if (head) {
       flush();
       const name = head[1].trim();
-      out.push(`<h3>${esc(HEADS[name] ?? name)}</h3>`);
+      const n = counts.get(name) ?? 0;
+      out.push(`<h3>${esc(HEADS[name] ?? name)}${n ? ` <span class="count">${n}</span>` : ""}</h3>`);
       continue;
     }
     // A numbered item keeps its own number (1-999; a year starts a sentence); an indented item stays indented.
@@ -253,14 +285,48 @@ function docBody(text: string): string {
       if (list && list.tag !== tag) flush();
       list ??= { tag, items: [] };
       const attrs = `${/^\s{2,}/.test(src) ? ' class="sub"' : ""}${item[2] ? ` value="${item[2]}"` : ""}`;
-      list.items.push({ html: `<li${attrs}>${docLine(item[3], tag === "ul")}</li>`, line });
+      const p = tag === "ul" ? docParts(item[3], true) : { label: "", refs: "", words: item[3] };
+      const id = item[2] ? `<span class="id">${item[2]}.</span>` : p.label ? `<span class="id">${esc(p.label)}</span>` : '<span class="id" aria-hidden="true">•</span>';
+      list.items.push({ html: `<li${attrs}>${id}<span class="tx">${docWords(p.refs, p.words)}</span></li>`, line });
       continue;
     }
     flush();
-    out.push(`<p>${docLine(line)}</p>`);
+    const p = docParts(line);
+    out.push(`<p>${p.label ? `<span class="id">${esc(p.label)}</span>` : ""}${docWords(p.refs, p.words)}</p>`);
   }
   flush();
   return `<div class="doc">${out.join("")}</div>`;
+}
+/** How many items the draft's MUST, SHOULD, OUT and Verify hold, in one line for the draft card (U51). */
+function draftCounts(text: string): string {
+  const c = sectionCounts(text);
+  const short = { MUST: "꼭 할 것", SHOULD: "하면 좋은 것", OUT: "하지 않을 것", Verify: "확인 방법" } as const;
+  return `<p class="counts">${(Object.keys(short) as (keyof typeof short)[]).map((k) => `${short[k]} ${c.get(k) ?? 0}`).join(" · ")}</p>`;
+}
+/** The sentences of a passage as `say` splits them (U49). */
+const sentencesOf = (text: string) =>
+  String(text ?? "").replace(/\s+/g, " ").trim().split(/(?<=(?:[다요까오]|\))[.?!])\s+(?=\S)/).filter(Boolean);
+/** A sentence with two or more "(a) … (b) …" or "(1) … (2) …" markers: each option on its own line, no word changed. */
+function optionLines(sentence: string): string {
+  const marks = [...sentence.matchAll(/(?:^|\s)(\((?:[a-z]|[1-9])\)\s)/g)];
+  if (marks.length < 2) return esc(sentence);
+  const at = marks.map((m) => m.index + m[0].indexOf("("));
+  const lead = sentence.slice(0, at[0]).trim();
+  const opts = at.map((s, i) => sentence.slice(s, at[i + 1] ?? sentence.length).trim());
+  return `${esc(lead)}${opts.map((o) => `<span class="opt">${esc(o)}</span>`).join("")}`;
+}
+/**
+ * A question one sentence per line (U51). To answer it, the sentences ending in "?" are bold (the last one when none
+ * does) and the ones before the first are the background, muted; `plain` (an answered question) bolds nothing.
+ */
+function questionText(text: string, plain: boolean): string {
+  const ss = sentencesOf(text);
+  let asks = ss.map((s) => s.endsWith("?"));
+  if (!asks.some(Boolean)) asks = ss.map((_, i) => i === ss.length - 1);
+  const first = asks.indexOf(true);
+  const line = (s: string, i: number) =>
+    plain ? `<span class="ln">${optionLines(s)}</span>` : asks[i] ? `<b class="ln">${optionLines(s)}</b>` : `<span class="ln${i < first ? " ctx" : ""}">${optionLines(s)}</span>`;
+  return `<p class="qt">${ss.map(line).join(" ")}</p>`;
 }
 const raw = (text: string) => `<details><summary>원문 그대로 보기</summary><pre>${esc(text)}</pre></details>`;
 /** What the AI assumed in a draft: its `ASSUMED:` lines, shown in the draft card for the PL to check (U50). */
@@ -284,17 +350,22 @@ export function planPage(
     `<form method="post" action="${esc(`${base}/${action}`)}">${csrfField(csrf)}<input type="hidden" name="revision" value="${v.revision}">${inner}</form>`;
   const high = v.risk === "high";
   const risk = high ? "높음" : "보통";
-  const ask = (q: PlanQuestion) =>
-    `<p class="q">${esc(q.text)}${q.blocking ? ` ${tonePill("need", "꼭 정해야 함")}` : ""}</p><p class="muted">왜 묻나요: ${esc(q.reason)}</p>`;
+  // U51: one box per question: 질문 N and 필수 on top, the question one sentence per line, Why set apart.
+  const ask = (q: PlanQuestion, n: number) =>
+    `<p class="qh">질문 ${n}${q.blocking ? ` ${tonePill("need", "필수")}` : ""}</p>${questionText(q.text, false)}<p class="qwhy"><span class="wl">Why</span> ${say(q.reason)}</p>`;
   const answerable = (i: number) => v.rounds[i].answers === null && v.actions.answer && i === v.rounds.length - 1;
+  // An answered round is plain: the answer stands out and why it was asked is behind an i.
   const answered = (r: PlanRound, i: number) => {
     const answer = (q: PlanQuestion) => r.answers?.find((a) => a.id === q.id)?.answer;
-    const item = (q: PlanQuestion) => {
+    const item = (q: PlanQuestion, k: number) => {
       const a = answer(q);
-      return `<li>${ask(q)}${a === undefined ? "" : `<p class="muted">PL의 답</p><pre>${esc(a)}</pre>`}</li>`;
+      return `<li class="qbox past"><p class="qh">질문 ${k + 1}${info(`why-${i + 1}-${q.id}`, `질문 ${k + 1} Why`, q.reason)}</p>${questionText(q.text, true)}${a === undefined ? "" : `<p class="ans"><span class="muted">답</span></p><div class="answer">${esc(a)}</div>`}</li>`;
     };
-    return `<h3>질문(${i + 1}차)</h3><ol class="qs">${r.questions.map(item).join("")}</ol>`;
+    return `<h3>질문(${i + 1}차) <span class="muted">· ${r.questions.length}개 모두 답함</span></h3><ol class="qs">${r.questions.map(item).join("")}</ol>`;
   };
+  // A round waiting for an answer the viewer cannot give: the same boxes, without answer fields.
+  const waiting = (r: PlanRound, i: number) =>
+    `<h3>질문(${i + 1}차)</h3><ol class="qs">${r.questions.map((q, k) => `<li class="qbox">${ask(q, k + 1)}</li>`).join("")}</ol>`;
   const refusal =
     v.actions.approve === "open-blocking"
       ? OPEN_BLOCKING
@@ -314,23 +385,25 @@ export function planPage(
   const last = v.rounds.length - 1;
   if (v.state === "questions" && last >= 0 && answerable(last)) {
     const r = v.rounds[last];
+    // The label is one line ("답 (4000자)"); a screen reader also hears which question it answers.
     const box = (q: PlanQuestion, i: number) =>
-      `<li>${ask(q)}<label>${i + 1}번 질문의 답 <span class="muted">(${PLAN_LIMITS.answerMax}자까지)</span><textarea name="answer-${esc(q.id)}" rows="4" maxlength="${PLAN_LIMITS.answerMax}" required></textarea></label></li>`;
+      `<li class="qbox">${ask(q, i + 1)}<label for="answer-${esc(q.id)}"><span class="vh">질문 ${i + 1}의 </span><span>답 <span class="muted">(${PLAN_LIMITS.answerMax}자)</span></span></label><textarea id="answer-${esc(q.id)}" name="answer-${esc(q.id)}" rows="4" maxlength="${PLAN_LIMITS.answerMax}" required></textarea></li>`;
     decide = card(
-      `AI의 질문 ${r.questions.length}개에 답해 주세요`,
-      `<p>${say("답을 보내면 내 Mac의 AI가 이어서 Story 초안을 씁니다.")}</p>${form("answer", `<ol class="qs">${r.questions.map((q, i) => box(q, i)).join("")}</ol><div class="row"><button>답 보내기</button></div>`)}`,
+      `질문 ${r.questions.length}개`,
+      `<p>${say("답을 보내면 AI가 초안을 씁니다.")}</p>${form("answer", `<ol class="qs">${r.questions.map((q, i) => box(q, i)).join("")}</ol><div class="row"><button>답 보내기</button></div>`)}`,
     );
   } else if (v.state === "draft" && v.draft && (v.actions.approve === "yes" || (refusal && v.actions.rewrite))) {
     const assumed = assumedOf(v.draft.text);
     const box = assumed.length
-      ? `<div class="assumed"><p><b>AI가 스스로 정한 것 ${assumed.length}개 — 맞는지 보세요</b></p><ul>${assumed.map((a) => `<li>${esc(a)}</li>`).join("")}</ul></div>`
+      ? `<div class="assumed"><p><b>AI가 정한 것 ${assumed.length}개</b></p><ul>${assumed.map((a) => `<li>${say(a)}</li>`).join("")}</ul></div>`
       : "";
+    const counts = draftCounts(v.draft.text);
     const approve = high ? "승인하면 AI가 Task를 나누고 설계를 보여 드립니다." : "승인하면 AI가 Task로 나눠 바로 올리고 엽니다.";
     decide =
       v.actions.approve === "yes"
         ? card(
-            "Story 초안을 확인해 주세요",
-            `<p>${say(approve)}</p>${box}${approveForm("G1", v.draft.hash, "초안 승인")}${v.actions.rewrite ? `<details class="other"><summary>고쳐 달라고 하기</summary>${rewriteForm}</details>` : ""}`,
+            "초안 확인",
+            `<p>${say(approve)}</p>${box}${counts}${approveForm("G1", v.draft.hash, "초안 승인")}${v.actions.rewrite ? `<details class="other"><summary>고쳐 달라고 하기</summary>${rewriteForm}</details>` : ""}`,
           )
         : v.actions.approve === "open-blocking"
           ? card("Story 초안을 고쳐야 합니다", `<p>${say(refusal, true)}</p>${box}${rewriteForm}`)
@@ -338,14 +411,14 @@ export function planPage(
   } else if (v.state === "awaiting_g3" && v.design && v.actions.approve === "yes") {
     const n = isSplit(v.split) ? v.split.graph.nodes.length : null;
     decide = card(
-      n === null ? "설계와 Task를 확인해 주세요" : `설계와 Task ${n}개를 확인해 주세요`,
+      n === null ? "설계 확인" : `설계 확인 · Task ${n}개`,
       `<p>${say(G3_NOTE)}</p>${isSplit(v.split) ? splitRows(v.split, v.repos) : ""}${v.split === null ? "" : splitDetails(v.split, v.repos)}${approveForm("G3", v.design.hash, "설계 승인하고 시작")}<p class="muted">고칠 것이 있으면 이 기획을 그만두고 새로 시작하세요.</p>`,
     );
   } else if (v.state === "failed" && v.failure && v.actions.retry) {
     const [first, ...rest] = v.failure.reason.split("\n");
     const more = rest.join("\n").trim();
     decide = card(
-      "기획이 멈췄습니다",
+      "멈춤",
       `<div class="callout"><p><b>${esc(first)}</b></p>${more ? `<details><summary>자세한 이유</summary><pre>${esc(more)}</pre></details>` : ""}</div>${form("retry", `<p>다시 시도하면 멈춘 단계부터 이어서 합니다.</p><div class="row"><button>다시 시도</button></div>`)}`,
     );
   }
@@ -363,7 +436,7 @@ export function planPage(
     office && !v.leased && !o.plOpenTask && !off && o.plMac.state !== "locked" && o.unlinked.length
       ? `<p>${esc(`PL의 Office에 연결되지 않은 레포: ${o.unlinked.join(", ")} — PL Mac의 Office에 이 레포를 연결해야 기획이 시작됩니다.`)}</p>`
       : "";
-  const closeable = office && v.isPl ? `<p class="muted">${say("이 화면을 닫아도 됩니다. 답하거나 확인할 차례가 오면 보드의 나를 기다리는 일에 뜹니다.")}</p>` : "";
+  const closeable = office && v.isPl ? `<p class="muted">${say("닫아도 됩니다. 내 차례가 되면 보드에 뜹니다.")}</p>` : "";
   const opened = v.state === "open" && v.story ? `<p><a href="/stories/${esc(v.story.id)}">Story #${v.story.number} 보기</a></p>` : "";
   // The PL's turn reads as theirs only to the PL; anyone else only watches it (as on the boards, U46).
   const t = tone("plan", v.state);
@@ -386,7 +459,7 @@ export function planPage(
       ? `<section><h2>설계</h2>${docBody(v.design.text)}${raw(v.design.text)}${v.split === null || (v.state === "awaiting_g3" && v.actions.approve === "yes") ? "" : splitDetails(v.split, v.repos)}</section>`
       : "";
   // The rounds still waiting for an answer the viewer cannot give are shown as they are; answered ones are past steps.
-  const openRound = last >= 0 && v.rounds[last].answers === null && !answerable(last) ? `<section><h2>AI의 질문</h2>${answered(v.rounds[last], last)}</section>` : "";
+  const openRound = last >= 0 && v.rounds[last].answers === null && !answerable(last) ? `<section><h2>AI의 질문</h2>${waiting(v.rounds[last], last)}</section>` : "";
   const pastRounds = v.rounds.map((r, i) => (r.answers === null ? "" : answered(r, i))).join("");
   const pastDraft = v.draft && v.state !== "draft" ? `<details><summary>${v.g1 ? "승인한 초안" : "지난 초안"}</summary>${docBody(v.draft.text)}${raw(v.draft.text)}</details>` : "";
   const approvals = [v.g1, v.g3].filter((a): a is PlanApproval => a !== null);

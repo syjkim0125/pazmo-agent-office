@@ -422,6 +422,7 @@ function teamBlock(team: Team, role: "pm" | "lead"): string {
       `Office allows at most ${PLAN_LIMITS.roundsMax} question rounds per plan (not three); after that the plan fails, so ask only what changes the Story.`,
       'When ready, return {version:1,inputDigest,status:"ready",story:{title,goal,domain,must,should,out,assumptions,verify,openBlocking:[{text,reason}]}}: the PM story schema plus openBlocking.',
       `openBlocking lists 0-${PLAN_LIMITS.questionsPerRound} decisions the PL must make before approving the Story (G1) because the Story cannot be right without them: text is the decision needed, reason why it blocks. Use [] when nothing blocks. Office asks the PL these as questions; never write OPEN BLOCKING lines yourself.`,
+      "Write each question and each openBlocking item for the PL to read on a web page: text states the decision in one or two short sentences and ends with the question itself; background, what you found and what depends on the answer go in reason, not in text; when the PL chooses among options, write them in text as (a) …, (b) …; do not repeat earlier questions or answers at length.",
       "packet.team.rewrite, when not null, is the PL's request to rewrite the draft: previous is the draft the PL saw and note is what to change. Change what the note asks and keep the rest.",
     );
   else

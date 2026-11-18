@@ -57,6 +57,9 @@ const HEADERS = {
 
 const LIVE_TAG = '<script src="/live.js" defer></script>';
 export function send(res: ServerResponse, status: number, type: string, body: string, extra: Record<string, string> = {}) {
+  // U51: the theme this browser chose with the 다크 모드 switch, on every page (before the tag, so each theme has its own).
+  const theme = type.startsWith("text/html") && res.req ? themeOf(res.req) : undefined;
+  if (theme) body = body.replace('<html lang="ko">', `<html lang="ko" data-theme="${theme}">`);
   if (status === 200 && type.startsWith("text/html") && res.req?.method === "GET") {
     // The tag is the hash of the page as built; a live page also carries it, so its first poll can already get a 304.
     const tag = `"${createHash("sha256").update(body).digest("hex").slice(0, 16)}"`;
@@ -107,6 +110,12 @@ function cookieOf(req: IncomingMessage, name: string): string | undefined {
   return undefined;
 }
 const cookie = (req: IncomingMessage) => cookieOf(req, COOKIE);
+/** U51: the browser's theme cookie, "dark" or "light"; anything else is no choice (the device setting decides). */
+const THEME_COOKIE = "pazmo_theme";
+function themeOf(req: IncomingMessage): "dark" | "light" | undefined {
+  const value = cookieOf(req, THEME_COOKIE);
+  return value === "dark" || value === "light" ? value : undefined;
+}
 // The page a person opened before they had a session, kept so the invite can bring them back to it.
 const NEXT_COOKIE = "pazmo_next";
 const NEXT_AGE = 72 * 60 * 60;
@@ -406,6 +415,11 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if ((m = new RegExp(`^/links/${ID}/revoke$`).exec(path))) {
       c.store.revokeLink(me, m[1]);
       return redirect(res, "/repos");
+    }
+    if (path === "/me/theme") {
+      const theme = f("theme");
+      if (theme !== "dark" && theme !== "light") throw new HubError("INVALID", 400, "다크 또는 기본을 골라주세요.");
+      return redirect(res, safePath(f("back")) ?? "/", { "set-cookie": `${THEME_COOKIE}=${theme}; Path=/; Max-Age=31536000; HttpOnly; Secure; SameSite=Strict` });
     }
     if (c.board) {
       const board = c.board;

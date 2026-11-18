@@ -358,25 +358,25 @@ test("the plan page states each state in plain words (waiting for the PL's Mac, 
   h.lease(id);
   await shows("기획 중", "AI가 기획하고 있습니다.");
   h.questions(id, [q(1)]);
-  await carded("질문", "AI의 질문 1개에 답해 주세요");
+  await carded("질문", "질문 1개");
   await shows("질문", "PL의 답을 기다립니다.", h.b);
   h.answerAll(id);
   h.draft(id);
-  await carded("초안", "Story 초안을 확인해 주세요");
+  await carded("초안", "초안 확인");
   await shows("초안", "PL의 승인을 기다립니다.", h.b);
   h.approve(id);
   await shows("설계 대기", WAITING);
   h.lease(id);
   await shows("설계 중", "AI가 Task를 나누고 설계를 쓰고 있습니다.");
   h.design(id);
-  await carded("설계 승인 대기", "설계와 Task를 확인해 주세요");
+  await carded("설계 승인 대기", "설계 확인");
   await shows("설계 승인 대기", "PL의 설계 승인을 기다립니다.", h.b);
   h.approve(id, "G3");
   await shows("나누기 대기", WAITING);
   h.lease(id);
   await shows("나누는 중", "AI가 Task로 나누고 올리는 중입니다.");
   h.failed(id, `app-fe의 Story base를 올리지 못했습니다.\ngit push: rejected\n권한 없음`);
-  text = await carded("멈춤", "기획이 멈췄습니다");
+  text = await carded("멈춤", "멈춤");
   assert.ok(text.includes("<p><b>app-fe의 Story base를 올리지 못했습니다.</b></p>"));
   assert.ok(text.includes("<details><summary>자세한 이유</summary><pre>git push: rejected\n권한 없음</pre></details>"));
   h.plans.retry(h.pl.member, id, h.view(id).revision);
@@ -454,10 +454,10 @@ test("questions show one form per round with a 4000-character box per question a
   assert.equal(count(text, `<form method="post" action="${action}">`), 1);
   assert.deepEqual(formOf(text, action), { revision: String(h.view(id).revision) });
   for (const n of [1, 2, 3]) {
-    assert.ok(text.includes(`<textarea name="answer-Q${n}" rows="4" maxlength="4000" required></textarea>`), `Q${n}`);
-    assert.ok(text.includes(`질문 ${n}`) && text.includes(`왜 묻나요: 이유 ${n}`), `Q${n} text and reason`);
+    assert.ok(text.includes(`<textarea id="answer-Q${n}" name="answer-Q${n}" rows="4" maxlength="4000" required></textarea>`), `Q${n}`);
+    assert.ok(text.includes(`질문 ${n}`) && text.includes(`<span class="wl">Why</span> 이유 ${n}`), `Q${n} text and reason`);
   }
-  const must = '<span class="pill need">꼭 정해야 함</span>';
+  const must = '<span class="pill need">필수</span>';
   assert.equal(count(text, must), 1, "Q1 only");
   assert.ok(text.indexOf(must) < text.indexOf("질문 2"));
 
@@ -477,8 +477,8 @@ test("questions show one form per round with a 4000-character box per question a
   h.questions(id, [q(1)]);
   text = await h.page(id);
   assert.equal(count(text, `<form method="post" action="${action}">`), 1);
-  assert.ok(text.includes('<textarea name="answer-Q1"') && !text.includes('name="answer-Q2"'));
-  assert.ok(text.includes(`<pre>${answer(1)}</pre>`) && text.includes(`<pre>${answer(3)}</pre>`), "round 1's answers");
+  assert.ok(text.includes('<textarea id="answer-Q1" name="answer-Q1"') && !text.includes('name="answer-Q2"'));
+  assert.ok(text.includes(`<div class="answer">${answer(1)}</div>`) && text.includes(`<div class="answer">${answer(3)}</div>`), "round 1's answers");
 });
 
 test("the draft shows its text with 승인 (hidden revision and hash) and 고쳐 써 주세요; a draft with OPEN BLOCKING shows why there is no 승인", async (t) => {
@@ -919,15 +919,15 @@ test("U50: AI questions are the PL's 지금 할 일: how many, what happens next
   h.questions(id, [q(1, true), q(2)]);
   const text = await h.page(id);
   const card = cardOf(text) ?? "";
-  assert.ok(card.includes('<p class="do">AI의 질문 2개에 답해 주세요</p>'));
-  assert.ok(card.includes("답을 보내면 내 Mac의 AI가 이어서 Story 초안을 씁니다."));
+  assert.ok(card.includes('<p class="do">질문 2개</p>'));
+  assert.ok(card.includes("답을 보내면 AI가 초안을 씁니다."));
   assert.ok(card.includes(`<form method="post" action="/plans/${id}/answer">`), "the answer form is in the card");
-  assert.ok(card.includes('<span class="pill need">꼭 정해야 함</span>') && card.includes("왜 묻나요: 이유 1"));
+  assert.ok(card.includes('<span class="pill need">필수</span>') && card.includes('<span class="wl">Why</span> 이유 1'));
   assert.doesNotMatch(text, /막는 결정|번째 질문|이유: /);
   assert.equal(cardOf(await h.page(id, h.b)), null, "nothing for another member to do");
   h.answerAll(id);
   h.questions(id, [q(1)]);
-  assert.match(await h.page(id), /<h3>질문\(1차\)<\/h3>/, "the answered round, by its round");
+  assert.match(await h.page(id), /<h3>질문\(1차\) <span class="muted">· 2개 모두 답함<\/span><\/h3>/, "the answered round, by its round");
 });
 
 test("U50: the draft card: what approval does, what the AI assumed, 초안 승인, and 고쳐 달라고 하기 folded", async (t) => {
@@ -936,9 +936,9 @@ test("U50: the draft card: what approval does, what the AI assumed, 초안 승�
   h.draft(id, FULL);
   const text = await h.page(id);
   const card = cardOf(text) ?? "";
-  assert.ok(card.includes('<p class="do">Story 초안을 확인해 주세요</p>'));
+  assert.ok(card.includes('<p class="do">초안 확인</p>'));
   assert.ok(card.includes("승인하면 AI가 Task로 나눠 바로 올리고 엽니다."));
-  assert.ok(card.includes('<div class="assumed"><p><b>AI가 스스로 정한 것 1개 — 맞는지 보세요</b></p><ul><li>쿠폰은 한 번만 쓴다.</li></ul></div>'));
+  assert.ok(card.includes('<div class="assumed"><p><b>AI가 정한 것 1개</b></p><ul><li>쿠폰은 한 번만 쓴다.</li></ul></div>'));
   assert.ok(card.includes("<button>초안 승인</button>"));
   assert.match(card, new RegExp(`<details class="other"><summary>고쳐 달라고 하기</summary><form method="post" action="/plans/${id}/rewrite">`));
   assert.ok(card.indexOf("초안 승인") < card.indexOf("고쳐 달라고 하기"));
@@ -950,9 +950,9 @@ test("U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its 
   h.draft(id, FULL);
   const text = await h.page(id);
   const doc = /<section><h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(text)?.[1] ?? "";
-  for (const part of ["<h3>목표</h3><p>회원에게 쿠폰을 한 번에 발급한다.</p>", '<h3>꼭 할 것</h3><ul><li><span class="id">M1</span>발급 버튼을 누르면 쿠폰이 생긴다.</li></ul>',
-    "<h3>이번에 하지 않을 것</h3><ul><li>문자 발송</li></ul>", '<li><span class="id">D1</span>AI가 정한 것: 쿠폰은 한 번만 쓴다.</li>', '<li><span class="id">D2</span>PL 답: 몇 장? → 한 장</li>',
-    '<h3>확인 방법</h3><ul><li><span class="id">V1 [M1]</span>npm test로 발급을 확인한다.</li></ul>']) assert.ok(doc.includes(part), part);
+  for (const part of ["<h3>목표</h3><p>회원에게 쿠폰을 한 번에 발급한다.</p>", '<h3>꼭 할 것 <span class="count">1</span></h3><ul class="items"><li><span class="id">M1</span><span class="tx">발급 버튼을 누르면 쿠폰이 생긴다.</span></li></ul>',
+    '<h3>이번에 하지 않을 것 <span class="count">1</span></h3><ul class="items"><li><span class="id" aria-hidden="true">•</span><span class="tx">문자 발송</span></li></ul>', '<li><span class="id">D1</span><span class="tx">AI가 정한 것: 쿠폰은 한 번만 쓴다.</span></li>', '<li><span class="id">D2</span><span class="tx">PL 답 <b>한 장</b><details class="pq"><summary>질문 보기</summary>몇 장?</details></span></li>',
+    '<h3>확인 방법 <span class="count">1</span></h3><ul class="items"><li><span class="id">V1</span><span class="tx"><span class="refs">[M1]</span> npm test로 발급을 확인한다.</span></li></ul>']) assert.ok(doc.includes(part), part);
   assert.doesNotMatch(doc, /Status:|Owner:|Understanding gate|# Story|ASSUMED|## /, "no kit header or English heads");
   const raw = /<details><summary>원문 그대로 보기<\/summary><pre>([\s\S]*?)<\/pre><\/details>/.exec(text)?.[1] ?? "";
   const unesc = raw.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(Number(n)));
@@ -968,7 +968,7 @@ test("U50: a design waiting for G3 lists the Tasks it publishes in the card, by 
   h.design(id, DESIGN, splitOf(h.be, h.fe));
   const text = await h.page(id);
   const card = cardOf(text) ?? "";
-  assert.ok(card.includes('<p class="do">설계와 Task 2개를 확인해 주세요</p>'));
+  assert.ok(card.includes('<p class="do">설계 확인 · Task 2개</p>'));
   assert.match(card, /<ol class="tasks"><li><span class="num">1<\/span><div><p><b>[^<]+<\/b> · app-be<\/p><p class="muted">먼저 시작 · 바꿀 파일 \d+개 · 확인: [^<]+<\/p><\/div><\/li><li><span class="num">2<\/span><div><p><b>[^<]+<\/b> · app-fe<\/p><p class="muted">1번이 끝난 뒤 · /);
   assert.match(card, /모두 끝나면 Story 전체 확인: /);
   assert.ok(card.includes("<summary>올라갈 Task 전부 보기</summary>"), "every detail one click away, in the card");
@@ -982,8 +982,8 @@ test("U50: while the AI works the PL may close the page; a held Task of the PL's
   const id = h.create();
   let text = await h.page(id);
   assert.equal(cardOf(text), null);
-  assert.ok(text.includes("이 화면을 닫아도 됩니다. 답하거나 확인할 차례가 오면 보드의 나를 기다리는 일에 뜹니다."));
-  assert.ok(!(await h.page(id, h.b)).includes("이 화면을 닫아도 됩니다"), "only the PL waits for a turn");
+  assert.ok(text.includes("닫아도 됩니다. 내 차례가 되면 보드에 뜹니다."));
+  assert.ok(!(await h.page(id, h.b)).includes("닫아도 됩니다"), "only the PL waits for a turn");
   const pub = h.board.publishStory(h.plBe, {
     projectId: h.projectId, title: "다른 Story", body: "# Story", risk: "normal", key: "k1",
     graph: { nodes: [{ id: "api", repoId: h.be, title: "api", spec: "api 설명", files: ["src/api.ts"], verify: [check] }], edges: [] },
@@ -1052,15 +1052,15 @@ test("U50 review 1: only the kit's header at the top is left out; a line startin
   for (const part of [
     "<h3>목표</h3><p>2026. 12. 1.부터 생일 쿠폰을 자동 발급한다.</p>",
     "<h3>영역</h3><p># 회원 혜택 영역</p><p>Status: 운영 중인 쿠폰과 같은 표</p>",
-    '<h3>꼭 할 것</h3><ul><li><span class="id">M1</span>쿠폰을 만든다.</li><li class="sub">하루 한 번</li></ul>',
-    "<h3>하면 좋은 것</h3><p>1. 하나뿐인 줄</p>",
-    '<h3>확인 방법</h3><ol><li value="3">발급을 본다.</li><li value="4">사용을 본다.</li></ol>',
+    '<h3>꼭 할 것 <span class="count">1</span></h3><ul class="items"><li><span class="id">M1</span><span class="tx">쿠폰을 만든다.</span></li><li class="sub"><span class="id" aria-hidden="true">•</span><span class="tx">하루 한 번</span></li></ul>',
+    '<h3>하면 좋은 것 <span class="count">1</span></h3><p>1. 하나뿐인 줄</p>',
+    '<h3>확인 방법 <span class="count">2</span></h3><ol class="items"><li value="3"><span class="id">3.</span><span class="tx">발급을 본다.</span></li><li value="4"><span class="id">4.</span><span class="tx">사용을 본다.</span></li></ol>',
   ]) assert.ok(body.includes(part), part);
   assert.doesNotMatch(body, /Story: 생일 쿠폰|Status: Draft|Owner: Human|Understanding gate/, "the kit's header is left out");
   // OPEN BLOCKING is said in words only where the store counts it: a list line that starts with it.
   const blocked = await render({ draft: docOf("## Decisions\n- OPEN BLOCKING: 결제 수단\n- D1. OPEN BLOCKING: 이름표\n"), actions: { approve: "open-blocking", rewrite: true } });
-  assert.ok(blocked.includes("<li>꼭 정해야 함: 결제 수단</li>"));
-  assert.ok(blocked.includes('<li><span class="id">D1</span>OPEN BLOCKING: 이름표</li>'));
+  assert.ok(blocked.includes('<li><span class="id" aria-hidden="true">•</span><span class="tx">필수: 결제 수단</span></li>'));
+  assert.ok(blocked.includes('<li><span class="id">D1</span><span class="tx">OPEN BLOCKING: 이름표</span></li>'));
 });
 
 test("U50 review 1: a stopped or cancelled plan marks the step it stopped on; splitting and open mark theirs", async () => {
@@ -1091,11 +1091,11 @@ test("U50 review 1: a blocked G3 says why without a card; another member sees th
   for (const over of [{ actions: { approve: "yes" } }, { isPl: false }, { state: "splitting", g3: AT }])
     assert.equal(count(await render({ ...g3, ...over }), "<summary>올라갈 Task 전부 보기</summary>"), 1, JSON.stringify(over));
   html = await render({ ...g3, isPl: false });
-  assert.ok(html.includes('<section><h2>설계</h2><div class="doc"><h3>순서</h3><ul><li>api 먼저</li></ul></div>'), "the design in sections, not only raw");
+  assert.ok(html.includes('<section><h2>설계</h2><div class="doc"><h3>순서 <span class="count">1</span></h3><ul class="items"><li><span class="id" aria-hidden="true">•</span><span class="tx">api 먼저</span></li></ul></div>'), "the design in sections, not only raw");
   html = await render({ state: "failed", draft: docOf(DRAFT), failure: { reason: "push 실패\n권한 없음", from: "splitting" }, isPl: false });
   assert.ok(html.includes('<section><h2>멈춘 이유</h2><div class="callout"><p><b>push 실패</b></p><details><summary>자세한 이유</summary><pre>권한 없음</pre></details></div></section>'));
   html = await render({ state: "questions", rounds: [{ questions: [q(1, true)], answers: null }], isPl: false });
-  assert.ok(html.includes('<section><h2>AI의 질문</h2><h3>질문(1차)</h3><ol class="qs"><li><p class="q">질문 1 <span class="pill need">꼭 정해야 함</span></p><p class="muted">왜 묻나요: 이유 1</p></li></ol></section>'));
+  assert.ok(html.includes('<section><h2>AI의 질문</h2><h3>질문(1차)</h3><ol class="qs"><li class="qbox"><p class="qh">질문 1 <span class="pill need">필수</span></p><p class="qt">질문 1</p><p class="qwhy"><span class="wl">Why</span> 이유 1</p></li></ol></section>'));
   assert.ok(!html.includes("/answer"), "nothing to answer for another member");
 });
 
@@ -1106,8 +1106,7 @@ test("U50 review 1: the intent box is described by the hint alone; each answer b
   assert.match(text, /<p class="muted hint"><span id="intent-hint">평소 말로 적으세요\.<\/span><button type="button" class="info"/);
   assert.match(text, /<textarea id="intent" name="intent" [^>]*aria-describedby="intent-hint"/);
   const html = await render({ state: "questions", rounds: [{ questions: [q(1), q(2)], answers: null }], actions: { answer: true } });
-  assert.ok(html.includes('<label>1번 질문의 답 <span class="muted">(4000자까지)</span><textarea name="answer-Q1" '));
-  assert.ok(html.includes('<label>2번 질문의 답 <span class="muted">(4000자까지)</span><textarea name="answer-Q2" '));
+  for (const n of [1, 2]) assert.ok(html.includes(`<label for="answer-Q${n}"><span class="vh">질문 ${n}의 </span><span>답 <span class="muted">(4000자)</span></span></label><textarea id="answer-Q${n}" name="answer-Q${n}" `), `Q${n}`);
 });
 
 test("U50 review 2: the Office's real draft and design read without kit lines; a year before a numbered list stays a sentence", async () => {
@@ -1124,10 +1123,92 @@ test("U50 review 2: the Office's real draft and design read without kit lines; a
   assert.match(design, /\nUnderstanding gate \(G3\): pending\n/, "the Office writes the gate line after the Task list");
   html = await render({ state: "awaiting_g3", risk: "high", draft: docOf(draft), g1: AT, design: docOf(design), split, isPl: false });
   body = /<section><h2>설계<\/h2><div class="doc">([\s\S]*?)<\/div>/.exec(html)?.[1] ?? "";
-  assert.ok(body.includes("<p>결제 취소를 받으면 쿠폰을 되돌린다.</p><h3>Task 목록</h3><ul><li>t1 · app-be · 쿠폰 API</li></ul><p>나누기 지문: "), body);
+  assert.ok(body.includes('<p>결제 취소를 받으면 쿠폰을 되돌린다.</p><h3>Task 목록 <span class="count">1</span></h3><ul class="items"><li><span class="id" aria-hidden="true">•</span><span class="tx">t1 · app-be · 쿠폰 API</span></li></ul><p>나누기 지문: '), body);
   assert.doesNotMatch(body, /Understanding gate|Decision requiring/, "no kit line in the design");
   assert.ok(html.includes("Understanding gate (G3): pending"), "the raw text G3 binds keeps it");
   // A year line followed by a numbered list: the year stays a sentence, the list keeps its numbers.
   html = await render({ draft: docOf("## Goal\n2026. 12. 1.부터 시작한다.\n1. 쿠폰을 만든다.\n2. 알림을 보낸다.\n"), actions: { approve: "yes", rewrite: true } });
-  assert.ok(html.includes('<h3>목표</h3><p>2026. 12. 1.부터 시작한다.</p><ol><li value="1">쿠폰을 만든다.</li><li value="2">알림을 보낸다.</li></ol>'));
+  assert.ok(html.includes('<h3>목표 <span class="count">2</span></h3><p>2026. 12. 1.부터 시작한다.</p><ol class="items"><li value="1"><span class="id">1.</span><span class="tx">쿠폰을 만든다.</span></li><li value="2"><span class="id">2.</span><span class="tx">알림을 보낸다.</span></li></ol>'));
+});
+
+// U51 (D45): the plan page reads easily — one box per question with the asking sentence bold, options one per line,
+// answered questions plain with the answer first, shorter wording, the draft's title, counts, id column and one
+// sentence per line, PL answers with the question folded; the theme switch.
+const renderRaw = async (over) => {
+  const { planPage } = await import("../src/hub/plan-pages.ts");
+  return planPage(ME, "c", viewOf(over), { plMac: { state: "none", lastSeen: null }, plOpenTask: null, changed: false, unlinked: [], opened: false }, {});
+};
+const ASK = { id: "Q1", text: "앞의 답이 모두 테스트였습니다. 이것을 시험용 범위로 해석해도 될까요? 다르다면 범위와 저장소를 알려주세요.", reason: "Story 범위가 이 해석에 달려 있습니다. 틀리면 다시 써야 합니다.", blocking: true };
+const OPTS = { id: "Q2", text: "범위는 무엇인가요? 예를 들어 (a) 요청만, (b) 취소까지, (c) 조회까지 중 어디까지 필요한지 알려주세요.", reason: "MUST가 달라집니다.", blocking: false };
+const PLAIN = { id: "Q3", text: "통화는 KRW만 쓰면 됩니다", reason: "검증 값이 달라집니다.", blocking: false };
+
+test("U51: each question is a box with 질문 N and 필수 on top, one sentence per line, the asking sentence bold, (a)/(b)/(c) one per line, Why set apart and a one-line answer label", async () => {
+  const html = await renderRaw({ state: "questions", rounds: [{ questions: [ASK, OPTS, PLAIN], answers: null }], actions: { answer: true } });
+  const card = /<section class="decide" aria-labelledby="decide">([\s\S]*?)<\/section>/.exec(html)?.[1] ?? "";
+  assert.ok(card.includes('<p class="do">질문 3개</p>'), "the card says how many, plainly");
+  assert.ok(card.includes('<span class="ln">답을 보내면 AI가 초안을 씁니다.</span>'));
+  assert.ok(card.includes('<li class="qbox"><p class="qh">질문 1 <span class="pill need">필수</span></p><p class="qt"><span class="ln ctx">앞의 답이 모두 테스트였습니다.</span> <b class="ln">이것을 시험용 범위로 해석해도 될까요?</b> <span class="ln">다르다면 범위와 저장소를 알려주세요.</span></p>'));
+  assert.ok(card.includes('<p class="qwhy"><span class="wl">Why</span> <span class="ln">Story 범위가 이 해석에 달려 있습니다.</span> <span class="ln">틀리면 다시 써야 합니다.</span></p>'));
+  assert.ok(card.includes('<label for="answer-Q1"><span class="vh">질문 1의 </span><span>답 <span class="muted">(4000자)</span></span></label><textarea id="answer-Q1" name="answer-Q1" rows="4" maxlength="4000" required></textarea>'));
+  assert.ok(card.includes('<p class="qt"><b class="ln">범위는 무엇인가요?</b> <span class="ln">예를 들어<span class="opt">(a) 요청만,</span><span class="opt">(b) 취소까지,</span><span class="opt">(c) 조회까지 중 어디까지 필요한지 알려주세요.</span></span></p>'), "options one per line, no word changed");
+  assert.ok(card.includes('<p class="qh">질문 3</p><p class="qt"><b class="ln">통화는 KRW만 쓰면 됩니다</b></p>'), "without a question mark the last sentence is the ask");
+  assert.doesNotMatch(html, /왜 묻나요|꼭 정해야 함|번 질문의 답|AI의 질문/);
+  assert.doesNotMatch(html, /class="(?:why|stitle)"/, "not the board's stop-reason box or Story card title");
+  // A single marker is not a list.
+  const one = await renderRaw({ state: "questions", rounds: [{ questions: [{ ...PLAIN, text: "(a) 안만 있으면 됩니까?" }], answers: null }], actions: { answer: true } });
+  assert.ok(one.includes('<p class="qt"><b class="ln">(a) 안만 있으면 됩니까?</b></p>'));
+});
+
+test("U51: answered questions are plain with the answer first and Why behind an i; another member sees open questions in the same boxes without answer fields", async () => {
+  const html = await renderRaw({ state: "draft", draft: docOf(DRAFT), rounds: [{ questions: [ASK, OPTS], answers: [{ id: "Q1", answer: "응 그렇게 해." }, { id: "Q2", answer: "테스트" }] }], actions: { approve: "yes", rewrite: true } });
+  const past = /<section><h2>지난 단계<\/h2>([\s\S]*?)<\/section>/.exec(html)?.[1] ?? "";
+  assert.ok(past.includes('<h3>질문(1차) <span class="muted">· 2개 모두 답함</span></h3>'));
+  assert.ok(past.includes('<li class="qbox past"><p class="qh">질문 1<button type="button" class="info" popovertarget="why-1-Q1" aria-label="질문 1 Why">i</button><span id="why-1-Q1" popover class="infobox">Story 범위가 이 해석에 달려 있습니다. 틀리면 다시 써야 합니다.</span></p><p class="qt"><span class="ln">앞의 답이 모두 테스트였습니다.</span> <span class="ln">이것을 시험용 범위로 해석해도 될까요?</span>'));
+  assert.ok(past.includes('<p class="ans"><span class="muted">답</span></p><div class="answer">응 그렇게 해.</div>'));
+  assert.doesNotMatch(past, /<b class="ln">|PL의 답|필수/, "nothing shouts in a past step");
+  const other = await renderRaw({ state: "questions", rounds: [{ questions: [ASK], answers: null }], isPl: false });
+  assert.ok(other.includes('<section><h2>AI의 질문</h2><h3>질문(1차)</h3><ol class="qs"><li class="qbox"><p class="qh">질문 1 <span class="pill need">필수</span></p><p class="qt"><span class="ln ctx">'));
+  assert.ok(other.includes('<p class="qwhy"><span class="wl">Why</span>') && !other.includes("<textarea"));
+});
+
+test("U51: the plan page wording is short — 초안 확인 with what the AI decided and the counts, 설계 확인 · Task N, 멈춤, the close note, 필수 for OPEN BLOCKING", async () => {
+  const draft = "# Story: 쿠폰 발급\nStatus: Draft\n\n## Goal\n쿠폰을 준다.\n\n## MUST\n- M1. 하나.\n- M2. 둘.\n\n## SHOULD\n- None.\n\n## OUT\n- O1. 환불\n\n## Decisions\n- D1. ASSUMED: 한 장만 준다. 두 번은 안 된다.\n\n## Verify\n- V1 [M1, M2]. node --test로 본다.\n";
+  let html = await renderRaw({ draft: docOf(draft), actions: { approve: "yes", rewrite: true } });
+  const card = /<section class="decide" aria-labelledby="decide">([\s\S]*?)<\/section>/.exec(html)?.[1] ?? "";
+  assert.ok(card.includes('<p class="do">초안 확인</p>'));
+  assert.ok(card.includes('<div class="assumed"><p><b>AI가 정한 것 1개</b></p><ul><li><span class="ln">한 장만 준다.</span> <span class="ln">두 번은 안 된다.</span></li></ul></div>'));
+  assert.ok(card.includes('<p class="counts">꼭 할 것 2 · 하면 좋은 것 0 · 하지 않을 것 1 · 확인 방법 1</p>'));
+  assert.ok(card.indexOf('class="counts"') < card.indexOf("초안 승인"), "read before the button");
+  assert.doesNotMatch(html, /맞는지 보세요|확인해 주세요|스스로/);
+  const split = { graph: { nodes: [{ id: "t1", repoId: "r", title: "API", spec: "s", files: ["a.ts"], verify: [check] }, { id: "t2", repoId: "r", title: "UI", spec: "s", files: ["b.ts"], verify: [check] }], edges: [] }, storyVerify: [] };
+  html = await renderRaw({ state: "awaiting_g3", risk: "high", draft: docOf(DRAFT), g1: AT, design: docOf(DESIGN), split, actions: { approve: "yes" } });
+  assert.ok(html.includes('<p class="do">설계 확인 · Task 2개</p>'));
+  html = await renderRaw({ state: "failed", failure: { reason: "멈춤 이유", from: "queued" }, actions: { retry: true } });
+  assert.ok(html.includes('<p class="do">멈춤</p>'));
+  html = await renderRaw({ state: "queued" });
+  assert.ok(html.includes('<span class="ln">닫아도 됩니다.</span> <span class="ln">내 차례가 되면 보드에 뜹니다.</span>'));
+  html = await renderRaw({ draft: docOf("## Decisions\n- OPEN BLOCKING: 결제 수단\n"), actions: { approve: "open-blocking", rewrite: true } });
+  assert.ok(html.includes("필수: 결제 수단") && !html.includes("꼭 정해야 함"));
+});
+
+test("U51: the draft body shows its Story title, bold heads with counts, ids in a left column, one sentence per line, and PL answers first with the question folded", async () => {
+  const text = "# Story: 모의 결제 처리\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\n\n## Goal\n결제를 흉내 낸다. 외부 연동은 없다.\n\n## MUST\n- M1. 함수를 export한다. 결과 객체를 돌려준다.\n- M2. 한도를 넘으면 실패한다.\n\n## OUT\n- 환불\n\n## Decisions\n- D1. PL 답: 범위는 무엇인가요? (a) 요청만, (b) 취소까지 → 테스트\n- D2. PL 답: 잘린 질문…\n\n## Verify\n- V1 [M1, M2]. node --test로 본다. 모두 통과한다.\n3. 셋째 줄.\n4. 넷째 줄.\n";
+  const html = await renderRaw({ draft: docOf(text), actions: { approve: "yes", rewrite: true } });
+  const body = /<h2>초안 전체<\/h2><div class="doc">([\s\S]*?)<\/div><details><summary>원문 그대로 보기/.exec(html)?.[1] ?? "";
+  for (const part of [
+    '<p class="dtitle"><span class="muted">Story 제목</span> <b>모의 결제 처리</b></p>',
+    '<h3>목표</h3><p><span class="ln">결제를 흉내 낸다.</span> <span class="ln">외부 연동은 없다.</span></p>',
+    '<h3>꼭 할 것 <span class="count">2</span></h3><ul class="items"><li><span class="id">M1</span><span class="tx"><span class="ln">함수를 export한다.</span> <span class="ln">결과 객체를 돌려준다.</span></span></li><li><span class="id">M2</span><span class="tx"><span class="ln">한도를 넘으면 실패한다.</span></span></li></ul>',
+    '<h3>이번에 하지 않을 것 <span class="count">1</span></h3><ul class="items"><li><span class="id" aria-hidden="true">•</span><span class="tx"><span class="ln">환불</span></span></li></ul>',
+    '<li><span class="id">D1</span><span class="tx">PL 답 <b>테스트</b><details class="pq"><summary>질문 보기</summary><span class="ln">범위는 무엇인가요?</span> <span class="ln">(a) 요청만, (b) 취소까지</span></details></span></li>',
+    '<li><span class="id">D2</span><span class="tx"><span class="ln">PL 답: 잘린 질문…</span></span></li>',
+    '<li><span class="id">V1</span><span class="tx"><span class="refs">[M1, M2]</span> <span class="ln">node --test로 본다.</span> <span class="ln">모두 통과한다.</span></span></li>',
+    '<ol class="items"><li value="3"><span class="id">3.</span><span class="tx"><span class="ln">셋째 줄.</span></span></li><li value="4"><span class="id">4.</span><span class="tx"><span class="ln">넷째 줄.</span></span></li></ol>',
+  ]) assert.ok(body.includes(part), part);
+  assert.doesNotMatch(body, /Status:|Owner:|Understanding gate/);
+  assert.doesNotMatch(body, /class="stitle"/, "not the Story card title's class");
+  // The design's kit title is not a Story title and stays out.
+  const g = await renderRaw({ state: "awaiting_g3", risk: "high", draft: docOf(DRAFT), g1: AT, design: docOf("# Decision requiring human G3\n\n계획.\n"), isPl: false });
+  const design = /<section><h2>설계<\/h2><div class="doc">([\s\S]*?)<\/div><details><summary>원문 그대로 보기/.exec(g)?.[1] ?? "";
+  assert.ok(design.startsWith("<p>") && !design.includes("Decision") && !design.includes("dtitle"), design);
 });

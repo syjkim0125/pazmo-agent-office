@@ -679,3 +679,21 @@ test("a high-risk team Lead prompt states the 16384-byte design limit; the norma
   assert.doesNotMatch(single, design);
   assert.doesNotMatch(planningLimits("lead"), design);
 });
+
+test("U51: the team PM writes each question for a person to read: a short ask ending in the question, background in reason, options as (a)/(b), no long repeats; Lead and single Office prompts unchanged", () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), "u51-prompt-")));
+  try {
+    mkdirSync(join(root, "tree", "app-be"), { recursive: true });
+    mkdirSync(join(root, "tree", "app-fe"), { recursive: true });
+    writeFileSync(join(root, "tree", "app-be", "README.md"), "# be\n");
+    writeFileSync(join(root, "tree", "app-fe", "README.md"), "# fe\n");
+    mkdirSync(join(root, "candidates"));
+    const context = freezeCandidate(join(root, "tree"), ["app-be/README.md", "app-fe/README.md"], join(root, "candidates"));
+    const RULE = /Write each question and each openBlocking item for the PL to read on a web page: text states the decision in one or two short sentences and ends with the question itself; background, what you found and what depends on the answer go in reason, not in text; when the PL chooses among options, write them in text as \(a\) …, \(b\) …; do not repeat earlier questions or answers at length\./;
+    assert.match(headOf(planningPrompt(teamPlanningPacket(pm()), context)), RULE);
+    assert.doesNotMatch(headOf(planningPrompt(teamPlanningPacket(pm({ role: "lead", story: STORY })), context)), RULE);
+    assert.doesNotMatch(planningPrompt(beginPlanning(PLAN, "Validate input.", "normal"), context), RULE);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
