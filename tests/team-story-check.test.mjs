@@ -7,6 +7,7 @@ import { storyLink } from "../src/team/story-link.ts";
 import { hubWithStory } from "./team-fixture.mjs";
 
 const hubError = (status, code) => Object.assign(new Error(code), { status, code });
+const NETWORK = () => Object.assign(new Error("connect ECONNREFUSED"), { code: "ECONNREFUSED" });
 const HEAD_BE = "1".repeat(40), HEAD_FE = "2".repeat(40);
 const CHECK = (id) => ({ id, argv: ["npm", "test"], timeoutMs: 60000 });
 
@@ -25,6 +26,7 @@ const verifyTask = (over = {}) => ({
   },
   upstream: [], lastFailure: null, ...over,
 });
+const MINE = { mine: { taskId: "verify-1", claimId: "claim-v", storyId: "story-1", state: "claimed" }, alerts: [], verifyReady: [] };
 
 /** A fake StoryLink: `script[name]` is a value, an Error (rejects) or a function of the call's arguments. */
 function fakeLink(script = {}) {
@@ -38,6 +40,7 @@ function fakeLink(script = {}) {
   };
   return {
     calls,
+    script,
     named: (name) => calls.filter((c) => c[0] === name),
     inbox: () => run("inbox", [], { mine: null, alerts: [], verifyReady: ["story-1"] }),
     claimVerify: (...a) => run("claimVerify", a, verifyTask()),
@@ -58,7 +61,7 @@ function fakeEngine(name, results = (checks) => checks.map((c) => ({ id: c.id, v
     },
     async verifyCandidate(candidate, checks, signal) {
       e.verifies.push({ candidate, checks, signal });
-      return typeof results === "function" ? results(checks) : results;
+      return typeof results === "function" ? results(checks, signal) : results;
     },
   };
   return e;
@@ -77,16 +80,21 @@ function fakeGit(heads = { be: HEAD_BE, fe: HEAD_FE }) {
   return g;
 }
 
+const laneOf = (name, link, engine, over = {}) => ({
+  project: `/work/${name}`, repoId: `repo-${name}`, repoName: `app-${name}`, checkout: `/data/${name}/story-checkout`,
+  link, ready: true, engine, ...over,
+});
 /** A checker over be and fe lanes that share one link (as one member's links answer alike). */
-function world({ link = fakeLink(), engines = { be: fakeEngine("be"), fe: fakeEngine("fe") }, git = fakeGit(), canStart = () => true, lanes } = {}) {
+function world({
+  link = fakeLink(), engines = { be: fakeEngine("be"), fe: fakeEngine("fe") }, git = fakeGit(),
+  canRun = () => true, canTake = () => true, lanes, now, beatMs = 5,
+} = {}) {
   const lines = [];
-  const laneList = lanes ?? ["be", "fe"].map((name) => ({
-    project: `/work/${name}`, repoId: `repo-${name}`, repoName: `app-${name}`, checkout: `/data/${name}/story-checkout`,
-    link, engine: engines[name],
-  }));
-  const checker = createStoryChecker({ lanes: () => laneList, canStart, git, beatMs: 5, log: (line) => lines.push(line) });
+  const laneList = lanes ?? ["be", "fe"].map((name) => laneOf(name, link, engines[name]));
+  const checker = createStoryChecker({ lanes: () => laneList, canRun, canTake, git, beatMs, now, log: (line) => lines.push(line) });
   return { checker, link, engines, git, lines };
 }
+const summaryOf = (link) => link.named("verified")[0]?.[4];
 
 test("a ready Story check is taken and every repo's latest Story base is checked in the VM; passing reports the summary (D47)", async () => {
   const w = world();
@@ -101,7 +109,7 @@ test("a ready Story check is taken and every repo's latest Story base is checked
   assert.deepEqual(w.engines.fe.verifies.map((v) => [v.candidate.digest, v.checks.map((c) => c.id)]), [["fe-1", ["V3"]]]);
   assert.deepEqual(w.link.named("verified"), [[
     "verified", "verify-1", "claim-v", true,
-    "Story 검사 통과: 레포 2개, 검사 3개.\n- app-be @ 111111111111: V1 통과, V2 통과\n- app-fe @ 222222222222: V3 통과",
+    `Story 검사 통과: 레포 2개, 검사 3개.\n- app-be @ ${HEAD_BE}: V1 통과, V2 통과\n- app-fe @ ${HEAD_FE}: V3 통과`,
   ]]);
   assert.ok(w.lines.some((l) => l.includes("story-7: the Story check passed and was reported")));
 });
@@ -113,27 +121,36 @@ test("a check that does not pass reports failure with the check names and its ou
   };
   const w = world({ engines });
   await w.checker.tick();
-  const [[, , , passed, summary]] = w.link.named("verified");
-  assert.equal(passed, false);
+  assert.equal(w.link.named("verified")[0][3], false);
   assert.equal(
-    summary,
-    "Story 검사 실패: app-be V2, app-fe V3.\n- app-be @ 111111111111: V1 통과, V2 실패\n- app-fe @ 222222222222: V3 판정 불가\n\n[app-be V2]\n1 test failed\nexpected 2\n\n[app-fe V3]\ntimed out",
+    summaryOf(w.link),
+    `Story 검사 실패: app-be V2, app-fe V3.\n- app-be @ ${HEAD_BE}: V1 통과, V2 실패\n- app-fe @ ${HEAD_FE}: V3 판정 불가\n\n[app-be V2]\n1 test failed\nexpected 2\n\n[app-fe V3]\ntimed out`,
   );
 });
 
-test("nothing is asked while the Office cannot start a check (locked, runners, open Task, paused, stopping)", async () => {
-  const w = world({ canStart: () => false });
+test("nothing is asked while the Office cannot run a check (locked, runners, open Task record, a run, stopping)", async () => {
+  const w = world({ canRun: () => false });
   assert.deepEqual(await w.checker.tick(), { ran: false });
   assert.deepEqual(w.link.calls, []);
 });
 
 test("a Story check this member already holds is checked again from the start after a restart, without taking another", async () => {
-  const link = fakeLink({ inbox: { mine: { taskId: "verify-1", claimId: "claim-v", storyId: "story-1", state: "claimed" }, alerts: [], verifyReady: [] } });
+  const link = fakeLink({ inbox: MINE });
   const w = world({ link });
   assert.deepEqual(await w.checker.tick(), { ran: true });
   assert.deepEqual(link.named("task"), [["task", "verify-1", "claim-v"]]);
   assert.deepEqual(link.named("claimVerify"), []);
   assert.equal(link.named("verified")[0][3], true);
+});
+
+test("a paused Office takes no new check but goes on with the one it holds, so that claim keeps its heartbeat", async () => {
+  const ready = world({ canTake: () => false });
+  assert.deepEqual(await ready.checker.tick(), { ran: false });
+  assert.deepEqual(ready.link.named("claimVerify"), []);
+  const held = world({ link: fakeLink({ inbox: MINE }), canTake: () => false });
+  assert.deepEqual(await held.checker.tick(), { ran: true });
+  assert.ok(held.link.named("heartbeat").length >= 1);
+  assert.equal(held.link.named("verified")[0][3], true);
 });
 
 test("a work Task the member holds, or no ready check, leaves the tick to the claim", async () => {
@@ -158,47 +175,124 @@ test("a refused take (the PL holds another Task) waits for the next tick and is 
   assert.deepEqual(link.named("verified"), []);
 });
 
-test("a git failure is tried again and reported as failed on the third try in a row", async () => {
-  const git = fakeGit();
-  git.fail = new OfficeError("GIT_FAILED", "fatal: couldn't find remote ref feature/story-7/base");
-  const w = world({ git });
-  for (const n of [1, 2]) {
-    assert.deepEqual(await w.checker.tick(), { ran: true });
-    assert.deepEqual(w.link.named("verified"), [], `no report on try ${n}`);
-  }
+test("a registered repo whose lane is not ready (gh lapsed, relink) is still checked; the Hub is asked only through ready lanes", async () => {
+  const beLink = fakeLink(), feLink = fakeLink();
+  const engines = { be: fakeEngine("be"), fe: fakeEngine("fe") };
+  const lanes = [laneOf("fe", feLink, engines.fe, { ready: false }), laneOf("be", beLink, engines.be)];
+  const w = world({ lanes, engines });
   await w.checker.tick();
-  const [[, , , passed, summary]] = w.link.named("verified");
-  assert.equal(passed, false);
-  assert.match(summary, /^Story 검사 실패: app-be, app-fe\.\n- app-be: Story base를 받거나 검사하지 못했습니다\(GIT_FAILED: fatal: couldn't find remote ref feature\/story-7\/base\)\./);
+  assert.deepEqual(feLink.calls, [], "nothing goes through the lane that is not ready");
+  assert.equal(engines.fe.verifies.length, 1, "its repo is checked all the same");
+  assert.equal(beLink.named("verified")[0][3], true);
+});
+
+test("a git failure is tried again and reported only after 3 tries spanning 10 minutes; a URL's credentials never reach the Hub", async () => {
+  const git = fakeGit();
+  git.fail = new OfficeError("GIT_FAILED", "fatal: could not read from https://person:ghp_secret123@github.com/team/be.git");
+  let clock = 1_000_000;
+  const w = world({ git, now: () => clock });
+  for (const n of [1, 2, 3, 4]) {
+    assert.deepEqual(await w.checker.tick(), { ran: true });
+    clock += 30000;
+    assert.deepEqual(w.link.named("verified"), [], `no report on try ${n}: a short network loss is not a failed Story`);
+  }
+  clock += 600000;
+  await w.checker.tick();
+  assert.equal(w.link.named("verified")[0][3], false);
+  const summary = summaryOf(w.link);
+  assert.match(summary, /^Story 검사 실패: app-be, app-fe\.\n- app-be: Story base를 받거나 검사하지 못했습니다\(GIT_FAILED: fatal: could not read from https:\/\/github\.com\/team\/be\.git\)\./);
+  assert.ok(!summary.includes("ghp_secret123") && !summary.includes("person:"));
+  assert.ok(!w.lines.join("\n").includes("ghp_secret123"), "nor the log");
+});
+
+test("a verdict the Hub did not get is sent again before anything is checked again", async () => {
+  let fails = 2;
+  const link = fakeLink({ verified: () => (fails-- > 0 ? NETWORK() : undefined), inbox: MINE });
+  const w = world({ link });
+  for (let i = 0; i < 3; i++) await w.checker.tick();
+  assert.equal(link.named("verified").length, 3);
+  assert.equal(w.engines.be.verifies.length, 1, "the VM ran once");
+  assert.equal(new Set(link.named("verified").map((c) => c[4])).size, 1, "the same verdict each time");
+});
+
+test("a verdict the Hub refuses for good (released meanwhile) is dropped, and the next tick checks the claim it holds then", async () => {
+  const link = fakeLink({ verified: hubError(409, "NOT_YOURS"), inbox: MINE });
+  const w = world({ link });
+  await w.checker.tick();
+  assert.ok(w.lines.some((l) => l.includes("the Hub refused the Story check report (409 NOT_YOURS)")));
+  link.script.verified = undefined;
+  await w.checker.tick();
+  assert.equal(w.engines.be.verifies.length, 2, "checked again, not resent");
 });
 
 test("a repo this Office does not have is reported failed with that reason; the others are still checked", async () => {
   const link = fakeLink();
-  const be = { project: "/work/be", repoId: "repo-be", repoName: "app-be", checkout: "/data/be/story-checkout", link, engine: fakeEngine("be") };
-  const w = world({ link, lanes: [be] });
+  const w = world({ link, lanes: [laneOf("be", link, fakeEngine("be"))] });
   await w.checker.tick();
-  const [[, , , passed, summary]] = link.named("verified");
-  assert.equal(passed, false);
+  assert.equal(link.named("verified")[0][3], false);
   assert.equal(
-    summary,
-    "Story 검사 실패: repo-fe.\n- app-be @ 111111111111: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다.",
+    summaryOf(link),
+    `Story 검사 실패: repo-fe.\n- app-be @ ${HEAD_BE}: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다.`,
     "a Hub that sends no repo name: the id",
   );
   // The Hub names its repos (D47): the summary says the name, not the id.
   const task = verifyTask();
   task.story.branches = task.story.branches.map((b) => ({ ...b, repoName: b.repoId.replace("repo-", "app-") }));
   const named = fakeLink({ claimVerify: task });
-  await world({ link: named, lanes: [{ ...be, link: named }] }).checker.tick();
-  assert.match(named.named("verified")[0][4], /^Story 검사 실패: app-fe\.\n.*\n- app-fe: 이 Mac의 Office에 등록되지 않은 레포라/);
+  await world({ link: named, lanes: [laneOf("be", named, fakeEngine("be"))] }).checker.tick();
+  assert.match(summaryOf(named), /^Story 검사 실패: app-fe\.\n.*\n- app-fe: 이 Mac의 Office에 등록되지 않은 레포라/);
 });
 
-test("a heartbeat answered NOT_YOURS (the PL released it) stops the check with no report", async () => {
+test("a Story base that is not this Story's own is never checked out", async () => {
+  const task = verifyTask();
+  task.story.branches[0] = { ...task.story.branches[0], storyBase: "feature/story-1/base" };
+  const link = fakeLink({ claimVerify: task });
+  const w = world({ link });
+  await w.checker.tick();
+  assert.deepEqual(w.git.calls.map((c) => c[0]), ["/data/fe/story-checkout"]);
+  assert.match(summaryOf(link), /- app-be: Hub가 준 Story base\(feature\/story-1\/base\)가 Story #7의 것이 아닙니다\./);
+});
+
+test("a heartbeat answered NOT_YOURS before the check starts stops it with no report", async () => {
   const link = fakeLink({ heartbeat: hubError(409, "NOT_YOURS") });
   const w = world({ link });
   assert.deepEqual(await w.checker.tick(), { ran: true });
   assert.deepEqual(w.git.calls, []);
   assert.deepEqual(link.named("verified"), []);
   assert.ok(w.lines.some((l) => l.includes("the Story check stopped (409 NOT_YOURS)")));
+});
+
+/** An engine whose VM run lasts until its signal aborts, then rejects CANCELLED as the live runtime does. */
+const hangingEngine = (name) =>
+  fakeEngine(name, (checks, signal) =>
+    new Promise((_, reject) => signal.addEventListener("abort", () => reject(new OfficeError("CANCELLED", "The verify was cancelled.")))),
+  );
+
+test("a heartbeat answered NOT_YOURS while the VM runs aborts the run and reports nothing", async () => {
+  let beats = 0;
+  const link = fakeLink({ heartbeat: () => (++beats > 1 ? hubError(409, "NOT_YOURS") : undefined) });
+  const engines = { be: hangingEngine("be"), fe: fakeEngine("fe") };
+  const w = world({ link, engines });
+  assert.deepEqual(await w.checker.tick(), { ran: true });
+  assert.equal(engines.be.verifies[0].signal.aborted, true);
+  assert.equal(engines.fe.verifies.length, 0);
+  assert.deepEqual(link.named("verified"), []);
+  assert.equal(w.checker.active(), false);
+});
+
+test("stop() during a check aborts the VM run and reports nothing; a stopped checker asks nothing", async () => {
+  const engines = { be: hangingEngine("be"), fe: fakeEngine("fe") };
+  const w = world({ engines, beatMs: 60000 });
+  const ticking = w.checker.tick();
+  while (!engines.be.verifies.length) await new Promise((r) => setImmediate(r));
+  assert.equal(w.checker.active(), true, "a running check is active (presence, restart)");
+  w.checker.stop();
+  await ticking;
+  assert.equal(engines.be.verifies[0].signal.aborted, true);
+  assert.deepEqual(w.link.named("verified"), []);
+  const asked = w.link.calls.length;
+  assert.deepEqual(await w.checker.tick(), { ran: false });
+  assert.equal(w.link.calls.length, asked);
 });
 
 test("a busy VM is not a failed try: no report, and the next tick checks again", async () => {
@@ -233,7 +327,7 @@ test("the summary keeps every repo line and fits the Hub's limit with long outpu
   ]);
   assert.equal(passed, false);
   assert.ok(summary.length <= LIMITS.summaryMax);
-  assert.ok(summary.includes("- app-be @ 111111111111: V1 실패\n- app-fe @ 222222222222: V2 실패"));
+  assert.ok(summary.includes(`- app-be @ ${HEAD_BE}: V1 실패\n- app-fe @ ${HEAD_FE}: V2 실패`));
   assert.ok(summary.includes("last line be") && summary.includes("last line fe"), "the end of each output is kept");
 });
 
@@ -249,13 +343,6 @@ test("over a real Hub: the PL's Office takes the Story check and the Story waits
   // The PL's 자동으로 일하기 is off: the Story check is taken all the same.
   h.board.setAutoWork(h.pl, false);
   const link = storyLink(h.plConfig());
-  const engine = fakeEngine("be");
-  const checker = createStoryChecker({
-    lanes: () => [{ project: "/work/be", repoId: h.repos.be, repoName: "be", checkout: "/data/be/story-checkout", link, engine }],
-    canStart: () => true,
-    git: fakeGit(),
-    beatMs: 1000,
-  });
   const given = [];
   const take = link.claimVerify;
   link.claimVerify = async (storyId) => {
@@ -263,12 +350,20 @@ test("over a real Hub: the PL's Office takes the Story check and the Story waits
     given.push(task);
     return task;
   };
+  const engine = fakeEngine("be");
+  const checker = createStoryChecker({
+    lanes: () => [laneOf("be", link, engine, { repoId: h.repos.be, repoName: "be" })],
+    canRun: () => true,
+    canTake: () => true,
+    git: fakeGit(),
+    beatMs: 1000,
+  });
   assert.deepEqual(await checker.tick(), { ran: true });
   assert.deepEqual(given[0].story.branches.map((b) => b.repoName), ["be", "fe"], "the Hub names the repo of each Story base");
   const story = h.board.story(h.plLink, h.story.id);
   assert.equal(story.state, "awaiting_g4");
   const check = story.tasks.find((x) => x.kind === "verify");
   assert.equal(check.state, "passed");
-  assert.equal(check.summary, "Story 검사 통과: 레포 1개, 검사 1개.\n- be @ 111111111111: V1 통과");
+  assert.equal(check.summary, `Story 검사 통과: 레포 1개, 검사 1개.\n- be @ ${HEAD_BE}: V1 통과`);
   assert.deepEqual(await checker.tick(), { ran: false }, "nothing left to check");
 });

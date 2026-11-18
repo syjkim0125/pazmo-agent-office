@@ -27,7 +27,7 @@ import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
 import { createStoryChecker } from "./story-check.ts";
-import type { CheckLane, StoryCheckGit } from "./story-check.ts";
+import type { CheckLane, StoryCheckGit, StoryChecker } from "./story-check.ts";
 import { openTeamStore, waitingOf } from "./store.ts";
 import type { ClaimPhase, RunnerWaiting, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
@@ -320,6 +320,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   const planLinks = new Map<RepoLane, PlanLink | null>();
   /** The PL's plan work, made once the engines are open (live only). */
   let planner: ReturnType<typeof createPlanner> | undefined;
+  /** The PL's Story check (D47), made with the planner (live only). */
+  let checker: StoryChecker | undefined;
   const timers: ReturnType<typeof setInterval>[] = [];
   let stopped = false;
   let store: TeamStore | undefined;
@@ -538,7 +540,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}`, until: open?.runnerWait?.retryAt ?? null };
     if (!runnersReady)
       return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready", until: null };
-    if (gate.busy() || planner?.active() || (open !== null && open.phase !== "failed"))
+    if (gate.busy() || planner?.active() || checker?.active() || (open !== null && open.phase !== "failed"))
       return { state: "working", detail: null, until: null };
     return { state: "idle", detail: null, until: null };
   }
@@ -591,7 +593,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     clientFor: macClientFor,
     presence: presenceOf,
     // A stopping Office is not restarted (the stop is the person's), nor one whose claim is under way.
-    idle: () => !stopped && !claimTicking && !planner?.active() && teamStore.openClaim() === null && !gate.busy(),
+    idle: () =>
+      !stopped && !claimTicking && !planner?.active() && !checker?.active() && teamStore.openClaim() === null && !gate.busy(),
     // Nor a live one whose runners are not ready (asked afresh, a restart is rare): its `up` would refuse and leave
     // it off, where in place it waits, limited, until the person logs in. A locked Office never checks its runners.
     startable: async () => {
@@ -747,11 +750,12 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       log,
       now: c.now,
     });
-  /** The lanes a Story check can use: ready, with a link and its Hub repo id, each with its checkout and engine. */
+  /** Every registered repo whose Hub repo id is known, with its checkout and engine, whatever its state: a Story
+   * check needs neither gh nor that repo's link. `ready` lanes are the ones the Hub is asked through. */
   function checkLanes(): CheckLane[] {
     return lanes.flatMap((lane) => {
       const plan = planLinks.get(lane) ?? null;
-      if (lane.state !== "ready" || lane.link === null || plan === null) return [];
+      if (plan === null) return [];
       const engine = engineOf(lane.project);
       let repoName = basename(lane.project);
       try {
@@ -759,25 +763,24 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       } catch {
         // a link file that cannot be read was said by `linkFor`; the folder name will do
       }
-      return [{ project: lane.project, repoId: plan.repoId, repoName, checkout: engine.checkout, link: lane.link, engine: engine.office! }];
+      return [{
+        project: lane.project, repoId: plan.repoId, repoName, checkout: engine.checkout,
+        link: lane.link, ready: lane.state === "ready" && lane.link !== null, engine: engine.office!,
+      }];
     });
   }
-  // The PL's Story check (D47), only when live: whatever the PL's 자동으로 일하기 says, but not while paused, and only
-  // where a Task could run (runners ready, no record open, no run, no restart held) and the executor's drive is idle.
-  const checker = live
+  // The PL's Story check (D47), only when live and where a Task could run (runners ready, no record open, no run, no
+  // restart held, the executor's drive idle): whatever the PL's 자동으로 일하기 says. A paused Office takes no new
+  // check but goes on with one it holds, so that claim does not sit held without a heartbeat.
+  checker = live
     ? createStoryChecker({
         lanes: checkLanes,
-        canStart: () =>
-          live &&
-          runnersReady &&
-          teamStore.openClaim() === null &&
-          !gate.busy() &&
-          !ex.busy() &&
-          !watch.holding() &&
-          !stopped &&
-          !teamStore.settings().paused,
+        canRun: () =>
+          live && runnersReady && teamStore.openClaim() === null && !gate.busy() && !ex.busy() && !watch.holding() && !stopped,
+        canTake: () => !teamStore.settings().paused,
         git: c.checkGit ?? { checkoutStoryBase: (checkout, task) => checkoutStoryBase(checkout, task, hostEnv) },
         beatMs: c.beatMs ?? BEAT_MS,
+        now: c.now,
         log,
       })
     : undefined;

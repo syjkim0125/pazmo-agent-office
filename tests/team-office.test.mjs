@@ -1878,7 +1878,46 @@ test("a live PL Office takes a ready Story check on the claim tick before claimi
   assert.deepEqual(f.world.verifies, [{ project: f.checkoutOf(a), checks: ["V1"] }]);
   const verified = f.calls.find(([, what]) => what === "verified");
   assert.deepEqual(verified.slice(2, 5), ["v1", "claim-v1", true]);
-  assert.equal(verified[5], `Story 검사 통과: 레포 1개, 검사 1개.\n- alpha @ ${"a".repeat(12)}: V1 통과`);
+  assert.equal(verified[5], `Story 검사 통과: 레포 1개, 검사 1개.\n- alpha @ ${"a".repeat(40)}: V1 통과`);
+});
+
+test("a PL Office with an open Task record takes no Story check", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: ["s"] });
+  la.on.claimVerify = storyCheck;
+  f.planLink(a, "pa", ALPHA_ID);
+  const store = storeOf(f);
+  store.recordClaim(a, claimed("t0"), "claim");
+  store.setPhase("t0", "failed", { attempts: 3 });
+  await f.open(f.live({ driveMs: 1e9, checkGit: fakeCheckGit() }));
+  for (let i = 0; i < 2; i++) {
+    t.mock.timers.tick(30000);
+    await flush();
+  }
+  assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
+  assert.deepEqual(f.world.verifies, []);
+});
+
+test("a paused PL Office goes on with the Story check it already holds (after a restart), so the claim keeps its heartbeat", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: { taskId: "v1", claimId: "claim-v1", storyId: "s", state: "claimed" }, alerts: [], verifyReady: [] });
+  la.task = async (taskId, claimId) => {
+    f.calls.push(["a", "task", taskId, claimId]);
+    return storyCheck();
+  };
+  f.planLink(a, "pa", ALPHA_ID);
+  storeOf(f).setPaused(true);
+  await f.open(f.live({ driveMs: 1e9, checkGit: fakeCheckGit() }));
+  t.mock.timers.tick(30000);
+  await until(() => f.calls.some(([, what]) => what === "verified"), "the held check's report");
+  assert.ok(f.calls.some(([, what, ...rest]) => what === "heartbeat" && rest[2] === "verify"));
+  assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
 });
 
 test("a paused PL Office takes no Story check", async (t) => {
