@@ -1,0 +1,608 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "ee1be5f3-be8f-45a8-b36c-4360c76716fa",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 Minor 1 in commit 07f3184. The held-Task test now asserts that the info-held i shows to the PL while the Mac is off and does not show to the assignee. Showing it to the assignee makes the test fail. The change record is corrected about which tests cover the three i. No code changed. Hub+planning tests 703/703.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-implement-2.md",
+            ".ai-workflow/runs/U53-hub-wording-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-implement-2.md": "42dae2b52343f0c6a632166c43a1c070e0de72ca472d095f1dc83931730daf15",
+          ".ai-workflow/runs/U53-hub-wording-implement-hub-2.txt": "29469bad2d08fa4ab30e79c0f8dbd77714b331c9a5de0bfc84d1f25faff52d5b"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0",
+        "output": {
+          "summary": "Independent review 2 of 4850bac..07f3184: Ready, with no new findings. Review-1 Minor 1 is fixed. The held-Task test asserts the exact info-held button and popover for the PL while the Mac is off, and their absence for the assignee. The Mac-on step already pins its line. On a scratch copy 181/181 pass unchanged, and removing the i, showing it to the assignee, or showing it while the Mac is on each fail the test. The change record now says which tests cover each i. The commit changed tests and the record only, no code.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-review-2.md": "d7ace840cb32c96e686cc40793bbda267d76f7bcb98fde84d97ca11bd4483c54"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/0ef6debb-1264-4fb0-918c-a9d52ce4e8ff/receipt.json",
+            "hash": "92b4cff6bb9b8c8165ac690eff1b015171210488f68c429412857180afe82320"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/3128d44e-f997-4e48-a87a-98324377520a/receipt.json",
+            "hash": "cfcc093108012e40a0d6ec5d74744f8dbf631cf60c8d212ef8852d6703ddbd2d"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/552fa419-3234-47c6-969b-2323f0b8d104/receipt.json",
+            "hash": "f579d12bc3babab0a71ea6cf8422ffb5189e0cb3bbb7911c31809effb4c0e355"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/9fe3ce65-adfb-49f5-a0fb-975ca7dba212/receipt.json",
+            "hash": "37c748bb076898b25f4a424a07f8b48302f29c05a44925849ce90addd1c68f76"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/d033a39c-ba29-4890-b4de-6f4e12153ac7/receipt.json",
+            "hash": "c842806c3d5555ae9c67a8b4745d47239f89e5ff7f74ac1659a5c3fd075a1188"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 07f3184: tests 674/674 + 605/605 + 679/679 = 1958/1958, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-verify-1.md": "0c74577b4983a26d16c592376d03c64e34a49ae56d85dd96d0f90625e35b5571"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "da70e574dbde820ce00bf56fec9223d2e825716d3088176485feb45f9db0d866"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-18T04:22:09.216Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-18T04:29:12.904Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "The approved wording table in commit 4850bac shortens the Task, Story, 내 할 일 and board sentences. Side notes move behind info buttons in three places: the empty ready list, a project the member cannot post to, and the held-Task release note. Off the Task page a failure still says its reason is on the Task page. Results of irreversible actions stay visible. RED 25/166 -> GREEN 166/166; Hub+planning tests 703/703; tsc 0; 80 browser checks clean.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-implement-1.md",
+            ".ai-workflow/runs/U53-hub-wording-implement-red-1.txt",
+            ".ai-workflow/runs/U53-hub-wording-implement-green-1.txt",
+            ".ai-workflow/runs/U53-hub-wording-implement-hub-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-implement-1.md": "5faa681ed166c30a1d1fe28771db82f60299f5da0083f205cb57674798f72f12",
+          ".ai-workflow/runs/U53-hub-wording-implement-red-1.txt": "f03d84b14483b08bccb8bb370a19a00875450ba0c2b6a8664bf88d73a9b67efb",
+          ".ai-workflow/runs/U53-hub-wording-implement-green-1.txt": "08546a0e67d07eae668b1814ffca9512856df2442b7b713abda5114ce31c656f",
+          ".ai-workflow/runs/U53-hub-wording-implement-hub-1.txt": "e0a977baaaacd3af6d20f2de229a8afa86f1d1f6f0c278e92938edb4b4225df8"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T04:29:57.430Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T04:35:00.162Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "d614024dcfe7f591fcdd582d32530f520d9e8df679978003fb4a689e3553690b",
+        "output": {
+          "summary": "Independent review 1 of 2759166..4850bac: Ready, with no Critical or Important findings. All 19 table rows landed as written. Nothing irreversible is hidden: moving 취소 behind an i fails 4 tests. Off-page reasons say Task 화면에서, while the Task page never does. The i ids are unique, everything is escaped, 42 phone runs are clean, and 6 breakage runs fail. Minor 1: the held-Task i has no test (removing it, or showing it to the assignee, still passes), and the change record wrongly says all three i are covered. Minor 2: the held i sits on its own line. Minor 3: 내 Mac이 10분 넘게 조용합니다 follows the table's 맡은 사람 row.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d614024dcfe7f591fcdd582d32530f520d9e8df679978003fb4a689e3553690b"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "The reviewer found the change Ready; the caller takes up Minor 1 before verify because the change record's claim about the tests is wrong. Add two assertions: the held-Task i is present for the PL while the Mac is off and absent for the assignee. Correct the change record."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-review-1.md": "d65b12b012fae72b9103ea6db0015fa6b520959a82f5fd200bb50d7157da83a4"
+        },
+        "error": "The reviewer found the change Ready; the caller takes up Minor 1 before verify because the change record's claim about the tests is wrong. Add two assertions: the held-Task i is present for the PL while the Mac is off and absent for the assignee. Correct the change record."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 1 Ready; caller adds the held-Task i test and corrects the record",
+      "at": "2026-11-18T04:35:01.299Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-18T04:35:03.250Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-18T04:36:39.053Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 Minor 1 in commit 07f3184. The held-Task test now asserts that the info-held i shows to the PL while the Mac is off and does not show to the assignee. Showing it to the assignee makes the test fail. The change record is corrected about which tests cover the three i. No code changed. Hub+planning tests 703/703.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-implement-2.md",
+            ".ai-workflow/runs/U53-hub-wording-implement-hub-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-implement-2.md": "42dae2b52343f0c6a632166c43a1c070e0de72ca472d095f1dc83931730daf15",
+          ".ai-workflow/runs/U53-hub-wording-implement-hub-2.txt": "29469bad2d08fa4ab30e79c0f8dbd77714b331c9a5de0bfc84d1f25faff52d5b"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T04:36:41.171Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T04:38:12.772Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0",
+        "output": {
+          "summary": "Independent review 2 of 4850bac..07f3184: Ready, with no new findings. Review-1 Minor 1 is fixed. The held-Task test asserts the exact info-held button and popover for the PL while the Mac is off, and their absence for the assignee. The Mac-on step already pins its line. On a scratch copy 181/181 pass unchanged, and removing the i, showing it to the assignee, or showing it while the Mac is on each fail the test. The change record now says which tests cover each i. The commit changed tests and the record only, no code.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-review-2.md": "d7ace840cb32c96e686cc40793bbda267d76f7bcb98fde84d97ca11bd4483c54"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-18T04:38:13.949Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-18T04:43:35.719Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 1,
+        "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/0ef6debb-1264-4fb0-918c-a9d52ce4e8ff/receipt.json",
+            "hash": "92b4cff6bb9b8c8165ac690eff1b015171210488f68c429412857180afe82320"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/3128d44e-f997-4e48-a87a-98324377520a/receipt.json",
+            "hash": "cfcc093108012e40a0d6ec5d74744f8dbf631cf60c8d212ef8852d6703ddbd2d"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/552fa419-3234-47c6-969b-2323f0b8d104/receipt.json",
+            "hash": "f579d12bc3babab0a71ea6cf8422ffb5189e0cb3bbb7911c31809effb4c0e355"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/9fe3ce65-adfb-49f5-a0fb-975ca7dba212/receipt.json",
+            "hash": "37c748bb076898b25f4a424a07f8b48302f29c05a44925849ce90addd1c68f76"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/ee1be5f3-be8f-45a8-b36c-4360c76716fa/d033a39c-ba29-4890-b4de-6f4e12153ac7/receipt.json",
+            "hash": "c842806c3d5555ae9c67a8b4745d47239f89e5ff7f74ac1659a5c3fd075a1188"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 07f3184: tests 674/674 + 605/605 + 679/679 = 1958/1958, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U53-hub-wording-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U53-hub-wording-verify-1.md": "0c74577b4983a26d16c592376d03c64e34a49ae56d85dd96d0f90625e35b5571"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "d2a8bbbf5b6b7b3c8101eadca8e86f136dc188f2af77f4ee2cabb40ea75c1353"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

@@ -1,0 +1,597 @@
+✔ /tasks is the Task board with five columns per Story (145.961375ms)
+✔ backlog holds a Task that waits for another (148.832333ms)
+✔ card shows assignee, Mac state and time in column (103.820708ms)
+✔ story card shows state, PL and who works now; planners get 새 Story (126.748292ms)
+✔ stopped card stays in its column with a plain reason (105.402958ms)
+✔ planning lanes (97.499541ms)
+✔ a web-planned Story and an uploaded Story share one board (123.137292ms)
+✔ mine and cancelled toggles are links (112.748208ms)
+✔ cancelled cards show in a strip only with the toggle (135.506292ms)
+✔ board escapes card text (102.774917ms)
+✔ menu is board and team (104.981958ms)
+✔ auto-work switch returns to the page it was pressed on (123.401958ms)
+✔ old home lives at /me (110.868958ms)
+✔ team page for everyone (117.699834ms)
+✔ old addresses still answer (124.535625ms)
+✔ hub without a board is unchanged (7.580542ms)
+✔ safePath keeps only known pages (0.236ms)
+✔ a card wears its state: tone, name tag, Mac dot, time and number (108.600583ms)
+✔ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (109.281709ms)
+✔ a lane says how many of its Tasks are done (91.0105ms)
+✔ the menu marks the page you are on (117.256333ms)
+✔ the header shows me, the switch and my Mac with words beside their shapes (107.690291ms)
+✖ an empty project says what comes next (197.246458ms)
+✔ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (236.577666ms)
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (181.014ms)
+✔ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (113.710375ms)
+✔ the 완료 column shows the five newest done Stories and folds the rest (120.671666ms)
+✖ a Story page carries its stage steps and its own Task board with every card (245.159708ms)
+✔ the store's board for one Story has every card of it (223.08675ms)
+✖ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (121.096541ms)
+✔ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (115.446542ms)
+✔ a long unbroken word cannot widen a page, and Story cards keep to their column (110.866042ms)
+✔ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (108.030125ms)
+✔ the 완료 column puts the Stories that finished last first, whatever their number (268.576541ms)
+✔ a cancelled Story in the strip is quiet and says what it had (137.680042ms)
+✔ a cancelled Story card counts only its cancelled Tasks and says how many had finished (173.084167ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (170.598333ms)
+✔ a cancelled Story's page and Task-board lane say what it had, like its card (115.665834ms)
+✔ 나를 기다리는 일 groups rows of the same word into one row, hides none and puts stopped ones first (D44) (98.081458ms)
+✖ project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44) (150.339958ms)
+✔ on 전체, projects with no Story fold into one line that leads to each one's chip view (D44) (144.998459ms)
+✔ chips wrap on a phone and every new target is 44px (D44) (87.782291ms)
+✔ U44: every control is at least 32px tall with a mouse and 44px square on touch (81.974ms)
+✔ U44: the accent marks only the primary action, the current selection, focus, hover and links (105.241958ms)
+✔ U44: text never pushes a box wider than its track (101.81275ms)
+✔ U44: the space between groups is at least twice the space inside them (119.825042ms)
+✔ U44: counts, times and table numbers line up (151.164667ms)
+✔ U45: the header keeps short words on a phone and one full name for screen readers (426.104583ms)
+✔ U45: form fields are outlined at 3:1 or more against the panel and the page in both themes (130.371792ms)
+✔ U45: a Mac dot differs by shape: round when on, square when resting, a hollow ring when off (148.177541ms)
+✔ U45: the current menu item is underlined in the accent, like the current tab (106.265458ms)
+✔ U45: /members is one row per member; what changes a member sits in a 관리 fold (160.137292ms)
+✔ U45: on /members a Mac button names the Mac, and a revoked member's row has no fold and no usable browser (144.185667ms)
+✔ U45: names with markup are escaped on /members and /repos (126.540042ms)
+✔ U45: a repo with one owner offers no 빼기, and fold buttons wrap inside the column instead of running past it (90.265084ms)
+✔ U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see (77.120958ms)
+✔ U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen (71.029209ms)
+✖ U46: on the board a failed Task's reason points to the Task page, not to a reason below (79.588792ms)
+✔ U46: a Story card has no thick state bar; its state is its word (69.917625ms)
+✔ U46: another member sees a web plan's question or draft as the PL's turn, not as theirs (83.821917ms)
+✔ U46: the boards' heading is read, not shown twice above the tab of the same name (77.708042ms)
+✖ U47: a failed Task's page opens with 지금 할 일: the reason and 다시 시도 first, 풀기 and 취소 folded under 다른 방법 (121.47925ms)
+✔ U47: a Task whose Mac went silent gives its PL 풀기 as 지금 할 일; a running Task has no card and folds 취소 under 이 Task 바꾸기 (624.9205ms)
+✔ U47: a ready Task the viewer may take shows 작업하기 as 지금 할 일 (113.48225ms)
+✔ U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for the result approval, and nobody else (97.141916ms)
+✔ U47: /me links each Task's Story, says where a failed Task's reason is, and puts a stopped Task of mine first as 지금 할 일 (82.145ms)
+✔ U47: the card, the lists and the Story steps are drawn without trays (82.16525ms)
+✔ U47: a stopped Task's reason shows once, in the card when there is one, otherwise in the head; one card per page (89.68175ms)
+✔ U47: a lead who also holds the Task gets 다시 시도 as the card's action and 풀기 folded (80.188875ms)
+✖ U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check (88.987333ms)
+✔ U47: the Story card lists a Task whose Mac went silent, and the result approval reads once for everyone (89.257875ms)
+✖ U47: on /me my Task whose Mac went silent says so and links its page (74.856083ms)
+✔ U47: the step you are on is the bolder one (78.839291ms)
+✖ U47: my held Task asks me to turn my Mac on only while no Mac reports; on or resting it says the Mac is on, on /me and on the Task page (77.675708ms)
+✖ U47: a failed Task's sentence follows the reader: its holder is told to retry even when 풀기 is the card's action; others read who can act (85.482042ms)
+✔ U47: in the card, why the Mac rests and the notes come before its action (75.4685ms)
+✖ U47: a failed Story check gives 풀기's sentence only to who can release, and the Story card does not ask its PL to retry a check (92.02225ms)
+✖ U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: someone else's failed Task says who can retry, mine says to retry (74.998291ms)
+✖ U47: the PL's own silent Task reads as my Mac in the Story card (79.37ms)
+✔ U48: a stopped Story's card has a 2px stop border on all four sides that hover darkens but never paints over; other cards keep the plain edge (78.094416ms)
+✔ U48: only a stopped Story's card opens with 멈춘 Task N, before its number (79.4655ms)
+✔ U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project (78.036292ms)
+✔ U49: the line and ⓘ styles: one sentence per line, a 32px ⓘ (44px on touch), a popover box from tokens, a sheet on a phone (92.289041ms)
+✖ U49: a failed Task's reason reads one sentence per line, the first in bold; 풀기's note sits behind an ⓘ beside it; 취소's stays in view (121.691ms)
+✔ U49: every ⓘ opens one popover of its own, and every ⓘ is named (94.025375ms)
+✔ U49: a failed Task on the boards speaks to its reader: its assignee is told to retry, others read who can (102.609ms)
+✔ U49: the new-project form lines repos and base branches up in two columns, each branch named for its repo (72.332ms)
+✖ U49: what cannot be undone and the security checks stay in view, never behind an ⓘ (90.127292ms)
+✖ U49: an alert's first line is bold: a held Task, a refused form (71.421209ms)
+✔ U49: the Story page's own board tells a failed check's lead to add Tasks from their Mac, and anyone else that the PL does (75.790083ms)
+✔ U49: a created link's ⓘ sits beside its first line (76.575916ms)
+✔ U49: say() puts each sentence on its own line, after a closing parenthesis too, escaped, and keeps a parenthesis whole (0.365ms)
+✔ U51: the 다크 모드 switch posts /me/theme, keeps a cookie per browser and every page follows it; without the cookie the device setting decides (105.017208ms)
+✔ planStateLabel and planStateText say each state in plain words (2.035042ms)
+✔ the board shows 새 프로젝트, each project's plans in progress, and 새 Story only to a member who owns every project repo (271.399459ms)
+✔ /projects/new lists only my repos (an admin sees all) with base branch main; POST /projects makes the project and opens its own view on /board; a repo I do not own is a FORBIDDEN page (142.215584ms)
+✔ /projects/<id>/new-story is a 403 page for a member missing a project repo, and so is POST /projects/<id>/plans (123.998833ms)
+✔ POST /projects/<id>/plans makes a queued plan and goes to /plans/<id>; home lists it under 내가 쓰는 Story (106.793375ms)
+✔ a 65536-byte Korean intent with line breaks (about 196 KB urlencoded) is accepted and kept exactly; 65537 bytes comes back as the form with the typed title and intent and the plain message; a body over 1 MiB is 413 (127.58075ms)
+✔ the plan page states each state in plain words (waiting for the PL's Mac, planning while leased, questions, draft, design, awaiting G3, splitting, open with the Story link, failed with its reason, cancelled) (199.391958ms)
+✔ a waiting plan says the PL's Mac is off with its last beat, or names the Task the PL's Office holds (147.061292ms)
+✔ questions show one form per round with a 4000-character box per question and 막는 결정 on blocking ones; three 4000-character Korean answers (about 108 KB urlencoded) are accepted (114.254542ms)
+✔ the draft shows its text with 승인 (hidden revision and hash) and 고쳐 써 주세요; a draft with OPEN BLOCKING shows why there is no 승인 (140.57325ms)
+✔ 승인 moves the plan on; a second click or an older tab redirects to /plans/<id>?changed=1 with the notice and changes nothing (189.352208ms)
+✔ 고쳐 써 주세요 keeps FORM_LIMIT: a 70 KB body is 413 (98.573458ms)
+✔ 설계 승인, 다시 시도 and 취소 work for the PL; 취소 without 정말 취소합니다 is an INVALID page and the plan stays (133.575791ms)
+✔ a member who is not the PL sees no form, and every plan POST from them is a FORBIDDEN page (185.481208ms)
+✔ every new POST is 403 from another origin or without the CSRF token; project name, plan title, intent, questions, answers, draft, design and failure reason are escaped on the board, home and plan pages; the new pages load no script (214.413292ms)
+✔ a hub without plans answers 404 for the new pages and draws the board and home as before (448.102333ms)
+✔ the design shows the stored split in full under 올라갈 Task 전부 보기 (each Task's repo, title, what it waits for, spec, files, checks with their commands; the Story checks) before 설계 승인, whose note says it covers all of it (214.038667ms)
+✔ 취소 on a plan whose Story already opened ends the plan open and the page says so once, with the Story link (122.439167ms)
+✔ a waiting plan whose PL holds a failed Task says that Task must be retried or released, naming Story #S Task #T (101.478084ms)
+✔ a plan with Office work and no live lease names the plan's repos the PL's Office has not reached lately; not while leased, while the PL's Mac is off, or when the plan waits for the PL (227.606292ms)
+✔ a plan whose project changed one of its repos since it started shows why it cannot be approved instead of 승인 (1.803458ms)
+✔ U50: the plan shows its steps, with the one it is on marked, and on a phone 'N/M단계 · name' (239.125ms)
+✔ U50: AI questions are the PL's 지금 할 일: how many, what happens next, 꼭 정해야 함 and 왜 묻나요 (136.8315ms)
+✔ U50: the draft card: what approval does, what the AI assumed, 초안 승인, and 고쳐 달라고 하기 folded (111.455167ms)
+✔ U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its raw text is the one the approval is bound to (112.610542ms)
+✔ U50: a design waiting for G3 lists the Tasks it publishes in the card, by number, with what each waits for and checks (102.251417ms)
+✔ U50: while the AI works the PL may close the page; a held Task of the PL's Office is said instead of the Mac wait (229.511208ms)
+✔ U50: the way out is folded at the bottom with the plan's PL, risk and start; the plan's tone is the PL's turn only for the PL (126.574209ms)
+✔ U50: a new Story picks its risk with two described choices and says what happens next; branch fields are not autocorrected (162.987875ms)
+✔ U50 review 1: a high-risk plan's six steps stay on one row; on a phone the step names stay for a screen reader (1.237208ms)
+✔ U50 review 1: only the kit's header at the top is left out; a line starting with a number or # elsewhere shows as written (1.218ms)
+✔ U50 review 1: a stopped or cancelled plan marks the step it stopped on; splitting and open mark theirs (10.866291ms)
+✔ U50 review 1: a blocked G3 says why without a card; another member sees the failure, the open questions and the design in sections; the split fold shows once (5.535667ms)
+✔ U50 review 1: the intent box is described by the hint alone; each answer box names its question (142.303791ms)
+✔ U50 review 2: the Office's real draft and design read without kit lines; a year before a numbered list stays a sentence (65.299833ms)
+✔ U51: each question is a box with 질문 N and 필수 on top, one sentence per line, the asking sentence bold, (a)/(b)/(c) one per line, Why set apart and a one-line answer label (0.675333ms)
+✔ U51: answered questions are plain with the answer first and Why behind an i; another member sees open questions in the same boxes without answer fields (0.866667ms)
+✔ U51: the plan page wording is short — 초안 확인 with what the AI decided and the counts, 설계 확인 · Task N, 멈춤, the close note, 필수 for OPEN BLOCKING (2.429583ms)
+✔ U51: the draft body shows its Story title, bold heads with counts, ids in a left column, one sentence per line, and PL answers first with the question folded (1.638833ms)
+✔ U51 review 1: a PL answer is split right after a question the plan asked, so an arrow in the answer or the question stays where it was; a line with no asked question shows as written (1.214041ms)
+✖ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (175.782792ms)
+✔ a hub without a board keeps the request board at / and answers 404 for /board, /stories/<id> and /tasks/<id> (21.81275ms)
+✔ home shows the Mac nudge only when the hub installs Macs and the member has none (132.505958ms)
+✖ a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac (116.705875ms)
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (133.679792ms)
+✔ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (101.364958ms)
+✔ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (133.092417ms)
+✖ a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conflict and the default, with the raw reason under 자세한 이유 (154.226792ms)
+✔ a Task that failed, was released and is claimed again shows no failure text (166.070875ms)
+✔ a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분 뒤' from until; an off Mac shows no wait text (120.45325ms)
+✔ a member with no open Task whose newest Mac rests with claude: not_ready sees what to do on / (129.329708ms)
+✖ a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it (120.641709ms)
+✔ a merged Task shows the summary, the decision lines with ASSUMED in bold and the PR link (113.065875ms)
+✖ buttons follow taskActions: the assignee sees 다시 시도 on a failed Task, the PL and an admin see 풀기 and 취소, another member sees none (103.873459ms)
+✔ untrusted text is escaped on the work, board, Story and Task pages (143.520084ms)
+✔ an unknown Task or Story id is a 404 page; the new pages load no script (129.359917ms)
+✔ inTime says 곧, 약 25분 뒤, 약 2시간 뒤, 약 1시간 5분 뒤 and 잠시 뒤 for null (0.361083ms)
+✖ plainFailure picks by prefix and falls back to the default (0.852625ms)
+✔ switching auto work off and on from the web changes what claimNext gives (109.519083ms)
+✔ 작업하기 from the web claims the Task for the member; the Task page then says 시작 중 and the member's inbox names it (105.644666ms)
+✔ a claim the Mac has not taken yet says it waits for the Mac instead of the Hub's own claim time (110.610791ms)
+✔ 작업하기 without a live link is a NOT_LINKED page and changes nothing (186.030167ms)
+✔ 다시 시도 from the web reruns the failed Task with the memo; a second click lands on the Task page; after the PL released it, a STATE page that says 다시 시도 (313.557083ms)
+✔ a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page (145.453541ms)
+✔ 풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays (135.088292ms)
+✔ 취소 of a Task that holds the merge lock is a STATE page and the Task stays as it was; after 풀기 it can be cancelled (117.238375ms)
+✔ 풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office (217.798708ms)
+✔ every new POST is 403 from another origin or without the CSRF token (290.931875ms)
+✔ an unknown Task id is a 404 page for every button (125.243625ms)
+✔ a hub without a board answers 404 for the new POSTs (11.703334ms)
+✖ U44: /me's empty parts say what belongs there and the action that fills them (113.533167ms)
+✔ U44: no form sits inside a paragraph on /me or a Task page (105.625291ms)
+✖ U53: off the Task page a failure says where its reason is; the held note is behind an i for those who are not its assignee (0.59325ms)
+ℹ tests 166
+ℹ suites 0
+ℹ pass 141
+ℹ fail 25
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 11439.142166
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:526:1
+✖ an empty project says what comes next (197.246458ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다.'
+  - '아직 Story가 없습니다. [새 Story]로 시작하세요.'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:531:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다.',
+    expected: '아직 Story가 없습니다. [새 Story]로 시작하세요.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:629:1
+✖ a Story page carries its stage steps and its own Task board with every card (245.159708ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.</p>"))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:655:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:670:1
+✖ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (121.096541ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤(Mac 소식 없음)</span><span class="count">1</span><span class="gwhy">맡은 사람의 Mac이 10분 넘게 조용합니다.</span></p><p class="glinks"><a href="/tasks/${k.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p></li>`))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:683:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:867:1
+✖ project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44) (150.339958ms)
+  AssertionError [ERR_ASSERTION]: and says so under a chosen chip
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:893:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="needs">나를 기다리는 일 <span class="count">2</span></h2><p class="muted">고른 프로젝트와 관계없이 모든 프로젝트의 일입니다.</p><ul><li><p class="ghead"><span class="pill stop">멈춤(실패)</span><span class="count">1</span><span class="gwhy"><span class="ln">AI 사용 한도가 6시간 안에 풀리지 않았습니다.</span> <span class="ln">맡은 사람이 다시 시도할 수 있습니다.</span></span></p><p class="glinks"><a href="/tasks/e9aa924c-fbc8-4df7-ac41-658b20e83bd1"><b>등급 Story 작업</b> <span class="muted">Story #4</span></a></p></li><li><p class="ghead"><span class="pill need">승인 대기</span><span class="count">1</span><span class="gwhy"><span class="ln">모든 Task가 끝났습니다.</span> <span class="ln">결과 승인은 Hub가 아니라 PL의 Mac(claude 대화)에서 합니다.</span></span></p><p class="glinks"><a href="/stories/000814ff-63cd-45ee-bd1b-cbb29cd2fc8d"><b>승인 Story</b></a></p></li></ul>',
+    expected: /^<h2 id="needs">나를 기다리는 일 <span class="count">2<\/span><\/h2><p class="muted">모든 프로젝트의 일입니다.<\/p><ul>/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1181:1
+✖ U46: on the board a failed Task's reason points to the Task page, not to a reason below (79.588792ms)
+  AssertionError [ERR_ASSERTION]: the Task page keeps its own words for the one who retries
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1190:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="etag" content="&quot;7870518bb499f390&quot;"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Task #2 · Pazmo 팀 허브</title><style>:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}\n@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}}\n:root[data-theme=dark]{--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark}\n*{box-sizing:border-box}\nhtml,body{overflow-x:clip}\nbody{margin:0;background:var(--bg);color:var(--fg);font:16px/1.6 -apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Pretendard","Noto Sans KR","Malgun Gothic",system-ui,sans-serif;word-break:keep-all;overflow-wrap:break-word;-webkit-font-smoothing:antialiased}\n.card,.story,.scard,.needs a,.gwhy,.chips a,.quiet a,.wrap,ul.work,h1,h2,.person,.me,.who,.lead,p.state{overflow-wrap:anywhere}\n:where(header,nav,.me,.toggles,.chips,.chips a,.row,.story,.people,.who,.ghead,.glinks,.needs a,.quiet,p.state,p.sprog,.scard p,.lead,.now,.person,.filter,.mac,.macchip,.col h3,.stage h3,.tabs,.tiles)>*{min-width:0}\na{color:var(--accent);text-underline-offset:3px}\n:focus-visible{outline:3px solid var(--accent);outline-offset:2px}\nh1{font-size:28px;line-height:1.3;letter-spacing:-.01em;margin:0}h2{font-size:20px;line-height:1.35;margin:0}h3{font-size:16px;margin:4px 0 0}p{margin:0}\nheader{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}\n.brand{display:inline-flex;align-items:center;gap:8px;min-height:40px;color:var(--fg);font-weight:800;font-size:17px;text-decoration:none}\n.logo{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--need-bar) 0 25%,var(--run-bar) 0 50%,var(--done-bar) 0 75%,var(--stop-bar) 0)}\nnav{display:flex;flex-wrap:wrap;gap:4px;align-items:center}nav span{color:var(--muted)}\nnav a{display:inline-flex;align-items:center;min-height:44px;padding:0 14px;border-radius:10px;color:var(--muted);font-weight:650;text-decoration:none}\nnav a:hover{background:var(--tray);color:var(--fg)}nav a[aria-current=page]{color:var(--fg);box-shadow:inset 0 -3px 0 var(--accent)}\n.me{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-left:auto}.me form{display:inline-flex}.me .tsw-on{display:none}:root[data-theme=dark] .tsw-on{display:inline-flex}:root[data-theme=dark] .tsw-off{display:none}@media (prefers-color-scheme:dark){:root:not([data-theme=light]) .tsw-on{display:inline-flex}:root:not([data-theme=light]) .tsw-off{display:none}}\n.person{display:inline-flex;align-items:center;gap:6px;font-weight:650}a.person{min-height:44px;color:var(--fg);text-decoration:none}\nbutton.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:14px;font-weight:600}\n.track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}\n.track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}\n.switch .short{display:none}\n/* U52: the 다크 모드 sun/moon button, round and the size of the Mac chip; the icon follows the text colour. */\nbutton.theme{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}button.theme:hover{filter:none;border-color:var(--accent)}button.theme .ico{width:20px;height:20px}\n.switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}\n.macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}\n.macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}\n.dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}\n.on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar);border-radius:2px}.off .dot{background:transparent;border:2px solid var(--idle)}\n.av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}\n.av0{background:var(--av0)}.av1{background:var(--av1)}.av2{background:var(--av2)}.av3{background:var(--av3)}.av4{background:var(--av4)}.av5{background:var(--av5)}.av6{background:var(--av6)}.av7{background:var(--av7)}\nmain{max-width:1000px;margin:0 auto;padding:24px 20px 64px;display:grid;grid-template-columns:minmax(0,1fr);gap:32px}\nmain:has(.projects){max-width:1440px}\nheader:not(:has(nav))+main{max-width:600px;padding-top:56px}\nsection{background:var(--panel);border-radius:18px;padding:22px;box-shadow:var(--shadow);display:grid;grid-template-columns:minmax(0,1fr);gap:12px;min-width:0}\n.titlebar,.projects>.project{background:transparent;box-shadow:none;padding:0;border-radius:0}\n.toggles{display:flex;flex-wrap:wrap;gap:10px;align-items:center}.toggles h1{margin-right:6px}\n.titlebar h1{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}\n.filter{display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg);font-size:15px;font-weight:600;text-decoration:none}\n.filter::before{content:"";display:inline-grid;place-items:center;width:18px;height:18px;border-radius:5px;border:2px solid var(--muted);font-size:12px;line-height:1;color:var(--on-accent)}\n.filter[aria-current=true]{border-color:var(--accent);background:var(--run-bg)}.filter[aria-current=true]::before{content:"✓";background:var(--accent);border-color:var(--accent)}\nbutton,.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 18px;border-radius:12px;border:1px solid var(--accent);background:var(--accent);color:var(--on-accent);font:inherit;font-weight:700;text-decoration:none;cursor:pointer}\nbutton.secondary,.btn.ghost{background:var(--panel);color:var(--fg);border-color:var(--line)}\nbutton.danger{background:var(--panel);color:var(--stop);border-color:var(--stop)}\nbutton:hover,.btn:hover{filter:brightness(1.06)}.ln{display:block}.do{font-size:19px;font-weight:700;line-height:1.4;margin:0}.decide .assumed{background:var(--need-bg);border-radius:12px;padding:12px 14px}.assumed p{margin:0}.assumed ul{margin:6px 0 0;padding-left:20px}ol.qs{list-style:none;margin:0;padding:0;display:grid;gap:12px}ol.qs>li{display:grid;gap:10px;padding:14px 16px;border-radius:12px;background:var(--tray)}.qh{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:0;font-size:14px;font-weight:700;color:var(--muted)}.qh button.info{margin-left:0}.qt{margin:0}.qt b.ln{font-weight:700}.qt .ctx{color:var(--muted)}.qt .opt{display:block;padding-left:1.25em}.qwhy{margin:0;padding:8px 12px;border-radius:8px;background:var(--panel);color:var(--muted);font-size:15px}.qwhy .wl{font-weight:700;color:var(--fg)}.ans{margin:0}.answer{white-space:pre-wrap;font-weight:600;padding:8px 12px;border-radius:8px;background:var(--panel)}.vh{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.counts{margin:0;color:var(--muted);font-variant-numeric:tabular-nums}ol.tasks{list-style:none;margin:0;padding:0}ol.tasks>li{display:grid;grid-template-columns:24px minmax(0,1fr);gap:12px;padding:10px 0;border-top:1px solid var(--line)}ol.tasks>li:first-child{border-top:0}ol.tasks .num{font-weight:700;color:var(--muted);font-variant-numeric:tabular-nums}ol.tasks p{margin:0}.doc h3{font-size:16px;font-weight:700;margin:24px 0 8px;padding-bottom:4px;border-bottom:1px solid var(--line)}.doc h3:first-child,.doc .dtitle+h3{margin-top:0}.doc h3 .count{font-size:14px;font-weight:400;color:var(--muted)}.doc .dtitle{margin:0 0 16px;display:grid;gap:2px}.doc .dtitle .muted{font-size:13px}.doc p,.doc .items{margin:0 0 8px}.doc .id{color:var(--muted);margin-right:8px;font-variant-numeric:tabular-nums}.doc .items{list-style:none;padding:0;display:grid;gap:8px}.doc .items>li{display:grid;grid-temp'... 22905 more characters,
+    expected: /끝내지 못했습니다\. <\/b><span class="ln">이유를 보고 메모를 남겨|끝내지 못했습니다\.<\/b> <span class="ln">이유를 보고 메모를 남겨/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1229:1
+✖ U47: a failed Task's page opens with 지금 할 일: the reason and 다시 시도 first, 풀기 and 취소 folded under 다른 방법 (121.47925ms)
+  AssertionError [ERR_ASSERTION]: the reason is below, inside the card
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1239:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><div class="callout"><p>AI가 세 번 시도했지만 끝내지 못했습니다. 아래 이유를 보고 메모와 함께 다시 시도하세요.</p><details><summary>자세한 이유</summary><pre>tests failed</pre></details></div><form method="post" action="/tasks/c6fc810f-3281-4fcd-97cf-d5689ddc546d/rerun"><input type="hidden" name="csrf" value="f-1yHoC5C_knrKJ3RVW-9KYftyrHFDbsz3A47_bk9L8"><label>메모 <span class="muted">(선택, 2000자까지)</span><textarea name="memo" rows="3" maxlength="2000"></textarea></label><div class="row"><button>다시 시도</button></div></form>',
+    expected: /AI가 세 번 시도했지만 끝내지 못했습니다\. Task 화면에서 이유를 보고/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1363:1
+✖ U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check (88.987333ms)
+  AssertionError [ERR_ASSERTION]: the holder is told to retry
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1372:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><div class="callout"><p><b class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</b> <span class="ln">아래 이유를 보고 메모와 함께 다시 시도하세요.</span></p><details><summary>자세한 이유</summary><pre>tests failed</pre></details></div><form method="post" action="/tasks/c929783a-2c3a-452e-ba84-84f8bc400a22/rerun"><input type="hidden" name="csrf" value="1MpVpMvMWGwjTTrMnFsiW5l2WJyISbizK1k1NSsn9Io"><label>메모 <span class="muted">(선택, 2000자까지)</span><textarea name="memo" rows="3" maxlength="2000"></textarea></label><div class="row"><button>다시 시도</button></div></form>',
+    expected: /이유를 보고 메모를 남겨 다시 시도하세요/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1401:1
+✖ U47: on /me my Task whose Mac went silent says so and links its page (74.856083ms)
+  AssertionError [ERR_ASSERTION]: The input did not match the regular expression /내 Mac이 10분 넘게 조용합니다\. Mac을 켜면 이어서 합니다\./. Input:
+  
+  '<h2 id="decide">지금 할 일</h2><p>내가 맡은 Task가 멈췄습니다.</p><ul class="work"><li><p><a href="/tasks/bf8bbfb8-6660-4673-8fe7-e9fb4612588c">#2 a 작업</a> <span class="pill stop">멈춤(Mac 소식 없음)</span></p><p class="muted"><a href="/stories/13857b34-a142-41bd-a9b5-78c1424c42f2">Story #1 쿠폰 발급</a> · app-be</p><p class="muted">마지막 소식 20분 전</p><p>내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다.</p><p><a href="/tasks/bf8bbfb8-6660-4673-8fe7-e9fb4612588c">자세히</a></p></li></ul>'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1406:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><p>내가 맡은 Task가 멈췄습니다.</p><ul class="work"><li><p><a href="/tasks/bf8bbfb8-6660-4673-8fe7-e9fb4612588c">#2 a 작업</a> <span class="pill stop">멈춤(Mac 소식 없음)</span></p><p class="muted"><a href="/stories/13857b34-a142-41bd-a9b5-78c1424c42f2">Story #1 쿠폰 발급</a> · app-be</p><p class="muted">마지막 소식 20분 전</p><p>내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다.</p><p><a href="/tasks/bf8bbfb8-6660-4673-8fe7-e9fb4612588c">자세히</a></p></li></ul>',
+    expected: /내 Mac이 10분 넘게 조용합니다\. Mac을 켜면 이어서 합니다\./,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1421:1
+✖ U47: my held Task asks me to turn my Mac on only while no Mac reports; on or resting it says the Mac is on, on /me and on the Task page (77.675708ms)
+  AssertionError [ERR_ASSERTION]: /me: no Mac reports
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1428:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1449:1
+✖ U47: a failed Task's sentence follows the reader: its holder is told to retry even when 풀기 is the card's action; others read who can act (85.482042ms)
+  AssertionError [ERR_ASSERTION]: my own Task
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1467:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '<h2 id="decide">지금 할 일</h2><div class="callout"><p><b class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</b> <span class="ln">아래 이유를 보고 메모와 함께 다시 시도하세요.</span></p><details><summary>자세한 이유</summary><pre>tests failed</pre></details></div><p><a href="/mac"><span class="ln">내 Mac이 지금 이 레포의 일을 가져갈 수 없어 다시 시도할 수 없습니다.</span> <span class="ln">내 Mac 화면에서 꺼짐·잠김이 아닌지, 이 레포가 연결돼 있는지 확인하세요.</span></a></p><form method="post" action="/tasks/4b301eb6-34ac-4b0d-8a2e-3e26bc81d55a/release"><input type="hidden" name="csrf" value="zjdxpen2JrvV15wXutxqYmEzOeo80Tnpaz6I_Uf1q7A"><div class="row"><button class="secondary">풀기</button><button type="button" class="info" popovertarget="info-release" aria-label="풀기 설명">i</button><span id="info-release" popover class="infobox">풀면 이 Task는 다시 &#39;할 일&#39;이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.</span></div></form><details class="other"><summary>다른 방법</summary><form method="post" action="/tasks/4b301eb6-34ac-4b0d-8a2e-3e26bc81d55a/cancel"><input type="hidden" name="csrf" value="zjdxpen2JrvV15wXutxqYmEzOeo80Tnpaz6I_Uf1q7A"><p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p><label><input type="checkbox" name="confirm" value="yes" required> 정말 취소합니다</label><div class="row"><button class="danger">취소</button></div></form></details>',
+    expected: /이유를 보고 메모를 남겨 다시 시도하세요/,
+    operator: 'match',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1492:1
+✖ U47: a failed Story check gives 풀기's sentence only to who can release, and the Story card does not ask its PL to retry a check (92.02225ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(card.includes("멈춘 Task 1개</p>"))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1505:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1512:1
+✖ U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: someone else's failed Task says who can retry, mine says to retry (74.998291ms)
+  AssertionError [ERR_ASSERTION]: nothing here is the PL's to retry
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1520:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1533:1
+✖ U47: the PL's own silent Task reads as my Mac in the Story card (79.37ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(card.includes("내 Mac이 10분 넘게 조용합니다."))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1538:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1602:1
+✖ U49: a failed Task's reason reads one sentence per line, the first in bold; 풀기's note sits behind an ⓘ beside it; 취소's stays in view (121.691ms)
+  AssertionError [ERR_ASSERTION]: 취소 cannot be undone: its result stays in view
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1614:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1678:1
+✖ U49: what cannot be undone and the security checks stay in view, never behind an ⓘ (90.127292ms)
+  AssertionError [ERR_ASSERTION]: Task 취소
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1697:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-board-page.test.mjs:1709:1
+✖ U49: an alert's first line is bold: a held Task, a refused form (71.421209ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text.includes('<div class="callout"><p><b class="ln">맡은 사람의 Mac이 10분 넘게 조용합니다.</b> <span class="ln">'))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:1713:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:109:1
+✖ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (175.782792ms)
+  AssertionError [ERR_ASSERTION]: 아직 없습니다.
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:130:81)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:387:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:169:1
+✖ a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac (116.705875ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(task.includes("자동으로 일하기가 켜져 있어 내 Mac이 가져갑니다."))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:187:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:205:1
+✖ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (133.679792ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(home.includes("내 Mac이 받을 수 있는 일을 차례로 가져갑니다."))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:211:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:304:1
+✖ a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conflict and the default, with the raw reason under 자세한 이유 (154.226792ms)
+  AssertionError [ERR_ASSERTION]: V1 failed three times
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:319:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:397:1
+✖ a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it (120.641709ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(page.includes(mine))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:408:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:447:1
+✖ buttons follow taskActions: the assignee sees 다시 시도 on a failed Task, the PL and an admin see 풀기 and 취소, another member sees none (103.873459ms)
+  AssertionError [ERR_ASSERTION]: the assignee's rerun form
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:461:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:548:1
+✖ plainFailure picks by prefix and falls back to the default (0.852625ms)
+  AssertionError [ERR_ASSERTION]: BUILD_TIMEOUT: engine task x ran for more than 90 minutes.
+  + actual - expected
+  
+  + '구현이 90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요.'
+  - '90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요.'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:563:46)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: '구현이 90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요.',
+    expected: '90분 안에 끝나지 않았습니다. 메모로 범위를 좁혀 다시 시도하세요.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:810:1
+✖ U44: /me's empty parts say what belongs there and the action that fills them (113.533167ms)
+  AssertionError [ERR_ASSERTION]: nothing to take: what will show up
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:816:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:841:1
+✖ U53: off the Task page a failure says where its reason is; the held note is behind an i for those who are not its assignee (0.59325ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + 'AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요.'
+  - 'AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모를 남겨 다시 시도하세요.'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:843:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: 'AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요.',
+    expected: 'AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모를 남겨 다시 시도하세요.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

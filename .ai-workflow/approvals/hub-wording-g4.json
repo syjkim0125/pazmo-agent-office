@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "da70e574dbde820ce00bf56fec9223d2e825716d3088176485feb45f9db0d866",
+  "snapshot": "d7f054661ff79cd387469dc0fd86706f2db6ee61fd73eb5cf3214beb47a3e4e0",
+  "runId": "ee1be5f3-be8f-45a8-b36c-4360c76716fa",
+  "responseRef": "Claude Code conversation 2026-11-18. The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 32, label 'U53 G4') showed before/after pictures: the held Task seen by another member with its i open, the failed Task as PL, and 내 할 일. It also showed the approved 19-row wording table (folded as the past decision), the checks (two kit reviews, kit verify 1958/1958), what was not verified and the options. Asked \"U53 G4: 어떻게 할까요?\", the user answered \"승인 후 머지\" (D13). Record: .ai-workflow/approvals/hub-wording-g4.md",
+  "branch": "hub-wording",
+  "head": "07f3184",
+  "date": "2026-11-18"
+}

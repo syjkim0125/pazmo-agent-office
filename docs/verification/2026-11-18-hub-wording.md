@@ -59,6 +59,10 @@ U51에서 기획 화면의 말투를 줄였고, 사용자가 다른 화면에도
 | Story(PL) | ![](2026-11-18-hub-wording/before-story-pl.jpg) | ![](2026-11-18-hub-wording/after-story-pl.jpg) |
 | 내 할 일 | ![](2026-11-18-hub-wording/before-me-he.jpg) | ![](2026-11-18-hub-wording/after-me-he.jpg) |
 
+- **리뷰:** 독립 리뷰 1차와 2차가 모두 머지 가능이었다. 1차의 Minor(ⓘ 시험 하나 빠짐)는 2차 전에 고쳤다.
+- **kit 검증(`07f3184`):** 674/674 + 605/605 + 679/679 = **1958/1958**, 타입 검사·Story 검사 exit 0.
+- **G4(2026-11-18):** 사용자는 설명 페이지 32판의 U53 상자를 본 뒤 "승인 후 머지"를 골랐다. [G4 기록](../../.ai-workflow/approvals/hub-wording-g4.md)
+
 ## 확인하지 못한 것 · 남긴 것
 
 - 실제 Safari·Firefox, 실제 화면 낭독기.

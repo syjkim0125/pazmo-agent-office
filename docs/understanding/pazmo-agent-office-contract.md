@@ -3,7 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-18 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/hub-theme-icon-g4.json · 2026-11-18 · Check-in: accepted
+Understanding gate (G4): .ai-workflow/approvals/hub-wording-g4.json · 2026-11-18 · Check-in: accepted
+G4: PASS — U53(D41, Task·Story·내 할 일·보드 말투: 사용자가 고른 표 19줄대로 상태는 짧은 한 문장, 단추가 말하는 것은 빼고, 빈 받을 일·Story 없는 프로젝트·오래 멈춘 Task의 부수 설명은 ⓘ 뒤로, 화면 밖의 멈춤 이유는 Task 화면을 가리킴, 되돌릴 수 없는 일의 결과는 늘 보임; 단추가 하는 일·권한·주소는 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13).
 G4: PASS — U52(D46, 다크 모드를 흔히 쓰는 해·달 아이콘 단추로: 지금 테마의 아이콘(밝으면 해, 어두우면 달), 이름 "다크 모드"와 눌림 상태, 마우스 글 켜짐/꺼짐, 44px 둥근 단추, 스크립트 없는 인라인 SVG; 누르면 하는 일은 D45 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U51(D45, 기획 화면 읽기 쉽게: 질문마다 상자 하나에 묻는 문장만 굵게·선택지 한 줄씩·Why 칸·한 줄 답 이름, 지난 질문은 답 먼저·Why는 ⓘ, 짧은 말투, 초안 카드의 개수, 초안·설계 본문의 Story 제목·머리 수·번호 칸·한 줄 한 문장·물은 질문 뒤에서 나누는 PL 답; 팀 PM의 질문 쓰기 지시; 다크 모드 스위치와 브라우저 쿠키(POST /me/theme, 스크립트 없이, CSRF·Origin); AI가 쓴 낱말과 승인 해시·양식·권한은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U50(D41, Story 만들기 흐름: 기획 화면과 새 Story의 단계 막대, PL에게만 할 일마다 지금 할 일 카드(질문·초안·설계·멈춤), 초안과 설계를 한국어 머리로 보이고 승인에 묶인 원문은 한 번 눌러 보기, 지난 단계 모음과 접은 그만두기, 보는 사람에 맞춘 색, 위험도 라디오; 단추가 하는 일·권한·승인 해시·주소·스크립트 없이 쓰기는 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
