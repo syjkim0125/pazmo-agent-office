@@ -414,6 +414,10 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   page = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(page.includes(`${mine} (내 Mac: 꺼짐, 마지막 확인 아직 없음)`), "the assignee's own Mac");
   assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(`${held} (맡은 사람의 Mac: 꺼짐, 마지막 확인 아직 없음)`), "seen by the PL");
+  // U53: who may release it is behind an i for anyone but the assignee, while the Mac is off.
+  const note = '<button type="button" class="info" popovertarget="info-held" aria-label="오래 멈춘 Task 설명">i</button><span id="info-held" popover class="infobox">오래 멈춰 있으면 PL이 풀 수 있습니다.</span>';
+  assert.ok((await h.get(`/tasks/${s.api}`, h.pl)).text.includes(note), "the PL reads who may release it");
+  assert.ok(!page.includes('popovertarget="info-held"'), "the assignee is not told to wait for someone to release it");
   // The Mac is on, yet nothing about this Task: it will not go on by itself (the Office let the claim go, or cannot take it).
   h.store.macHeartbeat(mac, "idle", null);
   const on = "Mac은 켜져 있지만 10분 넘게 이 Task 소식이 없습니다. 오래 멈춰 있으면 PL이 풀 수 있습니다.";
