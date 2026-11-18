@@ -1746,9 +1746,11 @@ test("U51: the 다크 모드 switch posts /me/theme, keeps a cookie per browser 
   let text = (await h.get("/", h.c)).text;
   assert.ok(text.startsWith('<!doctype html><html lang="ko"><head>'), "no cookie: the device setting decides");
   // Two switches; the stylesheet shows the one that matches the theme in effect (no script needed).
-  assert.match(text, /<form class="switch tsw-on" method="post" action="\/me\/theme"><input type="hidden" name="csrf" value="[^"]+"><input type="hidden" name="theme" value="light"><input type="hidden" name="back" value="\/"><button class="switch" aria-pressed="true"><span class="track" aria-hidden="true"><\/span><span class="tsw-short" aria-hidden="true">다크<\/span><span class="tsw-full">다크 모드 켜짐<\/span><\/button><\/form>/);
-  assert.match(text, /<form class="switch tsw-off" method="post" action="\/me\/theme">[^]*?name="theme" value="dark">[^]*?aria-pressed="false">[^]*?<span class="tsw-full">다크 모드 꺼짐<\/span>/);
-  assert.match(text, /\.switch \.tsw-short\{display:inline\}\.switch \.tsw-full\{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset\(50%\)/, "다크 at every width, the whole name for a screen reader");
+  // U52 (D46): a sun/moon icon button: the icon of the theme in effect, the name 다크 모드, pressed when dark is on.
+  assert.match(text, /<form class="tsw tsw-on" method="post" action="\/me\/theme"><input type="hidden" name="csrf" value="[^"]+"><input type="hidden" name="theme" value="light"><input type="hidden" name="back" value="\/"><button class="theme" aria-pressed="true" title="다크 모드 켜짐"><svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12\.8A9 9 0 1 1 11\.2 3a7 7 0 0 0 9\.8 9\.8z"\/><\/svg><span class="vh">다크 모드<\/span><\/button><\/form>/, "dark on: the moon");
+  assert.match(text, /<form class="tsw tsw-off" method="post" action="\/me\/theme">[^]*?name="theme" value="dark">[^]*?<button class="theme" aria-pressed="false" title="다크 모드 꺼짐"><svg class="ico" [^>]*><circle cx="12" cy="12" r="4"\/><path d="M12 2v2M12 20v2[^"]*"\/><\/svg><span class="vh">다크 모드<\/span><\/button><\/form>/, "dark off: the sun");
+  assert.match(text, /button\.theme\{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:999px;border:1px solid var\(--line\);background:var\(--panel\);color:var\(--fg\)\}/, "a 44px round button like the Mac chip");
+  assert.ok(!text.includes("tsw-short") && !text.includes("tsw-full"), "no 다크 text switch any more");
   const style = /<style>([\s\S]*?)<\/style>/.exec(text)[1];
   assert.match(style, /@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{--bg:#121821;/);
   assert.match(style, /:root\[data-theme=dark\]\{--bg:#121821;/);

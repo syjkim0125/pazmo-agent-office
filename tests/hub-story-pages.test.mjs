@@ -408,7 +408,7 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   assert.ok(page.includes(mine));
   assert.ok(!page.includes(held));
   // The 다크 모드 switch also says 꺼짐 (U51); only the Mac words count here.
-  const noTheme = (html) => html.replace(/<form class="switch tsw-[^"]*"[\s\S]*?<\/form>/g, "");
+  const noTheme = (html) => html.replace(/<form class="tsw tsw-[^"]*"[\s\S]*?<\/form>/g, "");
   assert.ok(!noTheme(page).includes("꺼짐"), "C has no Mac at all");
   const mac = pairMac(h.store, h.c.member);
   page = (await h.get(`/tasks/${s.api}`, h.c)).text;
