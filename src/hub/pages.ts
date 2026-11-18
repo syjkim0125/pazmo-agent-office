@@ -38,6 +38,11 @@ export const lns = (...parts: string[]) => parts.filter(Boolean).map((p) => `<sp
  */
 export const info = (id: string, label: string, text: string) =>
   `<button type="button" class="info" popovertarget="${esc(id)}" aria-label="${esc(label)}">i</button><span id="${esc(id)}" popover class="infobox">${esc(text)}</span>`;
+/** U52: the 다크 모드 button's icons, drawn in the text colour (no script, no file the CSP would block). */
+const ICON = (shape: string) =>
+  `<svg class="ico" viewBox="0 0 24 24" aria-hidden="true" focusable="false" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${shape}</svg>`;
+const SUN = ICON('<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>');
+const MOON = ICON('<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>');
 /** The dark theme's tokens (U51: also for a browser that chose dark with the 다크 모드 switch). */
 const DARK = "--bg:#121821;--panel:#1a222d;--tray:#161d27;--fg:#e6ecf3;--muted:#9ba8b8;--line:#2b3644;--field-line:#64748a;--accent:#8db0ff;--on-accent:#0f1a33;--need:#f5b75e;--need-bg:#3b2a10;--need-bar:#e8a33a;--run:#a5bfff;--run-bg:#1b2a4b;--run-bar:#6b93f5;--stop:#ff9a90;--stop-bg:#45201c;--stop-bar:#f0685c;--done:#8fd6a9;--done-bg:#16321f;--done-bar:#5fb682;--idle:#4a5666;--shadow:none;--knob:#f1f4f8;--knob-shadow:rgba(0,0,0,.5);--av-fg:#f1f4f8;--av0:#6e3b22;--av1:#25477a;--av2:#285a38;--av3:#683262;--av4:#5a4a10;--av5:#3b3d82;--av6:#1d5652;--av7:#73303f;color-scheme:dark";
 const STYLE = `:root{--bg:#f1f4f8;--panel:#fff;--tray:#e8edf3;--fg:#16202b;--muted:#566273;--line:#d5dce5;--field-line:#7c8798;--accent:#2353c8;--on-accent:#fff;--need:#8f4700;--need-bg:#ffefd2;--need-bar:#f0a020;--run:#1d48b0;--run-bg:#e5edff;--run-bar:#4d7ff2;--stop:#ad2318;--stop-bg:#fde7e4;--stop-bar:#e5483b;--done:#2b6342;--done-bg:#e1f2e7;--done-bar:#58ad78;--idle:#b6c0cc;--shadow:0 1px 2px rgba(22,32,43,.06),0 2px 8px rgba(22,32,43,.05);--knob:#fff;--knob-shadow:rgba(0,0,0,.25);--av-fg:#1d2733;--av0:#ffd8c2;--av1:#cfe3ff;--av2:#d4f0dc;--av3:#f3d6f2;--av4:#fff0b3;--av5:#d7d9ff;--av6:#c9f0ee;--av7:#ffd6dc;color-scheme:light}
@@ -63,8 +68,8 @@ button.switch{display:inline-flex;align-items:center;gap:8px;min-height:44px;pad
 .track{position:relative;width:34px;height:20px;border-radius:999px;background:var(--idle);flex:none}
 .track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--knob);box-shadow:0 1px 2px var(--knob-shadow);transition:left .15s}
 .switch .short{display:none}
-/* U51: the 다크 모드 switch says 다크 at every width; a screen reader hears its whole name. */
-.switch .tsw-short{display:inline}.switch .tsw-full{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+/* U52: the 다크 모드 sun/moon button, round and the size of the Mac chip; the icon follows the text colour. */
+button.theme{display:inline-grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:999px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}button.theme:hover{filter:none;border-color:var(--accent)}button.theme .ico{width:20px;height:20px}
 .switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}
 .macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}
 .macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}
@@ -310,10 +315,12 @@ function boardHeader(me: Member, chrome: Chrome): string {
   const sw = chrome.csrf
     ? `<form class="switch" method="post" action="/me/auto-work">${csrfField(chrome.csrf)}<input type="hidden" name="on" value="${on ? "0" : "1"}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${on}"><span class="track" aria-hidden="true"></span><span class="short" aria-hidden="true">자동 ${on ? "켜짐" : "꺼짐"}</span><span class="full">자동으로 일하기 ${on ? "켜짐" : "꺼짐"}</span></button></form>`
     : "";
-  // U51: 다크 모드, a switch like the one beside it; the cookie it sets is the browser's, the page follows it (send()).
+  // U51/U52 (D45, D46): 다크 모드 as the usual sun/moon button: the icon of the theme in effect (moon when dark), the
+  // name 다크 모드, pressed when dark is on. Two are drawn and the stylesheet shows the one that matches, so no script;
+  // the cookie it sets is the browser's and every page follows it (send()).
   const theme = chrome.csrf
-    ? ([["on", "light", true, "켜짐"], ["off", "dark", false, "꺼짐"]] as const)
-        .map(([cls, value, pressed, word]) => `<form class="switch tsw-${cls}" method="post" action="/me/theme">${csrfField(chrome.csrf!)}<input type="hidden" name="theme" value="${value}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="switch" aria-pressed="${pressed}"><span class="track" aria-hidden="true"></span><span class="tsw-short" aria-hidden="true">다크</span><span class="tsw-full">다크 모드 ${word}</span></button></form>`)
+    ? ([["on", "light", true, "켜짐", MOON], ["off", "dark", false, "꺼짐", SUN]] as const)
+        .map(([cls, value, pressed, word, icon]) => `<form class="tsw tsw-${cls}" method="post" action="/me/theme">${csrfField(chrome.csrf!)}<input type="hidden" name="theme" value="${value}"><input type="hidden" name="back" value="${esc(chrome.path ?? "/")}"><button class="theme" aria-pressed="${pressed}" title="다크 모드 ${word}">${icon}<span class="vh">다크 모드</span></button></form>`)
         .join("")
     : "";
   const mac = chrome.mac ? macChip(chrome.mac) : "";
