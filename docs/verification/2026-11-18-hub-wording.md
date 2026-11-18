@@ -55,9 +55,18 @@ U51에서 기획 화면의 말투를 줄였고, 사용자가 다른 화면에도
 | | 전 | 후 |
 |---|---|---|
 | Task · Mac 소식 없음(다른 사람) | ![](2026-11-18-hub-wording/before-task-held-mj.jpg) | ![](2026-11-18-hub-wording/after-task-held-mj-open.jpg) |
-| Task · 멈춤(PL) | ![](2026-11-18-hub-wording/before-task-failed-pl.jpg) | ![](2026-11-18-hub-wording/after-task-failed-pl.jpg) |
-| Story(PL) | ![](2026-11-18-hub-wording/before-story-pl.jpg) | ![](2026-11-18-hub-wording/after-story-pl.jpg) |
+| Task · 멈춤(맡은 사람) | ![](2026-11-18-hub-wording/before-task-failed-mine.jpg) | ![](2026-11-18-hub-wording/after-task-failed-mine.jpg) |
+| Story · 지금 할 일(PL) | ![](2026-11-18-hub-wording/before-story-stopped-pl.jpg) | ![](2026-11-18-hub-wording/after-story-stopped-pl.jpg) |
 | 내 할 일 | ![](2026-11-18-hub-wording/before-me-he.jpg) | ![](2026-11-18-hub-wording/after-me-he.jpg) |
+
+그림 두 쌍을 머지 뒤에 바꿨다(#98 다음 문서 PR).
+- 처음 올린 "Task · 멈춤(PL)"과 "Story(PL)"은 전과 후가 같은 그림이었다.
+  - PL이 보는 멈춤 문장은 표에 없어 바뀌지 않는다.
+  - Story 그림은 바뀐 카드가 아니라 머리를 찍었다.
+- 그래서 문장이 실제로 바뀐 곳으로 다시 찍었다.
+  - 맡은 사람이 보는 멈춘 Task: "이유를 보고 메모를 남겨 다시 시도하세요."
+  - Story를 이끄는 PL의 "지금 할 일": "멈춘 Task 1개"
+- 전은 main `b330e22` 코드, 후는 `a6d6c52` 코드로 같은 데모 복사본에서 찍었다.
 
 - **리뷰:** 독립 리뷰 1차와 2차가 모두 머지 가능이었다. 1차의 Minor(ⓘ 시험 하나 빠짐)는 2차 전에 고쳤다.
 - **kit 검증(`07f3184`):** 674/674 + 605/605 + 679/679 = **1958/1958**, 타입 검사·Story 검사 exit 0.
