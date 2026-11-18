@@ -46,7 +46,11 @@ const selectors = (r) => r.selector.split(",").map((s) => s.trim());
 const DARK = "@media (prefers-color-scheme:dark)";
 const REDUCED = "@media (prefers-reduced-motion:reduce)";
 /** The light block (`:root` at the top) and the dark block (`:root` in the dark-scheme query) declare the colours. */
-const isTokenBlock = (r) => r.selector === ":root" && (r.media.length === 0 || (r.media.length === 1 && r.media[0] === DARK));
+// U51: the dark tokens apply under the device setting unless the browser chose light, and when it chose dark.
+const isTokenBlock = (r) =>
+  (r.selector === ":root" && r.media.length === 0) ||
+  (r.selector === ":root:not([data-theme=light])" && r.media.length === 1 && r.media[0] === DARK) ||
+  (r.selector === ":root[data-theme=dark]" && r.media.length === 0);
 /** Every CSS named colour (CSS Color 4); transparent, currentColor and inherit are not colours of their own. */
 const NAMED = "aliceblue antiquewhite aqua aquamarine azure beige bisque black blanchedalmond blue blueviolet brown burlywood cadetblue chartreuse chocolate coral cornflowerblue cornsilk crimson cyan darkblue darkcyan darkgoldenrod darkgray darkgreen darkgrey darkkhaki darkmagenta darkolivegreen darkorange darkorchid darkred darksalmon darkseagreen darkslateblue darkslategray darkslategrey darkturquoise darkviolet deeppink deepskyblue dimgray dimgrey dodgerblue firebrick floralwhite forestgreen fuchsia gainsboro ghostwhite gold goldenrod gray green greenyellow grey honeydew hotpink indianred indigo ivory khaki lavender lavenderblush lawngreen lemonchiffon lightblue lightcoral lightcyan lightgoldenrodyellow lightgray lightgreen lightgrey lightpink lightsalmon lightseagreen lightskyblue lightslategray lightslategrey lightsteelblue lightyellow lime limegreen linen magenta maroon mediumaquamarine mediumblue mediumorchid mediumpurple mediumseagreen mediumslateblue mediumspringgreen mediumturquoise mediumvioletred midnightblue mintcream mistyrose moccasin navajowhite navy oldlace olive olivedrab orange orangered orchid palegoldenrod palegreen paleturquoise palevioletred papayawhip peachpuff peru pink plum powderblue purple rebeccapurple red rosybrown royalblue saddlebrown salmon sandybrown seagreen seashell sienna silver skyblue slateblue slategray slategrey snow springgreen steelblue tan teal thistle tomato turquoise violet wheat white whitesmoke yellow yellowgreen".split(" ");
 const COLOR = new RegExp(`#[0-9a-f]{3,8}\\b|\\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\\(|(?<![\\w-])(?:${NAMED.join("|")})(?![\\w-])`, "i");
@@ -115,7 +119,8 @@ function motionGaps(css) {
 }
 
 test("each checker catches a stylesheet that breaks its rule", () => {
-  assert.deepEqual(colorLiterals(`:root{--a:#fff}${DARK}{:root{--a:#000}}.x{color:var(--a)}`), []);
+  assert.deepEqual(colorLiterals(`:root{--a:#fff}${DARK}{:root:not([data-theme=light]){--a:#000}}:root[data-theme=dark]{--a:#000}.x{color:var(--a)}`), []);
+  assert.deepEqual(colorLiterals(`:root{--a:#fff}${DARK}{:root{--a:#000}}`), [":root{--a:#000}"], "U51: the device dark block yields to a browser that chose light");
   assert.deepEqual(colorLiterals(`:root{--a:#fff}.x{color:#000}.y{background:rgba(0,0,0,.2)}.z{border-color:white}`), [".x{color:#000}", ".y{background:rgba(0,0,0,.2)}", ".z{border-color:white}"]);
   assert.deepEqual(colorLiterals(`@media (pointer:coarse){:root{--a:#fff}}`), [":root{--a:#fff}"], "a :root outside the two token blocks is not one");
   assert.deepEqual(colorLiterals(`.x::before{content:"red"}`), [], "words inside a string are not colours");
@@ -136,7 +141,9 @@ test("each checker catches a stylesheet that breaks its rule", () => {
 
 test("shipped: every colour comes from a token declared in the light and dark blocks", () => {
   const css = shipped();
-  assert.equal(rules(css).filter(isTokenBlock).length, 2, "one light and one dark token block");
+  const blocks = rules(css).filter(isTokenBlock);
+  assert.equal(blocks.length, 3, "one light block and the same dark block twice (device setting, chosen dark)");
+  assert.deepEqual(blocks[1].decls, blocks[2].decls, "the chosen dark theme is the device dark theme");
   assert.deepEqual(colorLiterals(css), []);
 });
 test("shipped: html and body clip sideways overflow, never hide it or size to 100vw", () => {

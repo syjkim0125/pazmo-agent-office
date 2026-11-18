@@ -1,0 +1,14 @@
+✔ U51: the 다크 모드 switch posts /me/theme, keeps a cookie per browser and every page follows it; without the cookie the device setting decides (122.413916ms)
+✔ U51: each question is a box with 질문 N and 필수 on top, one sentence per line, the asking sentence bold, (a)/(b)/(c) one per line, Why set apart and a one-line answer label (2.293958ms)
+✔ U51: answered questions are plain with the answer first and Why behind an i; another member sees open questions in the same boxes without answer fields (1.578417ms)
+✔ U51: the plan page wording is short — 초안 확인 with what the AI decided and the counts, 설계 확인 · Task N, 멈춤, the close note, 필수 for OPEN BLOCKING (3.0755ms)
+✔ U51: the draft body shows its Story title, bold heads with counts, ids in a left column, one sentence per line, and PL answers first with the question folded (0.883875ms)
+✔ U51: the team PM writes each question for a person to read: a short ask ending in the question, background in reason, options as (a)/(b), no long repeats; Lead and single Office prompts unchanged (34.689125ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 351.090167

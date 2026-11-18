@@ -407,7 +407,9 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   let page = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(page.includes(mine));
   assert.ok(!page.includes(held));
-  assert.ok(!page.includes("꺼짐"), "C has no Mac at all");
+  // The 다크 모드 switch also says 꺼짐 (U51); only the Mac words count here.
+  const noTheme = (html) => html.replace(/<form class="switch tsw-[^"]*"[\s\S]*?<\/form>/g, "");
+  assert.ok(!noTheme(page).includes("꺼짐"), "C has no Mac at all");
   const mac = pairMac(h.store, h.c.member);
   page = (await h.get(`/tasks/${s.api}`, h.c)).text;
   assert.ok(page.includes(`${mine} (내 Mac: 꺼짐, 마지막 확인 아직 없음)`), "the assignee's own Mac");
@@ -418,7 +420,7 @@ test("a held Task says the Mac is silent and, when the assignee's Mac is off, wh
   for (const [who, line] of [[h.c, `내 ${on}`], [h.pl, on]]) {
     const text = (await h.get(`/tasks/${s.api}`, who)).text;
     assert.ok(text.includes(`<p>${line}</p>`), `the Mac reports: ${who.member.name}`);
-    assert.ok(!text.includes(held) && !text.includes(mine) && !text.includes("꺼짐"));
+    assert.ok(!text.includes(held) && !text.includes(mine) && !noTheme(text).includes("꺼짐"));
   }
 });
 

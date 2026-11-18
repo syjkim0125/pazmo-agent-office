@@ -1,0 +1,14 @@
+✔ U50: the draft reads in Korean heads, ids aside and ASSUMED in words; its raw text is the one the approval is bound to (103.327458ms)
+✔ U51: each question is a box with 질문 N and 필수 on top, one sentence per line, the asking sentence bold, (a)/(b)/(c) one per line, Why set apart and a one-line answer label (1.167ms)
+✔ U51: answered questions are plain with the answer first and Why behind an i; another member sees open questions in the same boxes without answer fields (1.352875ms)
+✔ U51: the plan page wording is short — 초안 확인 with what the AI decided and the counts, 설계 확인 · Task N, 멈춤, the close note, 필수 for OPEN BLOCKING (1.909083ms)
+✔ U51: the draft body shows its Story title, bold heads with counts, ids in a left column, one sentence per line, and PL answers first with the question folded (0.6085ms)
+✔ U51 review 1: a PL answer is split right after a question the plan asked, so an arrow in the answer or the question stays where it was; a line with no asked question shows as written (0.3605ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 272.946834
