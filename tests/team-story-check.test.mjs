@@ -225,6 +225,39 @@ test("a verdict the Hub refuses for good (released meanwhile) is dropped, and th
   assert.equal(w.engines.be.verifies.length, 2, "checked again, not resent");
 });
 
+test("a verdict the Hub refuses as INVALID is kept and sent again, never checked again, and said once", async () => {
+  const link = fakeLink({ verified: hubError(400, "INVALID"), inbox: MINE });
+  const w = world({ link });
+  for (let i = 0; i < 4; i++) await w.checker.tick();
+  assert.equal(link.named("verified").length, 4);
+  assert.equal(w.engines.be.verifies.length, 1, "the VM ran once");
+  assert.equal(w.lines.filter((l) => l.includes("400 INVALID")).length, 1);
+});
+
+test("while one repo's Story base cannot be fetched, no VM runs for any repo; once its tries run out the others are checked once", async () => {
+  const git = fakeGit();
+  const fetchFe = git.checkoutStoryBase;
+  git.checkoutStoryBase = async (checkout, task) => {
+    if (checkout.includes("/fe/")) {
+      git.calls.push([checkout, task.storyBase, task.repo]);
+      throw new OfficeError("GIT_FAILED", "fatal: couldn't find remote ref feature/story-7/base");
+    }
+    return fetchFe(checkout, task);
+  };
+  let clock = 1_000_000;
+  const w = world({ git, now: () => clock });
+  // Tries at 0, 2.5, 5 and 7.5 minutes: still within the 10 minutes.
+  for (let i = 0; i < 4; i++) {
+    await w.checker.tick();
+    clock += 150000;
+  }
+  assert.deepEqual(w.link.named("verified"), [], "still within the 10 minutes");
+  assert.equal(w.engines.be.verifies.length, 0, "be's VM never ran while fe's base failed");
+  await w.checker.tick();
+  assert.equal(w.engines.be.verifies.length, 1);
+  assert.match(summaryOf(w.link), /^Story 검사 실패: app-fe\.\n- app-be @ 1{40}: V1 통과, V2 통과\n- app-fe: Story base를 받거나 검사하지 못했습니다\(GIT_FAILED: fatal: couldn't find remote ref/);
+});
+
 test("a repo this Office does not have is reported failed with that reason; the others are still checked", async () => {
   const link = fakeLink();
   const w = world({ link, lanes: [laneOf("be", link, fakeEngine("be"))] });
@@ -232,7 +265,7 @@ test("a repo this Office does not have is reported failed with that reason; the 
   assert.equal(link.named("verified")[0][3], false);
   assert.equal(
     summaryOf(link),
-    `Story 검사 실패: repo-fe.\n- app-be @ ${HEAD_BE}: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다.`,
+    `Story 검사 실패: repo-fe.\n- app-be @ ${HEAD_BE}: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포라 검사하지 못했습니다.`,
     "a Hub that sends no repo name: the id",
   );
   // The Hub names its repos (D47): the summary says the name, not the id.
@@ -240,7 +273,7 @@ test("a repo this Office does not have is reported failed with that reason; the 
   task.story.branches = task.story.branches.map((b) => ({ ...b, repoName: b.repoId.replace("repo-", "app-") }));
   const named = fakeLink({ claimVerify: task });
   await world({ link: named, lanes: [laneOf("be", named, fakeEngine("be"))] }).checker.tick();
-  assert.match(summaryOf(named), /^Story 검사 실패: app-fe\.\n.*\n- app-fe: 이 Mac의 Office에 등록되지 않은 레포라/);
+  assert.match(summaryOf(named), /^Story 검사 실패: app-fe\.\n.*\n- app-fe: 이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포라/);
 });
 
 test("a Story base that is not this Story's own is never checked out", async () => {

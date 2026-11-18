@@ -29,7 +29,7 @@ export type StoryChecker = { tick(): Promise<{ ran: boolean }>; active(): boolea
 
 /** How often the Story check's heartbeat goes out: well inside the Hub's 10 minutes before a Task shows held. */
 const BEAT_MS = 60000;
-/** A git or VM failure of one check is reported only once it failed this many times in a row… */
+/** A git or VM failure of one claim's check is reported only once the claim failed this many times… */
 const MAX_TRIES = 3;
 /** …over at least this long, so a short network loss is not a failed Story. Not-now answers are not counted. */
 const FAIL_WINDOW_MS = 600000;
@@ -130,10 +130,13 @@ export function createStoryChecker(d: {
   };
   const beatMs = d.beatMs ?? BEAT_MS;
   const now = d.now ?? Date.now;
-  /** Failed tries in a row and when the first was, by claim id. Memory only: a restart starts again. */
+  /** Failed tries of a claim and when the first was (not reset by a success in between; cleared once a verdict is
+   * made), by claim id. Memory only: a restart starts again. */
   const tries = new Map<string, { n: number; first: number }>();
   /** Verdicts the Hub has not confirmed yet, by claim id: sent again before anything is checked again. */
   const pending = new Map<string, { passed: boolean; summary: string }>();
+  /** Claims whose verdict the Hub refused as INVALID, already said in the log. */
+  const refusedSaid = new Set<string>();
   let running: { abort: AbortController } | null = null;
   let stopped = false;
 
@@ -157,44 +160,76 @@ export function createStoryChecker(d: {
     return task;
   }
 
-  async function checkRepo(task: ClaimedTask, entry: ClaimedTask["storyVerify"][number], lanes: CheckLane[], signal: AbortSignal): Promise<RepoResult> {
+  type Step = { entry: ClaimedTask["storyVerify"][number]; lane: CheckLane; head: string } | { result: RepoResult };
+
+  /** A repo's Story base on its Office checkout, or the reason it cannot be checked (a result already). */
+  async function checkout(task: ClaimedTask, entry: ClaimedTask["storyVerify"][number], lanes: CheckLane[]): Promise<Step> {
     const lane = lanes.find((l) => l.repoId === entry.repoId);
     const branch = task.story.branches.find((b) => b.repoId === entry.repoId);
-    if (!lane) return { repo: repoLabel(task, entry.repoId), problem: "이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다." };
-    if (!branch) return { repo: lane.repoName, problem: "이 레포의 Story base가 Hub에 없습니다." };
+    if (!lane)
+      return { result: { repo: repoLabel(task, entry.repoId), problem: "이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포라 검사하지 못했습니다." } };
+    if (!branch) return { result: { repo: lane.repoName, problem: "이 레포의 Story base가 Hub에 없습니다." } };
     // Only this Story's own base is ever checked out.
     if (branch.storyBase !== storyBaseBranch(task.story.number))
-      return { repo: lane.repoName, problem: `Hub가 준 Story base(${branch.storyBase})가 Story #${task.story.number}의 것이 아닙니다.` };
+      return { result: { repo: lane.repoName, problem: `Hub가 준 Story base(${branch.storyBase})가 Story #${task.story.number}의 것이 아닙니다.` } };
     const { head } = await d.git.checkoutStoryBase(lane.checkout, { storyBase: branch.storyBase, repo: lane.project });
-    if (signal.aborted) throw new Cut();
+    return { entry, lane, head };
+  }
+
+  async function verify(step: Extract<Step, { head: string }>, signal: AbortSignal): Promise<RepoResult> {
+    const { entry, lane, head } = step;
     const candidate = await lane.engine.freezeProject();
     // The VM needs ids it can tell apart; the Hub's are kept unless two are the same.
     const unique = new Set(entry.checks.map((c) => c.id)).size === entry.checks.length;
     const checks = entry.checks.map((c, i) => ({ id: unique ? c.id : `V${i + 1}`, argv: c.argv, timeoutMs: c.timeoutMs }));
-    const results = await lane.engine.verifyCandidate(candidate, checks, signal);
-    return { repo: lane.repoName, head, checks: results };
+    return { repo: lane.repoName, head, checks: await lane.engine.verifyCandidate(candidate, checks, signal) };
   }
 
-  /** The checks of every repo, or null when a failure is to be tried again later (said in the log). */
+  /**
+   * The checks of every repo, or null when a failure is to be tried again later (said in the log). Every repo's
+   * Story base is checked out first (cheap git, each on its own checkout), and the VMs run only once all of them
+   * are: a base that cannot be fetched never costs the other repos' VM runs while it is tried again.
+   */
   async function checkAll(task: ClaimedTask, lanes: CheckLane[], signal: AbortSignal): Promise<RepoResult[] | null> {
     const name = `story-${task.story.number}`;
-    const results: RepoResult[] = [];
+    /** A failure: counted, and either tried again later (null) or the repo's result once the claim's tries ran out. */
+    const failed = (entry: ClaimedTask["storyVerify"][number], error: unknown): RepoResult | null => {
+      if (error instanceof Cut || signal.aborted) throw new Cut();
+      if (WAITS.has(codeOf(error) as string)) throw new NotNow(describe(error));
+      const seen = tries.get(task.claimId) ?? { n: 0, first: now() };
+      seen.n++;
+      tries.set(task.claimId, seen);
+      if (seen.n < MAX_TRIES || now() - seen.first < FAIL_WINDOW_MS) {
+        log(`team: ${name}: the Story check failed (${describe(error)}); trying again next cycle (try ${seen.n})`);
+        return null;
+      }
+      const lane = lanes.find((l) => l.repoId === entry.repoId);
+      return { repo: lane?.repoName ?? repoLabel(task, entry.repoId), problem: `Story base를 받거나 검사하지 못했습니다(${describe(error)}).` };
+    };
+    const steps: Step[] = [];
     for (const entry of task.storyVerify) {
       if (signal.aborted) throw new Cut();
       try {
-        results.push(await checkRepo(task, entry, lanes, signal));
+        steps.push(await checkout(task, entry, lanes));
       } catch (error) {
-        if (error instanceof Cut || signal.aborted) throw new Cut();
-        if (WAITS.has(codeOf(error) as string)) throw new NotNow(describe(error));
-        const seen = tries.get(task.claimId) ?? { n: 0, first: now() };
-        seen.n++;
-        tries.set(task.claimId, seen);
-        if (seen.n < MAX_TRIES || now() - seen.first < FAIL_WINDOW_MS) {
-          log(`team: ${name}: the Story check failed (${describe(error)}); trying again next cycle (try ${seen.n})`);
-          return null;
-        }
-        const lane = lanes.find((l) => l.repoId === entry.repoId);
-        results.push({ repo: lane?.repoName ?? repoLabel(task, entry.repoId), problem: `Story base를 받거나 검사하지 못했습니다(${describe(error)}).` });
+        const result = failed(entry, error);
+        if (!result) return null;
+        steps.push({ result });
+      }
+    }
+    const results: RepoResult[] = [];
+    for (const step of steps) {
+      if (signal.aborted) throw new Cut();
+      if ("result" in step) {
+        results.push(step.result);
+        continue;
+      }
+      try {
+        results.push(await verify(step, signal));
+      } catch (error) {
+        const result = failed(step.entry, error);
+        if (!result) return null;
+        results.push(result);
       }
     }
     return results;
@@ -204,6 +239,9 @@ export function createStoryChecker(d: {
     const name = `story-${task.story.number}`;
     const abort = new AbortController();
     running = { abort };
+    // One check is held at a time: what an earlier claim left (released between ticks) is forgotten.
+    for (const map of [tries, pending]) for (const id of [...map.keys()]) if (id !== task.claimId) map.delete(id);
+    for (const id of [...refusedSaid]) if (id !== task.claimId) refusedSaid.delete(id);
     let cut: string | null = null;
     const beat = async () => {
       try {
@@ -240,10 +278,18 @@ export function createStoryChecker(d: {
       }
       if (error instanceof NotNow) return log(`team: ${name}: the Story check waits (${error.message})`);
       const kind = classifyLinkError(error);
-      // The Hub will never take this verdict under this claim (released, cancelled, another verdict): forget it.
-      if (kind === "not-yours" || kind === "not-found" || kind === "state" || kind === "invalid") {
+      // The Hub will never take a verdict under this claim (released, cancelled, another verdict): forget it.
+      if (kind === "not-yours" || kind === "not-found" || kind === "state") {
         pending.delete(task.claimId);
         return log(`team: ${name}: the Hub refused the Story check report (${describe(error)}); it was dropped`);
+      }
+      // The Hub refused its content: checking again would only make the same verdict, so it is kept and sent again,
+      // said once; the PL can release the check on the web.
+      if (kind === "invalid") {
+        if (!refusedSaid.has(task.claimId))
+          log(`team: ${name}: the Hub refused the Story check report (${describe(error)}); it is sent again, and the PL can release the check on the web`);
+        refusedSaid.add(task.claimId);
+        return;
       }
       log(`team: ${name}: reporting the Story check failed (${describe(error)}); sending it again next cycle`);
     } finally {

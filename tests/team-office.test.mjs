@@ -1920,6 +1920,38 @@ test("a paused PL Office goes on with the Story check it already holds (after a 
   assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
 });
 
+test("presence is working while a Story check runs and idle once it is reported", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: ["s"] });
+  la.on.claimVerify = storyCheck;
+  f.planLink(a, "pa", ALPHA_ID);
+  const checkGit = fakeCheckGit();
+  let release;
+  const fetched = checkGit.checkoutStoryBase;
+  checkGit.checkoutStoryBase = async (checkout, task) => {
+    await new Promise((resolve) => (release = resolve));
+    return fetched(checkout, task);
+  };
+  const mac = fakeMac();
+  // Claim ticks at 5000, 10000, …; presence at 7000, 14000, … (never in the same timer tick here).
+  await f.open(f.live({ ...mac.config, claimMs: 5000, beatMs: 7000, recheckMs: 1e9, driveMs: 1e9, checkGit }));
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["idle", null]);
+  t.mock.timers.tick(5000);
+  await until(() => release !== undefined, "the Story check fetching its base");
+  t.mock.timers.tick(2000);
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["working", null], "the check is under way: no engine runs yet, the git fetch does");
+  release();
+  await until(() => f.calls.some(([, what]) => what === "verified"), "the report");
+  t.mock.timers.tick(7000);
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["idle", null]);
+});
+
 test("a paused PL Office takes no Story check", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const f = fixture(t);
