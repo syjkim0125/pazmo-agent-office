@@ -1,6 +1,7 @@
 ---
 title: Hub design checklist
 date: "2026-11-12"
+last_updated: "2026-11-18"
 category: conventions
 module: team Hub web
 problem_type: convention
@@ -23,7 +24,9 @@ and 7 also need a browser measurement in the change record (see "How to measure"
 ## Rules
 
 1. **Colours only through tokens.** Every colour is a custom property declared in the light `:root` block, with a value
-   for the dark block (`@media (prefers-color-scheme:dark){:root{...}}`). Rules use `var(--...)` only; `transparent`
+   for the dark tokens (`DARK`, used under `@media (prefers-color-scheme:dark){:root:not([data-theme=light]){...}}` and
+   `:root[data-theme=dark]{...}` since U51; see [the theme switch](../design-patterns/theme-switch-without-script.md)).
+   Rules use `var(--...)` only; `transparent`
    and `currentColor` are not colours. Text on a token background keeps at least 4.5:1 in both themes, measured on the
    drawn colours. The avatar palette is `--av0`–`--av7` with `--av-fg` (light: pastel under dark text; dark: deep tints
    under light text); the switch knob is `--knob`/`--knob-shadow`.
