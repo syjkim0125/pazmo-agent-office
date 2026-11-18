@@ -526,10 +526,12 @@ test("the header shows me, the switch and my Mac with words beside their shapes"
 test("an empty project says what comes next", async (t) => {
   const h = await team(t);
   const { projectId } = h.board.createProject(h.plBe, "빈 프로젝트", [{ repoId: h.be, baseBranch: "main" }]);
-  const empty = (text) => /<h2>빈 프로젝트<\/h2>[\s\S]*?<p class="empty">([^<]*)<\/p>/.exec(unline(text))?.[1];
+  const empty = (text) => /<h2>빈 프로젝트<\/h2>[\s\S]*?<p class="empty">([^<]*)(?:<button|<\/p>)/.exec(unline(text))?.[1];
   // D44: with two projects an empty one folds into one line on 전체; its own chip view says what comes next.
-  assert.equal(empty((await h.get(`/?project=${projectId}`, h.pl)).text), "아직 Story가 없습니다. [새 Story]로 하고 싶은 일을 적으면 AI가 묻고 정리해 Task로 나눕니다.");
-  assert.equal(empty((await h.get(`/?project=${projectId}`, h.b)).text), "아직 Story가 없습니다. 이 프로젝트의 레포를 모두 맡은 사람이 Story를 올리면 여기에 보입니다.");
+  assert.equal(empty((await h.get(`/?project=${projectId}`, h.pl)).text), "아직 Story가 없습니다. [새 Story]로 시작하세요.");
+  const other = (await h.get(`/?project=${projectId}`, h.b)).text;
+  assert.equal(empty(other), "아직 Story가 없습니다.");
+  assert.ok(other.includes(`<button type="button" class="info" popovertarget="info-empty-${projectId}" aria-label="Story를 올리는 사람">i</button><span id="info-empty-${projectId}" popover class="infobox">이 프로젝트의 레포를 모두 맡은 사람이 Story를 올립니다.</span>`), "U53: who posts a Story, behind an i");
 });
 
 test("the stylesheet keeps both themes, visible focus, large targets and no sideways scroll", async (t) => {
@@ -650,7 +652,7 @@ test("a Story page carries its stage steps and its own Task board with every car
   assert.ok(page.includes('<a href="/">Story 보드</a>'), "the way back");
   const waiting = (await h.get(`/stories/${g4.storyId}`, h.pl)).text;
   assert.ok(waiting.includes('<li class="now" aria-current="step">승인 대기</li>'));
-  assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 결과 승인은 Hub가 아니라 PL의 Mac(claude 대화)에서 합니다.</p>"));
+  assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.</p>"));
 });
 
 test("the store's board for one Story has every card of it", async (t) => {
@@ -678,8 +680,8 @@ test("나를 기다리는 일 also lists a held Task, my stopped plan and which 
   h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "failed", reason: "모델이 멈췄습니다." });
   const box = needsOf((await h.get("/", h.pl)).text);
   // D44: one row per kind, the reason once, the titles as links.
-  assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤(Mac 소식 없음)</span><span class="count">1</span><span class="gwhy">맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.</span></p><p class="glinks"><a href="/tasks/${k.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p></li>`));
-  assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤</span><span class="count">1</span><span class="gwhy">기획이 멈췄습니다. 기획 화면에서 이유를 보고 다시 시도하세요.</span></p><p class="glinks"><a href="/plans/${planId}"><b>멈춘 기획</b></a></p></li>`));
+  assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤(Mac 소식 없음)</span><span class="count">1</span><span class="gwhy">맡은 사람의 Mac이 10분 넘게 조용합니다.</span></p><p class="glinks"><a href="/tasks/${k.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p></li>`));
+  assert.ok(unline(box).includes(`<li><p class="ghead"><span class="pill stop">멈춤</span><span class="count">1</span><span class="gwhy">기획이 멈췄습니다. 기획 화면에서 다시 시도하세요.</span></p><p class="glinks"><a href="/plans/${planId}"><b>멈춘 기획</b></a></p></li>`));
   assert.ok(needsOf((await h.get("/tasks", h.pl)).text), "the box is on the Task board too");
 });
 
@@ -888,7 +890,7 @@ test("project chips show one project, keep the other filters and the tabs, and l
   assert.ok(chipsOf(one).includes(`<a href="/?project=${other.projectId}" aria-current="true">`) && chipsOf(one).includes('<a href="/">전체'));
   const box = needsOf(one);
   assert.ok(box.includes(`/stories/${g4.storyId}`) && box.includes(`/tasks/${k.taskId}`), "the box keeps every project");
-  assert.match(box, /^<h2 id="needs">나를 기다리는 일 <span class="count">2<\/span><\/h2><p class="muted">고른 프로젝트와 관계없이 모든 프로젝트의 일입니다.<\/p><ul>/, "and says so under a chosen chip");
+  assert.match(box, /^<h2 id="needs">나를 기다리는 일 <span class="count">2<\/span><\/h2><p class="muted">모든 프로젝트의 일입니다.<\/p><ul>/, "and says so under a chosen chip");
   assert.ok(one.includes(`<a href="/?project=${other.projectId}" aria-current="page">Story 보드</a><a href="/tasks?project=${other.projectId}">모든 Task</a>`), "the tabs keep the project");
   assert.ok(one.includes(`<a class="filter" href="/?mine=1&project=${other.projectId}">내 Story만</a>`), "a filter keeps the project");
 
@@ -1185,7 +1187,7 @@ test("U46: on the board a failed Task's reason points to the Task page, not to a
   const box = /<section class="needs"[\s\S]*?<\/section>/.exec((await h.get("/", h.pl)).text)[0];
   assert.doesNotMatch(box, /아래 이유를/, "nothing is below on the board");
   assert.match(unline(box), /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\./, "the PL reads who can retry (U49)");
-  assert.match((await h.get(`/tasks/${s.tasks.a}`, h.c)).text, /아래 이유를 보고/, "the Task page keeps its own words for the one who retries");
+  assert.match((await h.get(`/tasks/${s.tasks.a}`, h.c)).text, /끝내지 못했습니다\. <\/b><span class="ln">이유를 보고 메모를 남겨|끝내지 못했습니다\.<\/b> <span class="ln">이유를 보고 메모를 남겨/, "the Task page keeps its own words for the one who retries");
   for (const path of ["/tasks", `/stories/${s.storyId}`]) {
     const text = (await h.get(path, h.pl)).text;
     assert.doesNotMatch(text, /아래 이유를/, `${path}: a failed card on a board has nothing below it`);
@@ -1234,7 +1236,7 @@ test("U47: a failed Task's page opens with 지금 할 일: the reason and 다시
   const card = decideOf(page);
   assert.ok(card, "the assignee has something to do");
   assert.match(card, /<h2 id="decide">지금 할 일<\/h2>/);
-  assert.match(unline(card), /AI가 세 번 시도했지만 끝내지 못했습니다\. 아래 이유를 보고/, "the reason is below, inside the card");
+  assert.match(unline(card), /AI가 세 번 시도했지만 끝내지 못했습니다\. 이유를 보고 메모를 남겨/, "the reason is below, inside the card");
   assert.match(card, /<details><summary>자세한 이유<\/summary><pre>tests failed<\/pre><\/details>/);
   assert.match(card, new RegExp(`<form method="post" action="/tasks/${s.tasks.a}/rerun">`), "다시 시도 is the card's action");
   const asPl = (await h.get(`/tasks/${s.tasks.a}`, h.pl)).text;
@@ -1366,8 +1368,8 @@ test("U47: the card speaks to who reads it: the PL on someone else's failed Task
   h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
   const pl = decideOf((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text);
   assert.match(unline(pl), /AI가 세 번 시도했지만 끝내지 못했습니다\. 맡은 사람이 다시 시도할 수 있습니다\. 오래 멈춰 있으면 풀 수 있습니다\./);
-  assert.doesNotMatch(pl, /메모와 함께 다시 시도하세요/, "the PL has no 다시 시도 here");
-  assert.match(decideOf((await h.get(`/tasks/${s.tasks.a}`, h.c)).text), /아래 이유를 보고 메모와 함께 다시 시도하세요/, "the holder is told to retry");
+  assert.doesNotMatch(pl, /메모를 남겨 다시 시도하세요/, "the PL has no 다시 시도 here");
+  assert.match(decideOf((await h.get(`/tasks/${s.tasks.a}`, h.c)).text), /이유를 보고 메모를 남겨 다시 시도하세요/, "the holder is told to retry");
   const v = h.open(h.publish("검증 Story", ["a"]));
   const tk = h.board.claimNext(h.plBe);
   h.board.mergeLock(h.plBe, tk.taskId, tk.claimId);
@@ -1401,7 +1403,7 @@ test("U47: on /me my Task whose Mac went silent says so and links its page", asy
   h.open(h.publish("쿠폰 발급", ["a"]));
   const held = silentClaim(h, h.cBe());
   const card = decideOf((await h.get("/me", h.c)).text) ?? "";
-  assert.match(unline(card), /내 Mac에서 10분 넘게 소식이 없습니다\. Mac을 켜면 이어서 합니다\./);
+  assert.match(unline(card), /내 Mac이 10분 넘게 조용합니다\. Mac을 켜면 이어서 합니다\./);
   assert.ok(card.includes(`<a href="/tasks/${held.taskId}">자세히</a>`));
 });
 
@@ -1423,7 +1425,7 @@ test("U47: my held Task asks me to turn my Mac on only while no Mac reports; on 
   const read = async () => [unline(decideOf((await h.get("/me", h.c)).text) ?? ""), unline((await h.get(`/tasks/${held.taskId}`, h.c)).text)];
   let [me, task] = await read();
   for (const [where, text] of [["/me", me], ["Task", task]]) {
-    assert.ok(text.includes("내 Mac에서 10분 넘게 소식이 없습니다. Mac을 켜면 이어서 합니다."), `${where}: no Mac reports`);
+    assert.ok(text.includes("내 Mac이 10분 넘게 조용합니다. Mac을 켜면 이어서 합니다."), `${where}: no Mac reports`);
   }
   assert.doesNotMatch(task, /맡은 사람의 Mac에서/, "it is my Mac");
   const mac = h.pair(h.c);
@@ -1462,7 +1464,7 @@ test("U47: a failed Task's sentence follows the reader: its holder is told to re
   const card = decideOf((await h.get(`/tasks/${mine.taskId}`, h.pl)).text) ?? "";
   const release = card.indexOf(`/tasks/${mine.taskId}/release"`);
   assert.ok(release > 0 && !card.includes(`/tasks/${mine.taskId}/rerun"`), "풀기 is the action");
-  assert.match(card, /아래 이유를 보고 메모와 함께 다시 시도하세요/, "my own Task");
+  assert.match(card, /이유를 보고 메모를 남겨 다시 시도하세요/, "my own Task");
   assert.doesNotMatch(card, /맡은 사람이 다시 시도할 수 있습니다/, "not about myself");
   const note = card.indexOf("다시 시도할 수 없습니다");
   assert.ok(note >= 0 && note < release, "the note comes before the action");
@@ -1500,7 +1502,7 @@ test("U47: a failed Story check gives 풀기's sentence only to who can release,
   assert.doesNotMatch(b, /풀기는 고치지 않고/, "B has no 풀기");
   assert.match(unline((await h.get(`/tasks/${check.taskId}`, h.admin)).text), /고칠 Task는 PL이 Mac\(claude 대화\)에서 더합니다\. 풀기는 고치지 않고 다시 검증합니다\./);
   const card = decideOf((await h.get(`/stories/${v.storyId}`, h.pl)).text) ?? "";
-  assert.ok(card.includes("멈춘 Task 1개. 각 Task 화면에서 풀 수 있습니다."));
+  assert.ok(card.includes("멈춘 Task 1개</span></p>"));
   assert.doesNotMatch(card, /다시 시도/, "a check is not retried");
   for (const who of [h.pl, h.b, h.admin]) {
     assert.equal(countOf((await h.get(`/stories/${v.storyId}`, who)).text, 'id="decide"'), who === h.pl ? 1 : 0, who.member.name);
@@ -1515,7 +1517,7 @@ test("U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: 
   h.board.reportFailed(c, theirs.taskId, theirs.claimId, "tests failed");
   const others = "AI가 세 번 시도했지만 끝내지 못했습니다. 맡은 사람이 다시 시도할 수 있습니다.";
   let card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text) ?? "";
-  assert.ok(card.includes("멈춘 Task 1개. 각 Task 화면에서 풀 수 있습니다."), "nothing here is the PL's to retry");
+  assert.ok(card.includes("멈춘 Task 1개</span></p>"), "nothing here is the PL's to retry");
   assert.ok(unline(card).includes(others));
   assert.doesNotMatch(card, /다시 시도하세요/);
   const led = ledOf((await h.get("/me", h.pl)).text);
@@ -1524,8 +1526,8 @@ test("U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: 
   const mine = h.board.claimNext(h.plBe);
   h.board.reportFailed(h.plBe, mine.taskId, mine.claimId, "tests failed");
   card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text) ?? "";
-  assert.ok(card.includes("멈춘 Task 2개. 각 Task 화면에서 다시 시도하거나 풀 수 있습니다."));
-  assert.ok(card.includes("Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요"), "my own Task");
+  assert.ok(card.includes("멈춘 Task 2개</span></p>"));
+  assert.ok(card.includes("Task 화면에서 이유를 보고 메모를 남겨 다시 시도하세요"), "my own Task");
 });
 
 test("U47: the PL's own silent Task reads as my Mac in the Story card", async (t) => {
@@ -1533,7 +1535,7 @@ test("U47: the PL's own silent Task reads as my Mac in the Story card", async (t
   const s = h.open(h.publish("쿠폰 발급", ["a"]));
   silentClaim(h, h.plBe);
   const card = decideOf((await h.get(`/stories/${s.storyId}`, h.pl)).text) ?? "";
-  assert.ok(card.includes("내 Mac에서 10분 넘게 소식이 없습니다."));
+  assert.ok(card.includes("내 Mac이 10분 넘게 조용합니다."));
   assert.ok(!card.includes(HELD_SHORT), "not 맡은 사람의 Mac");
 });
 
@@ -1609,7 +1611,7 @@ test("U49: a failed Task's reason reads one sentence per line, the first in bold
   assert.ok(release.includes('<button class="secondary">풀기</button><button type="button" class="info" popovertarget="info-release" aria-label="풀기 설명">i</button>'));
   assert.ok(release.includes('<span id="info-release" popover class="infobox">풀면 이 Task는 다시 &#39;할 일&#39;이 되고, 그 레포 담당자 누구든 처음부터 다시 받습니다.</span>'));
   assert.doesNotMatch(release, /<p>풀면/, "the note is out of the way");
-  assert.ok(otherOf(card)?.[2].includes("<p>취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다.</p>"), "취소 cannot be undone: its result stays in view");
+  assert.ok(otherOf(card)?.[2].includes("<p>취소하면 이 Task를 건너뛰고 뒤 Task만 진행합니다.</p>"), "취소 cannot be undone: its result stays in view");
 });
 
 test("U49: every ⓘ opens one popover of its own, and every ⓘ is named", async (t) => {
@@ -1645,11 +1647,11 @@ test("U49: a failed Task on the boards speaks to its reader: its assignee is tol
   const c = h.cBe();
   const claim = h.board.claimNext(c);
   h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
-  assert.ok((await h.get("/tasks", h.c)).text.includes('<p class="why"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">Task 화면에서 이유를 보고 메모와 함께 다시 시도하세요.</span></p>'));
+  assert.ok((await h.get("/tasks", h.c)).text.includes('<p class="why"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">Task 화면에서 이유를 보고 메모를 남겨 다시 시도하세요.</span></p>'));
   for (const who of [h.pl, h.b]) {
     const text = (await h.get("/tasks", who)).text;
     assert.ok(text.includes('<p class="why"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">맡은 사람이 다시 시도할 수 있습니다.</span></p>'), who.member.name);
-    assert.doesNotMatch(text, /메모와 함께 다시 시도하세요/, `${who.member.name}: not told to retry`);
+    assert.doesNotMatch(text, /메모를 남겨 다시 시도하세요/, `${who.member.name}: not told to retry`);
   }
   const box = /<section class="needs"[\s\S]*?<\/section>/.exec((await h.get("/", h.pl)).text)?.[0] ?? "";
   assert.ok(box.includes('<span class="gwhy"><span class="ln">AI가 세 번 시도했지만 끝내지 못했습니다.</span> <span class="ln">맡은 사람이 다시 시도할 수 있습니다.</span></span>'), "the PL's waiting box");
@@ -1692,7 +1694,7 @@ test("U49: what cannot be undone and the security checks stay in view, never beh
   const c = h.cBe();
   const claim = h.board.claimNext(c);
   h.board.reportFailed(c, claim.taskId, claim.claimId, "tests failed");
-  assert.ok(shown((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text).includes("취소하면 이 Task는 하지 않고, 뒤 Task는 이것 없이 진행합니다."), "Task 취소");
+  assert.ok(shown((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text).includes("취소하면 이 Task를 건너뛰고 뒤 Task만 진행합니다."), "Task 취소");
   const v = h.open(h.publish("합치는 Story", ["b"]));
   h.clock.board = -20 * 60_000;
   const lock = h.board.claimNext(h.plBe);
@@ -1708,7 +1710,7 @@ test("U49: an alert's first line is bold: a held Task, a refused form", async (t
   const h = await team(t);
   const s = h.open(h.publish("쿠폰 발급", ["a"]));
   silentClaim(h, h.cBe());
-  assert.ok((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text.includes('<div class="callout"><p><b class="ln">맡은 사람의 Mac에서 10분 넘게 소식이 없습니다.</b> <span class="ln">'));
+  assert.ok((await h.get(`/tasks/${s.tasks.a}`, h.pl)).text.includes('<div class="callout"><p><b class="ln">맡은 사람의 Mac이 10분 넘게 조용합니다.</b> <span class="ln">'));
   const refused = await h.post("/projects", h.pl, "name=");
   assert.equal(refused.status, 400);
   assert.match(refused.text, /<p role="alert"><b class="ln">[^<]+<\/b>/);
