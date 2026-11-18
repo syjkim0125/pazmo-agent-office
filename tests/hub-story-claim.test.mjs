@@ -8,7 +8,7 @@ test("claim takes the oldest ready task of the link's repo and returns what the 
   const t = board.claimNext(linkOf(c, be));
   assert.equal(t.number, 2); // api
   assert.equal(t.branch, "feature/story-1/task-2");
-  assert.deepEqual(t.story.branches.find((x) => x.repoId === be), { repoId: be, baseBranch: "main", storyBase: "feature/story-1/base" });
+  assert.deepEqual(t.story.branches.find((x) => x.repoId === be), { repoId: be, repoName: "app-be", baseBranch: "main", storyBase: "feature/story-1/base" });
   assert.deepEqual(t.verify[0].argv, ["npm", "test"]);
   assert.equal(board.claimNext(linkOf(c, be)), null); // 한 사람 하나
 });

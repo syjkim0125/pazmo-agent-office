@@ -182,7 +182,14 @@ test("a repo this Office does not have is reported failed with that reason; the 
   assert.equal(
     summary,
     "Story 검사 실패: repo-fe.\n- app-be @ 111111111111: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다.",
+    "a Hub that sends no repo name: the id",
   );
+  // The Hub names its repos (D47): the summary says the name, not the id.
+  const task = verifyTask();
+  task.story.branches = task.story.branches.map((b) => ({ ...b, repoName: b.repoId.replace("repo-", "app-") }));
+  const named = fakeLink({ claimVerify: task });
+  await world({ link: named, lanes: [{ ...be, link: named }] }).checker.tick();
+  assert.match(named.named("verified")[0][4], /^Story 검사 실패: app-fe\.\n.*\n- app-fe: 이 Mac의 Office에 등록되지 않은 레포라/);
 });
 
 test("a heartbeat answered NOT_YOURS (the PL released it) stops the check with no report", async () => {
@@ -249,7 +256,15 @@ test("over a real Hub: the PL's Office takes the Story check and the Story waits
     git: fakeGit(),
     beatMs: 1000,
   });
+  const given = [];
+  const take = link.claimVerify;
+  link.claimVerify = async (storyId) => {
+    const task = await take(storyId);
+    given.push(task);
+    return task;
+  };
   assert.deepEqual(await checker.tick(), { ran: true });
+  assert.deepEqual(given[0].story.branches.map((b) => b.repoName), ["be", "fe"], "the Hub names the repo of each Story base");
   const story = h.board.story(h.plLink, h.story.id);
   assert.equal(story.state, "awaiting_g4");
   const check = story.tasks.find((x) => x.kind === "verify");

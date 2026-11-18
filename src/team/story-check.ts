@@ -46,6 +46,9 @@ function describe(error: unknown): string {
   return head || text || "unknown error";
 }
 const firstLine = (text: string) => (text.split("\n").find((line) => line.trim()) ?? "").trim().slice(0, 300);
+/** A repo this Office does not have, as people read it: the Hub's name for it, or its id from a Hub that sends none. */
+const repoLabel = (task: ClaimedTask, repoId: string) =>
+  task.story.branches.find((b) => b.repoId === repoId)?.repoName ?? repoId;
 const codeOf = (error: unknown) =>
   typeof error === "object" && error !== null ? (error as { code?: unknown }).code : undefined;
 
@@ -135,7 +138,7 @@ export function createStoryChecker(d: {
   async function checkRepo(task: ClaimedTask, entry: ClaimedTask["storyVerify"][number], lanes: CheckLane[], signal: AbortSignal): Promise<RepoResult> {
     const lane = lanes.find((l) => l.repoId === entry.repoId);
     const branch = task.story.branches.find((b) => b.repoId === entry.repoId);
-    if (!lane) return { repo: entry.repoId, problem: "이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다." };
+    if (!lane) return { repo: repoLabel(task, entry.repoId), problem: "이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다." };
     if (!branch) return { repo: lane.repoName, problem: "이 레포의 Story base가 Hub에 없습니다." };
     const { head } = await d.git.checkoutStoryBase(lane.checkout, { storyBase: branch.storyBase, repo: lane.project });
     if (signal.aborted) throw new Cut();
@@ -183,7 +186,7 @@ export function createStoryChecker(d: {
             return;
           }
           const lane = lanes.find((l) => l.repoId === entry.repoId);
-          results.push({ repo: lane?.repoName ?? entry.repoId, problem: `Story base를 받거나 검사하지 못했습니다(${describe(error)}).` });
+          results.push({ repo: lane?.repoName ?? repoLabel(task, entry.repoId), problem: `Story base를 받거나 검사하지 못했습니다(${describe(error)}).` });
         }
       }
       if (abort.signal.aborted) throw new Cut();
