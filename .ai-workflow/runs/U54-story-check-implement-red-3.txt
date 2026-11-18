@@ -1,0 +1,126 @@
+✔ a team Office opens one story engine per repo on its checkout and never opens <repo dataDir>/lean (1075.628917ms)
+✔ with --live, the open record is driven every 10000 ms: a claimed Task goes to its repo's Story engine on the checkout (835.398833ms)
+✔ a live PL Office takes a ready Story check on the claim tick before claiming, checks the Story base in the VM and reports it (D47) (391.461083ms)
+✔ a PL Office with an open Task record takes no Story check (381.1785ms)
+✔ a paused PL Office goes on with the Story check it already holds (after a restart), so the claim keeps its heartbeat (396.444542ms)
+✔ presence is working while a Story check runs and idle once it is reported (391.798292ms)
+✔ a paused PL Office takes no Story check (381.449834ms)
+✔ a ready Story check is taken and every repo's latest Story base is checked in the VM; passing reports the summary (D47) (2.037084ms)
+✔ a Story check this member already holds is checked again from the start after a restart, without taking another (0.313084ms)
+✖ while one repo's Story base cannot be fetched, no VM runs for any repo; once its tries run out the others are checked once (1.309333ms)
+✔ a Story base that is not this Story's own is never checked out (0.280042ms)
+✔ over a real Hub: the PL's Office takes the Story check and the Story waits for the result approval (87.314792ms)
+ℹ tests 12
+ℹ suites 0
+ℹ pass 11
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 4077.501333
+
+✖ failing tests:
+
+test at tests/team-story-check.test.mjs:237:1
+✖ while one repo's Story base cannot be fetched, no VM runs for any repo; once its tries run out the others are checked once (1.309333ms)
+  AssertionError [ERR_ASSERTION]: be's VM never ran while fe's base failed
+  
+  4 !== 0
+  
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54c/tests/team-story-check.test.mjs:255:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+✔ a ready Story check is taken and every repo's latest Story base is checked in the VM; passing reports the summary (D47) (1.971916ms)
+✔ a check that does not pass reports failure with the check names and its output (0.388375ms)
+✔ nothing is asked while the Office cannot run a check (locked, runners, open Task record, a run, stopping) (0.114042ms)
+✔ a Story check this member already holds is checked again from the start after a restart, without taking another (0.218875ms)
+✔ a paused Office takes no new check but goes on with the one it holds, so that claim keeps its heartbeat (0.297042ms)
+✔ a work Task the member holds, or no ready check, leaves the tick to the claim (0.171375ms)
+✔ a refused take (the PL holds another Task) waits for the next tick and is said once (0.528167ms)
+✔ a registered repo whose lane is not ready (gh lapsed, relink) is still checked; the Hub is asked only through ready lanes (0.206791ms)
+✔ a git failure is tried again and reported only after 3 tries spanning 10 minutes; a URL's credentials never reach the Hub (0.615625ms)
+✔ a verdict the Hub did not get is sent again before anything is checked again (0.394458ms)
+✔ a verdict the Hub refuses for good (released meanwhile) is dropped, and the next tick checks the claim it holds then (0.233958ms)
+✖ a verdict the Hub refuses as INVALID is kept and sent again, never checked again, and said once (0.8085ms)
+✖ while one repo's Story base cannot be fetched, no VM runs for any repo; once its tries run out the others are checked once (0.429708ms)
+✖ a repo this Office does not have is reported failed with that reason; the others are still checked (0.529541ms)
+✔ a Story base that is not this Story's own is never checked out (0.137667ms)
+✔ a heartbeat answered NOT_YOURS before the check starts stops it with no report (0.111ms)
+✔ a heartbeat answered NOT_YOURS while the VM runs aborts the run and reports nothing (5.015167ms)
+✔ stop() during a check aborts the VM run and reports nothing; a stopped checker asks nothing (0.321083ms)
+✔ a busy VM is not a failed try: no report, and the next tick checks again (0.611417ms)
+✔ duplicate check ids get VM ids it can tell apart (0.15625ms)
+✔ the summary keeps every repo line and fits the Hub's limit with long outputs (0.128167ms)
+✔ over a real Hub: the PL's Office takes the Story check and the Story waits for the result approval (81.610041ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 19
+ℹ fail 3
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 264.088792
+
+✖ failing tests:
+
+test at tests/team-story-check.test.mjs:228:1
+✖ a verdict the Hub refuses as INVALID is kept and sent again, never checked again, and said once (0.8085ms)
+  AssertionError [ERR_ASSERTION]: the VM ran once
+  
+  4 !== 1
+  
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54c/tests/team-story-check.test.mjs:233:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 1,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/team-story-check.test.mjs:237:1
+✖ while one repo's Story base cannot be fetched, no VM runs for any repo; once its tries run out the others are checked once (0.429708ms)
+  AssertionError [ERR_ASSERTION]: be's VM never ran while fe's base failed
+  
+  4 !== 0
+  
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54c/tests/team-story-check.test.mjs:255:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 4,
+    expected: 0,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/team-story-check.test.mjs:261:1
+✖ a repo this Office does not have is reported failed with that reason; the others are still checked (0.529541ms)
+  AssertionError [ERR_ASSERTION]: a Hub that sends no repo name: the id
+  + actual - expected
+  
+    'Story 검사 실패: repo-fe.\n' +
+      '- app-be @ 1111111111111111111111111111111111111111: V1 통과, V2 통과\n' +
+  +   '- repo-fe: 이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다.'
+  -   '- repo-fe: 이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포라 검사하지 못했습니다.'
+  
+      at TestContext.<anonymous> (file:///private/tmp/claude-502/-Users-jongkkim-Documents-pazmo-agent-office/aa29f576-03cb-4627-bfad-969c719aef70/scratchpad/red54c/tests/team-story-check.test.mjs:266:10)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 'Story 검사 실패: repo-fe.\n- app-be @ 1111111111111111111111111111111111111111: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 등록되지 않은 레포라 검사하지 못했습니다.',
+    expected: 'Story 검사 실패: repo-fe.\n- app-be @ 1111111111111111111111111111111111111111: V1 통과, V2 통과\n- repo-fe: 이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포라 검사하지 못했습니다.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

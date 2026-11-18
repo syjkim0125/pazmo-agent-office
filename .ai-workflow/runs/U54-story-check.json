@@ -125,14 +125,14 @@
     "nodes": {
       "implement": {
         "status": "completed",
-        "attempts": 2,
-        "revision": 1,
+        "attempts": 3,
+        "revision": 2,
         "output": {
-          "summary": "Review 1 fixes in 3bdf926. Any registered repo is checked whatever its lane state, and the Hub is asked only through ready lanes. An unreported verdict is resent before checking again. A git or VM failure is reported only after 3 tries over 10 minutes. The summary carries the full commit. A paused Office resumes a held check, and presence and restart see a running check. A foreign Story base is refused, and URL credentials are stripped. New tests cover these, the open-record gate, NOT_YOURS during the VM run and stop(). RED 6/10 targeted on 7364708 -> GREEN 1985/1985; tsc 0. M8 (two Macs of one PL) is a recorded limit.",
+          "summary": "Review 2 fixes in 3138815. Every repo's Story base is checked out before any VM runs, so a base that cannot be fetched costs no VM runs. A verdict refused as INVALID is kept, resent and said once. Other claims' tries and verdicts are forgotten at a run's start. A no-link repo is worded as not on this Office or not linked. Presence is tested working while a check runs. RED 3/22 on 197e922 -> GREEN 1988/1988; tsc 0. N5 goes to the G4 page as ASSUMED; N7 is carried to 4b.",
           "evidence": [
-            ".ai-workflow/runs/U54-story-check-implement-2.md",
-            ".ai-workflow/runs/U54-story-check-implement-red-2.txt",
-            ".ai-workflow/runs/U54-story-check-implement-green-2.txt"
+            ".ai-workflow/runs/U54-story-check-implement-3.md",
+            ".ai-workflow/runs/U54-story-check-implement-red-3.txt",
+            ".ai-workflow/runs/U54-story-check-implement-green-3.txt"
           ],
           "execution": {
             "selection": "unknown",
@@ -148,20 +148,20 @@
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U54-story-check-implement-2.md": "c2d2fcfc38d91865ddd4bcba2c399fef21218e52f4656e7ea3101b409dd3f185",
-          ".ai-workflow/runs/U54-story-check-implement-red-2.txt": "eddc7cf05453a162af25548a1886605b13042c2aa81055c118be71af7d2c05fc",
-          ".ai-workflow/runs/U54-story-check-implement-green-2.txt": "86faba8343f1dd644961f63a6fd69d41f8ee4aec5d7a6a08c30c73b93024b60c"
+          ".ai-workflow/runs/U54-story-check-implement-3.md": "ff9458b1ddbe82570f1169cf0c1a222426366f455f1d5854146acf3f83c1bc9d",
+          ".ai-workflow/runs/U54-story-check-implement-red-3.txt": "3499aa9ef90e8b3c2aedbbe3f71832e4e321d57dc7eb938aed63d143aefaaf13",
+          ".ai-workflow/runs/U54-story-check-implement-green-3.txt": "8acdffdf7bbe60414debdbb24f69f433f78c0432d724b078b1e5942aa731b1fd"
         }
       },
       "workflow-review": {
         "status": "pending",
-        "attempts": 1,
-        "revision": 1
+        "attempts": 2,
+        "revision": 2
       },
       "workflow-verify": {
         "status": "pending",
         "attempts": 0,
-        "revision": 1
+        "revision": 2
       }
     }
   },
@@ -303,6 +303,98 @@
           ".ai-workflow/runs/U54-story-check-implement-2.md": "c2d2fcfc38d91865ddd4bcba2c399fef21218e52f4656e7ea3101b409dd3f185",
           ".ai-workflow/runs/U54-story-check-implement-red-2.txt": "eddc7cf05453a162af25548a1886605b13042c2aa81055c118be71af7d2c05fc",
           ".ai-workflow/runs/U54-story-check-implement-green-2.txt": "86faba8343f1dd644961f63a6fd69d41f8ee4aec5d7a6a08c30c73b93024b60c"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:47:08.704Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:52:58.543Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "03e090e62867826c3ec3e1b0f516b3c902deaf5ceb4e5e39d6324c1f4e9e7cea",
+        "output": {
+          "summary": "Review 2 of 7364708..197e922: I1 and M1-M6 are fixed and tested; no Critical, no Important. Minors: N1 an INVALID refusal drops the verdict, so the check re-runs every tick; N2 the 10-minute window re-runs earlier repos' VM checks every tick while a later repo's git fails; N3 the tries counter is per claim, not in a row, and entries of lost claims stay; N4 presence is not tested at Office level; N5 paused+held resume is written only in code and records; N6 a no-link repo is worded as not registered; N7 is a 4b note (compare the verified commit with the base tip).",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "03e090e62867826c3ec3e1b0f516b3c902deaf5ceb4e5e39d6324c1f4e9e7cea"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 3, small: N2 check out every repo's Story base first and run the VMs only when all checkouts succeeded; N1 keep a verdict the Hub refuses as INVALID and resend it, logging once; N3 correct the comment and forget other claims' tries and pending at a run's start; N4 assert working presence during a check in an Office test; N6 word a repo with no Hub link as '이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포'. N5 goes on the G4 page as an ASSUMED line (no Story edit after G1); N7 is carried to 4b."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-2.md": "67ee76aaf6408970004d78eb14e0e5fccda715289487a0df22f54b47f5bb7efc"
+        },
+        "error": "Implement attempt 3, small: N2 check out every repo's Story base first and run the VMs only when all checkouts succeeded; N1 keep a verdict the Hub refuses as INVALID and resend it, logging once; N3 correct the comment and forget other claims' tries and pending at a run's start; N4 assert working presence during a check in an Office test; N6 word a repo with no Hub link as '이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포'. N5 goes on the G4 page as an ASSUMED line (no Story edit after G1); N7 is carried to 4b."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 2 asked for small fixes (N1-N4, N6)",
+      "at": "2026-11-18T08:52:59.094Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:53:04.020Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:58:54.148Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes in 3138815. Every repo's Story base is checked out before any VM runs, so a base that cannot be fetched costs no VM runs. A verdict refused as INVALID is kept, resent and said once. Other claims' tries and verdicts are forgotten at a run's start. A no-link repo is worded as not on this Office or not linked. Presence is tested working while a check runs. RED 3/22 on 197e922 -> GREEN 1988/1988; tsc 0. N5 goes to the G4 page as ASSUMED; N7 is carried to 4b.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-implement-3.md",
+            ".ai-workflow/runs/U54-story-check-implement-red-3.txt",
+            ".ai-workflow/runs/U54-story-check-implement-green-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-implement-3.md": "ff9458b1ddbe82570f1169cf0c1a222426366f455f1d5854146acf3f83c1bc9d",
+          ".ai-workflow/runs/U54-story-check-implement-red-3.txt": "3499aa9ef90e8b3c2aedbbe3f71832e4e321d57dc7eb938aed63d143aefaaf13",
+          ".ai-workflow/runs/U54-story-check-implement-green-3.txt": "8acdffdf7bbe60414debdbb24f69f433f78c0432d724b078b1e5942aa731b1fd"
         }
       }
     }
