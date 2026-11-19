@@ -15,7 +15,7 @@ import type { MacBadge, Member } from "./store.ts";
 import type { BoardCard, BoardProject, BoardStory } from "./story-store.ts";
 import type { BoardColumn } from "./board.ts";
 import type { StoryState } from "./story-protocol.ts";
-import { AWAITING_G4, stoppedReason, storyStateLabel, taskStateLabel } from "./story-pages.ts";
+import { AWAITING_G4_BOARD, stoppedReason, storyStateLabel, taskStateLabel } from "./story-pages.ts";
 
 const COLUMNS: { key: Exclude<BoardColumn, "hidden">; label: string }[] = [
   { key: "backlog", label: "백로그" },
@@ -211,7 +211,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
   for (const p of v.projects)
     for (const s of p.stories) {
       const lead = s.pl.id === me.id;
-      if (lead && s.state === "awaiting_g4") items.push({ rank: 2, tone: "need", word: storyStateLabel(s.state), why: AWAITING_G4, link: waitLink(`/stories/${s.id}`, s.title) });
+      if (lead && s.state === "awaiting_g4") items.push({ rank: 2, tone: "need", word: storyStateLabel(s.state), why: AWAITING_G4_BOARD, link: waitLink(`/stories/${s.id}`, s.title) });
       for (const c of s.cards)
         if (STOPPED.has(c.state) && (lead || c.assignee?.id === me.id))
           items.push({

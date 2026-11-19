@@ -1,5 +1,9 @@
-/** Static script for the one-time value page: a real "복사" button, no network, no eval. */
+/**
+ * Static script for the one-time value page and the 결과 승인 card: a real "복사" button, no network, no eval. It marks
+ * the page with `copy`, so a button drawn `copy-only` shows only where it works (D49); without it the text stays selectable.
+ */
 export const COPY_SCRIPT = `(function () {
+  document.documentElement.classList.add("copy");
   var DONE = "복사됨", IDLE = "복사", MANUAL = "선택됨 — Cmd+C로 복사";
   function select(target) {
     var range = document.createRange();

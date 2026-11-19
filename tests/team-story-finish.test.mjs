@@ -291,6 +291,34 @@ test("over a real Hub: the PL approves from the current Mac, the PL Office merge
   assert.equal(done.approval.macName, "PL의 MacBook");
 });
 
+test("over a real Hub: a web approval (D49) is merged by the PL Office the same way", async (t) => {
+  const h = await hubWithStory(t);
+  for (const name of ["be", "be", "fe"]) {
+    const l = h.store.link(h.cfgOf(name).token);
+    const x = h.board.claimNext(l);
+    h.board.mergeLock(l, x.taskId, x.claimId);
+    h.board.reportMerged(l, x.taskId, x.claimId, { prUrl: `https://github.example.com/team/${name}/pull/1`, mergeCommit: String(x.number).padStart(40, "0"), summary: "s", assumptions: [] });
+  }
+  const v = h.board.claimVerify(h.plLink, h.story.id);
+  const commits = { [h.repos.be]: SHA("a"), [h.repos.fe]: SHA("b") };
+  h.board.reportVerify(h.plLink, v.taskId, v.claimId, { passed: true, summary: "Story 검사 통과", commits });
+  const card = h.board.approvalView({ member: h.pl }, h.story.id);
+  h.board.approveOnWeb({ member: h.pl }, h.story.id, { fingerprint: card.fingerprint, commits: card.verified });
+
+  const link = storyLink(h.plConfig());
+  const lane = (name) => ({
+    project: `/work/${name}`, repoId: h.repos[name], repoName: name, checkout: `/data/${name}/story-checkout`,
+    remote: `github.example.com/team/${name}`, link, ready: true, engine: fakeEngine(name),
+  });
+  const finisher = createStoryFinisher({ lanes: () => [lane("be"), lane("fe")], canRun: () => true, git: fakeGit(), pr: fakePr() });
+  assert.deepEqual(await finisher.tick(), { ran: true });
+  const done = h.board.finishView(h.plLink, h.story.number);
+  assert.equal(done.state, "done");
+  assert.deepEqual(Object.values(done.repos).map((r) => r.state), ["merged", "merged"]);
+  assert.equal(done.approval.via, "web");
+  assert.equal(done.approval.by, h.pl.name);
+});
+
 test("a merge refused because the Story base moved before it goes back to the check, never to a person", async () => {
   const w = world({
     git: fakeGit({}, { be: SHA("9") }),

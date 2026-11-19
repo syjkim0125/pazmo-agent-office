@@ -1,7 +1,8 @@
 /** The team Story pages of the Hub web: the member's work, the board, one Story and one Task. No script; every value goes through `esc`. */
 import { MAC_NUDGE, ago, button, csrfField, esc, info, layout, lns, say, tone, tonePill, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
-import type { FinishApproval, FinishRepo, MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
+import type { ApprovalCard, FinishApproval, FinishRepo, MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
+import { approvalPlan, compareUrl } from "./story-approve.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
 import type { PlanCard } from "./plan-store.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -213,8 +214,12 @@ export function home(
   ].join(""), chrome);
 }
 
-/** What a Story waiting for its result approval needs, said where the PL looks (D42 (6): approval is local). */
-export const AWAITING_G4 = "모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.";
+/** What a Story waiting for its result approval needs, said to its PL above the 결과 승인 card (D49). */
+export const AWAITING_G4 = "모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.";
+/** The same, in the PL's 기다리는 일 box of the board (another page). */
+export const AWAITING_G4_BOARD = "모든 Task가 끝났습니다. Story 화면에서 결과를 확인하고 승인하세요.";
+/** The same, said to everyone else. */
+export const AWAITING_OTHERS = "모든 Task가 끝났습니다. PL이 결과를 승인하면 레포마다 main에 머지됩니다.";
 /** After the PL's local approval (D48): the PL Office merges, or a PR waits for a person. */
 export const APPROVED = "결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다.";
 export const HANDED = "사람이 머지할 PR이 있습니다. 그 PR이 머지되면 완료됩니다.";
@@ -225,6 +230,55 @@ function steps(state: StoryState): string {
   const at = STEPS.findIndex(([key]) => key === state);
   if (at < 0) return "";
   return `<ol class="steps" aria-label="Story 단계">${STEPS.map(([, label], i) => `<li${i < at ? ' class="past"' : i === at ? ' class="now" aria-current="step"' : ""}>${label}</li>`).join("")}</ol>`;
+}
+
+/** "ASSUMED: x" as the page says it. */
+const assumedWord = (line: string) => (line.startsWith("ASSUMED:") ? `AI가 정한 것:${line.slice("ASSUMED:".length)}` : line);
+/** A work Task's summary on the card: its first three lines. */
+const threeLines = (summary: string) => summary.split("\n").filter((l) => l.trim()).slice(0, 3).join("\n");
+
+/**
+ * The PL's 결과 승인 card (D49): the check result, what each Task did and assumed, the changed code per repo, a QA list,
+ * how to run it, a prompt for an AI, and the approval form bound to the fingerprint and commits shown here. A Story whose
+ * check kept no commits offers 다시 검증 instead. `check` is the Story check summary, if any.
+ */
+function approveCard(s: StoryView, card: ApprovalCard, csrf: string, check: string | null): string {
+  const head = `<h2 id="approve">결과 승인</h2>${check ? `<h3>Story 검증 결과</h3><pre>${esc(check)}</pre>` : ""}`;
+  if (!card.verified)
+    return `<section class="decide" aria-labelledby="approve">${head}<p>${say("이 Story의 검증에는 승인에 묶을 커밋이 없습니다. 다시 검증하면 PL의 Mac이 Story 검증을 다시 하고, 통과하면 여기서 승인할 수 있습니다.")}</p><form method="post" action="/stories/${esc(s.id)}/recheck">${csrfField(csrf)}<div class="row"><button>다시 검증</button></div></form></section>`;
+  const verified = card.verified;
+  const work = s.tasks.filter((t) => t.kind === "work" && t.state !== "cancelled");
+  const plan = approvalPlan({
+    number: s.number,
+    title: s.title,
+    body: s.body,
+    repos: s.branches.map((b) => ({ name: b.repoName, baseBranch: b.baseBranch, commit: verified[b.repoId] ?? "", checks: (card.checks[b.repoId] ?? []).map((c) => c.argv) })),
+    tasks: work.map((t) => ({ number: t.number, repo: t.repo?.name ?? null, files: t.files, assumptions: t.assumptions })),
+  });
+  const tasks = work
+    .map((t) => {
+      const assumed = t.assumptions.filter((l) => l.startsWith("ASSUMED:"));
+      return `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)}${t.repo ? ` <span class="muted">${esc(t.repo.name)}</span>` : ""}</p>${t.summary ? `<pre>${esc(threeLines(t.summary))}</pre>` : ""}${
+        assumed.length ? `<ul>${assumed.map((l) => `<li>${esc(assumedWord(l))}</li>`).join("")}</ul>` : ""
+      }</li>`;
+    })
+    .join("");
+  const code = s.branches
+    .map((b) => {
+      const sha = verified[b.repoId] ?? "";
+      const label = `${b.repoName}: ${b.baseBranch} … ${sha.slice(0, 12)}`;
+      const url = compareUrl(card.remotes[b.repoId] ?? "", b.baseBranch, sha);
+      return `<li>${url ? `<a href="${esc(url)}" rel="noreferrer">${esc(label)}</a>` : esc(label)}</li>`;
+    })
+    .join("");
+  const files = plan.files.length
+    ? `<p>바뀐 파일</p><ul>${plan.files.map((f) => `<li>${esc(f.repo)}: ${f.files.map((x) => `<code>${esc(x)}</code>`).join(", ")}</li>`).join("")}</ul>`
+    : "";
+  const run = plan.run.map((r) => `<p>${esc(r.repo)} 폴더에서</p><pre class="mono">${esc(r.lines.join("\n"))}</pre>`).join("");
+  const form = `<form method="post" action="/stories/${esc(s.id)}/approve">${csrfField(csrf)}<input type="hidden" name="fingerprint" value="${esc(card.fingerprint)}"><input type="hidden" name="commits" value="${esc(JSON.stringify(verified))}"><label><input type="checkbox" name="confirm" value="yes" required> 검사 결과, 바뀐 코드, AI가 정한 것을 확인했습니다</label><p class="muted">${say("승인하면 PL의 Mac이 레포마다 main에 머지합니다. 웹에서는 되돌릴 수 없습니다(Task를 더하거나 Story를 취소하면 승인이 끝납니다).")}</p><div class="row"><button>승인하고 main에 머지</button></div></form>`;
+  return `<section class="decide" aria-labelledby="approve">${head}<h3>Task별 결과</h3><ul class="work">${tasks}</ul><h3>바뀐 코드</h3><ul>${code}</ul><h3>확인할 것</h3><ul class="qa">${plan.qa
+    .map((q) => `<li>${esc(q)}</li>`)
+    .join("")}</ul>${files}<h3>직접 실행해 보기</h3>${run}<h3>AI에게 맡기기</h3><p>${say("아래 글을 claude 같은 AI에 붙여 넣으면 그 커밋을 받아 실행하고 목록을 하나씩 확인해 알려 줍니다. 승인은 그 결과를 보고 직접 하세요.")}</p><pre id="approve-prompt" class="mono">${esc(plan.prompt)}</pre><p><span aria-live="polite"><button type="button" class="secondary copy-only" data-copy-target="approve-prompt">복사</button></span></p>${form}</section>`;
 }
 
 /** The Tasks before `t`, each linked with its state; numbers point into the same Story. */
@@ -243,6 +297,8 @@ export function storyPage(
     upload: StoryUpload | null;
     board?: { progress: string; columns: string } | null;
     finish?: { approval: FinishApproval | null; repos: Record<string, FinishRepo>; problem?: { reason: string } | null } | null;
+    /** The PL's 결과 승인 card (D49), from `approvalView`: only the PL's, only at 승인 대기 before an approval. */
+    approve?: ApprovalCard | null;
   },
   chrome: Chrome,
 ): string {
@@ -271,11 +327,12 @@ export function storyPage(
   // D48: after the local approval the PL Office merges each repo; a PR handed to a person waits for that person.
   const finish = o.finish ?? null;
   const handed = finish ? Object.values(finish.repos).some((r) => r.state === "handed") : false;
-  const waitingWord = !finish?.approval ? AWAITING_G4 : handed ? HANDED : APPROVED;
+  const waitingWord = !finish?.approval ? (s.isPl ? AWAITING_G4 : AWAITING_OTHERS) : handed ? HANDED : APPROVED;
+  const approvedBy = (a: FinishApproval) => (a.via === "web" ? `웹 승인 · ${a.by ?? ""}` : `결과 승인 · ${a.macName}`);
   const merges =
     finish && s.state !== "cancelled"
       ? `<section aria-labelledby="merged"><h2 id="merged">main 머지</h2>${
-          finish.approval ? `<p class="muted wrap">결과 승인 · ${esc(finish.approval.macName)} · ${esc(ago(finish.approval.at))}</p>` : ""
+          finish.approval ? `<p class="muted wrap">${esc(approvedBy(finish.approval))} · ${esc(ago(finish.approval.at))}</p>` : ""
         }${
           // A merge that keeps failing (a gh login, the network) says why here, not only in the PL's Office log.
           finish.approval && finish.problem && s.state === "awaiting_g4" ? `<div class="callout"><p>${say(finish.problem.reason, true)}</p></div>` : ""
@@ -306,12 +363,15 @@ export function storyPage(
   // The PL Office's Story check result (D47): what passed, or why it failed while the check stays failed.
   const check = s.tasks.find((t) => t.kind === "verify");
   const checkText = check?.state === "passed" ? check.summary : check && failedNow(check) ? check.failure : null;
-  const checked = checkText
+  // D49: the PL reads the check result in the 결과 승인 card; everyone else in its own section.
+  const card = o.approve && s.isPl && s.state === "awaiting_g4" ? approveCard(s, o.approve, csrf, checkText ?? null) : "";
+  const checked = checkText && !card
     ? `<section aria-labelledby="checked"><h2 id="checked">Story 검증 결과</h2><pre>${esc(checkText)}</pre></section>`
     : "";
   return layout(`Story #${s.number}`, me, [
     `<section class="head"><p class="muted"><a href="/">Story 보드</a> · Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${steps(s.state)}${board ? `<p class="sprog">${board.progress}</p>` : ""}${awaiting}${approval}${cancel}<p class="muted">${refresh(`/stories/${s.id}`)}</p></section>`,
     decide,
+    card ? `${card}<script src="/copy.js" defer></script>` : "",
     checked,
     merges,
     board

@@ -157,7 +157,7 @@ details.manage .row{margin-top:8px}details.manage form.inline{max-width:100%}det
 .tiles{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.tiles a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--bg);color:var(--fg);font-weight:600;text-decoration:none}.tiles a:hover{background:var(--tray)}
 .callout{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:14px 16px;border-radius:14px;background:var(--stop-bg);color:var(--stop)}.callout pre{background:var(--panel);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}.callout summary{font-size:14px}
 .head form:not(.inline),section:not(.decide)>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}
-section.decide{border:2px solid var(--need-bar)}.decide form{background:none;padding:0}details.other>summary{color:var(--muted)}.head h1{font-size:26px}
+section.decide{border:2px solid var(--need-bar)}html:not(.copy) .copy-only{display:none}ul.qa li{margin:4px 0}.decide form{background:none;padding:0}details.other>summary{color:var(--muted)}.head h1{font-size:26px}
 p.state{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 table{width:100%;border-collapse:collapse}table,.pill,.mac,.macchip,.meta,.code,ul.work,.glinks{font-variant-numeric:tabular-nums}th{font-size:13px;font-weight:650;color:var(--muted)}td,th{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:last-child td{border-bottom:0}
 .scroll{overflow-x:auto}

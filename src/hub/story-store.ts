@@ -123,8 +123,19 @@ export type FinishRepo = {
   mergeCommit: string | null;
   reason: string | null;
 };
-/** The local result approval of a Story (D48): from the PL's current Mac, bound to the record's hash. */
-export type FinishApproval = { macName: string; at: number; recordHash: string };
+/**
+ * The result approval of a Story: the PL's local one from the current Mac, bound to the record's hash (D48), or the PL's
+ * web one (`via: "web"`, `by` the PL's name), whose hash binds the Story, fingerprint, commits and PL (D49).
+ */
+export type FinishApproval = { macName: string; at: number; recordHash: string; via?: "web"; by?: string };
+/** What the PL's 결과 승인 card on the Story page binds and shows (D49); `verified` null offers 다시 검증. */
+export type ApprovalCard = {
+  fingerprint: string;
+  verified: Record<string, string> | null;
+  checks: Record<string, VerifyCheck[]>;
+  /** Each Story repo's remote as the Hub keeps it (host/path, lower case). */
+  remotes: Record<string, string>;
+};
 /** What the PL's `team finish` and Office read of a Story to approve and merge (D48). */
 export type FinishView = {
   storyId: string;
@@ -165,7 +176,8 @@ export type FinishProblem = { reason: string; at: number };
 export type WithdrawnPr = { repoId: string; prNumber: number; prUrl: string };
 type FinishRow = {
   verified: Record<string, string> | null;
-  approval: (FinishApproval & { macId: string }) | null;
+  /** `macId` is null for a web approval (D49). */
+  approval: (FinishApproval & { macId: string | null }) | null;
   repos: Record<string, FinishRepo>;
   problem: FinishProblem | null;
   withdrawn: WithdrawnPr[];
@@ -1480,11 +1492,55 @@ export class StoryBoard {
       branches: this.#branches(s),
       checks: Object.fromEntries((JSON.parse(s.story_verify) as { repoId: string; checks: VerifyCheck[] }[]).map((v) => [v.repoId, v.checks])),
       verified: f.verified,
-      approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash },
+      approval: this.#approvalOut(f.approval),
       repos: f.repos,
       problem: f.problem,
       withdrawn: f.withdrawn,
     };
+  }
+  #approvalOut(a: FinishRow["approval"]): FinishApproval | null {
+    if (!a) return null;
+    return { macName: a.macName, at: a.at, recordHash: a.recordHash, ...(a.via === "web" ? { via: "web" as const, by: a.by ?? "" } : {}) };
+  }
+  /** The PL's 결과 승인 card (D49): only for its PL, only at 승인 대기 before an approval; null otherwise. */
+  approvalView(a: Actor, storyId: string): ApprovalCard | null {
+    const s = this.#story(storyId);
+    if (s.pl_member_id !== a.member.id || s.state !== "awaiting_g4") return null;
+    const f = this.#finish(s.id);
+    if (f.approval) return null;
+    const branches = this.#branches(s);
+    const remotes = Object.fromEntries(
+      branches.map((b) => [b.repoId, this.#get<{ remote: string }>("SELECT remote FROM hub_repos WHERE id=?", b.repoId)?.remote ?? ""]),
+    );
+    const checks = Object.fromEntries((JSON.parse(s.story_verify) as { repoId: string; checks: VerifyCheck[] }[]).map((v) => [v.repoId, v.checks]));
+    return { fingerprint: s.fingerprint, verified: f.verified, checks, remotes };
+  }
+  /**
+   * The PL's web result approval (D49): the PL's login session stands in for the Mac. It names the fingerprint and the
+   * checked commits the page showed; a stale page is STALE and records nothing. The same approval again (a double click)
+   * is `already`; any other approval over one is STATE, so the first of the web and `team finish` wins.
+   */
+  approveOnWeb(a: Actor, storyId: string, v: { fingerprint: unknown; commits: unknown }): { already: boolean } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(a, s);
+      if (s.state !== "awaiting_g4") fail("STATE", 409, "검증을 통과해 승인을 기다리는 Story만 승인할 수 있습니다.");
+      const f = this.#finish(s.id);
+      if (!f.verified) fail("STATE", 409, "이 Story의 검증 커밋이 없습니다. 다시 검증한 뒤 승인하세요.");
+      const commits = this.#storyCommits(s, v.commits);
+      if (v.fingerprint !== s.fingerprint || Object.entries(commits).some(([id, sha]) => f.verified![id] !== sha))
+        fail("STALE", 409, "그사이 Story나 검증 결과가 바뀌었습니다. 화면을 새로 고쳐 다시 확인한 뒤 승인하세요.");
+      const recordHash = createHash("sha256")
+        .update(JSON.stringify(["web", s.id, s.fingerprint, commits, a.member.id]))
+        .digest("hex");
+      if (f.approval) {
+        if (f.approval.recordHash === recordHash) return { already: true };
+        fail("STATE", 409, "이미 승인된 Story입니다. PL의 Mac이 머지하고 있습니다.");
+      }
+      this.#setFinish(s.id, { ...f, approval: { macId: null, macName: "웹 승인", recordHash, at: this.#now(), via: "web", by: a.member.name } });
+      this.#event(s.id, null, a.member.id, "approved", `web · ${a.member.name}`);
+      return { already: false };
+    });
   }
   /** A Story the PL is to approve (by its number, from `team finish`) or the PL Office merges (by its id, from the
    * inbox), D48: for its PL only. */
@@ -1629,7 +1685,7 @@ export class StoryBoard {
    * A Story at 승인 대기 whose passed check kept no commits (a check from before D48) is checked again, so it can be
    * approved: its check is ready again and the Story is open. Only its PL, only without an approval.
    */
-  recheckStory(l: Link, storyId: string): { ok: true } {
+  recheckStory(l: Actor, storyId: string): { ok: true } {
     return transaction(this.#db, () => {
       const s = this.#story(storyId);
       this.#assertPl(l, s);
@@ -1650,11 +1706,7 @@ export class StoryBoard {
   storyFinish(storyId: string): { approval: FinishApproval | null; repos: Record<string, FinishRepo>; problem: FinishProblem | null } | null {
     const f = this.#finish(storyId);
     if (!f.approval && !Object.keys(f.repos).length) return null;
-    return {
-      approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash },
-      repos: f.repos,
-      problem: f.problem,
-    };
+    return { approval: this.#approvalOut(f.approval), repos: f.repos, problem: f.problem };
   }
 
   /** The PL records that the human G4 decision was made; only a Story waiting for it can finish. Kept for the board's

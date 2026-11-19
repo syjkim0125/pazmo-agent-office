@@ -249,3 +249,54 @@ test("a re-check, a failed re-check and a cancelled Story withdraw the open PRs 
     if (end === "closed") assert.deepEqual(view.verified, h.commits, "a closed PR keeps the checked commits for a new approval");
   }
 });
+
+test("the PL approves on the web with the fingerprint and commits the page showed; nobody else, and a stale view is refused (D49)", () => {
+  const h = passed();
+  const { board, admin, pl, c, be, plBe, pub } = h;
+  const web = (who, over = {}) => board.approveOnWeb({ member: who }, pub.storyId, { fingerprint: h.view().fingerprint, commits: h.commits, ...over });
+  assert.throws(() => web(c), code("FORBIDDEN"));
+  assert.throws(() => web(admin), code("FORBIDDEN"), "a hub admin who is not the PL");
+  assert.throws(() => web(pl, { fingerprint: "f".repeat(64) }), code("STALE"));
+  assert.throws(() => web(pl, { commits: { ...h.commits, [be]: SHA("e") } }), code("STALE"));
+  assert.throws(() => web(pl, { commits: "nope" }), code("INVALID"));
+  assert.equal(h.view().approval, null, "nothing recorded");
+  assert.deepEqual(web(pl), { already: false });
+  assert.deepEqual(web(pl), { already: true }, "a double click");
+  const a = h.view().approval;
+  assert.equal(a.via, "web");
+  assert.equal(a.by, "PL");
+  assert.match(a.recordHash, /^[0-9a-f]{64}$/);
+  assert.deepEqual(board.inbox(plBe).finishReady, [pub.storyId], "the PL Office merges it like a local approval");
+  assert.equal(board.storyFinish(pub.storyId).approval.via, "web");
+  // The first approval wins: the local path is refused now, and a web approval after a local one is too.
+  assert.throws(() => h.approve(), code("STATE"));
+  const other = passed();
+  other.approve();
+  assert.throws(() => other.board.approveOnWeb({ member: other.pl }, other.pub.storyId, { fingerprint: other.view().fingerprint, commits: other.commits }), code("STATE"));
+});
+
+test("a web approval of a Story not at 승인 대기, or without checked commits, is refused (D49)", () => {
+  const old = passed({ noCommits: true });
+  assert.throws(() => old.board.approveOnWeb({ member: old.pl }, old.pub.storyId, { fingerprint: old.view().fingerprint, commits: old.commits }), code("STATE"));
+  const h = passed();
+  h.board.addTasks(h.plBe, h.pub.storyId, "more-1", { nodes: [h.node("more", h.be, ["src/more.ts"])], edges: [] });
+  assert.throws(() => h.board.approveOnWeb({ member: h.pl }, h.pub.storyId, { fingerprint: h.view().fingerprint, commits: h.commits }), code("STATE"));
+});
+
+test("approvalView shows the card's data to the PL only, at 승인 대기 before an approval (D49)", () => {
+  const h = passed();
+  const { board, pl, c, admin, be, fe, pub } = h;
+  const card = board.approvalView({ member: pl }, pub.storyId);
+  assert.equal(card.fingerprint, h.view().fingerprint);
+  assert.deepEqual(card.verified, h.commits);
+  assert.deepEqual(card.checks, { [be]: [h.check] });
+  assert.deepEqual(card.remotes, { [be]: "github.example.com/team/app-be", [fe]: "github.example.com/team/app-fe" });
+  assert.equal(board.approvalView({ member: c }, pub.storyId), null);
+  assert.equal(board.approvalView({ member: admin }, pub.storyId), null);
+  board.approveOnWeb({ member: pl }, pub.storyId, { fingerprint: card.fingerprint, commits: card.verified });
+  assert.equal(board.approvalView({ member: pl }, pub.storyId), null, "approved");
+  const old = passed({ noCommits: true });
+  assert.equal(old.board.approvalView({ member: old.pl }, old.pub.storyId).verified, null, "the card offers 다시 검증");
+  old.board.recheckStory({ member: old.pl }, old.pub.storyId);
+  assert.equal(old.board.approvalView({ member: old.pl }, old.pub.storyId), null, "open again");
+});
