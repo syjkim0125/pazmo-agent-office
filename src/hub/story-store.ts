@@ -138,7 +138,8 @@ export type ClaimedTask = {
     title: string;
     body: string;
     risk: "normal" | "high";
-    branches: { repoId: string; baseBranch: string; storyBase: string }[];
+    /** `repoName` is added for the Story check's summary (D47); a Hub before it sends none. */
+    branches: { repoId: string; repoName?: string; baseBranch: string; storyBase: string }[];
   };
   /** Merged ancestors of this Task in the same Story, by number. */
   upstream: { number: number; title: string; summary: string | null; assumptions: string[] }[];
@@ -1017,7 +1018,7 @@ export class StoryBoard {
         title: s.title,
         body: s.body,
         risk: s.risk,
-        branches: this.#branches(s).map(({ repoId, baseBranch, storyBase }) => ({ repoId, baseBranch, storyBase })),
+        branches: this.#branches(s).map(({ repoId, repoName, baseBranch, storyBase }) => ({ repoId, repoName, baseBranch, storyBase })),
       },
       upstream: upstream.map((u) => ({
         number: u.number,

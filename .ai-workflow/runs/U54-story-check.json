@@ -1,0 +1,706 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "3a73ed48-21de-470c-9c9e-e3ffb87ad03d",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes in 3138815. Every repo's Story base is checked out before any VM runs, so a base that cannot be fetched costs no VM runs. A verdict refused as INVALID is kept, resent and said once. Other claims' tries and verdicts are forgotten at a run's start. A no-link repo is worded as not on this Office or not linked. Presence is tested working while a check runs. RED 3/22 on 197e922 -> GREEN 1988/1988; tsc 0. N5 goes to the G4 page as ASSUMED; N7 is carried to 4b.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-implement-3.md",
+            ".ai-workflow/runs/U54-story-check-implement-red-3.txt",
+            ".ai-workflow/runs/U54-story-check-implement-green-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-implement-3.md": "ff9458b1ddbe82570f1169cf0c1a222426366f455f1d5854146acf3f83c1bc9d",
+          ".ai-workflow/runs/U54-story-check-implement-red-3.txt": "3499aa9ef90e8b3c2aedbbe3f71832e4e321d57dc7eb938aed63d143aefaaf13",
+          ".ai-workflow/runs/U54-story-check-implement-green-3.txt": "8acdffdf7bbe60414debdbb24f69f433f78c0432d724b078b1e5942aa731b1fd"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "output": {
+          "summary": "Review 3 of 197e922..e122556: Ready to verify. N1, N2, N3, N4 and N6 are fixed and tested; the presence test fails when checker.active() is removed. There is no Critical or Important finding. R1 (Minor, unreachable on the current Hub): the INVALID log line says the PL can release the check, but the resend keeps beating the claim, so it never shows held; it is recorded as a limit for 4b, since implement has used its three attempts. R2 (Minor): failure counts add up per claim across both passes, which is the documented behaviour.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-3.md": "976dc0ca753fc9f18e20afbee9a6b72d53082ac917ae8dc2c0a4ad21ef59a03e"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/7f7cc373-e3da-4ab6-b450-dc92b7c11c20/receipt.json",
+            "hash": "3dda2fcbe0eeaa05b1560e9216190aa1857b1907c29ba65952731b8d1bdc1f1a"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a13015c1-6565-4b73-87c3-a48f52ad20e3/receipt.json",
+            "hash": "fc9e51863e8b444bb794a887d15bde0aa8869e80e4841cb6f1445bf1ee0a0180"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/6d879f8c-c0dc-4a88-bd6b-7667c64fc9a2/receipt.json",
+            "hash": "20239b70b1e75dad9981bdceef18997b5a1baa12a67e1ecac1f2dd03d520d3b0"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a97558bd-ac7d-4a28-af5a-640ef83ba84d/receipt.json",
+            "hash": "21767642fe946d7ee79b7a3d9cf41f42e85f782a4446a6204f079732527bb6c3"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/3d575463-adba-4a14-9f8c-45f17fd34c7b/receipt.json",
+            "hash": "d3fc73622c81d6e82bde4ee5fc696aac8f1b051dcb5ca407282ebba49eb7b9c6"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on e122556 (code 3138815): tests 597/597 + 676/676 + 715/715 = 1988/1988, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-verify-1.md": "678582d3d2c078e9810019d52f59b4608092571b9857f80f05d7e07b5bd22a22"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "3717e8f41cda26b9301d8590eb668966d03126b116918b1c6d3859e5c3f7fcdc"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:10:27.345Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:29:06.126Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "Bundle 4a in commits 453f5ba and d4e515d: the PL's Office takes a ready Story check whatever 자동으로 일하기 says (not while paused or unable to run). It checks each repo's latest Story base in the VM and reports pass or failure with a per-repo summary, which the Story page shows. RED 4/5 targeted -> GREEN 1976/1976; after the repo-name fix 368/368 Story/team tests; tsc 0. Hands-on on a copy of the check Hub: Story 7 went to 승인 대기 after V1-V5 passed in the VM with no click.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-implement-1.md",
+            ".ai-workflow/runs/U54-story-check-implement-red-1.txt",
+            ".ai-workflow/runs/U54-story-check-implement-green-1.txt",
+            ".ai-workflow/runs/U54-story-check-implement-team-1.txt",
+            ".ai-workflow/runs/U54-story-check-implement-hands-on-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-implement-1.md": "78d76cd9bcba800814bd93390c6d2c7c5bf97b3af797b957c32a003dd6cb683c",
+          ".ai-workflow/runs/U54-story-check-implement-red-1.txt": "34879c4c65ce30a024e2eaf220e1c5606768d8dd2897cf5ff54523c6ddcf2e61",
+          ".ai-workflow/runs/U54-story-check-implement-green-1.txt": "99758df8b196c00b09792192d8a48dc774ea08dd77728a9a1c7f48e201ea1a0f",
+          ".ai-workflow/runs/U54-story-check-implement-team-1.txt": "a6a2d88ed4557c81fc5cadcc2068c16fd6b597343d912e18ea0b1bc2bd6247be",
+          ".ai-workflow/runs/U54-story-check-implement-hands-on-1.txt": "3c744a5b3272416276e7b7ea901adf5ebfbc559905b9862a5b3ec3d4365a6eb2"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:29:16.996Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:39:21.718Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "04e5006efb76f7a6c77150cd7b2616a40538aee312d2452e177ff8f3666e6907",
+        "output": {
+          "summary": "Review 1 of 1ccc3a2..7364708: no Critical. I1 (Important): a registered repo whose lane is not ready (gh lapsed, relink) is reported as not registered and the Story check fails, though the check needs no gh. Minors: M1 a failed report re-runs the VM; M2 3 tries at 30 s fail a short network loss; M3 4b needs the full checked commit; M4 a held check is not resumed while paused and presence and restart do not see a running check; M5 the Story base number is not matched; M6 git stderr may carry URL credentials; M7 test gaps; M8 two Macs of one PL (left as a limit).",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "04e5006efb76f7a6c77150cd7b2616a40538aee312d2452e177ff8f3666e6907"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 2: I1 map every registered lane with a Hub repo id to its checkout and engine whatever its state (the check needs no gh), and talk to the Hub only through ready lanes; M1 keep the verdict per claim and resend it before checking again; M2 report a git or VM failure only after 3 tries spanning 10 minutes; M3 put the full checked commit in the summary; M4 resume a held check while paused (take none), and count a running check in presence and in the restart idle test; M5 refuse a Story base whose number is not the Story number; M6 strip user:secret@ from URLs in reasons; M7 add tests for these and for the open-record gate, stop and a NOT_YOURS heartbeat during the check. M8 stays a recorded limit."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-1.md": "c5b0fa9e7b39656f6dc62c9f79583615f85fcc0216c11717e262f0f84bda5551"
+        },
+        "error": "Implement attempt 2: I1 map every registered lane with a Hub repo id to its checkout and engine whatever its state (the check needs no gh), and talk to the Hub only through ready lanes; M1 keep the verdict per claim and resend it before checking again; M2 report a git or VM failure only after 3 tries spanning 10 minutes; M3 put the full checked commit in the summary; M4 resume a held check while paused (take none), and count a running check in presence and in the restart idle test; M5 refuse a Story base whose number is not the Story number; M6 strip user:secret@ from URLs in reasons; M7 add tests for these and for the open-record gate, stop and a NOT_YOURS heartbeat during the check. M8 stays a recorded limit."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1 asked for fixes (I1, M1-M7)",
+      "at": "2026-11-18T08:39:26.522Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:39:32.276Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:46:59.402Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes in 3bdf926. Any registered repo is checked whatever its lane state, and the Hub is asked only through ready lanes. An unreported verdict is resent before checking again. A git or VM failure is reported only after 3 tries over 10 minutes. The summary carries the full commit. A paused Office resumes a held check, and presence and restart see a running check. A foreign Story base is refused, and URL credentials are stripped. New tests cover these, the open-record gate, NOT_YOURS during the VM run and stop(). RED 6/10 targeted on 7364708 -> GREEN 1985/1985; tsc 0. M8 (two Macs of one PL) is a recorded limit.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-implement-2.md",
+            ".ai-workflow/runs/U54-story-check-implement-red-2.txt",
+            ".ai-workflow/runs/U54-story-check-implement-green-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-implement-2.md": "c2d2fcfc38d91865ddd4bcba2c399fef21218e52f4656e7ea3101b409dd3f185",
+          ".ai-workflow/runs/U54-story-check-implement-red-2.txt": "eddc7cf05453a162af25548a1886605b13042c2aa81055c118be71af7d2c05fc",
+          ".ai-workflow/runs/U54-story-check-implement-green-2.txt": "86faba8343f1dd644961f63a6fd69d41f8ee4aec5d7a6a08c30c73b93024b60c"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:47:08.704Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:52:58.543Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "03e090e62867826c3ec3e1b0f516b3c902deaf5ceb4e5e39d6324c1f4e9e7cea",
+        "output": {
+          "summary": "Review 2 of 7364708..197e922: I1 and M1-M6 are fixed and tested; no Critical, no Important. Minors: N1 an INVALID refusal drops the verdict, so the check re-runs every tick; N2 the 10-minute window re-runs earlier repos' VM checks every tick while a later repo's git fails; N3 the tries counter is per claim, not in a row, and entries of lost claims stay; N4 presence is not tested at Office level; N5 paused+held resume is written only in code and records; N6 a no-link repo is worded as not registered; N7 is a 4b note (compare the verified commit with the base tip).",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "03e090e62867826c3ec3e1b0f516b3c902deaf5ceb4e5e39d6324c1f4e9e7cea"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 3, small: N2 check out every repo's Story base first and run the VMs only when all checkouts succeeded; N1 keep a verdict the Hub refuses as INVALID and resend it, logging once; N3 correct the comment and forget other claims' tries and pending at a run's start; N4 assert working presence during a check in an Office test; N6 word a repo with no Hub link as '이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포'. N5 goes on the G4 page as an ASSUMED line (no Story edit after G1); N7 is carried to 4b."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-2.md": "67ee76aaf6408970004d78eb14e0e5fccda715289487a0df22f54b47f5bb7efc"
+        },
+        "error": "Implement attempt 3, small: N2 check out every repo's Story base first and run the VMs only when all checkouts succeeded; N1 keep a verdict the Hub refuses as INVALID and resend it, logging once; N3 correct the comment and forget other claims' tries and pending at a run's start; N4 assert working presence during a check in an Office test; N6 word a repo with no Hub link as '이 Mac의 Office에 없거나 Hub에 연결되지 않은 레포'. N5 goes on the G4 page as an ASSUMED line (no Story edit after G1); N7 is carried to 4b."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 2 asked for small fixes (N1-N4, N6)",
+      "at": "2026-11-18T08:52:59.094Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:53:04.020Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-18T08:58:54.148Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes in 3138815. Every repo's Story base is checked out before any VM runs, so a base that cannot be fetched costs no VM runs. A verdict refused as INVALID is kept, resent and said once. Other claims' tries and verdicts are forgotten at a run's start. A no-link repo is worded as not on this Office or not linked. Presence is tested working while a check runs. RED 3/22 on 197e922 -> GREEN 1988/1988; tsc 0. N5 goes to the G4 page as ASSUMED; N7 is carried to 4b.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-implement-3.md",
+            ".ai-workflow/runs/U54-story-check-implement-red-3.txt",
+            ".ai-workflow/runs/U54-story-check-implement-green-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-implement-3.md": "ff9458b1ddbe82570f1169cf0c1a222426366f455f1d5854146acf3f83c1bc9d",
+          ".ai-workflow/runs/U54-story-check-implement-red-3.txt": "3499aa9ef90e8b3c2aedbbe3f71832e4e321d57dc7eb938aed63d143aefaaf13",
+          ".ai-workflow/runs/U54-story-check-implement-green-3.txt": "8acdffdf7bbe60414debdbb24f69f433f78c0432d724b078b1e5942aa731b1fd"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:59:09.852Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T09:01:32.137Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "output": {
+          "summary": "Review 3 of 197e922..e122556: Ready to verify. N1, N2, N3, N4 and N6 are fixed and tested; the presence test fails when checker.active() is removed. There is no Critical or Important finding. R1 (Minor, unreachable on the current Hub): the INVALID log line says the PL can release the check, but the resend keeps beating the claim, so it never shows held; it is recorded as a limit for 4b, since implement has used its three attempts. R2 (Minor): failure counts add up per claim across both passes, which is the documented behaviour.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-3.md": "976dc0ca753fc9f18e20afbee9a6b72d53082ac917ae8dc2c0a4ad21ef59a03e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-18T09:02:18.875Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-18T09:06:37.282Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/7f7cc373-e3da-4ab6-b450-dc92b7c11c20/receipt.json",
+            "hash": "3dda2fcbe0eeaa05b1560e9216190aa1857b1907c29ba65952731b8d1bdc1f1a"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a13015c1-6565-4b73-87c3-a48f52ad20e3/receipt.json",
+            "hash": "fc9e51863e8b444bb794a887d15bde0aa8869e80e4841cb6f1445bf1ee0a0180"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/6d879f8c-c0dc-4a88-bd6b-7667c64fc9a2/receipt.json",
+            "hash": "20239b70b1e75dad9981bdceef18997b5a1baa12a67e1ecac1f2dd03d520d3b0"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a97558bd-ac7d-4a28-af5a-640ef83ba84d/receipt.json",
+            "hash": "21767642fe946d7ee79b7a3d9cf41f42e85f782a4446a6204f079732527bb6c3"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/3d575463-adba-4a14-9f8c-45f17fd34c7b/receipt.json",
+            "hash": "d3fc73622c81d6e82bde4ee5fc696aac8f1b051dcb5ca407282ebba49eb7b9c6"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on e122556 (code 3138815): tests 597/597 + 676/676 + 715/715 = 1988/1988, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-verify-1.md": "678582d3d2c078e9810019d52f59b4608092571b9857f80f05d7e07b5bd22a22"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "364424cb1910e76046a4d4af8a4a57b9ad98fdf6307ac3dd9af454c04ac05755"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

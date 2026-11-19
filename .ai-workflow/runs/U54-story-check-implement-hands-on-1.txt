@@ -1,0 +1,18 @@
+{
+ "story": {
+  "id": "1f0ea1d9-04e8-4d47-8658-85c70540f0cf",
+  "state": "awaiting_g4"
+ },
+ "check": {
+  "number": 9,
+  "state": "passed",
+  "stage": null,
+  "claimed": 1,
+  "summary": "Story 검사 통과: 레포 1개, 검사 5개.\n- story-test-be @ 0b3ee093deb1: V1 통과, V2 통과, V3 통과, V4 통과, V5 통과",
+  "failure": null
+ }
+}
+team: story-1: took the Story check
+team: story-1: the Story check failed and was reported
+team: story-7: took the Story check
+team: story-7: the Story check passed and was reported

@@ -93,7 +93,14 @@ function fakeLink(name, calls) {
     on: {},
     async inbox() {
       calls.push([name, "inbox"]);
-      return { mine: null, alerts: [], verifyReady: [] };
+      return link.on.inbox ? link.on.inbox() : { mine: null, alerts: [], verifyReady: [] };
+    },
+    async claimVerify(storyId) {
+      calls.push([name, "claimVerify", storyId]);
+      return link.on.claimVerify();
+    },
+    async verified(taskId, claimId, passed, summary) {
+      calls.push([name, "verified", taskId, claimId, passed, summary]);
     },
     async claim() {
       calls.push([name, "claim"]);
@@ -202,6 +209,8 @@ function runtimes() {
     planAnswers: [],
     /** Each planning turn: the runtime's project and how many runs the whole world had. */
     planTurns: [],
+    /** Each Story check run: the runtime's project and the check ids. */
+    verifies: [],
     running() {
       return this.list.reduce((n, rt) => n + rt.state.active.length, 0);
     },
@@ -215,6 +224,11 @@ function runtimes() {
       closed: false,
       state: { active: [], verifying: false },
       status: () => ({ execution: "ready", active: rt.state.active, verifying: rt.state.verifying, lastError: null }),
+      /** A Story check's run in the VM: every check passes. */
+      async verify(candidate, checks) {
+        world.verifies.push({ project, checks: checks.map((c) => c.id) });
+        return checks.map((c) => ({ id: c.id, verdict: "pass", output: "ok" }));
+      },
       planTurn(packet, candidate, signal) {
         world.planTurns.push({ project, runningBefore: world.running() });
         return scriptedTurns(rt.state, world.planAnswers)(packet, candidate, signal);
@@ -1810,4 +1824,149 @@ test("no plan step starts while the executor's drive still runs a git step on a 
   }
   assert.ok(f.calls.some(([, what]) => what === "result"), `the plan result once the drive settled\n${f.logs.join("\n")}`);
   assert.equal(f.world.planTurns.length, 1);
+});
+
+/** The Story check Task of Story 7 over alpha, as claim-verify gives it to the PL (D47). */
+const storyCheck = () =>
+  claimed("v1", 9, 7, {
+    kind: "verify",
+    title: "Story 검증",
+    repoId: null,
+    branch: null,
+    storyVerify: [{ repoId: ALPHA_ID, checks: [CHECK] }],
+    story: {
+      id: "s",
+      number: 7,
+      title: "Story",
+      body: "",
+      risk: "normal",
+      branches: [{ repoId: ALPHA_ID, baseBranch: "main", storyBase: "feature/story-7/base" }],
+    },
+  });
+/** Host git of a Story check that records each call and answers one commit. */
+function fakeCheckGit() {
+  const g = {
+    calls: [],
+    async checkoutStoryBase(checkout, task) {
+      g.calls.push([checkout, task.storyBase, task.repo]);
+      return { head: "a".repeat(40) };
+    },
+  };
+  return g;
+}
+
+test("a live PL Office takes a ready Story check on the claim tick before claiming, checks the Story base in the VM and reports it (D47)", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: ["s"] });
+  la.on.claimVerify = storyCheck;
+  la.claimReply = claimed("t1");
+  f.planLink(a, "pa", ALPHA_ID);
+  const checkGit = fakeCheckGit();
+  await f.open(f.live({ driveMs: 1e9, checkGit }));
+  t.mock.timers.tick(30000);
+  await until(() => f.calls.some(([, what]) => what === "verified"), "the Story check report");
+  await flush();
+  assert.deepEqual(
+    f.calls.filter(([name]) => name === "a").map(([, what]) => what),
+    ["inbox", "claimVerify", "heartbeat", "verified"],
+    "no Task claim in the tick that ran the check",
+  );
+  assert.deepEqual(checkGit.calls, [[f.checkoutOf(a), "feature/story-7/base", a]]);
+  assert.deepEqual(f.world.verifies, [{ project: f.checkoutOf(a), checks: ["V1"] }]);
+  const verified = f.calls.find(([, what]) => what === "verified");
+  assert.deepEqual(verified.slice(2, 5), ["v1", "claim-v1", true]);
+  assert.equal(verified[5], `Story 검사 통과: 레포 1개, 검사 1개.\n- alpha @ ${"a".repeat(40)}: V1 통과`);
+});
+
+test("a PL Office with an open Task record takes no Story check", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: ["s"] });
+  la.on.claimVerify = storyCheck;
+  f.planLink(a, "pa", ALPHA_ID);
+  const store = storeOf(f);
+  store.recordClaim(a, claimed("t0"), "claim");
+  store.setPhase("t0", "failed", { attempts: 3 });
+  await f.open(f.live({ driveMs: 1e9, checkGit: fakeCheckGit() }));
+  for (let i = 0; i < 2; i++) {
+    t.mock.timers.tick(30000);
+    await flush();
+  }
+  assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
+  assert.deepEqual(f.world.verifies, []);
+});
+
+test("a paused PL Office goes on with the Story check it already holds (after a restart), so the claim keeps its heartbeat", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: { taskId: "v1", claimId: "claim-v1", storyId: "s", state: "claimed" }, alerts: [], verifyReady: [] });
+  la.task = async (taskId, claimId) => {
+    f.calls.push(["a", "task", taskId, claimId]);
+    return storyCheck();
+  };
+  f.planLink(a, "pa", ALPHA_ID);
+  storeOf(f).setPaused(true);
+  await f.open(f.live({ driveMs: 1e9, checkGit: fakeCheckGit() }));
+  t.mock.timers.tick(30000);
+  await until(() => f.calls.some(([, what]) => what === "verified"), "the held check's report");
+  assert.ok(f.calls.some(([, what, ...rest]) => what === "heartbeat" && rest[2] === "verify"));
+  assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
+});
+
+test("presence is working while a Story check runs and idle once it is reported", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: ["s"] });
+  la.on.claimVerify = storyCheck;
+  f.planLink(a, "pa", ALPHA_ID);
+  const checkGit = fakeCheckGit();
+  let release;
+  const fetched = checkGit.checkoutStoryBase;
+  checkGit.checkoutStoryBase = async (checkout, task) => {
+    await new Promise((resolve) => (release = resolve));
+    return fetched(checkout, task);
+  };
+  const mac = fakeMac();
+  // Claim ticks at 5000, 10000, …; presence at 7000, 14000, … (never in the same timer tick here).
+  await f.open(f.live({ ...mac.config, claimMs: 5000, beatMs: 7000, recheckMs: 1e9, driveMs: 1e9, checkGit }));
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["idle", null]);
+  t.mock.timers.tick(5000);
+  await until(() => release !== undefined, "the Story check fetching its base");
+  t.mock.timers.tick(2000);
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["working", null], "the check is under way: no engine runs yet, the git fetch does");
+  release();
+  await until(() => f.calls.some(([, what]) => what === "verified"), "the report");
+  t.mock.timers.tick(7000);
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["idle", null]);
+});
+
+test("a paused PL Office takes no Story check", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: ["s"] });
+  la.on.claimVerify = storyCheck;
+  f.planLink(a, "pa", ALPHA_ID);
+  storeOf(f).setPaused(true);
+  await f.open(f.live({ driveMs: 1e9, checkGit: fakeCheckGit() }));
+  for (let i = 0; i < 2; i++) {
+    t.mock.timers.tick(30000);
+    await flush();
+  }
+  assert.ok(f.calls.some(([, what]) => what === "inbox"), "the claim tick ran");
+  assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
+  assert.deepEqual(f.world.verifies, []);
 });

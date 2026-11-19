@@ -21,6 +21,7 @@ import { runCommand } from "../src/runners/command.ts";
 import {
   applyCandidate,
   changedFiles,
+  checkoutStoryBase,
   commitAll,
   ensureCheckout,
   extractTree,
@@ -271,6 +272,43 @@ test("an abandoned merge of another Task's branch is aborted and the new Task st
   assert.equal(w.git(checkout, "status", "--porcelain"), "");
   assert.equal(readFileSync(join(checkout, "conflict.txt"), "utf8"), "base moved\n");
   assert.equal(w.git(w.repo, "rev-parse", `refs/heads/${TASK}`).trim(), taskTip);
+});
+
+test("checkoutStoryBase puts the Office checkout, detached, on the origin's latest Story base and clears what was left (D47)", async (t) => {
+  const { w, checkout, e } = await conflicted(t);
+  const taskTip = headOf(w, checkout);
+  mkdirSync(join(checkout, ".pazmo-office"), { recursive: true });
+  writeFileSync(join(checkout, ".pazmo-office", "keep.txt"), "office\n");
+  writeFileSync(join(checkout, "stray.txt"), "left over\n");
+  const moved = w.push(BASE, { "later.txt": "later\n" });
+
+  assert.deepEqual(await checkoutStoryBase(checkout, { storyBase: BASE, repo: w.repo }, e), { head: moved });
+
+  assert.equal(inMerge(checkout), false, "the abandoned merge is aborted");
+  assert.throws(() => w.git(checkout, "symbolic-ref", "-q", "HEAD"), "detached: HEAD names no branch");
+  assert.equal(readFileSync(join(checkout, "later.txt"), "utf8"), "later\n");
+  assert.equal(readFileSync(join(checkout, "conflict.txt"), "utf8"), "base moved\n");
+  assert.equal(existsSync(join(checkout, "stray.txt")), false);
+  assert.equal(readFileSync(join(checkout, ".pazmo-office", "keep.txt"), "utf8"), "office\n");
+  assert.equal(w.git(w.repo, "rev-parse", `refs/heads/${TASK}`).trim(), taskTip, "the Task branch is kept");
+  // The next Task starts as before from this state.
+  assert.deepEqual(await startTaskBranch(checkout, { branch: "feature/story-1/task-2", storyBase: BASE }, e), { head: moved });
+});
+
+test("checkoutStoryBase refuses the person's repo, a name outside feature/story-<N>/base and a base the origin lacks", async (t) => {
+  const w = gitWorld(t);
+  w.push(BASE, { "a.txt": "base\n" });
+  writeFileSync(join(w.repo, "notes.txt"), "untracked\n");
+  const before = snapshot(w);
+  const e = env(w);
+  await assert.rejects(checkoutStoryBase(w.repo, { storyBase: BASE }, e), { code: "GIT_FAILED", message: /linked worktree/ });
+  assert.equal(readFileSync(join(w.repo, "notes.txt"), "utf8"), "untracked\n");
+  assertRepoUntouched(w, before);
+  const checkout = checkoutOf(w);
+  await ensureCheckout(w.repo, checkout, e);
+  for (const storyBase of ["main", "feature/story-1/task-1", "--upload-pack=x", "feature/story-1/base/x"])
+    await assert.rejects(checkoutStoryBase(checkout, { storyBase }, e), { code: "GIT_FAILED", message: /feature\/story-<N>\/base/ });
+  await assert.rejects(checkoutStoryBase(checkout, { storyBase: "feature/story-9/base" }, e), { code: "GIT_FAILED" });
 });
 
 test("startTaskBranch refuses the person's own repo, a folder inside the checkout and a plain folder, and resets nothing", async (t) => {

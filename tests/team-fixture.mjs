@@ -31,7 +31,13 @@ export async function hubWithStory(t, { risk = "normal" } = {}) {
     hub: hub.hub.url, caPem: tls.caPem, fingerprint: tls.fingerprint, token: tokenOf(a, name),
     memberId: a.id, memberName: a.name, repoId: repos[name], repoName: name,
   }]));
-  const plLink = store.link(tokenOf(pl, "be"));
+  const plBeToken = tokenOf(pl, "be");
+  const plLink = store.link(plBeToken);
+  /** The PL's own Office link config for `be` (the token behind `plLink`), for the PL's Story check (D47). */
+  const plConfig = {
+    hub: hub.hub.url, caPem: tls.caPem, fingerprint: tls.fingerprint, token: plBeToken,
+    memberId: pl.id, memberName: pl.name, repoId: repos.be, repoName: "be",
+  };
   const { projectId } = board.createProject(plLink, "쿠폰 개편", [
     { repoId: repos.be, baseBranch: "main" }, { repoId: repos.fe, baseBranch: "develop" },
   ]);
@@ -51,6 +57,7 @@ export async function hubWithStory(t, { risk = "normal" } = {}) {
       if (!configs[name]) throw new Error(`unknown repo ${name}`);
       return { ...configs[name] };
     },
+    plConfig: () => ({ ...plConfig }),
     tick: (ms) => (now += ms),
     release: (taskId) => board.releaseTask(plLink, taskId),
     cancel: (taskId) => board.cancelTask(plLink, taskId),

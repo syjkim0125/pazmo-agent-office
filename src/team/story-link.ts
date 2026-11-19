@@ -32,6 +32,10 @@ export type StoryLink = {
   failed(taskId: string, claimId: string, reason: string): Promise<void>;
   /** Takes this member's failed Task again, under a new claim. */
   rerun(taskId: string, memo: string): Promise<ClaimedTask>;
+  /** The PL takes the Story check of a Story whose work Tasks are all merged (D47). */
+  claimVerify(storyId: string): Promise<ClaimedTask>;
+  /** The PL's Story check result: passing waits for the result approval, failing reopens the Story. Safe to resend. */
+  verified(taskId: string, claimId: string, passed: boolean, summary: string): Promise<void>;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
@@ -97,6 +101,12 @@ export function storyLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): S
     },
     async rerun(taskId, memo) {
       return claimed(await send("POST", "rerun", { taskId, memo }));
+    },
+    async claimVerify(storyId) {
+      return claimed(await send("POST", "claim-verify", { storyId }));
+    },
+    async verified(taskId, claimId, passed, summary) {
+      await send("POST", "verified", { taskId, claimId, passed, summary });
     },
   };
 }

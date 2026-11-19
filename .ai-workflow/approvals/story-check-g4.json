@@ -1,0 +1,10 @@
+{
+  "gate": "G4",
+  "storyHash": "3717e8f41cda26b9301d8590eb668966d03126b116918b1c6d3859e5c3f7fcdc",
+  "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+  "runId": "3a73ed48-21de-470c-9c9e-e3ffb87ad03d",
+  "responseRef": "Claude Code conversation 2026-11-18/19. The G4 box at the top of https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS (version 37, label 'U54 G4') showed the copy Hub's Story 7 after the final code's own Story check: 승인 대기 with the result section, at 1360 and 390, and Story 1's failed check. It also showed how the check works, the checks (three kit reviews, kit verify 1988/1988), the new ASSUMED line (a paused Office goes on with a check it holds), what was not done (AI review, 4b, two Macs, the INVALID log wording) and the options. The bundle 4 design box was folded as the past decision. Asked \"Record G4 for U54, open the PR and merge?\", the user answered \"승인 후 머지\" (D13). Record: .ai-workflow/approvals/story-check-g4.md",
+  "branch": "bundle4-design",
+  "head": "e122556",
+  "date": "2026-11-19"
+}

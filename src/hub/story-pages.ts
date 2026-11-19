@@ -274,9 +274,16 @@ export function storyPage(
   const decide = todo ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2>${todo}</section>` : "";
   // The PL reads the result approval in the card; everyone else sees it under the steps.
   const awaiting = s.state === "awaiting_g4" && !s.isPl ? `<p>${say(AWAITING_G4)}</p>` : "";
+  // The PL Office's Story check result (D47): what passed, or why it failed while the check stays failed.
+  const check = s.tasks.find((t) => t.kind === "verify");
+  const checkText = check?.state === "passed" ? check.summary : check && failedNow(check) ? check.failure : null;
+  const checked = checkText
+    ? `<section aria-labelledby="checked"><h2 id="checked">Story 검증 결과</h2><pre>${esc(checkText)}</pre></section>`
+    : "";
   return layout(`Story #${s.number}`, me, [
     `<section class="head"><p class="muted"><a href="/">Story 보드</a> · Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${steps(s.state)}${board ? `<p class="sprog">${board.progress}</p>` : ""}${awaiting}${approval}${cancel}<p class="muted">${refresh(`/stories/${s.id}`)}</p></section>`,
     decide,
+    checked,
     board
       ? `<section class="taskboard" aria-labelledby="taskboard"><h2 id="taskboard">Task</h2>${board.columns}<details><summary>표로 보기(앞 Task 포함)</summary>${table}</details></section>`
       : `<section><h2>Task</h2>${table}</section>`,

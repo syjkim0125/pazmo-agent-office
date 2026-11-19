@@ -352,6 +352,36 @@ export async function ensureCheckout(
   if (!sameFolder(linked.commonDir, resolve(repo, ours))) return notOurs();
 }
 
+/** Refuses, before anything is reset, a folder that is not the Office's checkout: it must be a linked worktree of
+ * its own whose top level is a `story-checkout` folder and not the registered `repo` (when given). */
+async function assertOfficeCheckout(checkout: string, repo: string | undefined, env: GitEnv): Promise<void> {
+  const linked = await linkedWorktree(checkout, env);
+  if (!linked) fail("GIT_FAILED", "The Story checkout is not a linked worktree of its own; nothing was reset.");
+  if (basename(linked.top) !== STORY_CHECKOUT)
+    fail("GIT_FAILED", `The Story checkout is not the Office's ${STORY_CHECKOUT} folder; nothing was reset.`);
+  if (repo !== undefined && sameFolder(linked.top, repo))
+    fail("GIT_FAILED", "The Story checkout is the registered repo itself; nothing was reset.");
+}
+
+/** Puts the Office checkout, detached, on the origin's latest Story base for a Story check (D47) and returns that
+ * commit. Like `startTaskBranch` it refuses any folder that is not the Office's checkout before touching it, and
+ * clears what an earlier run left (a merge, uncommitted work); ignored files and `.pazmo-office` stay. It makes no
+ * branch: the next Task's `startTaskBranch` starts from wherever this leaves it. */
+export async function checkoutStoryBase(
+  checkout: string,
+  task: { storyBase: string; repo?: string },
+  env: GitEnv,
+): Promise<{ head: string }> {
+  if (!STORY_BASE.test(task.storyBase)) fail("GIT_FAILED", "A Story base must be feature/story-<N>/base.");
+  await assertOfficeCheckout(checkout, task.repo, env);
+  if (inMerge(checkout)) await git(checkout, ["merge", "--abort"], env);
+  await git(checkout, ["reset", "--hard"], env);
+  await git(checkout, ["clean", "-fd", "-e", ".pazmo-office"], env);
+  const tip = await fetchTip(checkout, task.storyBase, env);
+  await git(checkout, ["checkout", "-q", "--detach", tip], env);
+  return { head: await headOf(checkout, env) };
+}
+
 /** Puts the checkout on the local Task branch: at the remote Task branch's tip if the origin has it
  * (a rerun continues it), else at the Story base. A merge in progress on this same branch changes nothing,
  * so the next attempt can resolve its conflict. The checkout is Office's own, so anything else an earlier
@@ -367,12 +397,7 @@ export async function startTaskBranch(
 ): Promise<{ head: string }> {
   checkBranch(task.branch);
   checkBase(task.storyBase);
-  const linked = await linkedWorktree(checkout, env);
-  if (!linked) fail("GIT_FAILED", "The Story checkout is not a linked worktree of its own; nothing was reset.");
-  if (basename(linked.top) !== STORY_CHECKOUT)
-    fail("GIT_FAILED", `The Story checkout is not the Office's ${STORY_CHECKOUT} folder; nothing was reset.`);
-  if (task.repo !== undefined && sameFolder(linked.top, task.repo))
-    fail("GIT_FAILED", "The Story checkout is the registered repo itself; nothing was reset.");
+  await assertOfficeCheckout(checkout, task.repo, env);
   if (inMerge(checkout)) {
     const current = await git(checkout, ["symbolic-ref", "-q", "--short", "HEAD"], env, {
       ok: [0, 1],
