@@ -307,7 +307,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           const v = board.story(actor, m[1]);
           const lane = board.storyBoard(actor, v.id);
           const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges(), me) : null;
-          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard }, live()));
+          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard, finish: board.storyFinish(v.id) }, live()));
         }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);

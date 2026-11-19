@@ -64,6 +64,12 @@ const ROUTES: Record<string, readonly Method[]> = {
   // A Story the PL approved locally, uploaded by the command on the PL's current Mac.
   "/api/link/story/upload": ["POST"],
   "/api/link/story/upload-bases": ["POST"],
+  // A Story's result approval and merge (D48): what to approve, the PL's local approval from the current Mac, and the
+  // PL Office's merge reports.
+  "/api/link/story/finish": ["GET"],
+  "/api/link/story/approve": ["POST"],
+  "/api/link/story/finish-report": ["POST"],
+  "/api/link/story/recheck": ["POST"],
   // A PL's Story plan work, for the PL's Office through any of the PL's links.
   "/api/link/story/plan-next": ["POST"],
   "/api/link/story/plan-heartbeat": ["POST"],
@@ -73,7 +79,7 @@ const STORY_PREFIX = "/api/link/story/";
 /** Routes a Hub without a plan board does not have: they answer 404 like a Hub from before them. */
 const PLAN_ROUTES = new Set(["/api/link/story/plan-next", "/api/link/story/plan-heartbeat", "/api/link/story/plan-result"]);
 /** Routes that answer a link from a released or replaced Mac with NOT_YOUR_MAC instead of the plain 401. */
-const UPLOAD_ROUTES = new Set(["/api/link/story/upload", "/api/link/story/upload-bases"]);
+const UPLOAD_ROUTES = new Set(["/api/link/story/upload", "/api/link/story/upload-bases", "/api/link/story/approve"]);
 const noRoute = (): never => {
   throw new HubError("NOT_FOUND", 404, "찾을 수 없는 경로입니다.");
 };
@@ -108,6 +114,8 @@ async function storyRoute(store: HubStore, board: StoryBoard, plans: PlanBoard |
     case "GET /api/link/story/story": return board.story(link, query(url, "id"));
     case "GET /api/link/story/inbox": return board.inbox(link);
     case "GET /api/link/story/task": return { task: board.taskForClaim(link, query(url, "id"), query(url, "claimId")) };
+    case "GET /api/link/story/finish":
+      return board.finishView(link, url.searchParams.has("id") ? query(url, "id") : Number(query(url, "number")));
   }
   const body = parse(await readBody(req, LINK_LIMIT));
   switch (route) {
@@ -151,8 +159,19 @@ async function storyRoute(store: HubStore, board: StoryBoard, plans: PlanBoard |
     case "POST /api/link/story/release": return board.releaseTask(link, str(body, "taskId"));
     case "POST /api/link/story/cancel-task": return board.cancelTask(link, str(body, "taskId"));
     case "POST /api/link/story/verified":
-      return board.reportVerify(link, str(body, "taskId"), str(body, "claimId"), { passed: bool(body, "passed"), summary: str(body, "summary") });
-    case "POST /api/link/story/complete": return board.completeStory(link, str(body, "storyId"));
+      return board.reportVerify(link, str(body, "taskId"), str(body, "claimId"), {
+        passed: bool(body, "passed"),
+        summary: str(body, "summary"),
+        ...(body.commits === undefined ? {} : { commits: body.commits }),
+      });
+    // Completing needs the local approval and every repo merged (D48).
+    case "POST /api/link/story/complete": return board.finishReport(link, str(body, "storyId"), { kind: "done" });
+    case "POST /api/link/story/approve":
+      return board.approveStory(link, store.currentMac(link.member.id), str(body, "storyId"), {
+        fingerprint: body.fingerprint, commits: body.commits, recordHash: body.recordHash,
+      });
+    case "POST /api/link/story/finish-report": return board.finishReport(link, str(body, "storyId"), body.report);
+    case "POST /api/link/story/recheck": return board.recheckStory(link, str(body, "storyId"));
     // Each plan route names the Office instance (`holder`); the plan board checks its form and the lease's holder.
     case "POST /api/link/story/plan-next": return { lease: (plans ?? noRoute()).next(link, str(body, "holder")) };
     case "POST /api/link/story/plan-heartbeat":

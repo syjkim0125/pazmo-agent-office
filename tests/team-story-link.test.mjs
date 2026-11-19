@@ -211,7 +211,8 @@ test("each call goes to the story route with protocol 3 and the exact request sh
   });
   const link = storyLink(cfg, fake.call);
   assert.deepEqual(await link.claim(), { task, open: null });
-  assert.deepEqual(await link.inbox(), { mine: null, alerts: [], verifyReady: [] });
+  // A Hub before D48 sends no finishReady: read as nothing to merge.
+  assert.deepEqual(await link.inbox(), { mine: null, alerts: [], verifyReady: [], finishReady: [] });
   assert.deepEqual(await link.task("t 1&x", "c/1=?"), task);
   assert.equal(await link.heartbeat("t1", "c1", "review"), undefined);
   assert.deepEqual(await link.mergeLock("t1", "c1"), { granted: false, holder: 5 });

@@ -1,7 +1,7 @@
 /** The team Story pages of the Hub web: the member's work, the board, one Story and one Task. No script; every value goes through `esc`. */
 import { MAC_NUDGE, ago, button, csrfField, esc, info, layout, lns, say, tone, tonePill, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
-import type { MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
+import type { FinishApproval, FinishRepo, MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
 import type { PlanCard } from "./plan-store.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -215,6 +215,10 @@ export function home(
 
 /** What a Story waiting for its result approval needs, said where the PL looks (D42 (6): approval is local). */
 export const AWAITING_G4 = "모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.";
+/** After the PL's local approval (D48): the PL Office merges, or a PR waits for a person. */
+export const APPROVED = "결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다.";
+export const HANDED = "사람이 머지할 PR이 있습니다. 그 PR이 머지되면 완료됩니다.";
+const MERGE_WORD: Record<FinishRepo["state"], string> = { opened: "머지 중", handed: "사람 머지 대기", merged: "머지됨" };
 /** A Story's stages in order (D43); the one it is in is marked, the ones before it are passed. */
 const STEPS: [StoryState, string][] = [["draft", "기획 중"], ["open", "진행 중"], ["verifying", "Story 검증"], ["awaiting_g4", "승인 대기"], ["done", "완료"]];
 function steps(state: StoryState): string {
@@ -235,7 +239,11 @@ export function storyPage(
   me: Member,
   csrf: string,
   s: StoryView,
-  o: { upload: StoryUpload | null; board?: { progress: string; columns: string } | null },
+  o: {
+    upload: StoryUpload | null;
+    board?: { progress: string; columns: string } | null;
+    finish?: { approval: FinishApproval | null; repos: Record<string, FinishRepo>; problem?: { reason: string } | null } | null;
+  },
   chrome: Chrome,
 ): string {
   const branches = s.branches.length
@@ -260,6 +268,27 @@ export function storyPage(
   const hash = up ? `<h3>로컬 승인</h3><p class="wrap">Story 해시 <code>${esc(up.storyHash)}</code></p>` : "";
   const table = `<div class="scroll"><table><thead><tr><th>번호</th><th>레포</th><th>할 일</th><th>상태</th><th>맡은 사람</th><th>앞 Task</th></tr></thead><tbody>${rows}</tbody></table></div>`;
   const board = o.board ?? null;
+  // D48: after the local approval the PL Office merges each repo; a PR handed to a person waits for that person.
+  const finish = o.finish ?? null;
+  const handed = finish ? Object.values(finish.repos).some((r) => r.state === "handed") : false;
+  const waitingWord = !finish?.approval ? AWAITING_G4 : handed ? HANDED : APPROVED;
+  const merges =
+    finish && s.state !== "cancelled"
+      ? `<section aria-labelledby="merged"><h2 id="merged">main 머지</h2>${
+          finish.approval ? `<p class="muted wrap">결과 승인 · ${esc(finish.approval.macName)} · ${esc(ago(finish.approval.at))}</p>` : ""
+        }${
+          // A merge that keeps failing (a gh login, the network) says why here, not only in the PL's Office log.
+          finish.approval && finish.problem && s.state === "awaiting_g4" ? `<div class="callout"><p>${say(finish.problem.reason, true)}</p></div>` : ""
+        }<ul class="items">${s.branches
+          .map((b) => {
+            const r = finish.repos[b.repoId];
+            const word = !r ? "머지 전" : MERGE_WORD[r.state];
+            const pr = r ? ` · ${prLink(r.prUrl)}` : "";
+            const why = r?.state === "handed" && r.reason ? `<span class="muted">${say(r.reason)}</span>` : "";
+            return `<li><span class="tx">${esc(b.repoName)} → ${esc(b.baseBranch)}: ${word}${pr}${why}</span></li>`;
+          })
+          .join("")}</ul></section>`
+      : "";
   const stopped = s.tasks.filter((t) => t.state === "failed" || t.state === "held");
   const todo = s.isPl
     ? [
@@ -268,12 +297,12 @@ export function storyPage(
               .map((t) => `<li><p>${taskLink(t.id, `#${t.number} ${t.title}`)} ${taskPill(t)}</p><p class="muted">${say(stoppedForLead(t, me))}</p></li>`)
               .join("")}</ul>`
           : "",
-        s.state === "awaiting_g4" ? `<p>${say(AWAITING_G4)}</p>` : "",
+        s.state === "awaiting_g4" ? `<p>${say(waitingWord)}</p>` : "",
       ].join("")
     : "";
   const decide = todo ? `<section class="decide" aria-labelledby="decide"><h2 id="decide">지금 할 일</h2>${todo}</section>` : "";
   // The PL reads the result approval in the card; everyone else sees it under the steps.
-  const awaiting = s.state === "awaiting_g4" && !s.isPl ? `<p>${say(AWAITING_G4)}</p>` : "";
+  const awaiting = s.state === "awaiting_g4" && !s.isPl ? `<p>${say(waitingWord)}</p>` : "";
   // The PL Office's Story check result (D47): what passed, or why it failed while the check stays failed.
   const check = s.tasks.find((t) => t.kind === "verify");
   const checkText = check?.state === "passed" ? check.summary : check && failedNow(check) ? check.failure : null;
@@ -284,6 +313,7 @@ export function storyPage(
     `<section class="head"><p class="muted"><a href="/">Story 보드</a> · Story #${s.number} · PL: ${esc(s.pl.name)} · 위험도 ${s.risk === "high" ? "높음" : "보통"}</p><h1>${esc(s.title)}</h1><p>${tonePill(tone("story", s.state), storyStateLabel(s.state))}</p>${steps(s.state)}${board ? `<p class="sprog">${board.progress}</p>` : ""}${awaiting}${approval}${cancel}<p class="muted">${refresh(`/stories/${s.id}`)}</p></section>`,
     decide,
     checked,
+    merges,
     board
       ? `<section class="taskboard" aria-labelledby="taskboard"><h2 id="taskboard">Task</h2>${board.columns}<details><summary>표로 보기(앞 Task 포함)</summary>${table}</details></section>`
       : `<section><h2>Task</h2>${table}</section>`,

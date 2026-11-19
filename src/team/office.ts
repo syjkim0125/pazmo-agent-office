@@ -9,7 +9,7 @@ import { printable, readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
-import { STORY_CHECKOUT, checkoutStoryBase } from "./branch.ts";
+import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge, storyBaseTip } from "./branch.ts";
 import { branchOps, createExecutor, prOps } from "./executor.ts";
 import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
@@ -27,7 +27,10 @@ import { assertReposPresent, readTeam, teamDir } from "./registry.ts";
 import { createClaimScheduler } from "./scheduler.ts";
 import type { RepoLane } from "./scheduler.ts";
 import { createStoryChecker } from "./story-check.ts";
-import type { CheckLane, StoryCheckGit, StoryChecker } from "./story-check.ts";
+import type { StoryCheckGit, StoryChecker } from "./story-check.ts";
+import { createStoryFinisher } from "./story-finish.ts";
+import type { FinishGit, FinishLane, FinishPr, StoryFinisher } from "./story-finish.ts";
+import { closeStoryPr, ensureStoryPr, mergeStoryPr, viewStoryPr } from "./pr.ts";
 import { openTeamStore, waitingOf } from "./store.ts";
 import type { ClaimPhase, RunnerWaiting, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
@@ -108,6 +111,10 @@ export type TeamConfig = {
   planGit?: PlanGit;
   /** Tests only: the host git of a Story check (D47); default `checkoutStoryBase` with `host`. */
   checkGit?: StoryCheckGit;
+  /** Tests only: the host git and gh of an approved Story's merge (D48); default `prepareStoryMerge` and the Story
+   * merge PR steps of `pr.ts` with `host`. */
+  finishGit?: FinishGit;
+  finishPr?: FinishPr;
   /** The gh login for a Git host; default: `gh auth status --hostname` with `host`'s PATH and HOME. */
   ghOf?: (host: string) => Promise<GhResult>;
   /** The person's own HOME and PATH (and ssh agent) for the host git and gh of a Story Task; default: this
@@ -322,6 +329,8 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let planner: ReturnType<typeof createPlanner> | undefined;
   /** The PL's Story check (D47), made with the planner (live only). */
   let checker: StoryChecker | undefined;
+  /** The PL Office's merge of a locally approved Story (D48), made with the planner (live only). */
+  let finisher: StoryFinisher | undefined;
   const timers: ReturnType<typeof setInterval>[] = [];
   let stopped = false;
   let store: TeamStore | undefined;
@@ -540,7 +549,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}`, until: open?.runnerWait?.retryAt ?? null };
     if (!runnersReady)
       return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready", until: null };
-    if (gate.busy() || planner?.active() || checker?.active() || (open !== null && open.phase !== "failed"))
+    if (gate.busy() || planner?.active() || checker?.active() || finisher?.active() || (open !== null && open.phase !== "failed"))
       return { state: "working", detail: null, until: null };
     return { state: "idle", detail: null, until: null };
   }
@@ -594,7 +603,13 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     presence: presenceOf,
     // A stopping Office is not restarted (the stop is the person's), nor one whose claim is under way.
     idle: () =>
-      !stopped && !claimTicking && !planner?.active() && !checker?.active() && teamStore.openClaim() === null && !gate.busy(),
+      !stopped &&
+      !claimTicking &&
+      !planner?.active() &&
+      !checker?.active() &&
+      !finisher?.active() &&
+      teamStore.openClaim() === null &&
+      !gate.busy(),
     // Nor a live one whose runners are not ready (asked afresh, a restart is rare): its `up` would refuse and leave
     // it off, where in place it waits, limited, until the person logs in. A locked Office never checks its runners.
     startable: async () => {
@@ -752,7 +767,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     });
   /** Every registered repo whose Hub repo id is known, with its checkout and engine, whatever its state: a Story
    * check needs neither gh nor that repo's link. `ready` lanes are the ones the Hub is asked through. */
-  function checkLanes(): CheckLane[] {
+  function checkLanes(): FinishLane[] {
     return lanes.flatMap((lane) => {
       const plan = planLinks.get(lane) ?? null;
       if (plan === null) return [];
@@ -764,19 +779,40 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
         // a link file that cannot be read was said by `linkFor`; the folder name will do
       }
       return [{
-        project: lane.project, repoId: plan.repoId, repoName, checkout: engine.checkout,
+        project: lane.project, repoId: plan.repoId, repoName, checkout: engine.checkout, remote: engine.remote,
         link: lane.link, ready: lane.state === "ready" && lane.link !== null, engine: engine.office!,
       }];
     });
   }
+  /** Where a Task could run: live, runners ready, no record open, no run, no restart held, the drive idle, not stopping. */
+  const canRunStory = () =>
+    live && runnersReady && teamStore.openClaim() === null && !gate.busy() && !ex.busy() && !watch.holding() && !stopped;
+  // The PL Office's merge of a locally approved Story (D48), only when live: after the PL's own approval, so neither a
+  // pause nor 자동으로 일하기 holds it; it runs where a Task could.
+  finisher = live
+    ? createStoryFinisher({
+        lanes: checkLanes,
+        canRun: canRunStory,
+        git: c.finishGit ?? {
+          prepare: (checkout, task) => prepareStoryMerge(checkout, task, hostEnv),
+          tip: (checkout, storyBase) => storyBaseTip(checkout, storyBase, hostEnv),
+        },
+        pr: c.finishPr ?? {
+          ensure: (remote, p) => ensureStoryPr(remote, p, hostEnv),
+          view: (remote, number) => viewStoryPr(remote, number, hostEnv),
+          merge: (remote, p) => mergeStoryPr(remote, p, hostEnv),
+          close: (remote, p) => closeStoryPr(remote, p, hostEnv),
+        },
+        log,
+      })
+    : undefined;
   // The PL's Story check (D47), only when live and where a Task could run (runners ready, no record open, no run, no
   // restart held, the executor's drive idle): whatever the PL's 자동으로 일하기 says. A paused Office takes no new
   // check but goes on with one it holds, so that claim does not sit held without a heartbeat.
   checker = live
     ? createStoryChecker({
         lanes: checkLanes,
-        canRun: () =>
-          live && runnersReady && teamStore.openClaim() === null && !gate.busy() && !ex.busy() && !watch.holding() && !stopped,
+        canRun: canRunStory,
         canTake: () => !teamStore.settings().paused,
         git: c.checkGit ?? { checkoutStoryBase: (checkout, task) => checkoutStoryBase(checkout, task, hostEnv) },
         beatMs: c.beatMs ?? BEAT_MS,
@@ -794,6 +830,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       if (stopped) return;
       // Then the PL's Story check; a tick that ran one claims nothing.
       if (checker && (await checker.tick()).ran) return;
+      if (stopped) return;
+      // Then the merge of a Story its PL approved (D48); a tick that ran one claims nothing.
+      if (finisher && (await finisher.tick()).ran) return;
       if (stopped) return;
       return await scheduler.tick();
     } finally {
@@ -841,6 +880,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       stopTimers();
       planner?.stop();
       checker?.stop();
+      finisher?.stop();
       gate.stop();
       for (const engine of engines) engine.office!.beginStop();
     },

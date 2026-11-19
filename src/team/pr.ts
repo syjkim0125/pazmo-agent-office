@@ -186,16 +186,17 @@ async function viewPr(
   number: number,
   fields: string,
   env: GhEnv,
-): Promise<{ state: unknown; mergeCommit: string | null; base: string; head: string }> {
+): Promise<{ state: unknown; mergeCommit: string | null; base: string; head: string; headOid: string }> {
   const view = parseJson(
     await gh(env, ["pr", "view", String(number), "-R", remote, "--json", fields]),
-  ) as { state?: unknown; mergeCommit?: unknown; baseRefName?: unknown; headRefName?: unknown } | null;
+  ) as { state?: unknown; mergeCommit?: unknown; baseRefName?: unknown; headRefName?: unknown; headRefOid?: unknown } | null;
   const text = (value: unknown) => (typeof value === "string" ? value : "");
   return {
     state: view?.state,
     mergeCommit: commitOf(view?.mergeCommit),
     base: text(view?.baseRefName),
     head: text(view?.headRefName),
+    headOid: text(view?.headRefOid).toLowerCase(),
   };
 }
 
@@ -230,4 +231,101 @@ export async function mergePr(
   ]);
   const after = await viewPr(remote, pr.number, "mergeCommit", env);
   return { mergeCommit: after.mergeCommit ?? none() };
+}
+
+// D48: the one other PR Office opens, after the PL's result approval: a Story base into its base branch.
+const BASE_NAME = /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/;
+function checkStoryMerge(base: string, head: string): void {
+  if (!STORY_BASE.test(head)) fail("INVALID", "A Story merge PR's head must be feature/story-<N>/base.");
+  if (!BASE_NAME.test(base) || /\.\.|\/\/|\/$|\.$|\.lock(\/|$)/.test(base) || STORY_BASE.test(base) || TASK_BRANCH.test(base))
+    fail("INVALID", "A Story merge PR's base must be the project's base branch.");
+}
+
+/** The open or merged PR of a Story base into its base branch, else a new one. A PR a person closed is not reused:
+ * the Hub ended that approval when it was closed, and a new approval gets a new PR. */
+export async function ensureStoryPr(
+  remote: string,
+  p: { base: string; head: string; headSha: string; title: string; body: string },
+  env: GhEnv,
+): Promise<PullRequest> {
+  checkRemote(remote);
+  checkStoryMerge(p.base, p.head);
+  checkText(p);
+  if (!OBJECT_ID.test(p.headSha)) fail("INVALID", "A Story merge PR needs the Story base's full commit id.");
+  // The open PR of this repo's own Story base (a fork's PR of the same branch name is never it), or one merged at
+  // this very commit (a restart after its merge). A PR merged at an older commit is the Story's earlier merge: work
+  // added since needs a new PR (D48).
+  const live = async () => {
+    const listed = parseJson(
+      await gh(env, [
+        "pr", "list", "-R", remote, "--head", p.head, "--base", p.base, "--state", "all",
+        "--json", "number,url,state,mergeCommit,headRefOid,isCrossRepository",
+      ]),
+    );
+    if (!Array.isArray(listed)) return fail("GH_FAILED", "gh returned a list that could not be read.");
+    const own = listed.filter((o) => (o as { isCrossRepository?: unknown })?.isCrossRepository !== true);
+    const head = (o: unknown) => String((o as { headRefOid?: unknown })?.headRefOid ?? "").toLowerCase();
+    const open = own.find((o) => (o as { state?: unknown })?.state === "OPEN");
+    const merged = own.find((o) => (o as { state?: unknown })?.state === "MERGED" && head(o) === p.headSha);
+    const found = open ?? merged;
+    return found ? pullRequest(found) : null;
+  };
+  const existing = await live();
+  if (existing) return existing;
+  await gh(env, ["pr", "create", "-R", remote, "--base", p.base, "--head", p.head, "--title", p.title, "--body", p.body]);
+  return (await live()) ?? fail("GH_FAILED", "gh created a pull request that could not be found again.");
+}
+
+/** A Story merge PR's state and merge commit, read only. */
+export async function viewStoryPr(remote: string, number: number, env: GhEnv): Promise<Pick<PullRequest, "state" | "mergeCommit">> {
+  checkRemote(remote);
+  if (!Number.isInteger(number) || number < 1) fail("INVALID", "A PR number must be a positive integer.");
+  const view = await viewPr(remote, number, "state,mergeCommit,baseRefName,headRefName", env);
+  checkStoryMerge(view.base, view.head);
+  if (!STATES.includes(view.state as string)) fail("GH_FAILED", "gh returned a pull request that could not be read.");
+  return { state: view.state as PullRequest["state"], mergeCommit: view.mergeCommit };
+}
+
+/** Merges a Story merge PR with a merge commit, only if its head is still `headSha` (the commit checked), and returns
+ * that merge commit; an already merged PR is not merged again. A refusal (a protection rule, a required review or
+ * check, a conflict) is GH_FAILED with gh's own reason, for the caller to hand the PR to a person. */
+export async function mergeStoryPr(
+  remote: string,
+  pr: { number: number; headSha: string },
+  env: GhEnv,
+): Promise<{ mergeCommit: string }> {
+  checkRemote(remote);
+  if (!Number.isInteger(pr.number) || pr.number < 1) fail("INVALID", "A PR number must be a positive integer.");
+  if (!OBJECT_ID.test(pr.headSha)) fail("INVALID", "A merge needs the PR head's full commit id.");
+  const none = () => fail("GH_FAILED", `Pull request #${pr.number} has no merge commit (a merge queue may be holding it).`);
+  const before = await viewPr(remote, pr.number, "state,mergeCommit,baseRefName,headRefName,headRefOid", env);
+  checkStoryMerge(before.base, before.head);
+  // A PR merged at another commit merged other content: it is never this merge (D48).
+  if (before.state === "MERGED") {
+    if (before.headOid !== pr.headSha.toLowerCase())
+      fail("INVALID", `Pull request #${pr.number} was merged at another commit; the Story base needs a new PR.`);
+    return { mergeCommit: before.mergeCommit ?? none() };
+  }
+  await gh(env, ["pr", "merge", String(pr.number), "-R", remote, "--merge", "--match-head-commit", pr.headSha]);
+  const after = await viewPr(remote, pr.number, "mergeCommit", env);
+  return { mergeCommit: after.mergeCommit ?? none() };
+}
+
+/** Closes a withdrawn Story merge PR with a comment saying why (its approval ended), so nobody merges work that was
+ * not checked and approved into the base branch. A PR already closed or merged is left as it is; the state it was in
+ * is returned. Only a Story base into a non-Story branch is closed. */
+export async function closeStoryPr(
+  remote: string,
+  pr: { number: number; comment: string },
+  env: GhEnv,
+): Promise<PullRequest["state"]> {
+  checkRemote(remote);
+  if (!Number.isInteger(pr.number) || pr.number < 1) fail("INVALID", "A PR number must be a positive integer.");
+  checkText({ title: "close", body: pr.comment });
+  const view = await viewPr(remote, pr.number, "state,mergeCommit,baseRefName,headRefName", env);
+  checkStoryMerge(view.base, view.head);
+  if (!STATES.includes(view.state as string)) fail("GH_FAILED", "gh returned a pull request that could not be read.");
+  if (view.state !== "OPEN") return view.state as PullRequest["state"];
+  await gh(env, ["pr", "close", String(pr.number), "-R", remote, "--comment", pr.comment]);
+  return "OPEN";
 }

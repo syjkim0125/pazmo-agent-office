@@ -471,7 +471,7 @@ function hubFailure(error: unknown): OfficeError {
     );
   return new OfficeError("HUB_UNREACHABLE", `Hub에 닿지 못했습니다(${message}). 네트워크를 확인한 뒤 같은 명령을 다시 실행하세요.`);
 }
-async function onHub<T>(step: () => Promise<T>): Promise<T> {
+export async function onHub<T>(step: () => Promise<T>): Promise<T> {
   try {
     return await step();
   } catch (error) {
@@ -480,7 +480,7 @@ async function onHub<T>(step: () => Promise<T>): Promise<T> {
 }
 
 /** This Mac's link: the first registered repo whose link file this Mac minted (`macId`), as `mac` picks links. */
-function macLinkOf(root: string): HubLinkConfig {
+export function macLinkOf(root: string): HubLinkConfig {
   const mac = readMacLink(root);
   if (!mac) return refuse("UPLOAD_LINK", NO_LINK);
   for (const entry of readTeam(root).repos) {

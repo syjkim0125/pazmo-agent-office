@@ -102,6 +102,14 @@ function fakeLink(name, calls) {
     async verified(taskId, claimId, passed, summary) {
       calls.push([name, "verified", taskId, claimId, passed, summary]);
     },
+    async finishView(id) {
+      calls.push([name, "finishView", id]);
+      return link.on.finishView();
+    },
+    async finishReport(id, report) {
+      calls.push([name, "finishReport", id, report]);
+      await link.on.finishReport?.(report);
+    },
     async claim() {
       calls.push([name, "claim"]);
       link.onClaim?.();
@@ -1969,4 +1977,64 @@ test("a paused PL Office takes no Story check", async (t) => {
   assert.ok(f.calls.some(([, what]) => what === "inbox"), "the claim tick ran");
   assert.equal(f.calls.filter(([, what]) => what === "claimVerify").length, 0);
   assert.deepEqual(f.world.verifies, []);
+});
+
+/** An approved Story over alpha as the Hub's finish view gives it (D48); with alpha merged once its PR is merged. */
+const finishView = (merged = false) => ({
+  storyId: "s", number: 7, title: "Story", state: "awaiting_g4", fingerprint: "f".repeat(64), summary: "통과",
+  branches: [{ repoId: ALPHA_ID, repoName: "alpha", baseBranch: "main", storyBase: "feature/story-7/base" }],
+  checks: { [ALPHA_ID]: [CHECK] },
+  verified: { [ALPHA_ID]: "a".repeat(40) },
+  approval: { macName: "PL의 MacBook", at: 1, recordHash: "c".repeat(64) },
+  repos: merged ? { [ALPHA_ID]: { state: "merged", prNumber: 10, prUrl: "https://github.example.com/team/alpha/pull/10", mergeCommit: "e".repeat(40), reason: null } } : {},
+});
+
+test("a live PL Office merges a Story its PL approved on the claim tick, even while paused, and claims nothing in that tick (D48)", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  const a = await f.repo("alpha");
+  const la = f.link(a, "a");
+  let merged = false;
+  la.on.inbox = () => ({ mine: null, alerts: [], verifyReady: [], finishReady: ["s"] });
+  la.on.finishView = () => finishView(merged);
+  la.on.finishReport = (r) => {
+    if (r.kind === "repo" && r.state === "merged") merged = true;
+  };
+  la.claimReply = claimed("t1");
+  f.planLink(a, "pa", ALPHA_ID);
+  storeOf(f).setPaused(true);
+  const prep = [];
+  const prCalls = [];
+  await f.open(
+    f.live({
+      driveMs: 1e9,
+      finishGit: {
+        prepare: async (checkout, task) => {
+          prep.push([checkout, task.storyBase, task.baseBranch, task.verified, task.repo]);
+          return { kind: "current", head: task.verified, check: false };
+        },
+      },
+      finishPr: {
+        ensure: async (remote, p) => {
+          prCalls.push(["ensure", remote, p.base, p.head]);
+          return { number: 10, url: "https://github.example.com/team/alpha/pull/10", state: "OPEN", mergeCommit: null };
+        },
+        view: async () => ({ state: "OPEN", mergeCommit: null }),
+        merge: async (remote, p) => {
+          prCalls.push(["merge", remote, p.number, p.headSha]);
+          return { mergeCommit: "e".repeat(40) };
+        },
+      },
+    }),
+  );
+  t.mock.timers.tick(30000);
+  await until(() => f.calls.some(([, what, , r]) => what === "finishReport" && r.kind === "done"), "the Story done");
+  await flush();
+  assert.deepEqual(prep, [[f.checkoutOf(a), "feature/story-7/base", "main", "a".repeat(40), a]]);
+  assert.deepEqual(prCalls, [["ensure", "github.example.com/team/alpha", "main", "feature/story-7/base"], ["merge", "github.example.com/team/alpha", 10, "a".repeat(40)]]);
+  assert.deepEqual(
+    f.calls.filter(([, what]) => what === "finishReport").map(([, , , r]) => [r.kind, r.state]),
+    [["repo", "opened"], ["repo", "merged"], ["done", undefined]],
+  );
+  assert.equal(claims(f), 0, "no Task claim in that tick, and none while paused");
 });

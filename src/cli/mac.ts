@@ -281,8 +281,15 @@ function writeReplacing(dir: string, files: Record<string, string>): void {
  * a symbolic link anywhere below the home) is the PL's and is left untouched.
  */
 export function installUploadGuide(home: string): "written" | "kept-user-edit" | "same" {
-  const body = readFileSync(join(packageRoot, "skills", "pazmo-hub-upload", "SKILL.md"), "utf8");
-  const parts = [".claude", "skills", "pazmo-hub-upload"];
+  return installGuide(home, "pazmo-hub-upload");
+}
+/** The result approval guide (D48), installed the same way as the upload's. */
+export function installFinishGuide(home: string): "written" | "kept-user-edit" | "same" {
+  return installGuide(home, "pazmo-hub-finish");
+}
+function installGuide(home: string, name: "pazmo-hub-upload" | "pazmo-hub-finish"): "written" | "kept-user-edit" | "same" {
+  const body = readFileSync(join(packageRoot, "skills", name, "SKILL.md"), "utf8");
+  const parts = [".claude", "skills", name];
   const dir = join(home, ...parts);
   const target = join(dir, "SKILL.md");
   const mark = join(dir, GUIDE_MARK);
@@ -419,6 +426,19 @@ async function connect(e: Env, options: { hub?: string; name?: string }, d: MacC
   } catch (error) {
     // The pairing stands; the guide is also printed by `team upload --guide`.
     e.say(`claude용 허브 올리기 안내를 두지 못했습니다(${printable(error instanceof Error ? error.message : String(error))}). pazmo-office team upload --guide로 볼 수 있습니다`);
+  }
+  try {
+    const guide = installFinishGuide(e.home);
+    e.say(
+      guide === "written"
+        ? "claude용 결과 승인 안내를 ~/.claude/skills/pazmo-hub-finish에 두었습니다"
+        : guide === "same"
+          ? "claude용 결과 승인 안내는 이미 최신입니다"
+          : "claude용 결과 승인 안내: 고친 안내가 있어 그대로 둡니다",
+    );
+  } catch (error) {
+    // The pairing stands; the guide is also printed by `team finish --guide`.
+    e.say(`claude용 결과 승인 안내를 두지 못했습니다(${printable(error instanceof Error ? error.message : String(error))}). pazmo-office team finish --guide로 볼 수 있습니다`);
   }
   e.say(note);
   return { connected: true, member: file.memberName, mac: file.name, repos, problems, launchAgent: "loaded", log, note };

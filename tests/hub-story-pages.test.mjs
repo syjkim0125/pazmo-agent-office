@@ -790,6 +790,52 @@ test("the Story page shows the PL Office's Story check result: the summary once 
   assert.ok(passed.includes("결과 승인은 PL의 Mac(claude 대화)에서 합니다."));
 });
 
+test("after the PL's local approval the Story page shows the approval, each repo's merge with its PR, and a PR waiting for a person (D48)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const cBe = h.linkOf(h.c, h.be), bFe = h.linkOf(h.b, h.fe);
+  let n = 0;
+  const done = (l) => {
+    const x = h.board.claimNext(l);
+    h.board.mergeLock(l, x.taskId, x.claimId);
+    h.board.reportMerged(l, x.taskId, x.claimId, merged({ mergeCommit: String(++n).padStart(40, "0") }));
+  };
+  done(cBe);
+  done(cBe);
+  done(bFe);
+  const commits = { [h.be]: "a".repeat(40), [h.fe]: "b".repeat(40) };
+  const v = h.board.claimVerify(s.plBe, s.storyId);
+  h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: true, summary: "Story 검사 통과", commits });
+  const { deviceCode, userCode } = h.store.startMac("PL의 MacBook");
+  h.store.approveMac(h.pl.member, userCode);
+  const mac = h.store.link(h.store.macLink(h.store.mac(h.store.pollMac(deviceCode).macToken), h.fe).token);
+  const storyPage = async (who) => (await h.get(`/stories/${s.storyId}`, who)).text;
+  assert.ok(!(await storyPage(h.pl)).includes(`id="merged"`), "nothing before the approval");
+  const fingerprint = h.board.finishView(s.plBe, s.number).fingerprint;
+  h.board.approveStory(mac, h.store.currentMac(h.pl.member.id), s.storyId, { fingerprint, commits, recordHash: "c".repeat(64) });
+  let page = await storyPage(h.pl);
+  assert.ok(page.includes("결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다."));
+  assert.ok(page.includes(`<h2 id="merged">main 머지</h2><p class="muted wrap">결과 승인 · PL의 MacBook · `));
+  assert.ok(page.includes("app-be → main: 머지 전"));
+  // A merge that keeps failing says why on the page, not only in the PL's Office log.
+  h.board.finishReport(s.plBe, s.storyId, { kind: "problem", reason: "머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth login" });
+  assert.ok((await storyPage(h.c)).includes(`<div class="callout"><p>머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth login</p></div>`));
+  const pr = (repo, no) => `https://github.example.com/team/${repo}/pull/${no}`;
+  h.board.finishReport(s.plBe, s.storyId, { kind: "repo", repoId: h.be, state: "merged", prNumber: 3, prUrl: pr("app-be", 3), mergeCommit: "e".repeat(40), reason: null });
+  h.board.finishReport(s.plBe, s.storyId, { kind: "repo", repoId: h.fe, state: "handed", prNumber: 4, prUrl: pr("app-fe", 4), mergeCommit: null, reason: "충돌: <src/ui.ts>" });
+  page = await storyPage(h.c);
+  assert.ok(page.includes("사람이 머지할 PR이 있습니다. 그 PR이 머지되면 완료됩니다."), "for anyone");
+  assert.ok(page.includes(`app-be → main: 머지됨 · <a href="${pr("app-be", 3)}" rel="noreferrer">${pr("app-be", 3)}</a>`));
+  assert.ok(page.includes(`app-fe → develop: 사람 머지 대기 · <a href="${pr("app-fe", 4)}" rel="noreferrer">${pr("app-fe", 4)}</a>`));
+  assert.ok(page.includes("충돌: &#60;src/ui.ts&#62;"), "the reason, escaped");
+  h.board.finishReport(s.plBe, s.storyId, { kind: "repo", repoId: h.fe, state: "merged", prNumber: 4, prUrl: pr("app-fe", 4), mergeCommit: "f".repeat(40), reason: null });
+  h.board.finishReport(s.plBe, s.storyId, { kind: "done" });
+  page = await storyPage(h.pl);
+  assert.ok(page.includes(pill("완료")));
+  assert.ok(page.includes("app-fe → develop: 머지됨"));
+  assert.ok(!page.includes("결과가 승인됐습니다"), "no waiting sentence once done");
+});
+
 test("every new POST is 403 from another origin or without the CSRF token", async (t) => {
   const h = await team(t);
   const s = h.story();

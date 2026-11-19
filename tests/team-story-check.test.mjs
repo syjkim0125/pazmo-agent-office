@@ -110,6 +110,7 @@ test("a ready Story check is taken and every repo's latest Story base is checked
   assert.deepEqual(w.link.named("verified"), [[
     "verified", "verify-1", "claim-v", true,
     `Story 검사 통과: 레포 2개, 검사 3개.\n- app-be @ ${HEAD_BE}: V1 통과, V2 통과\n- app-fe @ ${HEAD_FE}: V3 통과`,
+    { "repo-be": HEAD_BE, "repo-fe": HEAD_FE },
   ]]);
   assert.ok(w.lines.some((l) => l.includes("story-7: the Story check passed and was reported")));
 });
@@ -231,7 +232,10 @@ test("a verdict the Hub refuses as INVALID is kept and sent again, never checked
   for (let i = 0; i < 4; i++) await w.checker.tick();
   assert.equal(link.named("verified").length, 4);
   assert.equal(w.engines.be.verifies.length, 1, "the VM ran once");
-  assert.equal(w.lines.filter((l) => l.includes("400 INVALID")).length, 1);
+  const said = w.lines.filter((l) => l.includes("400 INVALID"));
+  assert.equal(said.length, 1);
+  // D48: the claim keeps its heartbeat, so the line says how it really ends (not "release it on the web").
+  assert.match(said[0], /cancel the Story on the web or stop this Office for 10 minutes/);
 });
 
 test("while one repo's Story base cannot be fetched, no VM runs for any repo; once its tries run out the others are checked once", async () => {
@@ -383,9 +387,12 @@ test("over a real Hub: the PL's Office takes the Story check and the Story waits
     given.push(task);
     return task;
   };
-  const engine = fakeEngine("be");
+  const engines = { be: fakeEngine("be"), fe: fakeEngine("fe") };
   const checker = createStoryChecker({
-    lanes: () => [laneOf("be", link, engine, { repoId: h.repos.be, repoName: "be" })],
+    lanes: () => [
+      laneOf("be", link, engines.be, { repoId: h.repos.be, repoName: "be" }),
+      laneOf("fe", null, engines.fe, { repoId: h.repos.fe, repoName: "fe", ready: false }),
+    ],
     canRun: () => true,
     canTake: () => true,
     git: fakeGit(),
@@ -397,6 +404,9 @@ test("over a real Hub: the PL's Office takes the Story check and the Story waits
   assert.equal(story.state, "awaiting_g4");
   const check = story.tasks.find((x) => x.kind === "verify");
   assert.equal(check.state, "passed");
-  assert.equal(check.summary, `Story 검사 통과: 레포 1개, 검사 1개.\n- be @ ${HEAD_BE}: V1 통과`);
+  // fe has work but no Story checks: its commit is taken to bind the result approval, and no VM runs for it (D48).
+  assert.equal(check.summary, `Story 검사 통과: 레포 2개, 검사 1개.\n- be @ ${HEAD_BE}: V1 통과\n- fe @ ${HEAD_FE}: Story 검사 없음`);
+  assert.equal(engines.fe.verifies.length, 0);
+  assert.deepEqual(h.board.finishView(h.plLink, h.story.number).verified, { [h.repos.be]: HEAD_BE, [h.repos.fe]: HEAD_FE });
   assert.deepEqual(await checker.tick(), { ran: false }, "nothing left to check");
 });
