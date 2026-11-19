@@ -22,6 +22,8 @@ export type FinishPr = {
   ensure(remote: string, p: { base: string; head: string; headSha: string; title: string; body: string }): Promise<PullRequest>;
   view(remote: string, number: number): Promise<Pick<PullRequest, "state" | "mergeCommit">>;
   merge(remote: string, pr: { number: number; headSha: string }): Promise<{ mergeCommit: string }>;
+  /** `pr.closeStoryPr`: closes a withdrawn PR with a comment; the state it was in. */
+  close(remote: string, pr: { number: number; comment: string }): Promise<PullRequest["state"]>;
 };
 export type StoryFinisher = { tick(): Promise<{ ran: boolean }>; active(): boolean; stop(): void };
 
@@ -72,10 +74,14 @@ export function createStoryFinisher(d: {
   /** The last problem reported to the Hub for each Story, so the same one is posted once. */
   const problems = new Map<string, string>();
 
+  /** Re-checks that passed, by `<repoId>:<head>`: a later failure (an expired gh login after the push) does not run the
+   * VM again for the same commit. Memory only. */
+  const passedChecks = new Set<string>();
+
   /** Re-checks one repo's Story base on its checkout after base branch commits came in; the failure summary, or null. */
   async function recheck(lane: FinishLane, view: FinishView, head: string, signal: AbortSignal): Promise<string | null> {
     const checks = view.checks[lane.repoId] ?? [];
-    if (!checks.length) return null;
+    if (!checks.length || passedChecks.has(`${lane.repoId}:${head}`)) return null;
     const candidate = await lane.engine.freezeProject();
     const unique = new Set(checks.map((c) => c.id)).size === checks.length;
     const results = await lane.engine.verifyCandidate(
@@ -84,17 +90,43 @@ export function createStoryFinisher(d: {
       signal,
     );
     const { passed, summary } = storyCheckSummary([{ repo: lane.repoName, head, checks: results }]);
+    if (passed) passedChecks.add(`${lane.repoId}:${head}`);
     return passed ? null : summary;
+  }
+
+  /** Closes the Story's withdrawn PRs (their approval ended), each reported once closed; whether any gh write ran. */
+  async function withdraw(via: StoryLink, view: FinishView, lanes: FinishLane[]): Promise<boolean> {
+    let acted = false;
+    for (const w of view.withdrawn ?? []) {
+      const lane = lanes.find((l) => l.repoId === w.repoId);
+      if (!lane) {
+        sayOnce(view.storyId, `team: story-${view.number}: PR #${w.prNumber} is withdrawn but its repo is not on this Office; close it on GitHub`);
+        continue;
+      }
+      const was = await d.pr.close(lane.remote, {
+        number: w.prNumber,
+        comment: `Pazmo Office: Story #${view.number}의 결과 승인이 끝나 이 PR을 닫습니다(Task가 더해졌거나, 다시 검증하거나, Story가 취소됐습니다). 다시 승인되면 새 PR이 열립니다. 이 PR은 머지하지 마세요.`,
+      });
+      acted = true;
+      if (was === "MERGED")
+        log(`team: story-${view.number}: withdrawn PR #${w.prNumber} of ${lane.repoName} was merged by a person before it could be closed; check ${lane.repoName}'s base branch`);
+      else log(`team: story-${view.number}: closed withdrawn PR #${w.prNumber} of ${lane.repoName}`);
+      await via.finishReport(view.storyId, { kind: "withdrawn", repoId: w.repoId, prNumber: w.prNumber });
+    }
+    return acted;
   }
 
   /** Takes an approved Story one step further at most per repo; whether git, gh or the VM ran. */
   async function finish(via: StoryLink, storyId: string, signal: AbortSignal): Promise<boolean> {
-    const view = await via.finishView(storyId);
-    if (view.state !== "awaiting_g4" || !view.approval) return false;
+    let view = await via.finishView(storyId);
+    const lanes = d.lanes();
+    // PRs of an ended approval come first: until they are closed a person could still merge them.
+    const withdrew = await withdraw(via, view, lanes);
+    if (withdrew) view = await via.finishView(storyId);
+    if (view.state !== "awaiting_g4" || !view.approval) return withdrew;
     const name = `story-${view.number}`;
     const report = async (r: FinishReport) => via.finishReport(view.storyId, r);
-    const lanes = d.lanes();
-    let acted = false;
+    let acted = withdrew;
     let waiting: string[] = [];
     for (const b of view.branches) {
       if (signal.aborted) throw new NotNow("stopping");
@@ -210,10 +242,10 @@ export function createStoryFinisher(d: {
     try {
       for (const storyId of ready) {
         try {
-          if (await finish(via, storyId, abort.signal)) {
-            problems.delete(storyId);
-            return { ran: true };
-          }
+          const ran = await finish(via, storyId, abort.signal);
+          // A pass with no error: the Hub cleared or will clear the problem, so the same one is posted again if it returns.
+          problems.delete(storyId);
+          if (ran) return { ran: true };
         } catch (error) {
           if (error instanceof Ended) return { ran: true };
           if (error instanceof NotNow || WAITS.has(codeOf(error) as string) || abort.signal.aborted) {

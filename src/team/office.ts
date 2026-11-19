@@ -30,7 +30,7 @@ import { createStoryChecker } from "./story-check.ts";
 import type { StoryCheckGit, StoryChecker } from "./story-check.ts";
 import { createStoryFinisher } from "./story-finish.ts";
 import type { FinishGit, FinishLane, FinishPr, StoryFinisher } from "./story-finish.ts";
-import { ensureStoryPr, mergeStoryPr, viewStoryPr } from "./pr.ts";
+import { closeStoryPr, ensureStoryPr, mergeStoryPr, viewStoryPr } from "./pr.ts";
 import { openTeamStore, waitingOf } from "./store.ts";
 import type { ClaimPhase, RunnerWaiting, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
@@ -801,6 +801,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
           ensure: (remote, p) => ensureStoryPr(remote, p, hostEnv),
           view: (remote, number) => viewStoryPr(remote, number, hostEnv),
           merge: (remote, p) => mergeStoryPr(remote, p, hostEnv),
+          close: (remote, p) => closeStoryPr(remote, p, hostEnv),
         },
         log,
       })

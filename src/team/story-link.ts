@@ -171,7 +171,10 @@ export function finishViewOf(reply: unknown): FinishView {
       (isObject(reply.approval) && typeof reply.approval.macName === "string" && typeof reply.approval.at === "number" && typeof reply.approval.recordHash === "string")) &&
     isObject(reply.repos) &&
     Object.values(reply.repos).every(repoOk) &&
-    (reply.problem === undefined || reply.problem === null || (isObject(reply.problem) && typeof reply.problem.reason === "string"));
+    (reply.problem === undefined || reply.problem === null || (isObject(reply.problem) && typeof reply.problem.reason === "string")) &&
+    (reply.withdrawn === undefined ||
+      (Array.isArray(reply.withdrawn) &&
+        reply.withdrawn.every((w) => isObject(w) && typeof w.repoId === "string" && typeof w.prNumber === "number" && typeof w.prUrl === "string")));
   return ok ? (reply as FinishView) : badResponse();
 }
 

@@ -208,3 +208,44 @@ test("a Story at 승인 대기 whose check kept no commits (before D48) is check
   const fresh = passed();
   assert.throws(() => fresh.board.recheckStory(fresh.plBe, fresh.pub.storyId), code("STATE"), "a Story with commits is approved, not checked again");
 });
+
+test("an approval that ends with open Story PRs withdraws them, so the PL Office closes them; any state takes the closed report (review 2 I1)", () => {
+  const h = passed();
+  const { board, be, fe, plBe, pub, node } = h;
+  h.approve();
+  const pr = (n) => `https://github.example.com/team/app/pull/${n}`;
+  board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: be, state: "merged", prNumber: 3, prUrl: pr(3), mergeCommit: SHA("1"), reason: null });
+  board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: fe, state: "handed", prNumber: 5, prUrl: pr(5), mergeCommit: null, reason: "충돌" });
+  // The PL adds a Task in be: fe's handed PR #5 follows the Story base from now on, so it is withdrawn.
+  board.addTasks(plBe, pub.storyId, "fix-1", { nodes: [node("fix", be, ["src/fix.ts"])], edges: [] });
+  let view = h.view();
+  assert.deepEqual(view.withdrawn, [{ repoId: fe, prNumber: 5, prUrl: pr(5) }]);
+  assert.equal(view.state, "open");
+  assert.deepEqual(board.inbox(plBe).finishReady, [pub.storyId], "the PL Office comes for it though the Story is open");
+  board.finishReport(plBe, pub.storyId, { kind: "withdrawn", repoId: fe, prNumber: 5 });
+  board.finishReport(plBe, pub.storyId, { kind: "withdrawn", repoId: fe, prNumber: 5 });
+  assert.deepEqual(h.view().withdrawn, [], "forgotten once closed; a resend is nothing");
+  assert.deepEqual(board.inbox(plBe).finishReady, []);
+});
+
+test("a re-check, a failed re-check and a cancelled Story withdraw the open PRs too; a closed one is not withdrawn", () => {
+  const pr = (n) => `https://github.example.com/team/app/pull/${n}`;
+  for (const end of ["reverify", "failed", "cancel", "closed"]) {
+    const h = passed();
+    const { board, be, fe, plBe, pub } = h;
+    h.approve();
+    board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: be, state: "opened", prNumber: 3, prUrl: pr(3), mergeCommit: null, reason: null });
+    board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: fe, state: "handed", prNumber: 5, prUrl: pr(5), mergeCommit: null, reason: "리뷰 필요" });
+    if (end === "cancel") board.cancelStory(plBe, pub.storyId);
+    else if (end === "closed") board.finishReport(plBe, pub.storyId, { kind: "closed", repoId: fe, prNumber: 5 });
+    else board.finishReport(plBe, pub.storyId, { kind: end, reason: "이유" });
+    const view = h.view();
+    assert.deepEqual(
+      view.withdrawn.map((w) => w.prNumber),
+      end === "closed" ? [3] : [3, 5],
+      end,
+    );
+    assert.equal(view.approval, null, end);
+    if (end === "closed") assert.deepEqual(view.verified, h.commits, "a closed PR keeps the checked commits for a new approval");
+  }
+});

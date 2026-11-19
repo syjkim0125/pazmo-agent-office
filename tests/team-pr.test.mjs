@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { OfficeError } from "../src/cli/project.ts";
 import { runCommand } from "../src/runners/command.ts";
-import { ensurePr, ensureStoryPr, findPr, mergePr, mergeStoryPr, viewStoryPr } from "../src/team/pr.ts";
+import { closeStoryPr, ensurePr, ensureStoryPr, findPr, mergePr, mergeStoryPr, viewStoryPr } from "../src/team/pr.ts";
 
 const REMOTE = "github.example.com/team/be";
 const BASE = "feature/story-1/base";
@@ -481,4 +481,21 @@ test("a refused Story merge (a protection rule) is GH_FAILED with gh's own reaso
     "pr merge": `echo "GraphQL: Pull request is not mergeable: the base branch policy prohibits the merge" >&2; exit 1`,
   });
   await assert.rejects(mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), gone("GH_FAILED", /base branch policy prohibits the merge/));
+});
+
+test("closeStoryPr closes an open Story merge PR with its comment, leaves a merged or closed one, and never touches a Task PR", async () => {
+  const w = world();
+  answering(w, { "pr view": say(w.file("view", { state: "OPEN", mergeCommit: null, ...S_REFS })), "pr close": "exit 0" });
+  assert.equal(await closeStoryPr(REMOTE, { number: 7, comment: "승인이 끝나 닫습니다." }, w.env()), "OPEN");
+  assert.deepEqual(w.calls()[1], ["pr", "close", "7", "-R", REMOTE, "--comment", "승인이 끝나 닫습니다."]);
+
+  const merged = world();
+  answering(merged, { "pr view": say(merged.file("view", { state: "MERGED", mergeCommit: oid(MERGED_AT), ...S_REFS })) });
+  assert.equal(await closeStoryPr(REMOTE, { number: 7, comment: "x" }, merged.env()), "MERGED");
+  assert.equal(merged.calls().length, 1, "nothing to close");
+
+  const task = world();
+  answering(task, { "pr view": say(task.file("view", { state: "OPEN", mergeCommit: null, ...REFS })) });
+  await assert.rejects(closeStoryPr(REMOTE, { number: 7, comment: "x" }, task.env()), gone("INVALID"));
+  assert.equal(task.calls().length, 1, "a Task PR is never closed");
 });

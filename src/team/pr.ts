@@ -310,3 +310,22 @@ export async function mergeStoryPr(
   const after = await viewPr(remote, pr.number, "mergeCommit", env);
   return { mergeCommit: after.mergeCommit ?? none() };
 }
+
+/** Closes a withdrawn Story merge PR with a comment saying why (its approval ended), so nobody merges work that was
+ * not checked and approved into the base branch. A PR already closed or merged is left as it is; the state it was in
+ * is returned. Only a Story base into a non-Story branch is closed. */
+export async function closeStoryPr(
+  remote: string,
+  pr: { number: number; comment: string },
+  env: GhEnv,
+): Promise<PullRequest["state"]> {
+  checkRemote(remote);
+  if (!Number.isInteger(pr.number) || pr.number < 1) fail("INVALID", "A PR number must be a positive integer.");
+  checkText({ title: "close", body: pr.comment });
+  const view = await viewPr(remote, pr.number, "state,mergeCommit,baseRefName,headRefName", env);
+  checkStoryMerge(view.base, view.head);
+  if (!STATES.includes(view.state as string)) fail("GH_FAILED", "gh returned a pull request that could not be read.");
+  if (view.state !== "OPEN") return view.state as PullRequest["state"];
+  await gh(env, ["pr", "close", String(pr.number), "-R", remote, "--comment", pr.comment]);
+  return "OPEN";
+}

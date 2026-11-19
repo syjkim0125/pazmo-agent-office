@@ -325,3 +325,66 @@ test("an approval that ended meanwhile (Tasks were added) stops the merge before
   assert.deepEqual(await w.finisher.tick(), { ran: true });
   assert.deepEqual(w.pr.calls.filter((c) => c[0] === "merge"), [], "no merge into main");
 });
+
+test("withdrawn PRs are closed with a comment first, even when the Story is open again, and reported once closed (review 2 I1)", async () => {
+  const hub = fakeHub(viewOf({ state: "open", approval: null, verified: null, withdrawn: [{ repoId: "repo-fe", prNumber: 5, prUrl: "https://github.example.com/team/fe/pull/5" }] }));
+  const inbox = hub.link.inbox;
+  hub.link.inbox = async () => ({ ...(await inbox()), finishReady: hub.view.withdrawn?.length ? [hub.view.storyId] : [] });
+  const report = hub.link.finishReport;
+  hub.link.finishReport = async (id, r) => {
+    await report(id, r);
+    if (r.kind === "withdrawn") hub.view.withdrawn = hub.view.withdrawn.filter((w) => w.prNumber !== r.prNumber);
+  };
+  const pr = fakePr();
+  const closed = [];
+  pr.close = async (remote, p) => {
+    closed.push([remote, p.number, p.comment]);
+    return "OPEN";
+  };
+  const w = world({ hub, pr });
+  assert.deepEqual(await w.finisher.tick(), { ran: true });
+  assert.equal(closed.length, 1);
+  assert.deepEqual(closed[0].slice(0, 2), ["github.example.com/team/fe", 5]);
+  assert.match(closed[0][2], /결과 승인이 끝나 이 PR을 닫습니다.*이 PR은 머지하지 마세요\./);
+  assert.deepEqual(w.hub.reports(), [{ kind: "withdrawn", repoId: "repo-fe", prNumber: 5 }]);
+  assert.deepEqual(w.git.calls, [], "an open Story is not merged");
+  assert.deepEqual(await w.finisher.tick(), { ran: false }, "nothing left");
+});
+
+test("a re-check that passed is not run again for the same commit when a later step fails", async () => {
+  const pr = fakePr();
+  let fail = true;
+  const ensure = pr.ensure;
+  pr.ensure = async (remote, req) => {
+    if (fail) throw new OfficeError("GH_FAILED", "gh auth: not logged in");
+    return ensure(remote, req);
+  };
+  const w = world({ git: fakeGit({ be: { kind: "current", head: SHA("d"), check: true } }), pr });
+  await w.finisher.tick();
+  await w.finisher.tick();
+  assert.deepEqual(w.engines.be.verifies, [["V1"]], "the VM ran once for that commit");
+  fail = false;
+  await w.finisher.tick();
+  assert.equal(w.hub.view.state, "done");
+});
+
+test("the same problem is shown again if it comes back after a pass without errors", async () => {
+  let broken = true;
+  const pr = fakePr({ state: {} });
+  const view = pr.view;
+  const w = world({
+    hub: fakeHub(viewOf({ repos: { "repo-be": { state: "handed", prNumber: 10, prUrl: "https://github.example.com/team/be/pull/10", mergeCommit: null, reason: "리뷰" }, "repo-fe": { state: "handed", prNumber: 11, prUrl: "https://github.example.com/team/fe/pull/11", mergeCommit: null, reason: "리뷰" } } })),
+    pr: Object.assign(pr, {
+      view: async (remote, number) => {
+        if (broken) throw new OfficeError("GH_FAILED", "gh: network down");
+        return view(remote, number);
+      },
+    }),
+  });
+  await w.finisher.tick();
+  broken = false;
+  await w.finisher.tick();
+  broken = true;
+  await w.finisher.tick();
+  assert.equal(w.hub.reports().filter((r) => r.kind === "problem").length, 2);
+});

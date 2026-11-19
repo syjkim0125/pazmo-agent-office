@@ -141,6 +141,8 @@ export type FinishView = {
   approval: FinishApproval | null;
   repos: Record<string, FinishRepo>;
   problem: FinishProblem | null;
+  /** Open Story PRs whose approval ended: the PL Office closes them. */
+  withdrawn: WithdrawnPr[];
 };
 /** What the PL Office reports while it merges an approved Story (D48). */
 export type FinishReport =
@@ -150,14 +152,23 @@ export type FinishReport =
   | { kind: "failed"; reason: string }
   | { kind: "done" }
   /** A merge that keeps failing (gh login, network): its reason, shown on the Story page until a step succeeds. */
-  | { kind: "problem"; reason: string };
+  | { kind: "problem"; reason: string }
+  /** A withdrawn PR the PL Office closed on GitHub: the Hub forgets it. */
+  | { kind: "withdrawn"; repoId: string; prNumber: number };
 /** Why the PL Office's merge of an approved Story is stuck, and since when. */
 export type FinishProblem = { reason: string; at: number };
+/**
+ * A Story PR that was open, not merged, when its approval ended (Tasks added, checked again, a failed re-check, the
+ * Story cancelled): it follows the Story base, so a person could still merge unchecked work into the base branch.
+ * The PL Office closes it (review 2 of U55).
+ */
+export type WithdrawnPr = { repoId: string; prNumber: number; prUrl: string };
 type FinishRow = {
   verified: Record<string, string> | null;
   approval: (FinishApproval & { macId: string }) | null;
   repos: Record<string, FinishRepo>;
   problem: FinishProblem | null;
+  withdrawn: WithdrawnPr[];
 };
 export type UploadResult = { storyId: string; number: number; state: StoryState; already: boolean; bases: Record<string, string> };
 type UploadRow = { story_id: string; mac_id: string; mac_name: string; story_hash: string; bases: string; created_at: number };
@@ -344,7 +355,7 @@ CREATE TABLE IF NOT EXISTS hub_story_appends(story_id TEXT NOT NULL REFERENCES h
 CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,story_id TEXT NOT NULL REFERENCES hub_stories(id),task_id TEXT REFERENCES hub_story_tasks(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),mac_id TEXT NOT NULL REFERENCES hub_macs(id),mac_name TEXT NOT NULL,story_hash TEXT NOT NULL,bases TEXT NOT NULL,created_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS hub_story_finish(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),verified TEXT,approval TEXT,repos TEXT NOT NULL,problem TEXT,updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_story_finish(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),verified TEXT,approval TEXT,repos TEXT NOT NULL,problem TEXT,withdrawn TEXT NOT NULL DEFAULT '[]',updated_at INTEGER NOT NULL);
 `;
 
 function fail(code: string, status: number, message: string): never {
@@ -867,15 +878,8 @@ export class StoryBoard {
       );
       this.#touchColumn(verifyId);
       // D48: new work ends any result approval, and a repo that gets new work merges again (its earlier merge did not
-      // hold it); repos without new work keep their merge.
-      const fin = this.#finish(s.id);
-      const touched = new Set(fresh.map((f) => f.node.repoId));
-      this.#setFinish(s.id, {
-        verified: null,
-        approval: null,
-        repos: Object.fromEntries(Object.entries(this.#mergedOnly(fin.repos)).filter(([id]) => !touched.has(id))),
-        problem: null,
-      });
+      // hold it); repos without new work keep their merge, and every open Story PR is withdrawn.
+      this.#setFinish(s.id, this.#ended(this.#finish(s.id), new Set(fresh.map((f) => f.node.repoId))));
       const result = { tasks: fresh.map((f) => ({ nodeId: f.node.id, taskId: f.id, number: f.number })) };
       this.#run(
         "INSERT INTO hub_story_appends(story_id,create_key,result,created_at) VALUES (?,?,?,?)",
@@ -897,6 +901,9 @@ export class StoryBoard {
         "SELECT id FROM hub_story_tasks WHERE story_id=? AND state NOT IN ('merged','passed','cancelled') ORDER BY number", s.id,
       ))
         this.#cancel(s.id, t.id, a.member.id);
+      // D48: a cancelled Story's open Story PRs are withdrawn, so nobody merges them into the base branch.
+      const fin = this.#finish(s.id);
+      if (fin.approval || Object.keys(fin.repos).length || fin.withdrawn.length) this.#setFinish(s.id, this.#ended(fin));
       this.#run("UPDATE hub_stories SET state='cancelled',updated_at=? WHERE id=?", this.#now(), s.id);
       this.#event(s.id, null, a.member.id, "cancelled");
       return { ok: true as const };
@@ -1383,7 +1390,7 @@ export class StoryBoard {
       const commits = r.commits === undefined ? null : this.#storyCommits(story, r.commits);
       // A new verdict ends any approval; merged repos stay merged (`addTasks` drops those that get new work).
       const before = this.#finish(story.id);
-      this.#setFinish(story.id, { verified: r.passed ? commits : null, approval: null, repos: this.#mergedOnly(before.repos), problem: null });
+      this.#setFinish(story.id, { ...this.#ended(before), verified: r.passed ? commits : null });
       if (r.passed) {
         this.#run("UPDATE hub_story_tasks SET state='passed',summary=?,stage=NULL,updated_at=? WHERE id=?", r.summary, this.#now(), t.id);
         this.#touchColumn(t.id);
@@ -1414,8 +1421,8 @@ export class StoryBoard {
     return Object.fromEntries(ids.map((id) => [id, (value as Record<string, string>)[id]]));
   }
   #finish(storyId: string): FinishRow {
-    const row = this.#get<{ verified: string | null; approval: string | null; repos: string; problem: string | null }>(
-      "SELECT verified,approval,repos,problem FROM hub_story_finish WHERE story_id=?",
+    const row = this.#get<{ verified: string | null; approval: string | null; repos: string; problem: string | null; withdrawn: string }>(
+      "SELECT verified,approval,repos,problem,withdrawn FROM hub_story_finish WHERE story_id=?",
       storyId,
     );
     return {
@@ -1423,24 +1430,38 @@ export class StoryBoard {
       approval: row?.approval ? JSON.parse(row.approval) : null,
       repos: row ? (JSON.parse(row.repos) as Record<string, FinishRepo>) : {},
       problem: row?.problem ? (JSON.parse(row.problem) as FinishProblem) : null,
+      withdrawn: row ? (JSON.parse(row.withdrawn) as WithdrawnPr[]) : [],
     };
   }
   #setFinish(storyId: string, f: FinishRow) {
     this.#run(
-      `INSERT INTO hub_story_finish(story_id,verified,approval,repos,problem,updated_at) VALUES (?,?,?,?,?,?)
+      `INSERT INTO hub_story_finish(story_id,verified,approval,repos,problem,withdrawn,updated_at) VALUES (?,?,?,?,?,?,?)
        ON CONFLICT(story_id) DO UPDATE SET verified=excluded.verified,approval=excluded.approval,repos=excluded.repos,
-       problem=excluded.problem,updated_at=excluded.updated_at`,
+       problem=excluded.problem,withdrawn=excluded.withdrawn,updated_at=excluded.updated_at`,
       storyId,
       f.verified ? JSON.stringify(f.verified) : null,
       f.approval ? JSON.stringify(f.approval) : null,
       JSON.stringify(f.repos),
       f.problem ? JSON.stringify(f.problem) : null,
+      JSON.stringify(f.withdrawn),
       this.#now(),
     );
   }
   /** The merged repos of `repos` only: what stays when an approval ends without a merge. */
   #mergedOnly(repos: Record<string, FinishRepo>): Record<string, FinishRepo> {
     return Object.fromEntries(Object.entries(repos).filter(([, r]) => r.state === "merged"));
+  }
+  /**
+   * An ended approval: no approval, no checked commits, merged repos kept but those in `drop` (they get new work), and
+   * every other repo's unmerged PR added to the withdrawn PRs the PL Office closes (once each).
+   */
+  #ended(f: FinishRow, drop: ReadonlySet<string> = new Set()): FinishRow {
+    const withdrawn = [...f.withdrawn];
+    for (const [repoId, r] of Object.entries(f.repos))
+      if (r.state !== "merged" && !withdrawn.some((w) => w.repoId === repoId && w.prNumber === r.prNumber))
+        withdrawn.push({ repoId, prNumber: r.prNumber, prUrl: r.prUrl });
+    const repos = Object.fromEntries(Object.entries(this.#mergedOnly(f.repos)).filter(([id]) => !drop.has(id)));
+    return { verified: null, approval: null, repos, problem: null, withdrawn };
   }
   #storyByNumber(number: unknown): StoryRow {
     if (typeof number !== "number" || !Number.isInteger(number) || number < 1) fail("INVALID", 400, "Story 번호는 1 이상의 정수입니다.");
@@ -1462,6 +1483,7 @@ export class StoryBoard {
       approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash },
       repos: f.repos,
       problem: f.problem,
+      withdrawn: f.withdrawn,
     };
   }
   /** A Story the PL is to approve (by its number, from `team finish`) or the PL Office merges (by its id, from the
@@ -1518,6 +1540,15 @@ export class StoryBoard {
       this.#assertPl(l, s);
       if (!isObject(r) || typeof r.kind !== "string") fail("INVALID", 400, "kind가 필요합니다.");
       const f = this.#finish(s.id);
+      // A withdrawn PR is closed in whatever state the Story is: the Hub forgets it (a resend is nothing).
+      if (r.kind === "withdrawn") {
+        const left = f.withdrawn.filter((w) => !(w.repoId === r.repoId && w.prNumber === r.prNumber));
+        if (left.length !== f.withdrawn.length) {
+          this.#setFinish(s.id, { ...f, withdrawn: left });
+          this.#event(s.id, null, l.member.id, "finish_withdrawn", `${String(r.repoId)} #${String(r.prNumber)}`);
+        }
+        return { ok: true as const };
+      }
       if (s.state !== "awaiting_g4" || !f.approval) fail("STATE", 409, "승인되어 머지를 기다리는 Story가 아닙니다.");
       const repoIds = new Set(this.#branches(s).map((b) => b.repoId));
       const reason = (value: unknown, required: boolean): string | null => {
@@ -1549,7 +1580,10 @@ export class StoryBoard {
           const repoId = repoOf(r.repoId);
           const prNumber = prNumberOf(r.prNumber);
           if (f.repos[repoId]?.prNumber !== prNumber || f.repos[repoId]?.state === "merged") fail("STATE", 409, "그 레포에서 사람에게 넘긴 PR이 아닙니다.");
-          this.#setFinish(s.id, { ...f, approval: null, repos: this.#mergedOnly(f.repos), problem: null });
+          // The approval ends but the checked commits stay, so the PL can approve again. The closed PR itself is closed
+          // already; every other open Story PR is withdrawn.
+          const others = Object.fromEntries(Object.entries(f.repos).filter(([id]) => id !== repoId));
+          this.#setFinish(s.id, { ...this.#ended({ ...f, repos: others }), verified: f.verified });
           this.#event(s.id, null, l.member.id, "finish_closed", `${repoId} #${prNumber}`);
           return { ok: true as const };
         }
@@ -1569,7 +1603,7 @@ export class StoryBoard {
             );
           this.#touchColumn(v.id);
           this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
-          this.#setFinish(s.id, { verified: null, approval: null, repos: this.#mergedOnly(f.repos), problem: null });
+          this.#setFinish(s.id, this.#ended(f));
           this.#event(s.id, v.id, l.member.id, r.kind === "reverify" ? "finish_reverify" : "finish_failed", why);
           return { ok: true as const };
         }
@@ -1661,7 +1695,7 @@ export class StoryBoard {
     ).map((row) => row.id);
     const finishReady = this.#all<{ id: string }>(
       `SELECT s.id FROM hub_stories s JOIN hub_story_finish f ON f.story_id=s.id
-       WHERE s.pl_member_id=? AND s.state='awaiting_g4' AND f.approval IS NOT NULL ORDER BY s.number`,
+       WHERE s.pl_member_id=? AND ((s.state='awaiting_g4' AND f.approval IS NOT NULL) OR f.withdrawn<>'[]') ORDER BY s.number`,
       l.member.id,
     ).map((row) => row.id);
     return {
