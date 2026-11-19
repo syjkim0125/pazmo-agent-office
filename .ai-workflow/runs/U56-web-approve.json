@@ -125,14 +125,14 @@
     "nodes": {
       "implement": {
         "status": "completed",
-        "attempts": 1,
-        "revision": 0,
+        "attempts": 2,
+        "revision": 1,
         "output": {
-          "summary": "D49 in 3f57ad0. The PL sees a 결과 승인 card on a Story at 승인 대기: check result, Task 3-line summaries and ASSUMED, GitHub compare links, a QA list from the Story's MUST/Verify and the Tasks' ASSUMED lines, touched files, run steps per repo, and a copyable AI prompt (asks for a watchable Playwright browser and screenshots; no code changes; a person approves). Approving binds the fingerprint and commits the page showed (stale STALE, others and admins FORBIDDEN, Origin/CSRF as every POST) and records 웹 승인 · PL; the PL Office merges as in D48. Without checked commits the card offers 다시 검증. RED 137/147 -> GREEN 151/151, full 2044/2044; tsc 0. The hands-on web approval on a copy Hub awaits the user's allowance.",
+          "summary": "Review 1 fixes in d1d94e0. I1: team finish sets aside any record at the live path once the Hub has an approval (approved or superseded name), so a record that lost to a web approval never approves a later round. I2: run steps and the prompt use a detached git worktree beside each repo and remove it; the PL's folder is never switched. Minors: list fenced as data in the prompt, files labelled as planned scope, storyItems like kitStoryRefs, copy.js outside main on the PL's open Story pages, a losing web approval redirects, compare links only for GitHub hosts with / kept, leading = quoted, ASSUMED overflow points to Task pages. RED 43/51 -> GREEN 215/215; full 2046/2046; tsc 0.",
           "evidence": [
-            ".ai-workflow/runs/U56-web-approve-implement-1.md",
-            ".ai-workflow/runs/U56-web-approve-implement-red-1.txt",
-            ".ai-workflow/runs/U56-web-approve-implement-green-1.txt"
+            ".ai-workflow/runs/U56-web-approve-implement-2.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-2.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-2.txt"
           ],
           "execution": {
             "selection": "unknown",
@@ -148,20 +148,20 @@
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U56-web-approve-implement-1.md": "53a2f25571b546c5db90223c068d31271ac32a12f448310b5392ad38d63b3a99",
-          ".ai-workflow/runs/U56-web-approve-implement-red-1.txt": "6811af0ce59f12c2c29fe0eca56c6308e816f3eb3d51d6db156055aa780a8df1",
-          ".ai-workflow/runs/U56-web-approve-implement-green-1.txt": "3821ddd63f875fe2339a6fbe4de1e396aebc8ad32641f7823e158fa51d338f07"
+          ".ai-workflow/runs/U56-web-approve-implement-2.md": "d9da871c8c248fa7865c03ba6233dc611cca2a94f377316cdfebaaafabfe172f",
+          ".ai-workflow/runs/U56-web-approve-implement-red-2.txt": "b9159731440dd88cc452ea4d7072f08ed5bb04cb5320f201c05e6180b1f50e25",
+          ".ai-workflow/runs/U56-web-approve-implement-green-2.txt": "445e664ae75761db2fd91f6044c1ee6e387888f52dd8d7ecf82a0661c11e3d2a"
         }
       },
       "workflow-review": {
         "status": "pending",
-        "attempts": 0,
-        "revision": 0
+        "attempts": 1,
+        "revision": 1
       },
       "workflow-verify": {
         "status": "pending",
         "attempts": 0,
-        "revision": 0
+        "revision": 1
       }
     }
   },
@@ -207,6 +207,98 @@
           ".ai-workflow/runs/U56-web-approve-implement-1.md": "53a2f25571b546c5db90223c068d31271ac32a12f448310b5392ad38d63b3a99",
           ".ai-workflow/runs/U56-web-approve-implement-red-1.txt": "6811af0ce59f12c2c29fe0eca56c6308e816f3eb3d51d6db156055aa780a8df1",
           ".ai-workflow/runs/U56-web-approve-implement-green-1.txt": "3821ddd63f875fe2339a6fbe4de1e396aebc8ad32641f7823e158fa51d338f07"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T08:07:37.150Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T08:14:43.819Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "ff45e3b4761677c885afc2b7e3725565cd5eca85559bfd8197bbca8ad40b5c29",
+        "output": {
+          "summary": "Review 1 of 3f57ad0: not ready. No Critical. I1: a team finish record that lost to a web approval stays at its path (its hash never equals the web hash), so after a handed PR is closed unmerged any later team finish posts it without asking the PL again (breaks D48's new-answer rule). I2: run steps and the AI prompt switch the PL's own clone to the commit, carrying uncommitted edits into the check and leaving a detached HEAD. Minors: untrusted list text in a prompt told to run things; planned scope labelled as changed files; storyItems narrower than kitStoryRefs; copy.js inside main never runs after a live swap; a losing web approval lands on a 409 page; compareUrl for non-GitHub hosts and %2F branches, a leading = unquoted for zsh, ASSUMED overflow says Story 글.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "ff45e3b4761677c885afc2b7e3725565cd5eca85559bfd8197bbca8ad40b5c29"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 2. I1: when the Hub already has an approval, team finish sets aside any record at the live path (approved name when its hash matches, superseded otherwise) with a test for the web-then-closed sequence. I2: run steps and prompt use a separate detached git worktree per repo and remove it afterwards. Minors: fence the list as data in the prompt; label files as planned scope; storyItems accepts [-*] bullets and lower-case ids like kitStoryRefs; load copy.js outside main on Story pages; a web approval over an existing approval redirects; compareUrl only for github hosts and keeps / in branches; quote a leading =; ASSUMED overflow points to the Task pages."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-1.md": "a6f740c3cdb6b506229e5478da1cd8fc7eeff40d32c59e906344aff57ba309c0"
+        },
+        "error": "Implement attempt 2. I1: when the Hub already has an approval, team finish sets aside any record at the live path (approved name when its hash matches, superseded otherwise) with a test for the web-then-closed sequence. I2: run steps and prompt use a separate detached git worktree per repo and remove it afterwards. Minors: fence the list as data in the prompt; label files as planned scope; storyItems accepts [-*] bullets and lower-case ids like kitStoryRefs; load copy.js outside main on Story pages; a web approval over an existing approval redirects; compareUrl only for github hosts and keeps / in branches; quote a leading =; ASSUMED overflow points to the Task pages."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 1: fix I1 I2 and minors",
+      "at": "2026-11-19T08:14:56.535Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-19T08:15:02.563Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-19T08:26:08.089Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes in d1d94e0. I1: team finish sets aside any record at the live path once the Hub has an approval (approved or superseded name), so a record that lost to a web approval never approves a later round. I2: run steps and the prompt use a detached git worktree beside each repo and remove it; the PL's folder is never switched. Minors: list fenced as data in the prompt, files labelled as planned scope, storyItems like kitStoryRefs, copy.js outside main on the PL's open Story pages, a losing web approval redirects, compare links only for GitHub hosts with / kept, leading = quoted, ASSUMED overflow points to Task pages. RED 43/51 -> GREEN 215/215; full 2046/2046; tsc 0.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-implement-2.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-2.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-implement-2.md": "d9da871c8c248fa7865c03ba6233dc611cca2a94f377316cdfebaaafabfe172f",
+          ".ai-workflow/runs/U56-web-approve-implement-red-2.txt": "b9159731440dd88cc452ea4d7072f08ed5bb04cb5320f201c05e6180b1f50e25",
+          ".ai-workflow/runs/U56-web-approve-implement-green-2.txt": "445e664ae75761db2fd91f6044c1ee6e387888f52dd8d7ecf82a0661c11e3d2a"
         }
       }
     }
