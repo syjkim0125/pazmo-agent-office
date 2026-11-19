@@ -3,7 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-18 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/hub-wording-g4.json · 2026-11-18 · Check-in: accepted
+Understanding gate (G4): .ai-workflow/approvals/story-check-g4.json · 2026-11-19 · Check-in: accepted
+G4: PASS — U54(D47 4a, PL Office의 자동 Story 검증: 모든 작업 Task가 머지되면 PL의 자동으로 일하기와 상관없이 Story 검증을 가져가고(진행 중 Task·가져가기 멈춤·실행할 수 없는 Office면 새로 가져가지 않음, 멈춤이어도 이미 가진 검증은 이어 함), 레포마다 Story base의 최신 커밋을 모두 받은 뒤 VM에서 Story 검사를 돌려 통과·실패와 요약(레포·커밋 전체·검사 결과)을 보고하며 Story 화면에 보임; 허브는 Story base마다 레포 이름을 더 보냄; AI 리뷰·승인·머지·완료는 그대로 남김): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13).
 G4: PASS — U53(D41, Task·Story·내 할 일·보드 말투: 사용자가 고른 표 19줄대로 상태는 짧은 한 문장, 단추가 말하는 것은 빼고, 빈 받을 일·Story 없는 프로젝트·오래 멈춘 Task의 부수 설명은 ⓘ 뒤로, 화면 밖의 멈춤 이유는 Task 화면을 가리킴, 되돌릴 수 없는 일의 결과는 늘 보임; 단추가 하는 일·권한·주소는 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13).
 G4: PASS — U52(D46, 다크 모드를 흔히 쓰는 해·달 아이콘 단추로: 지금 테마의 아이콘(밝으면 해, 어두우면 달), 이름 "다크 모드"와 눌림 상태, 마우스 글 켜짐/꺼짐, 44px 둥근 단추, 스크립트 없는 인라인 SVG; 누르면 하는 일은 D45 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.
 G4: PASS — U51(D45, 기획 화면 읽기 쉽게: 질문마다 상자 하나에 묻는 문장만 굵게·선택지 한 줄씩·Why 칸·한 줄 답 이름, 지난 질문은 답 먼저·Why는 ⓘ, 짧은 말투, 초안 카드의 개수, 초안·설계 본문의 Story 제목·머리 수·번호 칸·한 줄 한 문장·물은 질문 뒤에서 나누는 PL 답; 팀 PM의 질문 쓰기 지시; 다크 모드 스위치와 브라우저 쿠키(POST /me/theme, 스크립트 없이, CSRF·Origin); AI가 쓴 낱말과 승인 해시·양식·권한은 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.

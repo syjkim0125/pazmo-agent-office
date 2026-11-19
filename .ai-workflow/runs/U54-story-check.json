@@ -154,14 +154,82 @@
         }
       },
       "workflow-review": {
-        "status": "pending",
-        "attempts": 2,
-        "revision": 2
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "output": {
+          "summary": "Review 3 of 197e922..e122556: Ready to verify. N1, N2, N3, N4 and N6 are fixed and tested; the presence test fails when checker.active() is removed. There is no Critical or Important finding. R1 (Minor, unreachable on the current Hub): the INVALID log line says the PL can release the check, but the resend keeps beating the claim, so it never shows held; it is recorded as a limit for 4b, since implement has used its three attempts. R2 (Minor): failure counts add up per claim across both passes, which is the documented behaviour.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-3.md": "976dc0ca753fc9f18e20afbee9a6b72d53082ac917ae8dc2c0a4ad21ef59a03e"
+        }
       },
       "workflow-verify": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 2
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/7f7cc373-e3da-4ab6-b450-dc92b7c11c20/receipt.json",
+            "hash": "3dda2fcbe0eeaa05b1560e9216190aa1857b1907c29ba65952731b8d1bdc1f1a"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a13015c1-6565-4b73-87c3-a48f52ad20e3/receipt.json",
+            "hash": "fc9e51863e8b444bb794a887d15bde0aa8869e80e4841cb6f1445bf1ee0a0180"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/6d879f8c-c0dc-4a88-bd6b-7667c64fc9a2/receipt.json",
+            "hash": "20239b70b1e75dad9981bdceef18997b5a1baa12a67e1ecac1f2dd03d520d3b0"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a97558bd-ac7d-4a28-af5a-640ef83ba84d/receipt.json",
+            "hash": "21767642fe946d7ee79b7a3d9cf41f42e85f782a4446a6204f079732527bb6c3"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/3d575463-adba-4a14-9f8c-45f17fd34c7b/receipt.json",
+            "hash": "d3fc73622c81d6e82bde4ee5fc696aac8f1b051dcb5ca407282ebba49eb7b9c6"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on e122556 (code 3138815): tests 597/597 + 676/676 + 715/715 = 1988/1988, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-verify-1.md": "678582d3d2c078e9810019d52f59b4608092571b9857f80f05d7e07b5bd22a22"
+        }
       }
     }
   },
@@ -395,6 +463,104 @@
           ".ai-workflow/runs/U54-story-check-implement-3.md": "ff9458b1ddbe82570f1169cf0c1a222426366f455f1d5854146acf3f83c1bc9d",
           ".ai-workflow/runs/U54-story-check-implement-red-3.txt": "3499aa9ef90e8b3c2aedbbe3f71832e4e321d57dc7eb938aed63d143aefaaf13",
           ".ai-workflow/runs/U54-story-check-implement-green-3.txt": "8acdffdf7bbe60414debdbb24f69f433f78c0432d724b078b1e5942aa731b1fd"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T08:59:09.852Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-18T09:01:32.137Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "output": {
+          "summary": "Review 3 of 197e922..e122556: Ready to verify. N1, N2, N3, N4 and N6 are fixed and tested; the presence test fails when checker.active() is removed. There is no Critical or Important finding. R1 (Minor, unreachable on the current Hub): the INVALID log line says the PL can release the check, but the resend keeps beating the claim, so it never shows held; it is recorded as a limit for 4b, since implement has used its three attempts. R2 (Minor): failure counts add up per claim across both passes, which is the documented behaviour.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-review-3.md": "976dc0ca753fc9f18e20afbee9a6b72d53082ac917ae8dc2c0a4ad21ef59a03e"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-18T09:02:18.875Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-18T09:06:37.282Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/7f7cc373-e3da-4ab6-b450-dc92b7c11c20/receipt.json",
+            "hash": "3dda2fcbe0eeaa05b1560e9216190aa1857b1907c29ba65952731b8d1bdc1f1a"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a13015c1-6565-4b73-87c3-a48f52ad20e3/receipt.json",
+            "hash": "fc9e51863e8b444bb794a887d15bde0aa8869e80e4841cb6f1445bf1ee0a0180"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/6d879f8c-c0dc-4a88-bd6b-7667c64fc9a2/receipt.json",
+            "hash": "20239b70b1e75dad9981bdceef18997b5a1baa12a67e1ecac1f2dd03d520d3b0"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/a97558bd-ac7d-4a28-af5a-640ef83ba84d/receipt.json",
+            "hash": "21767642fe946d7ee79b7a3d9cf41f42e85f782a4446a6204f079732527bb6c3"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/3a73ed48-21de-470c-9c9e-e3ffb87ad03d/3d575463-adba-4a14-9f8c-45f17fd34c7b/receipt.json",
+            "hash": "d3fc73622c81d6e82bde4ee5fc696aac8f1b051dcb5ca407282ebba49eb7b9c6"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on e122556 (code 3138815): tests 597/597 + 676/676 + 715/715 = 1988/1988, typecheck exit 0, story check exit 0.",
+          "evidence": [
+            ".ai-workflow/runs/U54-story-check-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "b31ce680df3f5db2915266fea0e1710486232df330d5ed5f151a15f03f3dd162"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U54-story-check-verify-1.md": "678582d3d2c078e9810019d52f59b4608092571b9857f80f05d7e07b5bd22a22"
         }
       }
     }
