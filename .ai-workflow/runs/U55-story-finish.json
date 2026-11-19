@@ -125,14 +125,14 @@
     "nodes": {
       "implement": {
         "status": "completed",
-        "attempts": 1,
-        "revision": 0,
+        "attempts": 2,
+        "revision": 1,
         "output": {
-          "summary": "Bundle 4b (D48) in a33d3a4. The Hub keeps checked commits, takes the PL's local approval from the current Mac, takes the PL Office's merge reports, completes only with every repo merged, and shows approval and merges on the Story page. `team finish --story N` shows what to approve and a record template, then posts the approval bound to the fingerprint and commits. The PL Office merges each repo: re-verify if the base moved, merge and re-check a moved base branch in the VM, then PR plus gh merge; a conflict or protection rule hands the PR to a person, which it watches. A guide is included. RED 16/115 -> GREEN 2017/2017; tsc 0. The hands-on merge into the test repo awaits the user's allowance.",
+          "summary": "Review 1 fixes in a9e604b. C1: a Story base tip above the checked commit is taken only as clean merges of the base branch whose tree equals git merge-tree; an evil merge, a forged merge or a merge of another branch is re-verified (real-git tests). C2: Story PRs are head-bound (a merged PR counts only at the current tip), fork PRs are ignored, addTasks ends the approval and re-merges touched repos, reportVerify keeps merged repos, and the approval is re-read before each merge. I1: a merge refused because the base moved is re-verified. I2: a failing Story no longer holds the claim tick, and its problem is shown on the Story page. I3: new tests. I4: team finish rechecks pre-D48 Stories. M1: a left-over record is renamed. RED 13/132 on 4a84203 -> GREEN 2026/2026; tsc 0.",
           "evidence": [
-            ".ai-workflow/runs/U55-story-finish-implement-1.md",
-            ".ai-workflow/runs/U55-story-finish-implement-red-1.txt",
-            ".ai-workflow/runs/U55-story-finish-implement-green-1.txt"
+            ".ai-workflow/runs/U55-story-finish-implement-2.md",
+            ".ai-workflow/runs/U55-story-finish-implement-red-2.txt",
+            ".ai-workflow/runs/U55-story-finish-implement-green-2.txt"
           ],
           "execution": {
             "selection": "unknown",
@@ -148,20 +148,20 @@
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U55-story-finish-implement-1.md": "9abf0d4273d3b9fc06de040ff3d0fac612aece8a1dfe468faa4aa67493619aef",
-          ".ai-workflow/runs/U55-story-finish-implement-red-1.txt": "36c4e9210e2c29367271e643f47af84e67b466166b404728b36a78f5c375c23b",
-          ".ai-workflow/runs/U55-story-finish-implement-green-1.txt": "828649feb9105e9631eb76d74125b90b6eb15e1ccf54f9deb1773d074e114dca"
+          ".ai-workflow/runs/U55-story-finish-implement-2.md": "47115c707db16f1af270728ddcf2297d443379359e77861027456c64d7b0a71d",
+          ".ai-workflow/runs/U55-story-finish-implement-red-2.txt": "9c2d9fb4852b2bcc69edb5276e422c9844bf2fa518aac954e59356cd5c9cf59c",
+          ".ai-workflow/runs/U55-story-finish-implement-green-2.txt": "ce479eb987a10f5d273c06b8fd97e577b26a5d820af736dbd221661c5f7c610b"
         }
       },
       "workflow-review": {
         "status": "pending",
-        "attempts": 0,
-        "revision": 0
+        "attempts": 1,
+        "revision": 1
       },
       "workflow-verify": {
         "status": "pending",
         "attempts": 0,
-        "revision": 0
+        "revision": 1
       }
     }
   },
@@ -207,6 +207,98 @@
           ".ai-workflow/runs/U55-story-finish-implement-1.md": "9abf0d4273d3b9fc06de040ff3d0fac612aece8a1dfe468faa4aa67493619aef",
           ".ai-workflow/runs/U55-story-finish-implement-red-1.txt": "36c4e9210e2c29367271e643f47af84e67b466166b404728b36a78f5c375c23b",
           ".ai-workflow/runs/U55-story-finish-implement-green-1.txt": "828649feb9105e9631eb76d74125b90b6eb15e1ccf54f9deb1773d074e114dca"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T04:48:45.968Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T04:56:51.164Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "574dcf31d54239dff62e1ca08d6377a3a7b36dfb671e108bdd6fd0c104af008f",
+        "output": {
+          "summary": "Review 1 of 1e9d1d8..4a84203: not ready. C1: an evil merge commit pushed to a Story base after the check passes prepareStoryMerge as current (rev-list --no-merges) and reaches main unchecked where a repo has no Story checks (verified by a scratch test). C2: Tasks added after a repo merged never reach main; reportVerify wipes the repo records, and ensureStoryPr/mergeStoryPr return the old MERGED PR without checking its head, so the Story ends done. I1: a merge refused because the head moved is handed instead of re-verified. I2: a persistent gh error blocks every Task claim and is not visible. I3: the restart re-check has no test. I4: Stories at 승인 대기 from 4a have no commits and cannot be finished. Minors: the record rename after a crash, fork PRs, a handed PR left open on cancel, and docs.",
+          "evidence": [
+            ".ai-workflow/runs/U55-story-finish-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "574dcf31d54239dff62e1ca08d6377a3a7b36dfb671e108bdd6fd0c104af008f"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 2. C1: accept a Story base tip other than the verified commit only as a first-parent chain of clean two-parent merges whose second parent is in the base branch and whose tree equals git merge-tree --write-tree of its parents; else moved. C2: ensureStoryPr reuses a merged PR only when its head is the current tip, else opens a new one, and mergeStoryPr refuses a merged PR at another head; addTasks on an approved Story ends the approval and drops the merged records of the repos it adds Tasks to; reportVerify keeps merged records; re-read the approval before each merge. I1: a refused merge whose Story base tip moved goes back to the check. I2: a failing Story does not hold the claim tick (ran false, next Story) and its reason is shown on the Story page (finishReport problem). I3: tests for the restart re-check and C2. I4: team finish asks the Hub to check again a Story at 승인 대기 without commits. M1: the already-approved branch renames the matching record. M2: drop cross-repository PRs in lookUp. M3/M4: recorded as limits and in docs."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U55-story-finish-review-1.md": "4212e8abb206bddb74ec68378f3f2501e06849530aef8427d179e2569708d54f"
+        },
+        "error": "Implement attempt 2. C1: accept a Story base tip other than the verified commit only as a first-parent chain of clean two-parent merges whose second parent is in the base branch and whose tree equals git merge-tree --write-tree of its parents; else moved. C2: ensureStoryPr reuses a merged PR only when its head is the current tip, else opens a new one, and mergeStoryPr refuses a merged PR at another head; addTasks on an approved Story ends the approval and drops the merged records of the repos it adds Tasks to; reportVerify keeps merged records; re-read the approval before each merge. I1: a refused merge whose Story base tip moved goes back to the check. I2: a failing Story does not hold the claim tick (ran false, next Story) and its reason is shown on the Story page (finishReport problem). I3: tests for the restart re-check and C2. I4: team finish asks the Hub to check again a Story at 승인 대기 without commits. M1: the already-approved branch renames the matching record. M2: drop cross-repository PRs in lookUp. M3/M4: recorded as limits and in docs."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "Review 1: C1 C2 I1-I4 M1 M2",
+      "at": "2026-11-19T04:56:51.660Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-19T04:56:55.588Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-19T05:13:13.939Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes in a9e604b. C1: a Story base tip above the checked commit is taken only as clean merges of the base branch whose tree equals git merge-tree; an evil merge, a forged merge or a merge of another branch is re-verified (real-git tests). C2: Story PRs are head-bound (a merged PR counts only at the current tip), fork PRs are ignored, addTasks ends the approval and re-merges touched repos, reportVerify keeps merged repos, and the approval is re-read before each merge. I1: a merge refused because the base moved is re-verified. I2: a failing Story no longer holds the claim tick, and its problem is shown on the Story page. I3: new tests. I4: team finish rechecks pre-D48 Stories. M1: a left-over record is renamed. RED 13/132 on 4a84203 -> GREEN 2026/2026; tsc 0.",
+          "evidence": [
+            ".ai-workflow/runs/U55-story-finish-implement-2.md",
+            ".ai-workflow/runs/U55-story-finish-implement-red-2.txt",
+            ".ai-workflow/runs/U55-story-finish-implement-green-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U55-story-finish-implement-2.md": "47115c707db16f1af270728ddcf2297d443379359e77861027456c64d7b0a71d",
+          ".ai-workflow/runs/U55-story-finish-implement-red-2.txt": "9c2d9fb4852b2bcc69edb5276e422c9844bf2fa518aac954e59356cd5c9cf59c",
+          ".ai-workflow/runs/U55-story-finish-implement-green-2.txt": "ce479eb987a10f5d273c06b8fd97e577b26a5d820af736dbd221661c5f7c610b"
         }
       }
     }
