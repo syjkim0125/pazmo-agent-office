@@ -3,6 +3,7 @@ import { dataRoot, fail, packageRoot } from "./project.ts";
 import { addTeamRepo, readTeam, removeTeamRepo, teamDir } from "../team/registry.ts";
 import { openTeamStore, waitingOf } from "../team/store.ts";
 import { runUpload } from "../team/upload.ts";
+import { runFinish } from "../team/finish.ts";
 
 export const TEAM_ACTIONS: readonly string[] = [
   "add",
@@ -14,10 +15,13 @@ export const TEAM_ACTIONS: readonly string[] = [
   "status",
   "rerun",
   "upload",
+  "finish",
 ];
 
 /** The claude guide `team upload --guide` prints: the same file the repo keeps as a skill (K8). */
 export const UPLOAD_GUIDE = join(packageRoot, "skills", "pazmo-hub-upload", "SKILL.md");
+/** The claude guide `team finish --guide` prints, kept as a skill like the upload's (D48). */
+export const FINISH_GUIDE = join(packageRoot, "skills", "pazmo-hub-finish", "SKILL.md");
 
 /** `cap` is N or `off`. Anything else becomes NaN, which the store refuses as INVALID. */
 function parseCap(value: string | undefined): number | null {
@@ -41,6 +45,12 @@ export async function teamCommand(
   options: { project?: string; dataDir?: string; value?: string; memo?: string; story?: string; tasks?: string },
 ) {
   const root = dataRoot(options.dataDir);
+  if (action === "finish") {
+    // `--story` is the Hub's Story number here (D48), not a file.
+    if (typeof options.story !== "string" || !/^[1-9]\d{0,8}$/.test(options.story))
+      return fail("ARGUMENT", "team finish needs --story <Story 번호> (see team finish --guide).");
+    return runFinish({ root, story: Number(options.story) });
+  }
   if (action === "upload") {
     if (typeof options.story !== "string" || typeof options.tasks !== "string")
       return fail("ARGUMENT", "team upload needs --story <Story.md> and --tasks <tasks.json> (see team upload --guide).");

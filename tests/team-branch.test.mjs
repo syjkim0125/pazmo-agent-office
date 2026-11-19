@@ -23,6 +23,7 @@ import {
   changedFiles,
   checkoutStoryBase,
   commitAll,
+  prepareStoryMerge,
   ensureCheckout,
   extractTree,
   fetchBaseTip,
@@ -309,6 +310,53 @@ test("checkoutStoryBase refuses the person's repo, a name outside feature/story-
   for (const storyBase of ["main", "feature/story-1/task-1", "--upload-pack=x", "feature/story-1/base/x"])
     await assert.rejects(checkoutStoryBase(checkout, { storyBase }, e), { code: "GIT_FAILED", message: /feature\/story-<N>\/base/ });
   await assert.rejects(checkoutStoryBase(checkout, { storyBase: "feature/story-9/base" }, e), { code: "GIT_FAILED" });
+});
+
+test("prepareStoryMerge: a Story base holding the base branch is current; a moved base branch is merged in and pushed as a fast-forward (D48)", async (t) => {
+  const w = gitWorld(t);
+  const verified = w.push(BASE, { "story.txt": "story\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  const task = { storyBase: BASE, baseBranch: "main", verified, repo: w.repo };
+
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "current", head: verified, check: false });
+
+  const mainTip = w.push("main", { "main.txt": "moved\n" });
+  const merged = await prepareStoryMerge(checkout, task, e);
+  assert.equal(merged.kind, "merged");
+  assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${BASE}`).trim(), merged.head, "pushed to the Story base");
+  assert.deepEqual(w.git(w.bare, "rev-list", "--parents", "-n", "1", merged.head).trim().split(" ").slice(1), [verified, mainTip]);
+  assert.equal(readFileSync(join(checkout, "main.txt"), "utf8"), "moved\n");
+  assert.equal(readFileSync(join(checkout, "story.txt"), "utf8"), "story\n");
+
+  // Again (a restart after the push): the Story base holds the base branch now, and base branch commits came in.
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "current", head: merged.head, check: true });
+  assert.equal(w.git(w.bare, "rev-parse", "refs/heads/main").trim(), mainTip, "the base branch itself is never written");
+});
+
+test("prepareStoryMerge: other commits on the Story base after its check are moved; a conflict is aborted and nothing is pushed", async (t) => {
+  const w = gitWorld(t);
+  const verified = w.push(BASE, { "a.txt": "story\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  const task = { storyBase: BASE, baseBranch: "main", verified, repo: w.repo };
+
+  const later = w.push(BASE, { "late.txt": "pushed after the check\n" });
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "moved" });
+  assert.deepEqual(await prepareStoryMerge(checkout, { ...task, verified: "f".repeat(40) }, e), { kind: "moved" }, "an unknown checked commit");
+
+  w.push("main", { "a.txt": "main\n" });
+  const result = await prepareStoryMerge(checkout, { ...task, verified: later }, e);
+  assert.deepEqual(result, { kind: "conflict", files: ["a.txt"] });
+  assert.equal(inMerge(checkout), false, "the merge is aborted");
+  assert.equal(w.git(checkout, "status", "--porcelain", "--", ".", ":(exclude).pazmo-office"), "");
+  assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${BASE}`).trim(), later, "nothing pushed");
+
+  for (const baseBranch of ["feature/story-1/base", "feature/story-1/task-2", "--force"])
+    await assert.rejects(prepareStoryMerge(checkout, { ...task, baseBranch }, e), { code: "GIT_FAILED" });
+  await assert.rejects(prepareStoryMerge(w.repo, task, e), { code: "GIT_FAILED", message: /linked worktree/ });
 });
 
 test("startTaskBranch refuses the person's own repo, a folder inside the checkout and a plain folder, and resets nothing", async (t) => {

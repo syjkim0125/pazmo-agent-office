@@ -115,6 +115,39 @@ export type StoryView = {
 };
 /** The local approval behind an uploaded Story, for its page. */
 export type StoryUpload = { macName: string; at: number; storyHash: string };
+/** One repo's merge of its Story base into the base branch (D48): a PR the PL Office opened, handed to a person, or merged. */
+export type FinishRepo = {
+  state: "opened" | "handed" | "merged";
+  prNumber: number;
+  prUrl: string;
+  mergeCommit: string | null;
+  reason: string | null;
+};
+/** The local result approval of a Story (D48): from the PL's current Mac, bound to the record's hash. */
+export type FinishApproval = { macName: string; at: number; recordHash: string };
+/** What the PL's `team finish` and Office read of a Story to approve and merge (D48). */
+export type FinishView = {
+  storyId: string;
+  number: number;
+  title: string;
+  state: StoryState;
+  fingerprint: string;
+  summary: string | null;
+  branches: { repoId: string; repoName: string; baseBranch: string; storyBase: string }[];
+  /** Each repo's Story checks ({repoId: checks}), run again when a moved base branch is merged in before the merge. */
+  checks: Record<string, VerifyCheck[]>;
+  /** The commit each repo's Story check ran on ({repoId: commit}), from the last passed check; null without one. */
+  verified: Record<string, string> | null;
+  approval: FinishApproval | null;
+  repos: Record<string, FinishRepo>;
+};
+/** What the PL Office reports while it merges an approved Story (D48). */
+export type FinishReport =
+  | { kind: "repo"; repoId: string; state: FinishRepo["state"]; prNumber: number; prUrl: string; mergeCommit: string | null; reason: string | null }
+  | { kind: "closed"; repoId: string; prNumber: number }
+  | { kind: "reverify"; reason: string }
+  | { kind: "failed"; reason: string }
+  | { kind: "done" };
 export type UploadResult = { storyId: string; number: number; state: StoryState; already: boolean; bases: Record<string, string> };
 type UploadRow = { story_id: string; mac_id: string; mac_name: string; story_hash: string; bases: string; created_at: number };
 /** What an Office gets when it takes a Task. The verification Task has no repo, branch, files or spec of its own. */
@@ -189,6 +222,8 @@ export type StoryInbox = {
   mine: { taskId: string; claimId: string; storyId: string; state: "claimed" | "failed" } | null;
   alerts: { taskId: string; storyId: string; number: number; state: "held" | "failed" }[];
   verifyReady: string[];
+  /** Stories the member leads that are locally approved and wait for the PL Office's merge (D48). */
+  finishReady: string[];
 };
 
 type Arg = string | number | null;
@@ -202,6 +237,7 @@ type StoryRow = {
   risk: "normal" | "high";
   pl_member_id: string;
   graph: string;
+  fingerprint: string;
   story_verify: string;
   state: StoryState;
   created_at: number;
@@ -297,6 +333,7 @@ CREATE TABLE IF NOT EXISTS hub_story_appends(story_id TEXT NOT NULL REFERENCES h
 CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,story_id TEXT NOT NULL REFERENCES hub_stories(id),task_id TEXT REFERENCES hub_story_tasks(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),mac_id TEXT NOT NULL REFERENCES hub_macs(id),mac_name TEXT NOT NULL,story_hash TEXT NOT NULL,bases TEXT NOT NULL,created_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_story_finish(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),verified TEXT,approval TEXT,repos TEXT NOT NULL,updated_at INTEGER NOT NULL);
 `;
 
 function fail(code: string, status: number, message: string): never {
@@ -1303,7 +1340,7 @@ export class StoryBoard {
    * clears the assignee, so the PL's one-open slot is free again; the PL releases the failed Task to retry.
    * The claim id stays with the verdict, so the same verdict resent under it is answered ok.
    */
-  reportVerify(l: Link, taskId: string, claimId: string, r: { passed: boolean; summary: string }): { ok: true } {
+  reportVerify(l: Link, taskId: string, claimId: string, r: { passed: boolean; summary: string; commits?: unknown }): { ok: true } {
     return transaction(this.#db, () => {
       const seen = this.#visible(l, taskId);
       if (
@@ -1320,6 +1357,10 @@ export class StoryBoard {
       if (t.kind !== "verify") fail("STATE", 409, "Story 검증 Task만 검증 결과로 보고할 수 있습니다.");
       if (typeof r?.passed !== "boolean") fail("INVALID", 400, "passed는 true 또는 false여야 합니다.");
       if (!withinText(r.summary, LIMITS.summaryMax)) fail("INVALID", 400, `요약은 ${LIMITS.summaryMax}자 이하의 문자열이어야 합니다.`);
+      // The checked commit of each Story repo (D48), kept for the result approval; an Office before it sends none.
+      const story = this.#story(t.story_id);
+      const commits = r.commits === undefined ? null : this.#storyCommits(story, r.commits);
+      this.#setFinish(story.id, { verified: r.passed ? commits : null, approval: null, repos: {} });
       if (r.passed) {
         this.#run("UPDATE hub_story_tasks SET state='passed',summary=?,stage=NULL,updated_at=? WHERE id=?", r.summary, this.#now(), t.id);
         this.#touchColumn(t.id);
@@ -1338,7 +1379,194 @@ export class StoryBoard {
     });
   }
 
-  /** The PL records that the human G4 decision was made; only a Story waiting for it can finish. */
+  /** `{repoId: commit}` with exactly the Story's base repos, each a full commit; else INVALID. */
+  #storyCommits(s: StoryRow, value: unknown): Record<string, string> {
+    const ids = this.#branches(s).map((b) => b.repoId).sort(compare);
+    if (
+      !isObject(value) ||
+      Object.keys(value).sort(compare).join(",") !== ids.join(",") ||
+      !Object.values(value).every((sha) => typeof sha === "string" && COMMIT.test(sha))
+    )
+      fail("INVALID", 400, "commits는 Story의 레포마다 검증한 커밋(40자)이어야 합니다.");
+    return Object.fromEntries(ids.map((id) => [id, (value as Record<string, string>)[id]]));
+  }
+  #finish(storyId: string): { verified: Record<string, string> | null; approval: (FinishApproval & { macId: string }) | null; repos: Record<string, FinishRepo> } {
+    const row = this.#get<{ verified: string | null; approval: string | null; repos: string }>(
+      "SELECT verified,approval,repos FROM hub_story_finish WHERE story_id=?",
+      storyId,
+    );
+    return {
+      verified: row?.verified ? (JSON.parse(row.verified) as Record<string, string>) : null,
+      approval: row?.approval ? JSON.parse(row.approval) : null,
+      repos: row ? (JSON.parse(row.repos) as Record<string, FinishRepo>) : {},
+    };
+  }
+  #setFinish(storyId: string, f: { verified: Record<string, string> | null; approval: (FinishApproval & { macId: string }) | null; repos: Record<string, FinishRepo> }) {
+    this.#run(
+      `INSERT INTO hub_story_finish(story_id,verified,approval,repos,updated_at) VALUES (?,?,?,?,?)
+       ON CONFLICT(story_id) DO UPDATE SET verified=excluded.verified,approval=excluded.approval,repos=excluded.repos,updated_at=excluded.updated_at`,
+      storyId,
+      f.verified ? JSON.stringify(f.verified) : null,
+      f.approval ? JSON.stringify(f.approval) : null,
+      JSON.stringify(f.repos),
+      this.#now(),
+    );
+  }
+  /** The merged repos of `repos` only: what stays when an approval ends without a merge. */
+  #mergedOnly(repos: Record<string, FinishRepo>): Record<string, FinishRepo> {
+    return Object.fromEntries(Object.entries(repos).filter(([, r]) => r.state === "merged"));
+  }
+  #storyByNumber(number: unknown): StoryRow {
+    if (typeof number !== "number" || !Number.isInteger(number) || number < 1) fail("INVALID", 400, "Story 번호는 1 이상의 정수입니다.");
+    return this.#get<StoryRow>("SELECT * FROM hub_stories WHERE number=?", number) ?? fail("NOT_FOUND", 404, `Story #${number}이(가) 없습니다.`);
+  }
+  #finishView(s: StoryRow): FinishView {
+    const f = this.#finish(s.id);
+    const check = this.#get<{ summary: string | null }>("SELECT summary FROM hub_story_tasks WHERE story_id=? AND kind='verify'", s.id);
+    return {
+      storyId: s.id,
+      number: s.number,
+      title: s.title,
+      state: s.state,
+      fingerprint: s.fingerprint,
+      summary: check?.summary ?? null,
+      branches: this.#branches(s),
+      checks: Object.fromEntries((JSON.parse(s.story_verify) as { repoId: string; checks: VerifyCheck[] }[]).map((v) => [v.repoId, v.checks])),
+      verified: f.verified,
+      approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash },
+      repos: f.repos,
+    };
+  }
+  /** A Story the PL is to approve (by its number, from `team finish`) or the PL Office merges (by its id, from the
+   * inbox), D48: for its PL only. */
+  finishView(l: Link, key: unknown): FinishView {
+    return transaction(this.#db, () => {
+      const s = typeof key === "string" ? this.#story(key) : this.#storyByNumber(key);
+      this.#assertPl(l, s);
+      return this.#finishView(s);
+    });
+  }
+  /**
+   * The PL's local result approval (D48), from the PL's current Mac (`mac`) like an upload: the Story waits for it, the
+   * approval names this Story's fingerprint and the very commits its last passed check ran on, and `recordHash` is the
+   * approval record's sha256. The same record again is answered `already`; another record over an approval is STATE.
+   */
+  approveStory(
+    l: Link,
+    mac: { id: string; name: string } | null,
+    storyId: string,
+    a: { fingerprint: unknown; commits: unknown; recordHash: unknown },
+  ): { already: boolean } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      const current = this.#currentMac(l, mac);
+      if (s.state !== "awaiting_g4") fail("STATE", 409, "검증을 통과해 승인을 기다리는 Story만 승인할 수 있습니다.");
+      if (typeof a.recordHash !== "string" || !/^[0-9a-f]{64}$/.test(a.recordHash)) fail("INVALID", 400, "recordHash는 승인 기록의 sha256(64자)이어야 합니다.");
+      if (a.fingerprint !== s.fingerprint) fail("STALE", 409, "승인 기록이 지금 Story와 맞지 않습니다. `team finish`로 승인할 내용을 다시 보세요.");
+      const f = this.#finish(s.id);
+      if (!f.verified) fail("STATE", 409, "이 Story의 검증 커밋이 없습니다. Story 검증을 다시 한 뒤 승인하세요.");
+      const commits = this.#storyCommits(s, a.commits);
+      if (Object.entries(commits).some(([id, sha]) => f.verified![id] !== sha))
+        fail("STALE", 409, "승인 기록의 커밋이 PL Office가 검증한 커밋과 다릅니다. `team finish`로 승인할 내용을 다시 보세요.");
+      if (f.approval) {
+        if (f.approval.recordHash === a.recordHash) return { already: true };
+        fail("STATE", 409, "이미 승인된 Story입니다. PL Office가 머지하고 있습니다.");
+      }
+      this.#setFinish(s.id, { ...f, approval: { macId: current.id, macName: current.name, recordHash: a.recordHash, at: this.#now() } });
+      this.#event(s.id, null, l.member.id, "approved", current.name);
+      return { already: false };
+    });
+  }
+  /**
+   * What the PL Office reports while it merges an approved Story (D48). `repo`: one repo's PR opened, handed to a
+   * person, or merged (a merged repo stays merged). `closed`: a person closed a handed PR without merging, so the
+   * approval ends and the Story waits for the PL again. `reverify`: a Story base moved after its check, so the check is
+   * ready again. `failed`: the re-check after merging the moved base branch failed, so the Story is open again with the
+   * check failed. `done`: every repo is merged.
+   */
+  finishReport(l: Link, storyId: string, r: unknown): { ok: true } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      if (!isObject(r) || typeof r.kind !== "string") fail("INVALID", 400, "kind가 필요합니다.");
+      const f = this.#finish(s.id);
+      if (s.state !== "awaiting_g4" || !f.approval) fail("STATE", 409, "승인되어 머지를 기다리는 Story가 아닙니다.");
+      const repoIds = new Set(this.#branches(s).map((b) => b.repoId));
+      const reason = (value: unknown, required: boolean): string | null => {
+        if (value === null || value === undefined) return required ? fail("INVALID", 400, "reason이 필요합니다.") : null;
+        if (!withinText(value, LIMITS.failureReasonMax) || !(value as string).trim()) fail("INVALID", 400, `reason은 ${LIMITS.failureReasonMax}자 이하의 글이어야 합니다.`);
+        return value as string;
+      };
+      const repoOf = (value: unknown): string => (typeof value === "string" && repoIds.has(value) ? value : fail("INVALID", 400, "Story의 레포가 아닙니다."));
+      const prNumberOf = (value: unknown): number =>
+        typeof value === "number" && Number.isInteger(value) && value > 0 ? value : fail("INVALID", 400, "prNumber는 1 이상의 정수입니다.");
+      switch (r.kind) {
+        case "repo": {
+          const repoId = repoOf(r.repoId);
+          if (!["opened", "handed", "merged"].includes(r.state as string)) fail("INVALID", 400, "state는 opened, handed, merged 중 하나입니다.");
+          const state = r.state as FinishRepo["state"];
+          const prUrl = prUrlOf(r.prUrl) ?? fail("INVALID", 400, "PR 주소가 https 주소가 아닙니다.");
+          const mergeCommit = state === "merged" ? (typeof r.mergeCommit === "string" && LIMITS.mergeCommit.test(r.mergeCommit) ? r.mergeCommit : fail("INVALID", 400, "머지 커밋이 필요합니다.")) : null;
+          const next: FinishRepo = { state, prNumber: prNumberOf(r.prNumber), prUrl, mergeCommit, reason: reason(r.reason, false) };
+          const was = f.repos[repoId];
+          if (was?.state === "merged") {
+            if (state === "merged" && was.mergeCommit === mergeCommit) return { ok: true as const };
+            fail("STATE", 409, "이미 머지된 레포입니다.");
+          }
+          this.#setFinish(s.id, { ...f, repos: { ...f.repos, [repoId]: next } });
+          if (was?.state !== state) this.#event(s.id, null, l.member.id, `finish_${state}`, `${repoId} ${prUrl}`);
+          return { ok: true as const };
+        }
+        case "closed": {
+          const repoId = repoOf(r.repoId);
+          const prNumber = prNumberOf(r.prNumber);
+          if (f.repos[repoId]?.prNumber !== prNumber || f.repos[repoId]?.state === "merged") fail("STATE", 409, "그 레포에서 사람에게 넘긴 PR이 아닙니다.");
+          this.#setFinish(s.id, { ...f, approval: null, repos: this.#mergedOnly(f.repos) });
+          this.#event(s.id, null, l.member.id, "finish_closed", `${repoId} #${prNumber}`);
+          return { ok: true as const };
+        }
+        case "reverify":
+        case "failed": {
+          const why = reason(r.reason, true) as string;
+          const v = this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE story_id=? AND kind='verify'", s.id) as TaskRow;
+          if (r.kind === "reverify")
+            this.#run(
+              `UPDATE hub_story_tasks SET state='ready',claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,stage=NULL,updated_at=? WHERE id=?`,
+              this.#now(), v.id,
+            );
+          else
+            this.#run(
+              `UPDATE hub_story_tasks SET state='failed',failure=?,claimed_by=NULL,claimed_at=NULL,heartbeat_at=NULL,stage=NULL,updated_at=? WHERE id=?`,
+              why, this.#now(), v.id,
+            );
+          this.#touchColumn(v.id);
+          this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
+          this.#setFinish(s.id, { verified: null, approval: null, repos: this.#mergedOnly(f.repos) });
+          this.#event(s.id, v.id, l.member.id, r.kind === "reverify" ? "finish_reverify" : "finish_failed", why);
+          return { ok: true as const };
+        }
+        case "done": {
+          const missing = [...repoIds].filter((id) => f.repos[id]?.state !== "merged");
+          if (missing.length) fail("STATE", 409, "아직 머지되지 않은 레포가 있습니다.");
+          this.#run("UPDATE hub_stories SET state='done',updated_at=? WHERE id=?", this.#now(), s.id);
+          this.#event(s.id, null, l.member.id, "completed");
+          return { ok: true as const };
+        }
+        default:
+          return fail("INVALID", 400, "kind는 repo, closed, reverify, failed, done 중 하나입니다.");
+      }
+    });
+  }
+  /** The local approval and the per-repo merges of a Story, for its page; null before any approval or merge. */
+  storyFinish(storyId: string): { approval: FinishApproval | null; repos: Record<string, FinishRepo> } | null {
+    const f = this.#finish(storyId);
+    if (!f.approval && !Object.keys(f.repos).length) return null;
+    return { approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash }, repos: f.repos };
+  }
+
+  /** The PL records that the human G4 decision was made; only a Story waiting for it can finish. Kept for the board's
+   * own tests; the link's `complete` route goes through `finishReport` (D48), which needs the approval and the merges. */
   completeStory(l: Link, storyId: string): { ok: true } {
     return transaction(this.#db, () => {
       const s = this.#story(storyId);
@@ -1373,10 +1601,16 @@ export class StoryBoard {
        WHERE s.pl_member_id=? AND s.state='open' AND t.state='ready' ORDER BY s.number`,
       l.member.id,
     ).map((row) => row.id);
+    const finishReady = this.#all<{ id: string }>(
+      `SELECT s.id FROM hub_stories s JOIN hub_story_finish f ON f.story_id=s.id
+       WHERE s.pl_member_id=? AND s.state='awaiting_g4' AND f.approval IS NOT NULL ORDER BY s.number`,
+      l.member.id,
+    ).map((row) => row.id);
     return {
       mine: mine ? { taskId: mine.id, claimId: mine.claim_id, storyId: mine.story_id, state: mine.state } : null,
       alerts,
       verifyReady,
+      finishReady,
     };
   }
 

@@ -382,6 +382,58 @@ export async function checkoutStoryBase(
   return { head: await headOf(checkout, env) };
 }
 
+/**
+ * Readies a repo's Story base for its merge into the base branch after the result approval (D48), on the Office
+ * checkout (refused like `checkoutStoryBase` if it is not the Office's). The origin's Story base must be the checked
+ * commit `verified` plus, at most, merges of the base branch: anything else is `moved` (checked again). If it already
+ * holds the base branch's tip it is `current`, checked out detached; `check` says whether base branch commits came in
+ * after the check. Otherwise the base branch is merged into it: a conflict is `conflict` (the merge is aborted, the
+ * checkout left clean); else the merge is pushed as a fast-forward of the Story base and the checkout stays on it.
+ */
+export async function prepareStoryMerge(
+  checkout: string,
+  task: { storyBase: string; baseBranch: string; verified: string; repo?: string },
+  env: GitEnv,
+): Promise<
+  | { kind: "moved" }
+  | { kind: "current"; head: string; check: boolean }
+  | { kind: "merged"; head: string }
+  | { kind: "conflict"; files: string[] }
+> {
+  if (!STORY_BASE.test(task.storyBase)) fail("GIT_FAILED", "A Story base must be feature/story-<N>/base.");
+  checkBase(task.baseBranch, "The base branch");
+  if (STORY_BASE.test(task.baseBranch) || TASK_BRANCH.test(task.baseBranch)) fail("GIT_FAILED", "A Story is never merged into a Story branch.");
+  checkObject(task.verified);
+  const { head: storyTip } = await checkoutStoryBase(checkout, { storyBase: task.storyBase, repo: task.repo }, env);
+  const baseTip = await fetchTip(checkout, task.baseBranch, env);
+  if (storyTip !== task.verified) {
+    // The checked commit must be under the tip, and every commit above it must come from the base branch, but for
+    // the merge commits that brought it in (those are checked again in the VM before the merge).
+    const under = await git(checkout, ["merge-base", "--is-ancestor", task.verified, storyTip], env, { ok: [0, 1, 128] });
+    if (under.exitCode !== 0) return { kind: "moved" };
+    const extra = await git(checkout, ["rev-list", "--count", "--no-merges", storyTip, `^${task.verified}`, `^${baseTip}`], env);
+    if (extra.stdout.trim() !== "0") return { kind: "moved" };
+  }
+  const holds = await git(checkout, ["merge-base", "--is-ancestor", baseTip, storyTip], env, { ok: [0, 1] });
+  if (holds.exitCode === 0) return { kind: "current", head: storyTip, check: storyTip !== task.verified };
+  const merge = await git(
+    checkout,
+    ["merge", "--no-ff", "--no-edit", "-m", `Merge ${task.baseBranch} into ${task.storyBase}`, baseTip],
+    env,
+    { ok: [0, 1] },
+  );
+  if (merge.exitCode !== 0) {
+    const files = await unmerged(checkout, env);
+    if (inMerge(checkout)) await git(checkout, ["merge", "--abort"], env);
+    if (files.length) return { kind: "conflict", files };
+    return fail("GIT_FAILED", reason(merge.stderr) || reason(merge.stdout) || "git merge failed (exit 1).");
+  }
+  const head = await headOf(checkout, env);
+  // A plain push: a fast-forward of the Story base, refused if it moved meanwhile.
+  await pushRef(checkout, task.storyBase, head, env);
+  return { kind: "merged", head };
+}
+
 /** Puts the checkout on the local Task branch: at the remote Task branch's tip if the origin has it
  * (a rerun continues it), else at the Story base. A merge in progress on this same branch changes nothing,
  * so the next attempt can resolve its conflict. The checkout is Office's own, so anything else an earlier

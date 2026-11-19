@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { OfficeError } from "../src/cli/project.ts";
 import { runCommand } from "../src/runners/command.ts";
-import { ensurePr, findPr, mergePr } from "../src/team/pr.ts";
+import { ensurePr, ensureStoryPr, findPr, mergePr, mergeStoryPr, viewStoryPr } from "../src/team/pr.ts";
 
 const REMOTE = "github.example.com/team/be";
 const BASE = "feature/story-1/base";
@@ -409,4 +409,55 @@ test("a token in Office's own environment never reaches the gh process", async (
     .map((line) => line.split("=")[0])
     .filter((name) => !["PWD", "SHLVL", "_", "OLDPWD"].includes(name));
   assert.deepEqual(names.toSorted(), ["GH_PROMPT_DISABLED", "HOME", "LANG", "PATH"]);
+});
+
+// D48: a Story base into its base branch, after the PL's result approval.
+const S_REFS = { baseRefName: "main", headRefName: BASE };
+const S_LIST = ["pr", "list", "-R", REMOTE, "--head", BASE, "--base", "main", "--state", "all", "--json", "number,url,state,mergeCommit"];
+const S_PARAMS = { base: "main", head: BASE, title: "Story 1: 쿠폰", body: "결과 승인 뒤 PL Office가 엽니다." };
+
+test("ensureStoryPr reuses an open or merged Story merge PR, and opens a new one over one a person closed (D48)", async () => {
+  const w = world();
+  answering(w, { "pr list": say(w.file("list", [pr("CLOSED", { number: 5 })])), "pr create": "exit 0" });
+  await assert.rejects(ensureStoryPr(REMOTE, S_PARAMS, w.env()), gone("GH_FAILED", /could not be found again/));
+  assert.deepEqual(w.calls()[1], ["pr", "create", "-R", REMOTE, "--base", "main", "--head", BASE, "--title", S_PARAMS.title, "--body", S_PARAMS.body]);
+
+  const open = world();
+  answering(open, { "pr list": say(open.file("list", [pr("CLOSED", { number: 5 }), pr("OPEN")])) });
+  assert.equal((await ensureStoryPr(REMOTE, S_PARAMS, open.env())).state, "OPEN");
+  assert.deepEqual(open.calls(), [S_LIST], "no new PR beside an open one");
+});
+
+test("Story merge PRs refuse a head that is not a Story base and a base that is a Story branch, before gh runs", async () => {
+  const w = world();
+  for (const [base, head] of [["main", HEAD], ["main", "main"], [BASE, BASE], [HEAD, BASE], ["--force", BASE], ["a..b", BASE]])
+    await assert.rejects(ensureStoryPr(REMOTE, { ...S_PARAMS, base, head }, w.env()), gone("INVALID"));
+  assert.deepEqual(w.calls(), []);
+});
+
+test("mergeStoryPr merges with --match-head-commit, never a Task PR, and reads the state with viewStoryPr", async () => {
+  const w = world();
+  const mark = join(w.root, "merged");
+  answering(w, {
+    "pr view": `if [ -e ${JSON.stringify(mark)} ]; then ${say(w.file("after", { state: "MERGED", mergeCommit: oid(MERGED_AT), ...S_REFS }))}; else ${say(w.file("before", { state: "OPEN", mergeCommit: null, ...S_REFS }))}; fi`,
+    "pr merge": `: > ${JSON.stringify(mark)}`,
+  });
+  assert.deepEqual(await viewStoryPr(REMOTE, 7, w.env()), { state: "OPEN", mergeCommit: null });
+  assert.deepEqual(await mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), { mergeCommit: MERGED_AT });
+  assert.deepEqual(w.calls().slice(1), [VIEW, ["pr", "merge", "7", "-R", REMOTE, "--merge", "--match-head-commit", SHA], ["pr", "view", "7", "-R", REMOTE, "--json", "mergeCommit"]]);
+  assert.deepEqual(await mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), { mergeCommit: MERGED_AT }, "already merged");
+
+  const task = world();
+  answering(task, { "pr view": say(task.file("view", { state: "OPEN", mergeCommit: null, ...REFS })) });
+  await assert.rejects(mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, task.env()), gone("INVALID"));
+  await assert.rejects(viewStoryPr(REMOTE, 7, task.env()), gone("INVALID"));
+});
+
+test("a refused Story merge (a protection rule) is GH_FAILED with gh's own reason", async () => {
+  const w = world();
+  answering(w, {
+    "pr view": say(w.file("view", { state: "OPEN", mergeCommit: null, ...S_REFS })),
+    "pr merge": `echo "GraphQL: Pull request is not mergeable: the base branch policy prohibits the merge" >&2; exit 1`,
+  });
+  await assert.rejects(mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), gone("GH_FAILED", /base branch policy prohibits the merge/));
 });

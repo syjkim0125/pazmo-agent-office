@@ -12,7 +12,7 @@ import {
 } from "./project.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { up } from "./launcher.ts";
-import { TEAM_ACTIONS, UPLOAD_GUIDE, teamCommand } from "./team.ts";
+import { FINISH_GUIDE, TEAM_ACTIONS, UPLOAD_GUIDE, teamCommand } from "./team.ts";
 import { MAC_ACTIONS, macCommand } from "./mac.ts";
 import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hub.ts";
@@ -53,7 +53,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|mac|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)\nTeam Hub upload: team upload --story <Story.md> --tasks <tasks.json> [--project <Hub project name or id>] [--data-dir PATH] (on the PL's connected Mac: checks the kit G1 (G3 for high risk) and the Task file, uploads the Story, makes feature/story-<N>/base in each repo and opens it; run again to resume); team upload --guide (prints the Task file format and the error codes)\nThis Mac and the team Hub: mac connect --hub <https hub> [--name <Mac name>] [--data-dir PATH] (what the Hub's install line runs: pairs this Mac through the browser, clones, registers and links the repos you own, and starts the team Office at login); mac status|disconnect|restart [--data-dir PATH] (disconnect keeps the clones and the registry)",
+        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|mac|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)\nTeam Hub upload: team upload --story <Story.md> --tasks <tasks.json> [--project <Hub project name or id>] [--data-dir PATH] (on the PL's connected Mac: checks the kit G1 (G3 for high risk) and the Task file, uploads the Story, makes feature/story-<N>/base in each repo and opens it; run again to resume); team upload --guide (prints the Task file format and the error codes)\nTeam result sign-off: team finish --story <N> [--data-dir PATH] (on the PL's connected Mac: shows the Story check result and the record template, then with the PL's record posts the sign-off; the team Office merges each repo); team finish --guide\nThis Mac and the team Hub: mac connect --hub <https hub> [--name <Mac name>] [--data-dir PATH] (what the Hub's install line runs: pairs this Mac through the browser, clones, registers and links the repos you own, and starts the team Office at login); mac status|disconnect|restart [--data-dir PATH] (disconnect keeps the clones and the registry)",
       );
       return;
     }
@@ -85,12 +85,12 @@ export async function main(args: string[]): Promise<void> {
       ].includes(command)
     )
       fail("ARGUMENT", "Unknown command.");
-    // `team` takes its action before the flags: team add|remove|list|pause|resume|cap|status|rerun|upload.
+    // `team` takes its action before the flags: team add|remove|list|pause|resume|cap|status|rerun|upload|finish.
     const teamAction = command === "team" ? args.shift() : undefined;
     if (command === "team" && !TEAM_ACTIONS.includes(teamAction ?? ""))
       fail(
         "ARGUMENT",
-        "team needs an action: add, remove, list, pause, resume, cap, status, rerun or upload.",
+        "team needs an action: add, remove, list, pause, resume, cap, status, rerun, upload or finish.",
       );
     // `mac` takes its action before the flags too: mac connect|status|disconnect|restart.
     const macAction = command === "mac" ? args.shift() : undefined;
@@ -217,9 +217,11 @@ export async function main(args: string[]): Promise<void> {
         fail("ARGUMENT", `${flag} is not supported by ${named}.`);
     if (options["--memo"] !== undefined && teamAction !== "rerun")
       fail("ARGUMENT", "--memo is only supported by team rerun.");
-    for (const flag of ["--story", "--tasks", "--guide"])
-      if (options[flag] !== undefined && teamAction !== "upload")
-        fail("ARGUMENT", `${flag} is only supported by team upload.`);
+    if (options["--tasks"] !== undefined && teamAction !== "upload")
+      fail("ARGUMENT", "--tasks is only supported by team upload.");
+    for (const flag of ["--story", "--guide"])
+      if (options[flag] !== undefined && teamAction !== "upload" && teamAction !== "finish")
+        fail("ARGUMENT", `${flag} is only supported by team upload and team finish.`);
     const required = (flag: string): string => {
       const value = options[flag];
       if (typeof value !== "string")
@@ -254,7 +256,7 @@ export async function main(args: string[]): Promise<void> {
     if (command === "team") {
       // The guide is the skill file as it is, not JSON: claude reads it.
       if (options["--guide"]) {
-        process.stdout.write(readFileSync(UPLOAD_GUIDE, "utf8"));
+        process.stdout.write(readFileSync(teamAction === "finish" ? FINISH_GUIDE : UPLOAD_GUIDE, "utf8"));
         return;
       }
       console.log(

@@ -37,8 +37,10 @@ const FAIL_WINDOW_MS = 600000;
 const WAITS = new Set(["BUSY", "EXECUTION_LOCKED", "STOPPING", "CANCELLED"]);
 const VERDICT = { pass: "통과", fail: "실패", unknown: "판정 불가" } as const;
 
+/** A repo's checked Story base: `checks` is empty for a repo the Story has no checks in (its commit still binds the
+ * result approval, D48). */
 type RepoResult =
-  | { repo: string; head: string; checks: { id: string; verdict: "pass" | "fail" | "unknown"; output: string }[] }
+  | { repo: string; repoId?: string; head: string; checks: { id: string; verdict: "pass" | "fail" | "unknown"; output: string }[] }
   | { repo: string; problem: string };
 
 class NotNow extends Error {}
@@ -46,7 +48,7 @@ class Cut extends Error {}
 class TakeRefused extends Error {}
 
 /** Code and first line of a failure, with any `user:secret@` taken out of URLs it quotes (a git remote's). */
-function describe(error: unknown): string {
+export function describe(error: unknown): string {
   const plain = (() => {
     if (error instanceof OfficeError) return `${error.code}: ${firstLine(error.message)}`;
     if (typeof error !== "object" || error === null) return firstLine(String(error));
@@ -83,7 +85,7 @@ export function storyCheckSummary(results: RepoResult[]): { passed: boolean; sum
   const lines = results.map((r) =>
     "problem" in r
       ? `- ${r.repo}: ${r.problem}`
-      : `- ${r.repo} @ ${r.head}: ${r.checks.map((c) => `${c.id} ${VERDICT[c.verdict]}`).join(", ")}`,
+      : `- ${r.repo} @ ${r.head}: ${r.checks.length ? r.checks.map((c) => `${c.id} ${VERDICT[c.verdict]}`).join(", ") : "Story 검사 없음"}`,
   );
   let summary = [head, ...lines].join("\n");
   const room = LIMITS.summaryMax - summary.length;
@@ -134,7 +136,7 @@ export function createStoryChecker(d: {
    * made), by claim id. Memory only: a restart starts again. */
   const tries = new Map<string, { n: number; first: number }>();
   /** Verdicts the Hub has not confirmed yet, by claim id: sent again before anything is checked again. */
-  const pending = new Map<string, { passed: boolean; summary: string }>();
+  const pending = new Map<string, { passed: boolean; summary: string; commits?: Record<string, string> }>();
   /** Claims whose verdict the Hub refused as INVALID, already said in the log. */
   const refusedSaid = new Set<string>();
   let running: { abort: AbortController } | null = null;
@@ -173,6 +175,8 @@ export function createStoryChecker(d: {
     if (branch.storyBase !== storyBaseBranch(task.story.number))
       return { result: { repo: lane.repoName, problem: `Hub가 준 Story base(${branch.storyBase})가 Story #${task.story.number}의 것이 아닙니다.` } };
     const { head } = await d.git.checkoutStoryBase(lane.checkout, { storyBase: branch.storyBase, repo: lane.project });
+    // A repo with no Story checks: its commit is checked out only to bind the result approval (D48).
+    if (!entry.checks.length) return { result: { repo: lane.repoName, repoId: lane.repoId, head, checks: [] } };
     return { entry, lane, head };
   }
 
@@ -182,7 +186,7 @@ export function createStoryChecker(d: {
     // The VM needs ids it can tell apart; the Hub's are kept unless two are the same.
     const unique = new Set(entry.checks.map((c) => c.id)).size === entry.checks.length;
     const checks = entry.checks.map((c, i) => ({ id: unique ? c.id : `V${i + 1}`, argv: c.argv, timeoutMs: c.timeoutMs }));
-    return { repo: lane.repoName, head, checks: await lane.engine.verifyCandidate(candidate, checks, signal) };
+    return { repo: lane.repoName, repoId: lane.repoId, head, checks: await lane.engine.verifyCandidate(candidate, checks, signal) };
   }
 
   /**
@@ -207,7 +211,14 @@ export function createStoryChecker(d: {
       return { repo: lane?.repoName ?? repoLabel(task, entry.repoId), problem: `Story base를 받거나 검사하지 못했습니다(${describe(error)}).` };
     };
     const steps: Step[] = [];
-    for (const entry of task.storyVerify) {
+    // Every Story repo: those with Story checks, and those with work only, whose commit binds the approval (D48).
+    const entries = [
+      ...task.storyVerify,
+      ...task.story.branches
+        .filter((b) => !task.storyVerify.some((v) => v.repoId === b.repoId))
+        .map((b) => ({ repoId: b.repoId, checks: [] as ClaimedTask["storyVerify"][number]["checks"] })),
+    ];
+    for (const entry of entries) {
       if (signal.aborted) throw new Cut();
       try {
         steps.push(await checkout(task, entry, lanes));
@@ -264,11 +275,14 @@ export function createStoryChecker(d: {
         const results = await checkAll(task, lanes, abort.signal);
         if (!results) return;
         if (abort.signal.aborted) throw new Cut();
-        verdict = storyCheckSummary(results);
+        const summary = storyCheckSummary(results);
+        // A passed check names every Story repo's commit: what the result approval binds (D48).
+        const commits = Object.fromEntries(results.flatMap((r) => ("head" in r && r.repoId ? [[r.repoId, r.head]] : [])));
+        verdict = summary.passed ? { ...summary, commits } : summary;
         pending.set(task.claimId, verdict);
         tries.delete(task.claimId);
       }
-      await via.link.verified(task.taskId, task.claimId, verdict.passed, verdict.summary);
+      await via.link.verified(task.taskId, task.claimId, verdict.passed, verdict.summary, verdict.commits);
       pending.delete(task.claimId);
       log(`team: ${name}: the Story check ${verdict.passed ? "passed" : "failed"} and was reported`);
     } catch (error) {
@@ -284,10 +298,13 @@ export function createStoryChecker(d: {
         return log(`team: ${name}: the Hub refused the Story check report (${describe(error)}); it was dropped`);
       }
       // The Hub refused its content: checking again would only make the same verdict, so it is kept and sent again,
-      // said once; the PL can release the check on the web.
+      // said once. Its heartbeat goes on meanwhile, so the check never shows held and cannot be released on the web
+      // (D48 fixes 4a's wording): only cancelling the Story, or stopping this Office for 10 minutes, ends it.
       if (kind === "invalid") {
         if (!refusedSaid.has(task.claimId))
-          log(`team: ${name}: the Hub refused the Story check report (${describe(error)}); it is sent again, and the PL can release the check on the web`);
+          log(
+            `team: ${name}: the Hub refused the Story check report (${describe(error)}); it is sent again each cycle. To end it, cancel the Story on the web or stop this Office for 10 minutes so the check shows held and can be released`,
+          );
         refusedSaid.add(task.claimId);
         return;
       }

@@ -1,6 +1,6 @@
 import { hubCall, type HubLinkConfig } from "../runtime/hub-link.ts";
 import { HUB_STORY_PROTOCOL } from "../hub/story-protocol.ts";
-import type { ClaimedTask, OpenTaskRef, StoryInbox } from "../hub/story-store.ts";
+import type { ClaimedTask, FinishReport, FinishView, OpenTaskRef, StoryInbox } from "../hub/story-store.ts";
 
 export type { OpenTaskRef };
 
@@ -34,8 +34,15 @@ export type StoryLink = {
   rerun(taskId: string, memo: string): Promise<ClaimedTask>;
   /** The PL takes the Story check of a Story whose work Tasks are all merged (D47). */
   claimVerify(storyId: string): Promise<ClaimedTask>;
-  /** The PL's Story check result: passing waits for the result approval, failing reopens the Story. Safe to resend. */
-  verified(taskId: string, claimId: string, passed: boolean, summary: string): Promise<void>;
+  /** The PL's Story check result: passing waits for the result approval, failing reopens the Story. Safe to resend.
+   * `commits` is each Story repo's checked commit ({repoId: commit}), which the result approval binds (D48). */
+  verified(taskId: string, claimId: string, passed: boolean, summary: string, commits?: Record<string, string>): Promise<void>;
+  /** A Story the PL approves (by its number) or the PL Office merges (by its id), D48. */
+  finishView(key: number | string): Promise<FinishView>;
+  /** The PL Office's merge reports of an approved Story (D48). */
+  finishReport(storyId: string, report: FinishReport): Promise<void>;
+  /** The PL's local result approval from this Mac (D48); `already` for the same record again. */
+  approve(storyId: string, a: { fingerprint: string; commits: Record<string, string>; recordHash: string }): Promise<{ already: boolean }>;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
@@ -63,9 +70,12 @@ export function storyLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): S
   return {
     async inbox() {
       const reply = await send("GET", "inbox");
-      return isObject(reply) && (reply.mine === null || isObject(reply.mine)) && Array.isArray(reply.alerts) && Array.isArray(reply.verifyReady)
-        ? (reply as StoryInbox)
-        : badResponse();
+      if (!(isObject(reply) && (reply.mine === null || isObject(reply.mine)) && Array.isArray(reply.alerts) && Array.isArray(reply.verifyReady)))
+        return badResponse();
+      // A Hub before D48 sends no finishReady: nothing to merge.
+      if (reply.finishReady !== undefined && !(Array.isArray(reply.finishReady) && reply.finishReady.every((id) => typeof id === "string")))
+        return badResponse();
+      return { ...(reply as StoryInbox), finishReady: (reply.finishReady as string[] | undefined) ?? [] };
     },
     async claim() {
       // The hub takes only a JSON object as a POST body, so the empty request is `{}`.
@@ -105,10 +115,58 @@ export function storyLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): S
     async claimVerify(storyId) {
       return claimed(await send("POST", "claim-verify", { storyId }));
     },
-    async verified(taskId, claimId, passed, summary) {
-      await send("POST", "verified", { taskId, claimId, passed, summary });
+    async verified(taskId, claimId, passed, summary, commits) {
+      await send("POST", "verified", { taskId, claimId, passed, summary, ...(commits ? { commits } : {}) });
+    },
+    async finishView(key) {
+      const q = typeof key === "string" ? `id=${encodeURIComponent(key)}` : `number=${encodeURIComponent(String(key))}`;
+      return finishViewOf(await send("GET", `finish?${q}`));
+    },
+    async finishReport(storyId, report) {
+      await send("POST", "finish-report", { storyId, report });
+    },
+    async approve(storyId, a) {
+      const reply = await send("POST", "approve", { storyId, ...a });
+      return isObject(reply) && typeof reply.already === "boolean" ? { already: reply.already } : badResponse();
     },
   };
+}
+
+const strings = (value: unknown): value is Record<string, string> =>
+  isObject(value) && Object.values(value).every((v) => typeof v === "string");
+/** A finish view only in its documented shape: the merge acts on its branches and commits. */
+export function finishViewOf(reply: unknown): FinishView {
+  const repoOk = (r: unknown) =>
+    isObject(r) &&
+    (r.state === "opened" || r.state === "handed" || r.state === "merged") &&
+    typeof r.prNumber === "number" &&
+    typeof r.prUrl === "string" &&
+    (r.mergeCommit === null || typeof r.mergeCommit === "string") &&
+    (r.reason === null || typeof r.reason === "string");
+  const ok =
+    isObject(reply) &&
+    typeof reply.storyId === "string" &&
+    typeof reply.number === "number" &&
+    typeof reply.title === "string" &&
+    typeof reply.state === "string" &&
+    typeof reply.fingerprint === "string" &&
+    (reply.summary === null || typeof reply.summary === "string") &&
+    Array.isArray(reply.branches) &&
+    reply.branches.every(
+      (b) => isObject(b) && ["repoId", "repoName", "baseBranch", "storyBase"].every((k) => typeof b[k] === "string"),
+    ) &&
+    isObject(reply.checks) &&
+    Object.values(reply.checks).every(
+      (list) =>
+        Array.isArray(list) &&
+        list.every((c) => isObject(c) && typeof c.id === "string" && Array.isArray(c.argv) && c.argv.every((a) => typeof a === "string") && typeof c.timeoutMs === "number"),
+    ) &&
+    (reply.verified === null || strings(reply.verified)) &&
+    (reply.approval === null ||
+      (isObject(reply.approval) && typeof reply.approval.macName === "string" && typeof reply.approval.at === "number" && typeof reply.approval.recordHash === "string")) &&
+    isObject(reply.repos) &&
+    Object.values(reply.repos).every(repoOk);
+  return ok ? (reply as FinishView) : badResponse();
 }
 
 /** What the Office should do about a failed story call. */
