@@ -33,6 +33,10 @@ function fakeLink(view = viewOf()) {
       l.view.approval = { macName: "PL의 MacBook", at: 1, recordHash: a.recordHash };
       return { already };
     },
+    rechecked: [],
+    async recheck(storyId) {
+      l.rechecked.push(storyId);
+    },
   };
   return l;
 }
@@ -103,12 +107,35 @@ test("a record that is not the PL's answer, another Story's, or bound to other c
   assert.equal(readFileSync(record.path, "utf8"), cases.at(-1)[0], "a refused record is left in place");
 });
 
-test("a Story not at 승인 대기, without checked commits, or done is answered without posting", async (t) => {
+test("a Story not at 승인 대기 or done is answered without posting; one checked before D48 (no commits) is checked again", async (t) => {
   const r = root(t);
   await assert.rejects(runFinish({ root: r, story: 7, link: fakeLink(viewOf({ state: "open" })) }), { code: "FINISH_STATE" });
-  await assert.rejects(runFinish({ root: r, story: 7, link: fakeLink(viewOf({ verified: null })) }), { code: "FINISH_STATE" });
+  const old = fakeLink(viewOf({ verified: null }));
+  const out = await runFinish({ root: r, story: 7, link: old });
+  assert.equal(out.status, "rechecking");
+  assert.deepEqual(old.rechecked, ["story-1"]);
+  assert.deepEqual(old.approved, []);
   assert.deepEqual(await runFinish({ root: r, story: 7, link: fakeLink(viewOf({ state: "done" })) }), { status: "done", story: { number: 7, title: "쿠폰", state: "done" } });
   await assert.rejects(runFinish({ root: r, story: 0, link: fakeLink() }), { code: "ARGUMENT" });
+});
+
+test("a record left behind by a stop right after its approval is set aside on the next run, so it never approves a later round", async (t) => {
+  const r = root(t);
+  const link = fakeLink();
+  const { record } = await runFinish({ root: r, story: 7, link, today: "2026-11-19" });
+  const text = JSON.stringify(answered(record.template));
+  writeFileSync(record.path, text);
+  const hash = createHash("sha256").update(text).digest("hex");
+  // The Hub took it, but the command stopped before renaming the record.
+  link.view.approval = { macName: "PL의 MacBook", at: 1, recordHash: hash };
+  const out = await runFinish({ root: r, story: 7, link });
+  assert.equal(out.status, "approved");
+  assert.equal(existsSync(record.path), false);
+  assert.deepEqual(readdirSync(join(r, "team", "approvals")), [`story-7-g4.${hash.slice(0, 12)}.approved.json`]);
+  // A later round (the PR was closed, the approval ended): the old answer is gone, so a new one is asked for.
+  link.view.approval = null;
+  assert.equal((await runFinish({ root: r, story: 7, link })).status, "needs-approval");
+  assert.deepEqual(link.approved, []);
 });
 
 test("over a real Hub: team finish reads the Story by number and approves it from the PL's Mac link; a connection-string link is NOT_YOUR_MAC", async (t) => {

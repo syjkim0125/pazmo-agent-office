@@ -9,7 +9,7 @@ import { printable, readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
-import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge } from "./branch.ts";
+import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge, storyBaseTip } from "./branch.ts";
 import { branchOps, createExecutor, prOps } from "./executor.ts";
 import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
@@ -793,7 +793,10 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     ? createStoryFinisher({
         lanes: checkLanes,
         canRun: canRunStory,
-        git: c.finishGit ?? { prepare: (checkout, task) => prepareStoryMerge(checkout, task, hostEnv) },
+        git: c.finishGit ?? {
+          prepare: (checkout, task) => prepareStoryMerge(checkout, task, hostEnv),
+          tip: (checkout, storyBase) => storyBaseTip(checkout, storyBase, hostEnv),
+        },
         pr: c.finishPr ?? {
           ensure: (remote, p) => ensureStoryPr(remote, p, hostEnv),
           view: (remote, number) => viewStoryPr(remote, number, hostEnv),

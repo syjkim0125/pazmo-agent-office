@@ -335,6 +335,53 @@ test("prepareStoryMerge: a Story base holding the base branch is current; a move
   assert.equal(w.git(w.bare, "rev-parse", "refs/heads/main").trim(), mainTip, "the base branch itself is never written");
 });
 
+test("prepareStoryMerge: a merge on the Story base that is not a clean merge of the base branch is moved, so nothing unchecked reaches main (D48)", async (t) => {
+  const w = gitWorld(t);
+  const verified = w.push(BASE, { "story.txt": "story\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  const task = { storyBase: BASE, baseBranch: "main", verified, repo: w.repo };
+  const mainTip = w.push("main", { "main.txt": "moved\n" });
+  // Someone else's clone of the origin, where the bad merges are made and pushed.
+  const other = join(w.root, "other");
+  w.git(w.root, "clone", "-q", w.bare, other);
+  w.git(other, "checkout", "-q", BASE);
+  const pushOther = () => w.git(other, "push", "-q", "-f", "origin", `HEAD:refs/heads/${BASE}`);
+  const reset = () => w.git(other, "reset", "-q", "--hard", verified);
+
+  // An evil merge: main merged in, and a file nobody checked added in the same commit.
+  w.git(other, "merge", "-q", "--no-commit", "--no-ff", `origin/main`);
+  writeFileSync(join(other, "evil.txt"), "unchecked\n");
+  w.git(other, "add", "evil.txt");
+  w.git(other, "commit", "-q", "-m", "Merge main");
+  pushOther();
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "moved" }, "a merge that adds a file");
+
+  // A hand-made commit with the right parents and any tree.
+  reset();
+  const tree = w.git(other, "rev-parse", "HEAD^{tree}").trim();
+  const forged = w.git(other, "commit-tree", tree, "-p", verified, "-p", mainTip, "-m", "Merge main").trim();
+  w.git(other, "reset", "-q", "--hard", forged);
+  pushOther();
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "moved" }, "a merge whose tree is not git's merge of its parents");
+
+  // A clean merge, but of a branch that is not the base branch.
+  reset();
+  w.push("side", { "side.txt": "side\n" });
+  w.git(other, "fetch", "-q", "origin");
+  w.git(other, "merge", "-q", "--no-ff", "--no-edit", "origin/side");
+  pushOther();
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "moved" }, "a merge of another branch");
+
+  // The Office's own clean merge of main is still taken, and only checked again.
+  reset();
+  pushOther();
+  const own = await prepareStoryMerge(checkout, task, e);
+  assert.equal(own.kind, "merged");
+  assert.deepEqual(await prepareStoryMerge(checkout, task, e), { kind: "current", head: own.head, check: true });
+});
+
 test("prepareStoryMerge: other commits on the Story base after its check are moved; a conflict is aborted and nothing is pushed", async (t) => {
   const w = gitWorld(t);
   const verified = w.push(BASE, { "a.txt": "story\n" });
@@ -349,7 +396,7 @@ test("prepareStoryMerge: other commits on the Story base after its check are mov
 
   w.push("main", { "a.txt": "main\n" });
   const result = await prepareStoryMerge(checkout, { ...task, verified: later }, e);
-  assert.deepEqual(result, { kind: "conflict", files: ["a.txt"] });
+  assert.deepEqual(result, { kind: "conflict", head: later, files: ["a.txt"] }, "with the Story base head its PR is opened at");
   assert.equal(inMerge(checkout), false, "the merge is aborted");
   assert.equal(w.git(checkout, "status", "--porcelain", "--", ".", ":(exclude).pazmo-office"), "");
   assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${BASE}`).trim(), later, "nothing pushed");

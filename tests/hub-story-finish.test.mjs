@@ -154,3 +154,57 @@ test("finishView is the PL's only and finds a Story by its number", () => {
   assert.throws(() => board.finishView(h.plBe, 1.5), code("INVALID"));
   assert.equal(board.finishView(h.plBe, pub.storyId).number, pub.number, "or by its id");
 });
+
+test("Tasks added after an approval end it, and a repo that gets new work is merged again; others keep their merge (D48, review 1 C2)", () => {
+  const h = passed();
+  const { board, be, fe, plBe, pub, node } = h;
+  h.approve();
+  const pr = (n) => `https://github.example.com/team/app/pull/${n}`;
+  board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: be, state: "merged", prNumber: 3, prUrl: pr(3), mergeCommit: SHA("1"), reason: null });
+  board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: fe, state: "merged", prNumber: 4, prUrl: pr(4), mergeCommit: SHA("2"), reason: null });
+  // The PL adds a fix in be: the approval ends, be must merge again, fe keeps its merge.
+  board.addTasks(plBe, pub.storyId, "fix-1", { nodes: [node("fix", be, ["src/fix.ts"])], edges: [] });
+  let view = h.view();
+  assert.equal(view.state, "open");
+  assert.equal(view.approval, null);
+  assert.equal(view.verified, null);
+  assert.deepEqual(Object.keys(view.repos), [fe]);
+  assert.throws(() => board.finishReport(plBe, pub.storyId, { kind: "done" }), code("STATE"), "no done without an approval");
+  // The fix is merged and checked again: the passed check keeps fe's merge, and a new approval is needed.
+  const cBe = h.linkOf(h.c, be);
+  const t = board.claimNext(cBe);
+  board.mergeLock(cBe, t.taskId, t.claimId);
+  board.reportMerged(cBe, t.taskId, t.claimId, merged(9));
+  const v = board.claimVerify(plBe, pub.storyId);
+  board.reportVerify(plBe, v.taskId, v.claimId, { passed: true, summary: "다시 통과", commits: { [be]: SHA("5"), [fe]: SHA("b") } });
+  view = h.view();
+  assert.equal(view.state, "awaiting_g4");
+  assert.deepEqual(Object.keys(view.repos), [fe], "fe keeps its merge; be waits for a new merge");
+  assert.equal(view.approval, null, "a new approval is needed");
+});
+
+test("a passed check keeps the merged repos; a stuck merge's problem is kept once and cleared by progress", () => {
+  const h = passed();
+  const { board, be, fe, plBe, pub } = h;
+  h.approve();
+  const pr = (n) => `https://github.example.com/team/app/pull/${n}`;
+  board.finishReport(plBe, pub.storyId, { kind: "problem", reason: "머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth" });
+  assert.equal(h.view().problem.reason, "머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth");
+  assert.equal(board.storyFinish(pub.storyId).problem.reason, "머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth");
+  assert.throws(() => board.finishReport(plBe, pub.storyId, { kind: "problem" }), code("INVALID"));
+  board.finishReport(plBe, pub.storyId, { kind: "repo", repoId: be, state: "merged", prNumber: 3, prUrl: pr(3), mergeCommit: SHA("1"), reason: null });
+  assert.equal(h.view().problem, null, "progress clears it");
+  void fe;
+});
+
+test("a Story at 승인 대기 whose check kept no commits (before D48) is checked again on the PL's request", () => {
+  const old = passed({ noCommits: true });
+  const { board, c, be, linkOf, plBe, pub } = old;
+  assert.throws(() => board.recheckStory(linkOf(c, be), pub.storyId), code("FORBIDDEN"));
+  board.recheckStory(plBe, pub.storyId);
+  assert.equal(old.view().state, "open");
+  assert.deepEqual(board.inbox(plBe).verifyReady, [pub.storyId], "the PL Office checks it again");
+  assert.throws(() => board.recheckStory(plBe, pub.storyId), code("STATE"), "only at 승인 대기");
+  const fresh = passed();
+  assert.throws(() => fresh.board.recheckStory(fresh.plBe, fresh.pub.storyId), code("STATE"), "a Story with commits is approved, not checked again");
+});

@@ -51,14 +51,17 @@ function fakeHub(view = viewOf()) {
           h.view.verified = null;
         }
         if (r.kind === "done") h.view.state = "done";
+        if (r.kind === "problem") h.view.problem = { reason: r.reason, at: 1 };
       },
     },
   };
   return h;
 }
 
-/** Host git: each repo's `prepare` answer by checkout (default current with nothing new). */
-function fakeGit(answers = {}) {
+/** Host git: each repo's `prepare` answer by checkout (default current with nothing new); `tip` answers the head
+ * last prepared, unless `tips[repo]` says the Story base moved since. */
+function fakeGit(answers = {}, tips = {}) {
+  const heads = {};
   const g = {
     calls: [],
     async prepare(checkout, task) {
@@ -66,7 +69,12 @@ function fakeGit(answers = {}) {
       const repo = checkout.split("/").at(-2);
       const a = answers[repo] ?? { kind: "current", head: task.verified, check: false };
       if (a instanceof Error) throw a;
+      heads[repo] = a.head;
       return a;
+    },
+    async tip(checkout) {
+      const repo = checkout.split("/").at(-2);
+      return tips[repo] ?? heads[repo] ?? null;
     },
   };
   return g;
@@ -223,11 +231,16 @@ test("a repo merged already is skipped; a PR opened before a restart is merged o
   assert.deepEqual(w.hub.reports().map((r) => [r.kind, r.state]), [["repo", "merged"], ["done", undefined]], "no second opened report");
 });
 
-test("a git or gh failure is said and tried again next tick; a busy VM waits", async () => {
+test("a failing merge never holds the claim tick: it is said once, shown on the Story page once, and tried again next tick; a busy VM waits", async () => {
   const w = world({ git: fakeGit({ be: new OfficeError("GIT_FAILED", "fatal: unable to access 'https://person:secret@github.com/x'") }) });
-  assert.deepEqual(await w.finisher.tick(), { ran: true });
-  assert.deepEqual(w.hub.reports(), []);
-  assert.ok(w.lines.some((l) => l.includes("trying again next cycle") && !l.includes("secret")));
+  assert.deepEqual(await w.finisher.tick(), { ran: false }, "the claim tick goes on to the Task claim");
+  assert.deepEqual(await w.finisher.tick(), { ran: false });
+  const problems = w.hub.reports().filter((r) => r.kind === "problem");
+  assert.equal(problems.length, 1, "the same reason is posted once");
+  assert.match(problems[0].reason, /^머지를 하지 못하고 다시 시도합니다: GIT_FAILED: fatal: unable to access 'https:\/\/github\.com\/x'/);
+  assert.equal(w.hub.reports().length, 1, "nothing else is reported");
+  assert.equal(w.lines.filter((l) => l.includes("trying again next cycle")).length, 1);
+  assert.ok(!w.lines.join("\n").includes("secret"));
 
   const busy = world({ git: fakeGit({ be: { kind: "merged", head: SHA("d") } }), engines: { be: { freezeProject: async () => ({}), verifyCandidate: async () => { throw new OfficeError("BUSY", "Another engine has a run"); } }, fe: fakeEngine("fe") } });
   assert.deepEqual(await busy.finisher.tick(), { ran: false });
@@ -276,4 +289,39 @@ test("over a real Hub: the PL approves from the current Mac, the PL Office merge
   assert.equal(done.state, "done");
   assert.deepEqual(Object.values(done.repos).map((r) => r.state), ["merged", "merged"]);
   assert.equal(done.approval.macName, "PL의 MacBook");
+});
+
+test("a merge refused because the Story base moved before it goes back to the check, never to a person", async () => {
+  const w = world({
+    git: fakeGit({}, { be: SHA("9") }),
+    pr: fakePr({ refuse: { "github.example.com/team/be": "GraphQL: Head branch was modified. Review and try the merge again." } }),
+  });
+  assert.deepEqual(await w.finisher.tick(), { ran: true });
+  assert.deepEqual(w.hub.reports().map((r) => r.kind), ["repo", "reverify"]);
+  assert.equal(w.hub.reports()[1].reason, "app-be의 Story base가 머지 직전에 바뀌어 Story 검증을 다시 합니다.");
+  assert.ok(!Object.values(w.hub.view.repos).some((r) => r.state === "handed"));
+});
+
+test("after a restart, base branch commits already merged in are checked again before the merge, and a failure reopens the Story", async () => {
+  const w = world({ git: fakeGit({ be: { kind: "current", head: SHA("d"), check: true } }), engines: { be: fakeEngine("be", "fail"), fe: fakeEngine("fe") } });
+  await w.finisher.tick();
+  assert.deepEqual(w.engines.be.verifies, [["V1"]]);
+  assert.equal(w.hub.reports()[0].kind, "failed");
+  assert.deepEqual(w.pr.calls, [], "nothing is merged");
+});
+
+test("an approval that ended meanwhile (Tasks were added) stops the merge before it reaches the base branch", async () => {
+  const hub = fakeHub();
+  const pr = fakePr();
+  const ensure = pr.ensure;
+  // Right after be's PR is opened, the PL adds a Task: the Hub ends the approval and reopens the Story.
+  pr.ensure = async (remote, req) => {
+    const opened = await ensure(remote, req);
+    hub.view.state = "open";
+    hub.view.approval = null;
+    return opened;
+  };
+  const w = world({ hub, pr });
+  assert.deepEqual(await w.finisher.tick(), { ran: true });
+  assert.deepEqual(w.pr.calls.filter((c) => c[0] === "merge"), [], "no merge into main");
 });

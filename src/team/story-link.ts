@@ -43,6 +43,8 @@ export type StoryLink = {
   finishReport(storyId: string, report: FinishReport): Promise<void>;
   /** The PL's local result approval from this Mac (D48); `already` for the same record again. */
   approve(storyId: string, a: { fingerprint: string; commits: Record<string, string>; recordHash: string }): Promise<{ already: boolean }>;
+  /** Checks again a Story at 승인 대기 whose check kept no commits (from before D48). */
+  recheck(storyId: string): Promise<void>;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
@@ -125,6 +127,9 @@ export function storyLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): S
     async finishReport(storyId, report) {
       await send("POST", "finish-report", { storyId, report });
     },
+    async recheck(storyId) {
+      await send("POST", "recheck", { storyId });
+    },
     async approve(storyId, a) {
       const reply = await send("POST", "approve", { storyId, ...a });
       return isObject(reply) && typeof reply.already === "boolean" ? { already: reply.already } : badResponse();
@@ -165,7 +170,8 @@ export function finishViewOf(reply: unknown): FinishView {
     (reply.approval === null ||
       (isObject(reply.approval) && typeof reply.approval.macName === "string" && typeof reply.approval.at === "number" && typeof reply.approval.recordHash === "string")) &&
     isObject(reply.repos) &&
-    Object.values(reply.repos).every(repoOk);
+    Object.values(reply.repos).every(repoOk) &&
+    (reply.problem === undefined || reply.problem === null || (isObject(reply.problem) && typeof reply.problem.reason === "string"));
   return ok ? (reply as FinishView) : badResponse();
 }
 

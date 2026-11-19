@@ -817,6 +817,9 @@ test("after the PL's local approval the Story page shows the approval, each repo
   assert.ok(page.includes("결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다."));
   assert.ok(page.includes(`<h2 id="merged">main 머지</h2><p class="muted wrap">결과 승인 · PL의 MacBook · `));
   assert.ok(page.includes("app-be → main: 머지 전"));
+  // A merge that keeps failing says why on the page, not only in the PL's Office log.
+  h.board.finishReport(s.plBe, s.storyId, { kind: "problem", reason: "머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth login" });
+  assert.ok((await storyPage(h.c)).includes(`<div class="callout"><p>머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth login</p></div>`));
   const pr = (repo, no) => `https://github.example.com/team/${repo}/pull/${no}`;
   h.board.finishReport(s.plBe, s.storyId, { kind: "repo", repoId: h.be, state: "merged", prNumber: 3, prUrl: pr("app-be", 3), mergeCommit: "e".repeat(40), reason: null });
   h.board.finishReport(s.plBe, s.storyId, { kind: "repo", repoId: h.fe, state: "handed", prNumber: 4, prUrl: pr("app-fe", 4), mergeCommit: null, reason: "충돌: <src/ui.ts>" });

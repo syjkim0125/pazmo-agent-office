@@ -413,10 +413,11 @@ test("a token in Office's own environment never reaches the gh process", async (
 
 // D48: a Story base into its base branch, after the PL's result approval.
 const S_REFS = { baseRefName: "main", headRefName: BASE };
-const S_LIST = ["pr", "list", "-R", REMOTE, "--head", BASE, "--base", "main", "--state", "all", "--json", "number,url,state,mergeCommit"];
-const S_PARAMS = { base: "main", head: BASE, title: "Story 1: 쿠폰", body: "결과 승인 뒤 PL Office가 엽니다." };
+const S_LIST = ["pr", "list", "-R", REMOTE, "--head", BASE, "--base", "main", "--state", "all", "--json", "number,url,state,mergeCommit,headRefOid,isCrossRepository"];
+const S_PARAMS = { base: "main", head: BASE, headSha: SHA, title: "Story 1: 쿠폰", body: "결과 승인 뒤 PL Office가 엽니다." };
+const S_VIEW = ["pr", "view", "7", "-R", REMOTE, "--json", "state,mergeCommit,baseRefName,headRefName,headRefOid"];
 
-test("ensureStoryPr reuses an open or merged Story merge PR, and opens a new one over one a person closed (D48)", async () => {
+test("ensureStoryPr reuses an open Story merge PR, and opens a new one over one a person closed (D48)", async () => {
   const w = world();
   answering(w, { "pr list": say(w.file("list", [pr("CLOSED", { number: 5 })])), "pr create": "exit 0" });
   await assert.rejects(ensureStoryPr(REMOTE, S_PARAMS, w.env()), gone("GH_FAILED", /could not be found again/));
@@ -426,6 +427,24 @@ test("ensureStoryPr reuses an open or merged Story merge PR, and opens a new one
   answering(open, { "pr list": say(open.file("list", [pr("CLOSED", { number: 5 }), pr("OPEN")])) });
   assert.equal((await ensureStoryPr(REMOTE, S_PARAMS, open.env())).state, "OPEN");
   assert.deepEqual(open.calls(), [S_LIST], "no new PR beside an open one");
+});
+
+test("ensureStoryPr reuses a merged PR only when it was merged at this very commit; an earlier merge gets a new PR, and a fork's PR is never it", async () => {
+  const same = world();
+  answering(same, { "pr list": say(same.file("list", [pr("MERGED", { headRefOid: SHA.toUpperCase(), mergeCommit: oid(MERGED_AT) })])) });
+  assert.equal((await ensureStoryPr(REMOTE, S_PARAMS, same.env())).state, "MERGED", "a restart after its merge");
+
+  // The Story's earlier merge (work added since): a new PR, never the old merged one.
+  const older = world();
+  answering(older, { "pr list": say(older.file("list", [pr("MERGED", { headRefOid: "c".repeat(40), mergeCommit: oid(MERGED_AT) })])), "pr create": "exit 0" });
+  await assert.rejects(ensureStoryPr(REMOTE, S_PARAMS, older.env()), gone("GH_FAILED", /could not be found again/));
+  assert.equal(older.calls()[1][1], "create");
+
+  const fork = world();
+  answering(fork, { "pr list": say(fork.file("list", [pr("OPEN", { isCrossRepository: true })])), "pr create": "exit 0" });
+  await assert.rejects(ensureStoryPr(REMOTE, S_PARAMS, fork.env()), gone("GH_FAILED", /could not be found again/));
+  assert.equal(fork.calls()[1][1], "create", "a fork's PR of the same branch name is not the Story's");
+  await assert.rejects(ensureStoryPr(REMOTE, { ...S_PARAMS, headSha: "abc" }, fork.env()), gone("INVALID"));
 });
 
 test("Story merge PRs refuse a head that is not a Story base and a base that is a Story branch, before gh runs", async () => {
@@ -439,13 +458,15 @@ test("mergeStoryPr merges with --match-head-commit, never a Task PR, and reads t
   const w = world();
   const mark = join(w.root, "merged");
   answering(w, {
-    "pr view": `if [ -e ${JSON.stringify(mark)} ]; then ${say(w.file("after", { state: "MERGED", mergeCommit: oid(MERGED_AT), ...S_REFS }))}; else ${say(w.file("before", { state: "OPEN", mergeCommit: null, ...S_REFS }))}; fi`,
+    "pr view": `if [ -e ${JSON.stringify(mark)} ]; then ${say(w.file("after", { state: "MERGED", mergeCommit: oid(MERGED_AT), headRefOid: SHA, ...S_REFS }))}; else ${say(w.file("before", { state: "OPEN", mergeCommit: null, headRefOid: SHA, ...S_REFS }))}; fi`,
     "pr merge": `: > ${JSON.stringify(mark)}`,
   });
   assert.deepEqual(await viewStoryPr(REMOTE, 7, w.env()), { state: "OPEN", mergeCommit: null });
   assert.deepEqual(await mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), { mergeCommit: MERGED_AT });
-  assert.deepEqual(w.calls().slice(1), [VIEW, ["pr", "merge", "7", "-R", REMOTE, "--merge", "--match-head-commit", SHA], ["pr", "view", "7", "-R", REMOTE, "--json", "mergeCommit"]]);
-  assert.deepEqual(await mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), { mergeCommit: MERGED_AT }, "already merged");
+  assert.deepEqual(w.calls().slice(1), [S_VIEW, ["pr", "merge", "7", "-R", REMOTE, "--merge", "--match-head-commit", SHA], ["pr", "view", "7", "-R", REMOTE, "--json", "mergeCommit"]]);
+  assert.deepEqual(await mergeStoryPr(REMOTE, { number: 7, headSha: SHA }, w.env()), { mergeCommit: MERGED_AT }, "already merged at this commit");
+  // Merged at another commit: that merge did not hold this content (D48).
+  await assert.rejects(mergeStoryPr(REMOTE, { number: 7, headSha: "c".repeat(40) }, w.env()), gone("INVALID", /merged at another commit/));
 
   const task = world();
   answering(task, { "pr view": say(task.file("view", { state: "OPEN", mergeCommit: null, ...REFS })) });

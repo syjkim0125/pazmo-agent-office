@@ -242,7 +242,7 @@ export function storyPage(
   o: {
     upload: StoryUpload | null;
     board?: { progress: string; columns: string } | null;
-    finish?: { approval: FinishApproval | null; repos: Record<string, FinishRepo> } | null;
+    finish?: { approval: FinishApproval | null; repos: Record<string, FinishRepo>; problem?: { reason: string } | null } | null;
   },
   chrome: Chrome,
 ): string {
@@ -276,6 +276,9 @@ export function storyPage(
     finish && s.state !== "cancelled"
       ? `<section aria-labelledby="merged"><h2 id="merged">main 머지</h2>${
           finish.approval ? `<p class="muted wrap">결과 승인 · ${esc(finish.approval.macName)} · ${esc(ago(finish.approval.at))}</p>` : ""
+        }${
+          // A merge that keeps failing (a gh login, the network) says why here, not only in the PL's Office log.
+          finish.approval && finish.problem && s.state === "awaiting_g4" ? `<div class="callout"><p>${say(finish.problem.reason, true)}</p></div>` : ""
         }<ul class="items">${s.branches
           .map((b) => {
             const r = finish.repos[b.repoId];

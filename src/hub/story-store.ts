@@ -140,6 +140,7 @@ export type FinishView = {
   verified: Record<string, string> | null;
   approval: FinishApproval | null;
   repos: Record<string, FinishRepo>;
+  problem: FinishProblem | null;
 };
 /** What the PL Office reports while it merges an approved Story (D48). */
 export type FinishReport =
@@ -147,7 +148,17 @@ export type FinishReport =
   | { kind: "closed"; repoId: string; prNumber: number }
   | { kind: "reverify"; reason: string }
   | { kind: "failed"; reason: string }
-  | { kind: "done" };
+  | { kind: "done" }
+  /** A merge that keeps failing (gh login, network): its reason, shown on the Story page until a step succeeds. */
+  | { kind: "problem"; reason: string };
+/** Why the PL Office's merge of an approved Story is stuck, and since when. */
+export type FinishProblem = { reason: string; at: number };
+type FinishRow = {
+  verified: Record<string, string> | null;
+  approval: (FinishApproval & { macId: string }) | null;
+  repos: Record<string, FinishRepo>;
+  problem: FinishProblem | null;
+};
 export type UploadResult = { storyId: string; number: number; state: StoryState; already: boolean; bases: Record<string, string> };
 type UploadRow = { story_id: string; mac_id: string; mac_name: string; story_hash: string; bases: string; created_at: number };
 /** What an Office gets when it takes a Task. The verification Task has no repo, branch, files or spec of its own. */
@@ -333,7 +344,7 @@ CREATE TABLE IF NOT EXISTS hub_story_appends(story_id TEXT NOT NULL REFERENCES h
 CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,story_id TEXT NOT NULL REFERENCES hub_stories(id),task_id TEXT REFERENCES hub_story_tasks(id),member_id TEXT REFERENCES hub_members(id),kind TEXT NOT NULL,detail TEXT,at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),mac_id TEXT NOT NULL REFERENCES hub_macs(id),mac_name TEXT NOT NULL,story_hash TEXT NOT NULL,bases TEXT NOT NULL,created_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS hub_story_finish(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),verified TEXT,approval TEXT,repos TEXT NOT NULL,updated_at INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS hub_story_finish(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),verified TEXT,approval TEXT,repos TEXT NOT NULL,problem TEXT,updated_at INTEGER NOT NULL);
 `;
 
 function fail(code: string, status: number, message: string): never {
@@ -855,6 +866,16 @@ export class StoryBoard {
         this.#now(), verifyId,
       );
       this.#touchColumn(verifyId);
+      // D48: new work ends any result approval, and a repo that gets new work merges again (its earlier merge did not
+      // hold it); repos without new work keep their merge.
+      const fin = this.#finish(s.id);
+      const touched = new Set(fresh.map((f) => f.node.repoId));
+      this.#setFinish(s.id, {
+        verified: null,
+        approval: null,
+        repos: Object.fromEntries(Object.entries(this.#mergedOnly(fin.repos)).filter(([id]) => !touched.has(id))),
+        problem: null,
+      });
       const result = { tasks: fresh.map((f) => ({ nodeId: f.node.id, taskId: f.id, number: f.number })) };
       this.#run(
         "INSERT INTO hub_story_appends(story_id,create_key,result,created_at) VALUES (?,?,?,?)",
@@ -1360,7 +1381,9 @@ export class StoryBoard {
       // The checked commit of each Story repo (D48), kept for the result approval; an Office before it sends none.
       const story = this.#story(t.story_id);
       const commits = r.commits === undefined ? null : this.#storyCommits(story, r.commits);
-      this.#setFinish(story.id, { verified: r.passed ? commits : null, approval: null, repos: {} });
+      // A new verdict ends any approval; merged repos stay merged (`addTasks` drops those that get new work).
+      const before = this.#finish(story.id);
+      this.#setFinish(story.id, { verified: r.passed ? commits : null, approval: null, repos: this.#mergedOnly(before.repos), problem: null });
       if (r.passed) {
         this.#run("UPDATE hub_story_tasks SET state='passed',summary=?,stage=NULL,updated_at=? WHERE id=?", r.summary, this.#now(), t.id);
         this.#touchColumn(t.id);
@@ -1390,25 +1413,28 @@ export class StoryBoard {
       fail("INVALID", 400, "commits는 Story의 레포마다 검증한 커밋(40자)이어야 합니다.");
     return Object.fromEntries(ids.map((id) => [id, (value as Record<string, string>)[id]]));
   }
-  #finish(storyId: string): { verified: Record<string, string> | null; approval: (FinishApproval & { macId: string }) | null; repos: Record<string, FinishRepo> } {
-    const row = this.#get<{ verified: string | null; approval: string | null; repos: string }>(
-      "SELECT verified,approval,repos FROM hub_story_finish WHERE story_id=?",
+  #finish(storyId: string): FinishRow {
+    const row = this.#get<{ verified: string | null; approval: string | null; repos: string; problem: string | null }>(
+      "SELECT verified,approval,repos,problem FROM hub_story_finish WHERE story_id=?",
       storyId,
     );
     return {
       verified: row?.verified ? (JSON.parse(row.verified) as Record<string, string>) : null,
       approval: row?.approval ? JSON.parse(row.approval) : null,
       repos: row ? (JSON.parse(row.repos) as Record<string, FinishRepo>) : {},
+      problem: row?.problem ? (JSON.parse(row.problem) as FinishProblem) : null,
     };
   }
-  #setFinish(storyId: string, f: { verified: Record<string, string> | null; approval: (FinishApproval & { macId: string }) | null; repos: Record<string, FinishRepo> }) {
+  #setFinish(storyId: string, f: FinishRow) {
     this.#run(
-      `INSERT INTO hub_story_finish(story_id,verified,approval,repos,updated_at) VALUES (?,?,?,?,?)
-       ON CONFLICT(story_id) DO UPDATE SET verified=excluded.verified,approval=excluded.approval,repos=excluded.repos,updated_at=excluded.updated_at`,
+      `INSERT INTO hub_story_finish(story_id,verified,approval,repos,problem,updated_at) VALUES (?,?,?,?,?,?)
+       ON CONFLICT(story_id) DO UPDATE SET verified=excluded.verified,approval=excluded.approval,repos=excluded.repos,
+       problem=excluded.problem,updated_at=excluded.updated_at`,
       storyId,
       f.verified ? JSON.stringify(f.verified) : null,
       f.approval ? JSON.stringify(f.approval) : null,
       JSON.stringify(f.repos),
+      f.problem ? JSON.stringify(f.problem) : null,
       this.#now(),
     );
   }
@@ -1435,6 +1461,7 @@ export class StoryBoard {
       verified: f.verified,
       approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash },
       repos: f.repos,
+      problem: f.problem,
     };
   }
   /** A Story the PL is to approve (by its number, from `team finish`) or the PL Office merges (by its id, from the
@@ -1514,7 +1541,7 @@ export class StoryBoard {
             if (state === "merged" && was.mergeCommit === mergeCommit) return { ok: true as const };
             fail("STATE", 409, "이미 머지된 레포입니다.");
           }
-          this.#setFinish(s.id, { ...f, repos: { ...f.repos, [repoId]: next } });
+          this.#setFinish(s.id, { ...f, repos: { ...f.repos, [repoId]: next }, problem: null });
           if (was?.state !== state) this.#event(s.id, null, l.member.id, `finish_${state}`, `${repoId} ${prUrl}`);
           return { ok: true as const };
         }
@@ -1522,7 +1549,7 @@ export class StoryBoard {
           const repoId = repoOf(r.repoId);
           const prNumber = prNumberOf(r.prNumber);
           if (f.repos[repoId]?.prNumber !== prNumber || f.repos[repoId]?.state === "merged") fail("STATE", 409, "그 레포에서 사람에게 넘긴 PR이 아닙니다.");
-          this.#setFinish(s.id, { ...f, approval: null, repos: this.#mergedOnly(f.repos) });
+          this.#setFinish(s.id, { ...f, approval: null, repos: this.#mergedOnly(f.repos), problem: null });
           this.#event(s.id, null, l.member.id, "finish_closed", `${repoId} #${prNumber}`);
           return { ok: true as const };
         }
@@ -1542,7 +1569,7 @@ export class StoryBoard {
             );
           this.#touchColumn(v.id);
           this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
-          this.#setFinish(s.id, { verified: null, approval: null, repos: this.#mergedOnly(f.repos) });
+          this.#setFinish(s.id, { verified: null, approval: null, repos: this.#mergedOnly(f.repos), problem: null });
           this.#event(s.id, v.id, l.member.id, r.kind === "reverify" ? "finish_reverify" : "finish_failed", why);
           return { ok: true as const };
         }
@@ -1550,19 +1577,50 @@ export class StoryBoard {
           const missing = [...repoIds].filter((id) => f.repos[id]?.state !== "merged");
           if (missing.length) fail("STATE", 409, "아직 머지되지 않은 레포가 있습니다.");
           this.#run("UPDATE hub_stories SET state='done',updated_at=? WHERE id=?", this.#now(), s.id);
+          this.#setFinish(s.id, { ...f, problem: null });
           this.#event(s.id, null, l.member.id, "completed");
           return { ok: true as const };
         }
+        case "problem": {
+          const why = reason(r.reason, true) as string;
+          if (f.problem?.reason !== why) this.#setFinish(s.id, { ...f, problem: { reason: why, at: this.#now() } });
+          return { ok: true as const };
+        }
         default:
-          return fail("INVALID", 400, "kind는 repo, closed, reverify, failed, done 중 하나입니다.");
+          return fail("INVALID", 400, "kind는 repo, closed, reverify, failed, done, problem 중 하나입니다.");
       }
     });
   }
-  /** The local approval and the per-repo merges of a Story, for its page; null before any approval or merge. */
-  storyFinish(storyId: string): { approval: FinishApproval | null; repos: Record<string, FinishRepo> } | null {
+  /**
+   * A Story at 승인 대기 whose passed check kept no commits (a check from before D48) is checked again, so it can be
+   * approved: its check is ready again and the Story is open. Only its PL, only without an approval.
+   */
+  recheckStory(l: Link, storyId: string): { ok: true } {
+    return transaction(this.#db, () => {
+      const s = this.#story(storyId);
+      this.#assertPl(l, s);
+      const f = this.#finish(s.id);
+      if (s.state !== "awaiting_g4" || f.verified || f.approval) fail("STATE", 409, "검증 커밋 없이 승인을 기다리는 Story만 다시 검증할 수 있습니다.");
+      const v = this.#get<TaskRow>("SELECT * FROM hub_story_tasks WHERE story_id=? AND kind='verify'", s.id) as TaskRow;
+      this.#run(
+        `UPDATE hub_story_tasks SET state='ready',claimed_by=NULL,claim_id=NULL,claimed_at=NULL,heartbeat_at=NULL,stage=NULL,updated_at=? WHERE id=?`,
+        this.#now(), v.id,
+      );
+      this.#touchColumn(v.id);
+      this.#run("UPDATE hub_stories SET state='open',updated_at=? WHERE id=?", this.#now(), s.id);
+      this.#event(s.id, v.id, l.member.id, "recheck");
+      return { ok: true as const };
+    });
+  }
+  /** The local approval, the per-repo merges and a stuck merge's reason, for the Story page; null before any of them. */
+  storyFinish(storyId: string): { approval: FinishApproval | null; repos: Record<string, FinishRepo>; problem: FinishProblem | null } | null {
     const f = this.#finish(storyId);
     if (!f.approval && !Object.keys(f.repos).length) return null;
-    return { approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash }, repos: f.repos };
+    return {
+      approval: f.approval && { macName: f.approval.macName, at: f.approval.at, recordHash: f.approval.recordHash },
+      repos: f.repos,
+      problem: f.problem,
+    };
   }
 
   /** The PL records that the human G4 decision was made; only a Story waiting for it can finish. Kept for the board's

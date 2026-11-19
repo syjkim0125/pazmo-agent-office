@@ -186,16 +186,17 @@ async function viewPr(
   number: number,
   fields: string,
   env: GhEnv,
-): Promise<{ state: unknown; mergeCommit: string | null; base: string; head: string }> {
+): Promise<{ state: unknown; mergeCommit: string | null; base: string; head: string; headOid: string }> {
   const view = parseJson(
     await gh(env, ["pr", "view", String(number), "-R", remote, "--json", fields]),
-  ) as { state?: unknown; mergeCommit?: unknown; baseRefName?: unknown; headRefName?: unknown } | null;
+  ) as { state?: unknown; mergeCommit?: unknown; baseRefName?: unknown; headRefName?: unknown; headRefOid?: unknown } | null;
   const text = (value: unknown) => (typeof value === "string" ? value : "");
   return {
     state: view?.state,
     mergeCommit: commitOf(view?.mergeCommit),
     base: text(view?.baseRefName),
     head: text(view?.headRefName),
+    headOid: text(view?.headRefOid).toLowerCase(),
   };
 }
 
@@ -244,15 +245,30 @@ function checkStoryMerge(base: string, head: string): void {
  * the Hub ended that approval when it was closed, and a new approval gets a new PR. */
 export async function ensureStoryPr(
   remote: string,
-  p: { base: string; head: string; title: string; body: string },
+  p: { base: string; head: string; headSha: string; title: string; body: string },
   env: GhEnv,
 ): Promise<PullRequest> {
   checkRemote(remote);
   checkStoryMerge(p.base, p.head);
   checkText(p);
+  if (!OBJECT_ID.test(p.headSha)) fail("INVALID", "A Story merge PR needs the Story base's full commit id.");
+  // The open PR of this repo's own Story base (a fork's PR of the same branch name is never it), or one merged at
+  // this very commit (a restart after its merge). A PR merged at an older commit is the Story's earlier merge: work
+  // added since needs a new PR (D48).
   const live = async () => {
-    const found = await lookUp(remote, p, env);
-    return found && found.state !== "CLOSED" ? found : null;
+    const listed = parseJson(
+      await gh(env, [
+        "pr", "list", "-R", remote, "--head", p.head, "--base", p.base, "--state", "all",
+        "--json", "number,url,state,mergeCommit,headRefOid,isCrossRepository",
+      ]),
+    );
+    if (!Array.isArray(listed)) return fail("GH_FAILED", "gh returned a list that could not be read.");
+    const own = listed.filter((o) => (o as { isCrossRepository?: unknown })?.isCrossRepository !== true);
+    const head = (o: unknown) => String((o as { headRefOid?: unknown })?.headRefOid ?? "").toLowerCase();
+    const open = own.find((o) => (o as { state?: unknown })?.state === "OPEN");
+    const merged = own.find((o) => (o as { state?: unknown })?.state === "MERGED" && head(o) === p.headSha);
+    const found = open ?? merged;
+    return found ? pullRequest(found) : null;
   };
   const existing = await live();
   if (existing) return existing;
@@ -282,9 +298,14 @@ export async function mergeStoryPr(
   if (!Number.isInteger(pr.number) || pr.number < 1) fail("INVALID", "A PR number must be a positive integer.");
   if (!OBJECT_ID.test(pr.headSha)) fail("INVALID", "A merge needs the PR head's full commit id.");
   const none = () => fail("GH_FAILED", `Pull request #${pr.number} has no merge commit (a merge queue may be holding it).`);
-  const before = await viewPr(remote, pr.number, "state,mergeCommit,baseRefName,headRefName", env);
+  const before = await viewPr(remote, pr.number, "state,mergeCommit,baseRefName,headRefName,headRefOid", env);
   checkStoryMerge(before.base, before.head);
-  if (before.state === "MERGED") return { mergeCommit: before.mergeCommit ?? none() };
+  // A PR merged at another commit merged other content: it is never this merge (D48).
+  if (before.state === "MERGED") {
+    if (before.headOid !== pr.headSha.toLowerCase())
+      fail("INVALID", `Pull request #${pr.number} was merged at another commit; the Story base needs a new PR.`);
+    return { mergeCommit: before.mergeCommit ?? none() };
+  }
   await gh(env, ["pr", "merge", String(pr.number), "-R", remote, "--merge", "--match-head-commit", pr.headSha]);
   const after = await viewPr(remote, pr.number, "mergeCommit", env);
   return { mergeCommit: after.mergeCommit ?? none() };

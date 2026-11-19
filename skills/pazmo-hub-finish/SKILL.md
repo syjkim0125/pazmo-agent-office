@@ -17,7 +17,10 @@ is merged until the PL has said yes to you here.
 
 1. Run `pazmo-office team finish --story <N>` (N is the Story number on the Hub). It prints JSON.
    - `status: "needs-approval"`: go to step 2.
-   - `status: "approved"`: the Story is approved already; tell the PL the Office is merging (see `repos`).
+   - `status: "approved"`: the Story is approved already; tell the PL the Office is merging (see `repos`, and
+     `problem` when a merge keeps failing, for example an expired `gh` login).
+   - `status: "rechecking"`: the Story was checked before approvals were bound to commits; the PL's Office checks it
+     again. Run the command again once the Hub shows the Story at 승인 대기.
    - `status: "done"`: the Story is finished.
    - An error with a `code`: see the table below.
 2. Show the PL, in plain words: the Story title, the check `summary` and, for each repo, the base branch and the

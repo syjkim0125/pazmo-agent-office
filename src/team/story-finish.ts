@@ -13,11 +13,13 @@ export type FinishGit = {
   prepare(
     checkout: string,
     task: { storyBase: string; baseBranch: string; verified: string; repo?: string },
-  ): Promise<{ kind: "moved" } | { kind: "current"; head: string; check: boolean } | { kind: "merged"; head: string } | { kind: "conflict"; files: string[] }>;
+  ): Promise<{ kind: "moved" } | { kind: "current"; head: string; check: boolean } | { kind: "merged"; head: string } | { kind: "conflict"; head: string; files: string[] }>;
+  /** The origin's Story base tip now (`branch.storyBaseTip`), or null without one. */
+  tip(checkout: string, storyBase: string): Promise<string | null>;
 };
 export type FinishPr = {
   /** `pr.ensureStoryPr`, `pr.viewStoryPr` and `pr.mergeStoryPr`, bound to the person's gh. */
-  ensure(remote: string, p: { base: string; head: string; title: string; body: string }): Promise<PullRequest>;
+  ensure(remote: string, p: { base: string; head: string; headSha: string; title: string; body: string }): Promise<PullRequest>;
   view(remote: string, number: number): Promise<Pick<PullRequest, "state" | "mergeCommit">>;
   merge(remote: string, pr: { number: number; headSha: string }): Promise<{ mergeCommit: string }>;
 };
@@ -67,6 +69,8 @@ export function createStoryFinisher(d: {
   };
   let running: { abort: AbortController } | null = null;
   let stopped = false;
+  /** The last problem reported to the Hub for each Story, so the same one is posted once. */
+  const problems = new Map<string, string>();
 
   /** Re-checks one repo's Story base on its checkout after base branch commits came in; the failure summary, or null. */
   async function recheck(lane: FinishLane, view: FinishView, head: string, signal: AbortSignal): Promise<string | null> {
@@ -145,6 +149,7 @@ export function createStoryFinisher(d: {
       const pr = await d.pr.ensure(lane.remote, {
         base: b.baseBranch,
         head: b.storyBase,
+        headSha: prep.head,
         title: `Story #${view.number}: ${view.title}`.slice(0, 200),
         body: `PL이 결과를 승인한 Story #${view.number}의 Story base를 ${b.baseBranch}에 머지합니다(Pazmo Office).`,
       });
@@ -154,13 +159,24 @@ export function createStoryFinisher(d: {
         log(`team: ${name}: ${b.repoName} conflicts with ${b.baseBranch}; PR #${pr.number} is handed to a person`);
         continue;
       }
-      if (!rec) await report({ kind: "repo", repoId: b.repoId, state: "opened", prNumber: pr.number, prUrl: pr.url, mergeCommit: null, reason: null });
+      if (!rec || rec.prNumber !== pr.number)
+        await report({ kind: "repo", repoId: b.repoId, state: "opened", prNumber: pr.number, prUrl: pr.url, mergeCommit: null, reason: null });
+      // The approval is read again right before the merge: Tasks added since (the Story reopened) end it (D48).
+      const still = await via.finishView(view.storyId);
+      if (still.state !== "awaiting_g4" || !still.approval || still.approval.recordHash !== view.approval.recordHash) throw new Ended();
       try {
         const { mergeCommit } = await d.pr.merge(lane.remote, { number: pr.number, headSha: prep.head });
         await report({ kind: "repo", repoId: b.repoId, state: "merged", prNumber: pr.number, prUrl: pr.url, mergeCommit, reason: null });
         log(`team: ${name}: ${b.repoName} is merged into ${b.baseBranch} (PR #${pr.number})`);
       } catch (error) {
         if (codeOf(error) !== "GH_FAILED") throw error;
+        // A refusal because the Story base moved meanwhile (--match-head-commit) is a Story base to check again, never
+        // a PR to hand to a person, who could merge content nobody checked.
+        if ((await d.git.tip(lane.checkout, b.storyBase)) !== prep.head) {
+          await report({ kind: "reverify", reason: `${b.repoName}의 Story base가 머지 직전에 바뀌어 Story 검증을 다시 합니다.` });
+          log(`team: ${name}: the Story base of ${b.repoName} moved before its merge; the Story is checked again`);
+          throw new Ended();
+        }
         const reason = describe(error).replace(/^GH_FAILED: /, "");
         await report({ kind: "repo", repoId: b.repoId, state: "handed", prNumber: pr.number, prUrl: pr.url, mergeCommit: null, reason });
         log(`team: ${name}: the merge of ${b.repoName} was refused (${reason}); PR #${pr.number} is handed to a person`);
@@ -194,15 +210,24 @@ export function createStoryFinisher(d: {
     try {
       for (const storyId of ready) {
         try {
-          if (await finish(via, storyId, abort.signal)) return { ran: true };
+          if (await finish(via, storyId, abort.signal)) {
+            problems.delete(storyId);
+            return { ran: true };
+          }
         } catch (error) {
           if (error instanceof Ended) return { ran: true };
           if (error instanceof NotNow || WAITS.has(codeOf(error) as string) || abort.signal.aborted) {
             log(`team: merging an approved Story waits (${describe(error)})`);
             return { ran: false };
           }
-          sayOnce(storyId, `team: merging Story ${storyId} failed (${describe(error)}); trying again next cycle`);
-          return { ran: true };
+          // A Story that keeps failing (an expired gh login, a network error) never holds the claim tick or the next
+          // approved Story; its reason is said once here and shown on its page.
+          const reason = describe(error);
+          sayOnce(storyId, `team: merging Story ${storyId} failed (${reason}); trying again next cycle`);
+          if (problems.get(storyId) !== reason) {
+            problems.set(storyId, reason);
+            await via.finishReport(storyId, { kind: "problem", reason: `머지를 하지 못하고 다시 시도합니다: ${reason}`.slice(0, 4000) }).catch(() => {});
+          }
         }
       }
       return { ran: false };

@@ -79,10 +79,25 @@ export async function runFinish(o: { root: string; story: number; link?: StoryLi
   if (view.state !== "awaiting_g4")
     return fail("FINISH_STATE", `Story #${view.number}은(는) 아직 결과를 승인할 단계가 아닙니다(지금: ${view.state}). Story 검증이 통과해 승인 대기가 된 뒤에 다시 실행하세요.`);
   const repos = view.branches.map((b) => ({ repo: b.repoName, baseBranch: b.baseBranch, ...(view.repos[b.repoId] ?? { state: "waiting" }) }));
-  if (view.approval) return { status: "approved", already: true, story, approval: view.approval, repos };
-  if (!view.verified)
-    return fail("FINISH_STATE", `Story #${view.number}의 검증 커밋이 없습니다. PL의 Office가 Story 검증을 다시 한 뒤 승인하세요.`);
   const path = finishRecordPath(o.root, view.number);
+  if (view.approval) {
+    // The Hub has this approval: a record left behind by a stop right after it (the same hash) is set aside now, so
+    // it can never approve a later round without a new answer.
+    if (existsSync(path) && statSync(path).size <= RECORD_MAX) {
+      const hash = sha256(readFileSync(path));
+      if (hash === view.approval.recordHash) renameSync(path, path.replace(/\.json$/, `.${hash.slice(0, 12)}.approved.json`));
+    }
+    return { status: "approved", already: true, story, approval: view.approval, repos, problem: view.problem ?? null };
+  }
+  if (!view.verified) {
+    // A check from before D48 kept no commits: the Story is checked again, after which it can be approved.
+    await onHub(() => link.recheck(view.storyId));
+    return {
+      status: "rechecking",
+      story,
+      next: "이 Story의 검증에는 승인에 묶을 커밋이 없어 PL의 Office가 Story 검증을 다시 합니다. 승인 대기가 되면 같은 명령을 다시 실행하세요.",
+    };
+  }
   if (!existsSync(path)) {
     mkdirSync(join(teamDir(o.root), "approvals"), { recursive: true, mode: 0o700 });
     return {
