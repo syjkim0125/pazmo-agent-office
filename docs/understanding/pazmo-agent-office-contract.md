@@ -3,7 +3,8 @@ Status: Approved
 Owner: JongKun Kim
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-18 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): .ai-workflow/approvals/story-check-g4.json · 2026-11-19 · Check-in: accepted
+Understanding gate (G4): .ai-workflow/approvals/story-finish-g4.json · 2026-11-19 · Check-in: accepted
+G4: PASS — U55(D48 4b, 결과 승인·main 머지·완료: `team finish --story N`이 승인할 내용과 기록 틀을 보이고 PL의 기록을 Story 지문·검증 커밋에 묶어 PL의 연결된 Mac에서 허브에 로컬 승인을 올림, PL Office가 레포마다 Story base가 검증한 그대로(또는 기준 브랜치를 깨끗하게 합친 것만)인지 보고 바뀐 기준 브랜치는 합쳐 VM에서 다시 검사한 뒤 검증한 커밋에서만 PR로 머지, 충돌·보호 규칙은 사람에게 넘겨 지켜보다 머지되면 완료, 승인이 끝나면 열린 PR을 닫음, Story 화면의 승인·머지 상태; 사본 허브에서 #7이 테스트 레포 main까지 머지되고 완료): 사용자가 G4 설명 페이지와 직접 확인 결과를 본 뒤 "승인 후 머지"를 골랐다(D13).
 G4: PASS — U54(D47 4a, PL Office의 자동 Story 검증: 모든 작업 Task가 머지되면 PL의 자동으로 일하기와 상관없이 Story 검증을 가져가고(진행 중 Task·가져가기 멈춤·실행할 수 없는 Office면 새로 가져가지 않음, 멈춤이어도 이미 가진 검증은 이어 함), 레포마다 Story base의 최신 커밋을 모두 받은 뒤 VM에서 Story 검사를 돌려 통과·실패와 요약(레포·커밋 전체·검사 결과)을 보고하며 Story 화면에 보임; 허브는 Story base마다 레포 이름을 더 보냄; AI 리뷰·승인·머지·완료는 그대로 남김): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13).
 G4: PASS — U53(D41, Task·Story·내 할 일·보드 말투: 사용자가 고른 표 19줄대로 상태는 짧은 한 문장, 단추가 말하는 것은 빼고, 빈 받을 일·Story 없는 프로젝트·오래 멈춘 Task의 부수 설명은 ⓘ 뒤로, 화면 밖의 멈춤 이유는 Task 화면을 가리킴, 되돌릴 수 없는 일의 결과는 늘 보임; 단추가 하는 일·권한·주소는 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13).
 G4: PASS — U52(D46, 다크 모드를 흔히 쓰는 해·달 아이콘 단추로: 지금 테마의 아이콘(밝으면 해, 어두우면 달), 이름 "다크 모드"와 눌림 상태, 마우스 글 켜짐/꺼짐, 44px 둥근 단추, 스크립트 없는 인라인 SVG; 누르면 하는 일은 D45 그대로): 사용자가 G4 설명 페이지를 본 뒤 "승인 후 머지"를 골랐다(D13). 세 질문에 직접 답하지는 않았다.

@@ -154,14 +154,82 @@
         }
       },
       "workflow-review": {
-        "status": "pending",
-        "attempts": 2,
-        "revision": 2
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50",
+        "output": {
+          "summary": "Review 3 of 23de7dd..fc5c076: ready to verify; no Critical or Important finding. I1 (withdrawn PRs), I2 (re-check memo) and M3 are fixed, and mutations of each fix are caught by tests; closeStoryPr never touches a Task PR, and cancelled or done Stories block nothing. Minors are recorded as limits since implement used its three attempts: M1 no test for an approval ending twice before the close; M2 a narrow window where a PR opened just before the approval ends is never recorded or withdrawn; M3 a withdrawn PR a person merged first is only in the local log; M4 a withdrawn PR of a repo not on the PL Office stays listed.",
+          "evidence": [
+            ".ai-workflow/runs/U55-story-finish-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U55-story-finish-review-3.md": "1325fb1f1d2e53fb1da21305ad69f297834c0641082aa7591d819da303cd01d1"
+        }
       },
       "workflow-verify": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 2
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/c9484445-1676-47d6-b0fa-216ba3185601/receipt.json",
+            "hash": "785279af36e1dfa5e675b4200a93953ada56c4fbeba86d781d261d9826414f29"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/f95f1f21-cd4c-431a-9366-b3554b210bfa/receipt.json",
+            "hash": "3b6a7b123173425dd79885ee3a2bd63ecdcc4c093865193861613935c5db1bcc"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/0ae5303d-4ace-456e-9660-bf607e25bbbd/receipt.json",
+            "hash": "748731cb2ccfe2184fef7118ceaf20576da74eea9d8a034ed43c75b7e86e7320"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/a01a03b6-65e8-4bc8-a70e-36f9493a6d17/receipt.json",
+            "hash": "cfbaa4c5b74a3a4b27e72b787760495843d974b7d4070721c6b6499a51fdae20"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/cc4a0b37-ba56-4fe1-b2cd-6a0da211f8f8/receipt.json",
+            "hash": "461ee447eddfe1ce23c1b0948cefec7a3bd42d3a853e529732ba5ac389b89198"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on fc5c076 (code 221ba63): tests 737/737 + 652/652 + 643/643 = 2032/2032, typecheck exit 0, story check exit 0. The hands-on merge into the test repo awaits the user's allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U55-story-finish-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U55-story-finish-verify-1.md": "e96c1ad17e874fb14eea275ffd8f5089b10de82cab826d3371612045dc45f248"
+        }
       }
     }
   },
@@ -391,6 +459,104 @@
           ".ai-workflow/runs/U55-story-finish-implement-3.md": "00918670566cf07e2ddf1346edaa5ef048a417ff560322d19f394634e42c960b",
           ".ai-workflow/runs/U55-story-finish-implement-red-3.txt": "864abca38391a12ff514ce2c8d6cd8e634d030cf23a64afe59c3b2cee1ff786d",
           ".ai-workflow/runs/U55-story-finish-implement-green-3.txt": "41b033a04eca2614a68261cf0011cd9c6870942c9f7eaf836a895fdd6c07b818"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T05:28:50.145Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T05:31:45.264Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50",
+        "output": {
+          "summary": "Review 3 of 23de7dd..fc5c076: ready to verify; no Critical or Important finding. I1 (withdrawn PRs), I2 (re-check memo) and M3 are fixed, and mutations of each fix are caught by tests; closeStoryPr never touches a Task PR, and cancelled or done Stories block nothing. Minors are recorded as limits since implement used its three attempts: M1 no test for an approval ending twice before the close; M2 a narrow window where a PR opened just before the approval ends is never recorded or withdrawn; M3 a withdrawn PR a person merged first is only in the local log; M4 a withdrawn PR of a repo not on the PL Office stays listed.",
+          "evidence": [
+            ".ai-workflow/runs/U55-story-finish-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U55-story-finish-review-3.md": "1325fb1f1d2e53fb1da21305ad69f297834c0641082aa7591d819da303cd01d1"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-19T05:31:50.708Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-19T05:35:41.414Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 2,
+        "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/c9484445-1676-47d6-b0fa-216ba3185601/receipt.json",
+            "hash": "785279af36e1dfa5e675b4200a93953ada56c4fbeba86d781d261d9826414f29"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/f95f1f21-cd4c-431a-9366-b3554b210bfa/receipt.json",
+            "hash": "3b6a7b123173425dd79885ee3a2bd63ecdcc4c093865193861613935c5db1bcc"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/0ae5303d-4ace-456e-9660-bf607e25bbbd/receipt.json",
+            "hash": "748731cb2ccfe2184fef7118ceaf20576da74eea9d8a034ed43c75b7e86e7320"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/a01a03b6-65e8-4bc8-a70e-36f9493a6d17/receipt.json",
+            "hash": "cfbaa4c5b74a3a4b27e72b787760495843d974b7d4070721c6b6499a51fdae20"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/447115b2-198d-4e3d-9fd7-92b70e115fe4/cc4a0b37-ba56-4fe1-b2cd-6a0da211f8f8/receipt.json",
+            "hash": "461ee447eddfe1ce23c1b0948cefec7a3bd42d3a853e529732ba5ac389b89198"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on fc5c076 (code 221ba63): tests 737/737 + 652/652 + 643/643 = 2032/2032, typecheck exit 0, story check exit 0. The hands-on merge into the test repo awaits the user's allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U55-story-finish-verify-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "bb5e262aec0cdea1a8136c7649553480e4a2b98e79c91e1af009855d4d085a50"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U55-story-finish-verify-1.md": "e96c1ad17e874fb14eea275ffd8f5089b10de82cab826d3371612045dc45f248"
         }
       }
     }
