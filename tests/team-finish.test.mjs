@@ -138,6 +138,26 @@ test("a record left behind by a stop right after its approval is set aside on th
   assert.deepEqual(link.approved, []);
 });
 
+test("a record that lost to a web approval is set aside too, so after a closed PR it never approves without a new answer (D49, review 1 I1)", async (t) => {
+  const r = root(t);
+  const link = fakeLink();
+  const { record } = await runFinish({ root: r, story: 7, link, today: "2026-11-19" });
+  const text = JSON.stringify(answered(record.template));
+  writeFileSync(record.path, text);
+  // The PL approved on the web before claude ran the command again.
+  link.view.approval = { macName: "웹 승인", at: 1, recordHash: "e".repeat(64), via: "web", by: "PL" };
+  const out = await runFinish({ root: r, story: 7, link });
+  assert.equal(out.status, "approved");
+  assert.equal(out.approval.via, "web");
+  assert.equal(existsSync(record.path), false);
+  const hash = createHash("sha256").update(text).digest("hex");
+  assert.deepEqual(readdirSync(join(r, "team", "approvals")), [`story-7-g4.${hash.slice(0, 12)}.superseded.json`]);
+  // A person closed the handed PR unmerged: the approval ended with the same checked commits.
+  link.view.approval = null;
+  assert.equal((await runFinish({ root: r, story: 7, link })).status, "needs-approval", "a new answer is asked for");
+  assert.deepEqual(link.approved, []);
+});
+
 test("over a real Hub: team finish reads the Story by number and approves it from the PL's Mac link; a connection-string link is NOT_YOUR_MAC", async (t) => {
   const h = await hubWithStory(t);
   for (const name of ["be", "be", "fe"]) {

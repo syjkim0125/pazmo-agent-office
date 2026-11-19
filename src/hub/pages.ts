@@ -267,6 +267,8 @@ export type Chrome = {
   path?: string;
   /** Whether the page asks to refresh itself while shown (the live script). */
   live?: boolean;
+  /** Whether the page loads the copy script (outside <main>, so a part swapped in by the live script still gets it). */
+  copy?: boolean;
 };
 /** The newest Mac's state in the header (and on a plan page, the PL's); a Mac whose last beat is older than the store's limit arrives as "off". */
 export const macBadgeLabel = (b: MacBadge) =>
@@ -335,7 +337,7 @@ export function layout(title: string, me: Member | null, body: string, chrome: C
     : me
     ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : "";
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}${chrome.copy ? '<script src="/copy.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
   return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${say(message)}</p><p><a href="/">처음으로</a></p></section>`);

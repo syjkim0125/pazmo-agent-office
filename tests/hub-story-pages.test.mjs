@@ -871,12 +871,15 @@ test("the PL alone sees the 결과 승인 card: check result, Task summaries and
   assert.ok(card.includes(`https://github.example.com/team/app-fe/compare/develop...${"b".repeat(40)}`));
   assert.ok(card.includes("Story 글의 목표대로 동작하는지(Story 글 참고)"), "a free-text Story still gets an item");
   assert.ok(card.includes("— 이대로 괜찮은지"));
-  assert.ok(card.includes("<code>src/api.ts</code>"), "the files the Tasks touched");
-  assert.ok(card.includes(`git switch --detach ${"a".repeat(40)}`) && card.includes("npm test"), "run steps");
+  assert.ok(card.includes("<p>Task가 맡은 파일(계획)</p>") && card.includes("<code>src/api.ts</code>"), "the Tasks' planned scope, said as such (review 1)");
+  assert.ok(card.includes(`git worktree add --detach ../app-be-story-${s.number} ${"a".repeat(40)}`) && card.includes("npm test"), "run steps in a separate worktree");
+  assert.ok(!card.includes("git switch"), "never the PL's own folder (review 1 I2)");
   assert.ok(card.includes(`<pre id="approve-prompt" class="mono">`), "the prompt is a selectable box");
   assert.ok(card.includes("Playwright로 브라우저를 띄워"));
   assert.ok(card.includes(`<button type="button" class="secondary copy-only" data-copy-target="approve-prompt">복사</button>`));
-  assert.ok(page.includes(`<script src="/copy.js" defer></script>`));
+  // Outside <main>, so a card that arrives through the live refresh still gets its copy button (review 1).
+  assert.ok(page.indexOf(`<script src="/copy.js" defer></script>`) > page.indexOf("</main>"));
+  assert.equal(page.split(`<script src="/copy.js"`).length, 2, "loaded once");
   const fingerprint = h.board.finishView(s.plBe, s.number).fingerprint;
   assert.ok(card.includes(`<form method="post" action="/stories/${s.storyId}/approve">`));
   assert.ok(card.includes(`<input type="hidden" name="fingerprint" value="${fingerprint}">`));
@@ -922,6 +925,23 @@ test("the 결과 승인 button records a web approval, refuses a stale view, a m
   assert.ok(page.includes(`<h2 id="merged">main 머지</h2><p class="muted wrap">웹 승인 · PL · `));
   assert.ok(page.includes("결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다."));
   assert.ok(!(await h.get(`/stories/${s.storyId}`, h.pl)).text.includes(`id="approve"`), "no card once approved");
+});
+
+test("a web approval that loses to the PL's local one shows the Story, which says who approved (D49, review 1)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const commits = { [h.be]: "a".repeat(40), [h.fe]: "b".repeat(40) };
+  awaiting(h, s, commits);
+  const fingerprint = h.board.finishView(s.plBe, s.number).fingerprint;
+  const { deviceCode, userCode } = h.store.startMac("PL의 MacBook");
+  h.store.approveMac(h.pl.member, userCode);
+  const mac = h.store.link(h.store.macLink(h.store.mac(h.store.pollMac(deviceCode).macToken), h.fe).token);
+  h.board.approveStory(mac, h.store.currentMac(h.pl.member.id), s.storyId, { fingerprint, commits, recordHash: "c".repeat(64) });
+  const res = await post(h, h.pl, `/stories/${s.storyId}/approve`, { fingerprint, commits: JSON.stringify(commits), confirm: "yes" });
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, `/stories/${s.storyId}`);
+  assert.equal(h.board.storyFinish(s.storyId).approval.macName, "PL의 MacBook", "the first approval stays");
+  assert.ok((await h.get(`/stories/${s.storyId}`, h.pl)).text.includes("결과 승인 · PL의 MacBook · "));
 });
 
 test("a Story at 승인 대기 without checked commits offers 다시 검증, which opens its check again (D49)", async (t) => {

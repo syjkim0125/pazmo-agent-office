@@ -66,7 +66,10 @@ test("script only on live GET pages", async (t) => {
     const res = await h.get(path);
     assert.equal(res.status, 200, path);
     assert.equal(res.text.split(TAG).length - 1, 1, path);
-    assert.equal((res.text.match(/<script/g) ?? []).length, 1, path);
+    // D49: the PL's open Story page also loads the static copy script, outside <main>, for the 결과 승인 card.
+    const copy = path.startsWith("/stories/") ? 1 : 0;
+    assert.equal(res.text.split('<script src="/copy.js" defer></script>').length - 1, copy, path);
+    assert.equal((res.text.match(/<script/g) ?? []).length, 1 + copy, path);
   }
   for (const path of ["/nope", "/mac/approve?code=ZZZZ0000"]) assert.ok(!(await h.get(path)).text.includes("/live.js"), path);
   const made = await h.call("POST", "/invites", { cookie: h.admin.cookie, body: `csrf=${h.admin.csrf}&name=X`, headers: { origin: h.hub.url } });

@@ -81,11 +81,13 @@ export async function runFinish(o: { root: string; story: number; link?: StoryLi
   const repos = view.branches.map((b) => ({ repo: b.repoName, baseBranch: b.baseBranch, ...(view.repos[b.repoId] ?? { state: "waiting" }) }));
   const path = finishRecordPath(o.root, view.number);
   if (view.approval) {
-    // The Hub has this approval: a record left behind by a stop right after it (the same hash) is set aside now, so
-    // it can never approve a later round without a new answer.
-    if (existsSync(path) && statSync(path).size <= RECORD_MAX) {
-      const hash = sha256(readFileSync(path));
-      if (hash === view.approval.recordHash) renameSync(path, path.replace(/\.json$/, `.${hash.slice(0, 12)}.approved.json`));
+    // The Hub has an approval: any record still at the path is set aside now, so it can never approve a later round
+    // (after a PR closed unmerged) without a new answer. It is this approval's record left by a stop right after it
+    // (the same hash), or one that lost to another approval, for example the PL's web approval (D49, review 1 I1).
+    if (existsSync(path)) {
+      const hash = statSync(path).size <= RECORD_MAX ? sha256(readFileSync(path)) : null;
+      const kind = hash === view.approval.recordHash ? "approved" : "superseded";
+      renameSync(path, path.replace(/\.json$/, `.${(hash ?? `big-${Date.now()}`).slice(0, 12)}.${kind}.json`));
     }
     return { status: "approved", already: true, story, approval: view.approval, repos, problem: view.problem ?? null };
   }

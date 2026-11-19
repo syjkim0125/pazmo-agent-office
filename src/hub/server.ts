@@ -458,7 +458,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         } catch {
           throw new HubError("INVALID", 400, "화면을 새로 고친 뒤 다시 시도해주세요.");
         }
-        board.approveOnWeb({ member: me }, id, { fingerprint: f("fingerprint"), commits });
+        try {
+          board.approveOnWeb({ member: me }, id, { fingerprint: f("fingerprint"), commits });
+        } catch (error) {
+          // Another approval came first (the PL's `team finish`): the Story page says who approved, so show it.
+          const first = error instanceof HubError && error.code === "STATE" && board.storyFinish(id)?.approval;
+          if (!first) throw error;
+        }
         return redirect(res, `/stories/${id}`);
       }
       if ((m = new RegExp(`^/stories/${ID}/recheck$`).exec(path))) {
