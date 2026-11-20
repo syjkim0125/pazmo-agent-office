@@ -258,6 +258,8 @@ function devBody(s: StoryView, dev: DevCard, csrf: string): string {
             : "";
       // After a merged revert git takes the reverted commits as merged, so a newer PR would leave them out (review 1).
       const done = r.revert?.state === "merged" ? line("dev에서 되돌렸습니다. 되돌린 변경이 빠지므로 이 Story를 이 레포의 dev에 다시 올리지 않습니다.") : "";
+      // Review 2 M-C: the PL sees why there is no revert button while a dev PR is still open.
+      const wait = s.isPl && r.merged.length && r.dev?.state === "opened" && !r.want ? line("열린 dev PR이 머지되거나 닫힌 뒤에 dev에서 되돌릴 수 있습니다.") : "";
       const why = r.reason ? line(`하지 못했습니다: ${r.reason}`) : "";
       const open = r.canOpen
         ? `<form method="post" action="/stories/${esc(s.id)}/dev">${csrfField(csrf)}<input type="hidden" name="repo" value="${esc(r.repoId)}"><input type="hidden" name="commit" value="${esc(r.verified ?? "")}"><div class="row"><button class="secondary">dev에 PR 열기</button></div></form>`
@@ -265,7 +267,7 @@ function devBody(s: StoryView, dev: DevCard, csrf: string): string {
       const back = r.canRevert
         ? `<form method="post" action="/stories/${esc(s.id)}/dev-revert">${csrfField(csrf)}<input type="hidden" name="repo" value="${esc(r.repoId)}"><div class="row"><button class="secondary">dev에서 되돌리기</button></div></form>`
         : "";
-      return `<li><p class="wrap">${esc(r.repoName)} → ${esc(target)}: ${now}</p>${moved}${revert}${done}${why}${open}${back}</li>`;
+      return `<li><p class="wrap">${esc(r.repoName)} → ${esc(target)}: ${now}</p>${moved}${revert}${done}${wait}${why}${open}${back}</li>`;
     })
     .join("");
   return `<p class="muted">${say("dev 브랜치가 있는 레포는 검증한 커밋을 dev로 가는 PR로 올려 dev에서 확인할 수 있습니다. 리뷰와 머지는 GitHub에서 사람이 합니다.")}</p><ul class="work">${items}</ul>`;

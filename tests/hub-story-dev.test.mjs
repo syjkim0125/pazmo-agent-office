@@ -173,7 +173,7 @@ test("a second round's dev PR keeps the first one's merge, so a revert takes bot
   assert.equal(board.devCard(actor, storyId).repos[0].canRevert, false, "not while a dev PR is open");
   board.devReport(plBe, storyId, { ...devOf(5, SHA("c"), "merged", SHA("8")), repoId: be });
   r = board.devView(plBe, storyId).repos[0];
-  assert.deepEqual(r.merged, [{ prNumber: 3, mergeCommit: SHA("9") }, { prNumber: 5, mergeCommit: SHA("8") }]);
+  assert.deepEqual(r.merged, [{ prNumber: 3, mergeCommit: SHA("9"), head: SHA("a") }, { prNumber: 5, mergeCommit: SHA("8"), head: SHA("c") }], "each with the PR head it merged (review 2 I-B)");
   board.devReport(plBe, storyId, { ...devOf(5, SHA("c"), "merged", SHA("8")), repoId: be });
   assert.equal(board.devView(plBe, storyId).repos[0].merged.length, 2, "the same merge again is kept once");
   assert.equal(board.devCard(actor, storyId).repos[0].canRevert, true);

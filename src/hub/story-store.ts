@@ -194,7 +194,7 @@ export type DevRepo = {
   wantCommit: string | null;
   dev: DevPr | null;
   /** Every dev PR of this Story merged into dev, oldest first: a revert reverts them all (review 1 of U57). */
-  merged: { prNumber: number; mergeCommit: string }[];
+  merged: { prNumber: number; mergeCommit: string; head: string }[];
   revert: RevertPr | null;
   /** Why the last request could not be done, until the next one. */
   reason: string | null;
@@ -1887,7 +1887,7 @@ export class StoryBoard {
           // Every merged dev PR is kept, so a revert takes back all this Story brought to dev, not only the last one.
           const merged =
             dev.mergeCommit && !repo.merged.some((m) => m.mergeCommit === dev.mergeCommit)
-              ? [...repo.merged, { prNumber: dev.prNumber, mergeCommit: dev.mergeCommit }]
+              ? [...repo.merged, { prNumber: dev.prNumber, mergeCommit: dev.mergeCommit, head: dev.head }]
               : repo.merged;
           this.#setDev(s.id, repo.repoId, { ...repo, dev, merged, ...(answered ? { want: null, wantCommit: null, reason: null } : {}) });
           if (repo.dev?.state !== state || repo.dev?.prNumber !== dev.prNumber) this.#event(s.id, null, l.member.id, `dev_${state}`, `${repo.repoId} ${dev.prUrl}`);

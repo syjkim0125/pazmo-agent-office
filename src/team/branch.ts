@@ -766,17 +766,18 @@ function inRevert(checkout: string): boolean {
 const DEV_MERGES_MAX = 20;
 
 /**
- * Reverts every dev PR merge of a Story (`mergeCommits`, newest first) on dev's tip and pushes the result to
- * `feature/story-<N>/revert-dev-<sha12 of the newest>`, the head of its PR into dev (D50), on the Office checkout
- * (refused like `checkoutStoryBase` if it is not the Office's). Each must be a merge commit (two parents), reverted
- * against its first parent: a squashed or rebased PR leaves a one-parent commit that may be only part of the PR, so it
- * is `unsupported` and nothing is pushed (review 1 of U57). A branch origin already has is `exists`; a merge not in dev,
- * or one whose change dev no longer has, is `missing`; a conflict is `conflict`. A revert that does not finish is
- * aborted and the checkout left clean. dev itself is never written.
+ * Reverts every dev PR merge of a Story (`merges`, newest first: each PR's merge commit and the PR head it merged) on
+ * dev's tip and pushes the result to `feature/story-<N>/revert-dev-<sha12 of the newest>`, the head of its PR into dev
+ * (D50), on the Office checkout (refused like `checkoutStoryBase` if it is not the Office's). Each must be a merge commit
+ * whose second parent is that PR's head, reverted against its first parent (dev before the merge). Anything else (a
+ * squashed or rebased PR, one parent; a fast-forward, whose first parent is the PR side) may revert only part of the PR
+ * or the wrong side, so it is `unsupported` and nothing is pushed (reviews 1 and 2 of U57). A branch origin already has
+ * is `exists`; a merge not in dev, or one whose change dev no longer has, is `missing`; a conflict is `conflict`. A
+ * revert that does not finish is aborted and the checkout left clean. dev itself is never written.
  */
 export async function revertDevMerge(
   checkout: string,
-  p: { devBranch: string; mergeCommits: string[]; branch: string; repo?: string },
+  p: { devBranch: string; merges: { commit: string; head: string }[]; branch: string; repo?: string },
   env: GitEnv,
 ): Promise<
   | { kind: "pushed"; head: string }
@@ -789,9 +790,12 @@ export async function revertDevMerge(
   checkBase(p.devBranch, "The dev branch");
   if (STORY_BASE.test(p.devBranch) || TASK_BRANCH.test(p.devBranch) || p.devBranch.startsWith("feature/story-"))
     fail("GIT_FAILED", "A Story branch is never a dev branch.");
-  if (!Array.isArray(p.mergeCommits) || !p.mergeCommits.length || p.mergeCommits.length > DEV_MERGES_MAX)
+  if (!Array.isArray(p.merges) || !p.merges.length || p.merges.length > DEV_MERGES_MAX)
     fail("GIT_FAILED", `A revert takes 1 to ${DEV_MERGES_MAX} merge commits.`);
-  p.mergeCommits.forEach(checkObject);
+  for (const m of p.merges) {
+    checkObject(m.commit);
+    checkObject(m.head);
+  }
   if ((await remoteTip(checkout, p.branch, env)) !== null) return { kind: "exists" };
   await assertOfficeCheckout(checkout, p.repo, env);
   if (inMerge(checkout)) await git(checkout, ["merge", "--abort"], env);
@@ -799,26 +803,27 @@ export async function revertDevMerge(
   await git(checkout, ["reset", "--hard"], env);
   await git(checkout, ["clean", "-fd", "-e", ".pazmo-office"], env);
   const tip = await fetchTip(checkout, p.devBranch, env);
-  for (const commit of p.mergeCommits) {
+  for (const { commit, head } of p.merges) {
     // dev is fetched, so a merge commit git does not know (128) is not in dev either.
     const inDev = await git(checkout, ["merge-base", "--is-ancestor", commit, tip], env, { ok: [0, 1, 128] });
     if (inDev.exitCode !== 0) return { kind: "missing" };
     const parents = (await git(checkout, ["rev-list", "--parents", "-n", "1", commit], env)).stdout.trim().split(" ").slice(1);
-    if (parents.length !== 2) return { kind: "unsupported", commit };
+    if (parents.length !== 2 || parents[1] !== head) return { kind: "unsupported", commit };
   }
   await git(checkout, ["checkout", "-q", "--detach", tip], env);
-  const revert = await git(checkout, ["revert", "--no-edit", "-m", "1", ...p.mergeCommits], env, { ok: [0, 1] });
+  // Any failure (a conflict, nothing left, a signing hook) is aborted below, so the checkout never stays mid-revert.
+  const revert = await git(checkout, ["revert", "--no-edit", "-m", "1", ...p.merges.map((m) => m.commit)], env, { ok: [0, 1, 128] });
   if (revert.exitCode !== 0) {
     const files = await unmerged(checkout, env);
     if (inRevert(checkout)) await git(checkout, ["revert", "--abort"], env);
     if (files.length) return { kind: "conflict", files };
-    // Nothing left to revert (a person reverted it on dev already): git stops without a conflict.
+    // Nothing left to revert (a person reverted it on dev already): git stops without a conflict and changes nothing.
     const left = await git(checkout, ["status", "--porcelain"], env);
-    if (!left.stdout.trim()) {
-      await git(checkout, ["checkout", "-q", "--detach", tip], env);
-      return { kind: "missing" };
-    }
-    return fail("GIT_FAILED", reason(revert.stderr) || reason(revert.stdout) || "git revert failed (exit 1).");
+    const nothing = revert.exitCode === 1 && !left.stdout.trim();
+    await git(checkout, ["reset", "--hard", "-q"], env);
+    await git(checkout, ["checkout", "-q", "--detach", tip], env);
+    if (nothing) return { kind: "missing" };
+    return fail("GIT_FAILED", reason(revert.stderr) || reason(revert.stdout) || `git revert failed (exit ${revert.exitCode}).`);
   }
   const head = await headOf(checkout, env);
   await pushRef(checkout, p.branch, head, env);

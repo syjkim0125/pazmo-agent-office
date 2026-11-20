@@ -11,7 +11,7 @@ export type DevGit = {
   /** `branch.revertDevMerge`: the revert of every merged dev PR of the Story on its own revert-dev branch. */
   revert(
     checkout: string,
-    p: { devBranch: string; mergeCommits: string[]; branch: string; repo?: string },
+    p: { devBranch: string; merges: { commit: string; head: string }[]; branch: string; repo?: string },
   ): Promise<
     | { kind: "pushed"; head: string }
     | { kind: "exists" }
@@ -97,8 +97,18 @@ export function createStoryDev(d: {
     const devBranch = r.devBranch as string;
     // An open dev PR of another commit is closed first; if it cannot be, nothing new opens beside it (review 1 M2).
     if (r.dev && r.dev.state === "opened" && r.dev.commit !== sha) {
+      const old = r.dev;
       const closed = await attempt(via, view.storyId, r, "옛 dev PR을 닫지 못해 새 PR을 열지 않았습니다", async () => {
-        await d.pr.close(lane.remote, { number: r.dev!.prNumber, comment: `Pazmo Office: Story #${view.number}의 새 검증 커밋 ${sha.slice(0, 12)}로 dev PR을 다시 엽니다. 이 PR은 머지하지 마세요.` });
+        const was = await d.pr.close(lane.remote, { number: old.prNumber, comment: `Pazmo Office: Story #${view.number}의 새 검증 커밋 ${sha.slice(0, 12)}로 dev PR을 다시 엽니다. 이 PR은 머지하지 마세요.` });
+        // A person merged (or closed) it since it was last read: its merge is recorded before the new PR replaces it,
+        // so a later revert still takes it back (review 2 of U57).
+        if (was !== "OPEN") {
+          const v = await d.pr.view(lane.remote, old.prNumber);
+          const state = STATE[v.state];
+          if (state === "merged" && !v.mergeCommit)
+            throw new OfficeError("GH_FAILED", "옛 dev PR이 머지됐지만 GitHub이 아직 머지 커밋을 알려 주지 않습니다. 잠시 뒤 다시 누르세요.");
+          await via.devReport(view.storyId, { kind: "dev", repoId: r.repoId, ...old, state, head: v.headSha, mergeCommit: state === "merged" ? v.mergeCommit : null } as DevReport);
+        }
       });
       if (!closed) return false;
     }
@@ -134,7 +144,7 @@ export function createStoryDev(d: {
     const devBranch = r.devBranch as string;
     let ready = false;
     await attempt(via, view.storyId, r, "dev에서 되돌리지 못했습니다", async () => {
-      const done = await d.git.revert(lane.checkout, { devBranch, mergeCommits: merges.map((m) => m.mergeCommit), branch, repo: lane.project });
+      const done = await d.git.revert(lane.checkout, { devBranch, merges: merges.map((m) => ({ commit: m.mergeCommit, head: m.head })), branch, repo: lane.project });
       if (done.kind === "conflict") return fail(via, view.storyId, r, `dev에서 되돌리기가 충돌합니다: ${done.files.slice(0, 20).join(", ")}`);
       if (done.kind === "missing") return fail(via, view.storyId, r, "dev에 그 머지가 없거나 이미 되돌려져 있습니다(dev가 다시 만들어졌을 수 있습니다).");
       // A squashed or rebased PR leaves a commit that may hold only part of it: GitHub's own Revert takes the whole PR.
