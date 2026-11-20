@@ -158,14 +158,82 @@
         }
       },
       "workflow-review": {
-        "status": "pending",
-        "attempts": 2,
-        "revision": 2
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "output": {
+          "summary": "Review 3 of ac1cb5c: ready. No Critical or Important. Review 2's Important (checks on another tree when git worktree add fails) is fixed and was confirmed with real git in bash and zsh: a clean run checks the commit, not the PL's dirty edit; a leftover folder or an unreachable commit stops with exit 128 and runs no check; the PL's clone is untouched. team finish's losing approve (STATE then an approval) sets its record aside; other refusals keep it. Review 2's minors are fixed. Recorded limits (Minor): a record whose approve failed for a non-STATE reason, followed by a web approval, no rerun and a closed PR, can still approve a later round; worktrees of an earlier round's commit are not cleaned up; repo names in the prompt are not flattened (repo owners only).",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-3.md": "ff5695e76e7e7c96512024f562bcbd490d514f5981d8d643f63e9a96b22190a3"
+        }
       },
       "workflow-verify": {
-        "status": "pending",
-        "attempts": 0,
-        "revision": 2
+        "status": "completed",
+        "attempts": 2,
+        "revision": 3,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/96dd5408-eca0-49e4-8313-58fad8fbe867/receipt.json",
+            "hash": "d0cc19508f6a52ade1dbf140cca7aba8282a55a9edf745469fe5e04c15c88c09"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/fef867d3-fe03-4189-87e0-950b75a5235d/receipt.json",
+            "hash": "d98944061b7556c9ffff9ba31466e491d3061fb81e674c74e33b796aa951489c"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/3ac04a01-8eec-43ea-9976-d4f84ca31ef6/receipt.json",
+            "hash": "e27aa0dbeafe9fb702f2fc0bd9bdac988ee6fb07565494fa50a5dc21573d9527"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/8b1f1f9b-1788-4889-a5c7-5fef6e356d24/receipt.json",
+            "hash": "f970beda655455145d3fa82648d4ac8f7fa927ae68932e43ebd28846ea8028ae"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/38a7c95e-f230-4b7c-8cee-84c7d3f2a196/receipt.json",
+            "hash": "5bf85b1637c2f01033356ace79bc8a2fcd80274b7c0f7d1d9f63387af51241f9"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 26931c0 (code ac1cb5c), attempt 2: tests 738/738 + 608/608 + 703/703 = 2049/2049, typecheck exit 0, story check exit 0. Attempt 1 failed one untouched team-registry stop test under residual load (607/608 in part 2). The hands-on web approval and merge on a copy Hub await the user's choice and allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-verify-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-verify-2.md": "7a7feeff12530668c4b1b547d88d9fc828ee97d149975f22304ee3f081c635a6"
+        }
       }
     }
   },
@@ -399,6 +467,118 @@
           ".ai-workflow/runs/U56-web-approve-implement-green-3.txt": "2706f37a5d8274837fa6801dc2a7f97a18a385108c2229273ce22a2c26aee5ba",
           ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt": "a27492e1872acfd4dfd91f8e027957bf1d169b71393e2729992219611fa08747",
           ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt": "bafdcac77b6ae66652fb0372857530ad4298f9043db369e09ec4c1f312beb117"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-20T01:31:37.917Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-20T01:34:05.217Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "output": {
+          "summary": "Review 3 of ac1cb5c: ready. No Critical or Important. Review 2's Important (checks on another tree when git worktree add fails) is fixed and was confirmed with real git in bash and zsh: a clean run checks the commit, not the PL's dirty edit; a leftover folder or an unreachable commit stops with exit 128 and runs no check; the PL's clone is untouched. team finish's losing approve (STATE then an approval) sets its record aside; other refusals keep it. Review 2's minors are fixed. Recorded limits (Minor): a record whose approve failed for a non-STATE reason, followed by a web approval, no rerun and a closed PR, can still approve a later round; worktrees of an earlier round's commit are not cleaned up; repo names in the prompt are not flattened (repo owners only).",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-3.md": "ff5695e76e7e7c96512024f562bcbd490d514f5981d8d643f63e9a96b22190a3"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-20T01:34:15.945Z"
+    },
+    {
+      "event": "reset",
+      "nodeId": "workflow-verify",
+      "affected": [
+        "workflow-verify"
+      ],
+      "reason": "tests-2of3: team-registry stop under load (unrelated), rerun",
+      "at": "2026-11-20T01:38:49.125Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-20T01:38:55.597Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-20T01:43:31.411Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 3,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/96dd5408-eca0-49e4-8313-58fad8fbe867/receipt.json",
+            "hash": "d0cc19508f6a52ade1dbf140cca7aba8282a55a9edf745469fe5e04c15c88c09"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/fef867d3-fe03-4189-87e0-950b75a5235d/receipt.json",
+            "hash": "d98944061b7556c9ffff9ba31466e491d3061fb81e674c74e33b796aa951489c"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/3ac04a01-8eec-43ea-9976-d4f84ca31ef6/receipt.json",
+            "hash": "e27aa0dbeafe9fb702f2fc0bd9bdac988ee6fb07565494fa50a5dc21573d9527"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/8b1f1f9b-1788-4889-a5c7-5fef6e356d24/receipt.json",
+            "hash": "f970beda655455145d3fa82648d4ac8f7fa927ae68932e43ebd28846ea8028ae"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/38a7c95e-f230-4b7c-8cee-84c7d3f2a196/receipt.json",
+            "hash": "5bf85b1637c2f01033356ace79bc8a2fcd80274b7c0f7d1d9f63387af51241f9"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 26931c0 (code ac1cb5c), attempt 2: tests 738/738 + 608/608 + 703/703 = 2049/2049, typecheck exit 0, story check exit 0. Attempt 1 failed one untouched team-registry stop test under residual load (607/608 in part 2). The hands-on web approval and merge on a copy Hub await the user's choice and allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-verify-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-verify-2.md": "7a7feeff12530668c4b1b547d88d9fc828ee97d149975f22304ee3f081c635a6"
         }
       }
     }
