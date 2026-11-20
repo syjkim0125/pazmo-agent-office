@@ -1,0 +1,230 @@
+import { OfficeError } from "../cli/project.ts";
+import type { DevPr, DevRepo, DevReport, RevertPr } from "../hub/story-store.ts";
+import type { PullRequest } from "./pr.ts";
+import { describe } from "./story-check.ts";
+import type { FinishLane } from "./story-finish.ts";
+import type { StoryLink } from "./story-link.ts";
+
+export type DevGit = {
+  /** `branch.pushDevBranch`: a verified commit to its own to-dev branch. */
+  push(checkout: string, p: { storyBase: string; branch: string; sha: string }): Promise<"pushed" | "exists">;
+  /** `branch.revertDevMerge`: the revert of a merged dev PR on its own revert-dev branch. */
+  revert(
+    checkout: string,
+    p: { devBranch: string; mergeCommit: string; branch: string; repo?: string },
+  ): Promise<{ kind: "pushed"; head: string } | { kind: "exists" } | { kind: "missing" } | { kind: "conflict"; files: string[] }>;
+};
+export type DevPrApi = {
+  /** `pr.ensureDevPr`, `pr.viewDevPr` and `pr.closeDevPr`, bound to the person's gh. */
+  ensure(remote: string, p: { base: string; head: string; title: string; body: string }): Promise<PullRequest & { headSha: string }>;
+  view(remote: string, number: number): Promise<{ state: PullRequest["state"]; mergeCommit: string | null; headSha: string }>;
+  close(remote: string, p: { number: number; comment: string }): Promise<PullRequest["state"]>;
+};
+export type StoryDev = { tick(): Promise<{ ran: boolean }>; active(): boolean; stop(): void };
+
+/** An open PR is read again at most this often. */
+const FOLLOW_MS = 60_000;
+const STATE: Record<PullRequest["state"], DevPr["state"]> = { OPEN: "opened", MERGED: "merged", CLOSED: "closed" };
+/** What a person may read of a git or gh refusal; anything else is the Office's own failure, tried again. */
+const SAID = new Set(["GIT_FAILED", "GH_FAILED", "PUSH_REFUSED", "INVALID"]);
+const codeOf = (error: unknown) => (error instanceof OfficeError ? error.code : null);
+
+/**
+ * The PL Office's dev QA (D50). On each tick it reads the Stories its PL asked something of (`devReady`) and, repo by
+ * repo:
+ * - a dev request pushes the verified commit to its own `feature/story-<N>/to-dev-<sha12>` branch (never the Story base,
+ *   so a conflict a person resolves there stays off the way to main) and opens its PR into the dev branch, after closing
+ *   an open dev PR of another commit;
+ * - a revert request reverts the merged dev PR's merge on dev's tip on `feature/story-<N>/revert-dev-<sha12>` and opens
+ *   its PR into dev; a conflict or a merge no longer in dev opens nothing and says why;
+ * - open dev and revert PRs are read at most once a minute and reported when they change (merged, closed, a new head).
+ * A git or gh refusal is the request's reason on the Story page, and the PL may press again. The Office never merges a
+ * dev PR: people review and merge it. The timer that calls `tick` is the caller's.
+ */
+export function createStoryDev(d: {
+  lanes(): FinishLane[];
+  canRun(): boolean;
+  git: DevGit;
+  pr: DevPrApi;
+  log?: (line: string) => void;
+  now?: () => number;
+}): StoryDev {
+  const now = d.now ?? Date.now;
+  const log = (line: string) => {
+    try {
+      d.log?.(line);
+    } catch {
+      // nowhere left to say it
+    }
+  };
+  const said = new Map<string, string>();
+  const sayOnce = (key: string, line: string) => {
+    if (said.get(key) === line) return;
+    said.set(key, line);
+    log(line);
+  };
+  /** When each open PR (`<remote>#<number>`) was last read. */
+  const followed = new Map<string, number>();
+  let running = false;
+  let stopped = false;
+
+  /** Runs a git or gh step; a refusal a person can act on is reported as the request's reason. */
+  async function attempt(via: StoryLink, storyId: string, r: DevRepo, what: string, step: () => Promise<void>): Promise<void> {
+    try {
+      await step();
+    } catch (error) {
+      if (!SAID.has(codeOf(error) as string)) throw error;
+      const reason = `${what}: ${describe(error).replace(/^[A-Z_]+: /, "")}`.slice(0, 4000);
+      await via.devReport(storyId, { kind: "failed", repoId: r.repoId, reason });
+      log(`team: story ${storyId}: ${r.repoName}: ${reason}`);
+    }
+  }
+
+  async function openDev(via: StoryLink, view: { storyId: string; number: number; title: string }, r: DevRepo, lane: FinishLane) {
+    const sha = r.wantCommit as string;
+    const branch = `feature/story-${view.number}/to-dev-${sha.slice(0, 12)}`;
+    const devBranch = r.devBranch as string;
+    if (r.dev && r.dev.state === "opened" && r.dev.commit !== sha) {
+      await attempt(via, view.storyId, r, "옛 dev PR을 닫지 못했습니다", async () => {
+        await d.pr.close(lane.remote, { number: r.dev!.prNumber, comment: `Pazmo Office: Story #${view.number}의 새 검증 커밋 ${sha.slice(0, 12)}로 dev PR을 다시 엽니다. 이 PR은 머지하지 마세요.` });
+      });
+    }
+    let pushed = false;
+    await attempt(via, view.storyId, r, "dev로 보낼 브랜치를 올리지 못했습니다", async () => {
+      await d.git.push(lane.checkout, { storyBase: r.storyBase, branch, sha });
+      pushed = true;
+    });
+    if (!pushed) return;
+    await attempt(via, view.storyId, r, "dev로 가는 PR을 열지 못했습니다", async () => {
+      const pr = await d.pr.ensure(lane.remote, {
+        base: devBranch,
+        head: branch,
+        title: `Story #${view.number} dev 확인: ${view.title}`.slice(0, 200),
+        body: `PL이 Story #${view.number}의 검증한 커밋 ${sha}을 dev에서 확인하려고 엽니다(Pazmo Office). 리뷰와 머지는 사람이 합니다. 결과 승인과 main 머지는 이 PR과 상관없이 검증한 커밋으로 합니다.`,
+      });
+      await via.devReport(view.storyId, {
+        kind: "dev", repoId: r.repoId, state: STATE[pr.state], prNumber: pr.number, prUrl: pr.url, commit: sha, head: pr.headSha,
+        mergeCommit: pr.state === "MERGED" ? pr.mergeCommit : null,
+      } as DevReport);
+      followed.set(`${lane.remote}#${pr.number}`, now());
+      log(`team: story-${view.number}: ${r.repoName}: dev PR #${pr.number} of ${sha.slice(0, 12)} is open`);
+    });
+  }
+
+  async function openRevert(via: StoryLink, view: { storyId: string; number: number }, r: DevRepo, lane: FinishLane) {
+    const mergeCommit = r.dev?.state === "merged" ? r.dev.mergeCommit : null;
+    if (!mergeCommit) {
+      await via.devReport(view.storyId, { kind: "failed", repoId: r.repoId, reason: "dev에 머지된 PR이 없어 되돌릴 것이 없습니다." });
+      return;
+    }
+    const branch = `feature/story-${view.number}/revert-dev-${mergeCommit.slice(0, 12)}`;
+    const devBranch = r.devBranch as string;
+    let ready = false;
+    await attempt(via, view.storyId, r, "dev에서 되돌리지 못했습니다", async () => {
+      const done = await d.git.revert(lane.checkout, { devBranch, mergeCommit, branch, repo: lane.project });
+      if (done.kind === "conflict") {
+        await via.devReport(view.storyId, { kind: "failed", repoId: r.repoId, reason: `dev에서 되돌리기가 충돌합니다: ${done.files.slice(0, 20).join(", ")}` });
+        return;
+      }
+      if (done.kind === "missing") {
+        await via.devReport(view.storyId, { kind: "failed", repoId: r.repoId, reason: "dev에 그 머지가 없습니다(이미 되돌렸거나 dev가 다시 만들어졌습니다)." });
+        return;
+      }
+      ready = true;
+    });
+    if (!ready) return;
+    await attempt(via, view.storyId, r, "dev 되돌리기 PR을 열지 못했습니다", async () => {
+      const pr = await d.pr.ensure(lane.remote, {
+        base: devBranch,
+        head: branch,
+        title: `Story #${view.number} dev 되돌리기`,
+        body: `Story #${view.number}의 dev PR #${r.dev!.prNumber}(머지 ${mergeCommit.slice(0, 12)})을 dev에서 되돌립니다(Pazmo Office). 리뷰와 머지는 사람이 합니다.`,
+      });
+      await via.devReport(view.storyId, { kind: "revert", repoId: r.repoId, state: STATE[pr.state], prNumber: pr.number, prUrl: pr.url });
+      followed.set(`${lane.remote}#${pr.number}`, now());
+      log(`team: story-${view.number}: ${r.repoName}: dev revert PR #${pr.number} is open`);
+    });
+  }
+
+  /** Reads an open dev or revert PR again (at most once a minute) and reports a change. */
+  async function follow(via: StoryLink, storyId: string, r: DevRepo, lane: FinishLane) {
+    const due = (number: number) => {
+      const key = `${lane.remote}#${number}`;
+      const last = followed.get(key);
+      if (last !== undefined && now() - last < FOLLOW_MS) return false;
+      followed.set(key, now());
+      return true;
+    };
+    if (r.dev?.state === "opened" && due(r.dev.prNumber)) {
+      const v = await d.pr.view(lane.remote, r.dev.prNumber);
+      const state = STATE[v.state];
+      if (state === "merged" && !v.mergeCommit) return;
+      if (state !== r.dev.state || v.headSha !== r.dev.head)
+        await via.devReport(storyId, { kind: "dev", repoId: r.repoId, ...r.dev, state, head: v.headSha, mergeCommit: state === "merged" ? v.mergeCommit : null } as DevReport);
+    }
+    if (r.revert?.state === "opened" && due(r.revert.prNumber)) {
+      const v = await d.pr.view(lane.remote, r.revert.prNumber);
+      const state = STATE[v.state];
+      if (state !== r.revert.state) await via.devReport(storyId, { kind: "revert", repoId: r.repoId, ...(r.revert as RevertPr), state });
+    }
+  }
+
+  async function runTick(): Promise<{ ran: boolean }> {
+    if (stopped || !d.canRun()) return { ran: false };
+    const via = d.lanes().find((l) => l.ready && l.link !== null)?.link;
+    if (!via) return { ran: false };
+    let ready: string[];
+    try {
+      ready = (await via.inbox()).devReady ?? [];
+    } catch (error) {
+      sayOnce("inbox", `team: looking for dev requests failed (${describe(error)}); trying again next cycle`);
+      return { ran: false };
+    }
+    running = true;
+    let ran = false;
+    try {
+      for (const storyId of ready) {
+        if (stopped) break;
+        try {
+          const view = await via.devView(storyId);
+          const lanes = d.lanes();
+          for (const r of view.repos) {
+            const lane = lanes.find((l) => l.repoId === r.repoId);
+            if (r.want && !lane) {
+              await via.devReport(storyId, { kind: "failed", repoId: r.repoId, reason: "이 레포가 PL의 Office에 연결돼 있지 않습니다." });
+              continue;
+            }
+            if (!lane || !r.devBranch) continue;
+            if (r.want === "dev" && r.wantCommit) {
+              ran = true;
+              await openDev(via, view, r, lane);
+            } else if (r.want === "revert") {
+              ran = true;
+              await openRevert(via, view, r, lane);
+            } else if (view.state !== "done") await follow(via, storyId, r, lane);
+          }
+          said.delete(storyId);
+        } catch (error) {
+          sayOnce(storyId, `team: the dev PRs of Story ${storyId} failed (${describe(error)}); trying again next cycle`);
+        }
+      }
+      return { ran };
+    } finally {
+      running = false;
+    }
+  }
+
+  let ticking: Promise<{ ran: boolean }> | null = null;
+  return {
+    tick() {
+      ticking ??= runTick().finally(() => {
+        ticking = null;
+      });
+      return ticking;
+    },
+    active: () => running,
+    stop() {
+      stopped = true;
+    },
+  };
+}

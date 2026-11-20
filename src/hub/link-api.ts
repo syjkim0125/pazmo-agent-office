@@ -70,6 +70,9 @@ const ROUTES: Record<string, readonly Method[]> = {
   "/api/link/story/approve": ["POST"],
   "/api/link/story/finish-report": ["POST"],
   "/api/link/story/recheck": ["POST"],
+  // D50: a Story's dev PRs, which the PL Office opens, reverts and follows.
+  "/api/link/story/dev": ["GET"],
+  "/api/link/story/dev-report": ["POST"],
   // A PL's Story plan work, for the PL's Office through any of the PL's links.
   "/api/link/story/plan-next": ["POST"],
   "/api/link/story/plan-heartbeat": ["POST"],
@@ -116,6 +119,7 @@ async function storyRoute(store: HubStore, board: StoryBoard, plans: PlanBoard |
     case "GET /api/link/story/task": return { task: board.taskForClaim(link, query(url, "id"), query(url, "claimId")) };
     case "GET /api/link/story/finish":
       return board.finishView(link, url.searchParams.has("id") ? query(url, "id") : Number(query(url, "number")));
+    case "GET /api/link/story/dev": return board.devView(link, query(url, "id"));
   }
   const body = parse(await readBody(req, LINK_LIMIT));
   switch (route) {
@@ -172,6 +176,7 @@ async function storyRoute(store: HubStore, board: StoryBoard, plans: PlanBoard |
       });
     case "POST /api/link/story/finish-report": return board.finishReport(link, str(body, "storyId"), body.report);
     case "POST /api/link/story/recheck": return board.recheckStory(link, str(body, "storyId"));
+    case "POST /api/link/story/dev-report": return board.devReport(link, str(body, "storyId"), body.report);
     // Each plan route names the Office instance (`holder`); the plan board checks its form and the lease's holder.
     case "POST /api/link/story/plan-next": return { lease: (plans ?? noRoute()).next(link, str(body, "holder")) };
     case "POST /api/link/story/plan-heartbeat":

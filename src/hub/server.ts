@@ -308,7 +308,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           const lane = board.storyBoard(actor, v.id);
           const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges(), me) : null;
           const approve = board.approvalView(actor, v.id);
-          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard, finish: board.storyFinish(v.id), approve }, live()));
+          const devCard = board.devCard(actor, v.id);
+          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard, finish: board.storyFinish(v.id), approve, dev: devCard }, live()));
         }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);
@@ -363,6 +364,10 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     }
     if (path === "/repos") {
       c.store.addRepo(me, f("name"), f("remote"));
+      return redirect(res, "/repos");
+    }
+    if ((m = new RegExp(`^/repos/${ID}/dev-branch$`).exec(path))) {
+      c.store.setDevBranch(me, m[1], f("branch"));
       return redirect(res, "/repos");
     }
     if ((m = new RegExp(`^/repos/${ID}/owners$`).exec(path))) {
@@ -466,6 +471,16 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           if (!first) throw error;
         }
         return redirect(res, `/stories/${id}`);
+      }
+      // D50: the PL asks the PL Office to open a PR of a repo's verified commit into dev, or to revert a merged one.
+      // A double click is `already` and shows the Story again.
+      if ((m = new RegExp(`^/stories/${ID}/dev$`).exec(path))) {
+        board.requestDev({ member: me }, m[1], f("repo"), f("commit"));
+        return redirect(res, `/stories/${m[1]}`);
+      }
+      if ((m = new RegExp(`^/stories/${ID}/dev-revert$`).exec(path))) {
+        board.requestDevRevert({ member: me }, m[1], f("repo"));
+        return redirect(res, `/stories/${m[1]}`);
       }
       if ((m = new RegExp(`^/stories/${ID}/recheck$`).exec(path))) {
         const id = m[1];

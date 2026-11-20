@@ -729,3 +729,76 @@ export async function mergeStoryBase(
     reason(merge.stderr) || reason(merge.stdout) || "git merge failed (exit 1).",
   );
 }
+
+// D50: the branches the PL Office pushes for the PL's QA on dev, each named after the commit it carries or reverts.
+const TO_DEV = /^feature\/story-\d+\/to-dev-[0-9a-f]{12}$/;
+const REVERT_DEV = /^feature\/story-\d+\/revert-dev-[0-9a-f]{12}$/;
+
+/**
+ * Pushes a verified commit of the Story base to its own `feature/story-<N>/to-dev-<sha12>` branch, the head of its PR
+ * into dev (D50). The commit must be on the origin's Story base. A branch origin already has is left as it is (`exists`):
+ * a person may have resolved a conflict on it. Nothing else is written; the checkout is not moved.
+ */
+export async function pushDevBranch(
+  checkout: string,
+  p: { storyBase: string; branch: string; sha: string },
+  env: GitEnv,
+): Promise<"pushed" | "exists"> {
+  if (!TO_DEV.test(p.branch)) fail("PUSH_REFUSED", "Only feature/story-<N>/to-dev-<sha12> branches go to dev.");
+  if (!OBJECT_ID.test(p.sha)) fail("PUSH_REFUSED", "A push needs a full commit id.");
+  if (!STORY_BASE.test(p.storyBase)) fail("GIT_FAILED", "A Story base must be feature/story-<N>/base.");
+  if ((await remoteTip(checkout, p.branch, env)) !== null) return "exists";
+  const tip = await fetchTip(checkout, p.storyBase, env);
+  // With the Story base fetched, a commit git does not know (128) is no more on it than one it knows elsewhere (1).
+  const on = await git(checkout, ["merge-base", "--is-ancestor", p.sha, tip], env, { ok: [0, 1, 128] });
+  if (on.exitCode !== 0) fail("GIT_FAILED", "The commit is not on the Story base; nothing was pushed.");
+  await pushRef(checkout, p.branch, p.sha, env);
+  return "pushed";
+}
+
+/** Whether `git revert` left a revert waiting (REVERT_HEAD or a sequencer). Reads the worktree's own files. */
+function inRevert(checkout: string): boolean {
+  const dir = gitDirOf(checkout);
+  return dir !== null && (existsSync(join(dir, "REVERT_HEAD")) || existsSync(join(dir, "sequencer")));
+}
+
+/**
+ * Reverts a merged dev PR's merge on dev's tip and pushes it to `feature/story-<N>/revert-dev-<sha12>`, the head of its
+ * PR into dev (D50), on the Office checkout (refused like `checkoutStoryBase` if it is not the Office's). A merge commit
+ * is reverted against its first parent; a squashed one (one parent) as it is. A branch origin already has is `exists`;
+ * a merge that is not in dev is `missing`; a conflict is `conflict` (the revert is aborted and the checkout left
+ * clean). dev itself is never written.
+ */
+export async function revertDevMerge(
+  checkout: string,
+  p: { devBranch: string; mergeCommit: string; branch: string; repo?: string },
+  env: GitEnv,
+): Promise<{ kind: "pushed"; head: string } | { kind: "exists" } | { kind: "missing" } | { kind: "conflict"; files: string[] }> {
+  if (!REVERT_DEV.test(p.branch)) fail("PUSH_REFUSED", "Only feature/story-<N>/revert-dev-<sha12> branches revert on dev.");
+  checkBase(p.devBranch, "The dev branch");
+  if (STORY_BASE.test(p.devBranch) || TASK_BRANCH.test(p.devBranch) || p.devBranch.startsWith("feature/story-"))
+    fail("GIT_FAILED", "A Story branch is never a dev branch.");
+  checkObject(p.mergeCommit);
+  if ((await remoteTip(checkout, p.branch, env)) !== null) return { kind: "exists" };
+  await assertOfficeCheckout(checkout, p.repo, env);
+  if (inMerge(checkout)) await git(checkout, ["merge", "--abort"], env);
+  if (inRevert(checkout)) await git(checkout, ["revert", "--abort"], env);
+  await git(checkout, ["reset", "--hard"], env);
+  await git(checkout, ["clean", "-fd", "-e", ".pazmo-office"], env);
+  const tip = await fetchTip(checkout, p.devBranch, env);
+  // dev is fetched, so a merge commit git does not know (128) is not in dev either.
+  const inDev = await git(checkout, ["merge-base", "--is-ancestor", p.mergeCommit, tip], env, { ok: [0, 1, 128] });
+  if (inDev.exitCode !== 0) return { kind: "missing" };
+  await git(checkout, ["checkout", "-q", "--detach", tip], env);
+  const parents = (await git(checkout, ["rev-list", "--parents", "-n", "1", p.mergeCommit], env)).stdout.trim().split(" ").slice(1);
+  const revert = await git(checkout, ["revert", "--no-edit", ...(parents.length > 1 ? ["-m", "1"] : []), p.mergeCommit], env, { ok: [0, 1] });
+  if (revert.exitCode !== 0) {
+    const files = await unmerged(checkout, env);
+    if (inRevert(checkout)) await git(checkout, ["revert", "--abort"], env);
+    if (files.length) return { kind: "conflict", files };
+    return fail("GIT_FAILED", reason(revert.stderr) || reason(revert.stdout) || "git revert failed (exit 1).");
+  }
+  const head = await headOf(checkout, env);
+  await pushRef(checkout, p.branch, head, env);
+  return { kind: "pushed", head };
+}

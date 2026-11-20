@@ -3,6 +3,7 @@ import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
 import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot, type IncomingView, type OutgoingView } from "./protocol.ts";
 import { normalizeRemote } from "./remote.ts";
+import { isBaseBranchName } from "./story-protocol.ts";
 
 export class HubError extends Error {
   code: string;
@@ -59,6 +60,8 @@ export type RepoView = {
   remote: string;
   isOwner: boolean;
   owners: { id: string; name: string }[];
+  /** The branch the repo's dev environment deploys from (D50), or null: a Story's PL may then open a PR into it. */
+  devBranch: string | null;
   /** `mac` names the Mac that minted the link; such a link ends only with its Mac, on /mac or /members. */
   links: { id: string; memberId: string; memberName: string; lastSeen: number | null; mac: { id: string; name: string } | null }[];
 };
@@ -234,6 +237,8 @@ export class HubStore {
     if (!columns("hub_links").has("mac_id")) this.#db.exec("ALTER TABLE hub_links ADD COLUMN mac_id TEXT");
     // When a limited Mac says it tries again (ms); null when it did not say.
     if (!columns("hub_macs").has("until")) this.#db.exec("ALTER TABLE hub_macs ADD COLUMN until INTEGER");
+    // The repo's dev branch (D50), named by its owners; null when it has none.
+    if (!columns("hub_repos").has("dev_branch")) this.#db.exec("ALTER TABLE hub_repos ADD COLUMN dev_branch TEXT");
     this.#db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS hub_request_once ON hub_requests(requester_id,create_key) WHERE create_key IS NOT NULL",
     );
@@ -416,9 +421,10 @@ export class HubStore {
       `SELECT l.id,l.repo_id,l.member_id,m.name,l.last_seen,l.mac_id,k.name mac_name FROM hub_links l
        JOIN hub_members m ON m.id=l.member_id LEFT JOIN hub_macs k ON k.id=l.mac_id WHERE l.revoked_at IS NULL`,
     );
-    return this.#all<{ id: string; name: string; remote: string }>("SELECT id,name,remote FROM hub_repos ORDER BY name").map(
-      (r) => ({
+    return this.#all<{ id: string; name: string; remote: string; dev_branch: string | null }>("SELECT id,name,remote,dev_branch FROM hub_repos ORDER BY name").map(
+      ({ dev_branch, ...r }) => ({
         ...r,
+        devBranch: dev_branch,
         isOwner: owners.some((o) => o.repo_id === r.id && o.id === viewerId),
         owners: owners.filter((o) => o.repo_id === r.id).map(({ id, name }) => ({ id, name })),
         links: links
@@ -432,6 +438,22 @@ export class HubStore {
           })),
       }),
     );
+  }
+  /**
+   * Names the repo's dev branch, or clears it with an empty name (D50). Only its owners: the branch is where a Story's
+   * PL may open PRs. A Story or Task branch name, or a base branch of any project the repo is in, is refused.
+   */
+  setDevBranch(by: Member, repoId: string, branch: string) {
+    if (!this.#get("SELECT 1 FROM hub_repos WHERE id=?", repoId)) fail("NOT_FOUND", 404, "레포를 찾을 수 없습니다.");
+    if (!this.#owner(by.id, repoId)) fail("FORBIDDEN", 403, "이 레포의 담당자만 dev 브랜치를 바꿀 수 있습니다.");
+    const name = typeof branch === "string" ? branch.trim() : "";
+    if (name) {
+      if (!isBaseBranchName(name)) fail("INVALID", 400, "dev 브랜치 이름을 확인해주세요. 예: dev");
+      const projects = this.#get("SELECT 1 FROM sqlite_master WHERE type='table' AND name='hub_project_repos'");
+      if (projects && this.#get("SELECT 1 FROM hub_project_repos WHERE repo_id=? AND base_branch=?", repoId, name))
+        fail("INVALID", 400, "기준 브랜치와 같은 이름은 dev 브랜치로 쓸 수 없습니다.");
+    }
+    this.#run("UPDATE hub_repos SET dev_branch=? WHERE id=?", name || null, repoId);
   }
   addOwner(by: Member, repoId: string, memberId: string) {
     this.#manage(by, repoId);

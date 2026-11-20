@@ -462,10 +462,15 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
         ? r.links.map((l) => `${esc(l.memberName)} (${l.mac ? `Mac: ${esc(l.mac.name)}, ` : ""}확인 ${ago(l.lastSeen)})${elsewhere(l)}`).join(", ")
         : "없음";
       const office = r.isOwner ? ' · <a href="/start">내 Office 연결</a>' : "";
-      const fold = add || remove || unlink
-        ? `<details class="manage"><summary>관리</summary>${remove || unlink ? `<div class="row">${remove}${unlink}</div>` : ""}${add}</details>`
+      // D50: only the repo's owners name its dev branch; a Story's PL may then open PRs into it.
+      const dev = r.isOwner
+        ? `<form class="row" method="post" action="/repos/${esc(r.id)}/dev-branch">${csrfField(csrf)}<label>dev 브랜치 <span class="muted">(비우면 없음)</span><input name="branch" maxlength="100" value="${esc(r.devBranch ?? "")}" placeholder="dev"></label><button class="secondary">dev 브랜치 저장</button></form>`
         : "";
-      return `<li class="repo"><p><b>${esc(r.name)}</b> <span class="muted wrap">${esc(r.remote)}</span></p><p>담당자: ${r.owners.map((o) => esc(o.name)).join(", ") || "없음"}</p><p>연결된 Office: ${links}${office}</p>${fold}</li>`;
+      const fold = add || remove || unlink || dev
+        ? `<details class="manage"><summary>관리</summary>${remove || unlink ? `<div class="row">${remove}${unlink}</div>` : ""}${add}${dev}</details>`
+        : "";
+      const devLine = `<p>dev 브랜치: ${r.devBranch ? esc(r.devBranch) : "없음"}</p>`;
+      return `<li class="repo"><p><b>${esc(r.name)}</b> <span class="muted wrap">${esc(r.remote)}</span></p><p>담당자: ${r.owners.map((o) => esc(o.name)).join(", ") || "없음"}</p><p>연결된 Office: ${links}${office}</p>${devLine}${fold}</li>`;
     })
     .join("");
   return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="app-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/app-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<ul class="roster">${rows}</ul>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, chrome);

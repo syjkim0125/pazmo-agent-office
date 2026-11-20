@@ -9,7 +9,7 @@ import { printable, readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
-import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge, storyBaseTip } from "./branch.ts";
+import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge, pushDevBranch, revertDevMerge, storyBaseTip } from "./branch.ts";
 import { branchOps, createExecutor, prOps } from "./executor.ts";
 import type { BranchOps, Executor, PrOps } from "./executor.ts";
 import { ghStatus, remoteHost } from "./gh.ts";
@@ -30,7 +30,9 @@ import { createStoryChecker } from "./story-check.ts";
 import type { StoryCheckGit, StoryChecker } from "./story-check.ts";
 import { createStoryFinisher } from "./story-finish.ts";
 import type { FinishGit, FinishLane, FinishPr, StoryFinisher } from "./story-finish.ts";
-import { closeStoryPr, ensureStoryPr, mergeStoryPr, viewStoryPr } from "./pr.ts";
+import { closeDevPr, closeStoryPr, ensureDevPr, ensureStoryPr, mergeStoryPr, viewDevPr, viewStoryPr } from "./pr.ts";
+import { createStoryDev } from "./story-dev.ts";
+import type { DevGit, DevPrApi, StoryDev } from "./story-dev.ts";
 import { openTeamStore, waitingOf } from "./store.ts";
 import type { ClaimPhase, RunnerWaiting, TeamStore } from "./store.ts";
 import { storyLink } from "./story-link.ts";
@@ -115,6 +117,10 @@ export type TeamConfig = {
    * merge PR steps of `pr.ts` with `host`. */
   finishGit?: FinishGit;
   finishPr?: FinishPr;
+  /** Tests only: the host git and gh of a Story's dev PRs (D50); default `pushDevBranch`, `revertDevMerge` and the dev
+   * PR steps of `pr.ts` with `host`. */
+  devGit?: DevGit;
+  devPr?: DevPrApi;
   /** The gh login for a Git host; default: `gh auth status --hostname` with `host`'s PATH and HOME. */
   ghOf?: (host: string) => Promise<GhResult>;
   /** The person's own HOME and PATH (and ssh agent) for the host git and gh of a Story Task; default: this
@@ -331,6 +337,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let checker: StoryChecker | undefined;
   /** The PL Office's merge of a locally approved Story (D48), made with the planner (live only). */
   let finisher: StoryFinisher | undefined;
+  let devWork: StoryDev | undefined;
   const timers: ReturnType<typeof setInterval>[] = [];
   let stopped = false;
   let store: TeamStore | undefined;
@@ -549,7 +556,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}`, until: open?.runnerWait?.retryAt ?? null };
     if (!runnersReady)
       return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready", until: null };
-    if (gate.busy() || planner?.active() || checker?.active() || finisher?.active() || (open !== null && open.phase !== "failed"))
+    if (gate.busy() || planner?.active() || checker?.active() || finisher?.active() || devWork?.active() || (open !== null && open.phase !== "failed"))
       return { state: "working", detail: null, until: null };
     return { state: "idle", detail: null, until: null };
   }
@@ -608,6 +615,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       !planner?.active() &&
       !checker?.active() &&
       !finisher?.active() &&
+      !devWork?.active() &&
       teamStore.openClaim() === null &&
       !gate.busy(),
     // Nor a live one whose runners are not ready (asked afresh, a restart is rare): its `up` would refuse and leave
@@ -806,6 +814,23 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
         log,
       })
     : undefined;
+  // The PL's dev PRs (D50), only when live and where a Task could run: the revert uses the Office checkout.
+  devWork = live
+    ? createStoryDev({
+        lanes: checkLanes,
+        canRun: canRunStory,
+        git: c.devGit ?? {
+          push: (checkout, p) => pushDevBranch(checkout, p, hostEnv),
+          revert: (checkout, p) => revertDevMerge(checkout, p, hostEnv),
+        },
+        pr: c.devPr ?? {
+          ensure: (remote, p) => ensureDevPr(remote, p, hostEnv),
+          view: (remote, number) => viewDevPr(remote, number, hostEnv),
+          close: (remote, p) => closeDevPr(remote, p, hostEnv),
+        },
+        log,
+      })
+    : undefined;
   // The PL's Story check (D47), only when live and where a Task could run (runners ready, no record open, no run, no
   // restart held, the executor's drive idle): whatever the PL's 자동으로 일하기 says. A paused Office takes no new
   // check but goes on with one it holds, so that claim does not sit held without a heartbeat.
@@ -833,6 +858,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       if (stopped) return;
       // Then the merge of a Story its PL approved (D48); a tick that ran one claims nothing.
       if (finisher && (await finisher.tick()).ran) return;
+      if (stopped) return;
+      // Then a dev PR the PL asked for, or one to follow (D50); a tick that pushed or opened one claims nothing.
+      if (devWork && (await devWork.tick()).ran) return;
       if (stopped) return;
       return await scheduler.tick();
     } finally {
@@ -881,6 +909,7 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       planner?.stop();
       checker?.stop();
       finisher?.stop();
+      devWork?.stop();
       gate.stop();
       for (const engine of engines) engine.office!.beginStop();
     },

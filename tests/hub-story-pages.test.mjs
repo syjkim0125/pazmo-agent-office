@@ -818,7 +818,7 @@ test("after the PL's local approval the Story page shows the approval, each repo
   h.board.approveStory(mac, h.store.currentMac(h.pl.member.id), s.storyId, { fingerprint, commits, recordHash: "c".repeat(64) });
   let page = await storyPage(h.pl);
   assert.ok(page.includes("결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다."));
-  assert.ok(page.includes(`<h2 id="merged">main 머지</h2><p class="muted wrap">결과 승인 · PL의 MacBook · `));
+  assert.ok(page.includes(`<h2 id="merged">기준 브랜치에 머지</h2><p class="muted wrap">결과 승인 · PL의 MacBook · `));
   assert.ok(page.includes("app-be → main: 머지 전"));
   // A merge that keeps failing says why on the page, not only in the PL's Office log.
   h.board.finishReport(s.plBe, s.storyId, { kind: "problem", reason: "머지를 하지 못하고 다시 시도합니다: GH_FAILED: gh auth login" });
@@ -889,11 +889,11 @@ test("the PL alone sees the 결과 승인 card: check result, Task summaries and
   assert.deepEqual(kept, commits);
   assert.ok(card.includes(`name="commits" value="${JSON.stringify(kept).replaceAll('"', "&#34;")}"`), "the commits as the Hub keeps them");
   assert.ok(card.includes(`<input type="checkbox" name="confirm" value="yes" required> 검사 결과, 바뀐 코드, AI가 정한 것을 확인했습니다</label>`));
-  assert.ok(card.includes("<button>승인하고 main에 머지</button>"));
+  assert.ok(card.includes("<button>승인하고 기준 브랜치에 머지</button>"));
   for (const who of [h.c, h.admin]) {
     const other = (await h.get(`/stories/${s.storyId}`, who)).text;
     assert.ok(!other.includes(`id="approve"`), "not for anyone else, a hub admin included");
-    assert.ok(other.includes("모든 Task가 끝났습니다. PL이 결과를 승인하면 레포마다 main에 머지됩니다."));
+    assert.ok(other.includes("모든 Task가 끝났습니다. PL이 결과를 승인하면 레포마다 기준 브랜치에 머지됩니다."));
     assert.ok(other.includes(`id="checked"`), "everyone else still reads the check result");
   }
 });
@@ -924,7 +924,7 @@ test("the 결과 승인 button records a web approval, refuses a stale view, a m
   assert.equal(h.board.storyFinish(s.storyId).approval.via, "web");
   assert.deepEqual(h.board.inbox(s.plBe).finishReady, [s.storyId], "the PL Office takes it");
   const page = (await h.get(`/stories/${s.storyId}`, h.c)).text;
-  assert.ok(page.includes(`<h2 id="merged">main 머지</h2><p class="muted wrap">웹 승인 · PL · `));
+  assert.ok(page.includes(`<h2 id="merged">기준 브랜치에 머지</h2><p class="muted wrap">웹 승인 · PL · `));
   assert.ok(page.includes("결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다."));
   assert.ok(!(await h.get(`/stories/${s.storyId}`, h.pl)).text.includes(`id="approve"`), "no card once approved");
 });
