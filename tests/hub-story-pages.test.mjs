@@ -872,7 +872,9 @@ test("the PL alone sees the 결과 승인 card: check result, Task summaries and
   assert.ok(card.includes("Story 글의 목표대로 동작하는지(Story 글 참고)"), "a free-text Story still gets an item");
   assert.ok(card.includes("— 이대로 괜찮은지"));
   assert.ok(card.includes("<p>Task가 맡은 파일(계획)</p>") && card.includes("<code>src/api.ts</code>"), "the Tasks' planned scope, said as such (review 1)");
-  assert.ok(card.includes(`git worktree add --detach ../app-be-story-${s.number} ${"a".repeat(40)}`) && card.includes("npm test"), "run steps in a separate worktree");
+  const dir = `../app-be-story-${s.number}-${"a".repeat(12)}`;
+  assert.ok(card.includes(`git worktree add --detach ${dir} ${"a".repeat(40)} &#38;&#38; (cd ${dir} &#38;&#38; npm test)`), "run steps in a separate worktree, stopped by a failed add");
+  assert.ok(card.includes("새 폴더에는 의존성이 설치돼 있지 않습니다."), "the install note");
   assert.ok(!card.includes("git switch"), "never the PL's own folder (review 1 I2)");
   assert.ok(card.includes(`<pre id="approve-prompt" class="mono">`), "the prompt is a selectable box");
   assert.ok(card.includes("Playwright로 브라우저를 띄워"));

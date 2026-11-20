@@ -138,6 +138,45 @@ test("a record left behind by a stop right after its approval is set aside on th
   assert.deepEqual(link.approved, []);
 });
 
+test("a record whose own approval loses to a web approval on the way is set aside at once (D49, review 2)", async (t) => {
+  const r = root(t);
+  const link = fakeLink();
+  const { record } = await runFinish({ root: r, story: 7, link, today: "2026-11-19" });
+  const text = JSON.stringify(answered(record.template));
+  writeFileSync(record.path, text);
+  // The PL's web approval lands between this run's read and its approve call.
+  link.approve = async () => {
+    link.view.approval = { macName: "웹 승인", at: 2, recordHash: "e".repeat(64), via: "web", by: "PL" };
+    throw Object.assign(new Error("이미 승인된 Story입니다. PL의 Mac이 머지하고 있습니다."), { status: 409, code: "STATE" });
+  };
+  const out = await runFinish({ root: r, story: 7, link });
+  assert.equal(out.status, "approved");
+  assert.equal(out.already, true);
+  assert.equal(out.approval.via, "web");
+  const hash = createHash("sha256").update(text).digest("hex");
+  assert.deepEqual(readdirSync(join(r, "team", "approvals")), [`story-7-g4.${hash.slice(0, 12)}.superseded.json`]);
+  // Any other refusal leaves the record where it is, as before.
+  writeFileSync(record.path, text);
+  link.view.approval = null;
+  link.approve = async () => {
+    throw Object.assign(new Error("Hub 오류"), { status: 500, code: "HUB_500" });
+  };
+  await assert.rejects(runFinish({ root: r, story: 7, link }), { code: "HUB_500" });
+  assert.ok(existsSync(record.path));
+});
+
+test("an oversized record is set aside too once the Hub has an approval, under a name that keeps the full time (review 2)", async (t) => {
+  const r = root(t);
+  const link = fakeLink();
+  const { record } = await runFinish({ root: r, story: 7, link, today: "2026-11-19" });
+  writeFileSync(record.path, "x".repeat(64 * 1024 + 1));
+  link.view.approval = { macName: "웹 승인", at: 1, recordHash: "e".repeat(64), via: "web", by: "PL" };
+  assert.equal((await runFinish({ root: r, story: 7, link })).status, "approved");
+  const left = readdirSync(join(r, "team", "approvals"));
+  assert.equal(left.length, 1);
+  assert.match(left[0], /^story-7-g4\.big-\d{13}\.superseded\.json$/);
+});
+
 test("a record that lost to a web approval is set aside too, so after a closed PR it never approves without a new answer (D49, review 1 I1)", async (t) => {
   const r = root(t);
   const link = fakeLink();

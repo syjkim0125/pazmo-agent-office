@@ -2,7 +2,7 @@
 import { MAC_NUDGE, ago, button, csrfField, esc, info, layout, lns, say, tone, tonePill, type Chrome } from "./pages.ts";
 import type { MacBadge, MacWait, Member } from "./store.ts";
 import type { ApprovalCard, FinishApproval, FinishRepo, MemberWork, StoryUpload, StoryView, TaskActions, TaskView, WorkCard } from "./story-store.ts";
-import { approvalPlan, compareUrl } from "./story-approve.ts";
+import { INSTALL_NOTE, approvalPlan, compareUrl } from "./story-approve.ts";
 import { LIMITS, type StoryState, type TaskViewState } from "./story-protocol.ts";
 import type { PlanCard } from "./plan-store.ts";
 import { planStateLabel } from "./plan-pages.ts";
@@ -274,7 +274,7 @@ function approveCard(s: StoryView, card: ApprovalCard, csrf: string, check: stri
   const files = plan.files.length
     ? `<p>Task가 맡은 파일(계획)</p><ul>${plan.files.map((f) => `<li>${esc(f.repo)}: ${f.files.map((x) => `<code>${esc(x)}</code>`).join(", ")}</li>`).join("")}</ul>`
     : "";
-  const run = plan.run.map((r) => `<p>${esc(r.repo)} 폴더에서</p><pre class="mono">${esc(r.lines.join("\n"))}</pre>`).join("");
+  const run = `<p>${say(INSTALL_NOTE)}</p>${plan.run.map((r) => `<p>${esc(r.repo)} 폴더에서</p><pre class="mono">${esc(r.lines.join("\n"))}</pre>`).join("")}`;
   const form = `<form method="post" action="/stories/${esc(s.id)}/approve">${csrfField(csrf)}<input type="hidden" name="fingerprint" value="${esc(card.fingerprint)}"><input type="hidden" name="commits" value="${esc(JSON.stringify(verified))}"><label><input type="checkbox" name="confirm" value="yes" required> 검사 결과, 바뀐 코드, AI가 정한 것을 확인했습니다</label><p class="muted">${say("승인하면 PL의 Mac이 레포마다 main에 머지합니다. 웹에서는 되돌릴 수 없습니다(Task를 더하거나 Story를 취소하면 승인이 끝납니다).")}</p><div class="row"><button>승인하고 main에 머지</button></div></form>`;
   return `<section class="decide" aria-labelledby="approve">${head}<h3>Task별 결과</h3><ul class="work">${tasks}</ul><h3>바뀐 코드</h3><ul>${code}</ul><h3>확인할 것</h3><ul class="qa">${plan.qa
     .map((q) => `<li>${esc(q)}</li>`)
