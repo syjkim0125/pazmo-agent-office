@@ -7,7 +7,7 @@ Pazmo Agent Office is an independent, mixed-license, source-available distributi
 | Independently authored Pazmo code and documentation | Root `LICENSE`: PolyForm Shield 1.0.0. Any purpose is allowed, including use inside a company, except providing a product that competes with Pazmo (even for free). Keep the `Required Notice:` and `Licensor Line of Business:` lines with every copy |
 | `vendor/claw-empire/` in versions before its removal (D33, 2026-10-30) | Upstream Apache-2.0 `LICENSE`, applicable NOTICE and original attribution remain in those versions; provenance stays in `upstream/` |
 | `assets/codex/` (Codex model catalog entry) | Apache-2.0; retain `assets/codex/LICENSE` and `assets/codex/NOTICE` |
-| Templates and the workflow runtime Office runs (`templates/ai-workflow/`, `.ai-workflow/bin/`, `.ai-workflow/graph/`) from AI Workflow Kit | MIT; retain `licenses/ai-workflow-kit-MIT.txt` and source manifest |
+| Story and Task templates (`templates/ai-workflow/`) from AI Workflow Kit; its workflow runtime (`.ai-workflow/bin/`, `.ai-workflow/graph/`) in versions before its removal (2026-11-20) | MIT; retain `licenses/ai-workflow-kit-MIT.txt` and source manifest |
 | Other dependencies, assets and optional submodules | Their respective licenses; inspect before bundling |
 
 **License change (2026-10-30):** Pazmo originals were MIT up to commit `610169e`. Copies of those versions keep their MIT grant; later versions are PolyForm Shield 1.0.0. Apache-2.0 section 4 allows different terms for a derivative work as a whole, while the Claw-Empire files themselves stay Apache-2.0 and remain available from upstream.

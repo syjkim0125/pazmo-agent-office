@@ -17,7 +17,7 @@ This file records source attribution. It does not replace any upstream LICENSE o
 - Copyright: `Copyright (c) 2026 JongKun Kim`.
 - License: MIT; full text in `licenses/ai-workflow-kit-MIT.txt`.
 - Exact copies: `templates/ai-workflow/STORY.md` and `TASK.md`.
-- Workflow tooling: `.ai-workflow/bin/` and `.ai-workflow/graph/`, installed from official npm 5.0.3 (release commit `a0c0787fb8f7c926092288d843d49e88614e00d0`, integrity in `upstream/kit.lock.json`). Office runs the installed `.ai-workflow/bin/graph.mjs` and `check.mjs`; it checks the hashes of `bin/` and `graph/` against `upstream/kit.lock.json` before each `graph.mjs` command (the contract check imports `check.mjs` without that check).
+- Workflow tooling: `.ai-workflow/bin/` and `.ai-workflow/graph/` from official npm 5.0.3 were vendored for Office's role runs until 2026-11-20, when Office began running its roles on its own records and they were removed from the tree; versions up to commit `f3d975d` keep them with `upstream/kit.lock.json`.
 - The rest of the installation (the `.agents/skills/workflow/` skill with its bundled Pstack guidance, `.ai-workflow/config.json` and the routing in `AGENTS.md`) was this repository's development process and was removed on 2026-11-20; versions up to commit `b6407d7` keep it with its notices.
 - The existing upstream repository/package is not modified and is not a required runtime dependency.
 
