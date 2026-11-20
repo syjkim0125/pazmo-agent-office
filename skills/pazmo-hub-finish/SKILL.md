@@ -14,6 +14,12 @@ approval with this Mac's name. The PL's team Office then merges each repo's Stor
 is merged until the PL has said yes to you here. The PL can instead approve on the Story's Hub page (결과 승인 card,
 D49); whichever approval comes first is used, and `team finish` then reports `status: "approved"`.
 
+Before approving, the PL may check the result locally (the card's run steps, with the repo's own way of starting its
+services) or, for a repo whose owners named a dev branch on the Hub's repo page, with the card's "dev에 PR 열기"
+(D50): the PL's Office opens a PR of the checked commit into dev from its own `feature/story-<N>/to-dev-<sha12>` branch,
+and people review and merge it there. "dev에서 되돌리기" opens a PR that reverts it. Neither changes what is approved
+or merged into the base branch: that stays the checked commits.
+
 ## Steps
 
 1. Run `pazmo-office team finish --story <N>` (N is the Story number on the Hub). It prints JSON.

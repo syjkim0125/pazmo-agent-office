@@ -1,6 +1,6 @@
 import { hubCall, type HubLinkConfig } from "../runtime/hub-link.ts";
 import { HUB_STORY_PROTOCOL } from "../hub/story-protocol.ts";
-import type { ClaimedTask, FinishReport, FinishView, OpenTaskRef, StoryInbox } from "../hub/story-store.ts";
+import type { ClaimedTask, DevReport, DevView, FinishReport, FinishView, OpenTaskRef, StoryInbox } from "../hub/story-store.ts";
 
 export type { OpenTaskRef };
 
@@ -45,6 +45,10 @@ export type StoryLink = {
   approve(storyId: string, a: { fingerprint: string; commits: Record<string, string>; recordHash: string }): Promise<{ already: boolean }>;
   /** Checks again a Story at 승인 대기 whose check kept no commits (from before D48). */
   recheck(storyId: string): Promise<void>;
+  /** What the PL Office opens, reverts or follows for a Story's dev QA (D50). */
+  devView(storyId: string): Promise<DevView>;
+  /** The PL Office's dev PR reports (D50). */
+  devReport(storyId: string, report: DevReport): Promise<void>;
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> => typeof value === "object" && value !== null;
@@ -74,10 +78,14 @@ export function storyLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): S
       const reply = await send("GET", "inbox");
       if (!(isObject(reply) && (reply.mine === null || isObject(reply.mine)) && Array.isArray(reply.alerts) && Array.isArray(reply.verifyReady)))
         return badResponse();
-      // A Hub before D48 sends no finishReady: nothing to merge.
-      if (reply.finishReady !== undefined && !(Array.isArray(reply.finishReady) && reply.finishReady.every((id) => typeof id === "string")))
-        return badResponse();
-      return { ...(reply as StoryInbox), finishReady: (reply.finishReady as string[] | undefined) ?? [] };
+      // A Hub before D48 sends no finishReady: nothing to merge. One before D50 sends no devReady: no dev QA.
+      const ids = (value: unknown) => value === undefined || (Array.isArray(value) && value.every((id) => typeof id === "string"));
+      if (!ids(reply.finishReady) || !ids(reply.devReady)) return badResponse();
+      return {
+        ...(reply as StoryInbox),
+        finishReady: (reply.finishReady as string[] | undefined) ?? [],
+        devReady: (reply.devReady as string[] | undefined) ?? [],
+      };
     },
     async claim() {
       // The hub takes only a JSON object as a POST body, so the empty request is `{}`.
@@ -129,6 +137,15 @@ export function storyLink(cfg: HubLinkConfig, call: typeof hubCall = hubCall): S
     },
     async recheck(storyId) {
       await send("POST", "recheck", { storyId });
+    },
+    async devView(storyId) {
+      const reply = await send("GET", `dev?id=${encodeURIComponent(storyId)}`);
+      return isObject(reply) && typeof reply.storyId === "string" && typeof reply.number === "number" && typeof reply.title === "string" && Array.isArray(reply.repos)
+        ? (reply as unknown as DevView)
+        : badResponse();
+    },
+    async devReport(storyId, report) {
+      await send("POST", "dev-report", { storyId, report });
     },
     async approve(storyId, a) {
       const reply = await send("POST", "approve", { storyId, ...a });

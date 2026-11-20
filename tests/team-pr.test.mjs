@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { OfficeError } from "../src/cli/project.ts";
 import { runCommand } from "../src/runners/command.ts";
-import { closeStoryPr, ensurePr, ensureStoryPr, findPr, mergePr, mergeStoryPr, viewStoryPr } from "../src/team/pr.ts";
+import { closeDevPr, closeStoryPr, ensureDevPr, ensurePr, ensureStoryPr, findPr, mergePr, mergeStoryPr, viewDevPr, viewStoryPr } from "../src/team/pr.ts";
 
 const REMOTE = "github.example.com/team/be";
 const BASE = "feature/story-1/base";
@@ -498,4 +498,59 @@ test("closeStoryPr closes an open Story merge PR with its comment, leaves a merg
   answering(task, { "pr view": say(task.file("view", { state: "OPEN", mergeCommit: null, ...REFS })) });
   await assert.rejects(closeStoryPr(REMOTE, { number: 7, comment: "x" }, task.env()), gone("INVALID"));
   assert.equal(task.calls().length, 1, "a Task PR is never closed");
+});
+
+// D50: a verified commit's branch into the repo's dev branch, and the revert of its merge; people review and merge them.
+const D_HEAD = `feature/story-1/to-dev-${"a".repeat(12)}`;
+const D_REFS = { baseRefName: "dev", headRefName: D_HEAD };
+const D_PARAMS = { base: "dev", head: D_HEAD, title: "Story 1 dev 확인", body: "PL이 dev에서 확인하려고 엽니다." };
+const D_LIST = ["pr", "list", "-R", REMOTE, "--head", D_HEAD, "--base", "dev", "--state", "all", "--json", "number,url,state,mergeCommit,headRefOid,isCrossRepository"];
+
+test("ensureDevPr reuses the open or merged dev PR of its branch, else opens one; never a fork's (D50)", async () => {
+  const open = world();
+  answering(open, { "pr list": say(open.file("list", [pr("CLOSED", { number: 5 }), pr("OPEN", { headRefOid: "F".repeat(40) })])) });
+  assert.deepEqual(await ensureDevPr(REMOTE, D_PARAMS, open.env()), { number: 7, url: URL, state: "OPEN", mergeCommit: null, headSha: "f".repeat(40) });
+  assert.deepEqual(open.calls(), [D_LIST]);
+
+  const merged = world();
+  answering(merged, { "pr list": say(merged.file("list", [pr("MERGED", { headRefOid: SHA, mergeCommit: oid(MERGED_AT) })])) });
+  assert.equal((await ensureDevPr(REMOTE, D_PARAMS, merged.env())).state, "MERGED");
+
+  const none = world();
+  const mark = join(none.root, "made");
+  answering(none, {
+    "pr list": `if [ -e ${JSON.stringify(mark)} ]; then ${say(none.file("after", [pr("OPEN", { headRefOid: SHA })]))}; else ${say(none.file("before", [pr("CLOSED", { number: 5 }), pr("OPEN", { number: 6, isCrossRepository: true })]))}; fi`,
+    "pr create": `: > ${JSON.stringify(mark)}`,
+  });
+  assert.equal((await ensureDevPr(REMOTE, D_PARAMS, none.env())).headSha, SHA);
+  assert.deepEqual(none.calls()[1], ["pr", "create", "-R", REMOTE, "--base", "dev", "--head", D_HEAD, "--title", D_PARAMS.title, "--body", D_PARAMS.body]);
+});
+
+test("dev PRs run only from a to-dev or revert-dev branch into a branch that is not a Story's, before gh runs (D50)", async () => {
+  const w = world();
+  const revert = `feature/story-1/revert-dev-${"b".repeat(12)}`;
+  for (const [base, head] of [["dev", BASE], ["dev", HEAD], ["dev", "main"], [BASE, D_HEAD], ["--force", D_HEAD], ["a..b", D_HEAD], ["dev", "feature/story-1/to-dev-xyz"]])
+    await assert.rejects(ensureDevPr(REMOTE, { ...D_PARAMS, base, head }, w.env()), gone("INVALID"), `${base} ← ${head}`);
+  assert.deepEqual(w.calls(), []);
+  answering(w, { "pr list": say(w.file("list", [pr("OPEN", { headRefOid: SHA })])) });
+  assert.equal((await ensureDevPr(REMOTE, { ...D_PARAMS, head: revert }, w.env())).state, "OPEN", "a revert branch");
+});
+
+test("viewDevPr reads a dev PR's state, merge and head; closeDevPr closes an open one; a Story PR is neither (D50)", async () => {
+  const w = world();
+  answering(w, { "pr view": say(w.file("view", { state: "MERGED", mergeCommit: oid(MERGED_AT), headRefOid: SHA, ...D_REFS })), "pr close": "exit 0" });
+  assert.deepEqual(await viewDevPr(REMOTE, 7, w.env()), { state: "MERGED", mergeCommit: MERGED_AT, headSha: SHA });
+  assert.deepEqual(w.calls()[0], ["pr", "view", "7", "-R", REMOTE, "--json", "state,mergeCommit,baseRefName,headRefName,headRefOid"]);
+  assert.equal(await closeDevPr(REMOTE, { number: 7, comment: "x" }, w.env()), "MERGED", "nothing to close");
+
+  const open = world();
+  answering(open, { "pr view": say(open.file("view", { state: "OPEN", mergeCommit: null, headRefOid: SHA, ...D_REFS })), "pr close": "exit 0" });
+  assert.equal(await closeDevPr(REMOTE, { number: 7, comment: "새 검증 커밋으로 다시 엽니다." }, open.env()), "OPEN");
+  assert.deepEqual(open.calls()[1], ["pr", "close", "7", "-R", REMOTE, "--comment", "새 검증 커밋으로 다시 엽니다."]);
+
+  const story = world();
+  answering(story, { "pr view": say(story.file("view", { state: "OPEN", mergeCommit: null, headRefOid: SHA, ...S_REFS })) });
+  await assert.rejects(viewDevPr(REMOTE, 7, story.env()), gone("INVALID"));
+  await assert.rejects(closeDevPr(REMOTE, { number: 7, comment: "x" }, story.env()), gone("INVALID"));
+  assert.equal(story.calls().length, 2, "never closed");
 });

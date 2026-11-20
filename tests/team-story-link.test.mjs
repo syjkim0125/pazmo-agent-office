@@ -211,8 +211,8 @@ test("each call goes to the story route with protocol 3 and the exact request sh
   });
   const link = storyLink(cfg, fake.call);
   assert.deepEqual(await link.claim(), { task, open: null });
-  // A Hub before D48 sends no finishReady: read as nothing to merge.
-  assert.deepEqual(await link.inbox(), { mine: null, alerts: [], verifyReady: [], finishReady: [] });
+  // A Hub before D48 sends no finishReady, and one before D50 no devReady: read as nothing to merge or open.
+  assert.deepEqual(await link.inbox(), { mine: null, alerts: [], verifyReady: [], finishReady: [], devReady: [] });
   assert.deepEqual(await link.task("t 1&x", "c/1=?"), task);
   assert.equal(await link.heartbeat("t1", "c1", "review"), undefined);
   assert.deepEqual(await link.mergeLock("t1", "c1"), { granted: false, holder: 5 });
@@ -233,6 +233,23 @@ test("each call goes to the story route with protocol 3 and the exact request sh
     [cfg, "POST", "/api/link/story/failed", { taskId: "t1", claimId: "c1", reason: "gave up" }, "3"],
     [cfg, "POST", "/api/link/story/rerun", { taskId: "t1", memo: "again" }, "3"],
   ]);
+});
+
+test("the dev routes (D50): the view is checked for its shape, a report is sent as given, and a bad devReady is refused", async () => {
+  const view = { storyId: "s1", number: 7, title: "t", state: "awaiting_g4", repos: [] };
+  const fake = fakeCall((_cfg, _method, path) => (path.includes("/dev?") ? view : { ok: true }));
+  const link = storyLink(cfg, fake.call);
+  assert.deepEqual(await link.devView("s 1"), view);
+  const report = { kind: "failed", repoId: "r", reason: "x" };
+  assert.equal(await link.devReport("s1", report), undefined);
+  assert.deepEqual(fake.calls, [
+    [cfg, "GET", "/api/link/story/dev?id=s%201", undefined, "3"],
+    [cfg, "POST", "/api/link/story/dev-report", { storyId: "s1", report }, "3"],
+  ]);
+  for (const reply of [{}, { ...view, repos: "x" }, { ...view, number: "7" }])
+    await assert.rejects(storyLink(cfg, fakeCall(reply).call).devView("s1"), /HUB_BAD_RESPONSE/);
+  await assert.rejects(storyLink(cfg, fakeCall({ mine: null, alerts: [], verifyReady: [], devReady: [1] }).call).inbox(), /HUB_BAD_RESPONSE/);
+  assert.deepEqual((await storyLink(cfg, fakeCall({ mine: null, alerts: [], verifyReady: [], devReady: ["s1"] }).call).inbox()).devReady, ["s1"]);
 });
 
 test("claim() sends an empty JSON object, never no body", async () => {

@@ -329,3 +329,65 @@ export async function closeStoryPr(
   await gh(env, ["pr", "close", String(pr.number), "-R", remote, "--comment", pr.comment]);
   return "OPEN";
 }
+
+// D50: the PRs into a repo's dev branch: a verified commit's own branch (never the Story base, so a conflict a person
+// resolves on GitHub lands there, not on the way to main), or the revert of its merge. People review and merge them.
+const DEV_HEAD = /^feature\/story-\d+\/(?:to-dev|revert-dev)-[0-9a-f]{12}$/;
+function checkDevPr(base: string, head: string): void {
+  if (!DEV_HEAD.test(head)) fail("INVALID", "A dev PR's head must be feature/story-<N>/to-dev-<sha12> or revert-dev-<sha12>.");
+  if (!BASE_NAME.test(base) || /\.\.|\/\/|\/$|\.$|\.lock(\/|$)/.test(base) || base.startsWith("feature/story-"))
+    fail("INVALID", "A dev PR's base must be the repo's dev branch.");
+}
+
+/** The open, else merged, PR of a dev branch (`head`) into the dev branch, else a new one; a fork's PR is never it. */
+export async function ensureDevPr(
+  remote: string,
+  p: { base: string; head: string; title: string; body: string },
+  env: GhEnv,
+): Promise<PullRequest & { headSha: string }> {
+  checkRemote(remote);
+  checkDevPr(p.base, p.head);
+  checkText(p);
+  const live = async () => {
+    const listed = parseJson(
+      await gh(env, [
+        "pr", "list", "-R", remote, "--head", p.head, "--base", p.base, "--state", "all",
+        "--json", "number,url,state,mergeCommit,headRefOid,isCrossRepository",
+      ]),
+    );
+    if (!Array.isArray(listed)) return fail("GH_FAILED", "gh returned a list that could not be read.");
+    const own = listed.filter((o) => (o as { isCrossRepository?: unknown })?.isCrossRepository !== true);
+    const found = own.find((o) => (o as { state?: unknown })?.state === "OPEN") ?? own.find((o) => (o as { state?: unknown })?.state === "MERGED");
+    if (!found) return null;
+    const headSha = String((found as { headRefOid?: unknown }).headRefOid ?? "").toLowerCase();
+    if (!OBJECT_ID.test(headSha)) return fail("GH_FAILED", "gh returned a pull request without its head commit.");
+    return { ...pullRequest(found), headSha };
+  };
+  const existing = await live();
+  if (existing) return existing;
+  await gh(env, ["pr", "create", "-R", remote, "--base", p.base, "--head", p.head, "--title", p.title, "--body", p.body]);
+  return (await live()) ?? fail("GH_FAILED", "gh created a pull request that could not be found again.");
+}
+
+/** A dev PR's state, merge commit and head now, read only. */
+export async function viewDevPr(
+  remote: string,
+  number: number,
+  env: GhEnv,
+): Promise<{ state: PullRequest["state"]; mergeCommit: string | null; headSha: string }> {
+  checkRemote(remote);
+  if (!Number.isInteger(number) || number < 1) fail("INVALID", "A PR number must be a positive integer.");
+  const view = await viewPr(remote, number, "state,mergeCommit,baseRefName,headRefName,headRefOid", env);
+  checkDevPr(view.base, view.head);
+  if (!STATES.includes(view.state as string) || !OBJECT_ID.test(view.headOid)) fail("GH_FAILED", "gh returned a pull request that could not be read.");
+  return { state: view.state as PullRequest["state"], mergeCommit: view.mergeCommit, headSha: view.headOid };
+}
+
+/** Closes an open dev PR with a comment (a newer verified commit replaces it); the state it was in. */
+export async function closeDevPr(remote: string, pr: { number: number; comment: string }, env: GhEnv): Promise<PullRequest["state"]> {
+  const now = await viewDevPr(remote, pr.number, env);
+  checkText({ title: "close", body: pr.comment });
+  if (now.state !== "OPEN") return now.state;
+  await gh(env, ["pr", "close", String(pr.number), "-R", remote, "--comment", pr.comment]);
+  return "OPEN";
+}

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { approvalPlan, compareUrl, shellLine, storyItems } from "../src/hub/story-approve.ts";
+import { LOCAL_RUN_NOTE, approvalPlan, compareUrl, mergeTarget, shellLine, storyItems } from "../src/hub/story-approve.ts";
 
 const KIT_BODY = [
   "# Story: 모의 결제",
@@ -128,4 +128,19 @@ test("a free-text Story still gets one item to check, and long lists are cut wit
   const tasks = Array.from({ length: 32 }, (_, i) => ({ number: i + 1, repo: "app-be", files: [], assumptions: [`ASSUMED: 정한 것 ${i + 1}`] }));
   const assumed = approvalPlan({ number: 3, title: "가정 많음", body: "## MUST\n- M1. 하나", repos: [], tasks });
   assert.equal(assumed.qa.at(-1), "AI가 정한 것 2개 더(Task 화면 참고)", "ASSUMED lines live in the Task records (review 1)");
+});
+
+test("mergeTarget names the one base branch, or says 기준 브랜치 with each repo's (D50)", () => {
+  assert.deepEqual(mergeTarget([{ name: "be", baseBranch: "main" }, { name: "fe", baseBranch: "main" }]), { button: "승인하고 main에 머지", list: null });
+  assert.deepEqual(mergeTarget([{ name: "be", baseBranch: "main" }, { name: "fe", baseBranch: "master" }]), {
+    button: "승인하고 기준 브랜치에 머지",
+    list: "be → main · fe → master",
+  });
+});
+
+test("the prompt asks to start the services the repo's own way with the PL's local settings (D50)", () => {
+  const p = approvalPlan({ number: 1, title: "t", body: "자유 글", repos: [{ name: "be", baseBranch: "main", commit: "a".repeat(40), checks: [] }], tasks: [] });
+  assert.ok(LOCAL_RUN_NOTE.includes("README·AGENTS.md에 적힌 방법대로 서비스를 띄우세요"));
+  assert.ok(p.prompt.includes(`   ${LOCAL_RUN_NOTE}`));
+  assert.ok(p.prompt.indexOf(LOCAL_RUN_NOTE) > p.prompt.indexOf("2. 그 폴더에서 앱을 실행해"), "under step 2");
 });
