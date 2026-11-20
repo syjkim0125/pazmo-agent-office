@@ -332,6 +332,20 @@ test("the repos page lets an owner set the dev branch; the card then offers 'dev
   }
 });
 
+test("while a dev PR is open over a merged one, the PL reads why there is no revert button (D50, review 2 M-C)", async (t) => {
+  const h = await web(t);
+  h.store.setDevBranch(h.pl.member, h.be, "dev");
+  const s = h.story();
+  h.board.requestDev({ member: h.pl.member }, s.storyId, h.be, SHA("a"));
+  h.board.devReport(h.plBe, s.storyId, { kind: "dev", repoId: h.be, state: "merged", prNumber: 3, prUrl: PR(3), commit: SHA("a"), head: SHA("a"), mergeCommit: SHA("9") });
+  h.board.devReport(h.plBe, s.storyId, { kind: "dev", repoId: h.be, state: "opened", prNumber: 5, prUrl: PR(5), commit: SHA("a"), head: SHA("a"), mergeCommit: null });
+  const words = "열린 dev PR이 머지되거나 닫힌 뒤에 dev에서 되돌릴 수 있습니다.";
+  const pl = (await h.get(`/stories/${s.storyId}`, h.pl)).text;
+  assert.ok(pl.includes(words));
+  assert.ok(!pl.includes("<button class=\"secondary\">dev에서 되돌리기</button>"));
+  assert.ok(!(await h.get(`/stories/${s.storyId}`, h.c)).text.includes(words), "only the PL, who could press it");
+});
+
 test("the Story page shows the dev PR, a head that is not the verified commit, the revert and its button (D50)", async (t) => {
   const h = await web(t);
   h.store.setDevBranch(h.pl.member, h.be, "dev");

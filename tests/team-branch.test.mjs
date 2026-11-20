@@ -1539,6 +1539,24 @@ test("revertDevMerge: a revert that conflicts leaves the checkout clean and push
   await assert.rejects(revertDevMerge(checkout, { ...task, merges: [] }, e), { code: "GIT_FAILED" });
 });
 
+test("revertDevMerge: a revert git cannot commit (a signing hook fails) is a GIT_FAILED, and the checkout is not left mid-revert (D50, review 2 M-B)", async (t) => {
+  const w = gitWorld(t);
+  w.push("dev", { "dev.txt": "dev\n" });
+  const verified = w.push(BASE, { "story.txt": "story\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  await pushDevBranch(checkout, { storyBase: BASE, branch: toDev(verified), sha: verified }, e);
+  const { sha: mergeCommit } = mergeIntoDev(w, toDev(verified));
+  // A signing program that always fails makes `git revert` stop with exit 128 after staging its change.
+  writeFileSync(join(w.home, ".gitconfig"), `${readFileSync(join(w.home, ".gitconfig"), "utf8")}[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = /usr/bin/false\n`);
+  const task = { devBranch: "dev", merges: [{ commit: mergeCommit, head: verified }], branch: revertDev(mergeCommit), repo: w.repo };
+  await assert.rejects(revertDevMerge(checkout, task, e), { code: "GIT_FAILED" });
+  assert.equal(w.git(checkout, "status", "--porcelain").trim(), "", "clean");
+  assert.equal(inMerge(checkout), false);
+  assert.equal(w.git(w.bare, "ls-remote", "--heads", w.bare, revertDev(mergeCommit)).trim(), "", "nothing pushed");
+});
+
 test("revertDevMerge: a merge a person already reverted on dev is missing, and the checkout is left clean (D50, review 1 M5)", async (t) => {
   const w = gitWorld(t);
   w.push("dev", { "dev.txt": "dev\n" });

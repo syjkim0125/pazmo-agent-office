@@ -178,7 +178,7 @@ test("an old dev PR that cannot be closed keeps the new one from opening (D50, r
   pr.close = async () => { throw new OfficeError("GH_FAILED", "HTTP 403"); };
   const w = world({ hub, pr });
   assert.deepEqual(await w.dev.tick(), { ran: false });
-  assert.deepEqual(w.hub.reports, [{ kind: "failed", repoId: "repo-be", reason: "옛 dev PR을 닫지 못해 새 PR을 열지 않았습니다: HTTP 403" }]);
+  assert.deepEqual(w.hub.reports, [{ kind: "failed", repoId: "repo-be", reason: "옛 dev PR을 정리하지 못해 새 PR을 열지 않았습니다: HTTP 403" }]);
   assert.deepEqual(w.git.calls, [], "nothing pushed");
   assert.equal(w.hub.view.repos[0].dev.prNumber, 20, "the old PR stays the one followed");
 });

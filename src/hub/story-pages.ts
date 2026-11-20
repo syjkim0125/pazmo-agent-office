@@ -259,7 +259,7 @@ function devBody(s: StoryView, dev: DevCard, csrf: string): string {
       // After a merged revert git takes the reverted commits as merged, so a newer PR would leave them out (review 1).
       const done = r.revert?.state === "merged" ? line("dev에서 되돌렸습니다. 되돌린 변경이 빠지므로 이 Story를 이 레포의 dev에 다시 올리지 않습니다.") : "";
       // Review 2 M-C: the PL sees why there is no revert button while a dev PR is still open.
-      const wait = s.isPl && r.merged.length && r.dev?.state === "opened" && !r.want ? line("열린 dev PR이 머지되거나 닫힌 뒤에 dev에서 되돌릴 수 있습니다.") : "";
+      const wait = s.isPl && s.state !== "done" && r.merged.length && r.dev?.state === "opened" && !r.want ? line("열린 dev PR이 머지되거나 닫힌 뒤에 dev에서 되돌릴 수 있습니다.") : "";
       const why = r.reason ? line(`하지 못했습니다: ${r.reason}`) : "";
       const open = r.canOpen
         ? `<form method="post" action="/stories/${esc(s.id)}/dev">${csrfField(csrf)}<input type="hidden" name="repo" value="${esc(r.repoId)}"><input type="hidden" name="commit" value="${esc(r.verified ?? "")}"><div class="row"><button class="secondary">dev에 PR 열기</button></div></form>`

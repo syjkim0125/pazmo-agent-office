@@ -98,7 +98,7 @@ export function createStoryDev(d: {
     // An open dev PR of another commit is closed first; if it cannot be, nothing new opens beside it (review 1 M2).
     if (r.dev && r.dev.state === "opened" && r.dev.commit !== sha) {
       const old = r.dev;
-      const closed = await attempt(via, view.storyId, r, "옛 dev PR을 닫지 못해 새 PR을 열지 않았습니다", async () => {
+      const closed = await attempt(via, view.storyId, r, "옛 dev PR을 정리하지 못해 새 PR을 열지 않았습니다", async () => {
         const was = await d.pr.close(lane.remote, { number: old.prNumber, comment: `Pazmo Office: Story #${view.number}의 새 검증 커밋 ${sha.slice(0, 12)}로 dev PR을 다시 엽니다. 이 PR은 머지하지 마세요.` });
         // A person merged (or closed) it since it was last read: its merge is recorded before the new PR replaces it,
         // so a later revert still takes it back (review 2 of U57).
