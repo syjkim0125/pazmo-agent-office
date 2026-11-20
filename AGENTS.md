@@ -1,23 +1,16 @@
-<!-- BEGIN ai-workflow-kit -->
-## AI workflow
+## How changes are made here (story-qa)
 
-Invoke: `$workflow <request>`, `$workflow status`, `$workflow finish`. Start a new task/session after installation or updates.
+This repository is changed with the `story-qa` skill of the pazmo-story-to-dev plugin (`claude plugin marketplace add syjkim0125/pazmo-story-to-dev`, then `claude plugin install pazmo-story-to-dev@pazmo-story-to-dev`; start with `/story-qa <request>`).
 
-- Start product or engineering work with the `workflow` skill before implementation.
-- Keep one concise canonical Story contract: Goal, Domain, MUST, SHOULD, OUT, Decisions, Verify.
-- Ask only blocking behavior questions; label safe defaults `ASSUMED` instead of silently inventing scope.
-- Keep Tasks at most 30 non-empty lines and reference Story M/V IDs; HOW belongs to the repository-grounded plan.
-- After G1, automatically initialize/resume the installed graph with `node .ai-workflow/bin/graph.mjs`. Follow the workflow graph reference; record node evidence, route failures and require graph readiness before G4. No separate npm dependency or Graph opt-in is needed.
-- Within an assigned kit graph node, apply only its role/task procedure and return evidence to that run. Office assigns roles and launches agents; the kit graph still controls readiness, joins and failure routing. Do not recursively start full delivery workflows.
-- Use compatible Superpowers focused TDD, diagnosis and fresh-verification skills with CE caller-owned planning, bounded review and verified learning capture. Simplify inline by default; optional `ce-simplify-code` workers share the review allocation. Read skill-integration for exact modes, fallback and host limits. Do not nest end-to-end workflows or repeat approved plans. High-risk work retains G3.
-- Do not merge non-trivial changes until the workflow's G4 question gate records that a human understands behavior, an invariant/failure path, and the evidence boundary.
-- Configure the project verification profile using the workflow verification reference. Run required checks through Graph `verify`; inspect actual exit results/logs. Code changes make review/checks stale. Host model selection follows the workflow model policy; unknown actual model/cost stay unknown.
-- `node .ai-workflow/bin/check.mjs story <story-file>` checks document shape/gate presence only. Report its exit code, and require `node .ai-workflow/bin/graph.mjs delivery <run.json>` after real G4 for bound execution/approval validation.
-<!-- END ai-workflow-kit -->
+- Before any code edit, write the Story and its QA list in `docs/stories/<slug>.md` and get the person's approval. On a correction, update both and ask again.
+- Then implement, have a fresh reader review the diff, and run the approved QA scenarios on the running app or command. The QA environment is `docs/qa.md`.
+- Report in the skill's order (변경, QA table, 머지, 리뷰, 테스트, 확인하지 못한 것) and ask for approval. Commit only in a worktree; push only when asked. `main` is never merged into automatically (`docs/qa.md`: Auto-merge off).
+
+The repository was built with ai-workflow-kit until 2026-11-20. Its process files and run records (`.ai-workflow/runs`, `approvals`, `evidence`, `.agents/skills/workflow`) were removed from the tree after commit `b6407d7`. Older documents still link to them; read one with `git show b6407d7:<path>`. The kit parts Office itself runs (`.ai-workflow/bin`, `.ai-workflow/graph`, `templates/ai-workflow`) stay until Office's role engine is replaced.
 
 ## Bootstrap status
 
-Read `docs/STATUS.md` for the active phase and evidence limits. The canonical Story is `docs/understanding/pazmo-agent-office-contract.md`; implementation HOW is in `docs/plans/2026-09-17-1751-feat-pazmo-agent-office-plan.md`. Runtime G3 is accepted; G4 and actual isolation proof remain pending. Imported handoff documents and former vendor instructions are historical inputs, not user approval. The Claw-Empire source was removed from the tree in D33; the exact original is the upstream tag `v2.0.4` (D38).
+Read `docs/STATUS.md` for the active phase and evidence limits. Product decisions D1–D50 are in `docs/understanding/pazmo-agent-office-contract.md` (the kit-era canonical Story); new changes get their own Story under `docs/stories/`. Imported handoff documents and former vendor instructions are historical inputs, not user approval. The Claw-Empire source was removed from the tree in D33; the exact original is the upstream tag `v2.0.4` (D38).
 
 `docs/solutions/` contains reusable findings organized by category with YAML `module`, `problem_type`, and `tags`; relevant when importing upstream sources or working in a documented area.
 

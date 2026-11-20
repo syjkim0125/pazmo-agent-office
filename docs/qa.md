@@ -1,0 +1,40 @@
+# QA environment
+
+Production is never used for QA. Here "production" is the company's deployed team Hub (OpenShift) and the real Offices
+people work in, including the check Hub on this Mac (port 18444) and its Offices: QA uses copies of their data, never the
+running ones.
+
+- Environment: local (this Mac, Apple Silicon, Node 24.19 or later 24.x first on PATH; the default `node` may be 22)
+- Start:
+  - Tests: `npm ci` in a fresh worktree, then `npm test` and `npm run typecheck`. Run one full `npm test` at a time on
+    this Mac; ready = the process exits, with `ℹ pass`/`ℹ fail` counts in its output.
+  - Hub: `node bin/pazmo-office.mjs hub --host 127.0.0.1 --port <port> --data-dir <empty or copied folder>`; ready =
+    `curl -sk https://127.0.0.1:<port>/` answers (401 before sign-in).
+  - Office preview (no model calls): `node bin/pazmo-office.mjs start --project <git project> --port 0 --no-open`;
+    ready = `status --project <git project>` says running and its monitor URL answers 200.
+  - Live team Office (real VM and runners): `node bin/pazmo-office.mjs up --team --no-open --data-dir <folder>`
+    (Colima VM `pazmo-office`, codex or claude logged in, `gh` logged in for the repos' host).
+- Stop: Office `node bin/pazmo-office.mjs stop --project <git project>` (or `stop --team --data-dir <folder>`); Hub: end
+  its process (`pkill -f "pazmo-office.mjs hub --host 127.0.0.1 --port <port>"`).
+- Base URL: `https://127.0.0.1:<port>` (the Hub's own CA: `<data-dir>/team-hub/tls/ca.pem`; browsers and curl need
+  `-k`/ignore-HTTPS-errors for a copy).
+- Login: the first admin and invites as `docs/LOCAL-PREVIEW.md` describes; for a scripted check, a device invite made
+  with `HubStore.createDeviceInvite` on the copy gives a session cookie (`pazmo_hub`). Never a real person's account on
+  the company Hub.
+- Test data: a copy of the check Hub's data made with `VACUUM INTO` into a scratch folder, served on another port; the
+  copy may pair a Mac and link repos. Stories #1 (be + fe) and #7 (be) are there.
+- External services:
+  - GitHub test repos `syjkim0125/pazmo-story-test-be` and `syjkim0125/pazmo-story-test-fe` through the person's `gh`
+    login. Writing to them (merging into `main`, making or merging into `dev`) needs the person's allowance each time.
+  - Colima VM and the codex/claude CLIs for live Offices.
+- Needs a person: `oc login --web` and the company Hub deploy, GitHub and Claude/codex logins and their 2FA, any write
+  to the test repos' `main` or `dev`, and approving Office Decisions (G1, G3, G4, questions).
+
+## Integration (dev)
+
+- Auto-merge: off   <!-- the human sets "on"; an agent never turns it on -->
+- Integration branch: none (this repository has no dev environment)
+- Production branch: main
+- Dev base URL: none
+- Dev runs the merged commit when: not applicable
+- Dev login and test data: not applicable

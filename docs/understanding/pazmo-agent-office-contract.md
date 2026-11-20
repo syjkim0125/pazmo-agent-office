@@ -1,6 +1,7 @@
 # Story: Jira 없이 운영하는 Pazmo Agent Office
 Status: Approved
 Owner: JongKun Kim
+Note: ai-workflow-kit 시절(2026-11-20까지)의 제품 결정 기록이다. 아래 게이트 기록 파일(`.ai-workflow/approvals/…`)은 트리에서 지웠고 `git show b6407d7:<경로>`로 읽는다. 새 변경은 `docs/stories/`에 Story를 쓴다(story-qa).
 Understanding gate (G1): .ai-workflow/approvals/pazmo-agent-office-g1.json · 2026-11-18 · Check-in: accepted
 Understanding gate (G3): .ai-workflow/approvals/hub-board-g3.json · 2026-11-11 · Check-in: accepted
 Understanding gate (G4): .ai-workflow/approvals/web-approve-g4.json · 2026-11-20 · Check-in: accepted
