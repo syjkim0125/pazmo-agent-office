@@ -7,6 +7,7 @@ import { join } from "node:path";
 import { applyLeanSchema } from "../src/lean/schema.ts";
 import { addRoleAgents } from "./role-agents-fixture.mjs";
 import { createNativeOffice } from "../src/runtime/native-office.ts";
+import { pmReady } from "./planning-fixture.mjs";
 
 test("native assignment adopts the original task and uses the same authoritative database", async (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "native-office-"))),
@@ -171,9 +172,6 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
   const f = await fixture(t);
   task(f);
   await f.office.assign(taskId);
-  const { continuePlanning } = await import("../src/runners/planning.ts");
-  const i = f.office.ledgers.intake.get(taskId),
-    packet = f.office.ledgers.intake.packet(taskId, i.revision, i.inputDigest);
   const story = {
     title: "README",
     goal: "Clarify execution",
@@ -184,19 +182,7 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
     assumptions: [],
     verify: [{ must: [1], scenario: "Command matches CLI" }],
   };
-  f.office.ledgers.intake.acceptKit(
-    taskId,
-    i.revision,
-    i.inputDigest,
-    { kind: "lead", packet: continuePlanning(packet, story, "lead") },
-    {
-      runId: "test",
-      runFile: "test",
-      nodeId: "requirements",
-      action: "role-complete",
-      revisionToken: "test",
-    },
-  );
+  pmReady(f.office.ledgers.intake, taskId, story);
   await f.office.refresh();
   const agent = f.db
     .prepare("SELECT id FROM agents WHERE department_id='planning' LIMIT 1")
@@ -787,4 +773,50 @@ test("deliveries lists the delivery of each contract task under a request", asyn
     { taskId: f.task.id, status: "not_delivered", directory: null },
   ], "a contract task is its own delivery");
   assert.throws(() => office.deliveries("no-such-task"), { code: "NOT_FOUND" });
+});
+
+test("a task begun under the removed workflow runtime is not started; it shows the plain stop reason and is logged once (가)", async (t) => {
+  const { officeFixture } = await import("./coordinator-fixture.mjs");
+  const { LEGACY_TASK_MESSAGE } = await import("../src/core/legacy-tasks.ts");
+  const warnings = t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  addRoleAgents(f.db);
+  // Another approved task of the same project, begun after the upgrade.
+  const token = "a".repeat(64),
+    fresh = await f.store.register(token, f.input);
+  for (const gate of ["G1", "G3"]) {
+    const c = f.store.requestApproval(token, fresh.id, gate);
+    f.store.decide(token, c.id, { decision: "approve", note: "Legacy fixture." });
+  }
+  // The rows the removed runtime left for the first task, as an upgraded data folder has them.
+  f.db.exec(`CREATE TABLE pazmo_kit_assignments (
+    task_id TEXT NOT NULL, revision INTEGER NOT NULL, assignment_id TEXT NOT NULL,
+    role TEXT NOT NULL, run_file TEXT NOT NULL, target_revision TEXT NOT NULL,
+    PRIMARY KEY(task_id,revision,assignment_id))`);
+  f.db
+    .prepare("INSERT INTO pazmo_kit_assignments VALUES (?,?,?,?,?,?)")
+    .run(f.task.id, f.store.get(f.task.id).revision, `kit5:${f.task.id}:1:developer:`, "developer", "x/run.json", "0".repeat(64));
+  const started = [];
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token,
+    createRuntime: async () => ({
+      status: () => ({ execution: "ready", active: [] }),
+      startImplementation: (id) => started.push(id),
+      assertIdle() {},
+      close: async () => {},
+    }),
+  });
+  t.after(() => office.close());
+  await office.refresh();
+  await office.refresh();
+  assert.deepEqual(started, [fresh.id], "the other task still starts");
+  const notices = f.db
+    .prepare("SELECT content FROM messages WHERE task_id=? AND content LIKE '작업이 멈췄습니다:%'")
+    .all(f.task.id)
+    .map((m) => m.content);
+  assert.deepEqual(notices, [`작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`]);
+  assert.equal(warnings.mock.calls.filter((c) => c.arguments[0].includes(f.task.id)).length, 1);
 });

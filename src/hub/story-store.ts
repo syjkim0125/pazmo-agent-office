@@ -368,7 +368,7 @@ const RERUN_REFUSALS = {
 type RerunBlock = keyof typeof RERUN_REFUSALS;
 
 const KEY_MAX = 100;
-/** The kit's Story hash (sha256 hex) and a git commit id, as an upload sends them. */
+/** The Story hash (`hashStory`, sha256 hex) and a git commit id, as an upload sends them. */
 const STORY_HASH = /^[0-9a-f]{64}$/;
 export const NOT_YOUR_MAC_MESSAGE = "이 Mac은 지금 연결된 내 Mac이 아닙니다. 지금 연결된 Mac에서 다시 실행하세요.";
 /** The web's lists: ready Tasks in claim order, and the member's latest merges. */
@@ -387,7 +387,7 @@ const FORGET_OWN_LOCK =
  * Tables of the team Story board. `hub_members`, `hub_repos` and `hub_macs` come from HubStore, so it must run first
  * on the same db. Numbers (`hub_seq`) are one sequence shared by Stories and Tasks. A member without a
  * `hub_work_settings` row works automatically. `hub_story_uploads` is the local approval of a Story the PL's Mac
- * uploaded (the Mac and its name then, the kit Story hash, when) and the Story base commits, one per repo.
+ * uploaded (the Mac and its name then, the Story hash, when) and the Story base commits, one per repo.
  */
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS hub_seq(id INTEGER PRIMARY KEY CHECK(id=1),next INTEGER NOT NULL);
@@ -964,7 +964,7 @@ export class StoryBoard {
 
   /**
    * A Story the PL approved locally (kit G1), uploaded by the command on the PL's Mac. Refused unless the link was
-   * minted by the member's current Mac (`mac`, from HubStore.currentMac), `storyHash` is the kit hash of `body` (400
+   * minted by the member's current Mac (`mac`, from HubStore.currentMac), `storyHash` is `hashStory(body)` (400
    * INVALID otherwise) and the member owns every repo of the project; a Story under the same key that some other way
    * made (the plain publish route) is STATE, so the record only ever describes what the Mac sent, and a Story under
    * the same text that was cancelled is not made again. Then

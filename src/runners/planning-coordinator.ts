@@ -1,16 +1,15 @@
-import { OfficeError, fail } from "../cli/project.ts";
-import { KitPlanning } from "./kit-planning.ts";
+import { OfficeError } from "../cli/project.ts";
+import { LEGACY_TASK, legacyPlanning, noteLegacyTask } from "../core/legacy-tasks.ts";
 import type { IntakeLedger } from "../core/intake.ts";
 import type { ExecutionLedger } from "../core/budgets.ts";
 import type { Candidate } from "../core/candidates.ts";
 import type { ContainerPlanner } from "./container-verifier.ts";
 import type { RemoteJob } from "./remote-job.ts";
-import { PlanningInvalid, planningPrompt } from "./planning.ts";
+import { planningPrompt } from "./planning.ts";
 import { saveRejectedOutput } from "./planning-output.ts";
 import type { PlanningPacket } from "./planning.ts";
 
 type Dependencies = {
-  project?: string;
   /** Project-private data directory for rejected model output. */
   dataDir?: string;
   intake: IntakeLedger;
@@ -25,7 +24,8 @@ type Dependencies = {
 const pending = (state: string) =>
   ["waiting_pm", "waiting_lead"].includes(state);
 
-/** Controller-only PM→Lead flow. No public launch, publication, or approval authority. */
+/** Controller-only PM→Lead flow on Office's intake and lease ledgers: one model turn per conversation revision (a
+ * revision keeps its one lease, `reservePlanning`). No public launch, publication, or approval authority. */
 export class PlanningCoordinator {
   #d: Dependencies;
   #active = new Set<string>();
@@ -61,32 +61,12 @@ export class PlanningCoordinator {
         let lease;
         try {
           const packet = intake.packet(taskId, item.revision, item.inputDigest);
-          const kit = packet.workflow
-            ? new KitPlanning(
-                this.#d.project ??
-                  fail(
-                    "KIT_PROJECT_REQUIRED",
-                    "Native planning needs its controller project root.",
-                  ),
-                intake,
-              )
-            : null;
-          const stage = kit
-            ? await kit.dispatch(
-                taskId,
-                item.revision,
-                packet,
-                context,
-                leases.some((l) => l.revision === item.revision),
-              )
-            : null;
-          const prompt = planningPrompt(
-            packet,
-            context,
-            stage
-              ? { runFile: stage.run.runFile, node: stage.node }
-              : undefined,
-          );
+          if (legacyPlanning(packet)) {
+            noteLegacyTask(taskId);
+            intake.interrupt(taskId, item.revision, item.inputDigest, LEGACY_TASK);
+            return view();
+          }
+          const prompt = planningPrompt(packet, context);
           const job = jobFor(packet, context, prompt);
           lease = execution.reservePlanning(
             taskId,
@@ -146,42 +126,14 @@ export class PlanningCoordinator {
                   item.revision,
                   report.result.stdout,
                 );
-              let accept: (() => unknown) | undefined = stage
-                ? undefined
-                : () =>
-                    intake.accept(
-                      taskId,
-                      item.revision,
-                      item.inputDigest,
-                      { closed: report.closed, result: report.result },
-                      archive,
-                    );
-              if (stage && kit && report.closed && !abort.signal.aborted) {
-                try {
-                  accept = await kit.record(stage, {
-                    closed: report.closed,
-                    result: report.result,
-                  });
-                } catch (error) {
-                  // Role evidence failure is not unknown process liveness. Keep
-                  // the failure while still releasing a supervisor-confirmed exit.
-                  intake.interrupt(
-                    taskId,
-                    item.revision,
-                    item.inputDigest,
-                    error instanceof OfficeError
-                      ? error.code
-                      : "KIT_PLANNING_FAILED",
-                    error instanceof PlanningInvalid
-                      ? {
-                          detail: error.detail,
-                          origin: error.origin,
-                          ...archive(),
-                        }
-                      : {},
-                  );
-                }
-              }
+              const accept = () =>
+                intake.accept(
+                  taskId,
+                  item.revision,
+                  item.inputDigest,
+                  { closed: report.closed, result: report.result },
+                  archive,
+                );
               execution.finishPlanning(
                 lease.id,
                 report.handle,

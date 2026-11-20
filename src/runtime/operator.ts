@@ -205,7 +205,6 @@ export async function handleOperator(
             token,
             input.request as string,
             input.risk as "normal" | "high",
-            true,
           ),
         );
       else if (parts[1] === "answer")

@@ -1,6 +1,4 @@
-import { basename, resolve } from "node:path";
-import { OfficeError, fail } from "../cli/project.ts";
-import { kitG1, kitG3, writeOnce } from "../core/kit-role-runs.ts";
+import { OfficeError } from "../cli/project.ts";
 import { PLAN_LIMITS, hasOpenBlocking, planTextHash } from "../hub/plan-protocol.ts";
 import type { PlanApproval, PlanRecord } from "../hub/plan-protocol.ts";
 import { StoryGraphError, validateGraph, validateStoryVerify } from "../hub/story-protocol.ts";
@@ -22,8 +20,8 @@ export class PlanGateError extends OfficeError {
 }
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
-/** A web approval of `gate` by the plan's PL, whose id and time can go into the Story text and the kit record (the
- * lease's plan fields come from the Hub unchecked). */
+/** A web approval of `gate` by the plan's PL, whose id and time can go into the Story text (the lease's plan fields
+ * come from the Hub unchecked). */
 const byPl = (plan: PlanRecord, a: PlanApproval | null | undefined, gate: "G1" | "G3"): a is PlanApproval =>
   typeof a === "object" &&
   a !== null &&
@@ -92,27 +90,9 @@ export function checkApprovals(
   return { g1, g3, story, split };
 }
 
-/**
- * The plan's kit gate records, in its own folder `dir` (`<root>/team/plans/<planId>`) and nowhere else: `story.md`
- * (the approved draft the Hub Story carries), `g1.json` citing the Hub approval id, and for a G3 `design.md` and
- * `g3.json`. Each file is written once; a later write of other bytes is KIT_SOURCE_CHANGED. Call after
- * `checkApprovals`.
- */
-export function writeGateRecords(
-  dir: string,
-  plan: PlanRecord,
-  a: { g1: PlanApproval; g3: PlanApproval | null },
-): { storyView: string } {
-  if (basename(resolve(dir)) !== plan.id) fail("UNSAFE_PATH", "A plan's gate records go only to its own folder.");
+/** The approved Story view the Hub Story carries (`Status: Approved` and the G1 line naming the web approval). Call
+ * after `checkApprovals`. */
+export function approvedView(plan: PlanRecord, g1: PlanApproval): string {
   if (!plan.draft) throw new PlanGateError(CHANGED);
-  const storyView = approvedStory(plan.draft.text, a.g1);
-  const record = (x: PlanApproval) => ({ planId: plan.id, memberId: x.memberId, at: x.at, textHash: x.textHash });
-  writeOnce(dir, "story.md", storyView);
-  writeOnce(dir, "g1.json", kitG1(storyView, a.g1.approvalId, record(a.g1), "hub-approval"));
-  if (a.g3) {
-    if (typeof plan.design !== "string") throw new PlanGateError(G3);
-    writeOnce(dir, "design.md", plan.design);
-    writeOnce(dir, "g3.json", kitG3(plan.design, storyView, a.g3.approvalId, record(a.g3)));
-  }
-  return { storyView };
+  return approvedStory(plan.draft.text, g1);
 }

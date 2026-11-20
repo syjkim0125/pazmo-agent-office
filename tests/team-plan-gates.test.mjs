@@ -1,13 +1,9 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, statSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import test from "node:test";
-import { digest } from "../src/core/candidates.ts";
 import { hashStory } from "../src/core/story-hash.ts";
 import { planTextHash } from "../src/hub/plan-protocol.ts";
 import { approvedStory, decidedOf, renderTeamDesign, renderTeamStory, repoFolders, splitDigest } from "../src/runners/team-planning.ts";
-import { PlanGateError, checkApprovals, writeGateRecords } from "../src/team/plan-gates.ts";
+import { PlanGateError, approvedView, checkApprovals } from "../src/team/plan-gates.ts";
 import { BE, FE, PLAN_ID, planRecord, round } from "./plan-fixture.mjs";
 
 const STORY = {
@@ -108,7 +104,7 @@ test("it refuses with a plain reason: no G1, a G1 by another member, a hash of o
   assert.throws(gate(approved({ g1: null })), refused(NOT_PL));
   assert.throws(gate(approved({ g1: approval("G1", DRAFT, { memberId: "m-other" }) })), refused(NOT_PL));
   assert.throws(gate(approved({ g1: approval("G3", DRAFT) })), refused(NOT_PL));
-  // The record's id and time go into the Story text and the kit record: a record that cannot is not an approval.
+  // The record's id and time go into the Story text: a record that cannot is not an approval.
   assert.throws(gate(approved({ g1: approval("G1", DRAFT, { approvalId: "x\n- OPEN BLOCKING: y" }) })), refused(NOT_PL));
   assert.throws(gate(approved({ g1: approval("G1", DRAFT, { at: Number.NaN }) })), refused(NOT_PL));
   assert.throws(gate(approved({ g1: undefined })), refused(NOT_PL));
@@ -197,69 +193,11 @@ test("the design ends with the split's digest line, so a stored split changed af
   assert.deepEqual(checkApprovals(approvedHigh({ split: reordered }), { needSplit: true }).split, SPLIT);
 });
 
-test("writeGateRecords writes story.md with Status: Approved, g1.json with gate G1, responseRef hub-approval:<id> and storyHash = hashStory(draft), and for high risk design.md and g3.json; writing again with the same content passes and other content is KIT_SOURCE_CHANGED", (t) => {
-  const root = realpathSync(mkdtempSync(join(tmpdir(), "plan-gates-")));
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  const dir = join(root, "team", "plans", PLAN_ID);
+test("approvedView is the approved draft the Hub Story carries, Status: Approved and the hub-approval G1 line, with the draft's Story hash", () => {
   const plan = approved();
-  const { storyView } = writeGateRecords(dir, plan, { g1: plan.g1, g3: null });
-  assert.equal(storyView, approvedStory(DRAFT, plan.g1));
-  assert.match(storyView, /^# Story: 주문 내역 화면\nStatus: Approved\n/);
-  assert.equal(readFileSync(join(dir, "story.md"), "utf8"), storyView);
-  const g1 = JSON.parse(readFileSync(join(dir, "g1.json"), "utf8"));
-  assert.deepEqual(g1, {
-    planId: PLAN_ID,
-    memberId: "m-pl",
-    at: plan.g1.at,
-    textHash: planTextHash(DRAFT),
-    gate: "G1",
-    storyHash: hashStory(DRAFT),
-    responseRef: `hub-approval:${plan.g1.approvalId}`,
-  });
-  assert.deepEqual(readdirSync(dir).sort(), ["g1.json", "story.md"]);
-  assert.equal(statSync(join(dir, "g1.json")).mode & 0o777, 0o600);
-  // Only the plan folder is written.
-  assert.deepEqual(readdirSync(root), ["team"]);
-  assert.deepEqual(readdirSync(join(root, "team", "plans")), [PLAN_ID]);
-
-  // A retry writes the same bytes again; an approval of other text cannot replace them.
-  assert.deepEqual(writeGateRecords(dir, plan, { g1: plan.g1, g3: null }), { storyView });
-  const later = approval("G1", DRAFT, { approvalId: "2d8f4e3a-5b6c-4d7e-8f90-a1b2c3d4e5f6" });
-  assert.throws(() => writeGateRecords(dir, plan, { g1: later, g3: null }), { code: "KIT_SOURCE_CHANGED" });
-  assert.equal(readFileSync(join(dir, "story.md"), "utf8"), storyView);
-  // Never anywhere but the plan's own folder.
-  assert.throws(() => writeGateRecords(join(root, "team", "plans", "other"), plan, { g1: plan.g1, g3: null }), {
-    code: "UNSAFE_PATH",
-  });
-  assert.equal(existsSync(join(root, "team", "plans", "other")), false);
-
-  // High risk: design.md and g3.json beside them.
-  const highRoot = realpathSync(mkdtempSync(join(tmpdir(), "plan-gates-")));
-  t.after(() => rmSync(highRoot, { recursive: true, force: true }));
-  const highDir = join(highRoot, "team", "plans", PLAN_ID);
-  const high = approvedHigh();
-  writeGateRecords(highDir, high, { g1: high.g1, g3: high.g3 });
-  assert.deepEqual(readdirSync(highDir).sort(), ["design.md", "g1.json", "g3.json", "story.md"]);
-  assert.equal(readFileSync(join(highDir, "design.md"), "utf8"), DESIGN);
-  const g3 = JSON.parse(readFileSync(join(highDir, "g3.json"), "utf8"));
-  assert.deepEqual(g3, {
-    planId: PLAN_ID,
-    memberId: "m-pl",
-    at: high.g3.at,
-    textHash: planTextHash(DESIGN),
-    gate: "G3",
-    designHash: digest(DESIGN),
-    decisionHash: digest(DESIGN),
-    storyHash: hashStory(DRAFT),
-    responseRef: `hub-approval:${high.g3.approvalId}`,
-  });
-  // The G3 record binds the same Story as the G1 record beside it.
-  assert.equal(g3.storyHash, JSON.parse(readFileSync(join(highDir, "g1.json"), "utf8")).storyHash);
-  writeGateRecords(highDir, high, { g1: high.g1, g3: high.g3 });
-  const redesigned = DESIGN.replace("주문 API", "주문 API 둘");
-  assert.throws(
-    () => writeGateRecords(highDir, { ...high, design: redesigned }, { g1: high.g1, g3: approval("G3", redesigned) }),
-    { code: "KIT_SOURCE_CHANGED" },
-  );
-  assert.equal(readFileSync(join(highDir, "design.md"), "utf8"), DESIGN);
+  const view = approvedView(plan, plan.g1);
+  assert.equal(view, approvedStory(DRAFT, plan.g1));
+  assert.match(view, /^# Story: 주문 내역 화면\nStatus: Approved\n/);
+  assert.equal(hashStory(view), hashStory(DRAFT));
+  assert.throws(() => approvedView({ ...plan, draft: null }, plan.g1), PlanGateError);
 });

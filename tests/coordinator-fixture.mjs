@@ -9,7 +9,7 @@ import { ExecutionLedger } from "../src/core/budgets.ts";
 import { HandoffLedger } from "../src/core/handoffs.ts";
 
 /** `edit` may change the fixture files before the task is registered. */
-export async function officeFixture(t, approved = true, kit = false, edit) {
+export async function officeFixture(t, approved = true, edit) {
   const f = fixture(t),
     db = new DatabaseSync(join(f.root, "office.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
@@ -17,19 +17,6 @@ export async function officeFixture(t, approved = true, kit = false, edit) {
   t.after(() => db.close());
   mkdirSync(join(f.project, "src"));
   f.put("src/a", "before");
-  if (kit) {
-    f.put(
-      "story.md",
-      f.story.replace(
-        "Status: Draft",
-        "Status: Approved\nUnderstanding gate (G1): approval.md · 2026-09-23 · Check-in: accepted",
-      ),
-    );
-    f.put(
-      "approval.md",
-      "Synthetic approval for disposable kit integration tests only.",
-    );
-  }
   f.put(
     "verify.json",
     JSON.stringify({

@@ -128,7 +128,8 @@ try {
   console.log(
     JSON.stringify({ state: result.state, report: join(root, "report.json") }),
   );
-  if (!["proposal", "awaiting_answer"].includes(result.state))
+  // The PM's Story stops at G1: this probe never approves it, so no Lead runs.
+  if (!["proposal", "awaiting_answer"].includes(result.state) && result.intake.reason !== "G1_REQUIRED")
     process.exitCode = 1;
 } finally {
   db.close();

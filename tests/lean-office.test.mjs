@@ -6,7 +6,7 @@ import { fixture as contractFixture } from "./contract-fixture.mjs";
 import { openLeanDb } from "../src/lean/schema.ts";
 import { createLeanOffice } from "../src/lean/office.ts";
 import { startLeanServer } from "../src/lean/server.ts";
-import { continuePlanning } from "../src/runners/planning.ts";
+import { pmQuestions, pmReady } from "./planning-fixture.mjs";
 import { OfficeError } from "../src/cli/project.ts";
 import { digest } from "../src/core/candidates.ts";
 import { roleJobFactory } from "../src/runtime/runner-jobs.ts";
@@ -155,16 +155,7 @@ function locate(board, id) {
 }
 const count = (f, table) => f.db.prepare(`SELECT COUNT(*) AS n FROM ${table}`).get().n;
 async function storyReady(f, id) {
-  const { intake } = f.ledgers;
-  const i = intake.get(id),
-    packet = intake.packet(id, i.revision, i.inputDigest);
-  intake.acceptKit(
-    id,
-    i.revision,
-    i.inputDigest,
-    { kind: "lead", packet: continuePlanning(packet, STORY, "lead") },
-    { runId: "test", runFile: "test", nodeId: "requirements", action: "role-complete", revisionToken: "test" },
-  );
+  pmReady(f.ledgers.intake, id, STORY);
   await f.office.refresh();
 }
 async function answer(f, kind, note = "README 실행 안내만 수정하는 범위를 승인합니다.") {
@@ -320,27 +311,12 @@ test("an open decision moves the card to decide and a reply moves it on", async 
   assert.deepEqual(await f.office.decisions(), []);
 });
 
-test("PM questions are planning and Lead questions are design", async (t) => {
+test("PM questions are planning and a stopped Lead run is design", async (t) => {
   const f = await fixture(t);
   const { alice } = await agents(f);
   const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: alice.id, risk: "normal" });
-  const ask = async () => {
-    const { intake } = f.ledgers;
-    const i = intake.get(id);
-    intake.acceptKit(
-      id,
-      i.revision,
-      i.inputDigest,
-      {
-        kind: "questions",
-        inputDigest: i.inputDigest,
-        questions: [{ id: "Q1", text: "Which README?", reason: "Two READMEs exist" }],
-      },
-      { runId: "test", runFile: "test", nodeId: "n", action: "role-question", revisionToken: "test" },
-    );
-    await f.office.refresh();
-  };
-  await ask();
+  pmQuestions(f.ledgers.intake, id, [{ id: "Q1", text: "Which README?", reason: "Two READMEs exist" }]);
+  await f.office.refresh();
   assert.deepEqual(
     [locate(f.office.board(), id).column, locate(f.office.board(), id).stage],
     ["decide", "plan"],
@@ -348,11 +324,11 @@ test("PM questions are planning and Lead questions are design", async (t) => {
   await answer(f, "questions", "The root README");
   await storyReady(f, id);
   await answer(f, "story");
-  await ask();
-  assert.deepEqual(
-    [locate(f.office.board(), id).column, locate(f.office.board(), id).stage],
-    ["decide", "design"],
-  );
+  const { intake } = f.ledgers;
+  const lead = intake.get(id);
+  intake.interrupt(id, lead.revision, lead.inputDigest, "PLANNING_INVALID");
+  await f.office.refresh();
+  assert.equal(locate(f.office.board(), id).stage, "design");
 });
 
 test("a published plan walks the card through design, build, review and g4 to done", async (t) => {

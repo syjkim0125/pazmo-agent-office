@@ -17,7 +17,8 @@ function setup(t) {
     intake = new IntakeLedger(db, store, f.project);
   return { ...f, db, store, intake };
 }
-function report(packet, body) {
+/** A closed turn reporting `body`; `inspect` adds the readonly snapshot command a Lead proposal needs. */
+function report(packet, body, inspect = false) {
   return {
     closed: true,
     result: {
@@ -28,6 +29,14 @@ function report(packet, body) {
       stderr: "",
       stdout: [
         { type: "turn.started" },
+        ...(inspect
+          ? [
+              {
+                type: "item.completed",
+                item: { type: "command_execution", command: "ls /candidate/tree", exit_code: 0, status: "completed" },
+              },
+            ]
+          : []),
         {
           type: "item.completed",
           item: {
@@ -222,7 +231,7 @@ test("wrong question answers and database failure roll back state and transcript
   assert.deepEqual(f.intake.get(s.taskId), s);
 });
 
-test("PM requirements and Lead proposal survive reconstruction without granting a contract", (t) => {
+test("PM requirements wait for the person's G1, then the Lead proposal survives reconstruction without granting a contract", (t) => {
   const f = setup(t),
     s = f.intake.create(token, "Validate input.", "normal");
   const p = f.intake.packet(s.taskId, s.revision, s.inputDigest);
@@ -244,9 +253,18 @@ test("PM requirements and Lead proposal survive reconstruction without granting 
       },
     }),
   );
-  assert.equal(lead.state, "waiting_lead");
-  const packet = f.intake.packet(lead.taskId, lead.revision, lead.inputDigest);
-  const observation = report(packet, {
+  assert.equal(lead.state, "human_required");
+  assert.equal(lead.reason, "G1_REQUIRED");
+  assert.equal(lead.role, "lead");
+  // No Lead turn before G1.
+  assert.throws(() => f.intake.packet(lead.taskId, lead.revision, lead.inputDigest), { code: "INTAKE_STATE" });
+  const approved = f.intake.approveStory(token, lead.taskId, lead.revision, lead.inputDigest, {
+    decision: "approve",
+    note: "Fixture human Story approval",
+  });
+  assert.equal(approved.state, "waiting_lead");
+  const packet = f.intake.packet(approved.taskId, approved.revision, approved.inputDigest);
+  const body = {
     plan: "Inspect parser, implement and test.",
     tasks: [
       {
@@ -260,11 +278,12 @@ test("PM requirements and Lead proposal survive reconstruction without granting 
         workspace: { include: ["src"], exclude: [] },
       },
     ],
-  });
+  };
+  const observation = report(packet, body, true);
   const ready = f.intake.accept(
-    lead.taskId,
-    lead.revision,
-    lead.inputDigest,
+    approved.taskId,
+    approved.revision,
+    approved.inputDigest,
     observation,
   );
   assert.equal(ready.state, "proposal");
@@ -273,17 +292,42 @@ test("PM requirements and Lead proposal survive reconstruction without granting 
   assert.match(restored.proposal.files["story.md"], /Status: Draft/);
   assert.deepEqual(
     restored.events.map((e) => e.actor),
-    ["human", "pm", "lead"],
+    ["human", "pm", "human", "lead"],
   );
   assert.throws(
     () =>
       f.intake.accept(
-        lead.taskId,
-        lead.revision,
-        lead.inputDigest,
+        approved.taskId,
+        approved.revision,
+        approved.inputDigest,
         observation,
       ),
     { code: "STALE_INTAKE" },
   );
   assert.deepEqual(f.store.list(), []);
+
+  // A Lead proposal with no successful command on the readonly snapshot stops for a person.
+  const g = setup(t),
+    other = g.intake.create(token, "Validate input.", "normal");
+  const pm = g.intake.accept(other.taskId, other.revision, other.inputDigest, report(other, { status: "ready", story: restored.story }));
+  const toLead = g.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, { decision: "approve", note: "ok" });
+  const ungrounded = g.intake.accept(toLead.taskId, toLead.revision, toLead.inputDigest, report(toLead, body));
+  assert.equal(ungrounded.state, "human_required");
+  assert.equal(ungrounded.reason, "INSPECTION_REQUIRED");
+  assert.equal(ungrounded.proposal, null);
+});
+
+test("the PM may ask at most three rounds of questions", (t) => {
+  const f = setup(t);
+  let s = f.intake.create(token, "Validate input.", "normal");
+  for (let round = 1; round <= 3; round++) {
+    s = ask(f, s);
+    assert.equal(s.state, "awaiting_answer");
+    s = f.intake.answer(token, s.taskId, s.revision, s.inputDigest, [{ id: "Q1", answer: `answer ${round}` }]);
+    assert.equal(s.state, "waiting_pm");
+  }
+  const fourth = ask(f, s);
+  assert.equal(fourth.state, "human_required");
+  assert.equal(fourth.reason, "PLANNING_INVALID");
+  assert.equal(fourth.events.at(-1).payload.detail, "report: question rounds exhausted");
 });

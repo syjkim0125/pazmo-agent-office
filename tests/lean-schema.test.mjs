@@ -16,6 +16,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { applyLeanSchema, openLeanDb } from "../src/lean/schema.ts";
 import { createNativeOffice } from "../src/runtime/native-office.ts";
+import { pmReady } from "./planning-fixture.mjs";
 import { hubSnapshot } from "../src/runtime/hub-snapshot.ts";
 
 const ROOT_TASK = "11111111-1111-4111-8111-111111111111";
@@ -258,7 +259,7 @@ test("the native engine runs on the lean schema: assign starts planning and deci
     assert.ok(references(table).includes("tasks.id"), `${table} references tasks(id)`);
 });
 
-test("lean agents have no department or role, so the engine maps no kit role to them", async (t) => {
+test("lean agents have no department or role, so the engine maps no role to them", async (t) => {
   const f = await engine(t);
   insertAgent(f.db, "a1", "Alice");
   assert.deepEqual(f.office.officeRoles(), {
@@ -270,9 +271,6 @@ test("the Story gate round-trips on the lean schema: messages, logs and decision
   const f = await engine(t);
   f.db.prepare("INSERT INTO tasks(id,title,status) VALUES (?,?,'inbox')").run(ROOT_TASK, "Update README");
   await f.office.assign(ROOT_TASK);
-  const { continuePlanning } = await import("../src/runners/planning.ts");
-  const i = f.office.ledgers.intake.get(ROOT_TASK),
-    packet = f.office.ledgers.intake.packet(ROOT_TASK, i.revision, i.inputDigest);
   const story = {
     title: "README",
     goal: "Clarify execution",
@@ -283,13 +281,7 @@ test("the Story gate round-trips on the lean schema: messages, logs and decision
     assumptions: [],
     verify: [{ must: [1], scenario: "Command matches CLI" }],
   };
-  f.office.ledgers.intake.acceptKit(
-    ROOT_TASK,
-    i.revision,
-    i.inputDigest,
-    { kind: "lead", packet: continuePlanning(packet, story, "lead") },
-    { runId: "test", runFile: "test", nodeId: "requirements", action: "role-complete", revisionToken: "test" },
-  );
+  pmReady(f.office.ledgers.intake, ROOT_TASK, story);
   await f.office.refresh();
   const [decision] = await f.office.currentDecisions();
   assert.ok(decision);

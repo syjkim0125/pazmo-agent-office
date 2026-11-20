@@ -53,7 +53,7 @@ test("the bundle holds only the entrypoint's import graph plus package.json, wit
   for (const f of files) {
     assert.match(f, /^(package\.json|bin\/[^/]+\.mjs|src\/.+\.ts)$/, `unexpected bundled file ${f}`);
   }
-  assert.ok(!files.some((f) => /^(vendor|tests|docs|\.ai-workflow|deploy|scripts)\//.test(f) || /\.(db|sqlite|pem|key)$|(^|\/)\.env/.test(f)));
+  assert.ok(!files.some((f) => /^(vendor|tests|docs|deploy|scripts)\//.test(f) || /\.(db|sqlite|pem|key)$|(^|\/)\.env/.test(f)));
   assert.ok(!files.includes("src/cli/index.ts"), "the Office CLI is not part of the hub image");
   assert.equal(JSON.parse(stdout).files, files.length, "reports exactly how many files were bundled");
   for (const f of files.filter((x) => x.endsWith(".ts"))) assert.ok(statSync(join(out, f)).size > 0);

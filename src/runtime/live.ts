@@ -20,7 +20,6 @@ import type { CompletionLedger } from "../core/completion.ts";
 import { UnderstandingRunner } from "../runners/understanding.ts";
 import { PlanningCoordinator } from "../runners/planning-coordinator.ts";
 import { OfficeCoordinator } from "../runners/coordinator.ts";
-import { KitDelivery } from "../runners/kit-delivery.ts";
 import { codexJob } from "../runners/codex-controller.ts";
 import {
   verifyControllerBinary,
@@ -136,7 +135,7 @@ type Runners = {
 /** The verifier's own cap (characters) on a check's captured output. */
 const OUTPUT_LIMIT = 256 * 1024;
 
-/** Process ownership only. Existing ledgers and kit remain the work-state owners. */
+/** Process ownership only. The existing ledgers remain the work-state owners. */
 export class LiveRuntime {
   onSettled?: () => Promise<void>;
   #ledgers: Ledgers;
@@ -636,7 +635,6 @@ export async function createLiveRuntime(
         })
       : undefined;
     const planning = new PlanningCoordinator({
-      project,
       dataDir,
       intake: ledgers.intake,
       execution: ledgers.execution,
@@ -648,12 +646,6 @@ export async function createLiveRuntime(
     const verifier = new ContainerVerifier(client.run);
     const implementation = new OfficeCoordinator({
       ...ledgers,
-      roles: new KitDelivery(
-        project,
-        ledgers.store,
-        ledgers.handoffs,
-        ledgers.verification,
-      ),
       workspace: new ContainerWorkspace(client.run),
       reviewer: new ContainerReviewer(client.run),
       verifier,
