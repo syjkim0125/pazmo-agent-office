@@ -1,0 +1,724 @@
+{
+  "version": 3,
+  "kind": "delivery",
+  "runId": "6037030d-8332-49c9-bb30-57424a2e9080",
+  "graph": {
+    "id": "delivery",
+    "nodes": [
+      {
+        "id": "implement",
+        "description": "Implement the approved Story, demonstrate RED/GREEN and simplify while green.",
+        "access": "write",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "verify": "Run related checks and record the changed files and evidence."
+      },
+      {
+        "id": "workflow-review",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Review the final diff against the Story, including failure paths.",
+        "verify": "Record findings and evidence; fail with the corrective action if changes are needed."
+      },
+      {
+        "id": "workflow-verify",
+        "access": "read",
+        "covers": [
+          "M1",
+          "M2",
+          "M3",
+          "M4",
+          "M5",
+          "M6",
+          "M8",
+          "M11",
+          "M12",
+          "M15",
+          "M16",
+          "V20",
+          "V19",
+          "V18",
+          "V17",
+          "V14",
+          "V13",
+          "V10",
+          "V9",
+          "V8",
+          "V1",
+          "V2",
+          "V3",
+          "V4",
+          "V5",
+          "V6"
+        ],
+        "description": "Run fresh verification after review fixes; prepare raw evidence for G4.",
+        "verify": "Record actual commands, exit codes, changed-file scope and unproven boundaries."
+      }
+    ],
+    "edges": [
+      {
+        "from": "implement",
+        "to": "workflow-review"
+      },
+      {
+        "from": "workflow-review",
+        "to": "workflow-verify"
+      }
+    ]
+  },
+  "state": {
+    "graphId": "delivery",
+    "fingerprint": "8451cd7ba21c4b4eb01160c4eeeee784a4b0fcd601cb3b89f85f3b4554fd109c",
+    "nodes": {
+      "implement": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes in ac1cb5c. The run worktree is named after the commit and the checks run only after a successful add, in a subshell (add && (cd dir && checks)); cleanup per repo; the prompt says the same and to stop on a failed step. team finish sets its record aside when its own approve loses to a web approval; an oversized record keeps the full time. The prompt forbids only work beyond the check, flattens each item to one line, and adds an install note (also on the card). RED 49/54 -> GREEN touched 234/234; full 2049/2049 at normal load (an earlier full run at load 80-116 timed out in 7 untouched files, which re-run 141/141); tsc 0.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-implement-3.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-implement-3.md": "6a71af72ee1f888c5ef05fb6fa173646d7fa6b40d2f6a4e70eea54c4d25c37c6",
+          ".ai-workflow/runs/U56-web-approve-implement-red-3.txt": "2ddda97ee13350897db14110a83a691d07570625a035dc8b3274e6bdfaf6e57a",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3.txt": "2706f37a5d8274837fa6801dc2a7f97a18a385108c2229273ce22a2c26aee5ba",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt": "a27492e1872acfd4dfd91f8e027957bf1d169b71393e2729992219611fa08747",
+          ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt": "bafdcac77b6ae66652fb0372857530ad4298f9043db369e09ec4c1f312beb117"
+        }
+      },
+      "workflow-review": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "output": {
+          "summary": "Review 3 of ac1cb5c: ready. No Critical or Important. Review 2's Important (checks on another tree when git worktree add fails) is fixed and was confirmed with real git in bash and zsh: a clean run checks the commit, not the PL's dirty edit; a leftover folder or an unreachable commit stops with exit 128 and runs no check; the PL's clone is untouched. team finish's losing approve (STATE then an approval) sets its record aside; other refusals keep it. Review 2's minors are fixed. Recorded limits (Minor): a record whose approve failed for a non-STATE reason, followed by a web approval, no rerun and a closed PR, can still approve a later round; worktrees of an earlier round's commit are not cleaned up; repo names in the prompt are not flattened (repo owners only).",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-3.md": "ff5695e76e7e7c96512024f562bcbd490d514f5981d8d643f63e9a96b22190a3"
+        }
+      },
+      "workflow-verify": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 3,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/96dd5408-eca0-49e4-8313-58fad8fbe867/receipt.json",
+            "hash": "d0cc19508f6a52ade1dbf140cca7aba8282a55a9edf745469fe5e04c15c88c09"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/fef867d3-fe03-4189-87e0-950b75a5235d/receipt.json",
+            "hash": "d98944061b7556c9ffff9ba31466e491d3061fb81e674c74e33b796aa951489c"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/3ac04a01-8eec-43ea-9976-d4f84ca31ef6/receipt.json",
+            "hash": "e27aa0dbeafe9fb702f2fc0bd9bdac988ee6fb07565494fa50a5dc21573d9527"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/8b1f1f9b-1788-4889-a5c7-5fef6e356d24/receipt.json",
+            "hash": "f970beda655455145d3fa82648d4ac8f7fa927ae68932e43ebd28846ea8028ae"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/38a7c95e-f230-4b7c-8cee-84c7d3f2a196/receipt.json",
+            "hash": "5bf85b1637c2f01033356ace79bc8a2fcd80274b7c0f7d1d9f63387af51241f9"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 26931c0 (code ac1cb5c), attempt 2: tests 738/738 + 608/608 + 703/703 = 2049/2049, typecheck exit 0, story check exit 0. Attempt 1 failed one untouched team-registry stop test under residual load (607/608 in part 2). The hands-on web approval and merge on a copy Hub await the user's choice and allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-verify-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-verify-2.md": "7a7feeff12530668c4b1b547d88d9fc828ee97d149975f22304ee3f081c635a6"
+        }
+      }
+    }
+  },
+  "story": {
+    "path": "docs/understanding/pazmo-agent-office-contract.md",
+    "fingerprint": "31be3d3a85bd138787b99938ad61a9dbab6882853c71d4d1ab5be5024aa7f1df"
+  },
+  "history": [
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-19T07:57:31.107Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-19T08:07:25.631Z",
+      "result": {
+        "status": "completed",
+        "attempts": 1,
+        "revision": 0,
+        "output": {
+          "summary": "D49 in 3f57ad0. The PL sees a 결과 승인 card on a Story at 승인 대기: check result, Task 3-line summaries and ASSUMED, GitHub compare links, a QA list from the Story's MUST/Verify and the Tasks' ASSUMED lines, touched files, run steps per repo, and a copyable AI prompt (asks for a watchable Playwright browser and screenshots; no code changes; a person approves). Approving binds the fingerprint and commits the page showed (stale STALE, others and admins FORBIDDEN, Origin/CSRF as every POST) and records 웹 승인 · PL; the PL Office merges as in D48. Without checked commits the card offers 다시 검증. RED 137/147 -> GREEN 151/151, full 2044/2044; tsc 0. The hands-on web approval on a copy Hub awaits the user's allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-implement-1.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-1.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-1.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-implement-1.md": "53a2f25571b546c5db90223c068d31271ac32a12f448310b5392ad38d63b3a99",
+          ".ai-workflow/runs/U56-web-approve-implement-red-1.txt": "6811af0ce59f12c2c29fe0eca56c6308e816f3eb3d51d6db156055aa780a8df1",
+          ".ai-workflow/runs/U56-web-approve-implement-green-1.txt": "3821ddd63f875fe2339a6fbe4de1e396aebc8ad32641f7823e158fa51d338f07"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T08:07:37.150Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T08:14:43.819Z",
+      "result": {
+        "status": "failed",
+        "attempts": 1,
+        "revision": 0,
+        "snapshot": "ff45e3b4761677c885afc2b7e3725565cd5eca85559bfd8197bbca8ad40b5c29",
+        "output": {
+          "summary": "Review 1 of 3f57ad0: not ready. No Critical. I1: a team finish record that lost to a web approval stays at its path (its hash never equals the web hash), so after a handed PR is closed unmerged any later team finish posts it without asking the PL again (breaks D48's new-answer rule). I2: run steps and the AI prompt switch the PL's own clone to the commit, carrying uncommitted edits into the check and leaving a detached HEAD. Minors: untrusted list text in a prompt told to run things; planned scope labelled as changed files; storyItems narrower than kitStoryRefs; copy.js inside main never runs after a live swap; a losing web approval lands on a 409 page; compareUrl for non-GitHub hosts and %2F branches, a leading = unquoted for zsh, ASSUMED overflow says Story 글.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-1.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "ff45e3b4761677c885afc2b7e3725565cd5eca85559bfd8197bbca8ad40b5c29"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 2. I1: when the Hub already has an approval, team finish sets aside any record at the live path (approved name when its hash matches, superseded otherwise) with a test for the web-then-closed sequence. I2: run steps and prompt use a separate detached git worktree per repo and remove it afterwards. Minors: fence the list as data in the prompt; label files as planned scope; storyItems accepts [-*] bullets and lower-case ids like kitStoryRefs; load copy.js outside main on Story pages; a web approval over an existing approval redirects; compareUrl only for github hosts and keeps / in branches; quote a leading =; ASSUMED overflow points to the Task pages."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-1.md": "a6f740c3cdb6b506229e5478da1cd8fc7eeff40d32c59e906344aff57ba309c0"
+        },
+        "error": "Implement attempt 2. I1: when the Hub already has an approval, team finish sets aside any record at the live path (approved name when its hash matches, superseded otherwise) with a test for the web-then-closed sequence. I2: run steps and prompt use a separate detached git worktree per repo and remove it afterwards. Minors: fence the list as data in the prompt; label files as planned scope; storyItems accepts [-*] bullets and lower-case ids like kitStoryRefs; load copy.js outside main on Story pages; a web approval over an existing approval redirects; compareUrl only for github hosts and keeps / in branches; quote a leading =; ASSUMED overflow points to the Task pages."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 1: fix I1 I2 and minors",
+      "at": "2026-11-19T08:14:56.535Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-19T08:15:02.563Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-19T08:26:08.089Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 1,
+        "output": {
+          "summary": "Review 1 fixes in d1d94e0. I1: team finish sets aside any record at the live path once the Hub has an approval (approved or superseded name), so a record that lost to a web approval never approves a later round. I2: run steps and the prompt use a detached git worktree beside each repo and remove it; the PL's folder is never switched. Minors: list fenced as data in the prompt, files labelled as planned scope, storyItems like kitStoryRefs, copy.js outside main on the PL's open Story pages, a losing web approval redirects, compare links only for GitHub hosts with / kept, leading = quoted, ASSUMED overflow points to Task pages. RED 43/51 -> GREEN 215/215; full 2046/2046; tsc 0.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-implement-2.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-2.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-2.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-implement-2.md": "d9da871c8c248fa7865c03ba6233dc611cca2a94f377316cdfebaaafabfe172f",
+          ".ai-workflow/runs/U56-web-approve-implement-red-2.txt": "b9159731440dd88cc452ea4d7072f08ed5bb04cb5320f201c05e6180b1f50e25",
+          ".ai-workflow/runs/U56-web-approve-implement-green-2.txt": "445e664ae75761db2fd91f6044c1ee6e387888f52dd8d7ecf82a0661c11e3d2a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T08:26:19.363Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T12:04:38.352Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "ed01d53d8b0360227da255945258689b73ec5dc3a094fecced4b53599b68e66e",
+        "output": {
+          "summary": "Review 2 of d1d94e0: review 1 findings fixed on their main paths; not ready. I: when git worktree add fails (a folder left from an earlier round with the same name, or an unreachable commit), the separate run lines go on and check the old round's commit or the PL's own folder (reproduced in a scratch repo, zsh). Minors: a team finish whose own approve call loses to a web approval leaves its record; the prompt's cleanup step is one line for many repos; the do-not-follow wording conflicts with Verify items and an ASSUMED line with a newline can close the fence; a fresh worktree has no dependencies; the folder uses the free-text repo name; an oversized record's set-aside name is coarse and untested.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "ed01d53d8b0360227da255945258689b73ec5dc3a094fecced4b53599b68e66e"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 3. I: name the worktree after the commit (../<safe repo>-story-<N>-<sha12>), chain add && (cd dir && { checks; }) so a failure stops, cleanup on its own line per repo, same in the prompt, with a test pinning the chain and the commit in the name. Minors: runFinish moves its record aside as superseded when approve answers STATE and the Hub now shows an approval; per-repo cleanup lines in the prompt; reword the data note to forbid only work beyond the check and flatten each item to one line; a note to install dependencies in the fresh folder; safe folder names ([\\w-]); the oversized record's name keeps the full time and is tested."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-2.md": "5d760888974ad30f9debe4e10ecc21261ec689cb47c826adfe5e52a7279f83a8"
+        },
+        "error": "Implement attempt 3. I: name the worktree after the commit (../<safe repo>-story-<N>-<sha12>), chain add && (cd dir && { checks; }) so a failure stops, cleanup on its own line per repo, same in the prompt, with a test pinning the chain and the commit in the name. Minors: runFinish moves its record aside as superseded when approve answers STATE and the Hub now shows an approval; per-repo cleanup lines in the prompt; reword the data note to forbid only work beyond the check and flatten each item to one line; a note to install dependencies in the fresh folder; safe folder names ([\\w-]); the oversized record's name keeps the full time and is tested."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 2: worktree failure path and minors",
+      "at": "2026-11-19T12:04:41.219Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-19T12:32:38.574Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-20T01:31:25.180Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes in ac1cb5c. The run worktree is named after the commit and the checks run only after a successful add, in a subshell (add && (cd dir && checks)); cleanup per repo; the prompt says the same and to stop on a failed step. team finish sets its record aside when its own approve loses to a web approval; an oversized record keeps the full time. The prompt forbids only work beyond the check, flattens each item to one line, and adds an install note (also on the card). RED 49/54 -> GREEN touched 234/234; full 2049/2049 at normal load (an earlier full run at load 80-116 timed out in 7 untouched files, which re-run 141/141); tsc 0.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-implement-3.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-implement-3.md": "6a71af72ee1f888c5ef05fb6fa173646d7fa6b40d2f6a4e70eea54c4d25c37c6",
+          ".ai-workflow/runs/U56-web-approve-implement-red-3.txt": "2ddda97ee13350897db14110a83a691d07570625a035dc8b3274e6bdfaf6e57a",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3.txt": "2706f37a5d8274837fa6801dc2a7f97a18a385108c2229273ce22a2c26aee5ba",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt": "a27492e1872acfd4dfd91f8e027957bf1d169b71393e2729992219611fa08747",
+          ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt": "bafdcac77b6ae66652fb0372857530ad4298f9043db369e09ec4c1f312beb117"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-20T01:31:37.917Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-20T01:34:05.217Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "output": {
+          "summary": "Review 3 of ac1cb5c: ready. No Critical or Important. Review 2's Important (checks on another tree when git worktree add fails) is fixed and was confirmed with real git in bash and zsh: a clean run checks the commit, not the PL's dirty edit; a leftover folder or an unreachable commit stops with exit 128 and runs no check; the PL's clone is untouched. team finish's losing approve (STATE then an approval) sets its record aside; other refusals keep it. Review 2's minors are fixed. Recorded limits (Minor): a record whose approve failed for a non-STATE reason, followed by a web approval, no rerun and a closed PR, can still approve a later round; worktrees of an earlier round's commit are not cleaned up; repo names in the prompt are not flattened (repo owners only).",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-3.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-3.md": "ff5695e76e7e7c96512024f562bcbd490d514f5981d8d643f63e9a96b22190a3"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-20T01:34:15.945Z"
+    },
+    {
+      "event": "reset",
+      "nodeId": "workflow-verify",
+      "affected": [
+        "workflow-verify"
+      ],
+      "reason": "tests-2of3: team-registry stop under load (unrelated), rerun",
+      "at": "2026-11-20T01:38:49.125Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-20T01:38:55.597Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-verify",
+      "at": "2026-11-20T01:43:31.411Z",
+      "result": {
+        "status": "completed",
+        "attempts": 2,
+        "revision": 3,
+        "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e",
+        "executions": {
+          "tests-1of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/96dd5408-eca0-49e4-8313-58fad8fbe867/receipt.json",
+            "hash": "d0cc19508f6a52ade1dbf140cca7aba8282a55a9edf745469fe5e04c15c88c09"
+          },
+          "tests-2of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/fef867d3-fe03-4189-87e0-950b75a5235d/receipt.json",
+            "hash": "d98944061b7556c9ffff9ba31466e491d3061fb81e674c74e33b796aa951489c"
+          },
+          "tests-3of3": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/3ac04a01-8eec-43ea-9976-d4f84ca31ef6/receipt.json",
+            "hash": "e27aa0dbeafe9fb702f2fc0bd9bdac988ee6fb07565494fa50a5dc21573d9527"
+          },
+          "typecheck": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/8b1f1f9b-1788-4889-a5c7-5fef6e356d24/receipt.json",
+            "hash": "f970beda655455145d3fa82648d4ac8f7fa927ae68932e43ebd28846ea8028ae"
+          },
+          "story": {
+            "file": ".ai-workflow/evidence/6037030d-8332-49c9-bb30-57424a2e9080/38a7c95e-f230-4b7c-8cee-84c7d3f2a196/receipt.json",
+            "hash": "5bf85b1637c2f01033356ace79bc8a2fcd80274b7c0f7d1d9f63387af51241f9"
+          }
+        },
+        "output": {
+          "summary": "Fresh kit verification on 26931c0 (code ac1cb5c), attempt 2: tests 738/738 + 608/608 + 703/703 = 2049/2049, typecheck exit 0, story check exit 0. Attempt 1 failed one untouched team-registry stop test under residual load (607/608 in part 2). The hands-on web approval and merge on a copy Hub await the user's choice and allowance.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-verify-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "cf4a0ea44c520266aa64307173ad50896a6b8d8d8a27923cfb0ed67fcbbc341e"
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-verify-2.md": "7a7feeff12530668c4b1b547d88d9fc828ee97d149975f22304ee3f081c635a6"
+        }
+      }
+    }
+  ],
+  "approval": {
+    "file": ".ai-workflow/approvals/pazmo-agent-office-g1.json",
+    "hash": "58d42f16b276aa6c2e19b999371352c49015f7c36e78e75434555e6f7f866d9b"
+  },
+  "verification": {
+    "value": {
+      "version": 1,
+      "recipe": "docs/verification/kit-checks.md",
+      "checks": [
+        {
+          "id": "tests-1of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "0",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-2of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "1",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "tests-3of3",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "node",
+            "scripts/kit-test-shard.mjs",
+            "2",
+            "3"
+          ],
+          "timeoutMs": 300000
+        },
+        {
+          "id": "typecheck",
+          "covers": [
+            "V1",
+            "V2",
+            "V3",
+            "V4",
+            "V5",
+            "V6",
+            "V8",
+            "V9",
+            "V10",
+            "V13",
+            "V14",
+            "V17",
+            "V18",
+            "V19",
+            "V20"
+          ],
+          "argv": [
+            "npm",
+            "run",
+            "typecheck"
+          ],
+          "timeoutMs": 180000
+        },
+        {
+          "id": "story",
+          "covers": [
+            "V2"
+          ],
+          "argv": [
+            "node",
+            ".ai-workflow/bin/check.mjs",
+            "story",
+            "docs/understanding/pazmo-agent-office-contract.md"
+          ],
+          "timeoutMs": 30000
+        }
+      ],
+      "requiresG3": false
+    },
+    "fingerprint": "4eeacf1b6d976dd9a642b387a80be89dc8948932f178419f935db2f7953f32f5",
+    "recipe": {
+      "path": "docs/verification/kit-checks.md",
+      "hash": "7e811ada60b2aecb18423c48589006520c7cb7958c8dee9e76f852b50848002e"
+    }
+  }
+}

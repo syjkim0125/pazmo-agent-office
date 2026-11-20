@@ -785,9 +785,12 @@ test("the Story page shows the PL Office's Story check result: the summary once 
   assert.ok(!(await storyPage(h.pl)).includes("Story 검증 결과"), "a released check is ready again, so its old failure is not shown");
   v = h.board.claimVerify(s.plBe, s.storyId);
   h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: true, summary: "Story 검사 통과: 레포 1개, 검사 1개.\n- app-be @ 0123456789ab: V1 통과" });
-  const passed = await storyPage(h.pl);
+  const passed = await storyPage(h.c);
   assert.ok(passed.includes(`<h2 id="checked">Story 검증 결과</h2><pre>Story 검사 통과: 레포 1개, 검사 1개.\n- app-be @ 0123456789ab: V1 통과</pre>`));
-  assert.ok(passed.includes("결과 승인은 PL의 Mac(claude 대화)에서 합니다."));
+  // D49: the PL reads it in the 결과 승인 card; a check without commits offers 다시 검증 there.
+  const mine = await storyPage(h.pl);
+  assert.ok(mine.includes(`<pre>Story 검사 통과: 레포 1개, 검사 1개.\n- app-be @ 0123456789ab: V1 통과</pre>`));
+  assert.ok(mine.includes("<button>다시 검증</button>"));
 });
 
 test("after the PL's local approval the Story page shows the approval, each repo's merge with its PR, and a PR waiting for a person (D48)", async (t) => {
@@ -834,6 +837,130 @@ test("after the PL's local approval the Story page shows the approval, each repo
   assert.ok(page.includes(pill("완료")));
   assert.ok(page.includes("app-fe → develop: 머지됨"));
   assert.ok(!page.includes("결과가 승인됐습니다"), "no waiting sentence once done");
+});
+
+/** D49: every work Task merged with a summary and an ASSUMED line, then the Story check passed (with `commits` or not). */
+function awaiting(h, s, commits) {
+  const cBe = h.linkOf(h.c, h.be), bFe = h.linkOf(h.b, h.fe);
+  let n = 0;
+  const done = (l) => {
+    const x = h.board.claimNext(l);
+    h.board.mergeLock(l, x.taskId, x.claimId);
+    h.board.reportMerged(l, x.taskId, x.claimId, merged({ mergeCommit: String(++n).padStart(40, "0"), summary: "첫째 줄\n둘째 줄\n셋째 줄\n넷째 줄", assumptions: ["ASSUMED: 쿠폰 코드는 <8>자"] }));
+  };
+  done(cBe);
+  done(cBe);
+  done(bFe);
+  const v = h.board.claimVerify(s.plBe, s.storyId);
+  h.board.reportVerify(s.plBe, v.taskId, v.claimId, { passed: true, summary: "Story 검사 통과: app-be V1", ...(commits ? { commits } : {}) });
+}
+
+test("the PL alone sees the 결과 승인 card: check result, Task summaries and ASSUMED, compare links, QA list, run steps and an AI prompt (D49)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const commits = { [h.be]: "a".repeat(40), [h.fe]: "b".repeat(40) };
+  awaiting(h, s, commits);
+  const page = (await h.get(`/stories/${s.storyId}`, h.pl)).text;
+  const card = page.slice(page.indexOf(`<h2 id="approve">`), page.indexOf("</section>", page.indexOf(`<h2 id="approve">`)));
+  assert.ok(card.startsWith(`<h2 id="approve">결과 승인</h2>`));
+  assert.ok(card.includes("<pre>Story 검사 통과: app-be V1</pre>"), "the check result");
+  assert.ok(!page.includes(`id="checked"`), "shown once, in the card");
+  assert.ok(card.includes("첫째 줄\n둘째 줄\n셋째 줄") && !card.includes("넷째 줄"), "three lines per Task");
+  assert.ok(card.includes("AI가 정한 것: 쿠폰 코드는 &#60;8&#62;자"), "ASSUMED, escaped");
+  assert.ok(card.includes(`<a href="https://github.example.com/team/app-be/compare/main...${"a".repeat(40)}" rel="noreferrer">app-be: main … aaaaaaaaaaaa</a>`));
+  assert.ok(card.includes(`https://github.example.com/team/app-fe/compare/develop...${"b".repeat(40)}`));
+  assert.ok(card.includes("Story 글의 목표대로 동작하는지(Story 글 참고)"), "a free-text Story still gets an item");
+  assert.ok(card.includes("— 이대로 괜찮은지"));
+  assert.ok(card.includes("<p>Task가 맡은 파일(계획)</p>") && card.includes("<code>src/api.ts</code>"), "the Tasks' planned scope, said as such (review 1)");
+  const dir = `../app-be-story-${s.number}-${"a".repeat(12)}`;
+  assert.ok(card.includes(`git worktree add --detach ${dir} ${"a".repeat(40)} &#38;&#38; (cd ${dir} &#38;&#38; npm test)`), "run steps in a separate worktree, stopped by a failed add");
+  assert.ok(card.includes("새 폴더에는 의존성이 설치돼 있지 않습니다."), "the install note");
+  assert.ok(!card.includes("git switch"), "never the PL's own folder (review 1 I2)");
+  assert.ok(card.includes(`<pre id="approve-prompt" class="mono">`), "the prompt is a selectable box");
+  assert.ok(card.includes("Playwright로 브라우저를 띄워"));
+  assert.ok(card.includes(`<button type="button" class="secondary copy-only" data-copy-target="approve-prompt">복사</button>`));
+  // Outside <main>, so a card that arrives through the live refresh still gets its copy button (review 1).
+  assert.ok(page.indexOf(`<script src="/copy.js" defer></script>`) > page.indexOf("</main>"));
+  assert.equal(page.split(`<script src="/copy.js"`).length, 2, "loaded once");
+  const fingerprint = h.board.finishView(s.plBe, s.number).fingerprint;
+  assert.ok(card.includes(`<form method="post" action="/stories/${s.storyId}/approve">`));
+  assert.ok(card.includes(`<input type="hidden" name="fingerprint" value="${fingerprint}">`));
+  const kept = h.board.finishView(s.plBe, s.number).verified;
+  assert.deepEqual(kept, commits);
+  assert.ok(card.includes(`name="commits" value="${JSON.stringify(kept).replaceAll('"', "&#34;")}"`), "the commits as the Hub keeps them");
+  assert.ok(card.includes(`<input type="checkbox" name="confirm" value="yes" required> 검사 결과, 바뀐 코드, AI가 정한 것을 확인했습니다</label>`));
+  assert.ok(card.includes("<button>승인하고 main에 머지</button>"));
+  for (const who of [h.c, h.admin]) {
+    const other = (await h.get(`/stories/${s.storyId}`, who)).text;
+    assert.ok(!other.includes(`id="approve"`), "not for anyone else, a hub admin included");
+    assert.ok(other.includes("모든 Task가 끝났습니다. PL이 결과를 승인하면 레포마다 main에 머지됩니다."));
+    assert.ok(other.includes(`id="checked"`), "everyone else still reads the check result");
+  }
+});
+
+test("the 결과 승인 button records a web approval, refuses a stale view, a missing box and anyone else (D49)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const commits = { [h.be]: "a".repeat(40), [h.fe]: "b".repeat(40) };
+  awaiting(h, s, commits);
+  const fingerprint = h.board.finishView(s.plBe, s.number).fingerprint;
+  const path = `/stories/${s.storyId}/approve`;
+  const fields = { fingerprint, commits: JSON.stringify(commits), confirm: "yes" };
+  assert.equal((await post(h, h.pl, path, { ...fields, confirm: "" })).status, 400, "the box");
+  assert.equal((await post(h, h.pl, path, { ...fields, fingerprint: "f".repeat(64) })).status, 409, "a stale page");
+  assert.equal((await post(h, h.pl, path, { ...fields, commits: JSON.stringify({ ...commits, [h.be]: "e".repeat(40) }) })).status, 409);
+  assert.equal((await post(h, h.pl, path, { ...fields, commits: "{" })).status, 400);
+  assert.equal((await post(h, h.c, path, fields)).status, 403);
+  assert.equal((await post(h, h.admin, path, fields)).status, 403);
+  for (const [headers, csrf] of [[{ origin: "https://evil.example.com" }, h.pl.csrf], [{ origin: h.hub.url }, "nope"]]) {
+    const res = await h.call("POST", path, { cookie: h.pl.cookie, headers, body: new URLSearchParams({ csrf, ...fields }).toString() });
+    assert.equal(res.status, 403);
+  }
+  assert.equal(h.board.storyFinish(s.storyId), null, "nothing recorded");
+  const ok = await post(h, h.pl, path, fields);
+  assert.equal(ok.status, 303);
+  assert.equal(ok.headers.location, `/stories/${s.storyId}`);
+  assert.equal((await post(h, h.pl, path, fields)).status, 303, "a double click");
+  assert.equal(h.board.storyFinish(s.storyId).approval.via, "web");
+  assert.deepEqual(h.board.inbox(s.plBe).finishReady, [s.storyId], "the PL Office takes it");
+  const page = (await h.get(`/stories/${s.storyId}`, h.c)).text;
+  assert.ok(page.includes(`<h2 id="merged">main 머지</h2><p class="muted wrap">웹 승인 · PL · `));
+  assert.ok(page.includes("결과가 승인됐습니다. PL의 Mac이 레포마다 머지하고 있습니다."));
+  assert.ok(!(await h.get(`/stories/${s.storyId}`, h.pl)).text.includes(`id="approve"`), "no card once approved");
+});
+
+test("a web approval that loses to the PL's local one shows the Story, which says who approved (D49, review 1)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  const commits = { [h.be]: "a".repeat(40), [h.fe]: "b".repeat(40) };
+  awaiting(h, s, commits);
+  const fingerprint = h.board.finishView(s.plBe, s.number).fingerprint;
+  const { deviceCode, userCode } = h.store.startMac("PL의 MacBook");
+  h.store.approveMac(h.pl.member, userCode);
+  const mac = h.store.link(h.store.macLink(h.store.mac(h.store.pollMac(deviceCode).macToken), h.fe).token);
+  h.board.approveStory(mac, h.store.currentMac(h.pl.member.id), s.storyId, { fingerprint, commits, recordHash: "c".repeat(64) });
+  const res = await post(h, h.pl, `/stories/${s.storyId}/approve`, { fingerprint, commits: JSON.stringify(commits), confirm: "yes" });
+  assert.equal(res.status, 303);
+  assert.equal(res.headers.location, `/stories/${s.storyId}`);
+  assert.equal(h.board.storyFinish(s.storyId).approval.macName, "PL의 MacBook", "the first approval stays");
+  assert.ok((await h.get(`/stories/${s.storyId}`, h.pl)).text.includes("결과 승인 · PL의 MacBook · "));
+});
+
+test("a Story at 승인 대기 without checked commits offers 다시 검증, which opens its check again (D49)", async (t) => {
+  const h = await team(t);
+  const s = h.story();
+  awaiting(h, s, null);
+  const page = (await h.get(`/stories/${s.storyId}`, h.pl)).text;
+  assert.ok(page.includes(`<h2 id="approve">결과 승인</h2>`));
+  assert.ok(page.includes(`<form method="post" action="/stories/${s.storyId}/recheck">`));
+  assert.ok(page.includes("<button>다시 검증</button>"));
+  assert.ok(!page.includes(`action="/stories/${s.storyId}/approve"`));
+  assert.equal((await post(h, h.c, `/stories/${s.storyId}/recheck`)).status, 403);
+  const res = await post(h, h.pl, `/stories/${s.storyId}/recheck`);
+  assert.equal(res.status, 303);
+  assert.equal(h.board.finishView(s.plBe, s.number).state, "open");
+  assert.deepEqual(h.board.inbox(s.plBe).verifyReady, [s.storyId]);
+  assert.equal((await post(h, h.pl, `/stories/${s.storyId}/recheck`)).status, 303, "a double click shows the Story checking again");
 });
 
 test("every new POST is 403 from another origin or without the CSRF token", async (t) => {
@@ -921,6 +1048,6 @@ test("U53: off the Task page a failure says where its reason is; the held note i
   const { failureElsewhere, AWAITING_G4, HELD_SHORT } = await import("../src/hub/story-pages.ts");
   assert.equal(failureElsewhere("", "work"), "AI가 세 번 시도했지만 끝내지 못했습니다. Task 화면에서 이유를 보고 메모를 남겨 다시 시도하세요.");
   assert.equal(failureElsewhere("git push failed 3 times in a row: x", "work"), "Mac에서 git·GitHub 단계가 세 번 잇달아 실패했습니다. Task 화면에서 이유를 확인한 뒤 다시 시도하세요.");
-  assert.equal(AWAITING_G4, "모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.");
+  assert.equal(AWAITING_G4, "모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.");
   assert.equal(HELD_SHORT, "맡은 사람의 Mac이 10분 넘게 조용합니다.");
 });

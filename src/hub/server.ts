@@ -307,7 +307,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           const v = board.story(actor, m[1]);
           const lane = board.storyBoard(actor, v.id);
           const taskBoard = lane ? boardPages.storyTaskBoard(lane, c.store.macBadges(), me) : null;
-          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard, finish: board.storyFinish(v.id) }, live()));
+          const approve = board.approvalView(actor, v.id);
+          return html(res, 200, storyPages.storyPage(me, s.csrf, v, { upload: board.storyUpload(v.id), board: taskBoard, finish: board.storyFinish(v.id), approve }, live()));
         }
         if ((m = new RegExp(`^/tasks/${ID}$`).exec(path))) {
           const d = board.taskDetail(actor, m[1]);
@@ -446,6 +447,36 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           board.cancelTask({ member: me }, id, { refuseLocked: true });
         }
         return redirect(res, `/tasks/${id}`);
+      }
+      if ((m = new RegExp(`^/stories/${ID}/approve$`).exec(path))) {
+        const id = m[1];
+        // D49: the PL's web result approval, bound to what the page showed; the box is the PL's word.
+        if (f("confirm") !== "yes") throw new HubError("INVALID", 400, "승인하려면 '확인했습니다'를 체크하세요.");
+        let commits: unknown;
+        try {
+          commits = JSON.parse(f("commits"));
+        } catch {
+          throw new HubError("INVALID", 400, "화면을 새로 고친 뒤 다시 시도해주세요.");
+        }
+        try {
+          board.approveOnWeb({ member: me }, id, { fingerprint: f("fingerprint"), commits });
+        } catch (error) {
+          // Another approval came first (the PL's `team finish`): the Story page says who approved, so show it.
+          const first = error instanceof HubError && error.code === "STATE" && board.storyFinish(id)?.approval;
+          if (!first) throw error;
+        }
+        return redirect(res, `/stories/${id}`);
+      }
+      if ((m = new RegExp(`^/stories/${ID}/recheck$`).exec(path))) {
+        const id = m[1];
+        try {
+          board.recheckStory({ member: me }, id);
+        } catch (error) {
+          // A double click: the first submit already opened the Story's check again, so the second shows it too.
+          const again = error instanceof HubError && error.code === "STATE" && board.story({ member: me }, id).state === "open";
+          if (!again) throw error;
+        }
+        return redirect(res, `/stories/${id}`);
       }
       if ((m = new RegExp(`^/stories/${ID}/cancel$`).exec(path))) {
         const id = m[1];

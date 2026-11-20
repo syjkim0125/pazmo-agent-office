@@ -11,7 +11,8 @@ A Story on the team Hub shows **승인 대기**: every Task is merged and the PL
 passed on each repo's latest Story base). The PL (the person who leads the Story) approves the result here, in this
 conversation, on the PL's own Mac (the one connected with `pazmo-office mac connect`). The Hub records it as a local
 approval with this Mac's name. The PL's team Office then merges each repo's Story base into its base branch. Nothing
-is merged until the PL has said yes to you here.
+is merged until the PL has said yes to you here. The PL can instead approve on the Story's Hub page (결과 승인 card,
+D49); whichever approval comes first is used, and `team finish` then reports `status: "approved"`.
 
 ## Steps
 

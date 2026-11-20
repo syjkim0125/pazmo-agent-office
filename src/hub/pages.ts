@@ -157,7 +157,7 @@ details.manage .row{margin-top:8px}details.manage form.inline{max-width:100%}det
 .tiles{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:8px}.tiles a{display:inline-flex;align-items:center;min-height:44px;padding:0 16px;border-radius:12px;background:var(--bg);color:var(--fg);font-weight:600;text-decoration:none}.tiles a:hover{background:var(--tray)}
 .callout{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;padding:14px 16px;border-radius:14px;background:var(--stop-bg);color:var(--stop)}.callout pre{background:var(--panel);color:var(--fg);font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:14px}.callout summary{font-size:14px}
 .head form:not(.inline),section:not(.decide)>form:not(.inline){background:var(--bg);border-radius:14px;padding:14px}
-section.decide{border:2px solid var(--need-bar)}.decide form{background:none;padding:0}details.other>summary{color:var(--muted)}.head h1{font-size:26px}
+section.decide{border:2px solid var(--need-bar)}html:not(.copy) .copy-only{display:none}ul.qa li{margin:4px 0}.decide form{background:none;padding:0}details.other>summary{color:var(--muted)}.head h1{font-size:26px}
 p.state{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
 table{width:100%;border-collapse:collapse}table,.pill,.mac,.macchip,.meta,.code,ul.work,.glinks{font-variant-numeric:tabular-nums}th{font-size:13px;font-weight:650;color:var(--muted)}td,th{text-align:left;padding:10px;border-bottom:1px solid var(--line);vertical-align:top}tbody tr:last-child td{border-bottom:0}
 .scroll{overflow-x:auto}
@@ -267,6 +267,8 @@ export type Chrome = {
   path?: string;
   /** Whether the page asks to refresh itself while shown (the live script). */
   live?: boolean;
+  /** Whether the page loads the copy script (outside <main>, so a part swapped in by the live script still gets it). */
+  copy?: boolean;
 };
 /** The newest Mac's state in the header (and on a plan page, the PL's); a Mac whose last beat is older than the store's limit arrives as "off". */
 export const macBadgeLabel = (b: MacBadge) =>
@@ -335,7 +337,7 @@ export function layout(title: string, me: Member | null, body: string, chrome: C
     : me
     ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : "";
-  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}</body></html>`;
+  return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}${chrome.copy ? '<script src="/copy.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
   return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${say(message)}</p><p><a href="/">처음으로</a></p></section>`);

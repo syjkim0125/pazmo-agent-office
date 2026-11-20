@@ -1,0 +1,364 @@
+✔ /tasks is the Task board with five columns per Story (138.310208ms)
+✔ backlog holds a Task that waits for another (64.761458ms)
+✔ card shows assignee, Mac state and time in column (90.573125ms)
+✔ story card shows state, PL and who works now; planners get 새 Story (87.712875ms)
+✔ stopped card stays in its column with a plain reason (61.292625ms)
+✔ planning lanes (67.744375ms)
+✔ a web-planned Story and an uploaded Story share one board (89.274791ms)
+✔ mine and cancelled toggles are links (77.968375ms)
+✔ cancelled cards show in a strip only with the toggle (73.989625ms)
+✔ board escapes card text (64.327083ms)
+✔ menu is board and team (62.473666ms)
+✔ auto-work switch returns to the page it was pressed on (70.585875ms)
+✔ old home lives at /me (66.091375ms)
+✔ team page for everyone (70.945083ms)
+✔ old addresses still answer (71.231208ms)
+✔ hub without a board is unchanged (4.504417ms)
+✔ safePath keeps only known pages (0.133834ms)
+✔ a card wears its state: tone, name tag, Mac dot, time and number (66.020959ms)
+✔ 나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does (75.84825ms)
+✔ a lane says how many of its Tasks are done (59.318333ms)
+✔ the menu marks the page you are on (81.801667ms)
+✔ the header shows me, the switch and my Mac with words beside their shapes (65.999042ms)
+✔ an empty project says what comes next (55.120542ms)
+✔ the stylesheet keeps both themes, visible focus, large targets and no sideways scroll (54.869333ms)
+✔ / and /board are the Story board: Story cards in the five Story-stage columns, no Task cards (69.964333ms)
+✔ the Story board keeps 내 Story만 and 취소한 것도 보기, and its tabs carry them (63.693334ms)
+✔ the 완료 column shows the five newest done Stories and folds the rest (70.637792ms)
+✖ a Story page carries its stage steps and its own Task board with every card (94.212333ms)
+✔ the store's board for one Story has every card of it (69.524625ms)
+✔ 나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in (74.250625ms)
+✔ review fixes: tables keep their width, the count badge reads, focus keeps its shape, targets are 44px (59.95925ms)
+✔ a long unbroken word cannot widen a page, and Story cards keep to their column (55.457459ms)
+✔ the 기획 중 column is drawn hub-wide: on a hub without web plans, on every project once any project has a draft (60.797292ms)
+✔ the 완료 column puts the Stories that finished last first, whatever their number (69.367833ms)
+✔ a cancelled Story in the strip is quiet and says what it had (64.749208ms)
+✔ a cancelled Story card counts only its cancelled Tasks and says how many had finished (73.200959ms)
+✔ a passed step shows its ✓ beside its name, and the stages stay one row on every window wider than a phone (69.343833ms)
+✔ a cancelled Story's page and Task-board lane say what it had, like its card (80.109625ms)
+✔ 나를 기다리는 일 groups rows of the same word into one row, hides none and puts stopped ones first (D44) (74.835791ms)
+✔ project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44) (88.72275ms)
+✔ on 전체, projects with no Story fold into one line that leads to each one's chip view (D44) (79.588417ms)
+✔ chips wrap on a phone and every new target is 44px (D44) (68.486ms)
+✔ U44: every control is at least 32px tall with a mouse and 44px square on touch (79.911458ms)
+✔ U44: the accent marks only the primary action, the current selection, focus, hover and links (84.824208ms)
+✔ U44: text never pushes a box wider than its track (82.578416ms)
+✔ U44: the space between groups is at least twice the space inside them (64.412833ms)
+✔ U44: counts, times and table numbers line up (115.913125ms)
+✔ U45: the header keeps short words on a phone and one full name for screen readers (159.173666ms)
+✔ U45: form fields are outlined at 3:1 or more against the panel and the page in both themes (117.270542ms)
+✔ U45: a Mac dot differs by shape: round when on, square when resting, a hollow ring when off (196.168208ms)
+✔ U45: the current menu item is underlined in the accent, like the current tab (415.931459ms)
+✔ U45: /members is one row per member; what changes a member sits in a 관리 fold (205.256166ms)
+✔ U45: on /members a Mac button names the Mac, and a revoked member's row has no fold and no usable browser (183.652333ms)
+✔ U45: names with markup are escaped on /members and /repos (258.148125ms)
+✔ U45: a repo with one owner offers no 빼기, and fold buttons wrap inside the column instead of running past it (180.25ms)
+✔ U45: /repos is one row per repo; owner and link changes sit in a 관리 fold that only owners and admins see (79.485083ms)
+✔ U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen (70.284916ms)
+✔ U46: on the board a failed Task's reason points to the Task page, not to a reason below (63.665958ms)
+✔ U46: a Story card has no thick state bar; its state is its word (61.706625ms)
+✔ U46: another member sees a web plan's question or draft as the PL's turn, not as theirs (64.725375ms)
+✔ U46: the boards' heading is read, not shown twice above the tab of the same name (60.427542ms)
+✔ U47: a failed Task's page opens with 지금 할 일: the reason and 다시 시도 first, 풀기 and 취소 folded under 다른 방법 (67.270625ms)
+✔ U47: a Task whose Mac went silent gives its PL 풀기 as 지금 할 일; a running Task has no card and folds 취소 under 이 Task 바꾸기 (74.129709ms)
+✔ U47: a ready Task the viewer may take shows 작업하기 as 지금 할 일 (99.553834ms)
+✔ U47: a Story's page gives its PL 지금 할 일 for stopped Tasks and for the result approval, and nobody else (105.777417ms)
+✔ U47: /me links each Task's Story, says where a failed Task's reason is, and puts a stopped Task of mine first as 지금 할 일 (118.404709ms)
+✔ U47: the card, the lists and the Story steps are drawn without trays (135.670291ms)
+✔ U47: a stopped Task's reason shows once, in the card when there is one, otherwise in the head; one card per page (142.401667ms)
+✔ U47: a lead who also holds the Task gets 다시 시도 as the card's action and 풀기 folded (94.824375ms)
+✔ U47: the card speaks to who reads it: the PL on someone else's failed Task, and a failed Story check (90.218125ms)
+✔ U47: the Story card lists a Task whose Mac went silent, and the result approval reads once for everyone (66.665791ms)
+✔ U47: on /me my Task whose Mac went silent says so and links its page (53.973792ms)
+✔ U47: the step you are on is the bolder one (54.582667ms)
+✔ U47: my held Task asks me to turn my Mac on only while no Mac reports; on or resting it says the Mac is on, on /me and on the Task page (71.572584ms)
+✔ U47: a failed Task's sentence follows the reader: its holder is told to retry even when 풀기 is the card's action; others read who can act (59.761875ms)
+✔ U47: in the card, why the Mac rests and the notes come before its action (56.079584ms)
+✔ U47: a failed Story check gives 풀기's sentence only to who can release, and the Story card does not ask its PL to retry a check (65.847042ms)
+✔ U47: the Story card and /me's 내 Story에서 멈춘 일 speak to the PL: someone else's failed Task says who can retry, mine says to retry (58.105041ms)
+✔ U47: the PL's own silent Task reads as my Mac in the Story card (52.492042ms)
+✔ U48: a stopped Story's card has a 2px stop border on all four sides that hover darkens but never paints over; other cards keep the plain edge (55.314041ms)
+✔ U48: only a stopped Story's card opens with 멈춘 Task N, before its number (58.118166ms)
+✔ U48: on a wide screen an empty stage keeps its equal share, so each stage sits at the same place in every project (56.672583ms)
+✔ U49: the line and ⓘ styles: one sentence per line, a 32px ⓘ (44px on touch), a popover box from tokens, a sheet on a phone (64.034333ms)
+✔ U49: a failed Task's reason reads one sentence per line, the first in bold; 풀기's note sits behind an ⓘ beside it; 취소's stays in view (56.075792ms)
+✔ U49: every ⓘ opens one popover of its own, and every ⓘ is named (60.367459ms)
+✔ U49: a failed Task on the boards speaks to its reader: its assignee is told to retry, others read who can (56.45825ms)
+✔ U49: the new-project form lines repos and base branches up in two columns, each branch named for its repo (52.301291ms)
+✔ U49: what cannot be undone and the security checks stay in view, never behind an ⓘ (64.424708ms)
+✔ U49: an alert's first line is bold: a held Task, a refused form (61.343666ms)
+✔ U49: the Story page's own board tells a failed check's lead to add Tasks from their Mac, and anyone else that the PL does (56.059084ms)
+✔ U49: a created link's ⓘ sits beside its first line (64.7575ms)
+✔ U49: say() puts each sentence on its own line, after a closing parenthesis too, escaped, and keeps a parenthesis whole (0.142541ms)
+✔ U51: the 다크 모드 switch posts /me/theme, keeps a cookie per browser and every page follows it; without the cookie the device setting decides (73.511875ms)
+node:internal/modules/esm/resolve:271
+    throw new ERR_MODULE_NOT_FOUND(
+          ^
+
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/src/hub/story-approve.ts' imported from /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-approve.test.mjs
+    at finalizeResolution (node:internal/modules/esm/resolve:271:11)
+    at moduleResolve (node:internal/modules/esm/resolve:865:10)
+    at defaultResolve (node:internal/modules/esm/resolve:992:11)
+    at #cachedDefaultResolve (node:internal/modules/esm/loader:701:20)
+    at #resolveAndMaybeBlockOnLoaderThread (node:internal/modules/esm/loader:721:38)
+    at ModuleLoader.resolveSync (node:internal/modules/esm/loader:759:56)
+    at #resolve (node:internal/modules/esm/loader:683:17)
+    at ModuleLoader.getOrCreateModuleJob (node:internal/modules/esm/loader:603:35)
+    at ModuleJob.syncLink (node:internal/modules/esm/module_job:163:33)
+    at ModuleJob.link (node:internal/modules/esm/module_job:253:17) {
+  code: 'ERR_MODULE_NOT_FOUND',
+  url: 'file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/src/hub/story-approve.ts'
+}
+
+Node.js v24.19.0
+✖ tests/hub-story-approve.test.mjs (44.067667ms)
+✔ a passed Story check keeps every Story repo's checked commit; a failed one keeps none (D48) (33.124958ms)
+✔ the commits must be exactly the Story's repos, each a full commit (7.133667ms)
+✔ only the PL, from the PL's current Mac, approves a Story at 승인 대기 with its fingerprint and checked commits (10.20025ms)
+✔ the PL Office reports each repo's merge; done needs every repo merged, and a merged repo stays merged (7.912792ms)
+✔ a handed PR closed without merging ends the approval: the Story waits for the PL again and merged repos stay (8.590584ms)
+✔ a Story base that moved after its check sends the Story back to its check; a failed re-check reopens it as failed (15.183334ms)
+✔ finishView is the PL's only and finds a Story by its number (5.467291ms)
+✔ Tasks added after an approval end it, and a repo that gets new work is merged again; others keep their merge (D48, review 1 C2) (9.009375ms)
+✔ a passed check keeps the merged repos; a stuck merge's problem is kept once and cleared by progress (7.599708ms)
+✔ a Story at 승인 대기 whose check kept no commits (before D48) is checked again on the PL's request (14.126167ms)
+✔ an approval that ends with open Story PRs withdraws them, so the PL Office closes them; any state takes the closed report (review 2 I1) (6.176958ms)
+✔ a re-check, a failed re-check and a cancelled Story withdraw the open PRs too; a closed one is not withdrawn (25.407667ms)
+✖ the PL approves on the web with the fingerprint and commits the page showed; nobody else, and a stale view is refused (D49) (5.922708ms)
+✖ a web approval of a Story not at 승인 대기, or without checked commits, is refused (D49) (9.424375ms)
+✖ approvalView shows the card's data to the PL only, at 승인 대기 before an approval (D49) (5.019375ms)
+✔ / is the member's work page with the four sections, and the request board moved to /requests with its view tabs (152.393125ms)
+✔ a hub without a board keeps the request board at / and answers 404 for /board, /stories/<id> and /tasks/<id> (7.642541ms)
+✔ home shows the Mac nudge only when the hub installs Macs and the member has none (71.849333ms)
+✔ a ready Task shows 작업하기 only with auto work off, a live link and no open Task; not-linked says so and links /mac (116.274541ms)
+✔ the header carries 자동으로 일하기 꺼짐 on every page only while auto work is off (109.148ms)
+✔ the board lists projects with Story progress; the Story page lists every Task with its state word and stage (72.658167ms)
+✔ state words: ready 할 일, claimed with stage build 진행 중(구현), merge 머지 중, held 멈춤(Mac 소식 없음), failed 멈춤(실패), merged 완료 (98.199334ms)
+✔ a failed Task shows the plain reason for RUNNER_LIMIT, a closed PR, a conflict and the default, with the raw reason under 자세한 이유 (110.881667ms)
+✔ a Task that failed, was released and is claimed again shows no failure text (86.282875ms)
+✔ a limited assignee Mac shows '사용 한도라 쉬는 중' with '약 25분 뒤' from until; an off Mac shows no wait text (79.685458ms)
+✔ a member with no open Task whose newest Mac rests with claude: not_ready sees what to do on / (72.414625ms)
+✔ a held Task says the Mac is silent and, when the assignee's Mac is off, when it was last seen; when it is on, that the PL can release it (79.506375ms)
+✔ a merged Task shows the summary, the decision lines with ASSUMED in bold and the PR link (65.681417ms)
+✔ buttons follow taskActions: the assignee sees 다시 시도 on a failed Task, the PL and an admin see 풀기 and 취소, another member sees none (77.284958ms)
+✔ untrusted text is escaped on the work, board, Story and Task pages (91.857625ms)
+✔ an unknown Task or Story id is a 404 page; the new pages load no script (77.353375ms)
+✔ inTime says 곧, 약 25분 뒤, 약 2시간 뒤, 약 1시간 5분 뒤 and 잠시 뒤 for null (0.271167ms)
+✔ plainFailure picks by prefix and falls back to the default (0.090208ms)
+✔ switching auto work off and on from the web changes what claimNext gives (68.82725ms)
+✔ 작업하기 from the web claims the Task for the member; the Task page then says 시작 중 and the member's inbox names it (71.331917ms)
+✔ a claim the Mac has not taken yet says it waits for the Mac instead of the Hub's own claim time (64.585125ms)
+✔ 작업하기 without a live link is a NOT_LINKED page and changes nothing (59.142875ms)
+✔ 다시 시도 from the web reruns the failed Task with the memo; a second click lands on the Task page; after the PL released it, a STATE page that says 다시 시도 (63.180708ms)
+✔ a failed Task whose repo the assignee's Mac is not taking now shows why instead of the 다시 시도 form, and the POST is a NOT_LINKED page (60.447166ms)
+✔ 풀기 and 취소 work for the PL and an admin and are FORBIDDEN pages for others; 취소 without the confirm box is an INVALID page and the Task stays (84.683125ms)
+✔ 취소 of a Task that holds the merge lock is a STATE page and the Task stays as it was; after 풀기 it can be cancelled (88.6835ms)
+✔ 풀기 on a failed Story verification Task says the Story verification is prepared again for the PL's Office (78.057334ms)
+✖ the Story page shows the PL Office's Story check result: the summary once passed, the failure while it stays failed (D47) (88.032042ms)
+✔ after the PL's local approval the Story page shows the approval, each repo's merge with its PR, and a PR waiting for a person (D48) (70.33225ms)
+✖ the PL alone sees the 결과 승인 card: check result, Task summaries and ASSUMED, compare links, QA list, run steps and an AI prompt (D49) (61.093208ms)
+✖ the 결과 승인 button records a web approval, refuses a stale view, a missing box and anyone else (D49) (65.001334ms)
+✖ a Story at 승인 대기 without checked commits offers 다시 검증, which opens its check again (D49) (63.455084ms)
+✔ every new POST is 403 from another origin or without the CSRF token (114.533833ms)
+✔ an unknown Task id is a 404 page for every button (74.263209ms)
+✔ a hub without a board answers 404 for the new POSTs (5.674417ms)
+✔ U44: /me's empty parts say what belongs there and the action that fills them (71.705417ms)
+✔ U44: no form sits inside a paragraph on /me or a Task page (71.861917ms)
+✖ U53: off the Task page a failure says where its reason is; the held note is behind an i for those who are not its assignee (1.346209ms)
+ℹ tests 147
+ℹ suites 0
+ℹ pass 137
+ℹ fail 10
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 7957.327125
+
+✖ failing tests:
+
+test at tests/hub-board-page.test.mjs:629:1
+✖ a Story page carries its stage steps and its own Task board with every card (94.212333ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.</p>"))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-board-page.test.mjs:655:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-approve.test.mjs:1:1
+✖ tests/hub-story-approve.test.mjs (44.067667ms)
+  'test failed'
+
+test at tests/hub-story-finish.test.mjs:253:1
+✖ the PL approves on the web with the fingerprint and commits the page showed; nobody else, and a stale view is refused (D49) (5.922708ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: board.approveOnWeb is not a function
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:257:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: board.approveOnWeb is not a function
+        at web (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:256:41)
+        at file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:257:23
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:257:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12),
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-finish.test.mjs:278:1
+✖ a web approval of a Story not at 승인 대기, or without checked commits, is refused (D49) (9.424375ms)
+  AssertionError [ERR_ASSERTION]: The validation function is expected to return "true". Received false
+  
+  Caught error:
+  
+  TypeError: old.board.approveOnWeb is not a function
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:280:10)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: TypeError: old.board.approveOnWeb is not a function
+        at file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:280:33
+        at getActual (node:assert:611:5)
+        at strict.throws (node:assert:759:24)
+        at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:280:10)
+        at Test.runInAsyncScope (node:async_hooks:227:14)
+        at Test.run (node:internal/test_runner/test:1382:25)
+        at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+        at Test.postRun (node:internal/test_runner/test:1522:19)
+        at Test.run (node:internal/test_runner/test:1447:12)
+        at async Test.processPendingSubtests (node:internal/test_runner/test:960:7),
+    operator: 'throws',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-finish.test.mjs:286:1
+✖ approvalView shows the card's data to the PL only, at 승인 대기 before an approval (D49) (5.019375ms)
+  TypeError: board.approvalView is not a function
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-finish.test.mjs:289:22)
+      at Test.runInAsyncScope (node:async_hooks:227:14)
+      at Test.run (node:internal/test_runner/test:1382:25)
+      at Test.processPendingSubtests (node:internal/test_runner/test:960:18)
+      at Test.postRun (node:internal/test_runner/test:1522:19)
+      at Test.run (node:internal/test_runner/test:1447:12)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7)
+
+test at tests/hub-story-pages.test.mjs:764:1
+✖ the Story page shows the PL Office's Story check result: the summary once passed, the failure while it stays failed (D47) (88.032042ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(mine.includes("<button>다시 검증</button>"))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:793:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:858:1
+✖ the PL alone sees the 결과 승인 card: check result, Task summaries and ASSUMED, compare links, QA list, run steps and an AI prompt (D49) (61.093208ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(card.startsWith(`<h2 id="approve">결과 승인</h2>`))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:865:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:894:1
+✖ the 결과 승인 button records a web approval, refuses a stale view, a missing box and anyone else (D49) (65.001334ms)
+  AssertionError [ERR_ASSERTION]: the box
+  
+  404 !== 400
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:902:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: 404,
+    expected: 400,
+    operator: 'strictEqual',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:925:1
+✖ a Story at 승인 대기 without checked commits offers 다시 검증, which opens its check again (D49) (63.455084ms)
+  AssertionError [ERR_ASSERTION]: The expression evaluated to a falsy value:
+  
+    assert.ok(page.includes(`<h2 id="approve">결과 승인</h2>`))
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:930:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }
+
+test at tests/hub-story-pages.test.mjs:1023:1
+✖ U53: off the Task page a failure says where its reason is; the held note is behind an i for those who are not its assignee (1.346209ms)
+  AssertionError [ERR_ASSERTION]: Expected values to be strictly equal:
+  + actual - expected
+  
+  + '모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.'
+  - '모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.'
+  
+      at TestContext.<anonymous> (file:///Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/hub-story-pages.test.mjs:1027:10)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async Test.run (node:internal/test_runner/test:1389:7)
+      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {
+    generatedMessage: true,
+    code: 'ERR_ASSERTION',
+    actual: '모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.',
+    expected: '모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.',
+    operator: 'strictEqual',
+    diff: 'simple'
+  }

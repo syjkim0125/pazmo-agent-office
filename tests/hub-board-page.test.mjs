@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { startTestHub } from "./hub-fixture.mjs";
-import { AWAITING_G4, HELD_SHORT, plainFailure } from "../src/hub/story-pages.ts";
+import { AWAITING_G4, AWAITING_G4_BOARD, AWAITING_OTHERS, HELD_SHORT, plainFailure } from "../src/hub/story-pages.ts";
 import { say } from "../src/hub/pages.ts";
 import { safePath } from "../src/hub/paths.ts";
 import { planStoryKey } from "../src/hub/plan-protocol.ts";
@@ -471,7 +471,7 @@ test("나를 기다리는 일 lists what waits on the viewer, and is gone when n
   assert.ok(pl, "the PL has a box");
   assert.match(pl, /^<h2 id="needs">나를 기다리는 일 <span class="count">3<\/span><\/h2>/);
   // D44: each kind is one row (word, count, shared reason) with its titles as links.
-  assert.ok(unline(pl).includes(`<p class="ghead"><span class="pill need">승인 대기</span><span class="count">1</span><span class="gwhy">${AWAITING_G4}</span></p><p class="glinks"><a href="/stories/${g4.storyId}"><b>승인 Story</b></a></p>`), "the Story waiting for its result approval");
+  assert.ok(unline(pl).includes(`<p class="ghead"><span class="pill need">승인 대기</span><span class="count">1</span><span class="gwhy">${AWAITING_G4_BOARD}</span></p><p class="glinks"><a href="/stories/${g4.storyId}"><b>승인 Story</b></a></p>`), "the Story waiting for its result approval");
   // C's Task, read by the PL: what stopped it and who can retry (U49).
   assert.ok(unline(pl).includes(`<p class="ghead"><span class="pill stop">멈춤(실패)</span><span class="count">1</span><span class="gwhy">AI 사용 한도가 6시간 안에 풀리지 않았습니다. 맡은 사람이 다시 시도할 수 있습니다.</span></p><p class="glinks"><a href="/tasks/${claim.taskId}"><b>a 작업</b> <span class="muted">Story #${s.number}</span></a></p>`), "a stopped Task of the PL's Story");
   assert.ok(pl.includes(`<p class="ghead"><span class="pill need">초안</span><span class="count">1</span>`) && pl.includes(`<a href="/plans/${planId}"><b>초안 기획</b></a>`), "the PL's draft to read");
@@ -652,7 +652,7 @@ test("a Story page carries its stage steps and its own Task board with every car
   assert.ok(page.includes('<a href="/">Story 보드</a>'), "the way back");
   const waiting = (await h.get(`/stories/${g4.storyId}`, h.pl)).text;
   assert.ok(waiting.includes('<li class="now" aria-current="step">승인 대기</li>'));
-  assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 결과 승인은 PL의 Mac(claude 대화)에서 합니다.</p>"));
+  assert.ok(unline(waiting).includes("<p>모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.</p>"));
 });
 
 test("the store's board for one Story has every card of it", async (t) => {
@@ -859,9 +859,9 @@ test("나를 기다리는 일 groups rows of the same word into one row, hides n
   for (const k of [one, two]) assert.ok(groups[0].links.includes(`<a href="/tasks/${k.taskId}"><b>${nameOf(k.taskId)}</b> <span class="muted">Story #${s.number}</span></a>`));
   assert.equal(groups[0].links.match(/<a /g).length, 2);
   assert.ok(groups[1].links === `<a href="/plans/${planId}"><b>초안 기획</b></a>`);
-  assert.equal(unline(groups[2].head), `<span class="pill need">승인 대기</span><span class="count">2</span><span class="gwhy">${AWAITING_G4}</span>`, "one shared reason, said once");
+  assert.equal(unline(groups[2].head), `<span class="pill need">승인 대기</span><span class="count">2</span><span class="gwhy">${AWAITING_G4_BOARD}</span>`, "one shared reason, said once");
   assert.equal(groups[2].links, g4.map((x, i) => `<a href="/stories/${x.storyId}"><b>${["승인 하나", "승인 둘"][i]}</b></a>`).join(""), "no row hidden");
-  assert.equal(unline(box).split(AWAITING_G4).length, 2);
+  assert.equal(unline(box).split(AWAITING_G4_BOARD).length, 2);
 });
 
 test("project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44)", async (t) => {
@@ -1393,7 +1393,7 @@ test("U47: the Story card lists a Task whose Mac went silent, and the result app
   advance(h, g4, "awaiting_g4");
   for (const who of [h.pl, h.b, h.admin]) {
     const page = (await h.get(`/stories/${g4.storyId}`, who)).text;
-    assert.equal(countOf(unline(page), AWAITING_G4), 1, who.member.name);
+    assert.equal(countOf(unline(page), who === h.pl ? AWAITING_G4 : AWAITING_OTHERS), 1, who.member.name);
     assert.equal(decideOf(page) !== null, who === h.pl, `${who.member.name}: the card is the PL's`);
   }
 });

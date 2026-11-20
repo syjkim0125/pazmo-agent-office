@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { fail } from "../cli/project.ts";
+import { fail, OfficeError } from "../cli/project.ts";
 import type { FinishView } from "../hub/story-store.ts";
 import { teamDir } from "./registry.ts";
 import { storyLink } from "./story-link.ts";
@@ -78,17 +78,24 @@ export async function runFinish(o: { root: string; story: number; link?: StoryLi
   if (view.state === "done") return { status: "done", story };
   if (view.state !== "awaiting_g4")
     return fail("FINISH_STATE", `Story #${view.number}은(는) 아직 결과를 승인할 단계가 아닙니다(지금: ${view.state}). Story 검증이 통과해 승인 대기가 된 뒤에 다시 실행하세요.`);
-  const repos = view.branches.map((b) => ({ repo: b.repoName, baseBranch: b.baseBranch, ...(view.repos[b.repoId] ?? { state: "waiting" }) }));
   const path = finishRecordPath(o.root, view.number);
-  if (view.approval) {
-    // The Hub has this approval: a record left behind by a stop right after it (the same hash) is set aside now, so
-    // it can never approve a later round without a new answer.
-    if (existsSync(path) && statSync(path).size <= RECORD_MAX) {
-      const hash = sha256(readFileSync(path));
-      if (hash === view.approval.recordHash) renameSync(path, path.replace(/\.json$/, `.${hash.slice(0, 12)}.approved.json`));
+  /**
+   * The Hub has an approval: any record still at the path is set aside now, so it can never approve a later round
+   * (after a PR closed unmerged) without a new answer. It is this approval's record left by a stop right after it
+   * (the same hash), or one that lost to another approval, for example the PL's web approval (D49, review 1 I1). An
+   * oversized record is named by the time (review 2).
+   */
+  const approvedOnHub = (v: typeof view) => {
+    const approval = v.approval!;
+    if (existsSync(path)) {
+      const hash = statSync(path).size <= RECORD_MAX ? sha256(readFileSync(path)) : null;
+      const kind = hash === approval.recordHash ? "approved" : "superseded";
+      renameSync(path, path.replace(/\.json$/, `.${hash ? hash.slice(0, 12) : `big-${Date.now()}`}.${kind}.json`));
     }
-    return { status: "approved", already: true, story, approval: view.approval, repos, problem: view.problem ?? null };
-  }
+    const merges = v.branches.map((b) => ({ repo: b.repoName, baseBranch: b.baseBranch, ...(v.repos[b.repoId] ?? { state: "waiting" }) }));
+    return { status: "approved", already: true, story, approval, repos: merges, problem: v.problem ?? null };
+  };
+  if (view.approval) return approvedOnHub(view);
   if (!view.verified) {
     // A check from before D48 kept no commits: the Story is checked again, after which it can be approved.
     await onHub(() => link.recheck(view.storyId));
@@ -112,7 +119,17 @@ export async function runFinish(o: { root: string; story: number; link?: StoryLi
   if (statSync(path).size > RECORD_MAX) return fail("FINISH_RECORD", "승인 기록이 64KB를 넘습니다.");
   const bytes = readFileSync(path);
   const recordHash = checkRecord(bytes, view);
-  const { already } = await onHub(() => link.approve(view.storyId, { fingerprint: view.fingerprint, commits: view.verified!, recordHash }));
+  let already: boolean;
+  try {
+    ({ already } = await onHub(() => link.approve(view.storyId, { fingerprint: view.fingerprint, commits: view.verified!, recordHash })));
+  } catch (error) {
+    // Another approval landed after this run read the Story (the PL's web approval): this record lost, so it is set
+    // aside like any other record over an approval (review 2). Any other refusal leaves it in place.
+    if (!(error instanceof OfficeError && error.code === "STATE")) throw error;
+    const now = await onHub(() => link.finishView(o.story));
+    if (!now.approval) throw error;
+    return approvedOnHub(now);
+  }
   renameSync(path, path.replace(/\.json$/, `.${recordHash.slice(0, 12)}.approved.json`));
   return {
     status: "approved",
