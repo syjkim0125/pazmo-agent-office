@@ -145,7 +145,67 @@ test("a revert stays possible on a cancelled Story and ends once the Story is do
   assert.throws(() => done.board.requestDevRevert(done.actor, done.storyId, done.be), code("STATE"));
 });
 
-test("a new verified commit may open a new dev PR; the old open one is the PL Office's to close (D50)", () => {
+/** The Story goes back to work with one more be Task, which is merged, and its check passes on `commit` for be. */
+function nextRound(h, commit) {
+  const { board, c, be, fe, linkOf, plBe, storyId, check } = h;
+  board.addTasks(plBe, storyId, `round-${commit.slice(0, 4)}`, { nodes: [{ id: `more-${commit.slice(0, 4)}`, repoId: be, title: "more", spec: "more", files: ["x.ts"], verify: [check] }], edges: [] });
+  const l = linkOf(c, be);
+  const t = board.claimNext(l);
+  board.mergeLock(l, t.taskId, t.claimId);
+  board.reportMerged(l, t.taskId, t.claimId, merged(99));
+  const v = board.claimVerify(plBe, storyId);
+  board.reportVerify(plBe, v.taskId, v.claimId, { passed: true, summary: "통과", commits: { [be]: commit, [fe]: SHA("b") } });
+}
+const devOf = (n, commit, state, mergeCommit = null) => ({ kind: "dev", state, prNumber: n, prUrl: PR(n), commit, head: commit, mergeCommit });
+
+test("a second round's dev PR keeps the first one's merge, so a revert takes both back (D50, review 1 I1)", () => {
+  const h = awaiting();
+  const { store, board, pl, be, plBe, storyId, actor } = h;
+  store.setDevBranch(pl, be, "dev");
+  board.requestDev(actor, storyId, be, SHA("a"));
+  board.devReport(plBe, storyId, { ...devOf(3, SHA("a"), "merged", SHA("9")), repoId: be });
+  nextRound(h, SHA("c"));
+  let r = board.devCard(actor, storyId).repos[0];
+  assert.equal(r.verified, SHA("c"));
+  assert.equal(r.canOpen, true, "a new verified commit");
+  board.requestDev(actor, storyId, be, SHA("c"));
+  board.devReport(plBe, storyId, { ...devOf(5, SHA("c"), "opened"), repoId: be });
+  assert.equal(board.devCard(actor, storyId).repos[0].canRevert, false, "not while a dev PR is open");
+  board.devReport(plBe, storyId, { ...devOf(5, SHA("c"), "merged", SHA("8")), repoId: be });
+  r = board.devView(plBe, storyId).repos[0];
+  assert.deepEqual(r.merged, [{ prNumber: 3, mergeCommit: SHA("9") }, { prNumber: 5, mergeCommit: SHA("8") }]);
+  board.devReport(plBe, storyId, { ...devOf(5, SHA("c"), "merged", SHA("8")), repoId: be });
+  assert.equal(board.devView(plBe, storyId).repos[0].merged.length, 2, "the same merge again is kept once");
+  assert.equal(board.devCard(actor, storyId).repos[0].canRevert, true);
+});
+
+test("after a merged revert the Story is not sent to that repo's dev again; a revert a person closed allows it (D50, review 1 I2)", () => {
+  const h = awaiting();
+  const { store, board, pl, be, plBe, storyId, actor } = h;
+  store.setDevBranch(pl, be, "dev");
+  board.requestDev(actor, storyId, be, SHA("a"));
+  board.devReport(plBe, storyId, { ...devOf(3, SHA("a"), "merged", SHA("9")), repoId: be });
+  board.requestDevRevert(actor, storyId, be);
+  board.devReport(plBe, storyId, { kind: "revert", repoId: be, state: "opened", prNumber: 4, prUrl: PR(4) });
+  nextRound(h, SHA("c"));
+  assert.equal(board.devCard(actor, storyId).repos[0].canOpen, false, "not while the revert is open");
+  board.devReport(plBe, storyId, { kind: "revert", repoId: be, state: "merged", prNumber: 4, prUrl: PR(4) });
+  assert.equal(board.devCard(actor, storyId).repos[0].canOpen, false, "never after it merged");
+  assert.throws(() => board.requestDev(actor, storyId, be, SHA("c")), code("STATE"));
+
+  const k = awaiting();
+  k.store.setDevBranch(k.pl, k.be, "dev");
+  k.board.requestDev(k.actor, k.storyId, k.be, SHA("a"));
+  k.board.devReport(k.plBe, k.storyId, { ...devOf(3, SHA("a"), "merged", SHA("9")), repoId: k.be });
+  k.board.requestDevRevert(k.actor, k.storyId, k.be);
+  k.board.devReport(k.plBe, k.storyId, { kind: "revert", repoId: k.be, state: "closed", prNumber: 4, prUrl: PR(4) });
+  nextRound(k, SHA("c"));
+  assert.equal(k.board.devCard(k.actor, k.storyId).repos[0].canOpen, true, "a closed revert changed nothing on dev");
+  k.board.requestDev(k.actor, k.storyId, k.be, SHA("c"));
+  assert.equal(k.board.devCard(k.actor, k.storyId).repos[0].revert, null, "the new round starts without it");
+});
+
+test("a person closing the dev PR lets the PL open it again for the same commit (D50)", () => {
   const h = awaiting();
   const { store, board, pl, be, plBe, storyId, actor } = h;
   store.setDevBranch(pl, be, "dev");
@@ -295,6 +355,11 @@ test("the Story page shows the dev PR, a head that is not the verified commit, t
   assert.ok(page.includes(`되돌리기 PR 열림 · <a href="${PR(4)}"`));
   assert.ok(!page.includes("<button class=\"secondary\">dev에서 되돌리기</button>"));
   assert.ok(page.includes(`<h2 id="merged">기준 브랜치에 머지</h2>`));
+  // Each part is its own line (review 1 M7), and a merged revert says why the Story is not sent to dev again.
+  assert.ok(page.includes(`<li><p class="wrap">app-be → dev: 머지됨 · <a href="${PR(3)}" rel="noreferrer">${PR(3)}</a></p><p class="muted wrap">`));
+  h.board.devReport(h.plBe, s.storyId, { kind: "revert", repoId: h.be, state: "merged", prNumber: 4, prUrl: PR(4) });
+  const after = (await h.get(`/stories/${s.storyId}`, h.c)).text;
+  assert.ok(after.includes("dev에서 되돌렸습니다.") && after.includes("되돌린 변경이 빠지므로 이 Story를 이 레포의 dev에 다시 올리지 않습니다."));
 });
 
 test("the link API serves the dev view and takes the PL Office's reports (D50)", async (t) => {

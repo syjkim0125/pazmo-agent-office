@@ -193,6 +193,8 @@ export type DevRepo = {
   /** The verified commit the PL asked to open a dev PR of. */
   wantCommit: string | null;
   dev: DevPr | null;
+  /** Every dev PR of this Story merged into dev, oldest first: a revert reverts them all (review 1 of U57). */
+  merged: { prNumber: number; mergeCommit: string }[];
   revert: RevertPr | null;
   /** Why the last request could not be done, until the next one. */
   reason: string | null;
@@ -402,7 +404,7 @@ CREATE TABLE IF NOT EXISTS hub_task_events(id INTEGER PRIMARY KEY AUTOINCREMENT,
 CREATE TABLE IF NOT EXISTS hub_work_settings(member_id TEXT PRIMARY KEY REFERENCES hub_members(id),auto_work INTEGER NOT NULL CHECK(auto_work IN (0,1)),updated_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_story_uploads(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),mac_id TEXT NOT NULL REFERENCES hub_macs(id),mac_name TEXT NOT NULL,story_hash TEXT NOT NULL,bases TEXT NOT NULL,created_at INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS hub_story_finish(story_id TEXT PRIMARY KEY REFERENCES hub_stories(id),verified TEXT,approval TEXT,repos TEXT NOT NULL,problem TEXT,withdrawn TEXT NOT NULL DEFAULT '[]',updated_at INTEGER NOT NULL);
-CREATE TABLE IF NOT EXISTS hub_story_dev(story_id TEXT NOT NULL REFERENCES hub_stories(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),want TEXT CHECK(want IN ('dev','revert')),want_commit TEXT,dev TEXT,revert TEXT,reason TEXT,updated_at INTEGER NOT NULL,PRIMARY KEY(story_id,repo_id));
+CREATE TABLE IF NOT EXISTS hub_story_dev(story_id TEXT NOT NULL REFERENCES hub_stories(id),repo_id TEXT NOT NULL REFERENCES hub_repos(id),want TEXT CHECK(want IN ('dev','revert')),want_commit TEXT,dev TEXT,merged TEXT NOT NULL DEFAULT '[]',revert TEXT,reason TEXT,updated_at INTEGER NOT NULL,PRIMARY KEY(story_id,repo_id));
 `;
 
 function fail(code: string, status: number, message: string): never {
@@ -1750,8 +1752,8 @@ export class StoryBoard {
   /** Each Story repo with a dev branch other than its base branch, or with a dev record (D50), in the Story's order. */
   #devRepos(s: StoryRow): DevRepo[] {
     const rows = new Map(
-      this.#all<{ repo_id: string; want: "dev" | "revert" | null; want_commit: string | null; dev: string | null; revert: string | null; reason: string | null }>(
-        "SELECT repo_id,want,want_commit,dev,revert,reason FROM hub_story_dev WHERE story_id=?",
+      this.#all<{ repo_id: string; want: "dev" | "revert" | null; want_commit: string | null; dev: string | null; merged: string; revert: string | null; reason: string | null }>(
+        "SELECT repo_id,want,want_commit,dev,merged,revert,reason FROM hub_story_dev WHERE story_id=?",
         s.id,
       ).map((r) => [r.repo_id, r]),
     );
@@ -1766,30 +1768,35 @@ export class StoryBoard {
         want: row?.want ?? null,
         wantCommit: row?.want_commit ?? null,
         dev: row?.dev ? (JSON.parse(row.dev) as DevPr) : null,
+        merged: row ? (JSON.parse(row.merged) as DevRepo["merged"]) : [],
         revert: row?.revert ? (JSON.parse(row.revert) as RevertPr) : null,
         reason: row?.reason ?? null,
       }];
     });
   }
-  #setDev(storyId: string, repoId: string, r: Pick<DevRepo, "want" | "wantCommit" | "dev" | "revert" | "reason">) {
+  #setDev(storyId: string, repoId: string, r: Pick<DevRepo, "want" | "wantCommit" | "dev" | "merged" | "revert" | "reason">) {
     this.#run(
-      `INSERT INTO hub_story_dev(story_id,repo_id,want,want_commit,dev,revert,reason,updated_at) VALUES (?,?,?,?,?,?,?,?)
+      `INSERT INTO hub_story_dev(story_id,repo_id,want,want_commit,dev,merged,revert,reason,updated_at) VALUES (?,?,?,?,?,?,?,?,?)
        ON CONFLICT(story_id,repo_id) DO UPDATE SET want=excluded.want,want_commit=excluded.want_commit,dev=excluded.dev,
-       revert=excluded.revert,reason=excluded.reason,updated_at=excluded.updated_at`,
-      storyId, repoId, r.want, r.wantCommit, r.dev ? JSON.stringify(r.dev) : null, r.revert ? JSON.stringify(r.revert) : null, r.reason, this.#now(),
+       merged=excluded.merged,revert=excluded.revert,reason=excluded.reason,updated_at=excluded.updated_at`,
+      storyId, repoId, r.want, r.wantCommit, r.dev ? JSON.stringify(r.dev) : null, JSON.stringify(r.merged), r.revert ? JSON.stringify(r.revert) : null, r.reason, this.#now(),
     );
   }
   /**
    * What the PL may press for one repo (D50). A dev PR: only from the 결과 승인 card (승인 대기, no approval yet, a
-   * verified commit), with a dev branch, no request waiting, and no open or merged dev PR of that very commit. A revert:
-   * a merged dev PR, a Story not done (a cancelled one included), no request waiting, no revert PR open or merged.
+   * verified commit), with a dev branch, no request waiting, no open or merged dev PR of that very commit, and no revert
+   * open or merged: after a merged revert, git takes the reverted commits as merged already, so a newer dev PR would
+   * leave them out of dev (review 1 of U57). A revert: some dev PR of this Story merged, none open, a Story not done (a
+   * cancelled one included), no request waiting, no revert PR open or merged.
    */
   #devCan(s: StoryRow, f: FinishRow, r: DevRepo, isPl: boolean): { verified: string | null; canOpen: boolean; canRevert: boolean } {
     const verified = f.verified?.[r.repoId] ?? null;
     const same = r.dev !== null && r.dev.commit === verified && r.dev.state !== "closed";
-    const canOpen = isPl && s.state === "awaiting_g4" && !f.approval && verified !== null && r.devBranch !== null && r.want === null && !same;
+    const reverting = r.revert !== null && r.revert.state !== "closed";
+    const canOpen =
+      isPl && s.state === "awaiting_g4" && !f.approval && verified !== null && r.devBranch !== null && r.want === null && !same && !reverting;
     const canRevert =
-      isPl && s.state !== "done" && r.dev?.state === "merged" && r.want === null && (r.revert === null || r.revert.state === "closed");
+      isPl && s.state !== "done" && r.merged.length > 0 && r.dev?.state !== "opened" && r.want === null && !reverting;
     return { verified, canOpen, canRevert };
   }
   /** The dev section of a Story page (D50), for anyone who may see the Story; null when no repo has a dev branch or record. */
@@ -1819,7 +1826,8 @@ export class StoryBoard {
       if (s.state === "awaiting_g4" && !f.approval && can.verified !== null && commit !== can.verified)
         fail("STALE", 409, "그사이 검증 결과가 바뀌었습니다. 화면을 새로 고친 뒤 다시 누르세요.");
       if (!can.canOpen) fail("STATE", 409, "결과 승인 전, 검증한 커밋이 있을 때만 dev에 PR을 열 수 있습니다.");
-      this.#setDev(s.id, r.repoId, { ...r, want: "dev", wantCommit: can.verified, reason: null });
+      // A revert a person closed unmerged is over: the new round may be reverted again.
+      this.#setDev(s.id, r.repoId, { ...r, want: "dev", wantCommit: can.verified, reason: null, revert: null });
       this.#event(s.id, null, a.member.id, "dev_requested", `${r.repoId} ${can.verified}`);
       return { already: false };
     });
@@ -1876,7 +1884,12 @@ export class StoryBoard {
             mergeCommit: state === "merged" ? commitOf(r.mergeCommit, "mergeCommit") : null,
           };
           const answered = repo.want === "dev" && repo.wantCommit === commit;
-          this.#setDev(s.id, repo.repoId, { ...repo, dev, ...(answered ? { want: null, wantCommit: null, reason: null } : {}) });
+          // Every merged dev PR is kept, so a revert takes back all this Story brought to dev, not only the last one.
+          const merged =
+            dev.mergeCommit && !repo.merged.some((m) => m.mergeCommit === dev.mergeCommit)
+              ? [...repo.merged, { prNumber: dev.prNumber, mergeCommit: dev.mergeCommit }]
+              : repo.merged;
+          this.#setDev(s.id, repo.repoId, { ...repo, dev, merged, ...(answered ? { want: null, wantCommit: null, reason: null } : {}) });
           if (repo.dev?.state !== state || repo.dev?.prNumber !== dev.prNumber) this.#event(s.id, null, l.member.id, `dev_${state}`, `${repo.repoId} ${dev.prUrl}`);
           return { ok: true as const };
         }

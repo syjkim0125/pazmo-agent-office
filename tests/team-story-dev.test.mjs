@@ -12,7 +12,7 @@ const URL = (n) => `https://github.example.com/team/be/pull/${n}`;
 
 const repoOf = (over = {}) => ({
   repoId: "repo-be", repoName: "app-be", baseBranch: "main", storyBase: "feature/story-7/base", devBranch: "dev",
-  want: null, wantCommit: null, dev: null, revert: null, reason: null, ...over,
+  want: null, wantCommit: null, dev: null, merged: [], revert: null, reason: null, ...over,
 });
 
 /** A fake Hub for the dev routes; reports change the view the way the Hub does. */
@@ -55,7 +55,7 @@ function fakeGit(o = {}) {
       return "pushed";
     },
     async revert(checkout, p) {
-      g.calls.push(["revert", checkout, p.devBranch, p.mergeCommit, p.branch]);
+      g.calls.push(["revert", checkout, p.devBranch, p.mergeCommits, p.branch]);
       return o.revert ?? { kind: "pushed", head: SHA("9") };
     },
   };
@@ -111,7 +111,7 @@ test("an open dev PR of another commit is closed before the new one opens (D50)"
 
 test("a push or gh failure is reported as the request's reason, and the PL may press again (D50)", async () => {
   const w = world({ git: fakeGit({ push: new OfficeError("GIT_FAILED", "! [remote rejected] (protected branch)") }) });
-  assert.deepEqual(await w.dev.tick(), { ran: true });
+  assert.deepEqual(await w.dev.tick(), { ran: false }, "a failure is not a run (review 1 M1)");
   assert.deepEqual(w.hub.reports, [{ kind: "failed", repoId: "repo-be", reason: "dev로 보낼 브랜치를 올리지 못했습니다: ! [remote rejected] (protected branch)" }]);
   assert.deepEqual(w.pr.calls, []);
   const gh = world({ pr: fakePr({ ensure: new OfficeError("GH_FAILED", "HTTP 401") }) });
@@ -130,22 +130,57 @@ test("a repo that is not on the PL's Office is reported, not tried (D50)", async
   assert.equal(w.hub.reports[1].reason, "이 레포가 PL의 Office에 연결돼 있지 않습니다.");
 });
 
-test("a revert request reverts the merge on its own branch and opens a PR into dev; a conflict or a missing merge says why (D50)", async () => {
-  const merged = { state: "merged", prNumber: 20, prUrl: URL(20), commit: SHA("a"), head: SHA("a"), mergeCommit: SHA("m") };
-  const w = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged })]) });
-  await w.dev.tick();
-  assert.deepEqual(w.git.calls, [["revert", "/data/be/story-checkout", "dev", SHA("m"), `feature/story-7/revert-dev-${"m".repeat(12)}`]]);
-  assert.deepEqual(w.pr.calls, [["ensure", "github.example.com/team/be", "dev", `feature/story-7/revert-dev-${"m".repeat(12)}`]]);
+test("a revert request reverts every dev merge of the Story, newest first, on its own branch and opens a PR into dev; a conflict, a missing merge or a squash says why (D50)", async () => {
+  const merged = { state: "merged", prNumber: 22, prUrl: URL(22), commit: SHA("b"), head: SHA("b"), mergeCommit: SHA("d") };
+  const both = [{ prNumber: 20, mergeCommit: SHA("c") }, { prNumber: 22, mergeCommit: SHA("d") }];
+  const w = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged, merged: both })]) });
+  assert.deepEqual(await w.dev.tick(), { ran: true });
+  assert.deepEqual(w.git.calls, [["revert", "/data/be/story-checkout", "dev", [SHA("d"), SHA("c")], `feature/story-7/revert-dev-${"d".repeat(12)}`]], "both merges, newest first (review 1 I1)");
+  assert.deepEqual(w.pr.calls, [["ensure", "github.example.com/team/be", "dev", `feature/story-7/revert-dev-${"d".repeat(12)}`]]);
   assert.deepEqual(w.hub.reports, [{ kind: "revert", repoId: "repo-be", state: "opened", prNumber: 21, prUrl: URL(21) }]);
 
-  const c = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged })]), git: fakeGit({ revert: { kind: "conflict", files: ["a.ts", "b.ts"] } }) });
-  await c.dev.tick();
+  const one = [{ prNumber: 22, mergeCommit: SHA("d") }];
+  const c = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged, merged: one })]), git: fakeGit({ revert: { kind: "conflict", files: ["a.ts", "b.ts"] } }) });
+  assert.deepEqual(await c.dev.tick(), { ran: false }, "a failure is not a run (review 1 M1)");
   assert.deepEqual(c.hub.reports, [{ kind: "failed", repoId: "repo-be", reason: "dev에서 되돌리기가 충돌합니다: a.ts, b.ts" }]);
   assert.deepEqual(c.pr.calls, [], "no PR for a conflict");
 
-  const m = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged })]), git: fakeGit({ revert: { kind: "missing" } }) });
+  const m = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged, merged: one })]), git: fakeGit({ revert: { kind: "missing" } }) });
   await m.dev.tick();
-  assert.match(m.hub.reports[0].reason, /^dev에 그 머지가 없습니다/);
+  assert.match(m.hub.reports[0].reason, /^dev에 그 머지가 없거나 이미 되돌려져 있습니다/);
+
+  const s = world({ hub: fakeHub([repoOf({ want: "revert", dev: merged, merged: one })]), git: fakeGit({ revert: { kind: "unsupported", commit: SHA("d") } }) });
+  await s.dev.tick();
+  assert.match(s.hub.reports[0].reason, /squash·rebase.*GitHub의 PR 화면에서 Revert 단추로/, "review 1 I3");
+  assert.deepEqual(s.pr.calls, []);
+});
+
+test("a request whose dev branch was emptied, or made before the Story left 승인 대기, is answered and never waits (D50, review 1)", async () => {
+  const gone = world({ hub: fakeHub([repoOf({ devBranch: null, want: "dev", wantCommit: SHA("a") })]) });
+  await gone.dev.tick();
+  assert.deepEqual(gone.hub.reports, [{ kind: "failed", repoId: "repo-be", reason: "이 레포의 dev 브랜치가 비워졌습니다." }]);
+  assert.deepEqual(await gone.hub.link.inbox().then((x) => x.devReady), [], "nothing left to do");
+  const open = world({ hub: fakeHub(undefined, "open") });
+  await open.dev.tick();
+  assert.equal(open.hub.reports[0].reason, "Story가 승인 대기가 아니어서 dev PR을 열지 않았습니다.");
+  assert.deepEqual(open.git.calls, []);
+  const done = world({ hub: fakeHub([repoOf({ want: "revert", merged: [{ prNumber: 20, mergeCommit: SHA("c") }] })], "done") });
+  await done.dev.tick();
+  assert.equal(done.hub.reports[0].reason, "완료된 Story는 dev에서 되돌리지 않습니다.");
+  const cancelled = world({ hub: fakeHub([repoOf({ want: "revert", merged: [{ prNumber: 20, mergeCommit: SHA("c") }] })], "cancelled") });
+  await cancelled.dev.tick();
+  assert.equal(cancelled.hub.reports[0].kind, "revert", "a cancelled Story is reverted");
+});
+
+test("an old dev PR that cannot be closed keeps the new one from opening (D50, review 1 M2)", async () => {
+  const hub = fakeHub([repoOf({ want: "dev", wantCommit: SHA("b"), dev: { state: "opened", prNumber: 20, prUrl: URL(20), commit: SHA("a"), head: SHA("a"), mergeCommit: null } })]);
+  const pr = fakePr();
+  pr.close = async () => { throw new OfficeError("GH_FAILED", "HTTP 403"); };
+  const w = world({ hub, pr });
+  assert.deepEqual(await w.dev.tick(), { ran: false });
+  assert.deepEqual(w.hub.reports, [{ kind: "failed", repoId: "repo-be", reason: "옛 dev PR을 닫지 못해 새 PR을 열지 않았습니다: HTTP 403" }]);
+  assert.deepEqual(w.git.calls, [], "nothing pushed");
+  assert.equal(w.hub.view.repos[0].dev.prNumber, 20, "the old PR stays the one followed");
 });
 
 test("open dev and revert PRs are followed at most once a minute: merged, closed, a new head (D50)", async () => {

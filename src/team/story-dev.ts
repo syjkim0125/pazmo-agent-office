@@ -8,11 +8,17 @@ import type { StoryLink } from "./story-link.ts";
 export type DevGit = {
   /** `branch.pushDevBranch`: a verified commit to its own to-dev branch. */
   push(checkout: string, p: { storyBase: string; branch: string; sha: string }): Promise<"pushed" | "exists">;
-  /** `branch.revertDevMerge`: the revert of a merged dev PR on its own revert-dev branch. */
+  /** `branch.revertDevMerge`: the revert of every merged dev PR of the Story on its own revert-dev branch. */
   revert(
     checkout: string,
-    p: { devBranch: string; mergeCommit: string; branch: string; repo?: string },
-  ): Promise<{ kind: "pushed"; head: string } | { kind: "exists" } | { kind: "missing" } | { kind: "conflict"; files: string[] }>;
+    p: { devBranch: string; mergeCommits: string[]; branch: string; repo?: string },
+  ): Promise<
+    | { kind: "pushed"; head: string }
+    | { kind: "exists" }
+    | { kind: "missing" }
+    | { kind: "unsupported"; commit: string }
+    | { kind: "conflict"; files: string[] }
+  >;
 };
 export type DevPrApi = {
   /** `pr.ensureDevPr`, `pr.viewDevPr` and `pr.closeDevPr`, bound to the person's gh. */
@@ -68,34 +74,39 @@ export function createStoryDev(d: {
   let running = false;
   let stopped = false;
 
-  /** Runs a git or gh step; a refusal a person can act on is reported as the request's reason. */
-  async function attempt(via: StoryLink, storyId: string, r: DevRepo, what: string, step: () => Promise<void>): Promise<void> {
+  /** Runs a git or gh step; a refusal a person can act on is reported as the request's reason. Whether it finished. */
+  async function attempt(via: StoryLink, storyId: string, r: DevRepo, what: string, step: () => Promise<void>): Promise<boolean> {
     try {
       await step();
+      return true;
     } catch (error) {
       if (!SAID.has(codeOf(error) as string)) throw error;
-      const reason = `${what}: ${describe(error).replace(/^[A-Z_]+: /, "")}`.slice(0, 4000);
-      await via.devReport(storyId, { kind: "failed", repoId: r.repoId, reason });
-      log(`team: story ${storyId}: ${r.repoName}: ${reason}`);
+      await fail(via, storyId, r, `${what}: ${describe(error).replace(/^[A-Z_]+: /, "")}`);
+      return false;
     }
   }
+  async function fail(via: StoryLink, storyId: string, r: DevRepo, reason: string) {
+    await via.devReport(storyId, { kind: "failed", repoId: r.repoId, reason: reason.slice(0, 4000) });
+    log(`team: story ${storyId}: ${r.repoName}: ${reason}`);
+  }
 
-  async function openDev(via: StoryLink, view: { storyId: string; number: number; title: string }, r: DevRepo, lane: FinishLane) {
+  /** Whether a PR was opened. */
+  async function openDev(via: StoryLink, view: { storyId: string; number: number; title: string }, r: DevRepo, lane: FinishLane): Promise<boolean> {
     const sha = r.wantCommit as string;
     const branch = `feature/story-${view.number}/to-dev-${sha.slice(0, 12)}`;
     const devBranch = r.devBranch as string;
+    // An open dev PR of another commit is closed first; if it cannot be, nothing new opens beside it (review 1 M2).
     if (r.dev && r.dev.state === "opened" && r.dev.commit !== sha) {
-      await attempt(via, view.storyId, r, "옛 dev PR을 닫지 못했습니다", async () => {
+      const closed = await attempt(via, view.storyId, r, "옛 dev PR을 닫지 못해 새 PR을 열지 않았습니다", async () => {
         await d.pr.close(lane.remote, { number: r.dev!.prNumber, comment: `Pazmo Office: Story #${view.number}의 새 검증 커밋 ${sha.slice(0, 12)}로 dev PR을 다시 엽니다. 이 PR은 머지하지 마세요.` });
       });
+      if (!closed) return false;
     }
-    let pushed = false;
-    await attempt(via, view.storyId, r, "dev로 보낼 브랜치를 올리지 못했습니다", async () => {
+    const pushed = await attempt(via, view.storyId, r, "dev로 보낼 브랜치를 올리지 못했습니다", async () => {
       await d.git.push(lane.checkout, { storyBase: r.storyBase, branch, sha });
-      pushed = true;
     });
-    if (!pushed) return;
-    await attempt(via, view.storyId, r, "dev로 가는 PR을 열지 못했습니다", async () => {
+    if (!pushed) return false;
+    return attempt(via, view.storyId, r, "dev로 가는 PR을 열지 못했습니다", async () => {
       const pr = await d.pr.ensure(lane.remote, {
         base: devBranch,
         head: branch,
@@ -111,34 +122,33 @@ export function createStoryDev(d: {
     });
   }
 
-  async function openRevert(via: StoryLink, view: { storyId: string; number: number }, r: DevRepo, lane: FinishLane) {
-    const mergeCommit = r.dev?.state === "merged" ? r.dev.mergeCommit : null;
-    if (!mergeCommit) {
-      await via.devReport(view.storyId, { kind: "failed", repoId: r.repoId, reason: "dev에 머지된 PR이 없어 되돌릴 것이 없습니다." });
-      return;
+  /** Reverts every dev PR of the Story merged into dev, newest first, on one branch; whether a PR was opened. */
+  async function openRevert(via: StoryLink, view: { storyId: string; number: number }, r: DevRepo, lane: FinishLane): Promise<boolean> {
+    const merges = [...r.merged].reverse();
+    if (!merges.length) {
+      await fail(via, view.storyId, r, "dev에 머지된 PR이 없어 되돌릴 것이 없습니다.");
+      return false;
     }
-    const branch = `feature/story-${view.number}/revert-dev-${mergeCommit.slice(0, 12)}`;
+    const newest = merges[0].mergeCommit;
+    const branch = `feature/story-${view.number}/revert-dev-${newest.slice(0, 12)}`;
     const devBranch = r.devBranch as string;
     let ready = false;
     await attempt(via, view.storyId, r, "dev에서 되돌리지 못했습니다", async () => {
-      const done = await d.git.revert(lane.checkout, { devBranch, mergeCommit, branch, repo: lane.project });
-      if (done.kind === "conflict") {
-        await via.devReport(view.storyId, { kind: "failed", repoId: r.repoId, reason: `dev에서 되돌리기가 충돌합니다: ${done.files.slice(0, 20).join(", ")}` });
-        return;
-      }
-      if (done.kind === "missing") {
-        await via.devReport(view.storyId, { kind: "failed", repoId: r.repoId, reason: "dev에 그 머지가 없습니다(이미 되돌렸거나 dev가 다시 만들어졌습니다)." });
-        return;
-      }
+      const done = await d.git.revert(lane.checkout, { devBranch, mergeCommits: merges.map((m) => m.mergeCommit), branch, repo: lane.project });
+      if (done.kind === "conflict") return fail(via, view.storyId, r, `dev에서 되돌리기가 충돌합니다: ${done.files.slice(0, 20).join(", ")}`);
+      if (done.kind === "missing") return fail(via, view.storyId, r, "dev에 그 머지가 없거나 이미 되돌려져 있습니다(dev가 다시 만들어졌을 수 있습니다).");
+      // A squashed or rebased PR leaves a commit that may hold only part of it: GitHub's own Revert takes the whole PR.
+      if (done.kind === "unsupported")
+        return fail(via, view.storyId, r, `merge commit이 아닌 방식(squash·rebase)으로 머지된 dev PR(${done.commit.slice(0, 12)})은 Office가 정확히 되돌릴 수 없습니다. GitHub의 PR 화면에서 Revert 단추로 되돌리세요.`);
       ready = true;
     });
-    if (!ready) return;
-    await attempt(via, view.storyId, r, "dev 되돌리기 PR을 열지 못했습니다", async () => {
+    if (!ready) return false;
+    return attempt(via, view.storyId, r, "dev 되돌리기 PR을 열지 못했습니다", async () => {
       const pr = await d.pr.ensure(lane.remote, {
         base: devBranch,
         head: branch,
         title: `Story #${view.number} dev 되돌리기`,
-        body: `Story #${view.number}의 dev PR #${r.dev!.prNumber}(머지 ${mergeCommit.slice(0, 12)})을 dev에서 되돌립니다(Pazmo Office). 리뷰와 머지는 사람이 합니다.`,
+        body: `Story #${view.number}이(가) dev에 머지한 PR ${merges.map((m) => `#${m.prNumber}`).join(", ")}을 dev에서 되돌립니다(Pazmo Office). 리뷰와 머지는 사람이 합니다.`,
       });
       await via.devReport(view.storyId, { kind: "revert", repoId: r.repoId, state: STATE[pr.state], prNumber: pr.number, prUrl: pr.url });
       followed.set(`${lane.remote}#${pr.number}`, now());
@@ -190,18 +200,27 @@ export function createStoryDev(d: {
           const lanes = d.lanes();
           for (const r of view.repos) {
             const lane = lanes.find((l) => l.repoId === r.repoId);
-            if (r.want && !lane) {
-              await via.devReport(storyId, { kind: "failed", repoId: r.repoId, reason: "이 레포가 PL의 Office에 연결돼 있지 않습니다." });
+            // A request that cannot be done here is answered, so it never waits forever (review 1 I4, M8).
+            const refused = !r.want
+              ? null
+              : !r.devBranch
+                ? "이 레포의 dev 브랜치가 비워졌습니다."
+                : !lane
+                  ? "이 레포가 PL의 Office에 연결돼 있지 않습니다."
+                  : r.want === "dev" && view.state !== "awaiting_g4"
+                    ? "Story가 승인 대기가 아니어서 dev PR을 열지 않았습니다."
+                    : r.want === "revert" && view.state === "done"
+                      ? "완료된 Story는 dev에서 되돌리지 않습니다."
+                      : null;
+            if (refused) {
+              await fail(via, storyId, r, refused);
               continue;
             }
             if (!lane || !r.devBranch) continue;
-            if (r.want === "dev" && r.wantCommit) {
-              ran = true;
-              await openDev(via, view, r, lane);
-            } else if (r.want === "revert") {
-              ran = true;
-              await openRevert(via, view, r, lane);
-            } else if (view.state !== "done") await follow(via, storyId, r, lane);
+            // Only a PR actually opened counts as a run: a request that keeps failing never holds the claim tick (M1).
+            if (r.want === "dev" && r.wantCommit) ran = (await openDev(via, view, r, lane)) || ran;
+            else if (r.want === "revert") ran = (await openRevert(via, view, r, lane)) || ran;
+            else if (view.state !== "done") await follow(via, storyId, r, lane);
           }
           said.delete(storyId);
         } catch (error) {

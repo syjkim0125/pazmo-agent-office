@@ -240,7 +240,7 @@ const threeLines = (summary: string) => summary.split("\n").filter((l) => l.trim
 const DEV_WORD: Record<DevPr["state"], string> = { opened: "PR 열림", merged: "머지됨", closed: "닫힘" };
 /**
  * Each repo's dev QA (D50): the dev PR and its revert as they are, a head that is not the verified commit, why the last
- * request failed, and the PL's buttons. `heading` is the card's h3 or a section's h2.
+ * request failed, and the PL's buttons. Each part after the first is its own line in the item.
  */
 function devBody(s: StoryView, dev: DevCard, csrf: string): string {
   const items = dev.repos
@@ -248,24 +248,27 @@ function devBody(s: StoryView, dev: DevCard, csrf: string): string {
       const target = r.devBranch ?? "dev";
       const now =
         r.want === "dev" ? "PL의 Mac이 PR을 여는 중" : r.dev ? `${DEV_WORD[r.dev.state]} · ${prLink(r.dev.prUrl)}` : "PR 없음";
-      const moved = r.dev && r.dev.head !== r.dev.commit ? `<span class="muted">${say("dev에 올라간 코드는 검증한 커밋과 다릅니다.")}</span>` : "";
+      const line = (text: string) => `<p class="muted wrap">${say(text)}</p>`;
+      const moved = r.dev && r.dev.head !== r.dev.commit ? line("dev에 올라간 코드는 검증한 커밋과 다릅니다.") : "";
       const revert =
         r.want === "revert"
-          ? `<span class="muted">되돌리기 PR을 여는 중</span>`
+          ? line("되돌리기 PR을 여는 중")
           : r.revert
-            ? `<span class="muted">되돌리기 ${DEV_WORD[r.revert.state]} · ${prLink(r.revert.prUrl)}</span>`
+            ? `<p class="muted wrap">되돌리기 ${DEV_WORD[r.revert.state]} · ${prLink(r.revert.prUrl)}</p>`
             : "";
-      const why = r.reason ? `<span class="muted">${say(`하지 못했습니다: ${r.reason}`)}</span>` : "";
+      // After a merged revert git takes the reverted commits as merged, so a newer PR would leave them out (review 1).
+      const done = r.revert?.state === "merged" ? line("dev에서 되돌렸습니다. 되돌린 변경이 빠지므로 이 Story를 이 레포의 dev에 다시 올리지 않습니다.") : "";
+      const why = r.reason ? line(`하지 못했습니다: ${r.reason}`) : "";
       const open = r.canOpen
         ? `<form method="post" action="/stories/${esc(s.id)}/dev">${csrfField(csrf)}<input type="hidden" name="repo" value="${esc(r.repoId)}"><input type="hidden" name="commit" value="${esc(r.verified ?? "")}"><div class="row"><button class="secondary">dev에 PR 열기</button></div></form>`
         : "";
       const back = r.canRevert
         ? `<form method="post" action="/stories/${esc(s.id)}/dev-revert">${csrfField(csrf)}<input type="hidden" name="repo" value="${esc(r.repoId)}"><div class="row"><button class="secondary">dev에서 되돌리기</button></div></form>`
         : "";
-      return `<li><span class="tx">${esc(r.repoName)} → ${esc(target)}: ${now}${moved}${revert}${why}</span>${open}${back}</li>`;
+      return `<li><p class="wrap">${esc(r.repoName)} → ${esc(target)}: ${now}</p>${moved}${revert}${done}${why}${open}${back}</li>`;
     })
     .join("");
-  return `<p class="muted">${say("dev 브랜치가 있는 레포는 검증한 커밋을 dev로 가는 PR로 올려 dev에서 확인할 수 있습니다. 리뷰와 머지는 GitHub에서 사람이 합니다.")}</p><ul class="items">${items}</ul>`;
+  return `<p class="muted">${say("dev 브랜치가 있는 레포는 검증한 커밋을 dev로 가는 PR로 올려 dev에서 확인할 수 있습니다. 리뷰와 머지는 GitHub에서 사람이 합니다.")}</p><ul class="work">${items}</ul>`;
 }
 
 /**

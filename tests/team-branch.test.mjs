@@ -1440,7 +1440,7 @@ function mergeIntoDev(w, branch, how = "merge") {
   return { other, sha: w.git(other, "rev-parse", "HEAD").trim() };
 }
 
-test("revertDevMerge reverts a merged dev PR (a merge or a squash) on its own branch from dev, once (D50)", async (t) => {
+test("revertDevMerge reverts a merged dev PR on its own branch from dev, once (D50)", async (t) => {
   const w = gitWorld(t);
   w.push("dev", { "dev.txt": "dev\n" });
   const verified = w.push(BASE, { "story.txt": "story\n" });
@@ -1449,7 +1449,7 @@ test("revertDevMerge reverts a merged dev PR (a merge or a squash) on its own br
   await ensureCheckout(w.repo, checkout, e);
   await pushDevBranch(checkout, { storyBase: BASE, branch: toDev(verified), sha: verified }, e);
   const { sha: mergeCommit } = mergeIntoDev(w, toDev(verified));
-  const task = { devBranch: "dev", mergeCommit, branch: revertDev(mergeCommit), repo: w.repo };
+  const task = { devBranch: "dev", mergeCommits: [mergeCommit], branch: revertDev(mergeCommit), repo: w.repo };
   const done = await revertDevMerge(checkout, task, e);
   assert.equal(done.kind, "pushed");
   assert.equal(w.git(w.bare, "rev-parse", `refs/heads/${revertDev(mergeCommit)}`).trim(), done.head);
@@ -1458,17 +1458,42 @@ test("revertDevMerge reverts a merged dev PR (a merge or a squash) on its own br
   assert.equal(w.git(w.bare, "show", `${done.head}:dev.txt`), "dev\n", "dev's own work stays");
   assert.equal(w.git(w.bare, "rev-parse", "refs/heads/dev").trim(), mergeCommit, "dev itself is not written");
   assert.deepEqual(await revertDevMerge(checkout, task, e), { kind: "exists" });
+});
 
+test("revertDevMerge reverts every dev merge of the Story, newest first, so an earlier round's change leaves dev too (D50, review 1 I1)", async (t) => {
+  const w = gitWorld(t);
+  w.push("dev", { "dev.txt": "dev\n" });
+  const a = w.push(BASE, { "a.txt": "a\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  await pushDevBranch(checkout, { storyBase: BASE, branch: toDev(a), sha: a }, e);
+  const { sha: m1 } = mergeIntoDev(w, toDev(a));
+  const b = w.push(BASE, { "b.txt": "b\n" });
+  await pushDevBranch(checkout, { storyBase: BASE, branch: toDev(b), sha: b }, e);
+  const other = join(w.root, "second");
+  w.git(w.root, "clone", "-q", w.bare, other);
+  w.git(other, "checkout", "-q", "dev");
+  w.git(other, "merge", "-q", "--no-ff", "-m", "Merge PR 2", `origin/${toDev(b)}`);
+  w.git(other, "push", "-q", "origin", "dev");
+  const m2 = w.git(other, "rev-parse", "HEAD").trim();
+  void m1;
+  const done = await revertDevMerge(checkout, { devBranch: "dev", mergeCommits: [m2, m1], branch: revertDev(m2), repo: w.repo }, e);
+  assert.equal(done.kind, "pushed");
+  for (const file of ["a.txt", "b.txt"]) assert.throws(() => w.git(w.bare, "cat-file", "-e", `${done.head}:${file}`), file);
+  assert.equal(w.git(w.bare, "show", `${done.head}:dev.txt`), "dev\n");
+});
+
+test("revertDevMerge refuses a squashed or rebased dev PR, which may be only part of the PR, and pushes nothing (D50, review 1 I3)", async (t) => {
   const s = gitWorld(t);
   s.push("dev", { "dev.txt": "dev\n" });
-  const v2 = s.push(BASE, { "story.txt": "story\n" });
-  const c2 = checkoutOf(s);
-  await ensureCheckout(s.repo, c2, env(s));
-  await pushDevBranch(c2, { storyBase: BASE, branch: toDev(v2), sha: v2 }, env(s));
-  const { sha: squash } = mergeIntoDev(s, toDev(v2), "squash");
-  const back = await revertDevMerge(c2, { devBranch: "dev", mergeCommit: squash, branch: revertDev(squash), repo: s.repo }, env(s));
-  assert.equal(back.kind, "pushed", "a squashed PR has one parent");
-  assert.throws(() => s.git(s.bare, "cat-file", "-e", `${back.head}:story.txt`));
+  const v = s.push(BASE, { "story.txt": "story\n" });
+  const checkout = checkoutOf(s);
+  await ensureCheckout(s.repo, checkout, env(s));
+  await pushDevBranch(checkout, { storyBase: BASE, branch: toDev(v), sha: v }, env(s));
+  const { sha: squash } = mergeIntoDev(s, toDev(v), "squash");
+  assert.deepEqual(await revertDevMerge(checkout, { devBranch: "dev", mergeCommits: [squash], branch: revertDev(squash), repo: s.repo }, env(s)), { kind: "unsupported", commit: squash });
+  assert.equal(s.git(s.bare, "ls-remote", "--heads", s.bare, revertDev(squash)).trim(), "", "nothing pushed");
 });
 
 test("revertDevMerge: a revert that conflicts leaves the checkout clean and pushes nothing; a merge not in dev is missing (D50)", async (t) => {
@@ -1484,13 +1509,31 @@ test("revertDevMerge: a revert that conflicts leaves the checkout clean and push
   writeFileSync(join(other, "story.txt"), "changed on dev\n");
   w.git(other, "commit", "-q", "-am", "dev edit");
   w.git(other, "push", "-q", "origin", "dev");
-  const task = { devBranch: "dev", mergeCommit, branch: revertDev(mergeCommit), repo: w.repo };
+  const task = { devBranch: "dev", mergeCommits: [mergeCommit], branch: revertDev(mergeCommit), repo: w.repo };
   assert.deepEqual(await revertDevMerge(checkout, task, e), { kind: "conflict", files: ["story.txt"] });
   assert.equal(w.git(checkout, "status", "--porcelain").trim(), "", "clean");
   assert.equal(w.git(w.bare, "ls-remote", "--heads", w.bare, revertDev(mergeCommit)).trim(), "", "nothing pushed");
-  assert.deepEqual(await revertDevMerge(checkout, { ...task, mergeCommit: "0".repeat(40), branch: revertDev("0".repeat(12)) }, e), { kind: "missing" }, "a commit git does not know");
+  assert.deepEqual(await revertDevMerge(checkout, { ...task, mergeCommits: ["0".repeat(40)], branch: revertDev("0".repeat(12)) }, e), { kind: "missing" }, "a commit git does not know");
   const notInDev = w.push("main", { "m.txt": "m\n" });
-  assert.deepEqual(await revertDevMerge(checkout, { ...task, mergeCommit: notInDev, branch: revertDev(notInDev) }, e), { kind: "missing" });
+  assert.deepEqual(await revertDevMerge(checkout, { ...task, mergeCommits: [notInDev], branch: revertDev(notInDev) }, e), { kind: "missing" });
   await assert.rejects(revertDevMerge(checkout, { ...task, branch: toDev(mergeCommit) }, e), { code: "PUSH_REFUSED" });
   await assert.rejects(revertDevMerge(checkout, { ...task, devBranch: BASE }, e), { code: "GIT_FAILED" });
+  await assert.rejects(revertDevMerge(checkout, { ...task, mergeCommits: [] }, e), { code: "GIT_FAILED" });
+});
+
+test("revertDevMerge: a merge a person already reverted on dev is missing, and the checkout is left clean (D50, review 1 M5)", async (t) => {
+  const w = gitWorld(t);
+  w.push("dev", { "dev.txt": "dev\n" });
+  const verified = w.push(BASE, { "story.txt": "story\n" });
+  const checkout = checkoutOf(w);
+  const e = env(w);
+  await ensureCheckout(w.repo, checkout, e);
+  await pushDevBranch(checkout, { storyBase: BASE, branch: toDev(verified), sha: verified }, e);
+  const { other, sha: mergeCommit } = mergeIntoDev(w, toDev(verified));
+  w.git(other, "revert", "--no-edit", "-m", "1", mergeCommit);
+  w.git(other, "push", "-q", "origin", "dev");
+  const task = { devBranch: "dev", mergeCommits: [mergeCommit], branch: revertDev(mergeCommit), repo: w.repo };
+  assert.deepEqual(await revertDevMerge(checkout, task, e), { kind: "missing" });
+  assert.equal(w.git(checkout, "status", "--porcelain").trim(), "", "clean");
+  assert.equal(w.git(w.bare, "ls-remote", "--heads", w.bare, revertDev(mergeCommit)).trim(), "", "nothing pushed");
 });
