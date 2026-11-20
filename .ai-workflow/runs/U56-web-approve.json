@@ -125,14 +125,16 @@
     "nodes": {
       "implement": {
         "status": "completed",
-        "attempts": 2,
-        "revision": 1,
+        "attempts": 3,
+        "revision": 2,
         "output": {
-          "summary": "Review 1 fixes in d1d94e0. I1: team finish sets aside any record at the live path once the Hub has an approval (approved or superseded name), so a record that lost to a web approval never approves a later round. I2: run steps and the prompt use a detached git worktree beside each repo and remove it; the PL's folder is never switched. Minors: list fenced as data in the prompt, files labelled as planned scope, storyItems like kitStoryRefs, copy.js outside main on the PL's open Story pages, a losing web approval redirects, compare links only for GitHub hosts with / kept, leading = quoted, ASSUMED overflow points to Task pages. RED 43/51 -> GREEN 215/215; full 2046/2046; tsc 0.",
+          "summary": "Review 2 fixes in ac1cb5c. The run worktree is named after the commit and the checks run only after a successful add, in a subshell (add && (cd dir && checks)); cleanup per repo; the prompt says the same and to stop on a failed step. team finish sets its record aside when its own approve loses to a web approval; an oversized record keeps the full time. The prompt forbids only work beyond the check, flattens each item to one line, and adds an install note (also on the card). RED 49/54 -> GREEN touched 234/234; full 2049/2049 at normal load (an earlier full run at load 80-116 timed out in 7 untouched files, which re-run 141/141); tsc 0.",
           "evidence": [
-            ".ai-workflow/runs/U56-web-approve-implement-2.md",
-            ".ai-workflow/runs/U56-web-approve-implement-red-2.txt",
-            ".ai-workflow/runs/U56-web-approve-implement-green-2.txt"
+            ".ai-workflow/runs/U56-web-approve-implement-3.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt"
           ],
           "execution": {
             "selection": "unknown",
@@ -148,20 +150,22 @@
           "passed": true
         },
         "evidenceHashes": {
-          ".ai-workflow/runs/U56-web-approve-implement-2.md": "d9da871c8c248fa7865c03ba6233dc611cca2a94f377316cdfebaaafabfe172f",
-          ".ai-workflow/runs/U56-web-approve-implement-red-2.txt": "b9159731440dd88cc452ea4d7072f08ed5bb04cb5320f201c05e6180b1f50e25",
-          ".ai-workflow/runs/U56-web-approve-implement-green-2.txt": "445e664ae75761db2fd91f6044c1ee6e387888f52dd8d7ecf82a0661c11e3d2a"
+          ".ai-workflow/runs/U56-web-approve-implement-3.md": "6a71af72ee1f888c5ef05fb6fa173646d7fa6b40d2f6a4e70eea54c4d25c37c6",
+          ".ai-workflow/runs/U56-web-approve-implement-red-3.txt": "2ddda97ee13350897db14110a83a691d07570625a035dc8b3274e6bdfaf6e57a",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3.txt": "2706f37a5d8274837fa6801dc2a7f97a18a385108c2229273ce22a2c26aee5ba",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt": "a27492e1872acfd4dfd91f8e027957bf1d169b71393e2729992219611fa08747",
+          ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt": "bafdcac77b6ae66652fb0372857530ad4298f9043db369e09ec4c1f312beb117"
         }
       },
       "workflow-review": {
         "status": "pending",
-        "attempts": 1,
-        "revision": 1
+        "attempts": 2,
+        "revision": 2
       },
       "workflow-verify": {
         "status": "pending",
         "attempts": 0,
-        "revision": 1
+        "revision": 2
       }
     }
   },
@@ -299,6 +303,102 @@
           ".ai-workflow/runs/U56-web-approve-implement-2.md": "d9da871c8c248fa7865c03ba6233dc611cca2a94f377316cdfebaaafabfe172f",
           ".ai-workflow/runs/U56-web-approve-implement-red-2.txt": "b9159731440dd88cc452ea4d7072f08ed5bb04cb5320f201c05e6180b1f50e25",
           ".ai-workflow/runs/U56-web-approve-implement-green-2.txt": "445e664ae75761db2fd91f6044c1ee6e387888f52dd8d7ecf82a0661c11e3d2a"
+        }
+      }
+    },
+    {
+      "event": "start",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T08:26:19.363Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "workflow-review",
+      "at": "2026-11-19T12:04:38.352Z",
+      "result": {
+        "status": "failed",
+        "attempts": 2,
+        "revision": 1,
+        "snapshot": "ed01d53d8b0360227da255945258689b73ec5dc3a094fecced4b53599b68e66e",
+        "output": {
+          "summary": "Review 2 of d1d94e0: review 1 findings fixed on their main paths; not ready. I: when git worktree add fails (a folder left from an earlier round with the same name, or an unreachable commit), the separate run lines go on and check the old round's commit or the PL's own folder (reproduced in a scratch repo, zsh). Minors: a team finish whose own approve call loses to a web approval leaves its record; the prompt's cleanup step is one line for many repos; the do-not-follow wording conflicts with Verify items and an ASSUMED line with a newline can close the fence; a fresh worktree has no dependencies; the folder uses the free-text repo name; an oversized record's set-aside name is coarse and untested.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-review-2.md"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          },
+          "snapshot": "ed01d53d8b0360227da255945258689b73ec5dc3a094fecced4b53599b68e66e"
+        },
+        "evaluation": {
+          "passed": false,
+          "action": "fix",
+          "feedback": "Implement attempt 3. I: name the worktree after the commit (../<safe repo>-story-<N>-<sha12>), chain add && (cd dir && { checks; }) so a failure stops, cleanup on its own line per repo, same in the prompt, with a test pinning the chain and the commit in the name. Minors: runFinish moves its record aside as superseded when approve answers STATE and the Hub now shows an approval; per-repo cleanup lines in the prompt; reword the data note to forbid only work beyond the check and flatten each item to one line; a note to install dependencies in the fresh folder; safe folder names ([\\w-]); the oversized record's name keeps the full time and is tested."
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-review-2.md": "5d760888974ad30f9debe4e10ecc21261ec689cb47c826adfe5e52a7279f83a8"
+        },
+        "error": "Implement attempt 3. I: name the worktree after the commit (../<safe repo>-story-<N>-<sha12>), chain add && (cd dir && { checks; }) so a failure stops, cleanup on its own line per repo, same in the prompt, with a test pinning the chain and the commit in the name. Minors: runFinish moves its record aside as superseded when approve answers STATE and the Hub now shows an approval; per-repo cleanup lines in the prompt; reword the data note to forbid only work beyond the check and flatten each item to one line; a note to install dependencies in the fresh folder; safe folder names ([\\w-]); the oversized record's name keeps the full time and is tested."
+      }
+    },
+    {
+      "event": "reset",
+      "nodeId": "implement",
+      "affected": [
+        "implement",
+        "workflow-review",
+        "workflow-verify"
+      ],
+      "reason": "review 2: worktree failure path and minors",
+      "at": "2026-11-19T12:04:41.219Z"
+    },
+    {
+      "event": "start",
+      "nodeId": "implement",
+      "at": "2026-11-19T12:32:38.574Z"
+    },
+    {
+      "event": "record",
+      "nodeId": "implement",
+      "at": "2026-11-20T01:31:25.180Z",
+      "result": {
+        "status": "completed",
+        "attempts": 3,
+        "revision": 2,
+        "output": {
+          "summary": "Review 2 fixes in ac1cb5c. The run worktree is named after the commit and the checks run only after a successful add, in a subshell (add && (cd dir && checks)); cleanup per repo; the prompt says the same and to stop on a failed step. team finish sets its record aside when its own approve loses to a web approval; an oversized record keeps the full time. The prompt forbids only work beyond the check, flattens each item to one line, and adds an install note (also on the card). RED 49/54 -> GREEN touched 234/234; full 2049/2049 at normal load (an earlier full run at load 80-116 timed out in 7 untouched files, which re-run 141/141); tsc 0.",
+          "evidence": [
+            ".ai-workflow/runs/U56-web-approve-implement-3.md",
+            ".ai-workflow/runs/U56-web-approve-implement-red-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt",
+            ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt"
+          ],
+          "execution": {
+            "selection": "unknown",
+            "requestedModel": null,
+            "actualModel": null,
+            "confirmation": "unknown",
+            "effort": null,
+            "reason": "Host did not supply model execution metadata.",
+            "usage": null
+          }
+        },
+        "evaluation": {
+          "passed": true
+        },
+        "evidenceHashes": {
+          ".ai-workflow/runs/U56-web-approve-implement-3.md": "6a71af72ee1f888c5ef05fb6fa173646d7fa6b40d2f6a4e70eea54c4d25c37c6",
+          ".ai-workflow/runs/U56-web-approve-implement-red-3.txt": "2ddda97ee13350897db14110a83a691d07570625a035dc8b3274e6bdfaf6e57a",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3.txt": "2706f37a5d8274837fa6801dc2a7f97a18a385108c2229273ce22a2c26aee5ba",
+          ".ai-workflow/runs/U56-web-approve-implement-green-3-loaded.txt": "a27492e1872acfd4dfd91f8e027957bf1d169b71393e2729992219611fa08747",
+          ".ai-workflow/runs/U56-web-approve-implement-rerun-3.txt": "bafdcac77b6ae66652fb0372857530ad4298f9043db369e09ec4c1f312beb117"
         }
       }
     }
