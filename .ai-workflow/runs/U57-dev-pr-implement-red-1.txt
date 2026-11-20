@@ -1,0 +1,29 @@
+== Hub tests before the code (tests/hub-story-dev.test.mjs, tests/hub-story-approve.test.mjs)
+ℹ fail 12
+ℹ pass 0
+ℹ tests 12
+✖ a new verified commit may open a new dev PR; the old open one is the PL Office's to close (D50) (4.632584ms)
+✖ a repo owner names the repo's dev branch; others are refused, and a base branch or Story name is refused (D50) (10.73475ms)
+✖ a revert stays possible on a cancelled Story and ends once the Story is done (D50) (7.104708ms)
+✖ a work Task's page says which Story base it merges into on its own; a merged Task does not (D50) (72.425459ms)
+✖ failing tests:
+✖ no dev PR without a verified commit, after an approval, or before 승인 대기 (D50) (2.808583ms)
+✖ tests/hub-story-approve.test.mjs (133.780209ms)
+✖ the PL Office reads what to open and reports the dev PR, its head, its merge, a failure (D50) (6.081875ms)
+✖ the Story page shows the dev PR, a head that is not the verified commit, the revert and its button (D50) (59.421583ms)
+✖ the approve button names the base branch: one name when the repos share it, else the list (D50) (152.597458ms)
+✖ the dev card offers a PR into dev only to the PL, at 승인 대기 with a verified commit, for a repo with a dev branch (D50) (6.24075ms)
+✖ the link API serves the dev view and takes the PL Office's reports (D50) (60.672875ms)
+✖ the repos page lets an owner set the dev branch; the card then offers 'dev에 PR 열기' (D50) (69.667958ms)
+
+== Office tests before the code (tests/team-story-dev.test.mjs, tests/team-pr.test.mjs, tests/team-branch.test.mjs)
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/src/team/story-dev.ts' imported from /Users/jongkkim/Documents/pazmo-agent-office/.claude/worktrees/hub-plan-flow/tests/team-story-dev.test.mjs
+SyntaxError: The requested module '../src/team/branch.ts' does not provide an export named 'pushDevBranch'
+SyntaxError: The requested module '../src/team/pr.ts' does not provide an export named 'closeDevPr'
+ℹ fail 3
+ℹ pass 0
+ℹ tests 3
+✖ failing tests:
+✖ tests/team-branch.test.mjs (205.410541ms)
+✖ tests/team-pr.test.mjs (200.384833ms)
+✖ tests/team-story-dev.test.mjs (183.358208ms)

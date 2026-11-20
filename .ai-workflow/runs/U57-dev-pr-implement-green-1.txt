@@ -1,0 +1,34 @@
+== npm test at 089a2b0 (Node 24): the D50 tests and the totals
+✔ a dev request pushes the verified commit's own branch and opens a PR into dev, never from the Story base (D50)
+✔ a new verified commit may open a new dev PR; the old open one is the PL Office's to close (D50)
+✔ a push or gh failure is reported as the request's reason, and the PL may press again (D50)
+✔ a repo owner names the repo's dev branch; others are refused, and a base branch or Story name is refused (D50)
+✔ a repo that is not on the PL's Office is reported, not tried (D50)
+✔ a revert request reverts the merge on its own branch and opens a PR into dev; a conflict or a missing merge says why (D50)
+✔ a revert stays possible on a cancelled Story and ends once the Story is done (D50)
+✔ a work Task's page says which Story base it merges into on its own; a merged Task does not (D50)
+✔ an open dev PR of another commit is closed before the new one opens (D50)
+✔ dev PRs run only from a to-dev or revert-dev branch into a branch that is not a Story's, before gh runs (D50)
+✔ ensureDevPr reuses the open or merged dev PR of its branch, else opens one; never a fork's (D50)
+✔ mergeTarget names the one base branch, or says 기준 브랜치 with each repo's (D50)
+✔ no dev PR without a verified commit, after an approval, or before 승인 대기 (D50)
+✔ nothing runs while the Office may not run, and a view that fails is said once and tried again (D50)
+✔ open dev and revert PRs are followed at most once a minute: merged, closed, a new head (D50)
+✔ pushDevBranch pushes a verified commit of the Story base to its to-dev branch once; the Story base stays (D50)
+✔ revertDevMerge reverts a merged dev PR (a merge or a squash) on its own branch from dev, once (D50)
+✔ revertDevMerge: a revert that conflicts leaves the checkout clean and pushes nothing; a merge not in dev is missing (D50)
+✔ the PL Office reads what to open and reports the dev PR, its head, its merge, a failure (D50)
+✔ the Story page shows the dev PR, a head that is not the verified commit, the revert and its button (D50)
+✔ the approve button names the base branch: one name when the repos share it, else the list (D50)
+✔ the dev card offers a PR into dev only to the PL, at 승인 대기 with a verified commit, for a repo with a dev branch (D50)
+✔ the dev routes (D50): the view is checked for its shape, a report is sent as given, and a bad devReady is refused
+✔ the link API serves the dev view and takes the PL Office's reports (D50)
+✔ the prompt asks to start the services the repo's own way with the PL's local settings (D50)
+✔ the repos page lets an owner set the dev branch; the card then offers 'dev에 PR 열기' (D50)
+✔ viewDevPr reads a dev PR's state, merge and head; closeDevPr closes an open one; a Story PR is neither (D50)
+
+ℹ tests 2076
+ℹ pass 2076
+ℹ fail 0
+ℹ cancelled 0
+exit 0
