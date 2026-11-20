@@ -10,8 +10,10 @@ running ones.
     this Mac; ready = the process exits, with `ℹ pass`/`ℹ fail` counts in its output.
   - Hub: `node bin/pazmo-office.mjs hub --host 127.0.0.1 --port <port> --data-dir <empty or copied folder>`; ready =
     `curl -sk https://127.0.0.1:<port>/` answers (401 before sign-in).
-  - Office preview (no model calls): `node bin/pazmo-office.mjs start --project <git project> --port 0 --no-open`;
-    ready = `status --project <git project>` says running and its monitor URL answers 200.
+  - Office preview (no model calls, opens no browser): once per project `node bin/pazmo-office.mjs init --project <git
+    project> --apply`, then `node bin/pazmo-office.mjs start --project <git project> --port 0`; ready = `status --project
+    <git project>` says running and its `url` answers 200. Afterwards `remove --project <git project> --apply` takes the
+    Office files out of a scratch project; its data folder stays where `dataPreserved` says.
   - Live team Office (real VM and runners): `node bin/pazmo-office.mjs up --team --no-open --data-dir <folder>`
     (Colima VM `pazmo-office`, codex or claude logged in, `gh` logged in for the repos' host).
 - Stop: Office `node bin/pazmo-office.mjs stop --project <git project>` (or `stop --team --data-dir <folder>`); Hub: end
