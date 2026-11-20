@@ -24,8 +24,8 @@
   "jira": "Already optional in inspected upstream; new product must retain tracker-independent execution.",
   "workflow_tooling": {
     "npm_version": "5.0.3",
-    "config": ".ai-workflow/config.json",
     "license": "licenses/ai-workflow-kit-MIT.txt",
-    "runtime_dependency": false
+    "runtime_dependency": false,
+    "removed_2026_11_20": "skill, config.json and AGENTS.md routing (this repository's development process); bin/ and graph/ remain for Office"
   }
 }

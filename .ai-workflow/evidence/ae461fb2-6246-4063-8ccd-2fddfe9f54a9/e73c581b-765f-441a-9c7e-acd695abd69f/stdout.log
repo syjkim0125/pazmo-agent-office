@@ -1,4 +1,0 @@
-
-> @pazmo/agent-office@0.1.0-alpha.1 typecheck
-> tsc -p tsconfig.json
-

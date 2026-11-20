@@ -1,5 +1,7 @@
 # kit 5 검사 절차 (이 repo)
 
+> 지난 기록(2026-11-20까지). 이 저장소는 이제 story-qa로 개발하고, 검사는 [docs/qa.md](../qa.md)를 따른다. 아래가 설명하는 `.ai-workflow/verification.json`과 `scripts/kit-test-shard.mjs`는 지웠다(`git show b6407d7:<경로>`).
+
 `.ai-workflow/verification.json`의 recipe다. kit의 `graph verify`가 이 repo의 자동 검사를 직접 돌릴 때 이 절차를 따른다. 실제 Office 실행·실제 CLI·실제 GitHub 확인은 여기서 증명하지 않는다(아래 경계).
 
 ## Doctor (돌리기 전에)
