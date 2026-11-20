@@ -6,9 +6,9 @@ import {
   readFileSync,
 } from "node:fs";
 import { isAbsolute, join } from "node:path";
-import { pathToFileURL } from "node:url";
-import { fail, noSymlinks, packageRoot } from "../cli/project.ts";
+import { fail, noSymlinks } from "../cli/project.ts";
 import { digest } from "./candidates.ts";
+import { storyShapeErrors, taskShapeErrors } from "./contract-shape.ts";
 import { workspaceScope } from "./workspace.ts";
 import type { WorkspaceScope } from "./workspace.ts";
 
@@ -142,22 +142,8 @@ export async function readContract(
       "INVALID_CONTRACT",
       "Resolve blocking decisions and mark the Task Implementation-ready first.",
     );
-  const checker = (await import(
-    pathToFileURL(join(packageRoot, ".ai-workflow/bin/check.mjs")).href
-  )) as {
-    checkArtifact(options: {
-      root: string;
-      file: string;
-      kind: string;
-    }): Promise<{ ok: boolean; errors: string[] }>;
-  };
-  for (const [kind, file] of [
-    ["story", input.story],
-    ["task", input.task],
-  ]) {
-    const checked = await checker.checkArtifact({ root: project, file, kind });
-    if (!checked.ok) fail("INVALID_CONTRACT", checked.errors.join(" "));
-  }
+  for (const errors of [storyShapeErrors(project, story), taskShapeErrors(task)])
+    if (errors.length) fail("INVALID_CONTRACT", errors.join(" "));
   if (task.match(/^Story:\s*(.+)$/im)?.[1]?.trim() !== input.story)
     fail(
       "INVALID_CONTRACT",

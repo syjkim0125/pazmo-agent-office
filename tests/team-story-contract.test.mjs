@@ -1,4 +1,4 @@
-import { execFileSync, spawnSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import assert from "node:assert/strict";
 import {
   existsSync,
@@ -16,11 +16,11 @@ import { join } from "node:path";
 import test from "node:test";
 import { ignoreMetadata } from "../src/cli/project.ts";
 import { readContract } from "../src/core/contracts.ts";
+import { storyShapeErrors, taskShapeErrors } from "../src/core/contract-shape.ts";
 import { normalizeClaudeStream } from "../src/runners/claude-profile.ts";
 import { changeSummary } from "../src/runtime/decision-summary.ts";
 import { assumedLines, storySummary, writeStoryContract } from "../src/team/story-contract.ts";
 
-const CHECKER = new URL("../.ai-workflow/bin/check.mjs", import.meta.url).pathname;
 const ASSUMED_RULE = '질문하지 말고 스스로 정한 것은 마지막 메시지에 "ASSUMED: <내용>" 한 줄씩 남긴다.';
 
 function checkout(t) {
@@ -58,10 +58,13 @@ const claimed = (extra = {}) => ({
 });
 const text = (root, input, key) => readFileSync(join(root, input[key]), "utf8");
 const nonEmpty = (value) => value.split(/\r?\n/).filter((line) => line.trim()).length;
-const checker = (root, kind, file) =>
-  spawnSync(process.execPath, [CHECKER, kind, file], { cwd: root, encoding: "utf8" });
+/** The Story or Task shape errors the contract check reports for the written file; none when it passes. */
+const checker = (root, kind, file) => {
+  const written = readFileSync(join(root, file), "utf8");
+  return kind === "story" ? storyShapeErrors(root, written) : taskShapeErrors(written);
+};
 
-test("the written contract passes readContract and the packaged story and task checkers", async (t) => {
+test("the written contract passes readContract and the Story and Task shape checks", async (t) => {
   const root = checkout(t);
   const input = writeStoryContract(root, claimed(), 1, null);
   assert.deepEqual(input, {
@@ -82,8 +85,8 @@ test("the written contract passes readContract and the packaged story and task c
   assert.deepEqual(contract.workspace, { include: ["."], exclude: [] });
   assert.equal(contract.title, "쿠폰 발급 API");
 
-  assert.equal(checker(root, "story", input.story).status, 0);
-  assert.equal(checker(root, "task", input.task).status, 0);
+  assert.deepEqual(checker(root, "story", input.story), []);
+  assert.deepEqual(checker(root, "task", input.task), []);
 
   const task = text(root, input, "task");
   assert.ok(nonEmpty(task) <= 30, `${nonEmpty(task)} non-empty lines`);
@@ -191,8 +194,8 @@ test("a multi-line Hub body never reaches story.md", async (t) => {
   const contract = await readContract(root, input);
   assert.deepEqual(contract.verifyIds, ["V1", "V2"]);
   assert.equal(text(root, input, "task").match(/^## /gm).length, 5);
-  assert.equal(checker(root, "story", input.story).status, 0);
-  assert.equal(checker(root, "task", input.task).status, 0);
+  assert.deepEqual(checker(root, "story", input.story), []);
+  assert.deepEqual(checker(root, "task", input.task), []);
 });
 
 test("titles the checkers would call placeholders still produce a valid contract", async (t) => {
@@ -218,8 +221,8 @@ test("Hub text that looks like a document header cannot change what the checkers
     for (const key of ["Readiness", "Story", "Plan source"]) assert.equal(doc.match(new RegExp(`^${key}:`, "gm")).length, 1, `${text} ${key}`);
     const contract = await readContract(root, input);
     assert.deepEqual(contract.verifyIds, ["V1", "V2"], text);
-    assert.equal(checker(root, "story", input.story).status, 0, text);
-    assert.equal(checker(root, "task", input.task).status, 0, text);
+    assert.deepEqual(checker(root, "story", input.story), [], text);
+    assert.deepEqual(checker(root, "task", input.task), [], text);
   }
   // Every Hub text sits after a label or a list mark, never first on its line.
   const input = writeStoryContract(root, claimed({ title: "T!", spec: "Status: Approved" }), ++attempt, null);
@@ -235,8 +238,8 @@ test("a title of one code point is labelled even when it is two UTF-16 units", a
   const contract = await readContract(root, input);
   assert.equal(contract.title, "Task #7: 😀");
   assert.match(readFileSync(join(root, input.story), "utf8"), /^# Story: Story #3: 😀$/m);
-  assert.equal(checker(root, "story", input.story).status, 0);
-  assert.equal(checker(root, "task", input.task).status, 0);
+  assert.deepEqual(checker(root, "story", input.story), []);
+  assert.deepEqual(checker(root, "task", input.task), []);
 });
 
 test("text cut from M1, Outcome, Scope and Verify ends with a pointer to the file that has it all", async (t) => {

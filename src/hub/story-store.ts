@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import type { DatabaseSync } from "node:sqlite";
 import { transaction } from "../core/approvals.ts";
-import { kitStoryHash } from "../core/kit-role-runs.ts";
+import { hashStory } from "../core/story-hash.ts";
 import { HubError, type Link, type Member } from "./store.ts";
 import { taskColumn, type BoardColumn } from "./board.ts";
 import {
@@ -981,7 +981,7 @@ export class StoryBoard {
       if (typeof input.storyHash !== "string" || !STORY_HASH.test(input.storyHash))
         fail("INVALID", 400, "Story 해시는 64자리 소문자 16진수여야 합니다. kit이 계산한 해시를 그대로 보내세요.");
       // The approval record and the one-Story-per-text key describe the body itself, never a hash the client only claims.
-      if (typeof input.body === "string" && kitStoryHash(input.body) !== input.storyHash)
+      if (typeof input.body === "string" && hashStory(input.body) !== input.storyHash)
         fail("INVALID", 400, "Story 글과 해시가 맞지 않습니다. 올리는 Story 파일에서 kit이 계산한 해시를 그대로 보내세요.");
       const current = this.#currentMac(l, mac);
       const project = this.#project(input.projectId);

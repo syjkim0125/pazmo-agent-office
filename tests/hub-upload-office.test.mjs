@@ -6,7 +6,7 @@ import { dirname, join } from "node:path";
 import test from "node:test";
 import { promisify } from "node:util";
 import { locate } from "../src/cli/project.ts";
-import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+import { hashStory } from "../src/core/story-hash.ts";
 import { writeLinkConfig } from "../src/runtime/hub-link.ts";
 import { writeMacLink } from "../src/team/mac.ts";
 import { addTeamRepo } from "../src/team/registry.ts";
@@ -180,7 +180,7 @@ async function world(t) {
   writeFileSync(join(plan, "docs", "pay-story.md"), STORY);
   writeFileSync(
     join(plan, ".ai-workflow", "approvals", "pay-g1.json"),
-    JSON.stringify({ gate: "G1", storyHash: kitStoryHash(STORY), responseRef: "Claude Code conversation: 승인", date: "2026-11-11" }),
+    JSON.stringify({ gate: "G1", storyHash: hashStory(STORY), responseRef: "Claude Code conversation: 승인", date: "2026-11-11" }),
   );
   writeFileSync(join(plan, "tasks.json"), JSON.stringify(TASKS, null, 2));
 
@@ -278,7 +278,7 @@ test("upload publishes, makes bases and opens", async (t) => {
   assert.deepEqual(w.heads("app-be").split("\n").map((line) => line.split("\t")[1]), ["refs/heads/feature/story-" + story.number + "/base", "refs/heads/main"]);
   // The Hub recorded the local approval: this Mac and the kit hash.
   const approval = w.h.board.storyUpload(result.storyId);
-  assert.deepEqual([approval.macName, approval.storyHash], [MAC_NAME, kitStoryHash(STORY)]);
+  assert.deepEqual([approval.macName, approval.storyHash], [MAC_NAME, hashStory(STORY)]);
 
   // Teammate A's lane claims the ready Task; its spec carries the Story references.
   const { claimed } = await w.aScheduler.tick();

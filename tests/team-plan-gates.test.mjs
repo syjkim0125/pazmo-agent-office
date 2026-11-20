@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { digest } from "../src/core/candidates.ts";
-import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+import { hashStory } from "../src/core/story-hash.ts";
 import { planTextHash } from "../src/hub/plan-protocol.ts";
 import { approvedStory, decidedOf, renderTeamDesign, renderTeamStory, repoFolders, splitDigest } from "../src/runners/team-planning.ts";
 import { PlanGateError, checkApprovals, writeGateRecords } from "../src/team/plan-gates.ts";
@@ -197,7 +197,7 @@ test("the design ends with the split's digest line, so a stored split changed af
   assert.deepEqual(checkApprovals(approvedHigh({ split: reordered }), { needSplit: true }).split, SPLIT);
 });
 
-test("writeGateRecords writes story.md with Status: Approved, g1.json with gate G1, responseRef hub-approval:<id> and storyHash = kitStoryHash(draft), and for high risk design.md and g3.json; writing again with the same content passes and other content is KIT_SOURCE_CHANGED", (t) => {
+test("writeGateRecords writes story.md with Status: Approved, g1.json with gate G1, responseRef hub-approval:<id> and storyHash = hashStory(draft), and for high risk design.md and g3.json; writing again with the same content passes and other content is KIT_SOURCE_CHANGED", (t) => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "plan-gates-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const dir = join(root, "team", "plans", PLAN_ID);
@@ -213,7 +213,7 @@ test("writeGateRecords writes story.md with Status: Approved, g1.json with gate 
     at: plan.g1.at,
     textHash: planTextHash(DRAFT),
     gate: "G1",
-    storyHash: kitStoryHash(DRAFT),
+    storyHash: hashStory(DRAFT),
     responseRef: `hub-approval:${plan.g1.approvalId}`,
   });
   assert.deepEqual(readdirSync(dir).sort(), ["g1.json", "story.md"]);
@@ -250,7 +250,7 @@ test("writeGateRecords writes story.md with Status: Approved, g1.json with gate 
     gate: "G3",
     designHash: digest(DESIGN),
     decisionHash: digest(DESIGN),
-    storyHash: kitStoryHash(DRAFT),
+    storyHash: hashStory(DRAFT),
     responseRef: `hub-approval:${high.g3.approvalId}`,
   });
   // The G3 record binds the same Story as the G1 record beside it.

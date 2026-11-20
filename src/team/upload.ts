@@ -3,7 +3,7 @@ import { readFileSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { OfficeError, fail, locate } from "../cli/project.ts";
-import { kitStoryHash } from "../core/kit-role-runs.ts";
+import { hashStory } from "../core/story-hash.ts";
 import {
   HUB_STORY_PROTOCOL,
   LIMITS,
@@ -237,7 +237,7 @@ export function checkUpload(storyPath: string, tasksPath: string, project: Uploa
     refuse("UPLOAD_STORY", `Story 제목이 ${LIMITS.titleMax}자를 넘습니다. 제목을 줄인 뒤 G1을 다시 받으세요.`);
 
   // Local approval: the G1 record (and the G3 record for high risk) binds this very text.
-  const storyHash = kitStoryHash(body);
+  const storyHash = hashStory(body);
   const root = gateRoot(storyFile);
   if (!gateRecord(root, body, "G1", storyHash, "UPLOAD_G1"))
     refuse("UPLOAD_G1", "Story에 초안 승인(G1) 줄이 없습니다. kit workflow로 G1 승인을 받아 Story에 기록한 뒤 다시 실행하세요.");
