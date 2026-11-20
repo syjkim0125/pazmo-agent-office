@@ -6,7 +6,7 @@ This repository is changed with the `story-qa` skill of the pazmo-story-to-dev p
 - Then implement, have a fresh reader review the diff, and run the approved QA scenarios on the running app or command. The QA environment is `docs/qa.md`.
 - Report in the skill's order (변경, QA table, 머지, 리뷰, 테스트, 확인하지 못한 것) and ask for approval. Commit only in a worktree; push only when asked. `main` is never merged into automatically (`docs/qa.md`: Auto-merge off).
 
-Until 2026-11-20 this repository was built with the earlier workflow kit (graph runs and G1–G4 records). Its process files and run records (`.ai-workflow/runs`, `approvals`, `evidence`, `.agents/skills/workflow`) were removed from the tree after commit `b6407d7`. Older documents still link to them; read one with `git show b6407d7:<path>`. The kit parts Office itself runs (`.ai-workflow/bin`, `.ai-workflow/graph`, `templates/ai-workflow`) stay until Office's role engine is replaced.
+Until 2026-11-20 this repository was built with the earlier workflow kit (graph runs and G1–G4 records). Its process files and run records (`.ai-workflow/runs`, `approvals`, `evidence`, `config.json`, `verification.json`, `.agents/skills/workflow`, `scripts/kit-test-shard.mjs`) were removed from the tree after commit `b6407d7`. Older documents still link to them; read one with `git show b6407d7:<path>`. The kit parts Office itself runs (`.ai-workflow/bin`, `.ai-workflow/graph`, `templates/ai-workflow`) stay until Office's role engine is replaced.
 
 ## Bootstrap status
 

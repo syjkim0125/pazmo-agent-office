@@ -14,14 +14,16 @@ running ones.
     project> --apply`, then `node bin/pazmo-office.mjs start --project <git project> --port 0`; ready = `status --project
     <git project>` says running and its `url` answers 200. Afterwards `remove --project <git project> --apply` takes the
     Office files out of a scratch project; its data folder stays where `dataPreserved` says.
-  - Live team Office (real VM and runners): `node bin/pazmo-office.mjs up --team --no-open --data-dir <folder>`
-    (Colima VM `pazmo-office`, codex or claude logged in, `gh` logged in for the repos' host).
+  - Live team Office (real VM and runners): after `team add --project <repo clone> --data-dir <folder>` (or `mac
+    connect`) registered at least one repo, `node bin/pazmo-office.mjs up --team --no-open --data-dir <folder>` (Colima
+    VM `pazmo-office`, codex or claude logged in, `gh` logged in for the repos' host).
 - Stop: Office `node bin/pazmo-office.mjs stop --project <git project>` (or `stop --team --data-dir <folder>`); Hub: end
   its process (`pkill -f "pazmo-office.mjs hub --host 127.0.0.1 --port <port>"`).
 - Base URL: `https://127.0.0.1:<port>` (the Hub's own CA: `<data-dir>/team-hub/tls/ca.pem`; browsers and curl need
   `-k`/ignore-HTTPS-errors for a copy).
-- Login: the first admin and invites as `docs/LOCAL-PREVIEW.md` describes; for a scripted check, a device invite made
-  with `HubStore.createDeviceInvite` on the copy gives a session cookie (`pazmo_hub`). Never a real person's account on
+- Login: the first admin and invites as `docs/LOCAL-PREVIEW.md` describes; for a scripted check on a copy, a device invite
+  made with `HubStore.createDeviceInvite` and accepted (`acceptInvite`, or a POST to `/invite/<token>` with the Hub's own
+  Origin) gives the session for the `pazmo_hub` cookie. Never a real person's account on
   the company Hub.
 - Test data: a copy of the check Hub's data made with `VACUUM INTO` into a scratch folder, served on another port; the
   copy may pair a Mac and link repos. Stories #1 (be + fe) and #7 (be) are there.

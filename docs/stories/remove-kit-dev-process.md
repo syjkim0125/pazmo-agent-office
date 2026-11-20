@@ -63,7 +63,8 @@
 ## QA
 Environment: local (docs/qa.md)
 - Q1 [M3]. 이 저장소 · Node 24 · `npm test`, `npm run typecheck` → 모두 통과한다. 개수는 지금 main과 같다(2087).
-- Q2 [M3]. 이 저장소 · Node 24 · Office를 화면 미리보기로 켠다(`node bin/pazmo-office.mjs start --project <임시 git 프로젝트> --port 0 --no-open`) → status가 running이고, 화면이 200으로 열리고, stop으로 꺼진다.
+- Q2 [M3]. 이 저장소 · Node 24 · Office를 화면 미리보기로 켠다(`init --project <임시 git 프로젝트> --apply` 후 `node bin/pazmo-office.mjs start --project <임시 git 프로젝트> --port 0`) → status가 running이고, 화면이 200으로 열리고, stop으로 꺼진다.
+  - 승인 뒤 고침(2026-11-20): 승인 때의 명령 `start … --no-open`은 틀렸다. `--no-open`은 `up`만 받고, `start`는 `init`이 먼저 필요하다. 시나리오의 목적과 기대 결과는 그대로이고, 보고에서 사람에게 다시 보인다.
 - Q3 [M2]. 이 저장소 · `git ls-files .ai-workflow .agents` → `.ai-workflow/bin`·`graph`의 파일만 나온다.
 - Q4 [M1]. 이 저장소 · `AGENTS.md`를 읽는다 → kit 블록이 없고, story-qa·`docs/qa.md`·지난 기록 커밋을 안내하며, Office Decision 대리 승인 금지 문단이 그대로 있다.
 - Q5 [M4]. `docs/qa.md`의 허브 띄우기 명령 · 임시 데이터 폴더 · 그대로 실행한다 → 허브가 응답하고(로그인 전 401), 문서의 멈추는 명령으로 꺼진다.
