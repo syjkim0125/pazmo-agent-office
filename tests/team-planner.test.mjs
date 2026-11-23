@@ -565,7 +565,7 @@ const named = (w, call) => w.calls.filter(([, what]) => what === call);
 const pushes = (w) => w.git.calls.filter(([what]) => what === "pushStoryBase");
 const fetches = (w) => w.git.calls.filter(([what]) => what === "fetchBaseTip");
 
-test("a splitting lease checks the gates, writes the records, runs one Lead turn, publishes with key plan:<planId>, the plan's title, the approved story as body and risk normal, makes every Story repo's base at its recorded base branch tip, opens and posts open", async (t) => {
+test("a splitting lease checks the gates, runs one Lead turn, publishes with key plan:<planId>, the plan's title, the approved story as body and risk normal, makes every Story repo's base at its recorded base branch tip, opens and posts open", async (t) => {
   const w = world(t, { answers: [LEAD] });
   w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
   const link = w.first.link;
@@ -581,8 +581,9 @@ test("a splitting lease checks the gates, writes the records, runs one Lead turn
 
   assert.deepEqual(await w.planner.tick(), { ran: true, planId: PLAN_ID, posted: "open" });
   const dir = planDir(w);
-  assert.equal(readFileSync(join(dir, "story.md"), "utf8"), VIEW, "the gate records are in the plan's folder");
-  assert.equal(JSON.parse(readFileSync(join(dir, "g1.json"), "utf8")).responseRef, `hub-approval:${G1.approvalId}`);
+  // No unread gate record copies: the approval lives on the Hub and in the published Story text.
+  for (const name of ["story.md", "g1.json"]) assert.equal(existsSync(join(dir, name)), false, name);
+  assert.match(VIEW, new RegExp(`^Understanding gate \\(G1\\): hub-approval:${G1.approvalId} · `, "m"));
   assert.equal(w.seen.length, 1, "one Lead turn");
   const { packet } = w.seen[0];
   assert.equal(packet.role, "lead");
@@ -901,24 +902,19 @@ test("a gate failure posts failed before any Lead turn or publish", async (t) =>
     link.lease = leaseOf(plan, { leaseId: `L${i}`, revision: 1 });
     assert.equal((await w.planner.tick()).posted, "failed");
     assert.equal(w.lastResult().reason, reason);
-    assert.equal(existsSync(join(planDir(w, plan.id), "story.md")), false, "no record");
+    assert.equal(existsSync(planDir(w, plan.id)), false, "nothing written");
   }
 
-  // A record the plan's folder already holds with other bytes, or a plan folder that is a link: a plain reason, not
-  // the planning tree's sentence or a code.
-  mkdirSync(planDir(w, planId(82)), { recursive: true });
-  writeFileSync(join(planDir(w, planId(82)), "story.md"), "# Story: 다른 글\n");
+  // A plan folder that is a link: a plain reason, not the planning tree's sentence or a code.
   mkdirSync(join(w.root, "elsewhere"));
+  mkdirSync(join(w.root, "team", "plans"), { recursive: true });
   symlinkSync(join(w.root, "elsewhere"), planDir(w, planId(83)));
-  for (const [i, id] of [planId(82), planId(83)].entries()) {
-    link.lease = leaseOf(splitting({ id }), { leaseId: `M${i}`, revision: 1 });
-    assert.equal((await w.planner.tick()).posted, "failed");
-    const first = firstLine(w.lastResult().reason);
-    assert.doesNotMatch(first, /[A-Z_]{6,}/);
-    assert.doesNotMatch(first, /기획 입력으로 옮길 수 없는 경로/);
-  }
-  assert.match(firstLine(w.lastResult().reason), /기획 기록을 쓸 수 없습니다/);
-  assert.deepEqual(readFileSync(join(planDir(w, planId(82)), "story.md"), "utf8"), "# Story: 다른 글\n", "kept as it was");
+  link.lease = leaseOf(splitting({ id: planId(83) }), { leaseId: "M1", revision: 1 });
+  assert.equal((await w.planner.tick()).posted, "failed");
+  const first = firstLine(w.lastResult().reason);
+  assert.doesNotMatch(first, /[A-Z_]{6,}/);
+  assert.doesNotMatch(first, /기획 입력으로 옮길 수 없는 경로/);
+  assert.match(first, /기획 기록을 쓸 수 없습니다/);
   assert.deepEqual(w.seen, [], "no Lead turn");
   assert.deepEqual(named(w, "publish"), [], "nothing published");
   assert.deepEqual(w.git.calls, [], "no git");
@@ -1167,7 +1163,7 @@ test("a refused split or a design over 16384 bytes runs the Lead once more with 
   assert.deepEqual(pushes(w), []);
 });
 
-test("after G3 a splitting lease publishes the stored split with risk high and no Lead turn, makes the bases and opens; g3.json is written", async (t) => {
+test("after G3 a splitting lease publishes the stored split with risk high and no Lead turn, makes the bases and opens; no gate record copies are written", async (t) => {
   const w = world(t, { answers: [LEAD] });
   w.git.tips = { "/co/app-be": BE_TIP, "/co/app-fe": FE_TIP };
   const link = w.first.link;
@@ -1205,15 +1201,9 @@ test("after G3 a splitting lease publishes the stored split with risk high and n
 
   const dir = planDir(w);
   assert.deepEqual(readdirSync(dir).filter((f) => f.endsWith(".md") || f.endsWith(".json")).sort(), [
-    "bases.json", "candidate.json", "design.md", "g1.json", "g3.json", "story.md",
+    "bases.json", "candidate.json",
   ]);
-  assert.equal(readFileSync(join(dir, "story.md"), "utf8"), VIEW);
-  assert.equal(readFileSync(join(dir, "design.md"), "utf8"), DESIGN_TEXT(design.split));
-  const g3 = JSON.parse(readFileSync(join(dir, "g3.json"), "utf8"));
-  assert.equal(g3.gate, "G3");
-  assert.equal(g3.responseRef, `hub-approval:${plan.g3.approvalId}`);
-  assert.equal(g3.textHash, planTextHash(DESIGN_TEXT(design.split)));
-  assert.equal(JSON.parse(readFileSync(join(dir, "g1.json"), "utf8")).responseRef, `hub-approval:${G1.approvalId}`);
+  assert.equal(link.stories.get("story-7").input.body, VIEW);
 
   // A retry of that plan after its Story was published: no Lead turn and no second publish (F1), the same records.
   const published2 = { storyId: "story-7", number: 7, state: "open" };
@@ -1233,7 +1223,8 @@ test("after G3 a splitting lease publishes the stored split with risk high and n
   };
   link.lease = leaseOf(approvedDesign(design, { id: planId(50) }), { leaseId: "L4", revision: 1 });
   assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(50), posted: null });
-  assert.deepEqual(await w.planner.tick(), { ran: true, planId: planId(50), posted: "open" });
+  const retried = await w.planner.tick();
+  assert.deepEqual(retried, { ran: true, planId: planId(50), posted: "open" }, JSON.stringify(w.lastResult()));
   const [, again] = named(w, "publish").slice(-2);
   assert.deepEqual(again[2].graph, design.split.graph);
   assert.equal(again[2].risk, "high");

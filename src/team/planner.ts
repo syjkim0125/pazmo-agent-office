@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { lstatSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { OfficeError, fail, noSymlinks } from "../cli/project.ts";
 import { readStable } from "../core/candidates.ts";
@@ -118,6 +118,8 @@ const PLAIN: Record<string, string> = {
   BASES_CHANGED: "PL Mac에 적어 둔 Story 시작 커밋 기록을 읽을 수 없습니다. 취소하고 새 Story로 시작하세요.",
 };
 const UNKNOWN = "PL Mac에서 기획 단계를 마치지 못했습니다. 다시 시도하세요.";
+/** UNSAFE_PATH of the plan's own folder (it holds the bases record), not a repo path of the planning tree. */
+const RECORDS = "PL Mac에 기획 기록을 쓸 수 없습니다(기획 폴더가 안전하지 않습니다). Office 데이터 폴더를 확인한 뒤 다시 시도하세요.";
 const TWICE = "AI가 Task를 두 번 나눴지만 검사를 통과하지 못했습니다.";
 const DESIGN_TOO_LONG = "설계가 너무 깁니다(16KB 넘음).";
 const APPROVED_REFUSED =
@@ -596,7 +598,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
 
   /**
    * The splitting step after G1, and for a high-risk plan after its G3: the approvals must bind the draft (and the
-   * design and stored split: `checkApprovals`), then the split is
+   * design and stored split: `checkApprovals`) and the plan's folder must be safe to write, then the split is
    * published under `plan:<planId>` once the plan is confirmed, every Story base is made and the Story opened. A
    * normal-risk plan's split is the Lead's (one retry); a high-risk plan's is the stored one its G3 approved, with no
    * Lead turn, and a Hub that refuses it fails the plan (the design cannot be rewritten). A plan that already has a
@@ -607,6 +609,14 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
     const { plan, lane } = s;
     const gates = checkApprovals(plan, { needSplit: plan.risk === "high" });
     const storyView = approvedView(plan, gates.g1);
+    try {
+      noSymlinks(s.dir);
+      // The plan's own folder holds its bases record; a high-risk split runs no Lead turn that would make it.
+      mkdirSync(s.dir, { recursive: true, mode: 0o700 });
+    } catch (error) {
+      if (error instanceof OfficeError && error.code === "UNSAFE_PATH") return withDetail(RECORDS, error.message);
+      throw error;
+    }
     if (plan.published) return basesAndOpen(s, plan.published);
     const publish = async (split: TeamSplit): Promise<PlanResult> => {
       await goOn(s, null, true);
