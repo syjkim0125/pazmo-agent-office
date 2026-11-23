@@ -626,7 +626,9 @@ export function reportOf(
       `exitCode=${typeof r.exitCode === "number" ? r.exitCode : "null"}` +
       (r.signal ? `; signal=${token(r.signal)}` : "");
     const runner = runnerFailure(r.stdout);
-    if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}`, "runner");
+    // A turn the controller stopped itself (a refused init, a hook) has an emptied output and its reason in `error`,
+    // an Office-authored code: name it, or the person sees only "turn failed".
+    if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}${r.error ? `; error=${token(r.error)}` : ""}`, "runner");
     if (r.exitCode !== 0 || r.signal) invalid(exit);
     if (r.error) invalid(`error=${token(r.error)}`);
     const raw = terminalReport(r.stdout, markers);
