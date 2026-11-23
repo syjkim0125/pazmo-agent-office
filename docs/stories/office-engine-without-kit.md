@@ -90,7 +90,8 @@
 
 ## QA
 Environment: local (docs/qa.md)
-- Q1 [M3]. 이 저장소 · `git ls-files .ai-workflow`, `git grep -n "\.ai-workflow/\|kit-role-runs\|KitDelivery\|KitPlanning" -- src tests` → 아무것도 나오지 않는다.
+- Q1 [M3]. 이 저장소 · `git ls-files .ai-workflow`, `git grep -n "\.ai-workflow/\|kit-role-runs\|KitDelivery\|KitPlanning" -- src tests` → 앞의 것은 아무것도 나오지 않는다. 뒤의 것은 O1 몫(로컬 올리기가 PL 프로젝트의 `.ai-workflow/approvals`·`verification.json`을 읽는 `src/team/upload.ts`와 그 시험)만 나온다.
+  - 승인 뒤 고침(2026-11-23): 승인 때 문구는 "둘 다 아무것도 나오지 않는다"였는데 O1과 맞지 않았다. 로컬 올리기는 4단계까지 PL 프로젝트의 kit 기록 경로를 읽는다. 목적(Office가 kit 실행기를 부르지 않음)은 그대로이고, 보고에서 사람에게 다시 보인다.
 - Q2 [M1, M2]. 이 저장소 · Node 24 · `npm test`, `npm run typecheck` → 모두 통과한다. 기획·전달·팀 Task 시험이 kit 없는 길로 돈다.
 - Q3 [M1, M2]. 혼자 쓰는 live Office · 작은 테스트 git 프로젝트, codex 또는 claude 로그인 · Tasks에서 "README에 한 줄 추가" 같은 작업을 만든다 → 다음이 kit 없이 돈다:
   - PM 질문(있으면 사람이 답함)
