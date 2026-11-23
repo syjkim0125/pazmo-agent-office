@@ -850,7 +850,7 @@ test("a legacy request waiting for answers loses its question card and shows the
     .prepare("SELECT content FROM messages WHERE task_id=? AND content LIKE '작업이 멈췄습니다:%'")
     .all(taskId)
     .map((m) => m.content);
-  assert.deepEqual(notices, [`작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}. 자동 재시도하지 않습니다.`]);
+  assert.deepEqual(notices, [`작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`]);
   assert.equal(warnings.mock.calls.filter((c) => c.arguments[0].includes(taskId)).length, 1);
 });
 

@@ -374,6 +374,28 @@ test("a legacy request's questions, Story G1 and planning retry are refused with
     () => rejected.intake.retryPlanning(token, failed.taskId, failed.revision, failed.inputDigest, "retry"),
     { code: "LEGACY_TASK" },
   );
+  // A finished Lead proposal of a legacy request is not published; one published before the upgrade returns as it was.
+  const planned = setup(t);
+  await approvedPm(planned);
+  const proposal = (await planned.coordinator.run(planned.item.taskId, planned.context)).intake;
+  assert.equal(proposal.state, "proposal");
+  const marked = await markLegacyPacket(planned, proposal.taskId);
+  await assert.rejects(
+    planned.intake.publish(token, marked.taskId, marked.revision, marked.inputDigest),
+    { code: "LEGACY_TASK" },
+  );
+  assert.equal(planned.store.list().length, 0, "no contract registered");
+  const published = setup(t);
+  await approvedPm(published);
+  const done = (await published.coordinator.run(published.item.taskId, published.context)).intake;
+  const registered = await published.intake.publish(token, done.taskId, done.revision, done.inputDigest);
+  assert.equal(registered.state, "registered");
+  await markLegacyPacket(published, done.taskId);
+  assert.deepEqual(
+    await published.intake.publish(token, done.taskId, done.revision, done.inputDigest),
+    published.intake.get(done.taskId),
+    "the earlier publication returns as before",
+  );
   // A request planned after the upgrade is not legacy and cannot be stopped as one.
   const fresh = setup(t);
   assert.equal(fresh.intake.legacy(fresh.item.taskId), false);

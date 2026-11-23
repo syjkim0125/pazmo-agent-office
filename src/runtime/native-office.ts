@@ -404,7 +404,7 @@ export async function createNativeOffice(c: Config) {
             message(
               i.taskId,
               `blocked:${i.taskId}:${stopped.revision}`,
-              `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}. 자동 재시도하지 않습니다.`,
+              `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`,
             );
           continue;
         }
@@ -480,7 +480,7 @@ export async function createNativeOffice(c: Config) {
       for (const item of store.list()) {
         if (["done", "cancelled"].includes(item.status)) continue;
         // A task begun under the removed workflow runtime stays stopped until the person cancels it (가).
-        if (store.legacyTask(item.id)) {
+        if (store.legacyTask(item.id, item.revision)) {
           noteLegacyTask(item.id);
           // Its open cards (a G4 among them) would hide the stop; the approval records stay.
           db.prepare("DELETE FROM pazmo_native_decisions WHERE task_id=?").run(item.id);

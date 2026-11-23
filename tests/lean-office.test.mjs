@@ -1530,3 +1530,14 @@ test("no rerun starts once a stop was accepted", async (t) => {
   assert.equal(count(f, "tasks"), tasks);
   assert.equal(locate(f.office.board(), old).stopped, true);
 });
+
+test("a request stopped as LEGACY_TASK shows the plain cancel-and-recreate sentence without the retry tail", async (t) => {
+  const { LEGACY_TASK_MESSAGE } = await import("../src/core/legacy-tasks.ts");
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: alice.id, risk: "normal" });
+  const i = f.ledgers.intake.get(id);
+  f.ledgers.intake.interrupt(id, i.revision, i.inputDigest, "LEGACY_TASK");
+  const card = locate(f.office.board(), id);
+  assert.deepEqual([card.stopped, card.stopReason], [true, `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`]);
+});

@@ -45,9 +45,10 @@ export class OfficeStore {
   authorize(token: string): void {
     this.#ledger.authorize(token);
   }
-  /** Whether the task's current revision began under the removed workflow runtime (`legacy-tasks.ts`). */
-  legacyTask(taskId: string): boolean {
-    return legacyDelivery(this.#db, taskId, this.get(taskId).revision);
+  /** Whether the task's current revision began under the removed workflow runtime (`legacy-tasks.ts`). `revision`
+   * is the one the caller already holds; otherwise the stored row's, without re-reading the contract files. */
+  legacyTask(taskId: string, revision = this.#row(taskId).revision): boolean {
+    return legacyDelivery(this.#db, taskId, revision);
   }
   #row(id: string): Row {
     const row = this.#db

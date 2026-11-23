@@ -570,7 +570,9 @@ export class IntakeLedger {
       prior.inputDigest === inputDigest
     )
       return this.get(id);
-    const { row } = this.#match(id, revision, inputDigest);
+    const { row, packet } = this.#match(id, revision, inputDigest);
+    // Before the first pump stops it, a legacy request's proposal can still be reached through the operator API.
+    if (legacyPlanning(packet)) refuseLegacyTask();
     const result = row.result_json
       ? (JSON.parse(row.result_json) as Result)
       : null;
