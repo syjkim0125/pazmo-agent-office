@@ -90,10 +90,12 @@
 
 ## QA
 Environment: local (docs/qa.md)
-- Q1 [M3]. 이 저장소 · `git ls-files .ai-workflow`, `git grep -n "\.ai-workflow/\|kit-role-runs\|KitDelivery\|KitPlanning" -- src tests` → 앞의 것은 아무것도 나오지 않는다. 뒤의 것은 O1 몫(로컬 올리기가 PL 프로젝트의 `.ai-workflow/approvals`·`verification.json`을 읽는 `src/team/upload.ts`와 그 시험)만 나온다.
+Script: qa/office-engine-without-kit.sh (Q1, Q5, Q6의 upload 안내, Q9)
+- 2026-11-23 story-qa 0.2.2에 맞춤: 시나리오마다 실행 방식을 적고 script 시나리오를 스크립트로 만들었다. 과정 변경이 구현 뒤에 들어와, RED는 바꾸기 전 커밋 f3d975d에서 같은 스크립트를 돌려 보였다(바뀌는 Q1·Q9 실패, 그대로인 Q5·Q6 통과). 시나리오의 기대 결과는 바꾸지 않았다.
+- Q1 [M3] (script). 이 저장소 · `git ls-files .ai-workflow`, `git grep -n "\.ai-workflow/\|kit-role-runs\|KitDelivery\|KitPlanning" -- src tests` → 앞의 것은 아무것도 나오지 않는다. 뒤의 것은 O1 몫(로컬 올리기가 PL 프로젝트의 `.ai-workflow/approvals`·`verification.json`을 읽는 `src/team/upload.ts`와 그 시험)만 나온다.
   - 승인 뒤 고침(2026-11-23): 승인 때 문구는 "둘 다 아무것도 나오지 않는다"였는데 O1과 맞지 않았다. 로컬 올리기는 4단계까지 PL 프로젝트의 kit 기록 경로를 읽는다. 목적(Office가 kit 실행기를 부르지 않음)은 그대로이고, 보고에서 사람에게 다시 보인다.
-- Q2 [M1, M2]. 이 저장소 · Node 24 · `npm test`, `npm run typecheck` → 모두 통과한다. 기획·전달·팀 Task 시험이 kit 없는 길로 돈다.
-- Q3 [M1, M2]. 혼자 쓰는 live Office · 작은 테스트 git 프로젝트, codex 또는 claude 로그인 · Tasks에서 "README에 한 줄 추가" 같은 작업을 만든다 → 다음이 kit 없이 돈다:
+- Q2 [M1, M2] (script: 명령 `npm test`, `npm run typecheck`). 이 저장소 · Node 24 · `npm test`, `npm run typecheck` → 모두 통과한다. 기획·전달·팀 Task 시험이 kit 없는 길로 돈다.
+- Q3 [M1, M2] (person: G1·G4는 사람이 누름; 나머지는 agent). 혼자 쓰는 live Office · 작은 테스트 git 프로젝트, codex 또는 claude 로그인 · Tasks에서 "README에 한 줄 추가" 같은 작업을 만든다 → 다음이 kit 없이 돈다:
   - PM 질문(있으면 사람이 답함)
   - G1 카드(사람이 승인)
   - Lead 계획
@@ -102,12 +104,12 @@ Environment: local (docs/qa.md)
   - 리뷰
   - G4 카드(사람이 승인)
   - 화면과 로그에 kit 오류가 없다.
-- Q4 [M2]. 확인용 허브 사본 + 사본 PL·팀원 Office(live), be 테스트 레포 · 작은 Story 하나를 열고 Task를 Office가 가져간다 → 구현 → 검사 → 리뷰 → Story base 머지까지 kit 없이 돈다. 테스트 레포에 쓰는 일은 사람이 허락한 때만 한다.
-- Q5 [M4, Unchanged]. Story 글 하나(이 저장소의 시험 Story 고정본) · 옮긴 해시 함수와 지운 kit의 `storyContract` 결과(`git show b6407d7` 시점) → 같은 값이다.
-- Q6 [Unchanged]. 허브 웹 기획(질문 → 초안 → G1 → 설계 → Task 나누기)과 `team upload --guide` → 시험이 그대로 통과하고 화면 문구가 그대로다.
-- Q7 [M5]. kit 기록이 있는 진행 중 작업을 가진 데이터 폴더 사본 · 새 코드로 Office를 켠다 → Human decides에서 고른 대로 된다. (가)면 그 작업이 이유와 함께 멈추고, 다른 작업은 돈다.
-- Q9 [M7]. 이 저장소 · `git grep -ni "kit" -- src tests scripts upstream` → 남은 것은 M7의 예외(kit 시절 작업 멈춤 한 곳과 그 시험, 4단계 몫인 로컬 올리기·템플릿·upload skill 관련)뿐이다.
-- Q8 [not shown]. Office 화면, 혼자 쓰는 Office의 CLI 오류 · 이번에 사라지는 경로 → "kit" 글자나 `KIT_*` 코드가 보이지 않는다.
+- Q4 [M2] (person: 테스트 레포 쓰기 허락; 나머지는 agent). 확인용 허브 사본 + 사본 PL·팀원 Office(live), be 테스트 레포 · 작은 Story 하나를 열고 Task를 Office가 가져간다 → 구현 → 검사 → 리뷰 → Story base 머지까지 kit 없이 돈다. 테스트 레포에 쓰는 일은 사람이 허락한 때만 한다.
+- Q5 [M4, Unchanged] (script). Story 글 하나(이 저장소의 시험 Story 고정본) · 옮긴 해시 함수와 지운 kit의 `storyContract` 결과(`git show b6407d7` 시점) → 같은 값이다.
+- Q6 [Unchanged] (script: upload 안내는 스크립트, 웹 기획은 시험 `tests/hub-plan-*.test.mjs`). 허브 웹 기획(질문 → 초안 → G1 → 설계 → Task 나누기)과 `team upload --guide` → 시험이 그대로 통과하고 화면 문구가 그대로다.
+- Q7 [M5] (agent). kit 기록이 있는 진행 중 작업을 가진 데이터 폴더 사본 · 새 코드로 Office를 켠다 → Human decides에서 고른 대로 된다. (가)면 그 작업이 이유와 함께 멈추고, 다른 작업은 돈다.
+- Q9 [M7] (script). 이 저장소 · `git grep -ni "kit" -- src tests scripts upstream` → 남은 것은 M7의 예외(kit 시절 작업 멈춤 한 곳과 그 시험, 4단계 몫인 로컬 올리기·템플릿·upload skill 관련)뿐이다.
+- Q8 [not shown] (agent: Q3을 돌리며 화면과 CLI를 본다). Office 화면, 혼자 쓰는 Office의 CLI 오류 · 이번에 사라지는 경로 → "kit" 글자나 `KIT_*` 코드가 보이지 않는다.
 
 ---
 Status: Approved
