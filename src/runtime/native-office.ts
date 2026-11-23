@@ -16,7 +16,7 @@ import { VerificationLedger } from "../core/verification.ts";
 import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
-import { LEGACY_TASK_MESSAGE, noteLegacyTask, reasonText } from "../core/legacy-tasks.ts";
+import { LEGACY_TASK, LEGACY_TASK_MESSAGE, noteLegacyTask, reasonText } from "../core/legacy-tasks.ts";
 import { createLiveRuntime, type LiveConfig } from "./live.ts";
 import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
 import type { RunnerCatalog, RunnerChoice } from "./runner-settings.ts";
@@ -394,6 +394,20 @@ export async function createNativeOffice(c: Config) {
         .prepare("SELECT task_id FROM pazmo_intakes")
         .all() as { task_id: string }[]) {
         const i = intake.get(row.task_id);
+        // A request begun under the removed workflow runtime stops from any open state, without its question, G1 or
+        // retry card (가).
+        if (!["registered", "cancelled"].includes(i.state) && intake.legacy(i.taskId)) {
+          noteLegacyTask(i.taskId);
+          const stopped = intake.stopLegacy(i.taskId);
+          db.prepare("DELETE FROM pazmo_native_decisions WHERE task_id=?").run(i.taskId);
+          if (stopped.reason === LEGACY_TASK)
+            message(
+              i.taskId,
+              `blocked:${i.taskId}:${stopped.revision}`,
+              `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}. 자동 재시도하지 않습니다.`,
+            );
+          continue;
+        }
         if (i.state === "waiting_pm" || i.state === "waiting_lead") {
           dispatch(i.taskId, `planning:${i.taskId}:${i.revision}`, () =>
             live!.startPlanning(i.taskId, i.revision, i.inputDigest),
@@ -468,6 +482,8 @@ export async function createNativeOffice(c: Config) {
         // A task begun under the removed workflow runtime stays stopped until the person cancels it (가).
         if (store.legacyTask(item.id)) {
           noteLegacyTask(item.id);
+          // Its open cards (a G4 among them) would hide the stop; the approval records stay.
+          db.prepare("DELETE FROM pazmo_native_decisions WHERE task_id=?").run(item.id);
           message(item.id, `legacy:${item.id}`, `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`);
           continue;
         }

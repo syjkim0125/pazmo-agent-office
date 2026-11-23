@@ -1,4 +1,5 @@
 import type { DatabaseSync } from "node:sqlite";
+import { fail } from "../cli/project.ts";
 
 /**
  * Tasks begun while Office ran its roles through the vendored ai-workflow-kit runtime, which is gone (person's
@@ -11,6 +12,21 @@ import type { DatabaseSync } from "node:sqlite";
 export const LEGACY_TASK = "LEGACY_TASK";
 export const LEGACY_TASK_MESSAGE =
   "kit 시절에 시작한 작업입니다. 취소하고 다시 만드세요. (This task began under the removed kit workflow; cancel it and create it again.)";
+
+/** The refusal of an answer, approval or delivery for a legacy task. */
+export function refuseLegacyTask(): never {
+  return fail(LEGACY_TASK, LEGACY_TASK_MESSAGE);
+}
+
+/**
+ * The part a G4 evidence subject prepared under the removed runtime also bound: that era's `prepare` stored the role
+ * receipt digest in the evidence as `kitReceipt` and put it in the subject as `kit`. Finished work of that era keeps
+ * its stored subject, so recomputing the subject uses the part the stored evidence names; new evidence has none.
+ */
+export function legacyEvidencePart(evidence: unknown): { kit?: string } {
+  const receipt = (evidence as { kitReceipt?: unknown } | null)?.kitReceipt;
+  return typeof receipt === "string" ? { kit: receipt } : {};
+}
 
 /** The stop reason as the person reads it: the plain message for a legacy task, else the code. */
 export function reasonText<T extends string | null>(reason: T): T | string {

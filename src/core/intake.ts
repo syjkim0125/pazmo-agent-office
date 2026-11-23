@@ -8,6 +8,7 @@ import type { ApprovalAnswer } from "./approvals.ts";
 import type { OfficeStore } from "./store.ts";
 import { digest } from "./candidates.ts";
 import { PLAN_ROOT } from "./contracts.ts";
+import { LEGACY_TASK, legacyPlanning, refuseLegacyTask } from "./legacy-tasks.ts";
 import {
   beginPlanning,
   acceptPlanning,
@@ -280,6 +281,28 @@ export class IntakeLedger {
       fail("INTAKE_STATE", "No planning role is pending.");
     return packet;
   }
+  /** Whether the request's saved packet was made for the removed runtime's planning graph (`legacy-tasks.ts`). */
+  legacy(id: string): boolean {
+    return legacyPlanning(JSON.parse(this.#row(id).packet_json));
+  }
+  /** Controller-only (가): a legacy request that is still open (pending, asking, waiting for G1 or a retry, or with an
+   * unpublished proposal) stops as LEGACY_TASK. Stopping it again, or a published or cancelled one, changes nothing. */
+  stopLegacy(id: string) {
+    return transaction(this.#db, () => {
+      const row = this.#row(id),
+        packet = JSON.parse(row.packet_json) as PlanningPacket;
+      if (!legacyPlanning(packet))
+        fail("INTAKE_STATE", "Only a request begun under the removed workflow runtime stops as legacy.");
+      if (
+        row.task_status !== "inbox" ||
+        this.#publication(id) ||
+        row.state === "cancelled" ||
+        (row.state === "human_required" && row.reason === LEGACY_TASK)
+      )
+        return this.get(id);
+      return this.#advance(row, packet, "human_required", null, "controller", { error: LEGACY_TASK }, LEGACY_TASK);
+    });
+  }
   /** A supervisor may interrupt only the still-pending conversation it owns. */
   interrupt(
     id: string,
@@ -402,6 +425,7 @@ export class IntakeLedger {
     this.#store.authorize(token);
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
+      if (legacyPlanning(packet)) refuseLegacyTask();
       if (row.state !== "human_required" || row.reason !== "G1_REQUIRED")
         fail(
           "INTAKE_STATE",
@@ -437,6 +461,7 @@ export class IntakeLedger {
     this.#store.authorize(token);
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
+      if (legacyPlanning(packet)) refuseLegacyTask();
       if (row.state !== "human_required" || row.reason !== "PLANNING_INVALID")
         fail("INTAKE_STATE", "Only rejected planning output can be resumed.");
       if (typeof note !== "string" || !note.trim() || note.length > 16000)
@@ -500,6 +525,7 @@ export class IntakeLedger {
     this.#store.authorize(token);
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
+      if (legacyPlanning(packet)) refuseLegacyTask();
       const result = row.result_json
         ? (JSON.parse(row.result_json) as Result)
         : null;

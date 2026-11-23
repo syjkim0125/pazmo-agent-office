@@ -820,3 +820,92 @@ test("a task begun under the removed workflow runtime is not started; it shows t
   assert.deepEqual(notices, [`작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`]);
   assert.equal(warnings.mock.calls.filter((c) => c.arguments[0].includes(f.task.id)).length, 1);
 });
+
+test("a legacy request waiting for answers loses its question card and shows the plain stop; nothing plans it (가)", async (t) => {
+  const { LEGACY_TASK_MESSAGE } = await import("../src/core/legacy-tasks.ts");
+  const { digest } = await import("../src/core/candidates.ts");
+  const { pmQuestions } = await import("./planning-fixture.mjs");
+  const warnings = t.mock.method(console, "warn", () => {});
+  const f = await fixture(t);
+  task(f);
+  await f.office.assign(taskId);
+  const { intake } = f.office.ledgers;
+  pmQuestions(intake, taskId, [{ id: "Q1", text: "Which README?", reason: "Two exist." }]);
+  await f.office.refresh();
+  assert.equal(f.office.decisions().length, 1, "the question card before the upgrade");
+  // The saved packet as a request begun under the removed runtime has it.
+  const p = JSON.parse(f.db.prepare("SELECT packet_json FROM pazmo_intakes WHERE task_id=?").get(taskId).packet_json);
+  const { inputDigest: _, ...data } = { ...p, workflow: "kit-role-v1" };
+  f.db
+    .prepare("UPDATE pazmo_intakes SET packet_json=? WHERE task_id=?")
+    .run(JSON.stringify({ ...data, inputDigest: digest(JSON.stringify(data)) }), taskId);
+  const planned = f.calls.length;
+  await f.office.refresh();
+  await f.office.refresh();
+  assert.deepEqual(f.office.decisions(), [], "no question, G1 or retry card for it");
+  const i = intake.get(taskId);
+  assert.deepEqual([i.state, i.reason], ["human_required", "LEGACY_TASK"]);
+  assert.equal(f.calls.length, planned, "no planning started");
+  const notices = f.db
+    .prepare("SELECT content FROM messages WHERE task_id=? AND content LIKE '작업이 멈췄습니다:%'")
+    .all(taskId)
+    .map((m) => m.content);
+  assert.deepEqual(notices, [`작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}. 자동 재시도하지 않습니다.`]);
+  assert.equal(warnings.mock.calls.filter((c) => c.arguments[0].includes(taskId)).length, 1);
+});
+
+test("a legacy task at G4 loses its G4 card and cannot be answered or delivered (가)", async (t) => {
+  const { officeFixture } = await import("./coordinator-fixture.mjs");
+  const { LEGACY_TASK_MESSAGE } = await import("../src/core/legacy-tasks.ts");
+  const { writeFileSync } = await import("node:fs");
+  t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  addRoleAgents(f.db);
+  const token = "a".repeat(64);
+  const office = await createNativeOffice({
+    db: f.db,
+    project: f.project,
+    dataDir: f.root,
+    token,
+    createRuntime: async () => ({
+      status: () => ({ execution: "ready", active: [] }),
+      startUnderstanding: () => {},
+      assertIdle() {},
+      close: async () => {},
+    }),
+  });
+  t.after(() => office.close());
+  // A verified candidate waiting for the person's G4.
+  const { handoffs, execution } = office.ledgers;
+  const attempt = handoffs.prepare(f.task.id);
+  handoffs.start(attempt.leaseId, "fixture-engineer");
+  writeFileSync(join(attempt.workspace, "src/a"), "after");
+  const observation = { exitCode: 0, signal: null, timedOut: false, error: null, output: "Scripted fixture only" };
+  const finished = handoffs.finish(attempt.leaseId, "fixture-engineer", { closed: true, observation });
+  for (const node of finished.round.nodes) {
+    const lease = execution.reserveNode(finished.round.id, node.id);
+    execution.start(lease.id, node.id);
+    execution.finish(lease.id, node.id, {
+      closed: true,
+      observation: { ...observation, kind: node.kind, ...(node.kind === "review" ? { report: { verdict: "pass", findings: [], summary: "Fixture" } } : {}) },
+    });
+  }
+  await office.refresh();
+  const g4 = office.decisions().find((d) => d.decision_kind === "G4");
+  assert.ok(g4, "the G4 card before the upgrade");
+  f.db.exec(`CREATE TABLE pazmo_kit_assignments (
+    task_id TEXT NOT NULL, revision INTEGER NOT NULL, assignment_id TEXT NOT NULL,
+    role TEXT NOT NULL, run_file TEXT NOT NULL, target_revision TEXT NOT NULL,
+    PRIMARY KEY(task_id,revision,assignment_id))`);
+  f.db
+    .prepare("INSERT INTO pazmo_kit_assignments VALUES (?,?,?,?,?,?)")
+    .run(f.task.id, f.store.get(f.task.id).revision, `kit5:${f.task.id}:1:developer:`, "developer", "x/run.json", "0".repeat(64));
+  await office.refresh();
+  assert.deepEqual(office.decisions().filter((d) => d.task_id === f.task.id), [], "the G4 card is gone");
+  assert.throws(() => office.ledgers.completion.request(token, f.task.id), { code: "LEGACY_TASK" });
+  assert.throws(() => office.ledgers.completion.deliver(token, f.task.id), { code: "LEGACY_TASK" });
+  const last = f.db
+    .prepare("SELECT content FROM messages WHERE task_id=? ORDER BY created_at DESC,rowid DESC LIMIT 1")
+    .get(f.task.id).content;
+  assert.equal(last, `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`);
+});

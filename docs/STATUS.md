@@ -3,7 +3,7 @@
 - 이 저장소의 변경은 이제 story-qa로 합니다(`AGENTS.md`). Story와 QA 목록을 승인받고, 구현, 독립 리뷰, 로컬 QA, 보고 순서입니다. QA 환경은 [docs/qa.md](qa.md)입니다.
 - kit의 개발 지침(`AGENTS.md` 블록, `.agents/skills/workflow`)과 실행 기록(`.ai-workflow/runs`·`approvals`·`evidence`, `config.json`, `verification.json`, 16MB)을 트리에서 지웠습니다.
   - 아래 기록과 지난 문서의 링크는 그대로 두었습니다. 지운 파일은 `git show b6407d7:<경로>`로 읽습니다.
-- Office가 실행 중에 쓰는 kit(`.ai-workflow/bin`·`graph`, `templates/ai-workflow`)은 남겼습니다. Office 역할 엔진을 바꿀 때(3단계) 지웁니다.
+- Office가 실행 중에 쓰던 kit(`.ai-workflow/bin`·`graph`)은 3단계에서 지웠습니다([Story](stories/office-engine-without-kit.md)). `templates/ai-workflow`은 Story 양식을 바꾸는 4단계까지 남깁니다.
 - **확인:**
   - QA 7개 통과. 전체 시험 2087/2087(Node 24), 타입 검사 exit 0.
   - 독립 리뷰의 고칠 것 2건(Story Q2 명령, 라이선스 고지)과 작은 것들을 고쳤습니다.

@@ -455,6 +455,13 @@ export function planningPrompt(
     // Codex's local working directory is an empty host staging directory; a
     // Lead once skipped inspection and relied on the PM's proposal (intake
     // rejects a single-Office Lead proposal without snapshot evidence).
+    // The role profiles still call the Lead a pre-G1 proposal that may ask; single-Office planning moved G1 before the
+    // Lead and only the PM asks (D1).
+    ...(packet.role === "lead" && !packet.team
+      ? [
+          "This Lead turn follows the person's G1 approval of packet.story. Where the role profile calls this a pre-G1 proposal or allows a question, follow this instead: return the plan and tasks only; Office does not accept questions from the Lead.",
+        ]
+      : []),
     ...(context && packet.role === "lead" && !packet.team
       ? [
           "Your shell commands reach the readonly snapshot at /candidate/tree through the remote executor even though your local working directory is an empty staging directory. Before returning tasks, run readonly commands there to confirm the paths, existing tests and baseline behavior your checks rely on. packet.story is the approved Story, not evidence. Office rejects a Lead proposal without successful command evidence on /candidate/tree.",
@@ -473,8 +480,9 @@ export function planningPrompt(
 export function planningLimits(role: "pm" | "lead") {
   const L = LIMITS;
   if (role === "pm") return pmLimits().join("\n");
+  // Only the PM asks (D1): the Lead's limits have no question set.
   return [
-    ...commonLimits(),
+    ...commonLimits().filter((line) => !line.startsWith("- questions:")),
     `- plan at most ${L.plan} characters; tasks 1-${L.tasks} items.`,
     ...taskLimits(),
     checkLimits(L.checks),

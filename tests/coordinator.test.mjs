@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
@@ -429,6 +429,104 @@ test("a legacy task with an open round has that round stopped for a person", asy
   assert.deepEqual([stopped.state, stopped.reason], ["human_required", "LEGACY_TASK"]);
   assert.deepEqual([stopped.round.id, stopped.round.state, stopped.round.reason], [round.id, "human_required", "LEGACY_TASK"]);
   assert.equal(r.engineers, 0);
+});
+
+
+/** A completion ledger over the fixture, with local delivery storage. */
+async function completionOf(f) {
+  const { CompletionLedger } = await import("../src/core/completion.ts");
+  return new CompletionLedger(f.db, f.store, f.verification, f.execution, "a".repeat(64), f.handoffs, join(f.root, "deliveries"));
+}
+/** The person's accepted G4 on the prepared evidence, as the Office records it. */
+function approveG4(completion, taskId) {
+  const token = "a".repeat(64);
+  const request = completion.request(token, taskId);
+  const submitted = completion.submit(token, request.id, {
+    decision: "approve",
+    note: "Fixture G4.",
+    understanding: { behavior: "b", invariant: "i", evidence: "e" },
+  });
+  completion.evaluate(token, request.id, submitted.answerDigest, Object.fromEntries(["behavior", "invariant", "evidence"].map((k) => [k, { correct: true, rationale: "r" }])));
+}
+/**
+ * Rewrites every stored copy of the task's G4 evidence subject to the formula the removed runtime's era used: the
+ * subject also bound the role receipt digest, which the stored evidence names as `kitReceipt`.
+ */
+async function asKitEraEvidence(f, taskId) {
+  const { digest } = await import("../src/core/candidates.ts");
+  const row = f.db.prepare("SELECT * FROM pazmo_g4_evidence WHERE task_id=?").get(taskId);
+  const evidence = JSON.parse(row.evidence_json);
+  const kitReceipt = digest("[]");
+  const old = digest(JSON.stringify({ verification: row.verification_subject, handoff: evidence.handoff, diff: digest(JSON.stringify(evidence.diff)), kit: kitReceipt }));
+  f.db.exec("PRAGMA foreign_keys=OFF");
+  f.db.prepare("UPDATE pazmo_g4_evidence SET subject=?, evidence_json=? WHERE subject=?").run(old, JSON.stringify({ ...evidence, kitReceipt }), row.subject);
+  for (const table of ["pazmo_g4_requests", "pazmo_approval_challenges", "pazmo_approvals"])
+    f.db.prepare(`UPDATE ${table} SET subject=? WHERE subject=?`).run(old, row.subject);
+  f.db.prepare("UPDATE pazmo_deliveries SET g4_subject=? WHERE g4_subject=?").run(old, row.subject);
+  // A delivery of that era names the same subject in its receipt.
+  const delivered = f.db.prepare("SELECT directory FROM pazmo_deliveries WHERE task_id=?").get(taskId);
+  if (delivered) {
+    const file = join(delivered.directory, "receipt.json");
+    const receipt = JSON.parse(readFileSync(file, "utf8"));
+    const bytes = JSON.stringify({ ...receipt, g4: { ...receipt.g4, subject: old } });
+    rmSync(file);
+    writeFileSync(file, bytes, { mode: 0o400 });
+    f.db.prepare("UPDATE pazmo_deliveries SET receipt_digest=? WHERE task_id=?").run(digest(bytes), taskId);
+  }
+  f.db.exec("PRAGMA foreign_keys=ON");
+  markLegacy(f, taskId);
+  return old;
+}
+
+test("finished kit-era work keeps its state: a delivered task stays delivered and done at every start", async (t) => {
+  const f = await officeFixture(t);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "awaiting_g4");
+  const completion = await completionOf(f);
+  await completion.prepare(f.task.id);
+  approveG4(completion, f.task.id);
+  completion.deliver("a".repeat(64), f.task.id);
+  await asKitEraEvidence(f, f.task.id);
+  completion.reconcileDeliveries(); // what the Office runs at every start
+  assert.equal(completion.delivery(f.task.id).status, "delivered");
+  assert.equal(f.verification.latest(f.task.id).state, "awaiting_g4");
+  assert.equal(f.store.get(f.task.id).status, "done");
+  assert.equal((await runner(f).c.run(f.task.id)).state, "delivered");
+});
+
+test("a kit-era verified Story Task's evidence stays readable and prepares again without a conflict", async (t) => {
+  const f = await officeFixture(t);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "awaiting_g4");
+  const completion = await completionOf(f);
+  await completion.prepare(f.task.id);
+  const subject = await asKitEraEvidence(f, f.task.id);
+  // storyEvidence reads this bundle; concludeStory prepares it again.
+  assert.equal(completion.evidence("a".repeat(64), f.task.id).subject, subject);
+  assert.deepEqual(await completion.prepare(f.task.id), { subject, roundId: f.verification.latest(f.task.id).id });
+});
+
+test("an unfinished kit-era task at G4 cannot be asked for or given a G4 answer", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "awaiting_g4");
+  const completion = await completionOf(f);
+  await completion.prepare(f.task.id);
+  const token = "a".repeat(64);
+  const pending = completion.request(token, f.task.id);
+  await asKitEraEvidence(f, f.task.id);
+  assert.throws(() => completion.request(token, f.task.id), { code: "LEGACY_TASK" });
+  assert.throws(
+    () => completion.submit(token, pending.id, { decision: "approve", note: "n", understanding: { behavior: "b", invariant: "i", evidence: "e" } }),
+    { code: "LEGACY_TASK" },
+  );
+  assert.throws(() => completion.deliver(token, f.task.id), { code: "LEGACY_TASK" });
+});
+
+test("a cancelled legacy task reports cancelled", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  markLegacy(f, f.task.id);
+  f.store.cancelExecution(f.task.id);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "cancelled");
 });
 
 test("already aborted work is cancelled without constructing a role job", async (t) => {

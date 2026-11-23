@@ -324,6 +324,62 @@ test("planning saved for the removed workflow runtime stops with its plain reaso
   );
 });
 
+
+/** Marks the request's saved packet as the removed runtime's planning packet (`workflow: "kit-role-v1"`), as
+ * requests begun before the upgrade have it, keeping its state. */
+async function markLegacyPacket(f, taskId) {
+  const { digest } = await import("../src/core/candidates.ts");
+  const p = JSON.parse(f.db.prepare("SELECT packet_json FROM pazmo_intakes WHERE task_id=?").get(taskId).packet_json);
+  const { inputDigest: _, ...data } = { ...p, workflow: "kit-role-v1" };
+  f.db
+    .prepare("UPDATE pazmo_intakes SET packet_json=? WHERE task_id=?")
+    .run(JSON.stringify({ ...data, inputDigest: digest(JSON.stringify(data)) }), taskId);
+  return f.intake.get(taskId);
+}
+
+test("a legacy request's questions, Story G1 and planning retry are refused with LEGACY_TASK, and the controller stops it from any open state (가)", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const { pmQuestions } = await import("./planning-fixture.mjs");
+  // Questions pending at the upgrade: answering would drop the mark and plan on.
+  const asking = setup(t);
+  pmQuestions(asking.intake, asking.item.taskId, [{ id: "Q1", text: "Which parser?", reason: "Scope." }]);
+  const waiting = await markLegacyPacket(asking, asking.item.taskId);
+  assert.equal(asking.intake.legacy(waiting.taskId), true);
+  assert.throws(
+    () => asking.intake.answer(token, waiting.taskId, waiting.revision, waiting.inputDigest, [{ id: "Q1", answer: "Public." }]),
+    { code: "LEGACY_TASK" },
+  );
+  const stopped = asking.intake.stopLegacy(waiting.taskId);
+  assert.deepEqual([stopped.state, stopped.reason], ["human_required", "LEGACY_TASK"]);
+  assert.equal(asking.intake.stopLegacy(waiting.taskId).revision, stopped.revision, "stopping again changes nothing");
+
+  // A Story waiting for G1, and rejected output waiting for a retry.
+  const story = setup(t);
+  const pm = (await story.coordinator.run(story.item.taskId, story.context)).intake;
+  const g1 = await markLegacyPacket(story, pm.taskId);
+  assert.throws(
+    () => story.intake.approveStory(token, g1.taskId, g1.revision, g1.inputDigest, { decision: "approve", note: "n" }),
+    { code: "LEGACY_TASK" },
+  );
+  assert.equal(story.intake.stopLegacy(g1.taskId).reason, "LEGACY_TASK");
+  const rejected = setup(t);
+  const original = rejected.planner.run;
+  rejected.planner.run = async (...args) => {
+    const report = await original(...args);
+    report.result.stdout = "malformed";
+    return report;
+  };
+  const failed = await markLegacyPacket(rejected, (await rejected.coordinator.run(rejected.item.taskId, rejected.context)).intake.taskId);
+  assert.throws(
+    () => rejected.intake.retryPlanning(token, failed.taskId, failed.revision, failed.inputDigest, "retry"),
+    { code: "LEGACY_TASK" },
+  );
+  // A request planned after the upgrade is not legacy and cannot be stopped as one.
+  const fresh = setup(t);
+  assert.equal(fresh.intake.legacy(fresh.item.taskId), false);
+  assert.throws(() => fresh.intake.stopLegacy(fresh.item.taskId), { code: "INTAKE_STATE" });
+});
+
 test("explicit planning recovery keeps the approved Story and bounds retries", async (t) => {
   const f = setup(t);
   const approved = await approvedPm(f);
@@ -422,6 +478,9 @@ test("Lead prompts state the snapshot is reachable and the approved Story is not
   for (const { prompt } of lead) {
     assert.match(instructions(prompt), /shell commands reach the readonly snapshot at \/candidate\/tree/);
     assert.match(instructions(prompt), /not evidence/);
+    // Only the PM asks (D1): the Lead is told so, and its limits list no question set.
+    assert.match(instructions(prompt), /Office does not accept questions from the Lead/);
+    assert.doesNotMatch(instructions(prompt), /- questions: 1-/);
   }
   for (const { prompt } of prompts) assert.doesNotMatch(prompt, /\bkit\b/i);
   for (const { prompt } of prompts.filter((p) => p.role === "pm"))

@@ -54,7 +54,9 @@ export class OfficeCoordinator {
       round: d.verification.latest(taskId),
       executions: d.execution.list(taskId),
     });
-    if (d.store.get(taskId).status === "done") return result("delivered");
+    const status = d.store.get(taskId).status;
+    if (status === "done") return result("delivered");
+    if (status === "cancelled") return result("cancelled");
     // Before any lease: a task begun under the removed workflow runtime stops with its own reason (가).
     if (d.store.legacyTask(taskId)) {
       noteLegacyTask(taskId);
