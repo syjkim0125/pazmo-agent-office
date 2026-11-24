@@ -28,12 +28,16 @@ type ProcessObservation = {
   /** Office's own reason for `error` when the runner supervisor stopped the role (a refused claude plugin). */
   detail?: string;
 };
+/** How much of Office's own stop reason a screen shows: an allow command carries the node and script paths (about 300
+ * characters for a long plugin name), and a few of them stay whole. */
+export const STOP_DETAIL_MAX = 1600;
+
 /** " — <code>: <reason>" for a role run Office stopped with its own reason (a refused claude plugin: which, why, how
  * to allow it), as one bounded line to add to a stop's words; "" for any other run. */
 export function stopDetail(o: { error?: unknown; detail?: unknown } | null | undefined): string {
   if (!o || typeof o.error !== "string" || !/^[A-Z][A-Z0-9_]{0,63}$/.test(o.error) || typeof o.detail !== "string")
     return "";
-  const reason = o.detail.replace(/[\s\x00-\x1f\x7f]+/g, " ").trim().slice(0, 600);
+  const reason = o.detail.replace(/[\s\x00-\x1f\x7f]+/g, " ").trim().slice(0, STOP_DETAIL_MAX);
   return reason ? ` — ${o.error}: ${reason}` : "";
 }
 export type Observation = ProcessObservation &

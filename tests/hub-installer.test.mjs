@@ -53,6 +53,11 @@ if [ -n "\${FAKE_FAIL:-}" ]; then
     "$FAKE_FAIL"*) echo "fake $name failed" >&2; exit 1 ;;
   esac
 fi
+if [ -n "\${FAKE_FAIL_IN:-}" ]; then
+  case "$name $*" in
+    *"$FAKE_FAIL_IN"*) echo "fake $name failed" >&2; exit 1 ;;
+  esac
+fi
 case "$name" in
   uname)
     case "$1" in
@@ -345,16 +350,31 @@ test("a failed step names the step and the rerun command and exits 1", async (t)
     ["git clone", READY, "Office 내려받기", "npm ci"],
     ["npm ci", READY, "Office 준비", "gh auth"],
     ["claude auth login", { FAKE_HAVE: READY.FAKE_HAVE, FAKE_GH_OK: "1" }, "Claude 로그인", "node"],
-    ["node", READY, "내 Mac 연결", "never"],
+    // Matched anywhere in the call: both node steps start with the same node and script.
+    ["runner plugins --review", READY, "회사 플러그인 확인", "mac connect", "in"],
+    ["mac connect", READY, "내 Mac 연결", "never", "in"],
   ];
-  for (const [fail, env, step, after] of cases) {
+  for (const [fail, env, step, after, how] of cases) {
     const w = world(t);
-    const r = await w.run(script(), { env: { ...env, FAKE_FAIL: fail } });
+    const r = await w.run(script(), { env: { ...env, ...(how === "in" ? { FAKE_FAIL_IN: fail } : { FAKE_FAIL: fail }) } });
     assert.equal(r.code, 1, `${fail}: ${r.text}`);
     assert.ok(r.stderr.includes(step), `${fail}: names the step "${step}" on stderr: ${r.stderr}`);
     assert.ok(r.stderr.includes(rerun), `${fail}: gives the rerun command on stderr`);
-    assert.equal(w.calls().some((c) => c.startsWith(after)), false, `${fail}: stops before "${after}"`);
+    assert.equal(w.calls().some((c) => (how === "in" ? c.includes(after) : c.startsWith(after))), false, `${fail}: stops before "${after}"`);
   }
+});
+
+test("after the Claude login and before the Mac connect, node@24 reviews this Mac's claude plugins on the terminal", async (t) => {
+  const w = world(t);
+  const r = await w.run(script(), { env: { FAKE_HAVE: READY.FAKE_HAVE, FAKE_GH_OK: "1" } });
+  assert.equal(r.code, 0, r.text);
+  const calls = w.calls();
+  const review = calls.indexOf(`node ${w.office}/bin/pazmo-office.mjs runner plugins --review`);
+  assert.ok(review > calls.indexOf("claude auth login"), calls.join("\n"));
+  assert.ok(review < calls.indexOf(`node ${w.office}/bin/pazmo-office.mjs mac connect --hub ${PUBLIC}`), calls.join("\n"));
+  // No controlling terminal here, so the step reads /dev/null ("char"): it asks nothing and changes nothing.
+  const kinds = w.stdinKinds().filter((k) => k.startsWith("node "));
+  assert.deepEqual(kinds, ["node char", "node char"]);
 });
 
 test("piped into sh (curl | sh), no step reads the script and the dialogs read the terminal or /dev/null", async (t) => {

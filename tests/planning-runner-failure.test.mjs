@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { randomUUID } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { acceptPlanning, beginPlanning } from "../src/runners/planning.ts";
 
 // Observed 2026-10-08: claude CLI 2.1.280 could not refresh its OAuth token and
@@ -69,20 +71,32 @@ test("a turn Office stopped with a reason names the reason, so the person can ac
   assert.equal(error.origin, "runner");
   assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
   // One bounded line, whatever the reason holds.
-  const long = rejection(() => acceptPlanning(pm(), { ...stopped, result: { ...stopped.result, detail: "x\n".repeat(600) } }));
-  assert.ok(long.detail.length <= 600 && !long.detail.includes("\n"), long.detail);
+  const long = rejection(() => acceptPlanning(pm(), { ...stopped, result: { ...stopped.result, detail: "x\n".repeat(1600) } }));
+  assert.ok(long.detail.length <= 1600 && !long.detail.includes("\n"), long.detail);
 });
 
-test("a refusal naming two plugins, one with a 100-character name, keeps every allow command whole (M4)", async () => {
+test("a refusal naming two plugins, one with a 100-character name, keeps every allow command whole (M4)", async (t) => {
   const { pluginVerdict } = await import("../src/runners/claude-plugins.ts");
   const source = "p" + "x".repeat(60) + "@" + "m".repeat(39);
+  // Both installed as skill-only plugins, the way Claude Code registers them, so each gets its allow command.
+  const home = realpathSync(mkdtempSync(join(tmpdir(), "planning-plugins-")));
+  t.after(() => rmSync(home, { recursive: true, force: true }));
+  const plugins = {};
+  for (const s of ["a@m", source]) {
+    const [name, market] = s.split("@");
+    const dir = join(home, ".claude/plugins/cache", market, name, "1.0.0");
+    mkdirSync(join(dir, "skills/s"), { recursive: true });
+    writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\n---\n");
+    plugins[s] = [{ installPath: dir }];
+  }
+  writeFileSync(join(home, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins }));
   const init = { type: "system", subtype: "init", plugins: [{ source: "a@m" }, { source }] };
-  const { detail } = pluginVerdict(init, { allowed: [], home: "/nonexistent", dataDir: "/Users/someone/Library/pazmo-qa-data" });
+  const { detail } = pluginVerdict(init, { allowed: [], home, dataDir: "/Users/someone/Library/pazmo-qa-data" });
   const stopped = { closed: true, result: { exitCode: null, signal: "SIGKILL", error: "CLAUDE_PLUGIN_UNEXPECTED", detail, timedOut: false, stderr: "", stdout: lines({ type: "turn.started" }, { type: "turn.failed" }) } };
   const error = rejection(() => acceptPlanning(pm(), stopped));
   assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
-  assert.ok(error.detail.endsWith(`pazmo-office runner allow-plugin ${source} --data-dir /Users/someone/Library/pazmo-qa-data`), error.detail);
-  assert.ok(error.detail.includes("pazmo-office runner allow-plugin a@m --data-dir /Users/someone/Library/pazmo-qa-data;"), error.detail);
+  assert.ok(error.detail.endsWith(`pazmo-office.mjs runner allow-plugin ${source} --data-dir /Users/someone/Library/pazmo-qa-data`), error.detail);
+  assert.ok(error.detail.includes("pazmo-office.mjs runner allow-plugin a@m --data-dir /Users/someone/Library/pazmo-qa-data;"), error.detail);
 });
 
 test("a known runner message is recognized only as a turn's sole output", () => {
