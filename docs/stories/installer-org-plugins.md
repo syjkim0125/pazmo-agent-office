@@ -39,6 +39,11 @@
 - M3. 실행되는 허용 명령
   1. 멈춘 이유와 `--review`가 보이는 허용 명령은 `'<node 경로>' '<Office>/bin/pazmo-office.mjs' runner allow-plugin <이름>`(다른 데이터 폴더면 `--data-dir '<폴더>'`) 꼴이다.
   2. 그대로 셸에 붙이면 그 데이터 폴더의 목록에 들어간다.
+  3. 승인 뒤 고침(2026-11-24, 리뷰):
+     - 멈춘 이유도 `--review`와 같은 판정을 쓴다. 목록에 없더라도 hook·MCP·agent·command가 있거나 설치 폴더를 찾지 못하면, 허용 명령 대신 이유만 보인다(허용해도 다시 막히기 때문).
+     - 명령 속 경로는 사람의 홈을 `~`로 줄인다. 팀 기획 실패 이유는 공유 허브에 올라가므로 계정 이름을 싣지 않는다.
+     - 명령이 1200자를 넘으면 명령을 자르지 않고 "그 밖의 N개는 `… runner plugins --review`"로 끝낸다. 화면이 보이는 멈춘 이유는 1600자까지다.
+     - `--review`는 claude를 SIGTERM으로 먼저 멈춘다(로그인 잠금이 풀리게). Ctrl-C에도 claude와 임시 폴더를 정리한다.
 - M4. 문서: `docs/LOCAL-PREVIEW.md`의 설치기 단계와 `docs/qa.md`의 플러그인 줄이 새 단계와 명령을 말한다.
 
 ## OUT
@@ -55,6 +60,7 @@ Script: qa/installer-org-plugins.sh
 - Q3 [M1] (script: 시험 `tests/claude-plugins-review.test.mjs`). 가짜 claude가 hook 플러그인과 skill만 있는 플러그인을 init에 싣는다 · 터미널 입력 `y` → hook 플러그인은 묻지 않고 이유를 보이며, skill만 있는 것만 묻고 넣는다. claude가 없거나 init이 없으면 아무것도 바꾸지 않고 exit 0이다.
 - Q4 [M2] (script). `installScript({…})`로 만든 설치기 · 내용 검사와 `sh -n` → "Claude 로그인" 다음, "내 Mac 연결" 앞에 "회사 플러그인 확인"이 있고 `<"$TTY"`로 `runner plugins --review`를 부르며, 문법 오류가 없다.
 - Q5 [M3] (script). 시험의 멈춘 이유(`pluginVerdict`)에 다른 데이터 폴더를 주어 만든 허용 명령 · 그대로 `sh -c`로 실행 → 그 폴더의 목록에 들어간다.
+  - 승인 뒤 고침: M3.3 때문에, 설치 기록이 없는 플러그인에는 허용 명령이 나오지 않는다. 그래서 Q5는 skill만 있는 플러그인을 Claude Code처럼 등록한 가짜 HOME으로 만든다.
 - Q6 [Unchanged] (script). `tests/claude-plugins.test.mjs`, `tests/claude-profile.test.mjs`, 설치기 시험, 그리고 옵션 없는 `runner plugins` 출력 → 그대로 통과하고, 출력 모양도 같다.
 - Q7 [not shown] (script). 내장 밖 플러그인이 없는 가짜 claude · `--review` → "확인할 플러그인이 없습니다" 한 줄뿐이고, 묻지 않으며 목록 파일도 만들지 않는다.
 
