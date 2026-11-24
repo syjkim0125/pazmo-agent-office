@@ -742,22 +742,14 @@ export async function createNativeOffice(c: Config) {
       values.length
         ? values.map((v, n) => `- ${prefix ? `${prefix}${n + 1}. ` : ""}${v}`).join("\n")
         : "- 없음";
+    // Headings in English as the Story writes them, the content in the request's words (2026-11-24, M1.2); the
+    // Decisions and Human decides stay in the Story below.
     return [
       "요구사항 범위 승인",
       `**${story.title}**`,
-      `지금: ${story.asIs}`,
-      `바뀐 뒤: ${story.toBe}`,
-      `그대로: ${story.unchanged}`,
-      ...(story.decisions.length || story.copies
-        ? [
-            `정한 것\n${[
-              ...story.decisions.map((d, n) => `- D${n + 1}. ${d.fork} → ${d.pick} (${d.because})`),
-              ...(story.copies ? [`- 같은 기능의 사본: ${story.copies}`] : []),
-            ].join("\n")}`,
-          ]
-        : []),
-      `꼭 할 것\n${items(story.must, "M")}`,
-      `하지 않을 것\n${items(story.out, "O")}`,
+      `Goal\n- 지금: ${story.asIs}\n- 바뀐 뒤: ${story.toBe}\n- 그대로: ${story.unchanged}`,
+      `MUST\n${items(story.must, "M")}`,
+      `OUT\n${items(story.out, "O")}`,
       `QA\n${story.qa.map(qaLine).join("\n")}`,
       "승인은 아래 원문 Story를 기준으로 합니다.",
     ].join("\n\n") + DETAIL_MARKER + renderPlanningStory(story);

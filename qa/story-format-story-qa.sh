@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# QA checks for docs/stories/story-format-story-qa.md (the script scenarios: Q1, Q2, Q5, Q6, Q7, Q8, Q9, Q11).
+# QA checks for docs/stories/story-format-story-qa.md (the script scenarios: Q1, Q2, Q5, Q6, Q7, Q8, Q9, Q11, Q13; S2 of the
+# progress log small change approved on 2026-11-24).
 # Q10 is `npm test` and `npm run typecheck`, run on their own (one full test run at a time on this Mac).
 # Run from the repository root, Node 24 first on PATH: bash qa/story-format-story-qa.sh
 # These checks run commands only, so BASE_URL is not used. Prints PASS/FAIL per scenario id; exits 1 when any fails.
@@ -109,6 +110,20 @@ const approved = approvedStory(draft, { approvalId: 'a1', gate: 'G1', memberId: 
 console.log(hashStory(old) + ' / same=' + (hashStory(draft) === hashStory(approved)) + ' / changed=' + (draft !== approved));")
 want="5858498905450b3a6c51a6591a5b09d298e876c8a152d10106e671b88bba5158 / same=true / changed=true"
 [ "$out" = "$want" ] && pass Q9 "$out" || fail Q9 "got: $out; want: $want"
+
+# Q13 (added after approval, M9): the planning profile PM and Lead read asks for the request's language, headings in English.
+out=$(run "
+const { loadRoleProfile } = await import('$ROOT/src/runners/role-profiles.ts');
+const text = (role) => loadRoleProfile(role).files.map((f) => f.content).join('\\n');
+const ok = (role) => text(role).includes(\"Write every text value in the language of the person's request\") && text(role).includes('Keep headings and markers in English');
+console.log('pm=' + ok('pm') + ' / lead=' + ok('lead'));")
+[ "$out" = "pm=true / lead=true" ] && pass Q13 "$out" || fail Q13 "got: $out; want: pm=true / lead=true"
+
+# S2 (small change, progress log in a scrolling box): the Office web tests pass and the fold button's words are gone.
+out=$(node --experimental-vm-modules --test tests/lean-web.test.mjs 2>&1)
+left=$(git grep -c -e "이전 기록" -e "eventsUnfold" -e "eventsFold" -- src/lean/web | wc -l | tr -d ' ')
+if grep -qE '^ℹ fail 0$' <<<"$out" && [ "$left" = 0 ]; then pass S2 "lean-web $(grep -E '^ℹ pass ' <<<"$out"), fold words in src/lean/web: 0 files"
+else fail S2 "lean-web $(grep -E '^ℹ (pass|fail) ' <<<"$out" | tr '\n' ' '), fold words in $left files"; fi
 
 # Q11: no template copies in the tree or from init, and "kit" (not -webkit-) only in the (가) stop and its tests.
 n=$(git ls-files templates/ai-workflow | wc -l | tr -d ' ')

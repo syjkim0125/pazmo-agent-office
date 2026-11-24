@@ -202,7 +202,7 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
   const [readable, original] = decision.summary.split("\n상세 원문:\n");
   assert.equal(
     readable,
-    "요구사항 범위 승인\n\n**README**\n\n지금: README shows an old command\n\n바뀐 뒤: README shows the actual command\n\n그대로: Runtime behavior\n\n정한 것\n- D1. Where the command comes from → CLI help (it is the source of truth)\n\n꼭 할 것\n- M1. Show actual command\n\n하지 않을 것\n- O1. Runtime changes\n\nQA\n- Q1 [M1] (script). Command matches CLI\n- Q2 [Unchanged] (script). CLI output is the same\n- Q3 [not shown] (agent). No other README section changes\n\n승인은 아래 원문 Story를 기준으로 합니다.",
+    "요구사항 범위 승인\n\n**README**\n\nGoal\n- 지금: README shows an old command\n- 바뀐 뒤: README shows the actual command\n- 그대로: Runtime behavior\n\nMUST\n- M1. Show actual command\n\nOUT\n- O1. Runtime changes\n\nQA\n- Q1 [M1] (script). Command matches CLI\n- Q2 [Unchanged] (script). CLI output is the same\n- Q3 [not shown] (agent). No other README section changes\n\n승인은 아래 원문 Story를 기준으로 합니다.",
     "people read the Story, not its JSON",
   );
   // Q12 (not shown): the G1 card carries none of the old Story format's words.

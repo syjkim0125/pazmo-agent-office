@@ -108,7 +108,8 @@
 ## MUST
 - M1. 혼자 쓰는 Office의 기획이 story-qa 형식 Story를 만든다.
   1. PM 결과로 그린 `story.md`가 Goal(As-is·To-be·Unchanged)·Decisions·(Human decides)·MUST·OUT·QA 순서이고, 맨 아래에 `Status: Draft`·`Owner:`가 있다.
-  2. G1 카드가 그 형식의 말(지금·바뀐 뒤·그대로, 정한 것, 꼭 할 것, 하지 않을 것, QA와 실행 방식)로 보인다.
+  2. G1 카드가 영어 제목 Goal·MUST·OUT·QA로 보인다. Goal 안은 지금·바뀐 뒤·그대로이고, QA 줄에는 실행 방식이 있다. Decisions·Human decides는 카드 아래 원문에 있다.
+     - 승인 뒤 고침(2026-11-24, Q3 중 사용자 요청 "제목이 영어고 내용은 한국어로 해. Goal, Must, Not, QA 이렇게"): 승인 때 문구는 "그 형식의 말(지금·바뀐 뒤·그대로, 정한 것, 꼭 할 것, 하지 않을 것, QA와 실행 방식)"이었다. 사용자가 제목 이름은 Goal·MUST·OUT·QA, 바꿀 화면은 G1 카드만 골랐다.
   3. Lead의 Task가 Q 번호를 덮고, 덮은 Q마다 검사가 있다. 계약이 등록된다.
   4. kit 형식(Domain·SHOULD·Verify·gate 줄)으로 쓴 Story는 계약 등록에서 이유와 함께 거절된다.
 - M2. 허브 웹 기획이 같은 형식으로 돈다.
@@ -130,6 +131,8 @@
   1. `templates/ai-workflow/`를 지우고, `init`이 템플릿 사본을 만들지 않는다.
   2. `upstream/ai-workflow-kit.lock.json`과 고지 문서(`THIRD_PARTY_NOTICES.md`·`LICENSING.md`)의 템플릿 줄을 정리한다.
   3. `src`·`tests`·`skills`·`assets`에서 "kit"이 남는 곳은 3단계의 (가) 멈춤 한 곳과 `pazmo_kit_*` 표 읽기뿐이다.
+- M9. PM·Lead가 쓰는 글(Story 내용, 계획, Task의 결과·범위·제약)은 요청한 사람의 말로 쓴다. 한국어 요청이면 한국어다. 제목과 표식(`## Goal` 같은 절 이름, As-is·To-be·Unchanged, Options·Pick, M·Q 번호, script·agent·person)은 영어 그대로다.
+  - 승인 뒤 더함(2026-11-24, Q3에서 한국어 요청에 영어 Story와 계획이 나옴. 사용자 요청 "내용은 한국어로 해").
 - M8. 문서를 실제와 맞춘다: `AGENTS.md`의 템플릿 줄, `README`·`CONCEPTS.md`의 Story 형식 설명, `docs/STATUS.md`. 형식은 skill을 가리킨다.
 
 ## OUT
@@ -167,6 +170,10 @@ Script: qa/story-format-story-qa.sh
   - 첫째는 아무것도 나오지 않는다.
   - `.pazmo-office/`에 `STORY.md`·`TASK.md`가 없다.
   - 셋째는 (가) 멈춤 한 곳과 `pazmo_kit_*` 표 읽기, 그 시험만 나온다.
+- Q13 [M9] (script). 이 저장소 · `assets/roles/planning-common.md`와 PM·Lead 프롬프트(`planningPrompt`) → "Write every text value in the language of the person's request" 문장이 있다. 제목·표식은 영어로 둔다는 문장도 있다.
+  - 승인 뒤 더함(2026-11-24, M9와 함께).
+- Q14 [M1, M9] (person: 작업 만들기·G1·G4는 사람이 누름. 나머지는 agent). Q3과 같은 live Office · 한국어로 작업을 만든다 → G1 카드 제목이 Goal·MUST·OUT·QA이고, 카드와 원문 Story·계획의 내용이 한국어다.
+  - 승인 뒤 더함(2026-11-24, M1.2 고침과 M9).
 - Q12 [not shown] (agent: Q3·Q4를 돌리며 본다). Office G1 카드, 허브 초안·결과 승인 화면 · 새 형식 Story → `Understanding gate`, `G4: PASS`, `ASSUMED`, `OPEN BLOCKING`, `Domain`, `SHOULD`, `Verify` 글자가 보이지 않는다.
 
 ---
