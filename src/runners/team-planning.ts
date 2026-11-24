@@ -168,7 +168,7 @@ export function acceptTeamLead(packet: PlanningPacket, observation: Observation,
             at,
           );
           const must = refs(t.must, story.must.length, `${at}.must`);
-          const verify = refs(t.verify, story.verify.length, `${at}.verify`);
+          const verify = refs(t.verify, story.qa.length, `${at}.verify`);
           const checks = checksOf(t.checks, verify, `${at}.checks`, S.checksPerList);
           const repoId = repoOf(t.repo, `${at}.repo`);
           // Path rules beyond one plain line are the Hub's (validateGraph below).
@@ -191,7 +191,7 @@ export function acceptTeamLead(packet: PlanningPacket, observation: Observation,
         },
         PLAN_LIMITS.workTasksMax,
       );
-      const scenarios = story.verify.map((_, i) => i + 1);
+      const scenarios = story.qa.map((_, i) => i + 1);
       const storyVerify = list(
         value.storyVerify,
         "report.storyVerify",
@@ -240,7 +240,7 @@ function clip(line: string, max: number): string {
   return (/[\ud800-\udbff]$/.test(cut) ? cut.slice(0, -1) : cut) + "…";
 }
 
-/** A team plan's Story draft: the PM's Story with one `PL 답: <question> → <answer>` Decisions line per answered
+/** A team plan's Story draft: the PM's Story with one `PL 답: <question> → <answer>` Human decides line per answered
  * question, folded to one line and cut at 500 characters. Office writes these, not the model (D35 P1). */
 export function renderTeamStory(story: PlanningStory, decided: { question: string; answer: string }[]): string {
   return renderPlanningStory(
@@ -249,7 +249,7 @@ export function renderTeamStory(story: PlanningStory, decided: { question: strin
   );
 }
 
-/** A Hub Task's spec: four lines (Outcome, Scope, Constraints and the Story M/V numbers it covers). */
+/** A Hub Task's spec: four lines (Outcome, Scope, Constraints and the Story M/Q numbers it covers). */
 export function renderTaskSpec(
   task: { outcome: string; scope: string; constraints: string; must: number[]; verify: number[] },
   _story: PlanningStory,
@@ -258,7 +258,7 @@ export function renderTaskSpec(
     `Outcome: ${task.outcome}`,
     `Scope: ${task.scope}`,
     `Constraints: ${task.constraints}`,
-    `Covers: ${task.must.map((m) => `M${m}`).join(", ")} / ${task.verify.map((v) => `V${v}`).join(", ")}`,
+    `Covers: ${task.must.map((m) => `M${m}`).join(", ")} / ${task.verify.map((v) => `Q${v}`).join(", ")}`,
   ].join("\n");
 }
 
@@ -282,9 +282,9 @@ export function splitDigest(split: TeamSplit): string {
   return createHash("sha256").update(canonicalJson(split), "utf8").digest("hex");
 }
 
-/** A high-risk plan's design for G3, in the `decision.md` shape: the Lead's plan and the Task list it approves, then
- * the split's digest line, so the G3 that binds this text binds the whole split the Hub stores and the Office
- * publishes, not only what the list shows. */
+/** A high-risk plan's design for G3: the Lead's plan and the Task list it approves, then the split's digest line, so
+ * the G3 that binds this text binds the whole split the Hub stores and the Office publishes, not only what the list
+ * shows. */
 export function renderTeamDesign(split: TeamSplit, repos: TeamRepoFolder[]): string {
   const folderOf = new Map(repos.map((r) => [r.repoId, r.folder]));
   const tasks = split.graph.nodes.map((node) => {
@@ -292,18 +292,15 @@ export function renderTeamDesign(split: TeamSplit, repos: TeamRepoFolder[]): str
     const waits = before.length ? `(앞: ${before.join(", ")})` : "";
     return `- ${node.id} · ${folderOf.get(node.repoId) ?? node.repoId} · ${node.title}${waits}`;
   });
-  return `# Decision requiring human G3\n\n${split.plan}\n\n## Task 목록\n${tasks.join("\n")}\n\nUnderstanding gate (G3): pending\n\n나누기 지문: ${splitDigest(split)}\n`;
+  return `# 설계\n\n${split.plan}\n\n## Task 목록\n${tasks.join("\n")}\n\n나누기 지문: ${splitDigest(split)}\n`;
 }
 
-/** The approved draft the Hub Story carries: `Status: Approved` and the G1 line naming the web approval. The
- * Story hash (`hashStory`) leaves both lines out, so it equals the draft's. */
+/** The approved draft the Hub Story carries: its `Status:` line says Approved and names the web G1. The Story hash
+ * (`hashStory`) leaves `Status:` lines out, so it equals the draft's. */
 export function approvedStory(draft: string, g1: PlanApproval): string {
-  if (!/^Status: Draft$/m.test(draft) || !/^Understanding gate \(G1\): pending$/m.test(draft))
-    invalid("draft: no Status or G1 line");
-  return draft
-    .replace(/^Status: Draft$/m, "Status: Approved")
-    .replace(
-      /^Understanding gate \(G1\): pending$/m,
-      `Understanding gate (G1): hub-approval:${g1.approvalId} · ${new Date(g1.at).toISOString().slice(0, 10)} · Check-in: accepted`,
-    );
+  if (!/^Status: Draft$/m.test(draft)) invalid("draft: no Status line");
+  return draft.replace(
+    /^Status: Draft$/m,
+    `Status: Approved (G1 hub-approval:${g1.approvalId} · ${new Date(g1.at).toISOString().slice(0, 10)})`,
+  );
 }

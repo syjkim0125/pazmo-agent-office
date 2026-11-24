@@ -13,6 +13,12 @@ export const LEGACY_TASK = "LEGACY_TASK";
 export const LEGACY_TASK_MESSAGE =
   "kit 시절에 시작한 작업입니다. 취소하고 다시 만드세요. (This task began under the removed kit workflow; cancel it and create it again.)";
 
+/** A planning request whose saved PM Story is in the Story format before story-qa (Story
+ * `story-format-story-qa`, person's choice (가)): Office no longer renders that Story, so the request stops. */
+export const LEGACY_STORY = "LEGACY_STORY";
+export const LEGACY_STORY_MESSAGE =
+  "옛 Story 형식으로 만든 기획입니다. 취소하고 다시 만드세요. (This plan was made in the old Story format; cancel it and create it again.)";
+
 /** The refusal of an answer, approval or delivery for a legacy task. */
 export function refuseLegacyTask(): never {
   return fail(LEGACY_TASK, LEGACY_TASK_MESSAGE);
@@ -28,9 +34,12 @@ export function legacyEvidencePart(evidence: unknown): { kit?: string } {
   return typeof receipt === "string" ? { kit: receipt } : {};
 }
 
-/** The stop reason as the person reads it: the plain message for a legacy task, else the code. */
+/** Whether a stop reason is one of the legacy stops. */
+export const legacyReason = (reason: string | null): boolean => reason === LEGACY_TASK || reason === LEGACY_STORY;
+
+/** The stop reason as the person reads it: the plain message for a legacy stop, else the code. */
 export function reasonText<T extends string | null>(reason: T): T | string {
-  return reason === LEGACY_TASK ? LEGACY_TASK_MESSAGE : reason;
+  return reason === LEGACY_TASK ? LEGACY_TASK_MESSAGE : reason === LEGACY_STORY ? LEGACY_STORY_MESSAGE : reason;
 }
 
 /** Whether the task's current contract revision has kit role runs. The table exists only in data folders the kit
@@ -43,9 +52,26 @@ export function legacyDelivery(db: DatabaseSync, taskId: string, revision: numbe
     .get(taskId, revision);
 }
 
-/** Whether a saved planning packet was made for the kit's planning graph (`workflow: "kit-role-v1"`). */
+/** Whether a saved planning packet carries a PM Story in the format before story-qa (it has no `qa`). */
+function oldStory(packet: object): boolean {
+  const story = (packet as { story?: unknown }).story;
+  return !!story && typeof story === "object" && !("qa" in story);
+}
+
+/** Whether a saved planning packet stops as legacy: made for the kit's planning graph (`workflow: "kit-role-v1"`), or
+ * holding a PM Story in the old format. */
 export function legacyPlanning(packet: object): boolean {
-  return "workflow" in packet;
+  return "workflow" in packet || oldStory(packet);
+}
+
+/** The refusal of an answer or approval for a legacy planning request, with its own stop code. */
+export function refuseLegacyPlanning(packet: object): never {
+  return legacyPlanningReason(packet) === LEGACY_TASK ? refuseLegacyTask() : fail(LEGACY_STORY, LEGACY_STORY_MESSAGE);
+}
+
+/** The stop code of a legacy planning packet: the kit's first, else the old Story format. */
+export function legacyPlanningReason(packet: object): typeof LEGACY_TASK | typeof LEGACY_STORY {
+  return "workflow" in packet ? LEGACY_TASK : LEGACY_STORY;
 }
 
 const logged = new Set<string>();

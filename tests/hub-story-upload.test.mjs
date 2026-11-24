@@ -7,7 +7,7 @@ import { esc } from "../src/hub/pages.ts";
 import { hashStory } from "../src/core/story-hash.ts";
 import { startTestHub } from "./hub-fixture.mjs";
 
-/** A Story text and the kit hash the command sends with it. */
+/** A Story text and the hash (`hashStory`) the command sends with it. */
 const text = (body) => ({ body, storyHash: hashStory(body) });
 const FIRST = text("# Story\n본문");
 const OTHER = text("# Story\n다른 본문");
@@ -16,7 +16,7 @@ const HASH = FIRST.storyHash;
 const OTHER_HASH = OTHER.storyHash;
 const SHA = (c) => c.repeat(40);
 const KEY = `upload:${HASH}`;
-const check = { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 };
+const check = { id: "Q1", argv: ["npm", "test"], timeoutMs: 60000 };
 const NOT_YOUR_MAC = "이 Mac은 지금 연결된 내 Mac이 아닙니다. 지금 연결된 Mac에서 다시 실행하세요.";
 const NOT_OWNER = "프로젝트의 모든 레포 담당자여야 올릴 수 있습니다. 관리자에게 담당자 등록을 요청하세요.";
 const UPLOAD_CANCELLED = "이 Story는 취소됐습니다. Story 글을 고쳐 새 승인을 받은 뒤 올리세요.";
@@ -243,7 +243,7 @@ test("refuses a bad graph", async (t) => {
   h.noStory(h.pl);
 });
 
-test("refuses a Story hash that is not the kit hash of the body", async (t) => {
+test("refuses a Story hash that is not the hash of the body", async (t) => {
   const h = await team(t);
   const token = h.macLink(pairMac(h.store, h.pl.member, "PL Mac"), h.be);
   // The same body under another well-formed hash, another body under the first hash, and a made-up hash.
@@ -255,7 +255,7 @@ test("refuses a Story hash that is not the kit hash of the body", async (t) => {
   }
   h.noStory(h.pl);
   assert.equal(h.board.storyByKey(h.pl.member.id, `upload:${OTHER_HASH}`), null, "nothing under the claimed hash either");
-  // The kit hash leaves out the Status and gate lines and line ends, as the command computes it.
+  // The hash leaves out the Status lines and line ends, as the command computes it.
   const crlf = `Status: Approved\r\n${FIRST.body.replace(/\n/g, "\r\n")}\r\n`;
   assert.equal(hashStory(crlf), HASH);
   const res = await h.upload(token, h.input({ body: crlf }));

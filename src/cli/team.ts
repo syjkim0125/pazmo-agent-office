@@ -38,7 +38,7 @@ function parseCap(value: string | undefined): number | null {
  * take no project either). `rerun` writes the member's request to run the
  * failed Task again, with its memo; a live team Office (`--live`, `up --team`)
  * that is running, or the next one that starts, asks the Hub for it. `upload`
- * puts a locally approved kit Story (`--story`) and its Task file (`--tasks`)
+ * puts a locally approved story-qa Story (`--story`) and its Task file (`--tasks`)
  * on the Hub and opens it; its `--project` is the Hub project's name or id. */
 export async function teamCommand(
   action: string,

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { OfficeError, fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
-import { LEGACY_TASK, reasonText } from "../core/legacy-tasks.ts";
+import { legacyReason, reasonText } from "../core/legacy-tasks.ts";
 import { stopDetail } from "../core/verification.ts";
 import { STOP_NOTICES, createNativeOffice } from "../runtime/native-office.ts";
 import type { NativeOffice } from "../runtime/native-office.ts";
@@ -418,7 +418,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     if (hasIntake(row.id)) {
       const i = intake.get(row.id);
       if (i.state === "human_required" && i.reason && i.reason !== "G1_REQUIRED" && i.reason !== "G1_REJECTED")
-        return i.reason === LEGACY_TASK
+        return legacyReason(i.reason)
           ? `작업이 멈췄습니다: ${reasonText(i.reason)}`
           : `작업이 멈췄습니다: ${i.reason}. 자동 재시도하지 않습니다.`;
     }

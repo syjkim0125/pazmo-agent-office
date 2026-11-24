@@ -6,6 +6,7 @@ import { fixture } from "./contract-fixture.mjs";
 import { applyLeanSchema } from "../src/lean/schema.ts";
 import { OfficeStore } from "../src/core/store.ts";
 import { IntakeLedger } from "../src/core/intake.ts";
+import { STORY } from "./planning-fixture.mjs";
 const token = "a".repeat(64);
 function setup(t) {
   const f = fixture(t),
@@ -241,16 +242,7 @@ test("PM requirements wait for the person's G1, then the Lead proposal survives 
     s.inputDigest,
     report(p, {
       status: "ready",
-      story: {
-        title: "Validate input",
-        goal: "Reject invalid input.",
-        domain: "Preserve records.",
-        must: ["Reject invalid input."],
-        should: [],
-        out: ["Deployment."],
-        assumptions: [],
-        verify: [{ must: [1], scenario: "Invalid input returns error." }],
-      },
+      story: STORY,
     }),
   );
   assert.equal(lead.state, "human_required");
@@ -273,8 +265,8 @@ test("PM requirements wait for the person's G1, then the Lead proposal survives 
         scope: "Parser and tests.",
         constraints: "Keep records.",
         must: [1],
-        verify: [1],
-        checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 1000 }],
+        verify: [1, 2, 3],
+        checks: [1, 2, 3].map((n) => ({ id: `Q${n}`, argv: ["node", "--test"], timeoutMs: 1000 })),
         workspace: { include: ["src"], exclude: [] },
       },
     ],

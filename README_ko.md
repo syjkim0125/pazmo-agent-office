@@ -16,7 +16,7 @@
 
 **조직:** Checkout Engineering · **만든 사람:** 김종건
 
-Pazmo Agent Office는 [AI Workflow Kit](https://www.npmjs.com/package/@pazmo/ai-workflow-kit)과 함께, 공통 Story와 Task를 중심으로 팀이 AI Agent와 협업하는 개발 환경입니다. PL이 Story를 Task로 쪼개 공용 Hub에 올리면, 팀원의 로컬 Office가 자기 repo의 일을 가져가 수행하는 흐름을 만들고 있습니다.
+Pazmo Agent Office는 공통 Story와 Task를 중심으로 팀이 AI Agent와 협업하는 개발 환경입니다. Story는 [pazmo-story-to-dev](https://github.com/syjkim0125/pazmo-story-to-dev)의 `story-qa` skill 형식을 따릅니다. PL이 Story를 Task로 쪼개 공용 Hub에 올리면, 팀원의 로컬 Office가 자기 repo의 일을 가져가 수행하는 흐름을 만들고 있습니다.
 
 > **현재는 개발 중인 로컬 알파입니다.** 로컬 Agent 실행과 Hub의 Story 보드 백엔드 1단계를 구현했습니다. Task 자동 가져가기, Story base 자동 병합과 아래의 전체 팀 협업 흐름은 후속 단계입니다. [현재 상태](#현재-상태)에서 구현된 기능과 목표를 구분해 확인할 수 있습니다.
 
@@ -35,12 +35,12 @@ Pazmo Agent Office는 [AI Workflow Kit](https://www.npmjs.com/package/@pazmo/ai-
 
 ## 적용 — AI를 어떻게 쓰나
 
-AI Workflow Kit은 공통 Story 계약, Task 그래프와 검증 절차를 제공합니다. Agent Office는 이 절차를 로컬 실행과 팀의 공유 작업 화면으로 연결합니다.
+공통 Story는 pazmo-story-to-dev의 `story-qa` skill이 정합니다. 합의한 변경과 그것을 증명하는 QA 시나리오로 이뤄집니다(형식은 skill 참고). Agent Office는 그 형식으로 Story를 기획하고, 의존관계와 검사가 있는 Task로 나눠 로컬 실행과 팀의 공유 작업 화면으로 연결합니다.
 
 | 구성 | 역할 |
 |---|---|
 | **사람 / PL** | 요구사항과 인수조건을 합의하고 Story를 승인하며 최종 결과를 확인합니다. |
-| **AI Workflow Kit** | 합의한 Story를 실행 가능한 Task로 분해하고 의존관계와 검증 절차를 정리합니다. |
+| **Story (story-qa)** | 합의한 변경과 그것을 증명하는 QA 시나리오입니다. Office의 기획이나 pazmo-story-to-dev의 `/story-qa`로 씁니다. |
 | **Hub** | 프로젝트·Story·Task와 진행 상황을 공유하는 게시판입니다. 코드를 실행하지 않습니다. |
 | **Agent Office** | 각 팀원의 PC에서 자기 repo의 실행 가능한 일을 가져와 구현·리뷰·검증을 조율합니다. |
 | **Agent** | 격리된 VM 환경에서 자기 Task에 지정된 repo를 대상으로 작업합니다. |
@@ -68,7 +68,7 @@ flowchart TB
 
 | 단계 | 하는 일 | 담당 |
 |---|---|---|
-| 1. Story 설계·Task 분해 | Story와 인수조건을 합의하고 Task마다 repo·파일·의존관계·검증 명령을 정합니다. | PL + 팀, Kit 활용 |
+| 1. Story 설계·Task 분해 | Story와 인수조건을 합의하고 Task마다 repo·파일·의존관계·검증 명령을 정합니다. | PL + 팀, Office 기획 또는 `/story-qa` |
 | 2. Story G1 | 범위, Task 그래프와 검증 명령을 보고 승인합니다. 고위험 작업은 G3 설계 승인도 유지합니다. | 사람 / PL |
 | 3. Hub에 올리기 | Story와 Task를 등록하고 repo마다 Story base 브랜치를 만듭니다. | PL의 Office |
 | 4. 가져가기 | 한가한 Office가 자기 담당 repo의 ready Task 하나를 가져갑니다. 선행 Task가 병합돼야 뒤 Task가 준비됩니다. | 각자 Office |
@@ -138,7 +138,7 @@ Office 저장소에서, 설치 폴더와 별도인 기존 Git 프로젝트를 �
 3. 한 checkout에서 Office를 여러 개(프로젝트별, 팀 Office) 켜 두었다면 진행 중인 작업이 없을 때 업데이트합니다. 설치는 `node_modules`를 잠깐 지우므로, 그동안 다른 Office의 claude 작업이 실패할 수 있습니다.
 4. 남은 `vendor/` 폴더(예전 설치물·빌드물)는 지워도 됩니다. 예전 작업 기록(`claw/`)은 지우지 않고 그대로 두며, 새 Office는 읽지 않습니다.
 
-Agent Office는 아직 npm에 게시되지 않았습니다. 아래의 AI Workflow Kit npm 패키지는 별도 프로젝트입니다.
+Agent Office는 아직 npm에 게시되지 않았습니다. 아래의 pazmo-story-to-dev 플러그인은 별도 프로젝트입니다.
 
 ## 결과 — 무엇이 달라지나
 
@@ -147,7 +147,7 @@ Agent Office는 아직 npm에 게시되지 않았습니다. 아래의 AI Workflo
 - **개인 생산성에서 팀 생산성으로:** 개인별 AI 활용을 공통 Story·Task·의존관계로 연결합니다.
 - **설계에 더 많은 시간 투자:** 반복적인 구현 작업을 Agent에 위임해 사람이 요구사항·도메인 설계·인수조건에 집중합니다.
 - **작업 진행 상황의 가시성:** Task 상태, Agent 실행, 결과와 판단이 필요한 지점을 한 흐름에서 확인합니다.
-- **개발 프로세스 표준화:** 공통 Workflow와 Template으로 팀원 간 AI 활용 방식의 일관성을 높입니다.
+- **개발 프로세스 표준화:** 공통 Story 형식과 Workflow로 팀원 간 AI 활용 방식의 일관성을 높입니다.
 
 초기에는 캐릭터 기반 Agent 시각화와 수동 Task 전달도 검토했습니다. 현재는 실제 업무에 필요한 칸반, 공유 Story와 자동 Task 실행에 집중하는 방향입니다.
 
@@ -161,7 +161,7 @@ Checkout 도메인에는 야간·주말 장애 대응과 타 도메인으로의 
 
 ## 링크
 
-- [AI Workflow Kit — npm](https://www.npmjs.com/package/@pazmo/ai-workflow-kit)
+- [pazmo-story-to-dev (`story-qa`) — GitHub](https://github.com/syjkim0125/pazmo-story-to-dev)
 - [Agent Office — GitHub](https://github.com/syjkim0125/pazmo-agent-office)
 - [공통 개념](CONCEPTS.md) · [Story 계약](docs/understanding/pazmo-agent-office-contract.md) · [현재 상태](docs/STATUS.md)
 

@@ -16,7 +16,7 @@
 
 **Organization:** Checkout Engineering · **Created by:** 김종건
 
-Pazmo Agent Office is a team collaboration environment built around shared Stories and Tasks, together with [AI Workflow Kit](https://www.npmjs.com/package/@pazmo/ai-workflow-kit). We are building a workflow where a PL publishes a Story and its Task graph to a shared Hub, and each teammate's local Office picks up work for their repositories.
+Pazmo Agent Office is a team collaboration environment built around shared Stories and Tasks. Its Stories take the shape of the `story-qa` skill of [pazmo-story-to-dev](https://github.com/syjkim0125/pazmo-story-to-dev). We are building a workflow where a PL publishes a Story and its Task graph to a shared Hub, and each teammate's local Office picks up work for their repositories.
 
 > **Local alpha, under active development.** Local agent execution and the first Hub Story-board backend are implemented. Automatic Task pickup, automatic merging into Story base branches and the full team workflow below are still being built. See [current status](#current-status) for the boundary between available features and the target design.
 
@@ -35,12 +35,12 @@ Our goal is to give people more time for requirements, domain design and accepta
 
 ## How it works
 
-AI Workflow Kit provides the common Story contract, Task graph and verification workflow. Agent Office connects that workflow to local execution and a shared view of the team's work.
+The `story-qa` skill of pazmo-story-to-dev defines the common Story: the agreed change and the QA scenarios that prove it (see the skill for its shape). Agent Office plans Stories in that shape, splits them into Tasks with dependencies and checks, and connects them to local execution and a shared view of the team's work.
 
 | Part | Responsibility |
 |---|---|
 | **People / PL** | Agree on requirements and acceptance criteria, approve the Story and inspect the final result. |
-| **AI Workflow Kit** | Turn the agreed Story into executable Tasks with dependencies and verification steps. |
+| **Story (story-qa)** | The agreed change and the QA scenarios that prove it, written by Office's planning or with `/story-qa` of pazmo-story-to-dev. |
 | **Hub** | Store shared projects, Stories, Tasks and progress. The Hub does not execute code. |
 | **Agent Office** | Run on each teammate's PC, pick up eligible work and coordinate implementation, review and verification. |
 | **Agent** | Work inside an isolated VM environment with the repository assigned to its Task. |
@@ -68,7 +68,7 @@ The target workflow moves from manually sending and accepting work to publishing
 
 | Step | What happens | Owner |
 |---|---|---|
-| 1. Define and break down | Agree on the Story and acceptance criteria; identify each Task's repository, files, dependencies and verification commands. | PL + team, assisted by Kit |
+| 1. Define and break down | Agree on the Story and acceptance criteria; identify each Task's repository, files, dependencies and verification commands. | PL + team, with Office's planning or `/story-qa` |
 | 2. Story G1 | Inspect and approve the scope, Task graph and verification commands. High-risk work also retains the G3 design gate. | Human / PL |
 | 3. Publish to Hub | Register the Story and Tasks; create a Story base branch in each repository. | PL's Office |
 | 4. Pick up work | An idle Office claims one ready Task from its assigned repositories. A dependent Task becomes eligible after its prerequisites are merged. | Each Office |
@@ -138,7 +138,7 @@ From this repository, select an existing Git project outside the Office installa
 3. If several Offices run from one checkout (per project, or the team Office), update while no task is running: the install briefly removes `node_modules`, so another Office's claude jobs can fail meanwhile.
 4. The leftover `vendor/` folder (the old install and build) can be deleted. The old task data (`claw/`) is kept as it is; the new Office does not read it.
 
-Agent Office is not yet published on npm. The AI Workflow Kit package linked here is a separate project.
+Agent Office is not yet published on npm. The pazmo-story-to-dev plugin linked here is a separate project.
 
 ## What this enables
 
@@ -147,7 +147,7 @@ We are building and validating this collaboration model. These are intended bene
 - **Team productivity:** connect individual AI use through shared Stories, Tasks and dependencies.
 - **More time for design:** delegate repeatable implementation work so people can focus on requirements, domain modeling and acceptance criteria.
 - **Visible progress:** bring Task status, agent activity, results and decisions into one workflow.
-- **Consistent development:** share the same workflow and templates across teammates.
+- **Consistent development:** share the same Story shape and workflow across teammates.
 
 Early exploration included character-based agent visualization and manual Task delivery. The current direction prioritizes Kanban, shared Stories and automatic Task execution.
 
@@ -161,7 +161,7 @@ The goal is an environment where opening Office lets an agent pick up shared wor
 
 ## Links
 
-- [AI Workflow Kit — npm](https://www.npmjs.com/package/@pazmo/ai-workflow-kit)
+- [pazmo-story-to-dev (`story-qa`) — GitHub](https://github.com/syjkim0125/pazmo-story-to-dev)
 - [Agent Office — GitHub](https://github.com/syjkim0125/pazmo-agent-office)
 - [Shared concepts](CONCEPTS.md) · [Story contract](docs/understanding/pazmo-agent-office-contract.md) · [Current status](docs/STATUS.md)
 

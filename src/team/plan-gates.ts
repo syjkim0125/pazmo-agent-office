@@ -11,6 +11,9 @@ const NOT_PL = "Story 승인 기록이 이 기획의 PL 것이 아닙니다.";
 const CHANGED = "승인한 초안과 지금 초안이 다릅니다. 취소하고 새 Story로 시작하세요.";
 const BLOCKING = "막는 결정이 남은 초안입니다.";
 const G3 = "설계 승인 기록이 맞지 않습니다.";
+/** A draft whose PM Story is in the format before story-qa (no `qa`): Office no longer renders it (person's choice
+ * (가), Story `story-format-story-qa`). */
+export const OLD_FORMAT = "옛 Story 형식으로 만든 기획입니다. 취소하고 다시 만드세요.";
 
 /** A leased plan's web approval does not bind what the Office is about to use. The message is the PL's plain reason. */
 export class PlanGateError extends OfficeError {
@@ -71,6 +74,8 @@ export function checkApprovals(
   if (!draft || typeof draft.text !== "string" || g1.textHash !== planTextHash(draft.text))
     throw new PlanGateError(CHANGED);
   if (hasOpenBlocking(draft.text)) throw new PlanGateError(BLOCKING);
+  const saved = draft.story;
+  if (saved && typeof saved === "object" && !("qa" in saved)) throw new PlanGateError(OLD_FORMAT);
   let story: PlanningStory;
   try {
     story = parseStory(draft.story);
@@ -90,8 +95,8 @@ export function checkApprovals(
   return { g1, g3, story, split };
 }
 
-/** The approved Story view the Hub Story carries (`Status: Approved` and the G1 line naming the web approval). Call
- * after `checkApprovals`. */
+/** The approved Story view the Hub Story carries (its `Status:` line names the web approval). Call after
+ * `checkApprovals`. */
 export function approvedView(plan: PlanRecord, g1: PlanApproval): string {
   if (!plan.draft) throw new PlanGateError(CHANGED);
   return approvedStory(plan.draft.text, g1);

@@ -15,8 +15,8 @@ This file records source attribution. It does not replace any upstream LICENSE o
 - Source: https://github.com/syjkim0125/ai-workflow-kit
 - Commit: `ea0f2a2e10872ef85b379afc1ee25835f446a763`.
 - Copyright: `Copyright (c) 2026 JongKun Kim`.
-- License: MIT; full text in `licenses/ai-workflow-kit-MIT.txt`.
-- Exact copies: `templates/ai-workflow/STORY.md` and `TASK.md`.
+- License: MIT. Nothing from it is in the current tree or package; the versions that carried its files keep the full text in `licenses/ai-workflow-kit-MIT.txt` (and `upstream/ai-workflow-kit-LICENSE`).
+- Exact copies: `templates/ai-workflow/STORY.md` and `TASK.md`, which `init` copied into each project, until 2026-11-24, when Office began writing and reading Stories in the story-qa shape of pazmo-story-to-dev ([Story](docs/stories/story-format-story-qa.md)) and they were removed from the tree with their source manifest; versions up to commit `a7651ea` keep them with `upstream/ai-workflow-kit.lock.json`.
 - Workflow tooling: `.ai-workflow/bin/` and `.ai-workflow/graph/` from official npm 5.0.3 were vendored for Office's role runs until 2026-11-20, when Office began running its roles on its own records and they were removed from the tree; versions up to commit `f3d975d` keep them with `upstream/kit.lock.json`.
 - The rest of the installation (the `.agents/skills/workflow/` skill with its bundled Pstack guidance, `.ai-workflow/config.json` and the routing in `AGENTS.md`) was this repository's development process and was removed on 2026-11-20; versions up to commit `b6407d7` keep it with its notices.
 - The existing upstream repository/package is not modified and is not a required runtime dependency.

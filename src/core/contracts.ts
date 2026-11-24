@@ -134,14 +134,8 @@ export async function readContract(
     fail("INVALID_CONTRACT", "Contract document paths must be distinct.");
   const texts = paths.map((path) => read(project, path));
   const [story, task, verification] = texts;
-  if (
-    !/^Readiness:\s*Implementation-ready\s*$/im.test(task) ||
-    /^[-*]\s+OPEN\s+BLOCKING\b/im.test(story)
-  )
-    fail(
-      "INVALID_CONTRACT",
-      "Resolve blocking decisions and mark the Task Implementation-ready first.",
-    );
+  if (!/^Readiness:\s*Implementation-ready\s*$/im.test(task))
+    fail("INVALID_CONTRACT", "Mark the Task Implementation-ready first.");
   for (const errors of [storyShapeErrors(project, story), taskShapeErrors(task)])
     if (errors.length) fail("INVALID_CONTRACT", errors.join(" "));
   if (task.match(/^Story:\s*(.+)$/im)?.[1]?.trim() !== input.story)
@@ -158,24 +152,24 @@ export async function readContract(
       "Task Plan source must equal the selected plan path.",
     );
   const mustIds = ids(story, "MUST", "M"),
-    storyVerifyIds = ids(story, "Verify", "V");
+    storyQaIds = ids(story, "QA", "Q");
   const covers = [
-    ...section(task, "Covers — Story M/V IDs").matchAll(/\b([MV]-?\d+)\b/gi),
+    ...section(task, "Covers — Story M/Q IDs").matchAll(/\b([MQ]-?\d+)\b/gi),
   ].map((m) => m[1].toUpperCase());
   if (
     !covers.some((id) => id.startsWith("M")) ||
-    !covers.some((id) => id.startsWith("V")) ||
-    covers.some((id) => ![...mustIds, ...storyVerifyIds].includes(id))
+    !covers.some((id) => id.startsWith("Q")) ||
+    covers.some((id) => ![...mustIds, ...storyQaIds].includes(id))
   )
     fail(
       "INVALID_CONTRACT",
-      "Task coverage must reference existing Story M/V IDs.",
+      "Task coverage must reference existing Story M/Q IDs.",
     );
-  const verifyIds = [...new Set(covers.filter((id) => id.startsWith("V")))];
-  const mappings = section(story, "Verify")
+  const verifyIds = [...new Set(covers.filter((id) => id.startsWith("Q")))];
+  const mappings = section(story, "QA")
     .split(/\r?\n/)
     .filter((line) => {
-      const id = line.match(/^[-*]\s+(V-?\d+)\b/i)?.[1]?.toUpperCase();
+      const id = line.match(/^[-*]\s+(Q-?\d+)\b/i)?.[1]?.toUpperCase();
       return id && verifyIds.includes(id);
     })
     .flatMap((line) =>
@@ -186,7 +180,7 @@ export async function readContract(
   if (covers.some((id) => id.startsWith("M") && !mappings.includes(id)))
     fail(
       "INVALID_CONTRACT",
-      "Selected V cases must verify every covered M requirement.",
+      "Selected QA scenarios must check every covered M requirement.",
     );
   let parsed: { version?: unknown; checks?: unknown; workspace?: unknown };
   try {
@@ -224,12 +218,12 @@ export async function readContract(
     )
       fail(
         "INVALID_CONTRACT",
-        "Each check needs a covered V ID, bounded argv and a 1–600000 ms timeout.",
+        "Each check needs a covered Q ID, bounded argv and a 1–600000 ms timeout.",
       );
     return { id: check.id, argv: [...check.argv], timeoutMs: check.timeoutMs };
   });
   if (verifyIds.some((id) => !checks.some((check) => check.id === id)))
-    fail("INVALID_CONTRACT", "Every covered V ID needs a verification check.");
+    fail("INVALID_CONTRACT", "Every covered Q ID needs a verification check.");
   const files = paths.map((path, i) => ({
     path,
     digest: digest(Buffer.from(texts[i], "utf8")),

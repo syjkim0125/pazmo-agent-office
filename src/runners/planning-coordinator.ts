@@ -1,5 +1,5 @@
 import { OfficeError } from "../cli/project.ts";
-import { LEGACY_TASK, legacyPlanning, noteLegacyTask } from "../core/legacy-tasks.ts";
+import { legacyPlanning, legacyPlanningReason, noteLegacyTask } from "../core/legacy-tasks.ts";
 import type { IntakeLedger } from "../core/intake.ts";
 import type { ExecutionLedger } from "../core/budgets.ts";
 import type { Candidate } from "../core/candidates.ts";
@@ -63,7 +63,7 @@ export class PlanningCoordinator {
           const packet = intake.packet(taskId, item.revision, item.inputDigest);
           if (legacyPlanning(packet)) {
             noteLegacyTask(taskId);
-            intake.interrupt(taskId, item.revision, item.inputDigest, LEGACY_TASK);
+            intake.interrupt(taskId, item.revision, item.inputDigest, legacyPlanningReason(packet));
             return view();
           }
           const prompt = planningPrompt(packet, context);

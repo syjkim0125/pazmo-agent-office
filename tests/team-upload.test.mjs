@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
-import { createHash } from "node:crypto";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
 import { hashStory } from "../src/core/story-hash.ts";
-import { checkUpload, kitStoryRefs } from "../src/team/upload.ts";
+import { checkUpload, storyRefs } from "../src/team/upload.ts";
 
-// The command's own checks of a locally approved kit Story and its Task file (K2, K3), with no Hub: every refusal is a
-// plain UPLOAD_* error before anything is sent.
+// The command's own checks of a story-qa Story the person approved (its Status line reads Approved) and its Task file
+// (K2, K3, story-format-story-qa M4), with no Hub: every refusal is a plain UPLOAD_* error before anything is sent.
 
-const G1_LINE = "Understanding gate (G1): .ai-workflow/approvals/pay-g1.json · 2026-11-11 · Check-in: accepted";
-const G3_LINE = "Understanding gate (G3): .ai-workflow/approvals/pay-g3.json · 2026-11-11 · Check-in: accepted";
 const PROJECT = {
   id: "p-pay",
   name: "결제",
@@ -20,42 +17,43 @@ const PROJECT = {
     { id: "r-fe", name: "app-fe", baseBranch: "develop" },
   ],
 };
-const DESIGN = "# 설계\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n";
-const sha256 = (text) => createHash("sha256").update(text).digest("hex");
 
-/** A kit Story whose header carries `gates` lines; `must` and `verify` are its MUST and Verify bullets. */
+/** A story-qa Story; `must` and `qa` are its MUST and QA bullets, `status` its Status line. */
 function storyText({
-  gates = [G1_LINE],
+  status = "Status: Approved",
   must = ["- M1. 결제 API가 주문을 받는다.", "- M2. 결제 화면에 버튼이 있다.", "- M3. 실패하면 이유를 보인다."],
-  verify = ["- V1 [M1, M3]. API 시험이 통과한다.", "- V2 [M2]. 화면 시험이 통과한다."],
+  qa = [
+    "- Q1 [M1, M3] (script). API 시험 → 통과한다.",
+    "- Q2 [M2] (agent). 결제 화면 → 버튼이 보인다.",
+    "- Q3 [Unchanged] (script). npm test → 기존 시험이 통과한다.",
+  ],
 } = {}) {
   return [
     "# Story: 결제 버튼",
-    "Status: Approved",
-    "Owner: 지수",
-    ...gates,
-    "Understanding gate (G4): pending",
     "",
     "## Goal",
-    "고객이 주문을 결제한다.",
+    "1. As-is: 결제할 수 없다.",
+    "2. To-be: 고객이 주문을 결제한다.",
+    "3. Unchanged: 결제는 두 번 되지 않는다.",
     "",
-    "## Domain",
-    "- Invariant: 결제는 두 번 되지 않는다.",
+    "## Decisions",
+    "- D1. 결제 수단",
+    "  - Options: 카드 / 계좌",
+    "  - Pick: 카드, because src/pay.ts:1",
     "",
     "## MUST",
     ...must,
     "",
-    "## SHOULD",
-    "- S1. 영수증을 보낸다.",
-    "",
     "## OUT",
-    "- O1. 환불.",
+    "- O1. 환불: 요청 밖",
     "",
-    "## Decisions",
-    "- D1. 카드만.",
+    "## QA",
+    "Environment: local (docs/qa.md)",
+    ...qa,
     "",
-    "## Verify",
-    ...verify,
+    "---",
+    status,
+    "Owner: 지수",
     "",
   ].join("\n");
 }
@@ -69,22 +67,19 @@ function tasksFile(o = {}) {
       { name: "app-fe", baseBranch: "develop" },
     ],
     tasks: [
-      { id: "be-pay", repo: "app-be", title: "결제 API", spec: "API를 만든다.", files: ["src/pay.ts"], covers: ["M1", "M3", "V1"], after: [], checks: [check("V1")] },
-      { id: "fe-pay", repo: "app-fe", title: "결제 버튼", spec: "버튼을 붙인다.\n", files: ["src/pay.tsx"], covers: ["M2", "V2"], after: ["be-pay"], checks: [check("V2")] },
+      { id: "be-pay", repo: "app-be", title: "결제 API", spec: "API를 만든다.", files: ["src/pay.ts"], covers: ["M1", "M3", "Q1", "Q3"], after: [], checks: [check("Q1"), check("Q3")] },
+      { id: "fe-pay", repo: "app-fe", title: "결제 버튼", spec: "버튼을 붙인다.\n", files: ["src/pay.tsx"], covers: ["M2", "Q2"], after: ["be-pay"], checks: [check("Q2")] },
     ],
     storyChecks: [
-      { repo: "app-be", checks: [check("V1", 300000)] },
-      { repo: "app-fe", checks: [check("V2", 300000)] },
+      { repo: "app-be", checks: [check("Q1", 300000)] },
+      { repo: "app-fe", checks: [check("Q2", 300000)] },
     ],
     ...o,
   };
 }
 
-/**
- * A folder holding `.ai-workflow/` (where the gate paths resolve), the Story under `docs/`, its G1 record bound to the
- * Story's kit hash, the design file, and the Task file. `put` rewrites any of them.
- */
-function files(t, { story = storyText(), tasks = tasksFile(), g1 } = {}) {
+/** A folder holding the Story under `docs/` and the Task file under `plan/`. `put` rewrites either, or adds a file. */
+function files(t, { story = storyText(), tasks = tasksFile() } = {}) {
   const root = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-upload-")));
   t.after(() => rmSync(root, { recursive: true, force: true }));
   const put = (path, value) => {
@@ -92,8 +87,6 @@ function files(t, { story = storyText(), tasks = tasksFile(), g1 } = {}) {
     writeFileSync(join(root, path), typeof value === "string" ? value : JSON.stringify(value, null, 2));
   };
   put("docs/pay-story.md", story);
-  put(".ai-workflow/approvals/pay-g1.json", g1 ?? { gate: "G1", storyHash: hashStory(story), responseRef: "chat: 승인", date: "2026-11-11" });
-  put("docs/pay-design.md", DESIGN);
   put("plan/tasks.json", tasks);
   return {
     root,
@@ -115,7 +108,7 @@ function refuses(f, code, pattern) {
 test("builds the Hub upload from the Story and Task files", (t) => {
   const f = files(t);
   const text = storyText();
-  assert.deepEqual(kitStoryRefs(text), { must: [1, 2, 3], verify: [{ n: 1, must: [1, 3] }, { n: 2, must: [2] }] });
+  assert.deepEqual(storyRefs(text), { must: [1, 2, 3], qa: [{ n: 1, must: [1, 3] }, { n: 2, must: [2] }, { n: 3, must: [] }], bad: [] });
   assert.deepEqual(f.check(), {
     projectId: "p-pay",
     title: "결제 버튼",
@@ -124,144 +117,154 @@ test("builds the Hub upload from the Story and Task files", (t) => {
     storyHash: hashStory(text),
     graph: {
       nodes: [
-        { id: "be-pay", repoId: "r-be", title: "결제 API", spec: "API를 만든다.\nCovers: M1, M3, V1", files: ["src/pay.ts"], verify: [check("V1")] },
-        { id: "fe-pay", repoId: "r-fe", title: "결제 버튼", spec: "버튼을 붙인다.\nCovers: M2, V2", files: ["src/pay.tsx"], verify: [check("V2")] },
+        { id: "be-pay", repoId: "r-be", title: "결제 API", spec: "API를 만든다.\nCovers: M1, M3, Q1, Q3", files: ["src/pay.ts"], verify: [check("Q1"), check("Q3")] },
+        { id: "fe-pay", repoId: "r-fe", title: "결제 버튼", spec: "버튼을 붙인다.\nCovers: M2, Q2", files: ["src/pay.tsx"], verify: [check("Q2")] },
       ],
       edges: [{ from: "be-pay", to: "fe-pay" }],
     },
     storyVerify: [
-      { repoId: "r-be", checks: [check("V1", 300000)] },
-      { repoId: "r-fe", checks: [check("V2", 300000)] },
+      { repoId: "r-be", checks: [check("Q1", 300000)] },
+      { repoId: "r-fe", checks: [check("Q2", 300000)] },
     ],
   });
 });
 
-test("refuses a Story without a bound G1", (t) => {
-  // No G1 line at all, or the template's pending one.
-  refuses(files(t, { story: storyText({ gates: [] }) }), "UPLOAD_G1", /G1/);
-  refuses(files(t, { story: storyText({ gates: ["Understanding gate (G1): <pending>"] }) }), "UPLOAD_G1", /G1/);
-  // The line names a record that is not there.
-  const gone = files(t);
-  rmSync(join(gone.root, ".ai-workflow/approvals/pay-g1.json"));
-  refuses(gone, "UPLOAD_G1", /pay-g1\.json/);
-  // The record binds another text: the Story changed after its approval.
-  const story = storyText();
-  refuses(files(t, { story, g1: { gate: "G1", storyHash: hashStory(`${story}\n- M9. 승인 뒤에 더한 줄.`), responseRef: "chat: 승인" } }), "UPLOAD_G1", /다시/);
-  // Not a G1 record, or no response it was given in.
-  refuses(files(t, { story, g1: { gate: "G3", storyHash: hashStory(story), responseRef: "chat: 승인" } }), "UPLOAD_G1");
-  refuses(files(t, { story, g1: { gate: "G1", storyHash: hashStory(story), responseRef: " " } }), "UPLOAD_G1");
-  // A record path that leaves the project.
-  refuses(files(t, { story: storyText({ gates: ["Understanding gate (G1): ../outside-g1.json · 2026-11-11 · Check-in: accepted"] }) }), "UPLOAD_G1");
+test("approval is the Story's Status line reading Approved; a Draft or no Status line is UPLOAD_G1 (H2)", (t) => {
+  // Anything may follow Approved: the Hub's web G1 writes its record there, a person may write a date.
+  for (const status of ["Status: Approved", "Status: Approved (2026-11-24, 지수)", "Status: Approved (G1 hub-approval:a1 · 2026-11-24)"])
+    assert.equal(files(t, { story: storyText({ status }) }).check().title, "결제 버튼", status);
+  for (const status of ["Status: Draft", "Status: Draft | Approved", "Status: approved", ""])
+    refuses(files(t, { story: storyText({ status }) }), "UPLOAD_G1", /pazmo-story-to-dev[\s\S]*Status: Approved/);
+  // The approval does not change the hash: a draft and its approved copy go up under one key.
+  assert.equal(hashStory(storyText({ status: "Status: Draft" })), hashStory(storyText()));
 });
 
-/** The hash the removed workflow runtime's `storyContract` gave for the CRLF text below (commit f3d975d). */
-const CRLF_HASH = "79fe03bfdb27645b47cd79eb2543001beb414cdf28dbf6a8c9f8b60e8122fcd4";
-
-test("the Story hash on CRLF is the value it always was", (t) => {
-  // Windows line ends, a trailing space on a line and blank lines at the end.
-  const text = `${storyText().replace("- M2. 결제 화면에 버튼이 있다.", "- M2. 결제 화면에 버튼이 있다.   ")}\n\n`.replace(/\n/g, "\r\n");
-  assert.ok(text.includes("\r\n"));
-  assert.equal(hashStory(text), CRLF_HASH);
-  const f = files(t, { story: text });
-  const upload = f.check();
-  assert.equal(upload.storyHash, CRLF_HASH);
-  assert.equal(upload.body, text, "the Story goes up as it is");
-  assert.equal(upload.title, "결제 버튼");
-  assert.deepEqual(kitStoryRefs(text), { must: [1, 2, 3], verify: [{ n: 1, must: [1, 3] }, { n: 2, must: [2] }] });
-});
-
-test("high risk needs a bound G3", (t) => {
-  const high = tasksFile({ risk: "high" });
-  const story = storyText({ gates: [G1_LINE, G3_LINE] });
-  const g3 = (o = {}) => ({ gate: "G3", storyHash: hashStory(story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인", ...o });
-  // No G3 line.
-  refuses(files(t, { tasks: high }), "UPLOAD_G3", /G3/);
-  // A G3 line whose record is not there.
-  refuses(files(t, { story, tasks: high }), "UPLOAD_G3");
-  // The design changed after its approval.
-  const changed = files(t, { story, tasks: high });
-  changed.put(".ai-workflow/approvals/pay-g3.json", g3({ decisionHash: sha256("# 옛 설계\n") }));
-  refuses(changed, "UPLOAD_G3", /설계/);
-  // A record that binds another Story text.
-  const other = files(t, { story, tasks: high });
-  other.put(".ai-workflow/approvals/pay-g3.json", g3({ storyHash: "0".repeat(64) }));
-  refuses(other, "UPLOAD_G3");
-  // A record with no response it was given in.
-  const unanswered = files(t, { story, tasks: high });
-  const { responseRef, ...noResponse } = g3();
-  assert.ok(responseRef);
-  unanswered.put(".ai-workflow/approvals/pay-g3.json", noResponse);
-  refuses(unanswered, "UPLOAD_G3", /G3/);
-  // Bound: it passes, and a normal-risk Story needs no G3.
-  const bound = files(t, { story, tasks: high });
-  bound.put(".ai-workflow/approvals/pay-g3.json", g3());
-  assert.equal(bound.check().risk, "high");
+test("reads no record file: nothing under .ai-workflow/ changes the result, and risk goes up as the Task file says", (t) => {
+  const f = files(t, { tasks: tasksFile({ risk: "high" }) });
+  // Files the earlier workflow kept: not read, even when they would have refused.
+  f.put(".ai-workflow/verification.json", "{ not json");
+  f.put(".ai-workflow/approvals/pay-g1.json", { gate: "G1", storyHash: "0".repeat(64) });
+  assert.equal(f.check().risk, "high");
   assert.equal(files(t).check().risk, "normal");
-  // A risk that is neither.
   refuses(files(t, { tasks: tasksFile({ risk: "medium" }) }), "UPLOAD_TASKS", /risk/);
 });
 
-test("normal risk is refused when the Story needs G3", (t) => {
-  const profile = (o = {}) => ({ version: 1, checks: [{ id: "v1", covers: ["V1"], argv: ["npm", "test"] }], ...o });
-  const g3Story = storyText({ gates: [G1_LINE, G3_LINE] });
-  const bindG3 = (f) =>
-    f.put(".ai-workflow/approvals/pay-g3.json", { gate: "G3", storyHash: hashStory(g3Story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인" });
-  // The kit profile requires G3: "normal" is refused, even with no G3 line in the Story.
-  const required = files(t);
-  required.put(".ai-workflow/verification.json", profile({ requiresG3: true, design: "docs/pay-design.md" }));
-  refuses(required, "UPLOAD_G3", /설계 승인\(G3\)이 필요한 Story입니다[\s\S]*requiresG3[\s\S]*risk를 high로/);
-  // The Story carries a G3 line, bound or only pending: "normal" is refused too.
-  const lined = files(t, { story: g3Story });
-  bindG3(lined);
-  refuses(lined, "UPLOAD_G3", /설계 승인\(G3\)이 필요한 Story입니다[\s\S]*G3 줄[\s\S]*risk를 high로/);
-  const pendingStory = storyText({ gates: [G1_LINE, "Understanding gate (G3): pending"] });
-  refuses(files(t, { story: pendingStory }), "UPLOAD_G3", /risk를 high로/);
-  // The same Stories as "high" with a bound G3 pass.
-  const high = files(t, { story: g3Story, tasks: tasksFile({ risk: "high" }) });
-  bindG3(high);
-  high.put(".ai-workflow/verification.json", profile({ requiresG3: true, design: "docs/pay-design.md" }));
-  assert.equal(high.check().risk, "high");
-  // A profile that does not require G3, and a Story without a G3 line, keep "normal".
-  const plain = files(t);
-  plain.put(".ai-workflow/verification.json", profile({ requiresG3: false }));
-  assert.equal(plain.check().risk, "normal");
-  plain.put(".ai-workflow/verification.json", profile());
-  assert.equal(plain.check().risk, "normal");
-  // A profile that is not JSON cannot tell, so nothing goes up.
-  const broken = files(t);
-  broken.put(".ai-workflow/verification.json", "{ not json");
-  refuses(broken, "UPLOAD_G3", /verification\.json/);
+test("a Story in the earlier format is refused with a pointer to /story-qa (M4.3)", (t) => {
+  const old = [
+    "# Story: 결제 버튼",
+    "Status: Approved",
+    "Owner: 지수",
+    "Understanding gate (G1): .ai-workflow/approvals/pay-g1.json · 2026-11-11 · Check-in: accepted",
+    "",
+    "## Goal",
+    "고객이 주문을 결제한다.",
+    "",
+    "## MUST",
+    "- M1. 결제 API가 주문을 받는다.",
+    "",
+    "## Verify",
+    "- V1 [M1]. API 시험이 통과한다.",
+    "",
+  ].join("\n");
+  refuses(files(t, { story: old }), "UPLOAD_STORY", /story-qa/);
+  // Any one mark is enough: a Verify section, a gate line, or no QA section.
+  refuses(files(t, { story: storyText().replace("## QA", "## Verify") }), "UPLOAD_STORY", /story-qa/);
+  refuses(files(t, { story: storyText().replace("## Goal", "Understanding gate (G1): pending\n\n## Goal") }), "UPLOAD_STORY", /story-qa/);
+  refuses(files(t, { story: storyText().replace("## QA", "## Checks") }), "UPLOAD_STORY", /story-qa/);
+  // Refused for its format before its approval is looked at.
+  refuses(files(t, { story: old.replace("Status: Approved", "Status: Draft") }), "UPLOAD_STORY", /story-qa/);
 });
 
-test("refuses uncovered MUST or Verify", (t) => {
+/** The hash the removed workflow runtime's `storyContract` gave for an earlier-format CRLF text (commit f3d975d). */
+const CRLF_HASH = "79fe03bfdb27645b47cd79eb2543001beb414cdf28dbf6a8c9f8b60e8122fcd4";
+const OLD_CRLF = [
+  "# Story: 결제 버튼", "Status: Approved", "Owner: 지수",
+  "Understanding gate (G1): .ai-workflow/approvals/pay-g1.json · 2026-11-11 · Check-in: accepted", "Understanding gate (G4): pending", "",
+  "## Goal", "고객이 주문을 결제한다.", "", "## Domain", "- Invariant: 결제는 두 번 되지 않는다.", "",
+  "## MUST", "- M1. 결제 API가 주문을 받는다.", "- M2. 결제 화면에 버튼이 있다.   ", "- M3. 실패하면 이유를 보인다.", "",
+  "## SHOULD", "- S1. 영수증을 보낸다.", "", "## OUT", "- O1. 환불.", "", "## Decisions", "- D1. 카드만.", "",
+  "## Verify", "- V1 [M1, M3]. API 시험이 통과한다.", "- V2 [M2]. 화면 시험이 통과한다.", "", "", "",
+].join("\r\n");
+
+test("the Story hash is the value it always was, and a CRLF Story goes up as it is", (t) => {
+  assert.equal(hashStory(OLD_CRLF), CRLF_HASH, "an earlier-format Story keeps its key");
+  // Windows line ends, a trailing space on a line and blank lines at the end.
+  const lf = storyText().replace("- M2. 결제 화면에 버튼이 있다.", "- M2. 결제 화면에 버튼이 있다.   ");
+  const text = `${lf}\n\n`.replace(/\n/g, "\r\n");
+  assert.ok(text.includes("\r\n"));
+  const upload = files(t, { story: text }).check();
+  assert.equal(upload.storyHash, hashStory(text));
+  assert.equal(upload.storyHash, hashStory(lf), "line ends and blank lines at the end do not change it");
+  assert.equal(upload.body, text, "the Story goes up as it is");
+  assert.equal(upload.title, "결제 버튼");
+  assert.deepEqual(storyRefs(text).qa, [{ n: 1, must: [1, 3] }, { n: 2, must: [2] }, { n: 3, must: [] }]);
+});
+
+test("refuses a Story that is not the story-qa shape", (t) => {
+  const qa = (lines) => files(t, { story: storyText({ qa: lines }) });
+  // A QA line without its targets or method, or with an unknown target or method.
+  refuses(qa(["- Q1 [M1, M3] API 시험.", "- Q2 [M2] (script). 화면."]), "UPLOAD_STORY", /Q1 \[M1, M3\] API 시험/);
+  refuses(qa(["- Q1 [M1, M3] (manual). API.", "- Q2 [M2] (script). 화면."]), "UPLOAD_STORY", /script·agent·person/);
+  refuses(qa(["- Q1 [M1, M3, V1] (script). API.", "- Q2 [M2] (script). 화면."]), "UPLOAD_STORY", /V1/);
+  refuses(qa(["- Q1 [] (script). API.", "- Q2 [M2] (script). 화면."]), "UPLOAD_STORY");
+  // A target M the Story does not have, a Q number twice, and no QA line at all.
+  refuses(qa(["- Q1 [M1, M3, M9] (script). API.", "- Q2 [M2] (script). 화면."]), "UPLOAD_STORY", /Q1이 Story에 없는 M9를/);
+  refuses(qa(["- Q1 [M1, M3] (script). API.", "- Q1 [M2] (script). 화면."]), "UPLOAD_STORY", /Q1/);
+  refuses(qa([]), "UPLOAD_STORY", /QA/);
+  // An M no Q names, an M number twice, and no MUST.
+  refuses(qa(["- Q1 [M1] (script). API.", "- Q2 [M2] (script). 화면."]), "UPLOAD_STORY", /M3을 확인하는 QA 시나리오가 없습니다/);
+  refuses(files(t, { story: storyText({ must: ["- M1. 하나.", "- M1. 둘.", "- M3. 셋."] }) }), "UPLOAD_STORY", /M1/);
+  refuses(files(t, { story: storyText({ must: [] }) }), "UPLOAD_STORY", /MUST/);
+  // Unchanged and not shown name no MUST; sub-lines and the Environment line are not scenarios.
+  const ok = storyText({ qa: ["- Q1 [M1, M2, M3] (person). 손으로 본다.", "  - 두 단계로 본다.", "- Q2 [not shown] (agent). 환불 버튼 → 없음.", "- Q3 [Unchanged] (script). npm test."] });
+  assert.deepEqual(storyRefs(ok).qa, [{ n: 1, must: [1, 2, 3] }, { n: 2, must: [] }, { n: 3, must: [] }]);
+  const tasks = tasksFile();
+  tasks.tasks[0].covers = ["M1", "M3", "Q1", "Q3"];
+  tasks.tasks[1].covers = ["M2", "Q1", "Q2"];
+  tasks.tasks[1].checks = [check("Q1"), check("Q2")];
+  assert.equal(files(t, { story: ok, tasks }).check().title, "결제 버튼");
+});
+
+test("refuses uncovered MUST or QA", (t) => {
   const tasks = tasksFile();
   // M3 is in no Task's covers.
-  tasks.tasks[0].covers = ["M1", "V1"];
+  tasks.tasks[0].covers = ["M1", "Q1", "Q3"];
   const f = files(t, { tasks });
   refuses(f, "UPLOAD_COVERAGE", /M3/);
   assert.throws(f.check, { message: "M3이 어느 Task의 covers에도 없습니다. 그 MUST를 맡을 Task를 더하거나 covers에 넣으세요." });
-  // V3 is in no Task's covers.
-  refuses(files(t, { story: storyText({ verify: ["- V1 [M1, M3]. API.", "- V2 [M2]. 화면.", "- V3 [M2]. 접근성."] }) }), "UPLOAD_COVERAGE", /V3/);
-  // A Task covers M2, but none of its own Verify cases checks M2.
+  // Q4 is in no Task's covers.
+  const q4 = files(t, { story: storyText({ qa: ["- Q1 [M1, M3] (script). API.", "- Q2 [M2] (script). 화면.", "- Q3 [Unchanged] (script). 시험.", "- Q4 [not shown] (agent). 환불."] }) });
+  refuses(q4, "UPLOAD_COVERAGE", /Q4가 어느 Task의 covers에도 없습니다[\s\S]*QA 시나리오/);
+  // A Task covers M2, but none of its own QA scenarios checks M2.
   const own = tasksFile();
-  own.tasks[0].covers = ["M1", "M2", "M3", "V1"];
-  refuses(files(t, { tasks: own }), "UPLOAD_COVERAGE", /M2/);
-  // A Story whose M has no Verify at all is not the kit's shape.
-  refuses(files(t, { story: storyText({ verify: ["- V1 [M1]. API.", "- V2 [M2]. 화면."] }) }), "UPLOAD_STORY", /M3/);
+  own.tasks[0].covers = ["M1", "M2", "M3", "Q1", "Q3"];
+  refuses(files(t, { tasks: own }), "UPLOAD_COVERAGE", /Task be-pay의 covers에 M2가 있지만 그 Task의 Q 중/);
 });
 
-test("refuses a covered V without its check", (t) => {
+test("refuses a covered Q without its check, and a check id that is not a covered Q", (t) => {
   const tasks = tasksFile();
-  tasks.tasks[1].checks = [check("V1")];
-  refuses(files(t, { tasks }), "UPLOAD_TASKS", /V2/);
-  // A covers entry the Story does not have.
+  tasks.tasks[1].checks = [check("Q1")];
+  refuses(files(t, { tasks }), "UPLOAD_TASKS", /Q2/);
+  // A covers entry the Story does not have, or an id of the earlier format.
   const unknown = tasksFile();
-  unknown.tasks[1].covers = ["M2", "V2", "V7"];
-  refuses(files(t, { tasks: unknown }), "UPLOAD_TASKS", /V7/);
-  // A check whose V the Task does not cover.
+  unknown.tasks[1].covers = ["M2", "Q2", "Q7"];
+  refuses(files(t, { tasks: unknown }), "UPLOAD_TASKS", /Q7/);
+  const old = tasksFile();
+  old.tasks[1].covers = ["M2", "Q2", "V2"];
+  refuses(files(t, { tasks: old }), "UPLOAD_TASKS", /V2[\s\S]*M1·Q1/);
+  // A check whose Q the Task does not cover, and a check named after an M.
   const extra = tasksFile();
-  extra.tasks[1].checks = [check("V2"), check("V1")];
-  refuses(files(t, { tasks: extra }), "UPLOAD_TASKS", /V1/);
+  extra.tasks[1].checks = [check("Q2"), check("Q1")];
+  refuses(files(t, { tasks: extra }), "UPLOAD_TASKS", /Q1/);
+  const named = tasksFile();
+  named.tasks[1].checks = [check("Q2"), check("M2")];
+  refuses(files(t, { tasks: named }), "UPLOAD_TASKS", /M2/);
+  // A Story check whose id is not a Story Q.
+  for (const id of ["V1", "Q9", "M1"]) {
+    const story = tasksFile();
+    story.storyChecks[0].checks = [check(id, 300000)];
+    refuses(files(t, { tasks: story }), "UPLOAD_TASKS", /Story 검사[\s\S]*Q 번호/);
+  }
   // A Task file that is not JSON.
   const broken = files(t);
   broken.put("plan/tasks.json", "{ not json");
@@ -293,44 +296,6 @@ test("refuses a bad graph before the Hub", (t) => {
   refuses(files(t, { tasks: missing }), "UPLOAD_TASKS", /be-pays/);
   // Two Tasks of one repo on the same file with no order: the Hub's own overlap check.
   const overlap = tasksFile();
-  overlap.tasks.push({ id: "be-log", repo: "app-be", title: "결제 기록", spec: "기록을 남긴다.", files: ["src/pay.ts"], covers: ["M1", "V1"], after: [], checks: [check("V1")] });
+  overlap.tasks.push({ id: "be-log", repo: "app-be", title: "결제 기록", spec: "기록을 남긴다.", files: ["src/pay.ts"], covers: ["M1", "Q1"], after: [], checks: [check("Q1")] });
   refuses(files(t, { tasks: overlap }), "UPLOAD_TASKS", /같은 파일/);
-});
-
-test("G3 takes the design file from the kit verification profile", (t) => {
-  const high = tasksFile({ risk: "high" });
-  const story = storyText({ gates: [G1_LINE, G3_LINE] });
-  // The kit's own G3 record: no design field; the design path lives in .ai-workflow/verification.json.
-  const kitG3 = { gate: "G3", storyHash: hashStory(story), decisionHash: sha256(DESIGN), responseRef: "chat: 설계 승인" };
-  const profile = (design) => ({ version: 1, checks: [{ id: "v1", covers: ["V1"], argv: ["npm", "test"] }], requiresG3: true, design });
-  const kit = files(t, { story, tasks: high });
-  kit.put(".ai-workflow/approvals/pay-g3.json", kitG3);
-  kit.put(".ai-workflow/verification.json", profile("docs/pay-design.md"));
-  assert.equal(kit.check().risk, "high");
-  // The design named there changed after G3.
-  kit.put("docs/pay-design.md", "# 바뀐 설계\n");
-  refuses(kit, "UPLOAD_G3", /설계/);
-  // A record whose design is another file than the profile's.
-  const split = files(t, { story, tasks: high });
-  split.put("docs/other-design.md", DESIGN);
-  split.put(".ai-workflow/approvals/pay-g3.json", { ...kitG3, design: "docs/other-design.md" });
-  split.put(".ai-workflow/verification.json", profile("docs/pay-design.md"));
-  refuses(split, "UPLOAD_G3", /verification\.json/);
-  // The same file named both ways is fine.
-  split.put(".ai-workflow/approvals/pay-g3.json", { ...kitG3, design: "./docs/pay-design.md" });
-  assert.equal(split.check().risk, "high");
-  // A profile design path that leaves the project.
-  const outside = files(t, { story, tasks: high });
-  outside.put(".ai-workflow/approvals/pay-g3.json", kitG3);
-  outside.put(".ai-workflow/verification.json", profile("../pay-design.md"));
-  refuses(outside, "UPLOAD_G3", /상대 경로/);
-  // No design anywhere: neither the profile nor the record names one.
-  const none = files(t, { story, tasks: high });
-  none.put(".ai-workflow/approvals/pay-g3.json", kitG3);
-  refuses(none, "UPLOAD_G3", /design/);
-  // A profile that is not JSON.
-  const broken = files(t, { story, tasks: high });
-  broken.put(".ai-workflow/approvals/pay-g3.json", kitG3);
-  broken.put(".ai-workflow/verification.json", "{ not json");
-  refuses(broken, "UPLOAD_G3", /verification\.json/);
 });

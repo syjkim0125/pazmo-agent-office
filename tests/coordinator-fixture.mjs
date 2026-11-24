@@ -24,7 +24,7 @@ export async function officeFixture(t, approved = true, edit) {
       workspace: { include: ["src"], exclude: [] },
       checks: [
         {
-          id: "V1",
+          id: "Q1",
           argv: [
             "node",
             "-e",

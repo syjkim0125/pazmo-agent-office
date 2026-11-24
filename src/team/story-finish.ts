@@ -86,7 +86,7 @@ export function createStoryFinisher(d: {
     const unique = new Set(checks.map((c) => c.id)).size === checks.length;
     const results = await lane.engine.verifyCandidate(
       candidate,
-      checks.map((c, i) => ({ id: unique ? c.id : `V${i + 1}`, argv: c.argv, timeoutMs: c.timeoutMs })),
+      checks.map((c, i) => ({ id: unique ? c.id : `Q${i + 1}`, argv: c.argv, timeoutMs: c.timeoutMs })),
       signal,
     );
     const { passed, summary } = storyCheckSummary([{ repo: lane.repoName, head, checks: results }]);

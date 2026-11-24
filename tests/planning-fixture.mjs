@@ -1,13 +1,18 @@
 // Scripted PM/Lead output for controller tests; never live model evidence.
 export const STORY = {
   title: "Validate input",
-  goal: "Reject invalid input.",
-  domain: "Preserve records.",
+  asIs: "Invalid input is accepted.",
+  toBe: "Invalid input is rejected.",
+  unchanged: "Valid records are kept.",
+  decisions: [],
+  copies: "",
   must: ["Reject invalid input."],
-  should: [],
   out: ["Deployment."],
-  assumptions: [],
-  verify: [{ must: [1], scenario: "Invalid input returns error." }],
+  qa: [
+    { refs: ["M1"], how: "script", scenario: "Invalid input returns error." },
+    { refs: ["Unchanged"], how: "script", scenario: "Valid input is stored." },
+    { refs: ["not shown"], how: "agent", scenario: "No new screen appears." },
+  ],
 };
 
 /** A closed planning turn whose last message is `body` as the report; a Lead turn also ran a readonly command on
@@ -84,8 +89,8 @@ export function proposal(intake, token, risk = "normal", count = 2) {
           scope: "Parser and tests.",
           constraints: "Keep records.",
           must: [1],
-          verify: [1],
-          checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 1000 }],
+          verify: [1, 2, 3],
+          checks: [1, 2, 3].map((n) => ({ id: `Q${n}`, argv: ["node", "--test"], timeoutMs: 1000 })),
           workspace: { include: ["src"], exclude: [] },
         })),
       },

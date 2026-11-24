@@ -33,6 +33,8 @@ const LIMITS = {
   title: 120,
   text: 2048,
   items: 16,
+  /** One scenario per MUST plus Unchanged and not-shown ones (story-qa). */
+  qa: 20,
   questions: 3,
   question: 1000,
   plan: 8192,
@@ -168,41 +170,83 @@ function refs(value: unknown, count: number, at: string, min = 1, max = LIMITS.i
 export const validate = { object, text, list, refs };
 export { LIMITS as PLANNING_LIMITS };
 
-/** A Story as the PM returns it; `extraKeys` are further keys the object must carry (a team PM's `openBlocking`),
- * read by the caller and left out of the result. */
+/** What a QA scenario checks: MUST numbers, or the Story's Unchanged part, or a place the change must not show. */
+export const QA_TARGETS = ["Unchanged", "not shown"] as const;
+/** How a QA scenario runs (story-qa): a script, an agent at the running app, or a person. */
+export const QA_HOW = ["script", "agent", "person"] as const;
+
+/**
+ * A Story as the PM returns it, in the story-qa Story shape (Goal as-is/to-be/unchanged, Decisions, MUST, OUT, QA);
+ * `extraKeys` are further keys the object must carry (a team PM's `openBlocking`), read by the caller and left out of
+ * the result. Every MUST has a QA scenario, and the QA list has an Unchanged and a not-shown scenario (story-qa).
+ */
 export function parseStory(value: unknown, extraKeys: readonly string[] = []) {
   const s = object(
     value,
-    ["title", "goal", "domain", "must", "should", "out", "assumptions", "verify", ...extraKeys],
+    ["title", "asIs", "toBe", "unchanged", "decisions", "copies", "must", "out", "qa", ...extraKeys],
     "story",
   );
   const title = text(s.title, "story.title", LIMITS.title),
-    goal = text(s.goal, "story.goal"),
-    domain = text(s.domain, "story.domain"),
-    must = list(s.must, "story.must", (v, at) => text(v, at)),
-    should = list(s.should, "story.should", (v, at) => text(v, at), LIMITS.items, 0),
-    out = list(s.out, "story.out", (v, at) => text(v, at)),
-    assumptions = list(
-      s.assumptions,
-      "story.assumptions",
-      (v, at) => text(v, at),
+    asIs = text(s.asIs, "story.asIs"),
+    toBe = text(s.toBe, "story.toBe"),
+    unchanged = text(s.unchanged, "story.unchanged"),
+    decisions = list(
+      s.decisions,
+      "story.decisions",
+      (v, at) => {
+        const d = object(v, ["fork", "options", "pick", "because"], at);
+        return {
+          fork: text(d.fork, `${at}.fork`),
+          options: list(d.options, `${at}.options`, (o, oAt) => text(o, oAt), 4, 2),
+          pick: text(d.pick, `${at}.pick`),
+          because: text(d.because, `${at}.because`),
+        };
+      },
       LIMITS.items,
       0,
     ),
-    verify = list(s.verify, "story.verify", (v, at) => {
-      const r = object(v, ["must", "scenario"], at);
-      return {
-        must: refs(r.must, must.length, `${at}.must`),
-        scenario: text(r.scenario, `${at}.scenario`),
-      };
-    });
+    copies = s.copies === "" ? "" : text(s.copies, "story.copies"),
+    must = list(s.must, "story.must", (v, at) => text(v, at)),
+    out = list(s.out, "story.out", (v, at) => text(v, at), LIMITS.items, 0),
+    qa = list(
+      s.qa,
+      "story.qa",
+      (v, at) => {
+        const q = object(v, ["refs", "how", "scenario"], at);
+        const targets = list(q.refs, `${at}.refs`, (r, rAt) => text(r, rAt, 16), LIMITS.items);
+        if (new Set(targets).size !== targets.length) invalid(`${at}.refs: duplicate reference`);
+        const special = targets.filter((r) => (QA_TARGETS as readonly string[]).includes(r));
+        if (special.length && targets.length > 1) invalid(`${at}.refs: ${special[0]} stands alone`);
+        const refs = special.length ? targets : targets.map((r, i) => {
+          const m = /^M([1-9]\d{0,2})$/.exec(r);
+          if (!m) invalid(`${at}.refs[${i}]: expected M<n>, Unchanged or not shown`);
+          if (Number(m[1]) > must.length) invalid(`${at}.refs[${i}]: out of range M1-M${must.length}`);
+          return r;
+        });
+        if (typeof q.how !== "string" || !(QA_HOW as readonly string[]).includes(q.how))
+          invalid(`${at}.how: expected script, agent or person`);
+        return {
+          refs,
+          how: q.how as (typeof QA_HOW)[number],
+          scenario: text(q.scenario, `${at}.scenario`),
+        };
+      },
+      LIMITS.qa,
+    );
   must.forEach((_, i) => {
-    if (!verify.some((v) => v.must.includes(i + 1)))
-      invalid(`story.must[${i}]: not covered by verify (M${i + 1})`);
+    if (!qa.some((q) => qaMust(q).includes(i + 1)))
+      invalid(`story.must[${i}]: not covered by qa (M${i + 1})`);
   });
-  return { title, goal, domain, must, should, out, assumptions, verify };
+  for (const target of QA_TARGETS)
+    if (!qa.some((q) => q.refs[0] === target)) invalid(`story.qa: no ${target} scenario`);
+  return { title, asIs, toBe, unchanged, decisions, copies, must, out, qa };
 }
 type Story = ReturnType<typeof parseStory>;
+/** The MUST numbers a QA scenario checks: from its `refs` (none for Unchanged or not shown), or its own `must` where a
+ * caller built the scenario from numbers (`team/upload.ts`). The parsed Story keeps only `refs`, so it parses again. */
+export function qaMust(q: { refs?: readonly string[]; must?: readonly number[] }): readonly number[] {
+  return q.must ?? (q.refs ?? []).flatMap((r) => (/^M\d+$/.test(r) ? [Number(r.slice(1))] : []));
+}
 export type PlanningStory = Story;
 type Question = { id: string; text: string; reason: string };
 type Dialogue = {
@@ -407,19 +451,19 @@ function teamBlock(team: Team, role: "pm" | "lead"): string {
   if (role === "pm")
     lines.push(
       `Office allows at most ${PLAN_LIMITS.roundsMax} question rounds per plan (not three); after that the plan fails, so ask only what changes the Story.`,
-      'When ready, return {version:1,inputDigest,status:"ready",story:{title,goal,domain,must,should,out,assumptions,verify,openBlocking:[{text,reason}]}}: the PM story schema plus openBlocking.',
+      'When ready, return {version:1,inputDigest,status:"ready",story:{title,asIs,toBe,unchanged,decisions,copies,must,out,qa,openBlocking:[{text,reason}]}}: the PM story schema plus openBlocking.',
       `openBlocking lists 0-${PLAN_LIMITS.questionsPerRound} decisions the PL must make before approving the Story (G1) because the Story cannot be right without them: text is the decision needed, reason why it blocks. Use [] when nothing blocks. Office asks the PL these as questions; never write OPEN BLOCKING lines yourself.`,
       "Write each question and each openBlocking item for the PL to read on a web page: text states the decision in one or two short sentences and ends with the question itself; background, what you found and what depends on the answer go in reason, not in text; when the PL chooses among options, write them in text as (a) …, (b) …; do not repeat earlier questions or answers at length.",
       "packet.team.rewrite, when not null, is the PL's request to rewrite the draft: previous is the draft the PL saw and note is what to change. Change what the note asks and keep the rest.",
     );
   else
     lines.push(
-      'Return {version:1,inputDigest,plan,tasks:[{title,outcome,scope,constraints,must:[1],verify:[1],checks:[{id:"V1",argv:["node","--test"],timeoutMs:30000}],"repo":"<folder>","files":["src/a.ts"],"after":[]}],"storyVerify":[{"repo":"<folder>","checks":[{id:"V1",argv:["node","--test"],timeoutMs:30000}]}]}. There is no workspace key.',
+      'Return {version:1,inputDigest,plan,tasks:[{title,outcome,scope,constraints,must:[1],verify:[1],checks:[{id:"Q1",argv:["node","--test"],timeoutMs:30000}],"repo":"<folder>","files":["src/a.ts"],"after":[]}],"storyVerify":[{"repo":"<folder>","checks":[{id:"Q1",argv:["node","--test"],timeoutMs:30000}]}]}. There is no workspace key.',
       '"repo" is one folder name of packet.team.repos: the only repository the task changes.',
       '"files" lists the files the task creates or changes, relative to that repository\'s root: no folder prefix, no leading /, no "..". A path ending in / names a folder.',
       '"after" lists the one-based numbers (in tasks order) of the tasks that must be merged before this one, [] when none. A task never names itself and the order has no cycle.',
       "Two tasks in the same repository that change the same file must be ordered: one reaches the other through after.",
-      '"storyVerify" gives, for each repository the Story\'s Verify scenarios run in, the checks that run at that repository\'s root once every task is merged: at least one entry, at most one per repository.',
+      '"storyVerify" gives, for each repository the Story\'s QA scenarios run in, the checks that run at that repository\'s root once every task is merged: at least one entry, at most one per repository.',
       "Before returning tasks, run readonly commands in /candidate/tree/<folder> to confirm the paths, existing tests and baseline behavior your files and checks rely on.",
       ...(team.retry
         ? [`The previous split was refused for this reason: ${team.retry}`, "Return a whole new split that fixes it."]
@@ -508,22 +552,22 @@ function pmLimits() {
   const L = LIMITS;
   return [
     ...commonLimits(),
-    `- story.title at most ${L.title} characters; goal, domain and every list item at most ${L.text} characters.`,
-    `- story.must 1-${L.items} items; should 0-${L.items}; out 1-${L.items}; assumptions 0-${L.items}; verify 1-${L.items}.`,
+    `- story.title at most ${L.title} characters; asIs, toBe, unchanged, copies and every other text at most ${L.text} characters.`,
+    `- story.must 1-${L.items} items; out 0-${L.items}; decisions 0-${L.items}, each with 2-4 options; qa 3-${L.qa}; copies is "" when there is only one copy.`,
     `- If more than ${L.items} MUST items are needed, merge closely related requirements into one item; never drop a requirement to fit. If that cannot keep them clear, ask a question instead.`,
-    "- Each verify.must lists unique MUST numbers between 1 and the number of MUST items; every MUST appears in at least one verify.",
+    '- Each qa.refs is either unique "M<n>" values between M1 and the number of MUST items, or exactly ["Unchanged"], or exactly ["not shown"]; every MUST appears in at least one qa; at least one qa is ["Unchanged"] and one is ["not shown"]. qa.how is "script", "agent" or "person".',
   ];
 }
 function taskLimits() {
   const L = LIMITS;
   return [
     `- task title at most ${L.title} characters; outcome, scope and constraints at most ${L.text} characters each.`,
-    "- task.must and task.verify list unique Story numbers in range; every task MUST is covered by one of that task's verify entries; across tasks every Story MUST and Verify is covered.",
+    "- task.must lists unique Story MUST numbers and task.verify unique Story QA scenario numbers, in range; every task MUST is covered by one of that task's QA scenarios; across tasks every Story MUST and QA scenario is covered.",
   ];
 }
 function checkLimits(max: number) {
   const L = LIMITS;
-  return `- checks 1-${max} per task; each id is V<n> from that task's verify and every task verify has a check; argv 1-${L.argv} strings of at most ${L.arg} characters with a non-empty argv[0]; timeoutMs an integer 1-${L.timeoutMs}.`;
+  return `- checks 1-${max} per task; each id is Q<n> from that task's verify (QA numbers) and every task verify has a check; argv 1-${L.argv} strings of at most ${L.arg} characters with a non-empty argv[0]; timeoutMs an integer 1-${L.timeoutMs}.`;
 }
 /** The limits of a team plan's PM or Lead output: the single-Office rules plus `openBlocking` for the PM, and for
  * the Lead the Hub's caps (20 work tasks, 8 checks, 50 files) with `repo`, `after` and `storyVerify`. A high-risk
@@ -542,7 +586,7 @@ export function teamPlanningLimits(role: "pm" | "lead", risk: "normal" | "high" 
     checkLimits(S.checksPerList),
     `- repo is one folder of packet.team.repos; files 1-${S.filesPerTask} unique paths of at most ${S.filePathMax} characters each; after lists unique task numbers between 1 and the number of tasks, never the task's own.`,
     `- Office writes each task's outcome, scope and constraints (with the M/V numbers it covers) into one Hub spec of at most ${S.taskSpecBytes} UTF-8 bytes; a Korean character takes 3 bytes, so keep the three short.`,
-    `- storyVerify 1 entry per repository at most, at least 1 entry; checks 1-${S.checksPerList} per entry with the argv and timeoutMs rules above, each id V<n> of a Story Verify scenario it checks.`,
+    `- storyVerify 1 entry per repository at most, at least 1 entry; checks 1-${S.checksPerList} per entry with the argv and timeoutMs rules above, each id Q<n> of a Story QA scenario it checks.`,
     ...(risk === "high"
       ? [
           `- risk is high: before anything is published, Office shows the PL a design for approval (G3): your plan, then one line per task with its number, repository folder, title and the tasks it comes after. The whole design must fit in ${PLAN_LIMITS.designBytes} UTF-8 bytes; a Korean character takes 3 bytes, so keep plan to about 2500 Korean characters and task titles short.`,
@@ -679,13 +723,13 @@ export function questionsOf(value: unknown): Question[] {
   return questions;
 }
 
-/** One verification check whose id is V<n> for one of `verify` (Story Verify numbers): what a `task`'s or the
+/** One verification check whose id is Q<n> for one of `verify` (Story QA scenario numbers): what a `task`'s or the
  * `Story`'s own check list may hold. */
 export function checkOf(value: unknown, verify: number[], at: string, owner: "task" | "Story" = "task") {
   const c = object(value, ["id", "argv", "timeoutMs"], at);
   const id = text(c.id, `${at}.id`, 16);
-  if (!verify.some((v) => id === `V${v}`))
-    invalid(`${at}.id: not a ${owner} verify id`);
+  if (!verify.some((v) => id === `Q${v}`))
+    invalid(`${at}.id: not a ${owner} QA id`);
   const argv = list(
     c.argv,
     `${at}.argv`,
@@ -711,33 +755,33 @@ export function checkOf(value: unknown, verify: number[], at: string, owner: "ta
   return { id, argv, timeoutMs: c.timeoutMs };
 }
 
-/** A task's checks: 1-`max` checks of the task's own verify numbers, and every one of those numbers has a check. */
+/** A task's checks: 1-`max` checks of the task's own QA numbers, and every one of those numbers has a check. */
 export function checksOf(value: unknown, verify: number[], at: string, max: number) {
   const checks = list(value, at, (v, path) => checkOf(v, verify, path), max);
   for (const v of verify)
-    if (!checks.some((c) => c.id === `V${v}`)) invalid(`${at}: V${v} has no check`);
+    if (!checks.some((c) => c.id === `Q${v}`)) invalid(`${at}: Q${v} has no check`);
   return checks;
 }
 
-/** P5: each task's MUST numbers are covered by that task's own Verify scenarios, and across the tasks every Story
- * MUST and every Verify scenario is covered. `at` names the task list. */
+/** P5: each task's MUST numbers are covered by that task's own QA scenarios (`verify`, Story QA numbers), and across
+ * the tasks every Story MUST and every QA scenario is covered. `at` names the task list. */
 export function coverageOf(
-  story: Story,
+  story: Pick<Story, "must" | "qa">,
   tasks: { must: number[]; verify: number[] }[],
   at: string,
 ): void {
   tasks.forEach((t, i) => {
     for (const m of t.must)
-      if (!t.verify.some((v) => story.verify[v - 1].must.includes(m)))
-        invalid(`${at}[${i}].must: M${m} not covered by task verify`);
+      if (!t.verify.some((v) => qaMust(story.qa[v - 1]).includes(m)))
+        invalid(`${at}[${i}].must: M${m} not covered by task qa`);
   });
   story.must.forEach((_, i) => {
     if (!tasks.some((t) => t.must.includes(i + 1)))
       invalid(`${at}: M${i + 1} not covered`);
   });
-  story.verify.forEach((_, i) => {
+  story.qa.forEach((_, i) => {
     if (!tasks.some((t) => t.verify.includes(i + 1)))
-      invalid(`${at}: V${i + 1} not covered`);
+      invalid(`${at}: Q${i + 1} not covered`);
   });
 }
 
@@ -808,20 +852,54 @@ export function acceptPlanning(
   });
 }
 
-/** The Story draft. `extraDecisions` are Office-written Decisions lines after the PM's `ASSUMED:` ones (a team
- * plan's `PL 답:` lines). */
-export function renderPlanningStory(story: Story, extraDecisions: string[] = []): string {
-  const bullets = (values: string[], prefix: string) =>
-    values.length
-      ? values.map((v, i) => `- ${prefix}${i + 1}. ${v}`).join("\n")
-      : "- None.";
-  return `# Story: ${story.title}\nStatus: Draft\nOwner: Human\nUnderstanding gate (G1): pending\nUnderstanding gate (G4): pending\n\n## Goal\n${story.goal}\n\n## Domain\n${story.domain}\n\n## MUST\n${bullets(story.must, "M")}\n\n## SHOULD\n${bullets(story.should, "S")}\n\n## OUT\n${bullets(story.out, "O")}\n\n## Decisions\n${bullets(
-    [...story.assumptions.map((s) => "ASSUMED: " + s), ...extraDecisions],
-    "D",
-  )}\n\n## Verify\n${story.verify.map((v, i) => `- V${i + 1} [${v.must.map((m) => "M" + m).join(", ")}]. ${v.scenario}`).join("\n")}\n`;
+/** One QA line of a Story: `- Q1 [M1, M2] (script). <scenario>`. */
+export const qaLine = (q: Story["qa"][number], i: number) => `- Q${i + 1} [${q.refs.join(", ")}] (${q.how}). ${q.scenario}`;
+
+/**
+ * The Story draft in the story-qa Story shape (`skills/story-qa/assets/STORY.md` of pazmo-story-to-dev): Goal,
+ * Decisions, Human decides (only when `humanDecides` has lines: a team plan's `<question> → <answer>` lines, which
+ * Office writes), MUST, OUT, QA, then the progress lines `Status:` and `Owner:` under a rule. The Story hash
+ * (`hashStory`) leaves out `Status:` lines, so the approval written there does not change it.
+ */
+export function renderPlanningStory(story: Story, humanDecides: string[] = []): string {
+  const numbered = (values: string[], prefix: string) =>
+    values.length ? values.map((v, i) => `- ${prefix}${i + 1}. ${v}`).join("\n") : "- None.";
+  const decisions = [
+    ...story.decisions.map(
+      (d, i) =>
+        `- D${i + 1}. ${d.fork}\n  - Options: ${d.options.join(" / ")}\n  - Pick: ${d.pick}, because ${d.because}`,
+    ),
+    ...(story.copies ? [`- Copies: ${story.copies}`] : []),
+  ];
+  return [
+    `# Story: ${story.title}`,
+    "",
+    "## Goal",
+    `1. As-is: ${story.asIs}`,
+    `2. To-be: ${story.toBe}`,
+    `3. Unchanged: ${story.unchanged}`,
+    "",
+    "## Decisions",
+    decisions.length ? decisions.join("\n") : "- None.",
+    "",
+    ...(humanDecides.length ? ["## Human decides", ...humanDecides.map((l) => `- ${l}`), ""] : []),
+    "## MUST",
+    numbered(story.must, "M"),
+    "",
+    "## OUT",
+    numbered(story.out, "O"),
+    "",
+    "## QA",
+    ...story.qa.map(qaLine),
+    "",
+    "---",
+    "Status: Draft",
+    "Owner: Human",
+    "",
+  ].join("\n");
 }
 
-/** Verify IDs for different MUST sets that share one exact argv cannot tell
+/** QA ids for different MUST sets that share one exact argv cannot tell
  * those requirements apart. Office warns; the human decides at review/G4. */
 function overlappingChecks(
   story: Story,
@@ -834,10 +912,10 @@ function overlappingChecks(
       groups.set(key, (groups.get(key) ?? new Set()).add(c.id));
     }
   return [...groups].flatMap(([key, set]) => {
-    // Check IDs were validated as V<n> for an existing Verify scenario.
+    // Check IDs were validated as Q<n> for an existing QA scenario.
     const ids = [...set].sort((a, b) => Number(a.slice(1)) - Number(b.slice(1))),
       musts = ids.map((id) =>
-        story.verify[Number(id.slice(1)) - 1].must.map((m) => "M" + m).join(","),
+        story.qa[Number(id.slice(1)) - 1].refs.join(","),
       );
     if (new Set(musts).size < 2) return [];
     // JSON keeps model-authored arguments on one line; bound the rendered length.
@@ -862,7 +940,7 @@ function proposal(
         at,
       );
       const must = refs(t.must, story.must.length, `${at}.must`),
-        verify = refs(t.verify, story.verify.length, `${at}.verify`);
+        verify = refs(t.verify, story.qa.length, `${at}.verify`);
       const checks = checksOf(t.checks, verify, `${at}.checks`, LIMITS.checks);
       let workspace: ReturnType<typeof workspaceScope>;
       try {
@@ -901,8 +979,7 @@ function proposal(
     "plan.md": `# Proposed implementation plan\n\nRequest: ${packet.requestId}\nInput digest: ${packet.inputDigest}\n\n${plan}${decisions}\n\nThis is a model proposal. No repository inspection or approval is established by this document.\n`,
   };
   if (packet.risk === "high")
-    files["decision.md"] =
-      `# Decision requiring human G3\n\n${plan}\n\nUnderstanding gate (G3): pending\nNo execution is authorized by this proposal.\n`;
+    files["decision.md"] = `# 설계\n\n${plan}\n\nNo execution is authorized by this proposal before the person's G3.\n`;
   const contracts = tasks.map((t, i) => {
     const task = `task-${i + 1}.md`,
       verification = `verify-${i + 1}.json`;
@@ -915,7 +992,7 @@ function proposal(
         : [];
     });
     files[task] =
-      `# Task: ${t.title}\nReadiness: Implementation-ready\nStory: story.md\nPlan source: plan.md\n\n## Outcome\n${t.outcome}\n\n## Covers — Story M/V IDs\n- ${t.must.map((m) => "M" + m).join(", ")} / ${t.verify.map((v) => "V" + v).join(", ")}\n\n## Scope\n- IN: ${t.scope}\n\n## Constraints\n- ${t.constraints}\n\n## Verify\n- Registered checks: ${t.checks.map((c) => c.id).join(", ")}; see ${verification}.\n${warnings.join("")}`;
+      `# Task: ${t.title}\nReadiness: Implementation-ready\nStory: story.md\nPlan source: plan.md\n\n## Outcome\n${t.outcome}\n\n## Covers — Story M/Q IDs\n- ${t.must.map((m) => "M" + m).join(", ")} / ${t.verify.map((v) => "Q" + v).join(", ")}\n\n## Scope\n- IN: ${t.scope}\n\n## Constraints\n- ${t.constraints}\n\n## Checks\n- Registered checks: ${t.checks.map((c) => c.id).join(", ")}; see ${verification}.\n${warnings.join("")}`;
     files[verification] =
       JSON.stringify(
         { version: 1, checks: t.checks, workspace: t.workspace },

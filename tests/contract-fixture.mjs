@@ -23,11 +23,11 @@ export function fixture(t) {
   });
   const project = join(root, "project");
   mkdirSync(project);
-  const story = `# Story: Validate input\nStatus: Draft\nOwner: Human\n\n## Goal\nReject invalid input.\n## Domain\nPreserve existing records.\n## MUST\n- M1. Reject invalid input.\n## SHOULD\n- S1. Explain errors.\n## OUT\n- O1. Deployment.\n## Decisions\n- D1. Local only.\n## Verify\n- V1 [M1]. Check invalid input.\n`;
-  const task = `# Task: Input validation\nReadiness: Implementation-ready\nStory: story.md\nPlan source: N/A — small and reversible\n\n## Outcome\nReject invalid input.\n## Covers — Story M/V IDs\nM1, V1\n## Scope\nInput parser.\n## Constraints\nNo deployment.\n## Verify\nV1: node --test\n`;
+  const story = `# Story: Validate input\n\n## Goal\n1. As-is: Invalid input is accepted.\n2. To-be: Invalid input is rejected.\n3. Unchanged: Existing records.\n\n## Decisions\n- D1. Local only.\n\n## MUST\n- M1. Reject invalid input.\n\n## OUT\n- O1. Deployment.\n\n## QA\n- Q1 [M1] (script). Check invalid input.\n- Q2 [Unchanged] (script). Valid input is stored.\n\n---\nStatus: Draft\nOwner: Human\n`;
+  const task = `# Task: Input validation\nReadiness: Implementation-ready\nStory: story.md\nPlan source: N/A — small and reversible\n\n## Outcome\nReject invalid input.\n## Covers — Story M/Q IDs\nM1, Q1\n## Scope\nInput parser.\n## Constraints\nNo deployment.\n## Checks\nQ1: node --test\n`;
   const verification = {
     version: 1,
-    checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 30000 }],
+    checks: [{ id: "Q1", argv: ["node", "--test"], timeoutMs: 30000 }],
   };
   const put = (path, text) => writeFileSync(join(project, path), text);
   put("story.md", story);

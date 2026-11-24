@@ -80,8 +80,8 @@ export const contractFolder = (story: number, task: number, attempt: number, run
  * engine reads them (`.pazmo-office/plans/story-<N>-task-<M>-a<K>/`, and `-r<R>` after it for the R-th run
  * again of that attempt after a runner account problem, D37), and returns the input to register.
  * Story and Task lines are single-line summaries; everything the Hub holds in free form (Story body, Task spec,
- * upstream decisions, the last failure) goes to plan.md. Verification checks are numbered V1..Vn here: the
- * Hub's own check ids are not trusted as Story V ids. An existing attempt folder is an error, never reused.
+ * upstream decisions, the last failure) goes to plan.md. Verification checks are numbered Q1..Qn here, one QA
+ * scenario each: the Hub's own check ids are not trusted as Story Q ids. An existing attempt folder is an error, never reused.
  */
 export function writeStoryContract(
   checkout: string,
@@ -111,7 +111,7 @@ export function writeStoryContract(
     throw error;
   }
 
-  const ids = task.verify.map((_, i) => `V${i + 1}`);
+  const ids = task.verify.map((_, i) => `Q${i + 1}`);
   const input: ContractInput = {
     story: `${folder}/story.md`,
     task: `${folder}/task-1.md`,
@@ -148,31 +148,27 @@ function storyDocument(task: ClaimedTask, ids: string[]): string {
   const where = `Hub Story #${task.story.number}, Story Task #${task.number}`;
   return `${[
     `# Story: ${heading(title, "Story", task.story.number)}`,
-    "Status: Draft",
-    "Owner: Human",
-    "Understanding gate (G1): pending",
-    "Understanding gate (G4): pending",
     "",
     "## Goal",
-    labelled(`Hub Story #${task.story.number}`, title),
-    "",
-    "## Domain",
-    `${where}, built in this repository checkout.`,
-    "",
-    "## MUST",
-    `- M1. ${flat(task.spec, OUTCOME_MAX, "plan.md") || flat(task.title, 200) || where}`,
-    "",
-    "## SHOULD",
-    "- None.",
-    "",
-    "## OUT",
-    "- None.",
+    `1. As-is: ${labelled(`Hub Story #${task.story.number}`, title)}`,
+    `2. To-be: ${where}, built in this repository checkout.`,
+    "3. Unchanged: what plan.md does not ask to change.",
     "",
     "## Decisions",
     "- D1. Opened by the Hub Story's PL; the PL's approval of the Story stands in for a per-Task G1.",
     "",
-    "## Verify",
-    ...ids.map((id, i) => `- ${id} [M1]. Check ${i + 1} of ${where} exits with code 0 (see verify-1.json).`),
+    "## MUST",
+    `- M1. ${flat(task.spec, OUTCOME_MAX, "plan.md") || flat(task.title, 200) || where}`,
+    "",
+    "## OUT",
+    "- None.",
+    "",
+    "## QA",
+    ...ids.map((id, i) => `- ${id} [M1] (script). Check ${i + 1} of ${where} exits with code 0 (see verify-1.json).`),
+    "",
+    "---",
+    "Status: Draft",
+    "Owner: Human",
   ].join("\n")}\n`;
 }
 
@@ -193,7 +189,7 @@ function taskDocument(task: ClaimedTask, ids: string[], input: ContractInput): s
     "## Outcome",
     labelled(`Story Task #${task.number}`, flat(task.spec, OUTCOME_MAX, "plan.md") || title),
     "",
-    "## Covers — Story M/V IDs",
+    "## Covers — Story M/Q IDs",
     `- M1 / ${ids.join(", ")}`,
     "",
     "## Scope",
@@ -203,7 +199,7 @@ function taskDocument(task: ClaimedTask, ids: string[], input: ContractInput): s
     `- ${ASSUMED_RULE}`,
     "- Read plan.md first: the Story body, the upstream Tasks' decisions and, on a retry, the last failure.",
     "",
-    "## Verify",
+    "## Checks",
     ...shown,
   ].join("\n")}\n`;
 }

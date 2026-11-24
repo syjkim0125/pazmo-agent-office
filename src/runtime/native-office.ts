@@ -16,7 +16,7 @@ import { VerificationLedger, stopDetail } from "../core/verification.ts";
 import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
-import { LEGACY_TASK, LEGACY_TASK_MESSAGE, noteLegacyTask, reasonText } from "../core/legacy-tasks.ts";
+import { LEGACY_TASK_MESSAGE, legacyReason, noteLegacyTask, reasonText } from "../core/legacy-tasks.ts";
 import { createLiveRuntime, type LiveConfig } from "./live.ts";
 import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
 import type { RunnerCatalog, RunnerChoice } from "./runner-settings.ts";
@@ -400,11 +400,11 @@ export async function createNativeOffice(c: Config) {
           noteLegacyTask(i.taskId);
           const stopped = intake.stopLegacy(i.taskId);
           db.prepare("DELETE FROM pazmo_native_decisions WHERE task_id=?").run(i.taskId);
-          if (stopped.reason === LEGACY_TASK)
+          if (legacyReason(stopped.reason))
             message(
               i.taskId,
               `blocked:${i.taskId}:${stopped.revision}`,
-              `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`,
+              `작업이 멈췄습니다: ${reasonText(stopped.reason)}`,
             );
           continue;
         }
@@ -745,15 +745,20 @@ export async function createNativeOffice(c: Config) {
     return [
       "요구사항 범위 승인",
       `**${story.title}**`,
-      `목표: ${story.goal}`,
-      `영역: ${story.domain}`,
-      `꼭 할 일 (MUST)\n${items(story.must, "M")}`,
-      ...(story.should.length ? [`하면 좋은 일 (SHOULD)\n${items(story.should, "S")}`] : []),
-      `범위 밖 (OUT)\n${items(story.out)}`,
-      `가정 (ASSUMED)\n${items(story.assumptions)}`,
-      `확인 방법 (Verify)\n${story.verify
-        .map((v, n) => `- V${n + 1} [${v.must.map((m) => `M${m}`).join(", ")}]. ${v.scenario}`)
-        .join("\n")}`,
+      `지금: ${story.asIs}`,
+      `바뀐 뒤: ${story.toBe}`,
+      `그대로: ${story.unchanged}`,
+      ...(story.decisions.length || story.copies
+        ? [
+            `정한 것\n${[
+              ...story.decisions.map((d, n) => `- D${n + 1}. ${d.fork} → ${d.pick} (${d.because})`),
+              ...(story.copies ? [`- 같은 기능의 사본: ${story.copies}`] : []),
+            ].join("\n")}`,
+          ]
+        : []),
+      `꼭 할 것\n${items(story.must, "M")}`,
+      `하지 않을 것\n${items(story.out, "O")}`,
+      `QA\n${story.qa.map((q, n) => `- Q${n + 1} [${q.refs.join(", ")}] (${q.how}). ${q.scenario}`).join("\n")}`,
       "승인은 아래 원문 Story를 기준으로 합니다.",
     ].join("\n\n") + DETAIL_MARKER + renderPlanningStory(story);
   }

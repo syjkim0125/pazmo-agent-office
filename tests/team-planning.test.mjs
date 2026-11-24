@@ -39,15 +39,18 @@ const REPOS = [
 ];
 const STORY = {
   title: "주문 내역 화면",
-  goal: "고객이 지난 주문을 본다.",
-  domain: "주문은 바뀌지 않는다.",
+  asIs: "고객이 지난 주문을 볼 수 없다.",
+  toBe: "고객이 지난 주문을 본다.",
+  unchanged: "주문은 바뀌지 않는다.",
+  decisions: [{ fork: "보여 줄 기간", options: ["최근 30일", "전체"], pick: "최근 30일", because: "주문이 많다" }],
+  copies: "",
   must: ["주문 목록을 보여 준다.", "API가 주문을 돌려준다."],
-  should: [],
   out: ["결제."],
-  assumptions: ["최근 30일만."],
-  verify: [
-    { must: [1], scenario: "화면에 주문이 보인다." },
-    { must: [2], scenario: "API가 200을 돌려준다." },
+  qa: [
+    { refs: ["M1"], how: "agent", scenario: "화면에 주문이 보인다." },
+    { refs: ["M2"], how: "script", scenario: "API가 200을 돌려준다." },
+    { refs: ["Unchanged"], how: "script", scenario: "주문 데이터가 그대로다." },
+    { refs: ["not shown"], how: "agent", scenario: "결제 화면에 새 버튼이 없다." },
   ],
 };
 /** A long Korean planning document pasted with line breaks, exactly `bytes` UTF-8 bytes long. */
@@ -283,8 +286,8 @@ const beTask = (over = {}) => ({
   scope: "주문 라우트와 그 시험.",
   constraints: "기존 응답 모양을 바꾸지 않는다.",
   must: [2],
-  verify: [2],
-  checks: [check("V2")],
+  verify: [2, 3],
+  checks: [check("Q2"), check("Q3")],
   repo: "app-be",
   files: ["src/orders.ts", "tests/"],
   after: [],
@@ -296,8 +299,8 @@ const feTask = (over = {}) => ({
   scope: "주문 내역 화면.",
   constraints: "디자인 체계를 따른다.",
   must: [1],
-  verify: [1],
-  checks: [check("V1", "tests/orders-page.test.mjs")],
+  verify: [1, 4],
+  checks: [check("Q1", "tests/orders-page.test.mjs"), check("Q4", "tests/orders-page.test.mjs")],
   repo: "app-fe",
   files: ["src/orders-page.tsx"],
   after: [1],
@@ -307,8 +310,8 @@ const split = (over = {}) => ({
   plan: "API를 먼저 만들고 화면은 그 뒤에 붙인다.",
   tasks: [beTask(), feTask()],
   storyVerify: [
-    { repo: "app-be", checks: [check("V2")] },
-    { repo: "app-fe", checks: [check("V1", "tests/orders-page.test.mjs")] },
+    { repo: "app-be", checks: [check("Q2")] },
+    { repo: "app-fe", checks: [check("Q1", "tests/orders-page.test.mjs")] },
   ],
   ...over,
 });
@@ -357,9 +360,11 @@ test("acceptTeamPm returns Q1–Q3 questions as acceptPlanning does, and a ready
     { ...STORY, openBlocking: [{ text: "t", reason: "r", blocking: true }] },
     { ...STORY, openBlocking: [{ text: "가".repeat(1001), reason: "r" }] },
     { ...STORY, must: [], openBlocking: [] },
-    { ...STORY, goal: "- OPEN BLOCKING: 결제", openBlocking: [] }, // the draft would carry a line G1 refuses
   ])
     assert.throws(() => readyPm(story), invalid);
+  // No PM text starts a line of the story-qa draft, so a PM field cannot write a line G1 refuses.
+  const sneaky = readyPm({ ...STORY, asIs: "- OPEN BLOCKING: 결제", openBlocking: [] });
+  assert.equal(hasOpenBlocking(renderTeamStory(sneaky.story, [])), false);
   assert.throws(() => acceptTeamPm(packet, turn(packet, { status: "done", story: { ...STORY, openBlocking: [] } })), invalid);
   // A report for another packet, a Lead packet or a single-Office packet is not a team PM answer.
   assert.throws(() => acceptTeamPm(packet, turn({ ...packet, inputDigest: "0".repeat(64) }, { status: "questions", questions: QUESTIONS })), invalid);
@@ -378,37 +383,37 @@ test("acceptTeamLead turns tasks into the Hub graph: ids t1..tN in task order, r
           id: "t1",
           repoId: BE,
           title: "주문 API",
-          spec: "Outcome: API가 주문을 돌려준다.\nScope: 주문 라우트와 그 시험.\nConstraints: 기존 응답 모양을 바꾸지 않는다.\nCovers: M2 / V2",
+          spec: "Outcome: API가 주문을 돌려준다.\nScope: 주문 라우트와 그 시험.\nConstraints: 기존 응답 모양을 바꾸지 않는다.\nCovers: M2 / Q2, Q3",
           files: ["src/orders.ts", "tests/"],
-          verify: [check("V2")],
+          verify: [check("Q2"), check("Q3")],
         },
         {
           id: "t2",
           repoId: FE,
           title: "주문 화면",
-          spec: "Outcome: 화면에 주문이 보인다.\nScope: 주문 내역 화면.\nConstraints: 디자인 체계를 따른다.\nCovers: M1 / V1",
+          spec: "Outcome: 화면에 주문이 보인다.\nScope: 주문 내역 화면.\nConstraints: 디자인 체계를 따른다.\nCovers: M1 / Q1, Q4",
           files: ["src/orders-page.tsx"],
-          verify: [check("V1", "tests/orders-page.test.mjs")],
+          verify: [check("Q1", "tests/orders-page.test.mjs"), check("Q4", "tests/orders-page.test.mjs")],
         },
       ],
       edges: [{ from: "t1", to: "t2" }],
     },
     storyVerify: [
-      { repoId: BE, checks: [check("V2")] },
-      { repoId: FE, checks: [check("V1", "tests/orders-page.test.mjs")] },
+      { repoId: BE, checks: [check("Q2")] },
+      { repoId: FE, checks: [check("Q1", "tests/orders-page.test.mjs")] },
     ],
   });
   assert.equal(
     renderTaskSpec({ ...beTask(), must: [1, 2], verify: [1, 2] }, STORY),
-    "Outcome: API가 주문을 돌려준다.\nScope: 주문 라우트와 그 시험.\nConstraints: 기존 응답 모양을 바꾸지 않는다.\nCovers: M1, M2 / V1, V2",
+    "Outcome: API가 주문을 돌려준다.\nScope: 주문 라우트와 그 시험.\nConstraints: 기존 응답 모양을 바꾸지 않는다.\nCovers: M1, M2 / Q1, Q2",
   );
   // Task order is the node order, whichever way after points; one task may wait for several.
   const three = lead(
     split({
       tasks: [
         feTask({ after: [3, 2] }),
-        beTask({ must: [2], verify: [2], files: ["src/orders.ts"] }),
-        beTask({ title: "주문 시험", files: ["tests/"], must: [2], verify: [2] }),
+        beTask({ files: ["src/orders.ts"] }),
+        beTask({ title: "주문 시험", files: ["tests/"] }),
       ],
     }),
   );
@@ -417,12 +422,12 @@ test("acceptTeamLead turns tasks into the Hub graph: ids t1..tN in task order, r
     { from: "t3", to: "t1" },
     { from: "t2", to: "t1" },
   ]);
-  // A Story Verify check may name any Story Verify scenario.
-  const both = lead(split({ storyVerify: [{ repo: "app-fe", checks: [check("V1"), check("V2")] }] }));
-  assert.deepEqual(both.storyVerify, [{ repoId: FE, checks: [check("V1"), check("V2")] }]);
+  // A Story check may name any Story QA scenario.
+  const both = lead(split({ storyVerify: [{ repo: "app-fe", checks: [check("Q1"), check("Q2")] }] }));
+  assert.deepEqual(both.storyVerify, [{ repoId: FE, checks: [check("Q1"), check("Q2")] }]);
 });
 
-test("P5: a Story MUST or Verify no task covers, or a task MUST its own verify does not cover, is PLANNING_INVALID naming M<n> or V<n>", () => {
+test("P5: a Story MUST or QA scenario no task covers, or a task MUST its own QA scenarios do not cover, is PLANNING_INVALID naming M<n> or Q<n>", () => {
   const detail = (body) => {
     try {
       lead(body);
@@ -433,7 +438,7 @@ test("P5: a Story MUST or Verify no task covers, or a task MUST its own verify d
     assert.fail("accepted");
   };
   assert.match(detail(split({ tasks: [feTask({ after: [] })] })), /M2 not covered/);
-  const story = { ...STORY, verify: [{ must: [1], scenario: "화면에 주문이 보인다." }, { must: [1, 2], scenario: "API가 200을 돌려준다." }] };
+  const story = { ...STORY, qa: [{ ...STORY.qa[0] }, { ...STORY.qa[1], refs: ["M1", "M2"] }, ...STORY.qa.slice(2)] };
   const packet = teamPlanningPacket(pm({ role: "lead", story }));
   const covered = (tasks) => {
     try {
@@ -444,16 +449,23 @@ test("P5: a Story MUST or Verify no task covers, or a task MUST its own verify d
     }
     assert.fail("accepted");
   };
-  // Both MUSTs are claimed, but V2 (which covers M2) is in no task.
-  assert.match(covered([feTask({ after: [] }), beTask({ must: [2], verify: [1], checks: [check("V1")] })]), /^report\.tasks\[1\]\.must: M2 not covered by task verify$/);
-  assert.match(covered([feTask({ after: [], must: [1, 2], verify: [1], checks: [check("V1")] })]), /M2 not covered by task verify/);
-  assert.match(covered([feTask({ after: [] }), beTask({ must: [1], verify: [1], checks: [check("V1")] }), beTask({ title: "x", must: [2], verify: [1], checks: [check("V1")], files: ["src/x.ts"] })]), /M2 not covered by task verify/);
-  // Every M is covered, V2 is not.
-  const vStory = { ...STORY, verify: [{ must: [1, 2], scenario: "화면과 API." }, { must: [2], scenario: "API가 200을 돌려준다." }] };
+  // Both MUSTs are claimed, but Q2 (which covers M2) is in no task.
+  const q13 = { verify: [1, 3], checks: [check("Q1"), check("Q3")] };
+  assert.match(covered([feTask({ after: [] }), beTask({ must: [2], ...q13 })]), /^report\.tasks\[1\]\.must: M2 not covered by task qa$/);
+  assert.match(covered([feTask({ after: [], must: [1, 2] })]), /M2 not covered by task qa/);
+  assert.match(covered([feTask({ after: [] }), beTask({ must: [1], ...q13 }), beTask({ title: "x", must: [2], verify: [1], checks: [check("Q1")], files: ["src/x.ts"] })]), /M2 not covered by task qa/);
+  // Every M is covered, Q2 is not.
+  const vStory = { ...STORY, qa: [{ ...STORY.qa[0], refs: ["M1", "M2"] }, ...STORY.qa.slice(1)] };
   const vPacket = teamPlanningPacket(pm({ role: "lead", story: vStory }));
+  const all = { verify: [1, 3, 4], checks: [check("Q1"), check("Q3"), check("Q4")] };
   assert.throws(
-    () => acceptTeamLead(vPacket, turn(vPacket, split({ tasks: [feTask({ after: [], must: [1, 2], verify: [1], checks: [check("V1")] })], storyVerify: [{ repo: "app-fe", checks: [check("V1")] }] })), FOLDERS),
-    { code: "PLANNING_INVALID", detail: "report.tasks: V2 not covered" },
+    () => acceptTeamLead(vPacket, turn(vPacket, split({ tasks: [feTask({ after: [], must: [1, 2], ...all })], storyVerify: [{ repo: "app-fe", checks: [check("Q1")] }] })), FOLDERS),
+    { code: "PLANNING_INVALID", detail: "report.tasks: Q2 not covered" },
+  );
+  // An Unchanged or not-shown scenario no task covers is named the same way.
+  assert.throws(
+    () => lead(split({ tasks: [feTask({ after: [], verify: [1], checks: [check("Q1")] }), beTask()] })),
+    { code: "PLANNING_INVALID", detail: "report.tasks: Q4 not covered" },
   );
   // The single-Office Lead names the same requirement by the same rule.
   const singlePm = beginPlanning(PLAN, "주문 내역 화면", "normal");
@@ -465,7 +477,7 @@ test("P5: a Story MUST or Verify no task covers, or a task MUST its own verify d
   );
   assert.throws(
     () => acceptPlanning(single, turn(single, { plan: "p", tasks: [{ ...plain, must: [1, 2], workspace: { include: ["src"], exclude: [] } }] })),
-    { code: "PLANNING_INVALID", detail: "report.tasks[0].must: M2 not covered by task verify" },
+    { code: "PLANNING_INVALID", detail: "report.tasks[0].must: M2 not covered by task qa" },
   );
 });
 
@@ -475,14 +487,14 @@ test("caps: 21 tasks, 9 checks in a task, 0 or 51 files, an unknown folder, an a
     beTask(),
   ];
   assert.equal(lead(split({ tasks: many(20) })).graph.nodes.length, 20);
-  assert.equal(lead(split({ tasks: [feTask({ after: [], checks: Array(8).fill(check("V1")) }), beTask()] })).graph.nodes[0].verify.length, 8);
+  assert.equal(lead(split({ tasks: [feTask({ after: [], checks: [...Array(7).fill(check("Q1")), check("Q4")] }), beTask()] })).graph.nodes[0].verify.length, 8);
   const fifty = Array.from({ length: 50 }, (_, i) => `src/f${i}.ts`);
   assert.equal(lead(split({ tasks: [feTask({ after: [] }), beTask({ files: fifty })] })).graph.nodes[1].files.length, 50);
   const { storyVerify: _, ...noVerify } = split();
   for (const body of [
     split({ tasks: many(21) }),
     split({ tasks: [] }),
-    split({ tasks: [feTask({ after: [], checks: Array(9).fill(check("V1")) }), beTask()] }),
+    split({ tasks: [feTask({ after: [], checks: [...Array(8).fill(check("Q1")), check("Q4")] }), beTask()] }),
     split({ tasks: [feTask({ after: [], checks: [] }), beTask()] }),
     split({ tasks: [feTask({ after: [] }), beTask({ files: [] })] }),
     split({ tasks: [feTask({ after: [] }), beTask({ files: [...fifty, "src/f50.ts"] })] }),
@@ -496,19 +508,21 @@ test("caps: 21 tasks, 9 checks in a task, 0 or 51 files, an unknown folder, an a
     split({ tasks: [feTask({ after: [0] }), beTask()] }),
     split({ tasks: [feTask({ after: [1.5] }), beTask()] }),
     split({ tasks: [beTask(), feTask({ after: [1, 1] })] }),
-    split({ tasks: [feTask({ after: [], checks: [check("V2")] }), beTask()] }), // a check for a verify the task does not have
-    split({ tasks: [feTask({ after: [], verify: [1, 2], checks: [check("V1")] }), beTask()] }), // a task verify without a check
-    split({ tasks: [feTask({ after: [], checks: [{ id: "V1", argv: [""], timeoutMs: 1000 }] }), beTask()] }),
-    split({ tasks: [feTask({ after: [], checks: [{ id: "V1", argv: ["node"], timeoutMs: 600001 }] }), beTask()] }),
+    split({ tasks: [feTask({ after: [], checks: [check("Q1"), check("Q4"), check("Q2")] }), beTask()] }), // a check for a QA scenario the task does not have
+    split({ tasks: [feTask({ after: [], verify: [1, 2, 4] }), beTask()] }), // a task QA scenario without a check
+    split({ tasks: [feTask({ after: [], checks: [check("V1"), check("Q4")] }), beTask()] }), // a check id in the old V form
+    split({ tasks: [feTask({ after: [], checks: [{ id: "Q1", argv: [""], timeoutMs: 1000 }] }), beTask()] }),
+    split({ tasks: [feTask({ after: [], checks: [{ id: "Q1", argv: ["node"], timeoutMs: 600001 }] }), beTask()] }),
     split({ tasks: [feTask({ after: [], title: "가".repeat(121) }), beTask()] }),
     split({ tasks: [feTask({ after: [], workspace: { include: ["."], exclude: [] } }), beTask()] }),
     noVerify,
     split({ storyVerify: [] }),
-    split({ storyVerify: [{ repo: "app-x", checks: [check("V1")] }] }),
-    split({ storyVerify: [{ repo: "app-fe", checks: [check("V3")] }] }),
+    split({ storyVerify: [{ repo: "app-x", checks: [check("Q1")] }] }),
+    split({ storyVerify: [{ repo: "app-fe", checks: [check("Q5")] }] }),
+    split({ storyVerify: [{ repo: "app-fe", checks: [check("V1")] }] }),
     split({ storyVerify: [{ repo: "app-fe", checks: [] }] }),
-    split({ storyVerify: [{ repo: "app-fe", checks: Array(9).fill(check("V1")) }] }),
-    split({ storyVerify: [{ repo: "app-fe", checks: [check("V1")], extra: 1 }] }),
+    split({ storyVerify: [{ repo: "app-fe", checks: Array(9).fill(check("Q1")) }] }),
+    split({ storyVerify: [{ repo: "app-fe", checks: [check("Q1")], extra: 1 }] }),
     { ...split(), status: "ready" },
     split({ plan: "줄\n바꿈" }),
   ])
@@ -546,44 +560,53 @@ test("the Hub's own checks run here: two app-be tasks touching src/a.ts without 
   // Path rules and one Story check list per repo are the Hub's too.
   assert.throws(() => lead(split({ tasks: [feTask({ after: [] }), beTask({ files: ["../secret.ts"] })] })), { code: "SPLIT_REFUSED", graphCode: "GRAPH_FILES" });
   assert.throws(
-    () => lead(split({ storyVerify: [{ repo: "app-fe", checks: [check("V1")] }, { repo: "app-fe", checks: [check("V2")] }] })),
+    () => lead(split({ storyVerify: [{ repo: "app-fe", checks: [check("Q1")] }, { repo: "app-fe", checks: [check("Q2")] }] })),
     { code: "SPLIT_REFUSED", graphCode: "GRAPH_INVALID", message: "storyVerify[1]: repo가 겹칩니다." },
   );
 });
 
-test("renderTeamStory writes Goal, Domain, MUST, SHOULD, OUT, Decisions and Verify with ASSUMED lines and one 'PL 답:' line per answered question (500 characters at most), and hasOpenBlocking is false for it", () => {
+test("renderTeamStory writes Goal, Decisions, Human decides, MUST, OUT and QA, then Status and Owner, with one 'PL 답:' Human decides line per answered question (500 characters at most), and hasOpenBlocking is false for it", () => {
   const long = "가".repeat(600);
   const text = renderTeamStory(STORY, [
     { question: "어느 화면인가요?", answer: "주문 내역 화면" },
     { question: "기간은?\n정확히", answer: "최근\r\n30일" },
     { question: "결제도 보이나요?", answer: long },
   ]);
-  const at = ["## Goal", "## Domain", "## MUST", "## SHOULD", "## OUT", "## Decisions", "## Verify"].map((h) => text.indexOf(`\n${h}\n`));
+  const at = ["## Goal", "## Decisions", "## Human decides", "## MUST", "## OUT", "## QA"].map((h) => text.indexOf(`\n${h}\n`));
   assert.ok(at.every((n, i) => n > 0 && (i === 0 || n > at[i - 1])), String(at));
-  assert.match(text, /^# Story: 주문 내역 화면\nStatus: Draft\nOwner: Human\nUnderstanding gate \(G1\): pending\n/);
-  const decisions = text.split("\n## Decisions\n")[1].split("\n\n")[0].split("\n");
-  assert.deepEqual(decisions.slice(0, 3), [
-    "- D1. ASSUMED: 최근 30일만.",
-    "- D2. PL 답: 어느 화면인가요? → 주문 내역 화면",
-    "- D3. PL 답: 기간은? 정확히 → 최근 30일",
+  assert.match(
+    text,
+    /^# Story: 주문 내역 화면\n\n## Goal\n1\. As-is: 고객이 지난 주문을 볼 수 없다\.\n2\. To-be: 고객이 지난 주문을 본다\.\n3\. Unchanged: 주문은 바뀌지 않는다\.\n\n## Decisions\n- D1\. 보여 줄 기간\n  - Options: 최근 30일 \/ 전체\n  - Pick: 최근 30일, because 주문이 많다\n\n/,
+  );
+  const decided = text.split("\n## Human decides\n")[1].split("\n\n")[0].split("\n");
+  assert.deepEqual(decided.slice(0, 2), [
+    "- PL 답: 어느 화면인가요? → 주문 내역 화면",
+    "- PL 답: 기간은? 정확히 → 최근 30일",
   ]);
-  assert.equal(decisions.length, 4);
-  const clipped = decisions[3].slice("- D4. ".length);
+  assert.equal(decided.length, 3);
+  const clipped = decided[2].slice("- ".length);
   assert.ok(clipped.startsWith("PL 답: 결제도 보이나요? → 가가"));
   assert.equal(clipped.length, 500);
   assert.ok(clipped.endsWith("…"));
   assert.equal(hasOpenBlocking(text), false);
-  assert.match(text, /\n## Verify\n- V1 \[M1\]\. 화면에 주문이 보인다\.\n- V2 \[M2\]\. API가 200을 돌려준다\.\n$/);
+  assert.match(
+    text,
+    /\n## QA\n- Q1 \[M1\] \(agent\)\. 화면에 주문이 보인다\.\n- Q2 \[M2\] \(script\)\. API가 200을 돌려준다\.\n- Q3 \[Unchanged\] \(script\)\. 주문 데이터가 그대로다\.\n- Q4 \[not shown\] \(agent\)\. 결제 화면에 새 버튼이 없다\.\n\n---\nStatus: Draft\nOwner: Human\n$/,
+  );
+  assert.doesNotMatch(text, /Understanding gate|## Verify|## Domain|## SHOULD|ASSUMED/);
   // Without answers it is the single-Office draft; renderPlanningStory's new argument defaults to none.
   assert.equal(renderTeamStory(STORY, []), renderPlanningStory(STORY));
   assert.equal(renderPlanningStory(STORY, []), renderPlanningStory(STORY));
-  assert.match(renderPlanningStory({ ...STORY, assumptions: [] }), /## Decisions\n- None\.\n/);
+  assert.doesNotMatch(renderTeamStory(STORY, []), /## Human decides/);
+  assert.match(renderPlanningStory({ ...STORY, decisions: [] }), /## Decisions\n- None\.\n/);
+  assert.match(renderPlanningStory({ ...STORY, copies: "허브 화면과 Office 화면" }), /\n- Copies: 허브 화면과 Office 화면\n\n## MUST\n/);
+  assert.match(renderPlanningStory({ ...STORY, out: [] }), /## OUT\n- None\.\n/);
   // A surrogate pair at the cut is not split.
-  const emoji = renderTeamStory(STORY, [{ question: "q", answer: "😀".repeat(400) }]).split("\n## Decisions\n")[1].split("\n")[1].slice("- D2. ".length);
+  const emoji = renderTeamStory(STORY, [{ question: "q", answer: "😀".repeat(400) }]).split("\n## Human decides\n")[1].split("\n")[0].slice("- ".length);
   assert.ok(emoji.length <= 500 && emoji.endsWith("😀…"), emoji.slice(-4));
 });
 
-test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'Understanding gate (G3): pending'; approvedStory has Status: Approved and the hub-approval G1 line and the same hashStory as the draft", () => {
+test("renderTeamDesign has the plan and the Task list with repo and 앞 Task, without an Understanding gate line; approvedStory's Status: line says Approved with the hub-approval G1, and hashStory is the draft's", () => {
   const result = lead(
     split({
       tasks: [beTask({ title: "  주문 API  " }), feTask(), beTask({ title: "주문 시험", files: ["tests/"], after: [2, 1] })],
@@ -591,7 +614,7 @@ test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'U
   );
   assert.equal(
     renderTeamDesign(result, FOLDERS),
-    "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n- t3 · app-be · 주문 시험(앞: t2, t1)\n\nUnderstanding gate (G3): pending\n\n" +
+    "# 설계\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n- t3 · app-be · 주문 시험(앞: t2, t1)\n\n" +
       `나누기 지문: ${splitDigest(result)}\n`,
   );
 
@@ -604,30 +627,28 @@ test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'U
     textHash: planTextHash(draft),
   };
   const approved = approvedStory(draft, g1);
-  assert.match(approved, /^# Story: 주문 내역 화면\nStatus: Approved\nOwner: Human\n/);
-  assert.ok(approved.includes("\nUnderstanding gate (G1): hub-approval:0b6d2c1e-3f4a-4b5c-8d6e-7f8091a2b3c4 · 2026-11-06 · Check-in: accepted\n"));
-  assert.doesNotMatch(approved, /Status: Draft|Understanding gate \(G1\): pending/);
-  assert.match(approved, /Understanding gate \(G4\): pending/);
+  assert.ok(approved.endsWith("\n---\nStatus: Approved (G1 hub-approval:0b6d2c1e-3f4a-4b5c-8d6e-7f8091a2b3c4 · 2026-11-06)\nOwner: Human\n"));
+  assert.doesNotMatch(approved, /Status: Draft|Understanding gate|G4/);
   assert.equal(hashStory(approved), hashStory(draft));
   const a = approved.split("\n"), d = draft.split("\n");
   assert.equal(a.length, d.length);
-  assert.deepEqual(a.flatMap((line, i) => (line === d[i] ? [] : [i])), [1, 3]);
+  assert.deepEqual(a.flatMap((line, i) => (line === d[i] ? [] : [i])), [d.indexOf("Status: Draft")]);
   assert.throws(() => approvedStory("# Story: x\nOwner: Human\n", g1), invalid);
 });
 
 test("splitDigest is the sha256 of the split's canonical JSON (keys sorted at every level, no whitespace, UTF-8): the same for any key order, another for any other spec, files, check argv or Story check", () => {
-  const vcheck = { id: "V1", argv: ["node", "--test"], timeoutMs: 1 };
+  const vcheck = { id: "Q1", argv: ["node", "--test"], timeoutMs: 1 };
   const small = {
     plan: "가",
     graph: { nodes: [{ id: "t1", repoId: "r", title: "T", spec: "s", files: ["a"], verify: [vcheck] }], edges: [] },
     storyVerify: [{ repoId: "r", checks: [vcheck] }],
   };
   const canonical =
-    '{"graph":{"edges":[],"nodes":[{"files":["a"],"id":"t1","repoId":"r","spec":"s","title":"T","verify":[{"argv":["node","--test"],"id":"V1","timeoutMs":1}]}]},"plan":"가","storyVerify":[{"checks":[{"argv":["node","--test"],"id":"V1","timeoutMs":1}],"repoId":"r"}]}';
+    '{"graph":{"edges":[],"nodes":[{"files":["a"],"id":"t1","repoId":"r","spec":"s","title":"T","verify":[{"argv":["node","--test"],"id":"Q1","timeoutMs":1}]}]},"plan":"가","storyVerify":[{"checks":[{"argv":["node","--test"],"id":"Q1","timeoutMs":1}],"repoId":"r"}]}';
   assert.equal(splitDigest(small), createHash("sha256").update(canonical, "utf8").digest("hex"));
   const shuffled = {
-    storyVerify: [{ checks: [{ timeoutMs: 1, argv: ["node", "--test"], id: "V1" }], repoId: "r" }],
-    graph: { edges: [], nodes: [{ verify: [{ timeoutMs: 1, id: "V1", argv: ["node", "--test"] }], files: ["a"], title: "T", spec: "s", repoId: "r", id: "t1" }] },
+    storyVerify: [{ checks: [{ timeoutMs: 1, argv: ["node", "--test"], id: "Q1" }], repoId: "r" }],
+    graph: { edges: [], nodes: [{ verify: [{ timeoutMs: 1, id: "Q1", argv: ["node", "--test"] }], files: ["a"], title: "T", spec: "s", repoId: "r", id: "t1" }] },
     plan: "가",
   };
   assert.equal(splitDigest(shuffled), splitDigest(small));

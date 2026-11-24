@@ -7,14 +7,14 @@ Pazmo Agent Office is an independent, mixed-license, source-available distributi
 | Independently authored Pazmo code and documentation | Root `LICENSE`: PolyForm Shield 1.0.0. Any purpose is allowed, including use inside a company, except providing a product that competes with Pazmo (even for free). Keep the `Required Notice:` and `Licensor Line of Business:` lines with every copy |
 | `vendor/claw-empire/` in versions before its removal (D33, 2026-10-30) | Upstream Apache-2.0 `LICENSE`, applicable NOTICE and original attribution remain in those versions; provenance stays in `upstream/` |
 | `assets/codex/` (Codex model catalog entry) | Apache-2.0; retain `assets/codex/LICENSE` and `assets/codex/NOTICE` |
-| Story and Task templates (`templates/ai-workflow/`) from AI Workflow Kit; its workflow runtime (`.ai-workflow/bin/`, `.ai-workflow/graph/`) in versions before its removal (2026-11-20) | MIT; retain `licenses/ai-workflow-kit-MIT.txt` and source manifest |
+| AI Workflow Kit: its Story and Task templates (`templates/ai-workflow/`) in versions before their removal (2026-11-24, after commit `a7651ea`) and its workflow runtime (`.ai-workflow/bin/`, `.ai-workflow/graph/`) in versions before its removal (2026-11-20) | MIT; those versions retain `licenses/ai-workflow-kit-MIT.txt` and the source manifest `upstream/ai-workflow-kit.lock.json` |
 | Other dependencies, assets and optional submodules | Their respective licenses; inspect before bundling |
 
 **License change (2026-10-30):** Pazmo originals were MIT up to commit `610169e`. Copies of those versions keep their MIT grant; later versions are PolyForm Shield 1.0.0. Apache-2.0 section 4 allows different terms for a derivative work as a whole, while the Claw-Empire files themselves stay Apache-2.0 and remain available from upstream.
 
 Do not replace the upstream license with Pazmo's license. Preserve the existing root copyright holder as authored by the repository owner. Add prominent modification notices to modified upstream files and record changes in `upstream/CHANGES.md`; a changelog alone must not be assumed to replace file-level notices required by the applicable license.
 
-The package combines PolyForm Shield originals with Apache-2.0 and MIT components, so `package.json` says `SEE LICENSE IN LICENSING.md` instead of naming one license for all of it. Do not offer unsupported relicensing assurances.
+The package combines PolyForm Shield originals with Apache-2.0 components (and, in versions up to commit `a7651ea`, MIT ones), so `package.json` says `SEE LICENSE IN LICENSING.md` instead of naming one license for all of it. Do not offer unsupported relicensing assurances.
 
 A GitHub license badge is not a complete license inventory. Audit bundled third-party code, Remotion-related components, nested skills, submodules, images, fonts and other assets. Source import preserves upstream material; it does not certify every bundled component for every use.
 

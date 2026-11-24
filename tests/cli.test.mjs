@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
+import { createHash } from "node:crypto";
 import {
   mkdtempSync,
   mkdirSync,
@@ -84,17 +85,59 @@ test("controller data cannot reside inside the worker project", (t) => {
   assert.equal(run(f, ["init", "--apply"], false).code, "UNSAFE_PATH");
   assert.deepEqual(readdirSync(f.project), []);
 });
+test("init writes no Story or Task template copy (story-format-story-qa D6)", (t) => {
+  const f = fixture(t);
+  assert.deepEqual(run(f, ["init"]).wouldCreate, ["config.json", ".gitignore"]);
+  run(f, ["init", "--apply"]);
+  assert.deepEqual(readdirSync(join(f.project, ".pazmo-office")).sort(), [".gitignore", "config.json", "manifest.json"]);
+  const manifest = JSON.parse(readFileSync(join(f.project, ".pazmo-office", "manifest.json"), "utf8"));
+  assert.deepEqual(Object.keys(manifest.files), ["config.json"]);
+});
 test("remove defaults to dry-run and preserves modified managed files on apply", (t) => {
   const f = fixture(t);
   run(f, ["init", "--apply"]);
-  const story = join(f.project, ".pazmo-office", "STORY.md");
-  writeFileSync(story, "my real Story");
+  const config = join(f.project, ".pazmo-office", "config.json");
+  writeFileSync(config, "{}\n");
   assert.equal(run(f, ["remove"]).applied, false);
-  assert.ok(readdirSync(join(f.project, ".pazmo-office")).includes("TASK.md"));
+  assert.ok(existsSync(config));
   const result = run(f, ["remove", "--apply"]);
-  assert.ok(result.preserved.includes("STORY.md"));
-  assert.equal(readFileSync(story, "utf8"), "my real Story");
-  assert.ok(!readdirSync(join(f.project, ".pazmo-office")).includes("TASK.md"));
+  assert.ok(result.preserved.includes("config.json"));
+  assert.equal(readFileSync(config, "utf8"), "{}\n");
+});
+test("an installation made when init still wrote STORY.md and TASK.md is removed cleanly", (t) => {
+  const f = fixture(t);
+  run(f, ["init", "--apply"]);
+  // The earlier install: the two template copies, named in its manifest with the hash of what Office wrote.
+  const dir = join(f.project, ".pazmo-office");
+  const sha = (text) => createHash("sha256").update(text).digest("hex");
+  const manifestPath = join(dir, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const story = "# Story: <observable outcome>\n";
+  const task = "# Task: <name>\n";
+  writeFileSync(join(dir, "STORY.md"), story);
+  writeFileSync(join(dir, "TASK.md"), task);
+  manifest.files = { ...manifest.files, "STORY.md": sha(story), "TASK.md": sha(task) };
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
+  assert.equal(run(f, ["init", "--apply"]).changed, false, "the earlier manifest is still a managed installation");
+  assert.equal(run(f, ["status"]).status, "stopped", "and status reads it");
+  // A Story the person wrote over the copy stays; the untouched copy and the rest go.
+  writeFileSync(join(dir, "STORY.md"), "my real Story");
+  const result = run(f, ["remove", "--apply"]);
+  assert.deepEqual(result.removed.sort(), ["TASK.md", "config.json"]);
+  assert.deepEqual(result.preserved.sort(), [".gitignore", "STORY.md"]);
+  assert.equal(readFileSync(join(dir, "STORY.md"), "utf8"), "my real Story");
+  assert.ok(!existsSync(join(dir, "TASK.md")));
+  // With nothing edited, everything goes, the folder too.
+  const g = fixture(t);
+  run(g, ["init", "--apply"]);
+  const gdir = join(g.project, ".pazmo-office");
+  writeFileSync(join(gdir, "STORY.md"), story);
+  writeFileSync(join(gdir, "TASK.md"), task);
+  const gm = JSON.parse(readFileSync(join(gdir, "manifest.json"), "utf8"));
+  gm.files = { ...gm.files, "STORY.md": sha(story), "TASK.md": sha(task) };
+  writeFileSync(join(gdir, "manifest.json"), JSON.stringify(gm, null, 2) + "\n");
+  assert.deepEqual(run(g, ["remove", "--apply"]).removed.sort(), [".gitignore", "STORY.md", "TASK.md", "config.json"]);
+  assert.equal(existsSync(gdir), false);
 });
 test("invalid and contradictory flags fail before writing", (t) => {
   const f = fixture(t);

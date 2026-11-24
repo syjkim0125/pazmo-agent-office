@@ -15,7 +15,11 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const packageRoot = fileURLToPath(new URL("../../", import.meta.url));
-const managedNames = ["config.json", "STORY.md", "TASK.md"] as const;
+const managedNames = ["config.json"] as const;
+/** What an installation made before init stopped writing Story and Task template copies (story-format-story-qa D6):
+ * its manifest still names them, and `remove` still takes them away when they are as Office wrote them. */
+const earlierNames = ["config.json", "STORY.md", "TASK.md"] as const;
+const sameNames = (keys: string[], names: readonly string[]) => keys.sort().join(",") === [...names].sort().join(",");
 export class OfficeError extends Error {
   code: string;
   constructor(code: string, message: string) {
@@ -139,8 +143,7 @@ export function readManifest(p: Project): Manifest {
     typeof value.dataDir !== "string" ||
     value.dataDir !== p.dataDir ||
     !value.files ||
-    Object.keys(value.files).sort().join(",") !==
-      [...managedNames].sort().join(",") ||
+    !(sameNames(Object.keys(value.files), managedNames) || sameNames(Object.keys(value.files), earlierNames)) ||
     !Object.values(value.files).every(
       (v) => typeof v === "string" && /^[a-f0-9]{64}$/.test(v),
     )
@@ -195,14 +198,6 @@ export function init(p: Project, apply: boolean) {
         null,
         2,
       ) + "\n",
-    "STORY.md": readFileSync(
-      join(packageRoot, "templates/ai-workflow/STORY.md"),
-      "utf8",
-    ),
-    "TASK.md": readFileSync(
-      join(packageRoot, "templates/ai-workflow/TASK.md"),
-      "utf8",
-    ),
   };
   // Reserving the destination prevents concurrent init from replacing user files.
   mkdirSync(p.directory, { mode: 0o700 });
@@ -270,7 +265,7 @@ export function remove(p: Project, apply: boolean) {
     removed.push(name);
     if (apply) unlinkSync(path);
   };
-  for (const name of managedNames) take(name, manifest.files[name]);
+  for (const [name, expected] of Object.entries(manifest.files)) take(name, expected);
   // Records Office leaves behind (and the manifest's local paths) stay hidden.
   const left = readdirSync(p.directory).filter((n) => !removed.includes(n));
   if (left.every((name) => name === "manifest.json" || name === ignoreName))
