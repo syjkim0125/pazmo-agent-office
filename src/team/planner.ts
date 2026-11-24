@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { lstatSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { lstatSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { OfficeError, fail, noSymlinks } from "../cli/project.ts";
 import { readStable } from "../core/candidates.ts";
@@ -25,7 +25,7 @@ import {
 import type { TeamSplit } from "../runners/team-planning.ts";
 import * as branch from "./branch.ts";
 import type { GitEnv } from "./branch.ts";
-import { PlanGateError, checkApprovals, writeGateRecords } from "./plan-gates.ts";
+import { PlanGateError, approvedView, checkApprovals } from "./plan-gates.ts";
 import { planFailure, planStateOf } from "./plan-link.ts";
 import type { PlanFailure, PlanLink } from "./plan-link.ts";
 import { planTree } from "./plan-tree.ts";
@@ -115,11 +115,10 @@ const PLAIN: Record<string, string> = {
   GIT_FAILED: "PL Mac에서 레포를 받지 못했습니다.",
   CANDIDATE_CHANGED: "PL Mac에 만들어 둔 기획 입력이 바뀌었거나 읽히지 않습니다. 다시 시도하고, 또 실패하면 취소한 뒤 새 Story로 시작하세요.",
   UNSAFE_PATH: "레포에 기획 입력으로 옮길 수 없는 경로가 있습니다.",
-  KIT_SOURCE_CHANGED: "PL Mac에 적어 둔 기획 기록이 지금 승인과 다릅니다. 취소하고 새 Story로 시작하세요.",
   BASES_CHANGED: "PL Mac에 적어 둔 Story 시작 커밋 기록을 읽을 수 없습니다. 취소하고 새 Story로 시작하세요.",
 };
 const UNKNOWN = "PL Mac에서 기획 단계를 마치지 못했습니다. 다시 시도하세요.";
-/** UNSAFE_PATH from writing the gate records: the plan's own folder, not a repo path of the planning tree. */
+/** UNSAFE_PATH of the plan's own folder (it holds the bases record), not a repo path of the planning tree. */
 const RECORDS = "PL Mac에 기획 기록을 쓸 수 없습니다(기획 폴더가 안전하지 않습니다). Office 데이터 폴더를 확인한 뒤 다시 시도하세요.";
 const TWICE = "AI가 Task를 두 번 나눴지만 검사를 통과하지 못했습니다.";
 const DESIGN_TOO_LONG = "설계가 너무 깁니다(16KB 넘음).";
@@ -599,7 +598,7 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
 
   /**
    * The splitting step after G1, and for a high-risk plan after its G3: the approvals must bind the draft (and the
-   * design and stored split: `checkApprovals`), the kit gate records go to the plan's folder, then the split is
+   * design and stored split: `checkApprovals`) and the plan's folder must be safe to write, then the split is
    * published under `plan:<planId>` once the plan is confirmed, every Story base is made and the Story opened. A
    * normal-risk plan's split is the Lead's (one retry); a high-risk plan's is the stored one its G3 approved, with no
    * Lead turn, and a Hub that refuses it fails the plan (the design cannot be rewritten). A plan that already has a
@@ -609,9 +608,11 @@ export function createPlanner(c: PlannerConfig): { tick(): Promise<PlannerTick>;
   async function splitStep(s: StepInput): Promise<PlanResult> {
     const { plan, lane } = s;
     const gates = checkApprovals(plan, { needSplit: plan.risk === "high" });
-    let storyView: string;
+    const storyView = approvedView(plan, gates.g1);
     try {
-      ({ storyView } = writeGateRecords(s.dir, plan, gates));
+      noSymlinks(s.dir);
+      // The plan's own folder holds its bases record; a high-risk split runs no Lead turn that would make it.
+      mkdirSync(s.dir, { recursive: true, mode: 0o700 });
     } catch (error) {
       if (error instanceof OfficeError && error.code === "UNSAFE_PATH") return withDetail(RECORDS, error.message);
       throw error;

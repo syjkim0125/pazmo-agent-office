@@ -7,6 +7,7 @@ import type { Candidate } from "./candidates.ts";
 import type { VerificationCheck } from "./contracts.ts";
 import type { OfficeStore } from "./store.ts";
 import { deliverySchema, storedDelivery, validDelivery } from "./delivery.ts";
+import type { LEGACY_TASK } from "./legacy-tasks.ts";
 
 type State =
   | "checking"
@@ -474,7 +475,7 @@ export class VerificationLedger {
     reason:
       | "EXECUTION_BUDGET_EXHAUSTED"
       | "DISPATCH_FAILED"
-      | "KIT_UPGRADE_REQUIRED",
+      | typeof LEGACY_TASK,
   ): void {
     transaction(this.#db, () => {
       const row = this.#refresh(this.#row(id));

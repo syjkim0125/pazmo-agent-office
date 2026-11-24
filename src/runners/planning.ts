@@ -211,7 +211,6 @@ type Team = {
   retry: string | null;
 };
 type Input = {
-  workflow?: "kit-role-v1";
   requestId: string;
   request: string;
   risk: "normal" | "high";
@@ -242,7 +241,6 @@ export function beginPlanning(
   requestId: string,
   request: string,
   risk: "normal" | "high",
-  kitRoles = false,
 ): PlanningPacket {
   if (!/^[a-f0-9-]{36}$/.test(requestId) || !["normal", "high"].includes(risk))
     invalid("request: invalid id or risk");
@@ -254,7 +252,6 @@ export function beginPlanning(
   )
     invalid("request: empty, too large or contains NUL");
   return seal({
-    ...(kitRoles ? { workflow: "kit-role-v1" as const } : {}),
     requestId,
     request,
     risk,
@@ -370,23 +367,6 @@ export function teamPlanningPacket(input: {
   });
 }
 
-export function continuePlanning(
-  packet: PlanningPacket,
-  story: Story,
-  role: "pm" | "lead",
-) {
-  current(packet);
-  return seal({
-    requestId: packet.requestId,
-    request: packet.request,
-    risk: packet.risk,
-    dialogue: packet.dialogue,
-    story,
-    role,
-    ...(packet.workflow ? { workflow: packet.workflow } : {}),
-  });
-}
-
 const environment = {
   workspace: "/candidate/tree",
   access: "read-only",
@@ -444,14 +424,12 @@ function teamBlock(team: Team, role: "pm" | "lead"): string {
 export function planningPrompt(
   packet: PlanningPacket,
   context?: Candidate,
-  kit?: { runFile: string; node: import("../core/kit-role-runs.ts").KitNode },
 ): string {
   current(packet);
   if (context && !verifyCandidate(context))
     fail("CANDIDATE_CHANGED", "Planning context changed.");
   const data = {
     ...packet,
-    ...(kit ? { kit } : {}),
     context: context
       ? {
           digest: context.digest,
@@ -475,16 +453,18 @@ export function planningPrompt(
   return [
     ...packet.profile.files.map((f) => f.content),
     // Codex's local working directory is an empty host staging directory; a
-    // Lead node once skipped inspection and relied on investigate's proposal.
-    ...(kit && context && packet.role === "lead"
+    // Lead once skipped inspection and relied on the PM's proposal (intake
+    // rejects a single-Office Lead proposal without snapshot evidence).
+    // The role profiles still call the Lead a pre-G1 proposal that may ask; single-Office planning moved G1 before the
+    // Lead and only the PM asks (D1).
+    ...(packet.role === "lead" && !packet.team
       ? [
-          "Every Lead node, read or write, has the same readonly snapshot: your shell commands reach /candidate/tree through the remote executor even though your local working directory is an empty staging directory. Before returning tasks, run readonly commands there to confirm the paths, existing tests and baseline behavior your checks rely on. Dependency proposals and packet.story are prior claims, not evidence. Office rejects a Lead proposal without successful command evidence on /candidate/tree.",
+          "This Lead turn follows the person's G1 approval of packet.story. Where the role profile calls this a pre-G1 proposal or allows a question, follow this instead: return the plan and tasks only; Office does not accept questions from the Lead.",
         ]
       : []),
-    ...(kit
+    ...(context && packet.role === "lead" && !packet.team
       ? [
-          `Assigned kit node: ${kit.node.id}. Perform only this node's description and verification. Do not start another graph or issue human approvals. A write node permits returning proposal documents, not editing the readonly repository snapshot. PM clarify and propose each return the existing PM JSON schema; Lead investigate and plan each return the existing Lead JSON schema. Use kit.node.input dependencies and packet.story as prior proposals. ${packet.role === "pm" ? "Your proposal does not grant G1; Office asks the human after propose completes." : "This Lead assignment follows actual Office G1 for this Story."}`,
-          'Either role may instead ask necessary questions using {"version":1,"inputDigest":"the supplied digest","status":"questions","questions":[{"id":"Q1","text":"question","reason":"blocking decision"}]}. Office transports the answer and resumes this node; do not guess a human decision.',
+          "Your shell commands reach the readonly snapshot at /candidate/tree through the remote executor even though your local working directory is an empty staging directory. Before returning tasks, run readonly commands there to confirm the paths, existing tests and baseline behavior your checks rely on. packet.story is the approved Story, not evidence. Office rejects a Lead proposal without successful command evidence on /candidate/tree.",
         ]
       : []),
     ...(packet.team
@@ -500,8 +480,9 @@ export function planningPrompt(
 export function planningLimits(role: "pm" | "lead") {
   const L = LIMITS;
   if (role === "pm") return pmLimits().join("\n");
+  // Only the PM asks (D1): the Lead's limits have no question set.
   return [
-    ...commonLimits(),
+    ...commonLimits().filter((line) => !line.startsWith("- questions:")),
     `- plan at most ${L.plan} characters; tasks 1-${L.tasks} items.`,
     ...taskLimits(),
     checkLimits(L.checks),
@@ -585,10 +566,10 @@ export function answerPlanning(
 ): PlanningPacket {
   current(packet);
   if (
-    (!packet.workflow && packet.role !== "pm") ||
+    packet.role !== "pm" ||
     questions.kind !== "questions" ||
     questions.inputDigest !== packet.inputDigest ||
-    (!packet.workflow && packet.dialogue.length >= 3)
+    packet.dialogue.length >= 3
   )
     invalid("answers: no current question set");
   const answers = list(
@@ -607,12 +588,11 @@ export function answerPlanning(
   )
     invalid("answers: do not match questions");
   return seal({
-    ...(packet.workflow ? { workflow: packet.workflow } : {}),
     requestId: packet.requestId,
     request: packet.request,
     risk: packet.risk,
     role: packet.role,
-    story: packet.workflow ? packet.story : null,
+    story: null,
     dialogue: [...packet.dialogue, { questions: questions.questions, answers }],
   });
 }
@@ -646,7 +626,9 @@ export function reportOf(
       `exitCode=${typeof r.exitCode === "number" ? r.exitCode : "null"}` +
       (r.signal ? `; signal=${token(r.signal)}` : "");
     const runner = runnerFailure(r.stdout);
-    if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}`, "runner");
+    // A turn the controller stopped itself (a refused init, a hook) has an emptied output and its reason in `error`,
+    // an Office-authored code: name it, or the person sees only "turn failed".
+    if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}${r.error ? `; error=${token(r.error)}` : ""}`, "runner");
     if (r.exitCode !== 0 || r.signal) invalid(exit);
     if (r.error) invalid(`error=${token(r.error)}`);
     const raw = terminalReport(r.stdout, markers);
@@ -748,6 +730,29 @@ export function coverageOf(
   });
 }
 
+/** Whether a Lead turn grounded its proposal in the readonly snapshot: a completed, successful shell command or Office
+ * bridge file read on /candidate/tree in this turn (2026-10-06 user decision), never a model's or the PM's claim. */
+export function inspectedSnapshot(stdout: string): boolean {
+  return stdout.split("\n").some((line) => {
+    try {
+      const { type, item } = JSON.parse(line);
+      return (
+        type === "item.completed" &&
+        ((item?.type === "command_execution" &&
+          item.exit_code === 0 &&
+          typeof item.command === "string" &&
+          item.command.includes("/candidate/tree")) ||
+          (item?.type === "file_read" &&
+            item.status === "completed" &&
+            typeof item.path === "string" &&
+            (item.path === "/candidate/tree" || item.path.startsWith("/candidate/tree/"))))
+      );
+    } catch {
+      return false;
+    }
+  });
+}
+
 /** Controller-internal: a closed model turn proposes documents, never approves or executes them. */
 export function acceptPlanning(
   packet: PlanningPacket,
@@ -755,12 +760,9 @@ export function acceptPlanning(
 ): PlanningResult {
   return guardPlanning(() => {
     const value = reportOf(packet, observation, ["inputDigest", "status", "tasks"]);
-    if (
-      value.status === "questions" &&
-      (packet.role === "pm" || packet.workflow)
-    ) {
+    if (value.status === "questions" && packet.role === "pm") {
       object(value, ["version", "inputDigest", "status", "questions"], "report");
-      if (!packet.workflow && packet.dialogue.length >= 3)
+      if (packet.dialogue.length >= 3)
         invalid("report: question rounds exhausted");
       return {
         kind: "questions",
@@ -775,7 +777,6 @@ export function acceptPlanning(
       return {
         kind: "lead",
         packet: seal({
-          ...(packet.workflow ? { workflow: packet.workflow } : {}),
           requestId: packet.requestId,
           request: packet.request,
           risk: packet.risk,

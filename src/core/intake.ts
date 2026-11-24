@@ -8,11 +8,12 @@ import type { ApprovalAnswer } from "./approvals.ts";
 import type { OfficeStore } from "./store.ts";
 import { digest } from "./candidates.ts";
 import { PLAN_ROOT } from "./contracts.ts";
+import { LEGACY_TASK, legacyPlanning, refuseLegacyTask } from "./legacy-tasks.ts";
 import {
   beginPlanning,
   acceptPlanning,
   answerPlanning,
-  continuePlanning,
+  inspectedSnapshot,
   renderPlanningStory,
   PlanningInvalid,
 } from "../runners/planning.ts";
@@ -168,7 +169,6 @@ export class IntakeLedger {
       request: packet.request,
       role: packet.role,
       risk: packet.risk,
-      workflow: packet.workflow ?? "legacy",
       story: packet.story,
       reason: row.reason,
       questions: result?.kind === "questions" ? result.questions : null,
@@ -232,12 +232,11 @@ export class IntakeLedger {
     token: string,
     request: string,
     risk: "normal" | "high",
-    kitRoles = false,
     existingTaskId?: string,
   ) {
     this.#store.authorize(token);
     const id = existingTaskId ?? randomUUID(),
-      packet = beginPlanning(id, request, risk, kitRoles);
+      packet = beginPlanning(id, request, risk);
     return transaction(this.#db, () => {
       if (existingTaskId) {
         const task = this.#db
@@ -282,6 +281,28 @@ export class IntakeLedger {
       fail("INTAKE_STATE", "No planning role is pending.");
     return packet;
   }
+  /** Whether the request's saved packet was made for the removed runtime's planning graph (`legacy-tasks.ts`). */
+  legacy(id: string): boolean {
+    return legacyPlanning(JSON.parse(this.#row(id).packet_json));
+  }
+  /** Controller-only (가): a legacy request that is still open (pending, asking, waiting for G1 or a retry, or with an
+   * unpublished proposal) stops as LEGACY_TASK. Stopping it again, or a published or cancelled one, changes nothing. */
+  stopLegacy(id: string) {
+    return transaction(this.#db, () => {
+      const row = this.#row(id),
+        packet = JSON.parse(row.packet_json) as PlanningPacket;
+      if (!legacyPlanning(packet))
+        fail("INTAKE_STATE", "Only a request begun under the removed workflow runtime stops as legacy.");
+      if (
+        row.task_status !== "inbox" ||
+        this.#publication(id) ||
+        row.state === "cancelled" ||
+        (row.state === "human_required" && row.reason === LEGACY_TASK)
+      )
+        return this.get(id);
+      return this.#advance(row, packet, "human_required", null, "controller", { error: LEGACY_TASK }, LEGACY_TASK);
+    });
+  }
   /** A supervisor may interrupt only the still-pending conversation it owns. */
   interrupt(
     id: string,
@@ -321,11 +342,6 @@ export class IntakeLedger {
   ) {
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
-      if (packet.workflow)
-        fail(
-          "KIT_EVIDENCE_REQUIRED",
-          "Native planning must return through its assigned kit node.",
-        );
       if (!["waiting_pm", "waiting_lead"].includes(row.state))
         fail("INTAKE_STATE", "No planning role is pending.");
       let result: Result;
@@ -348,11 +364,34 @@ export class IntakeLedger {
           error.code,
         );
       }
+      // The PM's Story waits for the person's G1 (approveStory) before any Lead model starts.
       if (result.kind === "lead")
-        return this.#advance(row, result.packet, "waiting_lead", null, "pm", {
-          kind: "requirements",
-          story: result.packet.story,
-        });
+        return this.#advance(
+          row,
+          result.packet,
+          "human_required",
+          null,
+          "pm",
+          { kind: "requirements", story: result.packet.story },
+          "G1_REQUIRED",
+        );
+      if (
+        result.kind === "proposal" &&
+        !inspectedSnapshot(observation.result.stdout)
+      )
+        return this.#advance(
+          row,
+          packet,
+          "human_required",
+          null,
+          "controller",
+          {
+            error: "INSPECTION_REQUIRED",
+            detail:
+              "No successful command on /candidate/tree; the approved Story is not inspection evidence.",
+          },
+          "INSPECTION_REQUIRED",
+        );
       return this.#advance(
         row,
         packet,
@@ -363,74 +402,9 @@ export class IntakeLedger {
       );
     });
   }
-  /** Controller transport of a native CLI result, not a second node scheduler. */
-  acceptKit(
-    id: string,
-    revision: number,
-    inputDigest: string,
-    result: Result,
-    kit: {
-      runId: string;
-      runFile: string;
-      nodeId: string;
-      action: string;
-      revisionToken: string;
-      questionId?: string;
-    },
-  ) {
-    return transaction(this.#db, () => {
-      const { row, packet } = this.#match(id, revision, inputDigest);
-      if (
-        !packet.workflow ||
-        !["waiting_pm", "waiting_lead"].includes(row.state)
-      )
-        fail("INTAKE_STATE", "No native planning assignment is pending.");
-      if (result.kind === "questions")
-        return this.#advance(
-          row,
-          packet,
-          "awaiting_answer",
-          result,
-          packet.role,
-          { ...result, kit },
-        );
-      if (packet.role === "pm" && result.kind === "lead") {
-        const complete = kit.action === "role-complete";
-        return this.#advance(
-          row,
-          continuePlanning(
-            packet,
-            result.packet.story!,
-            complete ? "lead" : "pm",
-          ),
-          complete ? "human_required" : "waiting_pm",
-          null,
-          "pm",
-          { kind: "requirements", story: result.packet.story, kit },
-          complete ? "G1_REQUIRED" : null,
-        );
-      }
-      if (packet.role === "lead" && result.kind === "proposal")
-        return this.#advance(
-          row,
-          packet,
-          kit.action === "role-complete" ? "proposal" : "waiting_lead",
-          result,
-          "lead",
-          { ...result, kit },
-        );
-      fail(
-        "PLANNING_INVALID",
-        "Native role output does not match the Office assignment.",
-      );
-    });
-  }
   #storySubject(id: string, packet: PlanningPacket) {
-    if (!packet.workflow || packet.role !== "lead" || !packet.story)
-      return fail(
-        "G1_REQUIRED",
-        "A completed native PM Story proposal is required.",
-      );
+    if (packet.role !== "lead" || !packet.story)
+      return fail("G1_REQUIRED", "A completed PM Story proposal is required.");
     return digest(
       JSON.stringify({
         type: "intake-story",
@@ -451,6 +425,7 @@ export class IntakeLedger {
     this.#store.authorize(token);
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
+      if (legacyPlanning(packet)) refuseLegacyTask();
       if (row.state !== "human_required" || row.reason !== "G1_REQUIRED")
         fail(
           "INTAKE_STATE",
@@ -475,7 +450,7 @@ export class IntakeLedger {
     });
   }
   /** Explicit recovery of a closed, rejected planning response; never an approval
-   * or a way to release uncertain processes. Budget spans successor kit runs. */
+   * or a way to release uncertain processes. */
   retryPlanning(
     token: string,
     id: string,
@@ -486,15 +461,9 @@ export class IntakeLedger {
     this.#store.authorize(token);
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
-      if (
-        !packet.workflow ||
-        row.state !== "human_required" ||
-        row.reason !== "PLANNING_INVALID"
-      )
-        fail(
-          "INTAKE_STATE",
-          "Only rejected native planning output can be resumed.",
-        );
+      if (legacyPlanning(packet)) refuseLegacyTask();
+      if (row.state !== "human_required" || row.reason !== "PLANNING_INVALID")
+        fail("INTAKE_STATE", "Only rejected planning output can be resumed.");
       if (typeof note !== "string" || !note.trim() || note.length > 16000)
         fail("ANSWER_REQUIRED", "Record the actual recovery request.");
       const leases = this.#db
@@ -546,30 +515,6 @@ export class IntakeLedger {
       );
     });
   }
-  /** Derive kit's source from the actual Office G1; no worker-authored gate text. */
-  storyApproval(id: string) {
-    const row = this.#row(id),
-      packet = JSON.parse(row.packet_json) as PlanningPacket;
-    if (row.task_status !== "inbox" || row.state !== "waiting_lead")
-      fail("INTAKE_STATE", "No Lead assignment is pending.");
-    const subject = this.#storySubject(id, packet);
-    const approval = this.#db
-      .prepare(
-        "SELECT challenge_id,answer_json,accepted_at FROM pazmo_approvals WHERE gate='G1' AND subject=?",
-      )
-      .get(subject) as
-      | { challenge_id: string; answer_json: string; accepted_at: number }
-      | undefined;
-    if (!approval)
-      fail("G1_REQUIRED", "Lead requires the user's actual Story approval.");
-    return {
-      subject,
-      story: renderPlanningStory(packet.story!),
-      challengeId: approval.challenge_id,
-      answer: JSON.parse(approval.answer_json),
-      acceptedAt: approval.accepted_at,
-    };
-  }
   answer(
     token: string,
     id: string,
@@ -580,6 +525,7 @@ export class IntakeLedger {
     this.#store.authorize(token);
     return transaction(this.#db, () => {
       const { row, packet } = this.#match(id, revision, inputDigest);
+      if (legacyPlanning(packet)) refuseLegacyTask();
       const result = row.result_json
         ? (JSON.parse(row.result_json) as Result)
         : null;
@@ -624,7 +570,9 @@ export class IntakeLedger {
       prior.inputDigest === inputDigest
     )
       return this.get(id);
-    const { row } = this.#match(id, revision, inputDigest);
+    const { row, packet } = this.#match(id, revision, inputDigest);
+    // Before the first pump stops it, a legacy request's proposal can still be reached through the operator API.
+    if (legacyPlanning(packet)) refuseLegacyTask();
     const result = row.result_json
       ? (JSON.parse(row.result_json) as Result)
       : null;

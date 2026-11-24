@@ -34,6 +34,11 @@ running ones.
 - Needs a person: `oc login --web` and the company Hub deploy, GitHub and Claude/codex logins and their 2FA, any write
   to the test repos' `main` or `dev`, and approving Office Decisions (G1, G3, G4, questions).
 
+- QA scripts: `qa/<slug>.sh`, run from the repository root with `BASE_URL=<base URL> bash qa/<slug>.sh` (a script that
+  only runs commands ignores `BASE_URL`); Node 24 first on PATH.
+- Browser test runner: none in the repository (a scripted browser check uses Playwright from `npx` with a scratch script,
+  as `docs/verification/2026-11-20-dev-pr.md` did).
+
 ## Integration (dev)
 
 - Auto-merge: off   <!-- the human sets "on"; an agent never turns it on -->
@@ -41,4 +46,5 @@ running ones.
 - Production branch: main
 - Dev base URL: none
 - Dev runs the merged commit when: not applicable
+- Dev QA in CI: none
 - Dev login and test data: not applicable

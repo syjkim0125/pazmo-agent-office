@@ -20,12 +20,6 @@
     "destination": "licenses/ai-workflow-kit-MIT.txt",
     "blob": "9c432e70874900ce1dca6a0a926300744de89c3f"
   },
-  "scope": "Templates and license copied exactly; destination Git blob hashes verified. Codex workflow tooling separately installed from verified official npm 5.0.3 (see upstream/kit.lock.json).",
-  "jira": "Already optional in inspected upstream; new product must retain tracker-independent execution.",
-  "workflow_tooling": {
-    "npm_version": "5.0.3",
-    "license": "licenses/ai-workflow-kit-MIT.txt",
-    "runtime_dependency": false,
-    "removed_2026_11_20": "skill, config.json and AGENTS.md routing (this repository's development process); bin/ and graph/ remain for Office"
-  }
+  "scope": "Templates and license copied exactly; destination Git blob hashes verified. Office does not run the workflow tooling (removed 2026-11-20); the templates stay until the Story format changes.",
+  "jira": "Already optional in inspected upstream; new product must retain tracker-independent execution."
 }

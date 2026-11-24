@@ -67,13 +67,7 @@ export function rolePacket(
     );
   return packet;
 }
-export type RolePacket = ReturnType<typeof rolePacket> & {
-  kit?: {
-    version: string;
-    assignment: import("../core/kit-role-runs.ts").RoleAssignment;
-    node: import("../core/kit-role-runs.ts").KitNode;
-  };
-};
+export type RolePacket = ReturnType<typeof rolePacket>;
 
 export function rolePrompt(packet: RolePacket): string {
   assertRoleProfile(packet.role, packet.profile);
@@ -87,11 +81,6 @@ export function rolePrompt(packet: RolePacket): string {
     },
   };
   return [
-    ...(packet.kit
-      ? [
-          "Perform only the supplied started kit node. The trusted Office controller owns CLI writes and transports your observations. Follow node.description and node.verify; do not initialize a second workflow or change assignment criteria.",
-        ]
-      : []),
     "You are the assigned Pazmo Office " +
       packet.role +
       ". Work only in /candidate/tree using the remote tools.",

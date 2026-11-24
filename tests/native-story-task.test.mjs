@@ -9,7 +9,8 @@ import { LiveRuntime } from "../src/runtime/live.ts";
 import { OfficeError } from "../src/cli/project.ts";
 import { classifyObservation } from "../src/core/verification.ts";
 import { verifyCandidate } from "../src/core/candidates.ts";
-import { continuePlanning, teamPlanningPacket } from "../src/runners/planning.ts";
+import { teamPlanningPacket } from "../src/runners/planning.ts";
+import { pmReady } from "./planning-fixture.mjs";
 import { writeStoryContract } from "../src/team/story-contract.ts";
 import { normalizeClaudeStream } from "../src/runners/claude-profile.ts";
 import { PLAN_ID, turn } from "./plan-fixture.mjs";
@@ -839,14 +840,7 @@ test("a normal lean task still goes to G4 (unchanged)", async (t) => {
   const f = await fixture(t);
   const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: f.alice.id, risk: "normal" });
   const { intake, store } = f.ledgers;
-  const i = intake.get(id);
-  intake.acceptKit(
-    id,
-    i.revision,
-    i.inputDigest,
-    { kind: "lead", packet: continuePlanning(intake.packet(id, i.revision, i.inputDigest), STORY, "lead") },
-    { runId: "test", runFile: "test", nodeId: "requirements", action: "role-complete", revisionToken: "test" },
-  );
+  pmReady(intake, id, STORY);
   await f.office.refresh();
   await answer(f, "story", "README 실행 안내만 수정하는 범위를 승인합니다.");
   // The Lead's publication: one registered contract task under the request, no Story row.

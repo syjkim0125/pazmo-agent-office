@@ -295,8 +295,8 @@ export function renderTeamDesign(split: TeamSplit, repos: TeamRepoFolder[]): str
   return `# Decision requiring human G3\n\n${split.plan}\n\n## Task 목록\n${tasks.join("\n")}\n\nUnderstanding gate (G3): pending\n\n나누기 지문: ${splitDigest(split)}\n`;
 }
 
-/** The approved draft the Hub Story carries: `Status: Approved` and the G1 line naming the web approval. The kit
- * Story hash leaves both lines out, so it equals the draft's. */
+/** The approved draft the Hub Story carries: `Status: Approved` and the G1 line naming the web approval. The
+ * Story hash (`hashStory`) leaves both lines out, so it equals the draft's. */
 export function approvedStory(draft: string, g1: PlanApproval): string {
   if (!/^Status: Draft$/m.test(draft) || !/^Understanding gate \(G1\): pending$/m.test(draft))
     invalid("draft: no Status or G1 line");

@@ -5,7 +5,7 @@ import { AWAITING_G4, AWAITING_G4_BOARD, AWAITING_OTHERS, HELD_SHORT, plainFailu
 import { say } from "../src/hub/pages.ts";
 import { safePath } from "../src/hub/paths.ts";
 import { planStoryKey } from "../src/hub/plan-protocol.ts";
-import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+import { hashStory } from "../src/core/story-hash.ts";
 /** U49: a page with its one-sentence-per-line marks taken off, for tests that compare words (the U49 tests pin the marks). */
 const unline = (html) => html.replace(/<(?:span|b) class="ln">([^<]*)<\/(?:span|b)>/g, "$1");
 
@@ -235,7 +235,7 @@ test("a web-planned Story and an uploaded Story share one board", async (t) => {
   const body = "# Story: 올린 Story\n\n## MUST\n- M1. 올린다.\n";
   const sent = await h.api("POST", "/api/link/story/upload", {
     token, protocol: "3",
-    body: { projectId: h.projectId, title: "올린 Story", body, risk: "normal", storyHash: kitStoryHash(body), graph: { nodes: [task("up", "src/up.ts")], edges: [] }, storyVerify: [{ repoId: h.be, checks: [check] }] },
+    body: { projectId: h.projectId, title: "올린 Story", body, risk: "normal", storyHash: hashStory(body), graph: { nodes: [task("up", "src/up.ts")], edges: [] }, storyVerify: [{ repoId: h.be, checks: [check] }] },
   });
   assert.equal(sent.status, 200, sent.text);
   const up = sent.json;

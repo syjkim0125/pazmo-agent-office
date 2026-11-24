@@ -31,11 +31,11 @@ test("live entry stops before Docker or login when this contract lacks human G1"
   assert.equal(f.store.get(f.task.id).approved.G1, false);
 });
 
-test("kit role opt-in preserves the real G1 boundary before graph or model execution", async (t) => {
-  const f = await officeFixture(t, false);
-  const result = run(f, ["--kit-roles"]);
-  assert.equal(result.status, 2, result.stderr);
-  assert.equal(JSON.parse(result.stdout).reason, "G1_REQUIRED");
+test("live entry refuses an extra argument before opening the database", async (t) => {
+  const f = await officeFixture(t);
+  const result = run(f, ["--roles"]);
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /Usage after current boundary qualification/);
   assert.equal(f.execution.list(f.task.id).length, 0);
 });
 

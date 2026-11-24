@@ -2,11 +2,10 @@
 
 This repository is changed with the `story-qa` skill of the pazmo-story-to-dev plugin (`claude plugin marketplace add syjkim0125/pazmo-story-to-dev`, then `claude plugin install pazmo-story-to-dev@pazmo-story-to-dev`; start with `/story-qa <request>`).
 
-- Before any code edit, write the Story and its QA list in `docs/stories/<slug>.md` and get the person's approval. On a correction, update both and ask again.
-- Then implement, have a fresh reader review the diff, and run the approved QA scenarios on the running app or command. The QA environment is `docs/qa.md`.
-- Report in the skill's order (변경, QA table, 머지, 리뷰, 테스트, 확인하지 못한 것) and ask for approval. Commit only in a worktree; push only when asked. `main` is never merged into automatically (`docs/qa.md`: Auto-merge off).
+- The skill changes often: before each change, read its latest version (https://github.com/syjkim0125/pazmo-story-to-dev, `skills/story-qa/SKILL.md`) and follow that, not a copy of its steps. In short: the person approves the Story (`docs/stories/<slug>.md`) or, for a small change, the chat summary, with its QA list before any code edit; the person approves the report before any merge.
+- The QA environment is `docs/qa.md`. Commit only in a worktree; push only when asked. `main` is never merged into automatically (`docs/qa.md`: Auto-merge off).
 
-Until 2026-11-20 this repository was built with the earlier workflow kit (graph runs and G1–G4 records). Its process files and run records (`.ai-workflow/runs`, `approvals`, `evidence`, `config.json`, `verification.json`, `.agents/skills/workflow`, `scripts/kit-test-shard.mjs`) were removed from the tree after commit `b6407d7`. Older documents still link to them; read one with `git show b6407d7:<path>`. The kit parts Office itself runs (`.ai-workflow/bin`, `.ai-workflow/graph`, `templates/ai-workflow`) stay until Office's role engine is replaced.
+Until 2026-11-20 this repository was built with the earlier workflow kit (graph runs and G1–G4 records). Its process files and run records (`.ai-workflow/runs`, `approvals`, `evidence`, `config.json`, `verification.json`, `.agents/skills/workflow`, `scripts/kit-test-shard.mjs`) were removed from the tree after commit `b6407d7`. Older documents still link to them; read one with `git show b6407d7:<path>`. The kit runtime Office used to run (`.ai-workflow/bin`, `.ai-workflow/graph`) was removed when Office began running its roles on its own records ([Story](docs/stories/office-engine-without-kit.md)); `templates/ai-workflow` stays until the Story format changes.
 
 ## Bootstrap status
 

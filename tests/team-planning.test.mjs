@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 import { digest, freezeCandidate } from "../src/core/candidates.ts";
-import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+import { hashStory } from "../src/core/story-hash.ts";
 import { hasOpenBlocking, planTextHash } from "../src/hub/plan-protocol.ts";
 import {
   acceptPlanning,
@@ -583,7 +583,7 @@ test("renderTeamStory writes Goal, Domain, MUST, SHOULD, OUT, Decisions and Veri
   assert.ok(emoji.length <= 500 && emoji.endsWith("😀…"), emoji.slice(-4));
 });
 
-test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'Understanding gate (G3): pending'; approvedStory has Status: Approved and the hub-approval G1 line and the same kitStoryHash as the draft", () => {
+test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'Understanding gate (G3): pending'; approvedStory has Status: Approved and the hub-approval G1 line and the same hashStory as the draft", () => {
   const result = lead(
     split({
       tasks: [beTask({ title: "  주문 API  " }), feTask(), beTask({ title: "주문 시험", files: ["tests/"], after: [2, 1] })],
@@ -608,7 +608,7 @@ test("renderTeamDesign has the plan, the Task list with repo and 앞 Task and 'U
   assert.ok(approved.includes("\nUnderstanding gate (G1): hub-approval:0b6d2c1e-3f4a-4b5c-8d6e-7f8091a2b3c4 · 2026-11-06 · Check-in: accepted\n"));
   assert.doesNotMatch(approved, /Status: Draft|Understanding gate \(G1\): pending/);
   assert.match(approved, /Understanding gate \(G4\): pending/);
-  assert.equal(kitStoryHash(approved), kitStoryHash(draft));
+  assert.equal(hashStory(approved), hashStory(draft));
   const a = approved.split("\n"), d = draft.split("\n");
   assert.equal(a.length, d.length);
   assert.deepEqual(a.flatMap((line, i) => (line === d[i] ? [] : [i])), [1, 3]);

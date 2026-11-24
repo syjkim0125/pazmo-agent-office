@@ -16,6 +16,7 @@ import { VerificationLedger } from "../core/verification.ts";
 import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
+import { LEGACY_TASK, LEGACY_TASK_MESSAGE, noteLegacyTask, reasonText } from "../core/legacy-tasks.ts";
 import { createLiveRuntime, type LiveConfig } from "./live.ts";
 import { RunnerSettings, loadRunnerCatalog } from "./runner-settings.ts";
 import type { RunnerCatalog, RunnerChoice } from "./runner-settings.ts";
@@ -95,8 +96,8 @@ type Config = {
   onVerified?: (taskId: string, round: { id: string; candidate: Candidate }) => void | Promise<void>;
 };
 
-/** Reuses the qualified kit/VM implementation against Claw's original task DB.
- * The extra rows are transport receipts, never another task or kit state machine.
+/** Reuses the qualified VM implementation against Claw's original task DB.
+ * The extra rows are transport receipts, never another task state machine.
  */
 export async function createNativeOffice(c: Config) {
   const { db, project, token } = c;
@@ -393,6 +394,20 @@ export async function createNativeOffice(c: Config) {
         .prepare("SELECT task_id FROM pazmo_intakes")
         .all() as { task_id: string }[]) {
         const i = intake.get(row.task_id);
+        // A request begun under the removed workflow runtime stops from any open state, without its question, G1 or
+        // retry card (가).
+        if (!["registered", "cancelled"].includes(i.state) && intake.legacy(i.taskId)) {
+          noteLegacyTask(i.taskId);
+          const stopped = intake.stopLegacy(i.taskId);
+          db.prepare("DELETE FROM pazmo_native_decisions WHERE task_id=?").run(i.taskId);
+          if (stopped.reason === LEGACY_TASK)
+            message(
+              i.taskId,
+              `blocked:${i.taskId}:${stopped.revision}`,
+              `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`,
+            );
+          continue;
+        }
         if (i.state === "waiting_pm" || i.state === "waiting_lead") {
           dispatch(i.taskId, `planning:${i.taskId}:${i.revision}`, () =>
             live!.startPlanning(i.taskId, i.revision, i.inputDigest),
@@ -458,12 +473,20 @@ export async function createNativeOffice(c: Config) {
           message(
             i.taskId,
             `blocked:${i.taskId}:${i.revision}`,
-            `작업이 멈췄습니다: ${i.reason}. 자동 재시도하지 않습니다.`,
+            `작업이 멈췄습니다: ${reasonText(i.reason)}. 자동 재시도하지 않습니다.`,
           );
         }
       }
       for (const item of store.list()) {
         if (["done", "cancelled"].includes(item.status)) continue;
+        // A task begun under the removed workflow runtime stays stopped until the person cancels it (가).
+        if (store.legacyTask(item.id, item.revision)) {
+          noteLegacyTask(item.id);
+          // Its open cards (a G4 among them) would hide the stop; the approval records stay.
+          db.prepare("DELETE FROM pazmo_native_decisions WHERE task_id=?").run(item.id);
+          message(item.id, `legacy:${item.id}`, `작업이 멈췄습니다: ${LEGACY_TASK_MESSAGE}`);
+          continue;
+        }
         if (isStory(item.id)) {
           // Its G1 was recorded at submission: no G1 or G3 card. It starts at
           // the Engineer and ends at its verified candidate, never at G4.
@@ -700,7 +723,6 @@ export async function createNativeOffice(c: Config) {
           token,
           [t.title, t.description].filter(Boolean).join("\n"),
           risk ?? "normal",
-          true,
           id,
         );
       });
@@ -1162,7 +1184,7 @@ export async function createNativeOffice(c: Config) {
       }
     }
     const i = transaction(db, () => {
-      const created = intake.create(token, input.content, "normal", true);
+      const created = intake.create(token, input.content, "normal");
       db.prepare(
         "UPDATE tasks SET project_id=?,assigned_agent_id=? WHERE id=?",
       ).run(input.projectId ?? null, input.receiverId, created.taskId);
@@ -1196,7 +1218,7 @@ export async function createNativeOffice(c: Config) {
     if (known) return known.task_id;
     if (!live) fail("EXECUTION_LOCKED", "실제 실행 설정으로 Office를 시작해주세요.");
     const created = transaction(db, () => {
-      const c = intake.create(token, input.content, input.risk, true);
+      const c = intake.create(token, input.content, input.risk);
       db.prepare("UPDATE tasks SET assigned_agent_id=? WHERE id=?").run(agent("pm"), c.taskId);
       db.prepare("INSERT INTO pazmo_hub_requests VALUES (?,?,?)").run(input.key, c.taskId, input.requester);
       return c;
@@ -1436,7 +1458,7 @@ export async function createNativeOffice(c: Config) {
         // A review refused before its runner started is unknown, not failed: only its error says why.
         const review = round.nodes.find((n) => n.kind === "review")?.result;
         return withAccount(
-          `검증이 멈췄습니다: ${round.reason}${failed.length ? ` (${failed.join(", ")})` : ""}`,
+          `검증이 멈췄습니다: ${reasonText(round.reason)}${failed.length ? ` (${failed.join(", ")})` : ""}`,
           round.reason === "REVIEW_RUNNER_FAILED" ? review?.observation.output : undefined,
           review?.observation.error ?? null,
         );

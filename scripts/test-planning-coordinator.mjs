@@ -88,6 +88,15 @@ try {
             };
       const stream = [
         { type: "turn.started" },
+        // A Lead proposal needs a successful command on the readonly snapshot (scripted, like the report).
+        ...(packet.role === "lead"
+          ? [
+              {
+                type: "item.completed",
+                item: { type: "command_execution", command: "ls /candidate/tree", exit_code: 0, status: "completed" },
+              },
+            ]
+          : []),
         {
           type: "item.completed",
           item: {
@@ -126,6 +135,12 @@ try {
     },
   });
   const item = intake.create(token, "Validate input.", "normal");
+  const pm = (await coordinator.run(item.taskId, context)).intake;
+  assert.equal(pm.reason, "G1_REQUIRED", JSON.stringify(pm));
+  intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+    decision: "approve",
+    note: "Scripted VM check only; no real user decision.",
+  });
   const result = await coordinator.run(item.taskId, context);
   assert.equal(result.state, "proposal", JSON.stringify(result));
   assert.deepEqual(roles, ["pm", "lead"]);

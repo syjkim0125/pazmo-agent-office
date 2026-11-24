@@ -4,7 +4,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
-import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+import { hashStory } from "../src/core/story-hash.ts";
 import { checkUpload, kitStoryRefs } from "../src/team/upload.ts";
 
 // The command's own checks of a locally approved kit Story and its Task file (K2, K3), with no Hub: every refusal is a
@@ -92,7 +92,7 @@ function files(t, { story = storyText(), tasks = tasksFile(), g1 } = {}) {
     writeFileSync(join(root, path), typeof value === "string" ? value : JSON.stringify(value, null, 2));
   };
   put("docs/pay-story.md", story);
-  put(".ai-workflow/approvals/pay-g1.json", g1 ?? { gate: "G1", storyHash: kitStoryHash(story), responseRef: "chat: 승인", date: "2026-11-11" });
+  put(".ai-workflow/approvals/pay-g1.json", g1 ?? { gate: "G1", storyHash: hashStory(story), responseRef: "chat: 승인", date: "2026-11-11" });
   put("docs/pay-design.md", DESIGN);
   put("plan/tasks.json", tasks);
   return {
@@ -121,7 +121,7 @@ test("builds the Hub upload from the Story and Task files", (t) => {
     title: "결제 버튼",
     body: text,
     risk: "normal",
-    storyHash: kitStoryHash(text),
+    storyHash: hashStory(text),
     graph: {
       nodes: [
         { id: "be-pay", repoId: "r-be", title: "결제 API", spec: "API를 만든다.\nCovers: M1, M3, V1", files: ["src/pay.ts"], verify: [check("V1")] },
@@ -146,23 +146,25 @@ test("refuses a Story without a bound G1", (t) => {
   refuses(gone, "UPLOAD_G1", /pay-g1\.json/);
   // The record binds another text: the Story changed after its approval.
   const story = storyText();
-  refuses(files(t, { story, g1: { gate: "G1", storyHash: kitStoryHash(`${story}\n- M9. 승인 뒤에 더한 줄.`), responseRef: "chat: 승인" } }), "UPLOAD_G1", /다시/);
+  refuses(files(t, { story, g1: { gate: "G1", storyHash: hashStory(`${story}\n- M9. 승인 뒤에 더한 줄.`), responseRef: "chat: 승인" } }), "UPLOAD_G1", /다시/);
   // Not a G1 record, or no response it was given in.
-  refuses(files(t, { story, g1: { gate: "G3", storyHash: kitStoryHash(story), responseRef: "chat: 승인" } }), "UPLOAD_G1");
-  refuses(files(t, { story, g1: { gate: "G1", storyHash: kitStoryHash(story), responseRef: " " } }), "UPLOAD_G1");
+  refuses(files(t, { story, g1: { gate: "G3", storyHash: hashStory(story), responseRef: "chat: 승인" } }), "UPLOAD_G1");
+  refuses(files(t, { story, g1: { gate: "G1", storyHash: hashStory(story), responseRef: " " } }), "UPLOAD_G1");
   // A record path that leaves the project.
   refuses(files(t, { story: storyText({ gates: ["Understanding gate (G1): ../outside-g1.json · 2026-11-11 · Check-in: accepted"] }) }), "UPLOAD_G1");
 });
 
-test("kit hash matches kit storyContract on CRLF", async (t) => {
-  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
-  // Windows line ends, a trailing space on a line and blank lines at the end: the same bytes go to both.
+/** The hash the removed workflow runtime's `storyContract` gave for the CRLF text below (commit f3d975d). */
+const CRLF_HASH = "79fe03bfdb27645b47cd79eb2543001beb414cdf28dbf6a8c9f8b60e8122fcd4";
+
+test("the Story hash on CRLF is the value it always was", (t) => {
+  // Windows line ends, a trailing space on a line and blank lines at the end.
   const text = `${storyText().replace("- M2. 결제 화면에 버튼이 있다.", "- M2. 결제 화면에 버튼이 있다.   ")}\n\n`.replace(/\n/g, "\r\n");
   assert.ok(text.includes("\r\n"));
-  assert.equal(kitStoryHash(text), storyContract(text).fingerprint);
+  assert.equal(hashStory(text), CRLF_HASH);
   const f = files(t, { story: text });
   const upload = f.check();
-  assert.equal(upload.storyHash, storyContract(text).fingerprint);
+  assert.equal(upload.storyHash, CRLF_HASH);
   assert.equal(upload.body, text, "the Story goes up as it is");
   assert.equal(upload.title, "결제 버튼");
   assert.deepEqual(kitStoryRefs(text), { must: [1, 2, 3], verify: [{ n: 1, must: [1, 3] }, { n: 2, must: [2] }] });
@@ -171,7 +173,7 @@ test("kit hash matches kit storyContract on CRLF", async (t) => {
 test("high risk needs a bound G3", (t) => {
   const high = tasksFile({ risk: "high" });
   const story = storyText({ gates: [G1_LINE, G3_LINE] });
-  const g3 = (o = {}) => ({ gate: "G3", storyHash: kitStoryHash(story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인", ...o });
+  const g3 = (o = {}) => ({ gate: "G3", storyHash: hashStory(story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인", ...o });
   // No G3 line.
   refuses(files(t, { tasks: high }), "UPLOAD_G3", /G3/);
   // A G3 line whose record is not there.
@@ -203,7 +205,7 @@ test("normal risk is refused when the Story needs G3", (t) => {
   const profile = (o = {}) => ({ version: 1, checks: [{ id: "v1", covers: ["V1"], argv: ["npm", "test"] }], ...o });
   const g3Story = storyText({ gates: [G1_LINE, G3_LINE] });
   const bindG3 = (f) =>
-    f.put(".ai-workflow/approvals/pay-g3.json", { gate: "G3", storyHash: kitStoryHash(g3Story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인" });
+    f.put(".ai-workflow/approvals/pay-g3.json", { gate: "G3", storyHash: hashStory(g3Story), decisionHash: sha256(DESIGN), design: "docs/pay-design.md", responseRef: "chat: 설계 승인" });
   // The kit profile requires G3: "normal" is refused, even with no G3 line in the Story.
   const required = files(t);
   required.put(".ai-workflow/verification.json", profile({ requiresG3: true, design: "docs/pay-design.md" }));
@@ -299,7 +301,7 @@ test("G3 takes the design file from the kit verification profile", (t) => {
   const high = tasksFile({ risk: "high" });
   const story = storyText({ gates: [G1_LINE, G3_LINE] });
   // The kit's own G3 record: no design field; the design path lives in .ai-workflow/verification.json.
-  const kitG3 = { gate: "G3", storyHash: kitStoryHash(story), decisionHash: sha256(DESIGN), responseRef: "chat: 설계 승인" };
+  const kitG3 = { gate: "G3", storyHash: hashStory(story), decisionHash: sha256(DESIGN), responseRef: "chat: 설계 승인" };
   const profile = (design) => ({ version: 1, checks: [{ id: "v1", covers: ["V1"], argv: ["npm", "test"] }], requiresG3: true, design });
   const kit = files(t, { story, tasks: high });
   kit.put(".ai-workflow/approvals/pay-g3.json", kitG3);

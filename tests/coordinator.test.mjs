@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import test from "node:test";
@@ -17,7 +17,6 @@ function runner(
     onReview,
     jobError,
     engineerError,
-    kit,
     reviewFailures = 0,
     reviewRunnerFailures = 0,
     reviewTimeouts = 0,
@@ -43,7 +42,6 @@ function runner(
     leave = () => active--;
   const c = new OfficeCoordinator({
     ...f,
-    roles: kit,
     jobFor(packet) {
       packets.push(packet);
       if (jobError?.(packet)) throw Error("Unable to construct role job");
@@ -164,9 +162,8 @@ function runner(
   };
 }
 
-test("integration feedback invalidates prepared G4 and reaches the same Developer run before fresh review", async (t) => {
-  const f = await officeFixture(t, true, true);
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+test("integration feedback invalidates prepared G4 and reaches the next Engineer before fresh review", async (t) => {
+  const f = await officeFixture(t);
   const { CompletionLedger } = await import("../src/core/completion.ts");
   const completion = new CompletionLedger(
     f.db,
@@ -176,9 +173,7 @@ test("integration feedback invalidates prepared G4 and reaches the same Develope
     "a".repeat(64),
     f.handoffs,
   );
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
   const r = runner(f, {
-    kit,
     onEngineer(directory, attempt) {
       if (attempt > 1)
         writeFileSync(join(directory, "src/clarification"), "fixed ambiguity");
@@ -205,11 +200,6 @@ test("integration feedback invalidates prepared G4 and reaches the same Develope
   assert.deepEqual(second.integrationFeedback.findings, [
     "M1: clarify the contradictory sentence.",
   ]);
-  assert.equal(
-    f.store.kitAssignments(f.task.id).filter((a) => a.role === "developer")
-      .length,
-    1,
-  );
   await completion.prepare(f.task.id);
 });
 test("approved work automatically fixes and re-verifies a new candidate then stops at G4", async (t) => {
@@ -247,111 +237,47 @@ test("approved work automatically fixes and re-verifies a new candidate then sto
   assert.equal(r.engineers, 2);
 });
 
-test("kit native needs_changes sends Reviewer evidence to the same Developer run", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const r = runner(f, { reviewFailures: 1, kit });
+test("a Reviewer's requested changes reach the next Engineer and its candidate is reviewed again", async (t) => {
+  const f = await officeFixture(t);
+  const r = runner(f, { reviewFailures: 1 });
   const result = await r.c.run(f.task.id);
   assert.equal(result.state, "awaiting_g4");
   assert.equal(r.engineers, 2);
-  const assignments = f.store.kitAssignments(f.task.id);
-  assert.equal(assignments.filter((a) => a.role === "developer").length, 1);
-  const reviews = assignments.filter((a) => a.role === "reviewer");
-  assert.equal(reviews.length, 2);
-  const first = JSON.parse(
-    readFileSync(join(f.project, reviews[0].run_file), "utf8"),
-  );
-  assert.equal(first.state.nodes.review.output.verdict, "needs_changes");
+  assert.equal(result.round.number, 2);
   assert.match(
     JSON.stringify(r.packets.filter((p) => p.role === "engineer")[1].feedback),
     /Fixture R1/,
   );
-  const legacy = runner(f);
-  const bypass = await legacy.c.run(f.task.id);
-  assert.equal(bypass.state, "human_required");
-  assert.equal(bypass.reason, "KIT_REQUIRED");
-  assert.equal(legacy.engineers, 0);
+  const reviews = r.packets.filter((p) => p.role === "reviewer");
+  assert.equal(reviews.length, 2);
+  assert.equal(reviews[1].diff.candidateDigest, result.round.candidate.digest);
 });
 
-test("a kit Reviewer runner failure stops for a person instead of rebuilding the candidate", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const r = runner(f, { reviewRunnerFailures: 1, kit });
-  const result = await r.c.run(f.task.id);
-  assert.equal(result.state, "human_required");
-  assert.equal(result.reason, "REVIEW_RUNNER_FAILED");
-  assert.equal(result.round.number, 1);
-  assert.equal(r.engineers, 1);
-  assert.equal((await r.c.run(f.task.id)).state, "human_required");
-  assert.equal(r.engineers, 1);
-});
-
-test("a kit Reviewer result without a verdict is recorded to kit as no review", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+test("a Reviewer with no verdict stops for a person instead of rebuilding the candidate", async (t) => {
   for (const [option, reason] of [
     ["reviewRunnerFailures", "REVIEW_RUNNER_FAILED"],
     ["reviewTimeouts", "UNKNOWN_RESULT"],
   ]) {
-    const f = await officeFixture(t, true, true);
-    const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-    const result = await runner(f, { [option]: 1, kit }).c.run(f.task.id);
+    const f = await officeFixture(t);
+    const r = runner(f, { [option]: 1 });
+    const result = await r.c.run(f.task.id);
+    assert.equal(result.state, "human_required", reason);
     assert.equal(result.reason, reason);
-    const [review] = f.store
-      .kitAssignments(f.task.id)
-      .filter((a) => a.role === "reviewer");
-    const node = JSON.parse(
-      readFileSync(join(f.project, review.run_file), "utf8"),
-    ).state.nodes.review;
-    assert.equal(node.status, "failed", reason);
-    assert.equal(node.evaluation.action, "human", reason);
-    assert.equal(node.output.verdict, undefined, reason);
-    assert.equal(node.output.reviewedRevision, undefined, reason);
-    assert.match(node.output.summary, /^No review verdict/, reason);
-    assert.equal(
-      node.error.includes("REVIEW_RUNNER_FAILED"),
-      reason === "REVIEW_RUNNER_FAILED",
-      reason,
-    );
+    assert.equal(result.round.number, 1, reason);
+    assert.equal(r.engineers, 1, reason);
+    assert.equal((await r.c.run(f.task.id)).state, "human_required", reason);
+    assert.equal(r.engineers, 1, reason);
   }
 });
 
-test("kit role integration cannot reserve a fourth Developer after two failed fixes", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const r = runner(f, { reviewFailures: 9, kit });
+test("Reviewer changes requested every round cannot reserve a fourth Engineer", async (t) => {
+  const f = await officeFixture(t);
+  const r = runner(f, { reviewFailures: 9 });
   const result = await r.c.run(f.task.id);
   assert.equal(result.state, "human_required");
   assert.equal(r.engineers, 3);
   assert.equal((await r.c.run(f.task.id)).state, "human_required");
   assert.equal(r.engineers, 3);
-});
-
-test("kit self-check continues its existing token after transient capacity shortage", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const reserve = f.execution.reserveNode.bind(f.execution);
-  f.execution.reserveNode = () => {
-    throw new OfficeError("SLOT_LIMIT", "Fixture external capacity");
-  };
-  const r = runner(f, { kit });
-  const waiting = await r.c.run(f.task.id);
-  assert.equal(waiting.state, "deferred");
-  f.execution.reserveNode = reserve;
-  const done = await r.c.run(f.task.id);
-  assert.equal(done.state, "awaiting_g4");
-  assert.equal(r.engineers, 1);
-  const developer = await kit.developer(
-    f.task.id,
-    f.handoffs.forRound(done.round.id).baseline,
-  );
-  const raw = JSON.parse(
-    readFileSync(join(f.project, developer.projectRunFile), "utf8"),
-  );
-  assert.equal(raw.state.nodes["self-check"].attempts, 1);
 });
 
 test("a failed closed Engineer remains human_required on coordinator reconstruction", async (t) => {
@@ -417,10 +343,8 @@ test("external capacity defers without spending an Engineer attempt, then explic
   assert.equal(r.engineers, 1);
 });
 
-test("kit Reviewer can resume a dispatch that never acquired an Office process lease", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
+test("a review deferred for capacity runs once on the same candidate", async (t) => {
+  const f = await officeFixture(t);
   const reserve = f.execution.reserveNode.bind(f.execution);
   f.execution.reserveNode = (roundId, nodeId, ...args) => {
     if (
@@ -430,7 +354,7 @@ test("kit Reviewer can resume a dispatch that never acquired an Office process l
       throw new OfficeError("SLOT_LIMIT", "Fixture external capacity");
     return reserve(roundId, nodeId, ...args);
   };
-  const r = runner(f, { kit });
+  const r = runner(f);
   assert.equal((await r.c.run(f.task.id)).state, "deferred");
   f.execution.reserveNode = reserve;
   assert.equal((await r.c.run(f.task.id)).state, "awaiting_g4");
@@ -452,150 +376,157 @@ test("failure constructing a fix persists human_required instead of retrying the
   assert.equal(later.state, "human_required");
 });
 
-test("kit consumes an immutable view of the real Office G1 event without rewriting the canonical Story", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
+/** Rows the removed workflow runtime left for this task's current revision, as an upgraded data folder has them. */
+function markLegacy(f, taskId) {
+  f.db.exec(`CREATE TABLE IF NOT EXISTS pazmo_kit_assignments (
+    task_id TEXT NOT NULL, revision INTEGER NOT NULL, assignment_id TEXT NOT NULL,
+    role TEXT NOT NULL, run_file TEXT NOT NULL, target_revision TEXT NOT NULL,
+    PRIMARY KEY(task_id,revision,assignment_id))`);
+  f.db
+    .prepare("INSERT INTO pazmo_kit_assignments VALUES (?,?,?,?,?,?)")
+    .run(taskId, f.store.get(taskId).revision, `kit5:${taskId}:1:developer:`, "developer", ".pazmo-office/kit-runs/x/run.json", "0".repeat(64));
+}
+
+test("a task begun under the removed workflow runtime stops with its plain reason and others keep running (가)", async (t) => {
+  const { LEGACY_TASK_MESSAGE, reasonText } = await import("../src/core/legacy-tasks.ts");
+  const warnings = t.mock.method(console, "warn", () => {});
   const f = await officeFixture(t);
-  const before = readFileSync(join(f.project, "story.md"), "utf8");
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const r = runner(f, { kit });
-  const done = await r.c.run(f.task.id);
-  assert.equal(done.state, "awaiting_g4");
-  assert.equal(readFileSync(join(f.project, "story.md"), "utf8"), before);
-  const packet = r.packets.find((p) => p.role === "engineer").kit;
-  assert.equal(packet.version, "5.0.3");
-  assert.equal(packet.assignment.source, "story.md");
-  const { root } = f.store.kitWorkspace(f.task.id);
-  assert.match(root, /^\.pazmo-office\/kit\/[0-9a-f]{64}$/);
-  const approved = readFileSync(join(f.project, root, "story.md"), "utf8");
-  assert.match(approved, /Status: Approved/);
-  assert.match(approved, /Understanding gate \(G1\): g1\.json · /);
-  assert.match(approved, /Canonical source: story.md/);
-  assert.match(approved, /M1\. Reject invalid input/);
-  // kit 5 binds the G1 record to this view's canonical text (its own storyContract).
-  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
-  const g1 = JSON.parse(readFileSync(join(f.project, root, "g1.json"), "utf8"));
-  assert.equal(g1.gate, "G1");
-  assert.equal(g1.storyHash, storyContract(approved).fingerprint);
-  assert.match(g1.responseRef, /^office-approval:/);
-  // Every check of the kit folder is the Office relay, never project code.
-  const profile = JSON.parse(
-    readFileSync(join(f.project, root, ".ai-workflow/verification.json"), "utf8"),
-  );
-  assert.deepEqual(profile.inputs, ["candidate.json", "office-check.mjs"]);
-  assert.ok(
-    profile.checks.every(
-      (c) => c.argv.join(" ") === `node office-check.mjs ${c.id}`,
-    ),
-  );
-  const runs = f.store.kitAssignments(f.task.id);
-  assert.ok(runs.length >= 2);
-  for (const run of runs) {
-    assert.match(run.assignment_id, /^kit5:/);
-    const raw = JSON.parse(readFileSync(join(f.project, run.run_file), "utf8"));
-    assert.equal(raw.version, 3);
-    assert.equal(raw.kind, "role");
+  const first = await runner(f).c.run(f.task.id);
+  assert.equal(first.state, "awaiting_g4");
+  // A second task of the same project: mid-delivery when the Office was upgraded.
+  const token = "a".repeat(64),
+    other = await f.store.register(token, f.input);
+  for (const gate of ["G1", "G3"]) {
+    const c = f.store.requestApproval(token, other.id, gate);
+    f.store.decide(token, c.id, { decision: "approve", note: "Legacy fixture." });
   }
-  // Self-check passed only with a successful relay receipt for each registered check.
-  const developer = runs.find((run) => run.role === "developer");
-  const raw = JSON.parse(
-    readFileSync(join(f.project, developer.run_file), "utf8"),
-  );
-  const executions = raw.state.nodes["self-check"].executions;
-  assert.deepEqual(Object.keys(executions), ["V1"]);
-  const receipt = JSON.parse(
-    readFileSync(join(f.project, root, executions.V1.file), "utf8"),
-  );
-  assert.equal(receipt.passed, true);
-  assert.deepEqual(receipt.argv, ["node", "office-check.mjs", "V1"]);
-  // The single Office reviewer gets Office's budget, not kit's default of three.
-  assert.deepEqual(
-    r.packets.find((p) => p.role === "reviewer").kit.node.input.reviewBudget,
-    { agents: 1, nestedDelegation: false, dispatchOwner: "office" },
-  );
-});
-
-test("the kit view keeps a Verify line outside the Task without its ID, so the Task's checks cover kit's V", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, false, (f) =>
-    f.put(
-      "story.md",
-      f.story.replace(
-        "- V1 [M1]. Check invalid input.\n",
-        "- V1 [M1]. Check invalid input.\n- V2 [M1]. Another Task's check.\n",
-      ),
-    ),
-  );
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const done = await runner(f, { kit }).c.run(f.task.id);
-  assert.equal(done.state, "awaiting_g4");
-  const { root } = f.store.kitWorkspace(f.task.id);
-  const view = readFileSync(join(f.project, root, "story.md"), "utf8");
-  assert.match(view, /^- \(outside this Task\) V2 \[M1\]\. Another Task's check\.$/m);
-  assert.match(view, /^- V1 \[M1\]\. Check invalid input\.$/m);
-  const { storyContract } = await import("../.ai-workflow/graph/workflow.mjs");
-  assert.deepEqual(
-    storyContract(view).ids.filter((id) => id.startsWith("V")),
-    ["V1"],
-  );
-  // The canonical Story is untouched.
-  assert.match(readFileSync(join(f.project, "story.md"), "utf8"), /^- V2 \[M1\]/m);
-});
-
-test("two registered checks of one V get their own kit check ids and relay receipts", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true, (f) => {
-    const verification = JSON.parse(readFileSync(join(f.project, "verify.json"), "utf8"));
-    verification.checks.push({ ...verification.checks[0] });
-    f.put("verify.json", JSON.stringify(verification));
-  });
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const done = await runner(f, { kit }).c.run(f.task.id);
-  assert.deepEqual([done.state, done.reason], ["awaiting_g4", null]);
-  const { root } = f.store.kitWorkspace(f.task.id);
-  const profile = JSON.parse(
-    readFileSync(join(f.project, root, ".ai-workflow/verification.json"), "utf8"),
-  );
-  assert.deepEqual(
-    profile.checks.map((c) => [c.id, c.covers]),
-    [["V1", ["V1"]], ["V1-2", ["V1"]]],
-  );
-  const developer = f.store.kitAssignments(f.task.id).find((a) => a.role === "developer");
-  const raw = JSON.parse(readFileSync(join(f.project, developer.run_file), "utf8"));
-  assert.deepEqual(Object.keys(raw.state.nodes["self-check"].executions).sort(), ["V1", "V1-2"]);
-});
-
-test("a task whose role runs began under kit 4 stops for a person and keeps them", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const legacy = `.pazmo-office/role-runs/${"0".repeat(64)}/run.json`;
-  f.store.bindKitRole(f.task.id, `${f.task.id}:1:developer:`, "developer", legacy, "kit4-origin");
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const r = runner(f, { kit });
-  const stopped = await r.c.run(f.task.id);
-  assert.equal(stopped.state, "human_required");
-  assert.equal(stopped.reason, "KIT_UPGRADE_REQUIRED");
-  assert.equal(r.engineers, 0);
+  const failing = runner(f, { failures: 9 });
+  markLegacy(f, other.id);
+  const stopped = await failing.c.run(other.id);
+  assert.deepEqual([stopped.state, stopped.reason], ["human_required", "LEGACY_TASK"]);
+  assert.equal(failing.engineers, 0);
+  assert.deepEqual(f.execution.list(other.id), []);
   // Nothing was reserved, so the next run reports the same reason, not an unknown process.
-  const again = await r.c.run(f.task.id);
-  assert.deepEqual([again.state, again.reason], ["human_required", "KIT_UPGRADE_REQUIRED"]);
-  assert.deepEqual(f.execution.list(f.task.id), []);
-  assert.deepEqual(
-    f.store.kitAssignments(f.task.id).map((a) => a.run_file),
-    [legacy],
-  );
+  const again = await failing.c.run(other.id);
+  assert.deepEqual([again.state, again.reason], ["human_required", "LEGACY_TASK"]);
+  assert.equal(warnings.mock.callCount(), 1);
+  assert.match(warnings.mock.calls[0].arguments[0], new RegExp(other.id));
+  assert.equal(reasonText("LEGACY_TASK"), LEGACY_TASK_MESSAGE);
+  assert.match(LEGACY_TASK_MESSAGE, /취소하고 다시 만드세요/);
+  // The legacy rows are read, never written or removed.
+  assert.equal(f.db.prepare("SELECT COUNT(*) AS n FROM pazmo_kit_assignments").get().n, 1);
 });
 
-test("completion evidence recorded under kit 4 stays the record of its round awaiting G4", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const done = await runner(f, { kit }).c.run(f.task.id);
-  assert.equal(done.state, "awaiting_g4");
-  // A kit 4 assignment of this revision (as an upgraded Office would find it beside the recorded evidence).
-  f.store.bindKitRole(f.task.id, `${f.task.id}:1:reviewer:${done.round.id}`, "reviewer", ".pazmo-office/role-runs/x/run.json", done.round.candidate.digest);
-  const again = await runner(f, { kit }).c.run(f.task.id);
-  assert.equal(again.state, "awaiting_g4");
-  assert.ok(f.store.kitReceipt(f.task.id, done.round.candidate.digest));
+test("a legacy task with an open round has that round stopped for a person", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  const r = runner(f, { failures: 9 });
+  const storage = join(f.root, "legacy-candidate");
+  mkdirSync(storage);
+  const round = f.verification.begin(f.task.id, freezeCandidate(f.project, ["src/a"], storage));
+  markLegacy(f, f.task.id);
+  const stopped = await r.c.run(f.task.id);
+  assert.deepEqual([stopped.state, stopped.reason], ["human_required", "LEGACY_TASK"]);
+  assert.deepEqual([stopped.round.id, stopped.round.state, stopped.round.reason], [round.id, "human_required", "LEGACY_TASK"]);
+  assert.equal(r.engineers, 0);
+});
+
+
+/** A completion ledger over the fixture, with local delivery storage. */
+async function completionOf(f) {
+  const { CompletionLedger } = await import("../src/core/completion.ts");
+  return new CompletionLedger(f.db, f.store, f.verification, f.execution, "a".repeat(64), f.handoffs, join(f.root, "deliveries"));
+}
+/** The person's accepted G4 on the prepared evidence, as the Office records it. */
+function approveG4(completion, taskId) {
+  const token = "a".repeat(64);
+  const request = completion.request(token, taskId);
+  const submitted = completion.submit(token, request.id, {
+    decision: "approve",
+    note: "Fixture G4.",
+    understanding: { behavior: "b", invariant: "i", evidence: "e" },
+  });
+  completion.evaluate(token, request.id, submitted.answerDigest, Object.fromEntries(["behavior", "invariant", "evidence"].map((k) => [k, { correct: true, rationale: "r" }])));
+}
+/**
+ * Rewrites every stored copy of the task's G4 evidence subject to the formula the removed runtime's era used: the
+ * subject also bound the role receipt digest, which the stored evidence names as `kitReceipt`.
+ */
+async function asKitEraEvidence(f, taskId) {
+  const { digest } = await import("../src/core/candidates.ts");
+  const row = f.db.prepare("SELECT * FROM pazmo_g4_evidence WHERE task_id=?").get(taskId);
+  const evidence = JSON.parse(row.evidence_json);
+  const kitReceipt = digest("[]");
+  const old = digest(JSON.stringify({ verification: row.verification_subject, handoff: evidence.handoff, diff: digest(JSON.stringify(evidence.diff)), kit: kitReceipt }));
+  f.db.exec("PRAGMA foreign_keys=OFF");
+  f.db.prepare("UPDATE pazmo_g4_evidence SET subject=?, evidence_json=? WHERE subject=?").run(old, JSON.stringify({ ...evidence, kitReceipt }), row.subject);
+  for (const table of ["pazmo_g4_requests", "pazmo_approval_challenges", "pazmo_approvals"])
+    f.db.prepare(`UPDATE ${table} SET subject=? WHERE subject=?`).run(old, row.subject);
+  f.db.prepare("UPDATE pazmo_deliveries SET g4_subject=? WHERE g4_subject=?").run(old, row.subject);
+  // A delivery of that era names the same subject in its receipt.
+  const delivered = f.db.prepare("SELECT directory FROM pazmo_deliveries WHERE task_id=?").get(taskId);
+  if (delivered) {
+    const file = join(delivered.directory, "receipt.json");
+    const receipt = JSON.parse(readFileSync(file, "utf8"));
+    const bytes = JSON.stringify({ ...receipt, g4: { ...receipt.g4, subject: old } });
+    rmSync(file);
+    writeFileSync(file, bytes, { mode: 0o400 });
+    f.db.prepare("UPDATE pazmo_deliveries SET receipt_digest=? WHERE task_id=?").run(digest(bytes), taskId);
+  }
+  f.db.exec("PRAGMA foreign_keys=ON");
+  markLegacy(f, taskId);
+  return old;
+}
+
+test("finished kit-era work keeps its state: a delivered task stays delivered and done at every start", async (t) => {
+  const f = await officeFixture(t);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "awaiting_g4");
+  const completion = await completionOf(f);
+  await completion.prepare(f.task.id);
+  approveG4(completion, f.task.id);
+  completion.deliver("a".repeat(64), f.task.id);
+  await asKitEraEvidence(f, f.task.id);
+  completion.reconcileDeliveries(); // what the Office runs at every start
+  assert.equal(completion.delivery(f.task.id).status, "delivered");
+  assert.equal(f.verification.latest(f.task.id).state, "awaiting_g4");
+  assert.equal(f.store.get(f.task.id).status, "done");
+  assert.equal((await runner(f).c.run(f.task.id)).state, "delivered");
+});
+
+test("a kit-era verified Story Task's evidence stays readable and prepares again without a conflict", async (t) => {
+  const f = await officeFixture(t);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "awaiting_g4");
+  const completion = await completionOf(f);
+  await completion.prepare(f.task.id);
+  const subject = await asKitEraEvidence(f, f.task.id);
+  // storyEvidence reads this bundle; concludeStory prepares it again.
+  assert.equal(completion.evidence("a".repeat(64), f.task.id).subject, subject);
+  assert.deepEqual(await completion.prepare(f.task.id), { subject, roundId: f.verification.latest(f.task.id).id });
+});
+
+test("an unfinished kit-era task at G4 cannot be asked for or given a G4 answer", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "awaiting_g4");
+  const completion = await completionOf(f);
+  await completion.prepare(f.task.id);
+  const token = "a".repeat(64);
+  const pending = completion.request(token, f.task.id);
+  await asKitEraEvidence(f, f.task.id);
+  assert.throws(() => completion.request(token, f.task.id), { code: "LEGACY_TASK" });
+  assert.throws(
+    () => completion.submit(token, pending.id, { decision: "approve", note: "n", understanding: { behavior: "b", invariant: "i", evidence: "e" } }),
+    { code: "LEGACY_TASK" },
+  );
+  assert.throws(() => completion.deliver(token, f.task.id), { code: "LEGACY_TASK" });
+});
+
+test("a cancelled legacy task reports cancelled", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const f = await officeFixture(t);
+  markLegacy(f, f.task.id);
+  f.store.cancelExecution(f.task.id);
+  assert.equal((await runner(f).c.run(f.task.id)).state, "cancelled");
 });
 
 test("already aborted work is cancelled without constructing a role job", async (t) => {
@@ -675,60 +606,4 @@ test("contract mutation during review aborts without admitting old evidence", as
   assert.notEqual(done.state, "awaiting_g4");
   assert.equal(r.engineers, 1);
   assert.equal(done.round.state, "human_required");
-});
-
-test("kit-backed Office execution preserves one Developer run through feedback and verifies the revised candidate", async (t) => {
-  const { KitDelivery } = await import("../src/runners/kit-delivery.ts");
-  const f = await officeFixture(t, true, true);
-  const kit = new KitDelivery(f.project, f.store, f.handoffs, f.verification);
-  const r = runner(f, { failures: 1, kit });
-  const result = await r.c.run(f.task.id);
-  assert.equal(result.state, "awaiting_g4");
-  assert.equal(r.engineers, 2);
-  assert.equal(f.store.get(f.task.id).status, "review");
-  const developer = await kit.developer(
-    f.task.id,
-    f.handoffs.forRound(result.round.id).baseline,
-  );
-  const state = await developer.status();
-  assert.equal(state.action, "role-complete");
-  assert.equal(
-    state.submission.output.producedRevision,
-    result.round.candidate.digest,
-  );
-  const raw = JSON.parse(
-    readFileSync(join(f.project, developer.projectRunFile), "utf8"),
-  );
-  assert.equal(raw.state.nodes.implement.attempts, 2);
-  assert.equal(raw.history.filter((e) => e.event === "feedback").length, 1);
-  assert.ok(
-    r.packets
-      .filter((p) => p.role === "engineer")
-      .every((p) => p.kit.node.id === "implement"),
-  );
-  assert.ok(
-    r.packets
-      .filter((p) => p.role === "reviewer")
-      .every((p) => p.kit.assignment.targetRevision === p.candidateDigest),
-  );
-  const { CompletionLedger } = await import("../src/core/completion.ts");
-  const completion = new CompletionLedger(
-    f.db,
-    f.store,
-    f.verification,
-    f.execution,
-    "a".repeat(64),
-    f.handoffs,
-  );
-  await completion.prepare(f.task.id);
-  await developer.feedback(
-    state.revisionToken,
-    "implement",
-    "A new independent finding",
-    "Fixture late finding invalidates role evidence.",
-  );
-  assert.throws(
-    () => completion.request("a".repeat(64), f.task.id),
-    /kit|role/i,
-  );
 });

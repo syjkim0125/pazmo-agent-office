@@ -59,7 +59,7 @@ async function setup(t, approved = true) {
 }
 test("live admission rejects stale/duplicate planning and retains ownership through cancellation cleanup", async (t) => {
   const f = await setup(t),
-    item = f.intake.create(token, "Improve parser.", "normal", true);
+    item = f.intake.create(token, "Improve parser.", "normal");
   let calls = 0,
     released = false,
     finish;
@@ -145,7 +145,7 @@ test("implementation start requires the exact approved contract and shutdown dra
 });
 test("unknown planning leases survive runtime reconstruction without another model launch", async (t) => {
   const f = await setup(t),
-    item = f.intake.create(token, "Improve parser.", "normal", true);
+    item = f.intake.create(token, "Improve parser.", "normal");
   const lease = f.execution.reservePlanning(
     item.taskId,
     item.revision,
@@ -213,7 +213,7 @@ test("preflight refuses an unqualified controller before touching model authenti
 });
 test("authenticated HTTP launch and cancel own the same planning operation without granting approval", async (t) => {
   const f = await setup(t),
-    item = f.intake.create(token, "Improve parser.", "normal", true);
+    item = f.intake.create(token, "Improve parser.", "normal");
   let ran = 0;
   const live = new LiveRuntime(f, {
     planning: async (_id, signal) => {

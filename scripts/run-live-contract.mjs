@@ -12,7 +12,6 @@ import { ExecutionLedger } from "../src/core/budgets.ts";
 import { HandoffLedger } from "../src/core/handoffs.ts";
 import { CompletionLedger } from "../src/core/completion.ts";
 import { OfficeCoordinator } from "../src/runners/coordinator.ts";
-import { KitDelivery } from "../src/runners/kit-delivery.ts";
 import { rolePrompt } from "../src/runners/role-context.ts";
 import { codexJob } from "../src/runners/codex-controller.ts";
 import { CONTROLLER_MODEL } from "../src/runners/codex-profile.ts";
@@ -25,17 +24,16 @@ import {
 
 const [flag, projectPath, databasePath, taskId, binary, ...extra] =
   process.argv.slice(2);
-const kitRoles = extra.length === 1 && extra[0] === "--kit-roles";
 if (
   flag !== "--live-approved" ||
   !projectPath ||
   !databasePath ||
   !taskId ||
   !binary ||
-  (extra.length && !kitRoles)
+  extra.length
 )
   throw Error(
-    "Usage after current boundary qualification: --live-approved <project> <existing-office.sqlite> <task-id> <verified-linux-binary> [--kit-roles]",
+    "Usage after current boundary qualification: --live-approved <project> <existing-office.sqlite> <task-id> <verified-linux-binary>",
   );
 noSymlinks(projectPath);
 noSymlinks(databasePath);
@@ -97,9 +95,6 @@ try {
       verification,
       execution,
       handoffs,
-      ...(kitRoles
-        ? { roles: new KitDelivery(project, store, handoffs, verification) }
-        : {}),
       workspace: new ContainerWorkspace(client.run),
       reviewer: new ContainerReviewer(client.run),
       verifier: new ContainerVerifier(client.run),

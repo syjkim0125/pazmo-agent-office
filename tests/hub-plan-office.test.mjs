@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import test from "node:test";
@@ -336,7 +336,7 @@ const settled = (w, planId, state) =>
   );
 const count = (lines, part) => lines.filter((line) => line.includes(part)).length;
 
-test("from 새 Story to a claimable Task: the web makes the project and the plan; the PL's Office asks one question; the web answer brings a draft; G1 on the web splits, publishes, makes feature/story-<N>/base on both origins at main's and develop's commits and opens; teammate A's lane claims a Task whose Story base is on its origin; g1.json cites hub-approval:<approvalId>", async (t) => {
+test("from 새 Story to a claimable Task: the web makes the project and the plan; the PL's Office asks one question; the web answer brings a draft; G1 on the web splits, publishes, makes feature/story-<N>/base on both origins at main's and develop's commits and opens; teammate A's lane claims a Task whose Story base is on its origin; the published Story cites hub-approval:<approvalId>", async (t) => {
   const w = await world(t);
   w.turns.answers.push(QUESTIONS, READY, LEAD);
   const { planId, projectId } = await newStory(w);
@@ -399,8 +399,9 @@ test("from 새 Story to a claimable Task: the web makes the project and the plan
   assert.equal(w.remote("app-be", base), w.tips["app-be"], "app-be's base at main's commit");
   assert.equal(w.remote("app-fe", base), w.tips["app-fe"], "app-fe's base at develop's commit");
   assert.equal(count(w.logs, `published as story-${story.number}`), 1);
-  const g1 = JSON.parse(readFileSync(join(w.planDir(planId), "g1.json"), "utf8"));
-  assert.equal(g1.responseRef, `hub-approval:${v.g1.approvalId}`);
+  assert.match(story.body, new RegExp(`^Understanding gate \\(G1\\): hub-approval:${v.g1.approvalId} · `, "m"));
+  // The plan folder keeps only what the Office reads back (no unread gate record copies).
+  assert.deepEqual(readdirSync(w.planDir(planId)).filter((n) => /^(g1|g3)\.json$|^(story|design)\.md$/.test(n)), []);
   assert.match((await w.get(`/plans/${planId}`)).text, new RegExp(`href="/stories/${story.id}"`));
 
   // Teammate A's lane claims the ready Task, and its first step finds the Story base on the origin.
@@ -447,10 +448,8 @@ test("a high-risk plan stops at 설계 승인, opens only after G3, keeps risk h
   assert.deepEqual(story.tasks.filter((x) => x.kind === "work").map((x) => x.title), ["주문 API", "주문 화면"]);
   assert.equal(w.remote("app-be", base), w.tips["app-be"]);
   assert.equal(w.remote("app-fe", base), w.tips["app-fe"]);
-  const dir = w.planDir(planId);
-  assert.equal(JSON.parse(readFileSync(join(dir, "g1.json"), "utf8")).responseRef, `hub-approval:${v.g1.approvalId}`);
-  assert.equal(readFileSync(join(dir, "design.md"), "utf8"), v.design.text);
-  assert.ok(existsSync(join(dir, "g3.json")));
+  assert.match(story.body, new RegExp(`^Understanding gate \\(G1\\): hub-approval:${v.g1.approvalId} · `, "m"));
+  assert.deepEqual(readdirSync(w.planDir(planId)).filter((n) => /^(g1|g3)\.json$|^(story|design)\.md$/.test(n)), []);
 
   const { claimed } = await w.aScheduler.tick();
   assert.ok(claimed, `A claimed a Task: ${w.aLogs.join("\n")}`);

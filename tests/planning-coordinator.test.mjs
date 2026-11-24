@@ -14,7 +14,7 @@ import { ExecutionLedger } from "../src/core/budgets.ts";
 import { freezeCandidate } from "../src/core/candidates.ts";
 import { PlanningCoordinator } from "../src/runners/planning-coordinator.ts";
 const token = "a".repeat(64);
-function setup(t, mode = "ready", kitRoles = false) {
+function setup(t, mode = "ready") {
   const f = fixture(t),
     db = new DatabaseSync(join(f.root, "planning.sqlite"));
   db.exec("PRAGMA foreign_keys=ON");
@@ -30,7 +30,7 @@ function setup(t, mode = "ready", kitRoles = false) {
     ["story.md"],
     join(f.root, "context"),
   );
-  const item = intake.create(token, "Validate input.", "normal", kitRoles),
+  const item = intake.create(token, "Validate input.", "normal"),
     packets = [],
     prompts = [];
   const jobFor = (packet, assignedContext, prompt) => {
@@ -104,7 +104,7 @@ function setup(t, mode = "ready", kitRoles = false) {
           stderr: "",
           stdout: [
             { type: "turn.started" },
-            // Lead nodes ground proposals in the readonly snapshot.
+            // A Lead grounds its proposal in the readonly snapshot.
             ...(job.packet.role === "lead"
               ? [
                   {
@@ -144,7 +144,6 @@ function setup(t, mode = "ready", kitRoles = false) {
     execution,
     planner,
     jobFor,
-    project: f.project,
     dataDir,
   };
   return {
@@ -164,18 +163,28 @@ function setup(t, mode = "ready", kitRoles = false) {
   };
 }
 
-test("native PM completes its graph, real human G1 gates Lead, and Lead uses the approved Story", async (t) => {
-  const f = setup(t, "ready", true);
+/** The PM's Story, approved by the person (G1), so the next run is the Lead's. */
+async function approvedPm(f) {
+  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+  return f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+    decision: "approve",
+    note: "Fixture human G1",
+  });
+}
+
+test("the PM's Story waits for the person's G1 through the operator API, then the Lead plans from the approved Story", async (t) => {
+  const f = setup(t);
   const pm = await f.coordinator.run(f.item.taskId, f.context);
   assert.equal(pm.state, "human_required");
   assert.equal(pm.intake.reason, "G1_REQUIRED");
   assert.deepEqual(
     f.packets.map((p) => p.role),
-    ["pm", "pm"],
+    ["pm"],
   );
   assert.equal(pm.intake.story.must[0], "Reject invalid input.");
+  // No Lead model before G1, however often the controller looks.
   await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(f.packets.length, 2);
+  assert.equal(f.packets.length, 1);
   assert.throws(
     () =>
       f.intake.approveStory(
@@ -238,26 +247,13 @@ test("native PM completes its graph, real human G1 gates Lead, and Lead uses the
   assert.equal(lead.state, "proposal");
   assert.deepEqual(
     f.packets.map((p) => p.role),
-    ["pm", "pm", "lead", "lead"],
+    ["pm", "lead"],
   );
+  assert.deepEqual(f.packets[1].story, pm.intake.story);
   assert.deepEqual(
-    f.prompts.map((p) => p.kit.node.id),
-    ["clarify", "propose", "investigate", "plan"],
+    lead.intake.events.map((e) => e.actor),
+    ["human", "pm", "human", "lead"],
   );
-  for (const prompt of f.prompts) {
-    assert.match(prompt.kit.node.token, /^[a-f0-9]{64}$/);
-    assert.equal(prompt.kit.node.input.assignment.taskId, f.item.taskId);
-  }
-  const native = lead.intake.events
-    .filter((e) => e.payload.kit)
-    .map((e) => e.payload.kit);
-  assert.deepEqual(
-    native.map((e) => e.nodeId),
-    ["clarify", "propose", "investigate", "plan"],
-  );
-  assert.equal(native[1].action, "role-complete");
-  assert.equal(native[3].action, "role-complete");
-  assert.notEqual(native[0].runId, native[2].runId);
   assert.ok(
     f.execution
       .listPlanning(f.item.taskId)
@@ -266,132 +262,157 @@ test("native PM completes its graph, real human G1 gates Lead, and Lead uses the
   assert.equal(f.store.list().length, 0);
 });
 
-test("native question resumes its token and attempt after an addressed human answer", async (t) => {
-  const f = setup(t, "questions", true);
-  const waiting = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  assert.ok(waiting.events.at(-1).payload.kit?.questionId);
-  f.intake.answer(
-    token,
-    waiting.taskId,
-    waiting.revision,
-    waiting.inputDigest,
-    [{ id: "Q1", answer: "src/parser.ts" }],
-  );
-  const answered = (
-    await new PlanningCoordinator(f.deps).run(f.item.taskId, f.context)
-  ).intake;
-  const native = answered.events
-    .filter((e) => e.payload.kit)
-    .map((e) => e.payload.kit);
-  assert.equal(native[0].runId, native[1].runId);
-  assert.notEqual(native[0].questionId, native[1].questionId);
-  assert.equal(f.packets[1].dialogue[0].answers[0].answer, "src/parser.ts");
-  assert.equal(f.packets.length, 2);
-  const run = JSON.parse(
-    readFileSync(join(f.project, native[1].runFile), "utf8"),
-  );
-  assert.equal(run.state.nodes.clarify.attempts, 1);
-  assert.deepEqual(
-    run.history
-      .filter((e) => ["question", "answer"].includes(e.event))
-      .map((e) => e.event),
-    ["question", "answer", "question"],
-  );
+test("a rejected G1 stops planning without a Lead turn", async (t) => {
+  const f = setup(t);
+  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
+  const rejected = f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
+    decision: "reject",
+    note: "Fixture: not this scope",
+  });
+  assert.equal(rejected.state, "human_required");
+  assert.equal(rejected.reason, "G1_REJECTED");
+  await f.coordinator.run(f.item.taskId, f.context);
+  assert.equal(f.packets.length, 1);
 });
 
-test("native cancellation after model closure releases the lease without recording role success", async (t) => {
-  const f = setup(t, "ready", true);
+test("a revision that already ran a planning turn is not run again", async (t) => {
+  const f = setup(t);
+  // Emulates a released turn of this revision whose result never advanced the conversation: the revision keeps its
+  // one lease, so no second model turn starts for it.
+  const lease = f.execution.reservePlanning(
+    f.item.taskId,
+    f.item.revision,
+    f.item.inputDigest,
+    f.context.digest,
+  );
+  f.db.prepare("UPDATE pazmo_planning_leases SET state='released' WHERE id=?").run(lease.id);
+  let turns = 0;
   const original = f.planner.run;
   f.planner.run = async (...args) => {
-    const result = await original(...args);
-    f.intake.cancel(token, f.item.taskId, f.item.revision, f.item.inputDigest);
-    return result;
+    turns++;
+    return original(...args);
   };
   const result = await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(result.state, "cancelled");
-  assert.equal(
-    result.intake.events.some((e) => e.payload.kit),
-    false,
-  );
-  assert.equal(f.execution.listPlanning(f.item.taskId)[0].state, "released");
-  await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(f.packets.length, 1);
+  assert.equal(result.state, "deferred");
+  assert.equal(turns, 0);
+  assert.equal(f.intake.get(f.item.taskId).state, "waiting_pm");
+  assert.equal(f.execution.listPlanning(f.item.taskId).length, 1);
 });
 
-test("native malformed output stops but releases a supervisor-confirmed closed process", async (t) => {
-  const f = setup(t, "ready", true),
-    original = f.planner.run;
-  f.planner.run = async (...args) => {
+test("planning saved for the removed workflow runtime stops with its plain reason and runs no model (가)", async (t) => {
+  const { digest } = await import("../src/core/candidates.ts");
+  const f = setup(t),
+    p = f.intake.packet(f.item.taskId, f.item.revision, f.item.inputDigest);
+  const { inputDigest: _, ...data } = { ...p, workflow: "kit-role-v1" };
+  const legacy = { ...data, inputDigest: digest(JSON.stringify(data)) };
+  f.db
+    .prepare("UPDATE pazmo_intakes SET packet_json=? WHERE task_id=?")
+    .run(JSON.stringify(legacy), f.item.taskId);
+  const warnings = t.mock.method(console, "warn", () => {});
+  const result = await f.coordinator.run(f.item.taskId, f.context);
+  assert.equal(result.state, "human_required");
+  assert.equal(result.intake.reason, "LEGACY_TASK");
+  assert.equal(f.packets.length, 0);
+  assert.equal(f.execution.listPlanning(f.item.taskId).length, 0);
+  assert.equal(warnings.mock.callCount(), 1);
+  assert.match(warnings.mock.calls[0].arguments[0], new RegExp(f.item.taskId));
+  // Other requests keep planning.
+  const other = f.intake.create(token, "Other work.", "normal");
+  assert.equal(
+    (await new PlanningCoordinator(f.deps).run(other.taskId, f.context)).intake.reason,
+    "G1_REQUIRED",
+  );
+});
+
+
+/** Marks the request's saved packet as the removed runtime's planning packet (`workflow: "kit-role-v1"`), as
+ * requests begun before the upgrade have it, keeping its state. */
+async function markLegacyPacket(f, taskId) {
+  const { digest } = await import("../src/core/candidates.ts");
+  const p = JSON.parse(f.db.prepare("SELECT packet_json FROM pazmo_intakes WHERE task_id=?").get(taskId).packet_json);
+  const { inputDigest: _, ...data } = { ...p, workflow: "kit-role-v1" };
+  f.db
+    .prepare("UPDATE pazmo_intakes SET packet_json=? WHERE task_id=?")
+    .run(JSON.stringify({ ...data, inputDigest: digest(JSON.stringify(data)) }), taskId);
+  return f.intake.get(taskId);
+}
+
+test("a legacy request's questions, Story G1 and planning retry are refused with LEGACY_TASK, and the controller stops it from any open state (가)", async (t) => {
+  t.mock.method(console, "warn", () => {});
+  const { pmQuestions } = await import("./planning-fixture.mjs");
+  // Questions pending at the upgrade: answering would drop the mark and plan on.
+  const asking = setup(t);
+  pmQuestions(asking.intake, asking.item.taskId, [{ id: "Q1", text: "Which parser?", reason: "Scope." }]);
+  const waiting = await markLegacyPacket(asking, asking.item.taskId);
+  assert.equal(asking.intake.legacy(waiting.taskId), true);
+  assert.throws(
+    () => asking.intake.answer(token, waiting.taskId, waiting.revision, waiting.inputDigest, [{ id: "Q1", answer: "Public." }]),
+    { code: "LEGACY_TASK" },
+  );
+  const stopped = asking.intake.stopLegacy(waiting.taskId);
+  assert.deepEqual([stopped.state, stopped.reason], ["human_required", "LEGACY_TASK"]);
+  assert.equal(asking.intake.stopLegacy(waiting.taskId).revision, stopped.revision, "stopping again changes nothing");
+
+  // A Story waiting for G1, and rejected output waiting for a retry.
+  const story = setup(t);
+  const pm = (await story.coordinator.run(story.item.taskId, story.context)).intake;
+  const g1 = await markLegacyPacket(story, pm.taskId);
+  assert.throws(
+    () => story.intake.approveStory(token, g1.taskId, g1.revision, g1.inputDigest, { decision: "approve", note: "n" }),
+    { code: "LEGACY_TASK" },
+  );
+  assert.equal(story.intake.stopLegacy(g1.taskId).reason, "LEGACY_TASK");
+  const rejected = setup(t);
+  const original = rejected.planner.run;
+  rejected.planner.run = async (...args) => {
     const report = await original(...args);
-    report.result.stdout = "not a report";
+    report.result.stdout = "malformed";
     return report;
   };
-  const result = await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(result.state, "human_required");
-  assert.equal(result.intake.reason, "PLANNING_INVALID");
-  assert.equal(f.execution.listPlanning(f.item.taskId)[0].state, "released");
-  await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(f.packets.length, 1);
+  const failed = await markLegacyPacket(rejected, (await rejected.coordinator.run(rejected.item.taskId, rejected.context)).intake.taskId);
+  assert.throws(
+    () => rejected.intake.retryPlanning(token, failed.taskId, failed.revision, failed.inputDigest, "retry"),
+    { code: "LEGACY_TASK" },
+  );
+  // A finished Lead proposal of a legacy request is not published; one published before the upgrade returns as it was.
+  const planned = setup(t);
+  await approvedPm(planned);
+  const proposal = (await planned.coordinator.run(planned.item.taskId, planned.context)).intake;
+  assert.equal(proposal.state, "proposal");
+  const marked = await markLegacyPacket(planned, proposal.taskId);
+  await assert.rejects(
+    planned.intake.publish(token, marked.taskId, marked.revision, marked.inputDigest),
+    { code: "LEGACY_TASK" },
+  );
+  assert.equal(planned.store.list().length, 0, "no contract registered");
+  const published = setup(t);
+  await approvedPm(published);
+  const done = (await published.coordinator.run(published.item.taskId, published.context)).intake;
+  const registered = await published.intake.publish(token, done.taskId, done.revision, done.inputDigest);
+  assert.equal(registered.state, "registered");
+  await markLegacyPacket(published, done.taskId);
+  assert.deepEqual(
+    await published.intake.publish(token, done.taskId, done.revision, done.inputDigest),
+    published.intake.get(done.taskId),
+    "the earlier publication returns as before",
+  );
+  // A request planned after the upgrade is not legacy and cannot be stopped as one.
+  const fresh = setup(t);
+  assert.equal(fresh.intake.legacy(fresh.item.taskId), false);
+  assert.throws(() => fresh.intake.stopLegacy(fresh.item.taskId), { code: "INTAKE_STATE" });
 });
 
-test("native source tampering after G1 cannot start Lead or silently replace the PM run", async (t) => {
-  const f = setup(t, "ready", true);
-  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
-    decision: "approve",
-    note: "Fixture scope",
-  });
-  const reference = pm.events.filter((e) => e.payload.kit).at(-1).payload.kit;
-  const run = JSON.parse(
-    readFileSync(join(f.project, reference.runFile), "utf8"),
-  );
-  writeFileSync(
-    join(f.project, run.assignment.value.source),
-    "tampered request",
-  );
-  const result = await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(result.state, "human_required");
-  assert.equal(result.intake.reason, "KIT_SOURCE_CHANGED");
-  assert.equal(f.packets.length, 2);
-});
-
-test("planning begun under kit 4 stops for a person and keeps the kit 4 run", async (t) => {
-  const { KitRoleRun } = await import("../src/core/kit-role-runs.ts");
-  const f = setup(t, "ready", true);
-  const legacy = join(
-    f.project,
-    KitRoleRun.legacyRunFile(`${f.item.taskId}:planning:pm`),
-  );
-  mkdirSync(join(legacy, ".."), { recursive: true });
-  writeFileSync(legacy, '{"version":2}');
-  const result = await f.coordinator.run(f.item.taskId, f.context);
-  assert.equal(result.state, "human_required");
-  assert.equal(result.intake.reason, "KIT_UPGRADE_REQUIRED");
-  assert.equal(f.packets.length, 0);
-  assert.equal(readFileSync(legacy, "utf8"), '{"version":2}');
-});
-
-test("explicit planning recovery preserves G1 and failed kit run while bounding retries", async (t) => {
-  const f = setup(t, "ready", true);
-  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
-    decision: "approve",
-    note: "Fixture human G1",
-  });
-  const approval = f.intake.storyApproval(pm.taskId);
+test("explicit planning recovery keeps the approved Story and bounds retries", async (t) => {
+  const f = setup(t);
+  const approved = await approvedPm(f);
   const original = f.planner.run;
   f.planner.run = async (...args) => {
     const report = await original(...args);
     report.result.stdout = "malformed fixture response";
     return report;
   };
-  const failed = (await f.coordinator.run(pm.taskId, f.context)).intake;
-  const { digest } = await import("../src/core/candidates.ts");
-  const priorPath = join(
-    f.project,
-    `.pazmo-office/kit-runs/${digest(`${pm.taskId}:planning:team-lead`)}/run.json`,
-  );
-  const prior = readFileSync(priorPath, "utf8");
+  const failed = (await f.coordinator.run(approved.taskId, f.context)).intake;
+  assert.equal(failed.reason, "PLANNING_INVALID");
   assert.throws(
     () =>
       f.intake.retryPlanning(
@@ -411,7 +432,7 @@ test("explicit planning recovery preserves G1 and failed kit run while bounding 
     "Fixture user: resume after protocol fix",
   );
   assert.equal(next.state, "waiting_lead");
-  assert.deepEqual(f.intake.storyApproval(pm.taskId), approval);
+  assert.deepEqual(next.story, approved.story);
   assert.throws(
     () =>
       f.intake.retryPlanning(
@@ -424,59 +445,42 @@ test("explicit planning recovery preserves G1 and failed kit run while bounding 
     { code: "STALE_INTAKE" },
   );
   f.planner.run = original;
-  const done = await new PlanningCoordinator(f.deps).run(pm.taskId, f.context);
+  const done = await new PlanningCoordinator(f.deps).run(approved.taskId, f.context);
   assert.equal(done.state, "proposal");
-  assert.equal(readFileSync(priorPath, "utf8"), prior);
   assert.deepEqual(
     f.packets.map((p) => p.role),
-    ["pm", "pm", "lead", "lead", "lead"],
+    ["pm", "lead", "lead"],
   );
-  const proof = done.intake.events.filter((e) => e.payload.kit).at(-1)
-    .payload.kit;
-  assert.notEqual(proof.runFile, priorPath.slice(f.project.length + 1));
   assert.equal(
-    JSON.parse(readFileSync(join(f.project, proof.runFile), "utf8")).state.nodes
-      .investigate.attempts,
+    done.intake.events.filter((e) => e.payload.scopeApproval).length,
     1,
   );
 });
 
-test("a Lead node that never inspected the readonly snapshot cannot become a proposal", async (t) => {
-  const f = setup(t, "ready", true);
-  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
-    decision: "approve",
-    note: "Fixture human G1",
-  });
+test("a Lead that never inspected the readonly snapshot cannot become a proposal", async (t) => {
+  const f = setup(t);
+  const approved = await approvedPm(f);
   const original = f.planner.run;
   f.planner.run = async (...args) => {
     const report = await original(...args);
-    // Observed 2026-10-02: plan claimed /candidate/tree was unavailable without
-    // running any command, relying on investigate's earlier proposal.
-    if (args[1].packet.role === "lead" && f.packets.length === 4)
+    // Observed 2026-10-02: a Lead claimed /candidate/tree was unavailable without
+    // running any command, relying on an earlier proposal.
+    if (args[1].packet.role === "lead")
       report.result.stdout = report.result.stdout
         .split("\n")
         .filter((line) => JSON.parse(line).item?.type !== "command_execution")
         .join("\n");
     return report;
   };
-  const result = (await f.coordinator.run(pm.taskId, f.context)).intake;
+  const result = (await f.coordinator.run(approved.taskId, f.context)).intake;
   assert.equal(result.state, "human_required");
   assert.equal(result.reason, "INSPECTION_REQUIRED");
   assert.equal(result.proposal, null);
-  assert.equal(f.execution.listPlanning(pm.taskId).at(-1).state, "released");
-  const reference = `.pazmo-office/kit-runs/${(await import("../src/core/candidates.ts")).digest(`${pm.taskId}:planning:team-lead`)}/run.json`;
-  const run = JSON.parse(readFileSync(join(f.project, reference), "utf8"));
-  assert.equal(run.state.nodes.investigate.status, "completed");
-  assert.notEqual(run.state.nodes.plan.status, "completed");
-  assert.deepEqual(
-    f.prompts.map((p) => p.kit.node.id),
-    ["clarify", "propose", "investigate", "plan"],
-  );
+  assert.equal(f.execution.listPlanning(approved.taskId).at(-1).state, "released");
 });
 
-test("Lead kit prompts state the snapshot is reachable and prior proposals are not evidence", async (t) => {
-  const f = setup(t, "ready", true),
+test("Lead prompts state the snapshot is reachable and the approved Story is not evidence", async (t) => {
+  const f = setup(t),
     original = f.deps.jobFor,
     prompts = [];
   f.deps.jobFor = (packet, context, prompt) => {
@@ -492,17 +496,44 @@ test("Lead kit prompts state the snapshot is reachable and prior proposals are n
   await new PlanningCoordinator(f.deps).run(pm.taskId, f.context);
   const instructions = (p) => p.split("BEGIN PLANNING TASK DATA")[0];
   const lead = prompts.filter((p) => p.role === "lead");
-  assert.equal(lead.length, 2);
+  assert.equal(lead.length, 1);
   for (const { prompt } of lead) {
-    assert.match(instructions(prompt), /shell commands reach \/candidate\/tree/);
+    assert.match(instructions(prompt), /shell commands reach the readonly snapshot at \/candidate\/tree/);
     assert.match(instructions(prompt), /not evidence/);
+    // Only the PM asks (D1): the Lead is told so, and its limits list no question set.
+    assert.match(instructions(prompt), /Office does not accept questions from the Lead/);
+    assert.doesNotMatch(instructions(prompt), /- questions: 1-/);
   }
+  for (const { prompt } of prompts) assert.doesNotMatch(prompt, /\bkit\b/i);
   for (const { prompt } of prompts.filter((p) => p.role === "pm"))
     assert.doesNotMatch(instructions(prompt), /shell commands reach/);
 });
 
+test("the Lead cannot ask questions: a Lead question set is rejected output", async (t) => {
+  const f = setup(t);
+  const approved = await approvedPm(f);
+  const original = f.planner.run;
+  f.planner.run = async (...args) => {
+    const report = await original(...args),
+      packet = args[1].packet;
+    const lines = report.result.stdout.split("\n").map(JSON.parse);
+    lines.at(-2).item.text = JSON.stringify({
+      version: 1,
+      inputDigest: packet.inputDigest,
+      status: "questions",
+      questions: [{ id: "Q1", text: "Which test command?", reason: "Project choice" }],
+    });
+    report.result.stdout = lines.map(JSON.stringify).join("\n");
+    return report;
+  };
+  const result = (await f.coordinator.run(approved.taskId, f.context)).intake;
+  assert.equal(result.state, "human_required");
+  assert.equal(result.reason, "PLANNING_INVALID");
+  assert.equal(result.questions, null);
+});
+
 test("planning recovery rejects unknown, cancelled and exhausted requests without replay", async (t) => {
-  const f = setup(t, "ready", true),
+  const f = setup(t),
     original = f.planner.run;
   f.planner.run = async (...args) => {
     const r = await original(...args);
@@ -592,7 +623,7 @@ const failure = (i) =>
   i.events.findLast((e) => e.actor === "controller" && e.payload.error).payload;
 
 test("a runner failure is recorded as one and does not spend the format recovery budget", async (t) => {
-  const f = setup(t, "ready", true);
+  const f = setup(t);
   failWith(f, ["runner", "runner", "output", "output", "output"]);
   const origins = [];
   for (let attempt = 0; attempt < 5; attempt++) {
@@ -620,36 +651,8 @@ test("a runner failure is recorded as one and does not spend the format recovery
   assert.deepEqual(origins, ["runner", "runner", "output", "output", "output"]);
 });
 
-test("the kit run records a runner failure as a runner failure, not a protocol violation", async (t) => {
-  const { digest } = await import("../src/core/candidates.ts");
-  const clarify = async (kind) => {
-    const f = setup(t, "ready", true);
-    failWith(f, [kind]);
-    await f.coordinator.run(f.item.taskId, f.context);
-    return JSON.parse(
-      readFileSync(
-        join(
-          f.project,
-          `.pazmo-office/kit-runs/${digest(`${f.item.taskId}:planning:pm`)}/run.json`,
-        ),
-        "utf8",
-      ),
-    ).state.nodes.clarify;
-  };
-  const runner = await clarify("runner");
-  assert.equal(runner.status, "failed");
-  assert.match(runner.output.summary, /runner failed before any planning output/);
-  assert.match(runner.evaluation.feedback, /runner failed before returning a planning response/);
-  assert.doesNotMatch(runner.evaluation.feedback, /did not satisfy the planning protocol/);
-  assert.equal(runner.evaluation.action, "human");
-  // A rejected model response keeps the protocol wording.
-  const output = await clarify("output");
-  assert.equal(output.output.summary, "Planning output was rejected; no Office proposal accepted.");
-  assert.equal(output.evaluation.feedback, "The closed model response did not satisfy the planning protocol.");
-});
-
 test("runner failure recoveries have their own bound", async (t) => {
-  const f = setup(t, "ready", true);
+  const f = setup(t);
   failWith(f, ["runner", "runner", "runner", "runner"]);
   for (let attempt = 0; attempt < 4; attempt++) {
     const failed = (await f.coordinator.run(f.item.taskId, f.context)).intake;
@@ -667,8 +670,8 @@ test("runner failure recoveries have their own bound", async (t) => {
   assert.equal(f.packets.length, 4);
 });
 
-test("native controller restart quarantines the active lease and never replays the same node", async (t) => {
-  const f = setup(t, "ready", true),
+test("controller restart quarantines the active lease and never replays the same turn", async (t) => {
+  const f = setup(t),
     original = f.planner.run;
   f.planner.run = async (...args) => {
     const report = await original(...args);
@@ -682,103 +685,10 @@ test("native controller restart quarantines the active lease and never replays t
   assert.equal(f.packets.length, 1);
 });
 
-test("Lead can ask a native question without losing the approved Story or restarting its attempt", async (t) => {
-  const f = setup(t, "ready", true);
-  const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
-    decision: "approve",
-    note: "Fixture scope",
-  });
-  const original = f.planner.run;
-  let asked = false;
-  f.planner.run = async (...args) => {
-    const report = await original(...args),
-      packet = args[1].packet;
-    if (packet.role === "lead" && !asked) {
-      asked = true;
-      const lines = report.result.stdout.split("\n").map(JSON.parse);
-      lines.at(-2).item.text = JSON.stringify({
-        version: 1,
-        inputDigest: packet.inputDigest,
-        status: "questions",
-        questions: [
-          {
-            id: "Q1",
-            text: "Which parser test command?",
-            reason: "Existing project choice",
-          },
-        ],
-      });
-      report.result.stdout = lines.map(JSON.stringify).join("\n");
-    }
-    return report;
-  };
-  const waiting = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  assert.equal(waiting.state, "awaiting_answer");
-  const answered = f.intake.answer(
-    token,
-    waiting.taskId,
-    waiting.revision,
-    waiting.inputDigest,
-    [{ id: "Q1", answer: "node --test" }],
-  );
-  assert.equal(answered.state, "waiting_lead");
-  assert.deepEqual(answered.story, pm.story);
-  const result = (await f.coordinator.run(f.item.taskId, f.context)).intake;
-  assert.equal(result.state, "proposal");
-  const reference = result.events.filter((e) => e.payload.kit).at(-1)
-    .payload.kit;
-  const run = JSON.parse(
-    readFileSync(join(f.project, reference.runFile), "utf8"),
-  );
-  assert.equal(run.state.nodes.investigate.attempts, 1);
-});
-
-test("native capacity deferral resumes the saved dispatch without spending another node attempt", async (t) => {
-  const f = setup(t, "ready", true),
-    leases = [];
-  for (let i = 0; i < 3; i++) {
-    const item = f.intake.create(token, "Other work", "normal");
-    leases.push(
-      f.execution.reservePlanning(
-        item.taskId,
-        item.revision,
-        item.inputDigest,
-        f.context.digest,
-      ),
-    );
-  }
-  assert.equal(
-    (await f.coordinator.run(f.item.taskId, f.context)).state,
-    "deferred",
-  );
-  assert.equal(f.execution.listPlanning(f.item.taskId).length, 0);
-  f.execution.startPlanning(leases[0].id, "fixture-capacity-release");
-  f.execution.finishPlanning(leases[0].id, "fixture-capacity-release", {
-    closed: true,
-    result: {
-      exitCode: 1,
-      signal: null,
-      error: null,
-      timedOut: false,
-      stdout: "",
-      stderr: "Fixture failure",
-    },
-  });
-  const pm = (
-    await new PlanningCoordinator(f.deps).run(f.item.taskId, f.context)
-  ).intake;
-  assert.equal(pm.reason, "G1_REQUIRED");
-  const reference = pm.events.filter((e) => e.payload.kit).at(-1).payload.kit;
-  const run = JSON.parse(
-    readFileSync(join(f.project, reference.runFile), "utf8"),
-  );
-  assert.equal(run.state.nodes.clarify.attempts, 1);
-});
-
 test("PM and Lead execute in order and persist a proposal without approving or registering work", async (t) => {
-  const f = setup(t),
-    r = await f.coordinator.run(f.item.taskId, f.context);
+  const f = setup(t);
+  await approvedPm(f);
+  const r = await f.coordinator.run(f.item.taskId, f.context);
   assert.equal(r.state, "proposal");
   assert.deepEqual(
     f.packets.map((p) => p.role),
@@ -787,7 +697,7 @@ test("PM and Lead execute in order and persist a proposal without approving or r
   assert.ok(f.packets[1].story);
   assert.deepEqual(
     f.intake.get(f.item.taskId).events.map((e) => e.actor),
-    ["human", "pm", "lead"],
+    ["human", "pm", "human", "lead"],
   );
   assert.deepEqual(
     f.execution.listPlanning(f.item.taskId).map((l) => l.state),
@@ -818,15 +728,18 @@ test("questions stop dispatch until an addressed human answer, then resume only 
   assert.equal(f.packets[1].dialogue[0].answers[0].answer, "Public parser.");
 });
 
-test("capacity deferral reserves no extra execution", async (t) => {
-  const f = setup(t);
+test("capacity deferral reserves no extra execution and the turn runs once capacity frees", async (t) => {
+  const f = setup(t),
+    leases = [];
   for (let i = 0; i < 3; i++) {
     const s = f.intake.create(token, "Other work.", "normal");
-    f.execution.reservePlanning(
-      s.taskId,
-      s.revision,
-      s.inputDigest,
-      f.context.digest,
+    leases.push(
+      f.execution.reservePlanning(
+        s.taskId,
+        s.revision,
+        s.inputDigest,
+        f.context.digest,
+      ),
     );
   }
   assert.equal(
@@ -834,6 +747,14 @@ test("capacity deferral reserves no extra execution", async (t) => {
     "deferred",
   );
   assert.equal(f.execution.listPlanning(f.item.taskId).length, 0);
+  f.execution.startPlanning(leases[0].id, "fixture-capacity-release");
+  f.execution.finishPlanning(leases[0].id, "fixture-capacity-release", {
+    closed: true,
+    result: { exitCode: 1, signal: null, error: null, timedOut: false, stdout: "", stderr: "Fixture failure" },
+  });
+  const pm = (await new PlanningCoordinator(f.deps).run(f.item.taskId, f.context)).intake;
+  assert.equal(pm.reason, "G1_REQUIRED");
+  assert.equal(f.execution.listPlanning(f.item.taskId).length, 1);
 });
 
 test("cancellation and controller abort discard late success while awaiting confirmed cleanup", async (t) => {
@@ -953,9 +874,8 @@ function rejection(f, result) {
   return event.payload;
 }
 
-for (const kitRoles of [true, false])
-  test(`${kitRoles ? "native" : "legacy"} rejection records its rule and keeps raw output only in the data directory`, async (t) => {
-    const f = setup(t, "ready", kitRoles),
+test("rejection records its rule and keeps raw output only in the data directory", async (t) => {
+    const f = setup(t),
       raw = "PROJECT-CONTENT-MARKER not a report";
     rejectWith(f, raw);
     const result = await f.coordinator.run(f.item.taskId, f.context);
@@ -979,7 +899,7 @@ for (const kitRoles of [true, false])
   });
 
 test("rejected output is capped at 64KB and the original size is recorded", async (t) => {
-  const f = setup(t, "ready", true);
+  const f = setup(t);
   rejectWith(f, "x".repeat(100000));
   const payload = rejection(
     f,
@@ -991,7 +911,7 @@ test("rejected output is capped at 64KB and the original size is recorded", asyn
 });
 
 test("without a data directory the rejection still records its detail", async (t) => {
-  const f = setup(t, "ready", true);
+  const f = setup(t);
   rejectWith(f, "not a report");
   delete f.deps.dataDir;
   const payload = rejection(
@@ -1010,7 +930,7 @@ for (const [label, path, accepted] of [
   ["a file read outside the snapshot", "/tmp/README.md", false],
 ]) {
   test(`Lead inspection evidence: ${label}`, async (t) => {
-    const f = setup(t, "ready", true);
+    const f = setup(t);
     const pm = (await f.coordinator.run(f.item.taskId, f.context)).intake;
     f.intake.approveStory(token, pm.taskId, pm.revision, pm.inputDigest, {
       decision: "approve",

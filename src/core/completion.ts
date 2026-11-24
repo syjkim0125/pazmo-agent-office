@@ -13,6 +13,7 @@ import { isUnderstandingLease } from "./budgets.ts";
 import type { ExecutionLedger } from "./budgets.ts";
 import { createDelivery, storedDelivery, validDelivery } from "./delivery.ts";
 import type { DeliveryRecord } from "./delivery.ts";
+import { legacyEvidencePart, refuseLegacyTask } from "./legacy-tasks.ts";
 
 const aspects = ["behavior", "invariant", "evidence"] as const;
 export type UnderstandingEvaluation = Record<
@@ -41,18 +42,20 @@ const questions = [
   "꼭 지켜야 할 규칙과 실패했을 때의 동작은 무엇인가요?",
   "어떤 테스트가 그걸 확인했고, 아직 확인하지 못한 것은 무엇인가요?",
 ];
+/** `stored` is the bundle's own stored evidence when re-checking one: evidence prepared before the workflow runtime
+ * was removed also bound a part that new evidence has none of (`legacyEvidencePart`). */
 const evidenceSubject = (
   verification: string,
   diff: CandidateDiff,
   handoff: string,
-  kit: string | null = null,
+  stored: unknown = null,
 ): string =>
   digest(
     JSON.stringify({
       verification,
       handoff,
       diff: digest(JSON.stringify(diff)),
-      ...(kit ? { kit } : {}),
+      ...legacyEvidencePart(stored),
     }),
   );
 
@@ -145,11 +148,7 @@ export class CompletionLedger {
         );
       throw error;
     }
-    return {
-      ...round,
-      g4Subject: round.g4Subject,
-      kitReceipt: this.#store.kitReceipt(taskId, round.candidate.digest),
-    };
+    return { ...round, g4Subject: round.g4Subject };
   }
   #bundle(taskId: string, viewingAssessment = false): Bundle {
     const round = this.#eligible(taskId, viewingAssessment);
@@ -168,12 +167,7 @@ export class CompletionLedger {
       diff.baselineDigest !== handoff.baseline.digest ||
       evidence.handoff !== handoff.leaseId ||
       bundle.subject !==
-        evidenceSubject(
-          round.g4Subject,
-          diff,
-          handoff.leaseId,
-          round.kitReceipt,
-        )
+        evidenceSubject(round.g4Subject, diff, handoff.leaseId, evidence)
     )
       return fail(
         "EVIDENCE_REQUIRED",
@@ -226,6 +220,8 @@ export class CompletionLedger {
       fail("TRANSACTION_ACTIVE", "Delivery must own its commit boundary.");
     const existing = this.delivery(taskId);
     if (existing.status === "delivered") return existing;
+    // A legacy task's unfinished work is never delivered; finished ones returned above (가).
+    if (this.#store.legacyTask(taskId)) refuseLegacyTask();
     if (existing.status === "invalid")
       fail(
         "DELIVERY_INVALID",
@@ -361,15 +357,15 @@ export class CompletionLedger {
       fail("STALE_EVIDENCE", "Verification changed during diff capture.");
     return transaction(this.#db, () => {
       const round = this.#eligible(taskId);
+      const existing = this.#db
+        .prepare("SELECT subject,evidence_json FROM pazmo_g4_evidence WHERE round_id=?")
+        .get(round.id) as { subject: string; evidence_json: string } | undefined;
       const subject = evidenceSubject(
         round.g4Subject,
         diff,
         handoff.leaseId,
-        round.kitReceipt,
+        existing ? JSON.parse(existing.evidence_json) : null,
       );
-      const existing = this.#db
-        .prepare("SELECT subject FROM pazmo_g4_evidence WHERE round_id=?")
-        .get(round.id) as { subject: string } | undefined;
       if (existing && existing.subject !== subject)
         fail(
           "EVIDENCE_CONFLICT",
@@ -386,7 +382,6 @@ export class CompletionLedger {
             JSON.stringify({
               diff,
               handoff: handoff.leaseId,
-              ...(round.kitReceipt ? { kitReceipt: round.kitReceipt } : {}),
               contract: this.#store.get(taskId).contract,
               results: round.nodes.map((n) => ({
                 id: n.id,
@@ -400,6 +395,7 @@ export class CompletionLedger {
   }
   request(token: string, taskId: string) {
     this.#approvals.authorize(token);
+    if (this.#store.legacyTask(taskId)) refuseLegacyTask();
     this.#bundle(taskId);
     return transaction(this.#db, () => {
       const bundle = this.#bundle(taskId);
@@ -423,6 +419,10 @@ export class CompletionLedger {
   }
   submit(token: string, id: string, answer: ApprovalAnswer) {
     this.#approvals.authorize(token);
+    const stored = this.#db
+      .prepare("SELECT e.task_id FROM pazmo_g4_requests r JOIN pazmo_g4_evidence e ON e.subject=r.subject WHERE r.id=?")
+      .get(id) as { task_id: string } | undefined;
+    if (stored && this.#store.legacyTask(stored.task_id)) refuseLegacyTask();
     this.#currentRequest(id);
     return transaction(this.#db, () => {
       const { request, bundle } = this.#currentRequest(id);

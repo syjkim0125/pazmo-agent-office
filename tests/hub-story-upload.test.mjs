@@ -4,11 +4,11 @@ import { DatabaseSync } from "node:sqlite";
 import { HubStore } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
 import { esc } from "../src/hub/pages.ts";
-import { kitStoryHash } from "../src/core/kit-role-runs.ts";
+import { hashStory } from "../src/core/story-hash.ts";
 import { startTestHub } from "./hub-fixture.mjs";
 
 /** A Story text and the kit hash the command sends with it. */
-const text = (body) => ({ body, storyHash: kitStoryHash(body) });
+const text = (body) => ({ body, storyHash: hashStory(body) });
 const FIRST = text("# Story\n본문");
 const OTHER = text("# Story\n다른 본문");
 const THIRD = text("# Story\n세 번째 본문");
@@ -257,7 +257,7 @@ test("refuses a Story hash that is not the kit hash of the body", async (t) => {
   assert.equal(h.board.storyByKey(h.pl.member.id, `upload:${OTHER_HASH}`), null, "nothing under the claimed hash either");
   // The kit hash leaves out the Status and gate lines and line ends, as the command computes it.
   const crlf = `Status: Approved\r\n${FIRST.body.replace(/\n/g, "\r\n")}\r\n`;
-  assert.equal(kitStoryHash(crlf), HASH);
+  assert.equal(hashStory(crlf), HASH);
   const res = await h.upload(token, h.input({ body: crlf }));
   assert.equal(res.status, 200, res.text);
   assert.equal(h.board.storyUpload(res.json.storyId).storyHash, HASH);

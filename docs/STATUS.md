@@ -1,9 +1,29 @@
+# 2026-11-24 Office가 kit 실행기 없이 자기 기록으로 일합니다 (3단계, [Story](stories/office-engine-without-kit.md))
+
+- Office의 기획(PM·Lead)과, 구현이 있는 모든 작업(팀 Task 포함)의 구현 → 검사 → 리뷰가 Office 기록만으로 돕니다.
+  - `.ai-workflow/bin`·`graph`, kit 어댑터(`kit-planning.ts`, `kit-delivery.ts`, `kit-role-runs.ts`)와 그 시험을 지웠습니다.
+  - Story 해시(`src/core/story-hash.ts`)와 계약 형식 검사(`src/core/contract-shape.ts`)는 같은 결과를 내도록 옮겼습니다.
+  - Lead는 더 묻지 않습니다. 묻는 것은 PM이고, 최대 3번입니다.
+- **kit 시절 작업((가)):** 끝나지 않은 작업은 "kit 시절에 시작한 작업입니다. 취소하고 다시 만드세요"로 멈춥니다. G4까지 승인했지만 아직 전달하지 않은 작업도 멈춥니다. 끝난 작업은 그대로이고, `pazmo_kit_*` 표는 남겨 읽기만 합니다.
+- **확인:**
+  - QA 스크립트 `qa/office-engine-without-kit.sh` 5/5. 전체 시험은 다음 변경(회사 플러그인)까지 합친 016fbca에서 2106/2106(Node 24), 타입 검사 exit 0.
+  - Q3: 혼자 쓰는 live Office에서 작은 작업이 질문 → G1 → 계획 → 구현 → VM 검사 → 리뷰 → G4 → 전달까지 갔습니다. 화면과 기록에 kit 문구가 없었습니다.
+  - Q4: 확인용 허브 사본(18578)에서 사용자가 Story #10을 기획·승인했습니다. 팀원 A Office가 Task #11을 가져가 [be PR #8](https://github.com/syjkim0125/pazmo-story-test-be/pull/8)로 `feature/story-10/base`(2195c65)에 머지했고, PL Office의 Story 검증이 통과했습니다. 사용자가 be 테스트 레포 쓰기를 허락했습니다.
+  - Q7: kit 시절 데이터 사본에서 끝난 작업은 그대로였습니다. 멈출 진행 중 작업은 없어서 그 멈춤은 자동 시험으로만 봤습니다.
+  - 리뷰 2번(Critical 1, Important 2와 작은 것들)과 QA에서 찾은 1건(Office가 멈춘 실행기의 이유 코드가 안 보임)을 고쳤습니다. 승인 뒤 Q1 문구를 O1에 맞게 고친 것을 보고에서 보였습니다.
+- **남은 것:**
+  - `INSPECTION_REQUIRED`는 다시 시도할 길이 없습니다(전부터 그랬음).
+  - 허브 쪽 "kit" 문구, 로컬 올리기가 읽는 kit 기록 경로, `templates/ai-workflow`은 4단계에서 다룹니다.
+  - kit 시절 작업이 모두 정리되면 (가) 코드와 `pazmo_kit_*` 표를 지우는 정리 단계를 따로 합니다.
+  - be 테스트 레포에 `feature/story-10/base`·`task-11` 브랜치와 머지된 PR #8이 남았습니다. 사본 허브의 #10은 결과 승인 대기입니다(main에는 쓰지 않음).
+- **승인:** 사용자가 2026-11-24 보고를 본 뒤 "승인 후 머지"를 골랐습니다.
+
 # 2026-11-20 개발 방식을 ai-workflow-kit에서 story-qa로 ([Story](stories/remove-kit-dev-process.md))
 
 - 이 저장소의 변경은 이제 story-qa로 합니다(`AGENTS.md`). Story와 QA 목록을 승인받고, 구현, 독립 리뷰, 로컬 QA, 보고 순서입니다. QA 환경은 [docs/qa.md](qa.md)입니다.
 - kit의 개발 지침(`AGENTS.md` 블록, `.agents/skills/workflow`)과 실행 기록(`.ai-workflow/runs`·`approvals`·`evidence`, `config.json`, `verification.json`, 16MB)을 트리에서 지웠습니다.
   - 아래 기록과 지난 문서의 링크는 그대로 두었습니다. 지운 파일은 `git show b6407d7:<경로>`로 읽습니다.
-- Office가 실행 중에 쓰는 kit(`.ai-workflow/bin`·`graph`, `templates/ai-workflow`)은 남겼습니다. Office 역할 엔진을 바꿀 때(3단계) 지웁니다.
+- Office가 실행 중에 쓰던 kit(`.ai-workflow/bin`·`graph`)은 3단계에서 지웠습니다([Story](stories/office-engine-without-kit.md)). `templates/ai-workflow`은 Story 양식을 바꾸는 4단계까지 남깁니다.
 - **확인:**
   - QA 7개 통과. 전체 시험 2087/2087(Node 24), 타입 검사 exit 0.
   - 독립 리뷰의 고칠 것 2건(Story Q2 명령, 라이선스 고지)과 작은 것들을 고쳤습니다.

@@ -53,6 +53,15 @@ test("a failed turn with no plan output names only an Office-authored runner lab
   }
 });
 
+test("a turn Office itself stopped names Office's stop code, so the person can see why (QA of step 3, 2026-11-23)", () => {
+  // The claude controller empties the output of a turn it stopped (a refused init, a hook) and keeps its code in
+  // `error`; the detail used to drop it and say only "turn failed before any plan output; exitCode=null".
+  const stopped = { closed: true, result: { exitCode: null, signal: null, error: "CLAUDE_TOOLS_UNEXPECTED", timedOut: false, stderr: "", stdout: lines({ type: "turn.started" }, { type: "turn.failed" }) } };
+  const error = rejection(() => acceptPlanning(pm(), stopped));
+  assert.equal(error.origin, "runner");
+  assert.equal(error.detail, "runner: turn failed before any plan output; exitCode=null; error=CLAUDE_TOOLS_UNEXPECTED");
+});
+
 test("a known runner message is recognized only as a turn's sole output", () => {
   // A plan-shaped report means the model ran: keep the output classification.
   const p = pm(),

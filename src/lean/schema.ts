@@ -16,7 +16,7 @@ const SCHEMA = `
 CREATE TABLE lean_instance (project TEXT NOT NULL);
 
 -- department_id and role stay NULL for lean agents: the engine looks agents up by
--- them (agent(role)), so a lean agent is never mistaken for a kit role.
+-- them (agent(role)), so a lean agent is never mistaken for an engine role.
 -- name_ko is only read by hub-snapshot.ts (COALESCE(NULLIF(a.name_ko,''),a.name)).
 CREATE TABLE agents (
   id TEXT PRIMARY KEY,

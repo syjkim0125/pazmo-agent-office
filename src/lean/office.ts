@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { OfficeError, fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
+import { LEGACY_TASK, reasonText } from "../core/legacy-tasks.ts";
 import { STOP_NOTICES, createNativeOffice } from "../runtime/native-office.ts";
 import type { NativeOffice } from "../runtime/native-office.ts";
 import { defaultRunnerChoice, keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
@@ -105,7 +106,7 @@ export type LeanOffice = {
   ): Promise<{ id: string; previousCancelled: boolean }>;
   /** The installed CLIs (a discovery at most a few seconds old), for choosing an agent's runners. */
   runners(): Promise<RunnersView>;
-  /** The runner a kit role's job uses for a task (the live runtime asks this). */
+  /** The runner a role's job uses for a task (the live runtime asks this). */
   chooseRunner(role: ExecutingRole, taskId: string): RunnerChoice;
   /** Runs the engine's continuation once, as a finished job does. */
   refresh(): Promise<void>;
@@ -183,7 +184,7 @@ function taskInput(input: unknown): { title: string; body: string | null; agentI
 }
 
 /** The lean Office: tasks handed to agents, run by the native engine on the
- * lean database. Every task is a root task; the kit's subtasks are its progress. */
+ * lean database. Every task is a root task; the engine's subtasks are its progress. */
 export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
   const { db, project } = c;
   // The latest discovery, so the no-agent fallback follows the installed CLIs.
@@ -376,7 +377,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
   const hasIntake = (id: string) => !!db.prepare("SELECT 1 FROM pazmo_intakes WHERE task_id=?").get(id);
   const hasContract = (id: string) => !!db.prepare("SELECT 1 FROM pazmo_task_contracts WHERE task_id=?").get(id);
 
-  /** The kit stage of a request, from the engine's own state (see the Task 3
+  /** The stage of a request, from the engine's own state (see the Task 3
    * report for the mapping and its sources). Subtasks count from the earliest
    * stage any of them is in. */
   function stageOf(row: TaskRow, kids: Child[], g4Open: Set<string>): Stage {
@@ -416,7 +417,9 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
     if (hasIntake(row.id)) {
       const i = intake.get(row.id);
       if (i.state === "human_required" && i.reason && i.reason !== "G1_REQUIRED" && i.reason !== "G1_REJECTED")
-        return `작업이 멈췄습니다: ${i.reason}. 자동 재시도하지 않습니다.`;
+        return i.reason === LEGACY_TASK
+          ? `작업이 멈췄습니다: ${reasonText(i.reason)}`
+          : `작업이 멈췄습니다: ${i.reason}. 자동 재시도하지 않습니다.`;
     }
     for (const k of kids) {
       if (k.status !== "pending") continue;
@@ -425,7 +428,7 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
         .prepare("SELECT reason FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1")
         .get(k.id) as { reason: string | null } | undefined;
       const reason = (round?.state === "human_required" && round.reason) || handoff?.reason || "HUMAN_REQUIRED";
-      return `하위 작업이 멈췄습니다: ${reason} (${k.title}). 자동으로 다시 실행하지 않습니다.`;
+      return `하위 작업이 멈췄습니다: ${reasonText(reason)} (${k.title}). 자동으로 다시 실행하지 않습니다.`;
     }
     const statuses = new Map([[row.id, row.status], ...kids.map((k) => [k.id, k.status] as const)]);
     for (const id of ids) {
