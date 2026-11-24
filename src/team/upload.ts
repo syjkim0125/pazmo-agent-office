@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { resolve } from "node:path";
 import { OfficeError, fail, locate } from "../cli/project.ts";
+import { parseQaLine } from "../core/contract-shape.ts";
 import { hashStory } from "../core/story-hash.ts";
 import {
   HUB_STORY_PROTOCOL,
@@ -58,8 +59,6 @@ function section(text: string, heading: string): string {
   return next ? rest.slice(0, next.index) : rest;
 }
 
-/** A QA scenario line of a story-qa Story: `- Q1 [M1, M2] (script). <scenario>`. */
-const QA_LINE = /^[-*]\s+Q(\d+)\s*\[([^\]]*)\]\s*\((script|agent|person)\)\.\s+\S/i;
 /** A QA target that names no MUST. */
 const NO_MUST = /^(Unchanged|not shown)$/i;
 
@@ -75,13 +74,13 @@ export function storyRefs(text: string): { must: number[]; qa: { n: number; must
   const bad: string[] = [];
   for (const line of section(text, "QA").split(/\r?\n/)) {
     if (!/^[-*]\s+Q\d+\b/i.test(line)) continue;
-    const q = QA_LINE.exec(line);
-    const targets = q ? q[2].split(",").map((t) => t.trim()).filter(Boolean) : [];
+    const q = parseQaLine(line);
+    const targets = q ? q.targets : [];
     if (!q || !targets.length || targets.some((t) => !NO_MUST.test(t) && !/^M\d+$/i.test(t))) {
       bad.push(line.trim());
       continue;
     }
-    qa.push({ n: Number(q[1]), must: targets.filter((t) => !NO_MUST.test(t)).map((t) => Number(t.slice(1))) });
+    qa.push({ n: Number(q.id.slice(1)), must: targets.filter((t) => !NO_MUST.test(t)).map((t) => Number(t.slice(1))) });
   }
   return { must, qa, bad };
 }

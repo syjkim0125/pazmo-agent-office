@@ -25,7 +25,7 @@ import { runnerAccountProblem, runnerNotReady } from "../runners/runner-account.
 import type { RunnerAccountProblem } from "../runners/runner-account.ts";
 import { RunnerEvidence } from "../core/runner-evidence.ts";
 import { changeSummary } from "./decision-summary.ts";
-import { renderPlanningStory } from "../runners/planning.ts";
+import { qaLine, renderPlanningStory } from "../runners/planning.ts";
 import type { PlanningPacket } from "../runners/planning.ts";
 import { HUB_ANSWERABLE, HUB_REQUESTER_NOTE } from "../hub/protocol.ts";
 import type { HubGateway } from "./hub-outgoing.ts";
@@ -758,7 +758,7 @@ export async function createNativeOffice(c: Config) {
         : []),
       `꼭 할 것\n${items(story.must, "M")}`,
       `하지 않을 것\n${items(story.out, "O")}`,
-      `QA\n${story.qa.map((q, n) => `- Q${n + 1} [${q.refs.join(", ")}] (${q.how}). ${q.scenario}`).join("\n")}`,
+      `QA\n${story.qa.map(qaLine).join("\n")}`,
       "승인은 아래 원문 Story를 기준으로 합니다.",
     ].join("\n\n") + DETAIL_MARKER + renderPlanningStory(story);
   }

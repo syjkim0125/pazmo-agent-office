@@ -7,7 +7,16 @@
 
 const STORY_HEADINGS = ["Goal", "Decisions", "MUST", "OUT", "QA"];
 const TASK_HEADINGS = ["Outcome", "Covers — Story M/Q IDs", "Scope", "Constraints", "Checks"];
-const QA_LINE = /^[-*]\s+(Q-?\d+)\s*\[([^\]]*)\]\s*\((script|agent|person)\)\.\s+\S/iu;
+/** A QA line: `- Q1 [M1, M2] (script). …`. The method may carry a note, as people write it: `(person: G1은 사람이 누름)`. */
+const QA_LINE = /^[-*]\s+(Q-?\d+)\s*\[([^\]]*)\]\s*\((script|agent|person)\b.*?\)\.\s+\S/iu;
+
+/** One QA line read: its id (upper case), its targets as written and how it runs; null when the line has another shape.
+ * The contract check and the local upload read QA lines through this one parser. */
+export function parseQaLine(line: string): { id: string; targets: string[]; how: string } | null {
+  const match = QA_LINE.exec(line);
+  if (!match) return null;
+  return { id: match[1].toUpperCase(), targets: match[2].split(",").map((t) => t.trim()).filter(Boolean), how: match[3].toLowerCase() };
+}
 
 const escape = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&");
 const nonEmptyLines = (text: string) => text.split(/\r?\n/u).filter((line) => line.trim()).length;
@@ -79,15 +88,14 @@ export function storyShapeErrors(_root: string, text: string): string[] {
   const ids = new Set<string>();
   const mapped = new Set<string>();
   for (const line of lines) {
-    const match = QA_LINE.exec(line);
+    const match = parseQaLine(line);
     if (!match) {
       errors.push(`QA scenario needs “- Q<n> [<targets>] (script|agent|person). <scenario>”: ${line.trim()}`);
       continue;
     }
-    const id = match[1].toUpperCase();
+    const { id, targets } = match;
     if (ids.has(id)) errors.push(`Duplicate QA ID: ${id}.`);
     ids.add(id);
-    const targets = match[2].split(",").map((t) => t.trim()).filter(Boolean);
     if (!targets.length) errors.push(`QA scenario is missing its target: ${line.trim()}`);
     for (const target of targets) {
       if (/^(Unchanged|not shown)$/iu.test(target)) continue;

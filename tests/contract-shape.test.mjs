@@ -28,6 +28,8 @@ test("Story rules: section order, MUST/QA mapping and duplicates, QA line shape,
   assert.deepEqual(errors(f.story.replace("[Unchanged]", "[Later]")), [
     "QA scenario has an unknown target Later: - Q2 [Later] (script). Valid input is stored.",
   ]);
+  // A method may carry a note, as people write approved Stories (review 1).
+  assert.deepEqual(errors(f.story.replace("(script). Check", "(person: G1은 사람이 누름. 나머지는 agent). Check").replace("(script). Valid", "(script: 명령 `npm test`). Valid")), []);
   assert.deepEqual(errors(f.story.replace("## MUST", "## Human decides\n- PL 답: a → b\n\n## MUST")), []);
   assert.deepEqual(errors(f.story.replace("## QA", "## Human decides\n- a\n\n## QA")), [
     "Story Human decides belongs between Decisions and MUST.",

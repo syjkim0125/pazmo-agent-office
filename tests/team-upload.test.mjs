@@ -299,3 +299,10 @@ test("refuses a bad graph before the Hub", (t) => {
   overlap.tasks.push({ id: "be-log", repo: "app-be", title: "결제 기록", spec: "기록을 남긴다.", files: ["src/pay.ts"], covers: ["M1", "Q1"], after: [], checks: [check("Q1")] });
   refuses(files(t, { tasks: overlap }), "UPLOAD_TASKS", /같은 파일/);
 });
+
+test("a QA method with a note, as people write approved Stories, reads like a plain one (review 1)", () => {
+  const text = "# Story: t\n\n## MUST\n- M1. a\n\n## QA\n- Q1 [M1] (person: G1은 사람이 누름. 나머지는 agent). a → b\n- Q2 [Unchanged] (script: 명령 `npm test`). c → d\n- Q3 [not shown] (agent). e → f\n";
+  const refs = storyRefs(text);
+  assert.deepEqual(refs.bad, []);
+  assert.deepEqual(refs.qa, [{ n: 1, must: [1] }, { n: 2, must: [] }, { n: 3, must: [] }]);
+});

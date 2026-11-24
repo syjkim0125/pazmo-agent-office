@@ -1,4 +1,5 @@
 import { OfficeError } from "../cli/project.ts";
+import { isOldStory } from "../core/legacy-tasks.ts";
 import { PLAN_LIMITS, hasOpenBlocking, planTextHash } from "../hub/plan-protocol.ts";
 import type { PlanApproval, PlanRecord } from "../hub/plan-protocol.ts";
 import { StoryGraphError, validateGraph, validateStoryVerify } from "../hub/story-protocol.ts";
@@ -11,8 +12,9 @@ const NOT_PL = "Story 승인 기록이 이 기획의 PL 것이 아닙니다.";
 const CHANGED = "승인한 초안과 지금 초안이 다릅니다. 취소하고 새 Story로 시작하세요.";
 const BLOCKING = "막는 결정이 남은 초안입니다.";
 const G3 = "설계 승인 기록이 맞지 않습니다.";
-/** A draft whose PM Story is in the format before story-qa (no `qa`): Office no longer renders it (person's choice
- * (가), Story `story-format-story-qa`). */
+/** A draft whose PM Story is in the format before story-qa (`isOldStory`): Office no longer renders it (person's
+ * choice (가), Story `story-format-story-qa`). The words are those of LEGACY_STORY_MESSAGE without its English half,
+ * as the PL reads it on the Hub. */
 export const OLD_FORMAT = "옛 Story 형식으로 만든 기획입니다. 취소하고 다시 만드세요.";
 
 /** A leased plan's web approval does not bind what the Office is about to use. The message is the PL's plain reason. */
@@ -74,8 +76,7 @@ export function checkApprovals(
   if (!draft || typeof draft.text !== "string" || g1.textHash !== planTextHash(draft.text))
     throw new PlanGateError(CHANGED);
   if (hasOpenBlocking(draft.text)) throw new PlanGateError(BLOCKING);
-  const saved = draft.story;
-  if (saved && typeof saved === "object" && !("qa" in saved)) throw new PlanGateError(OLD_FORMAT);
+  if (isOldStory(draft.story)) throw new PlanGateError(OLD_FORMAT);
   let story: PlanningStory;
   try {
     story = parseStory(draft.story);

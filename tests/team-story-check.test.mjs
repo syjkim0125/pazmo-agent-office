@@ -353,7 +353,7 @@ test("duplicate check ids get VM ids it can tell apart", async () => {
   const link = fakeLink({ claimVerify: verifyTask({ storyVerify: [{ repoId: "repo-be", checks: [CHECK("V1"), CHECK("V1")] }] }) });
   const w = world({ link });
   await w.checker.tick();
-  assert.deepEqual(w.engines.be.verifies[0].checks.map((c) => c.id), ["V1", "V2"]);
+  assert.deepEqual(w.engines.be.verifies[0].checks.map((c) => c.id), ["Q1", "Q2"]);
 });
 
 test("the summary keeps every repo line and fits the Hub's limit with long outputs", () => {

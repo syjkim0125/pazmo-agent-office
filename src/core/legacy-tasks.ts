@@ -52,11 +52,12 @@ export function legacyDelivery(db: DatabaseSync, taskId: string, revision: numbe
     .get(taskId, revision);
 }
 
-/** Whether a saved planning packet carries a PM Story in the format before story-qa (it has no `qa`). */
-function oldStory(packet: object): boolean {
-  const story = (packet as { story?: unknown }).story;
+/** Whether a saved PM Story is in the format before story-qa (it has no `qa`). The single-user Office's planning and
+ * the team plan gate (`plan-gates.ts`) both judge an old draft by this. */
+export function isOldStory(story: unknown): boolean {
   return !!story && typeof story === "object" && !("qa" in story);
 }
+const oldStory = (packet: object) => isOldStory((packet as { story?: unknown }).story);
 
 /** Whether a saved planning packet stops as legacy: made for the kit's planning graph (`workflow: "kit-role-v1"`), or
  * holding a PM Story in the old format. */
