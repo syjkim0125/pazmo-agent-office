@@ -39,7 +39,12 @@ emit({
   subtype: "init",
   tools: mode === "extra-tool" ? [...listed, "Bash"] : listed,
   mcp_servers: [{ name: "office", status: "connected" }],
-  plugins: [{ name: "telemetry", source: "telemetry@builtin" }],
+  // "plugin": a non-builtin plugin, as one an organization's managed settings turn on.
+  // Like claude 2.1, with the folder it loaded the plugin from.
+  plugins: [
+    { name: "telemetry", source: "telemetry@builtin" },
+    ...(mode === "plugin" ? [{ name: "a", path: `${process.env.HOME}/.claude/plugins/cache/m/a/1.0.0`, source: "a@m" }] : []),
+  ],
   skills: [],
   slash_commands: [],
   apiKeySource: mode === "api-key" ? "ANTHROPIC_API_KEY" : "none",

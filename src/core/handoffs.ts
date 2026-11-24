@@ -19,6 +19,8 @@ type Receipt = {
     timedOut: boolean;
     error: string | null;
     output: string;
+    /** Office's own reason for `error` when it stopped the Engineer's runner (a refused claude plugin). */
+    detail?: string;
   };
 };
 type Row = {
@@ -45,7 +47,8 @@ function validReceipt(receipt: Receipt): void {
     (r.exitCode !== null &&
       (!Number.isInteger(r.exitCode) || r.exitCode < 0 || r.exitCode > 255)) ||
     (r.signal !== null && typeof r.signal !== "string") ||
-    (r.error !== null && typeof r.error !== "string")
+    (r.error !== null && typeof r.error !== "string") ||
+    (r.detail !== undefined && (typeof r.detail !== "string" || r.detail.length > 1000))
   )
     fail(
       "INVALID_EVIDENCE",

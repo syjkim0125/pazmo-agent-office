@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { OfficeError, fail } from "../cli/project.ts";
 import { transaction } from "../core/approvals.ts";
 import { LEGACY_TASK, reasonText } from "../core/legacy-tasks.ts";
+import { stopDetail } from "../core/verification.ts";
 import { STOP_NOTICES, createNativeOffice } from "../runtime/native-office.ts";
 import type { NativeOffice } from "../runtime/native-office.ts";
 import { defaultRunnerChoice, keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
@@ -425,10 +426,17 @@ export async function createLeanOffice(c: LeanConfig): Promise<LeanOffice> {
       if (k.status !== "pending") continue;
       const round = hasContract(k.id) ? verification.latest(k.id) : null;
       const handoff = db
-        .prepare("SELECT reason FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1")
-        .get(k.id) as { reason: string | null } | undefined;
-      const reason = (round?.state === "human_required" && round.reason) || handoff?.reason || "HUMAN_REQUIRED";
-      return `하위 작업이 멈췄습니다: ${reasonText(reason)} (${k.title}). 자동으로 다시 실행하지 않습니다.`;
+        .prepare(
+          "SELECT reason, json_extract(receipt_json,'$.observation.error') AS error, json_extract(receipt_json,'$.observation.detail') AS detail FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1",
+        )
+        .get(k.id) as { reason: string | null; error: string | null; detail: string | null } | undefined;
+      const stopped = round?.state === "human_required" && round.reason;
+      const reason = stopped || handoff?.reason || "HUMAN_REQUIRED";
+      // A role run Office stopped itself says why (M4): the unknown review's, or the Engineer's.
+      const why = stopDetail(
+        stopped ? round.nodes.find((n) => n.result?.verdict === "unknown")?.result?.observation : handoff,
+      );
+      return `하위 작업이 멈췄습니다: ${reasonText(reason)}${why} (${k.title}). 자동으로 다시 실행하지 않습니다.`;
     }
     const statuses = new Map([[row.id, row.status], ...kids.map((k) => [k.id, k.status] as const)]);
     for (const id of ids) {

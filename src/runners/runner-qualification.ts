@@ -22,6 +22,7 @@ export const BOUNDARY_DIGEST = digest(
     "codex-profile.ts",
     "codex-controller.ts",
     "claude-profile.ts",
+    "claude-plugins.ts",
     "claude-controller.ts",
     "claude-tool-bridge.mjs",
     "exec-relay.ts",

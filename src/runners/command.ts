@@ -7,6 +7,9 @@ export type CommandResult = {
   stderr: string;
   timedOut: boolean;
   error: string | null;
+  /** Office's own explanation of `error` for the person (e.g. which claude plugin was refused and how to allow it):
+   * never a process's or a model's output. */
+  detail?: string;
   stdoutBytes?: Buffer;
 };
 type Options = {

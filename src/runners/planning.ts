@@ -11,6 +11,7 @@ import { terminalReport } from "./terminal-report.ts";
 
 /** A rejection names the failing field path and rule only. Model-authored
  * text never enters `detail`; the controller may show it and store it. */
+const RUNNER_DETAIL_MAX = 600;
 export class PlanningInvalid extends OfficeError {
   detail: string;
   /** "runner": the role's runner failed before any plan output (auth,
@@ -21,7 +22,9 @@ export class PlanningInvalid extends OfficeError {
       "PLANNING_INVALID",
       "Planning evidence is incomplete, stale or invalid; no work was approved.",
     );
-    this.detail = detail.slice(0, 200);
+    // A runner failure's words are Office's own (a runner label, the exit, a stop code and its reason, such as the
+    // allow commands of refused plugins): room for them. Anything read from a response stays short.
+    this.detail = detail.slice(0, origin === "runner" ? RUNNER_DETAIL_MAX : 200);
     this.origin = origin;
   }
 }
@@ -92,6 +95,10 @@ function runnerFailure(stdout: unknown): string | null {
     "turn failed before any plan output"
   );
 }
+/** Office's own reason for a stop (CommandResult.detail) as one bounded line; the rest of the runner detail
+ * ("runner: error=<code>; ") fits beside it. */
+const stopReason = (value: unknown) =>
+  typeof value === "string" ? value.replace(/[\s\x00-\x1f\x7f]+/g, " ").trim().slice(0, RUNNER_DETAIL_MAX - 60) : "";
 const token = (value: unknown) =>
   typeof value === "string" && /^[A-Za-z0-9_.-]{1,40}$/.test(value)
     ? value
@@ -628,6 +635,10 @@ export function reportOf(
     const runner = runnerFailure(r.stdout);
     // A turn the controller stopped itself (a refused init, a hook) has an emptied output and its reason in `error`,
     // an Office-authored code: name it, or the person sees only "turn failed".
+    // With Office's own reason for the stop (a refused plugin: which, why, how to allow it), that reason is what
+    // the person needs, so it comes right after the code and the exit is left out to keep it within the limit.
+    if (runner && r.error && stopReason(r.detail))
+      throw new PlanningInvalid(`runner: error=${token(r.error)}; ${stopReason(r.detail)}`, "runner");
     if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}${r.error ? `; error=${token(r.error)}` : ""}`, "runner");
     if (r.exitCode !== 0 || r.signal) invalid(exit);
     if (r.error) invalid(`error=${token(r.error)}`);

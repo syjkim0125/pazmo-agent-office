@@ -33,6 +33,12 @@ running ones.
   - Colima VM and the codex/claude CLIs for live Offices.
 - Needs a person: `oc login --web` and the company Hub deploy, GitHub and Claude/codex logins and their 2FA, any write
   to the test repos' `main` or `dev`, and approving Office Decisions (G1, G3, G4, questions).
+- Organization-managed Claude plugins: a non-builtin plugin the organization turns on stops every claude run of Office
+  (`CLAUDE_PLUGIN_UNEXPECTED`) until the person allows it on that Mac. The stop reason gives the command as
+  `pazmo-office runner allow-plugin <name@marketplace>`, with `--data-dir <folder>` when that Office runs on another
+  data folder; from a checkout run it as `node bin/pazmo-office.mjs runner allow-plugin …`. `runner plugins` lists,
+  `runner disallow-plugin` removes. A skill-only plugin passes; one whose folder or marketplace entry adds hooks, MCP
+  servers, agents or commands never does.
 
 - QA scripts: `qa/<slug>.sh`, run from the repository root with `BASE_URL=<base URL> bash qa/<slug>.sh` (a script that
   only runs commands ignores `BASE_URL`); Node 24 first on PATH.

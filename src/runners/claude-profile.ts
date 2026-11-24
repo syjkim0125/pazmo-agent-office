@@ -1,5 +1,6 @@
 import { isAbsolute } from "node:path";
 import { runnerEnv } from "./runner-discovery.ts";
+import { pluginVerdict } from "./claude-plugins.ts";
 
 /** The only tools a claude role sees: Office's bridge to the VM executor. */
 export const OFFICE_TOOLS = [
@@ -66,36 +67,46 @@ const same = (a: unknown, b: string[]) =>
   a.length === b.length &&
   [...a].sort().join("\n") === [...b].sort().join("\n");
 
-/** Per-run boundary check of what the CLI actually loaded, before any turn. */
-export function checkClaudeInit(
+/** The non-builtin plugins the person allowed on this Mac (D1), the home whose claude install they are checked in
+ * (D3), and the `--data-dir` the allow command names when the Office does not use the default data root. None
+ * allowed: every non-builtin plugin is refused, as before the list existed. */
+export type ClaudePlugins = { allowed: string[]; home: string; dataDir?: string };
+
+/** Per-run boundary check of what the CLI actually loaded, before any turn: the stop code, and for a refused plugin
+ * the reason the person reads (which plugin, why, how to allow it; never file contents). */
+export function claudeInitProblem(
   event: unknown,
   mode: "live" | "fixture",
-): string | null {
+  plugins: ClaudePlugins = { allowed: [], home: "" },
+): { code: string; detail?: string } | null {
   const e = event as Record<string, unknown> | null;
   if (!e || e.type !== "system" || e.subtype !== "init")
-    return "CLAUDE_INIT_MISSING";
-  if (!same(e.tools, officeTools)) return "CLAUDE_TOOLS_UNEXPECTED";
+    return { code: "CLAUDE_INIT_MISSING" };
+  if (!same(e.tools, officeTools)) return { code: "CLAUDE_TOOLS_UNEXPECTED" };
   const servers = Array.isArray(e.mcp_servers) ? e.mcp_servers : [];
   if (servers.length !== 1 || servers[0]?.name !== "office")
-    return "CLAUDE_MCP_UNEXPECTED";
-  if (servers[0].status !== "connected") return "CLAUDE_BRIDGE_UNAVAILABLE";
-  if (
-    !Array.isArray(e.plugins) ||
-    e.plugins.some(
-      (p: { source?: unknown }) =>
-        typeof p?.source !== "string" || !p.source.endsWith("@builtin"),
-    )
-  )
-    return "CLAUDE_PLUGIN_UNEXPECTED";
+    return { code: "CLAUDE_MCP_UNEXPECTED" };
+  if (servers[0].status !== "connected") return { code: "CLAUDE_BRIDGE_UNAVAILABLE" };
+  const verdict = pluginVerdict(e, plugins);
+  if (!verdict.ok) return { code: "CLAUDE_PLUGIN_UNEXPECTED", detail: verdict.detail };
   if (
     (Array.isArray(e.skills) && e.skills.length) ||
     (Array.isArray(e.slash_commands) && e.slash_commands.length)
   )
-    return "CLAUDE_SKILL_UNEXPECTED";
+    return { code: "CLAUDE_SKILL_UNEXPECTED" };
   // Only the subscription login is accepted for live runs; never an API key.
   if (mode === "live" && e.apiKeySource !== "none")
-    return "CLAUDE_SUBSCRIPTION_REQUIRED";
+    return { code: "CLAUDE_SUBSCRIPTION_REQUIRED" };
   return null;
+}
+
+/** claudeInitProblem's stop code alone. */
+export function checkClaudeInit(
+  event: unknown,
+  mode: "live" | "fixture",
+  plugins?: ClaudePlugins,
+): string | null {
+  return claudeInitProblem(event, mode, plugins)?.code ?? null;
 }
 
 export function isHookEvent(event: unknown): boolean {

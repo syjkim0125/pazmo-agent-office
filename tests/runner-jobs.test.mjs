@@ -7,7 +7,7 @@ import { runnerNotReady } from "../src/runners/runner-account.ts";
 import { digest } from "../src/core/candidates.ts";
 import { tempRoot } from "./runner-fixture.mjs";
 
-function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime, qualify, rediscover } = {}) {
+function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime, qualify, rediscover, allowedPlugins, pluginDataDir } = {}) {
   const root = tempRoot();
   const bins = {};
   for (const name of ["codex", "claude"]) {
@@ -38,6 +38,8 @@ function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime,
     home: "/Users/u",
     pinnedController: "/pinned/controller",
     codexRuntime,
+    ...(allowedPlugins ? { allowedPlugins } : {}),
+    ...(pluginDataDir ? { pluginDataDir } : {}),
     openExecutor: () => { throw Error("unused"); },
     timeoutMs: 240000,
     jobs: { codex: inner("codex"), claude: inner("claude") },
@@ -84,6 +86,39 @@ test("a claude choice runs the qualified claude job and records its identity", a
   assert.equal(options.home, "/Users/u");
   assert.equal(options.env, undefined, "live claude never receives extra environment");
   assert.deepEqual(h.calls.evidence, [{ taskId: "task-1", role: "reviewer", runner: "claude", version: "2.1.280", sha256: digest("claude binary"), model: "haiku", reasoning: "low" }]);
+});
+
+test("a claude job gets the plugin list read for this run, and its record names it (M3)", async () => {
+  let list = ["a@m"];
+  let reads = 0;
+  const h = harness({ allowedPlugins: () => (reads++, list) });
+  await supervise(h.factory("pm", "t1", "x"));
+  assert.deepEqual(h.calls.claude[0].options.allowedPlugins, ["a@m"]);
+  assert.deepEqual(h.calls.evidence[0].allowedPlugins, ["a@m"]);
+  // Read again for the next run: a running Office picks up a change.
+  list = ["a@m", "b@m"];
+  await supervise(h.factory("pm", "t1", "x"));
+  assert.deepEqual(h.calls.claude[1].options.allowedPlugins, ["a@m", "b@m"]);
+  assert.equal(reads, 2);
+  assert.equal("pluginDataDir" in h.calls.claude[0].options, false, "the default data root is not named");
+  // An Office on another data root names it in the refusal's command.
+  const named = harness({ allowedPlugins: () => [], pluginDataDir: "/Users/u/qa-data" });
+  await supervise(named.factory("pm", "t1", "x"));
+  assert.equal(named.calls.claude[0].options.pluginDataDir, "/Users/u/qa-data");
+  // An empty list is as before: nothing passed, nothing recorded.
+  list = [];
+  await supervise(h.factory("pm", "t1", "x"));
+  assert.equal("allowedPlugins" in h.calls.claude[2].options, false);
+  assert.equal("allowedPlugins" in h.calls.evidence[2], false);
+  // An unreadable list is an empty one (fail closed).
+  const broken = harness({ allowedPlugins: () => { throw Object.assign(Error("x"), { code: "PLUGIN_LIST_INVALID" }); } });
+  const out = await supervise(broken.factory("pm", "t1", "x"));
+  assert.equal(out.result.error, null);
+  assert.equal("allowedPlugins" in broken.calls.claude[0].options, false);
+  // codex never reads it.
+  const codex = harness({ choice: { runner: "codex", model: "gpt-5.5", reasoning: null }, allowedPlugins: () => { throw Error("must not read"); } });
+  await supervise(codex.factory("pm", "t1", "x"));
+  assert.equal("allowedPlugins" in codex.calls.evidence[0], false);
 });
 
 test("a codex choice runs with the qualified catalog and reasoning", async () => {

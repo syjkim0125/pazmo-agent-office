@@ -1213,6 +1213,61 @@ test("a request whose planning stopped without a decision is stopped, with the e
   assert.deepEqual([card.column, card.stopped, card.stopReason], ["cancelled", false, null]);
 });
 
+test("a subtask whose runner Office stopped with a reason shows the code and the reason (M4)", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: alice.id, risk: "normal" });
+  await storyReady(f, id);
+  await answer(f, "story");
+  const child = await publishChild(f, id);
+  await answer(f, "G1", "실행 범위를 확인했습니다.");
+  const { handoffs } = f.ledgers;
+  const attempt = handoffs.prepare(child);
+  handoffs.start(attempt.leaseId, "fixture-engineer");
+  const detail = "허용 목록에 없음 → pazmo-office runner allow-plugin a@m";
+  handoffs.finish(attempt.leaseId, "fixture-engineer", {
+    closed: true,
+    observation: { exitCode: null, signal: null, timedOut: false, error: "CLAUDE_PLUGIN_UNEXPECTED", detail, output: "" },
+  });
+  const card = locate(f.office.board(), id);
+  assert.equal(
+    card.stopReason,
+    `하위 작업이 멈췄습니다: ENGINEER_FAILED — CLAUDE_PLUGIN_UNEXPECTED: ${detail} (Input validation). 자동으로 다시 실행하지 않습니다.`,
+  );
+});
+
+test("a subtask whose review run Office stopped with a reason shows the code and the reason (M4)", async (t) => {
+  const f = await fixture(t);
+  const { alice } = await agents(f);
+  const { id } = await f.office.createTask({ title: "Improve README", body: "", agentId: alice.id, risk: "normal" });
+  await storyReady(f, id);
+  await answer(f, "story");
+  const child = await publishChild(f, id);
+  await answer(f, "G1", "실행 범위를 확인했습니다.");
+  const { handoffs, execution } = f.ledgers;
+  const attempt = handoffs.prepare(child);
+  handoffs.start(attempt.leaseId, "fixture-engineer");
+  writeFileSync(join(attempt.workspace, "src/a"), "after");
+  const ok = { exitCode: 0, signal: null, timedOut: false, error: null, output: "Scripted fixture only" };
+  const finished = handoffs.finish(attempt.leaseId, "fixture-engineer", { closed: true, observation: ok });
+  const detail = "a@m: 실행에 끼어들 수 있는 항목: hooks";
+  for (const node of finished.round.nodes) {
+    const lease = execution.reserveNode(finished.round.id, node.id);
+    execution.start(lease.id, node.id);
+    execution.finish(lease.id, node.id, {
+      closed: true,
+      observation:
+        node.kind === "review"
+          ? { ...ok, exitCode: null, error: "CLAUDE_PLUGIN_UNEXPECTED", detail, output: "", kind: "review", report: null }
+          : { ...ok, kind: node.kind },
+    });
+  }
+  assert.equal(
+    locate(f.office.board(), id).stopReason,
+    `하위 작업이 멈췄습니다: UNKNOWN_RESULT — CLAUDE_PLUGIN_UNEXPECTED: ${detail} (Input validation). 자동으로 다시 실행하지 않습니다.`,
+  );
+});
+
 test("a subtask that verification handed to a person stops its request", async (t) => {
   const f = await fixture(t);
   const { id, child } = await verifiedChild(f, "unknown");

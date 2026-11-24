@@ -653,7 +653,7 @@ function taskScreen(task) {
       L("sectionBody"),
       task.body ? el("div", { className: "text body-text" }, task.body) : el("p", { className: "empty" }, L("noBody")),
     ),
-    section(L("sectionEvents"), eventList(task.events ?? [])),
+    section(L("sectionEvents"), eventList(task.events ?? [], task.id)),
     section(L("sectionDiffs"), diffList(task.diffs ?? [])),
     section(L("sectionRuns"), runList(task.runs ?? [])),
     section(L("sectionDeliveries"), deliveryList(task.deliveries ?? [])),
@@ -706,13 +706,43 @@ function rerunControl(task) {
 const timeOf = (at) =>
   el("time", { datetime: Number.isFinite(at) ? new Date(at).toISOString() : undefined }, formatTime(at, lang));
 
-function eventList(events) {
+/** How many of a task's latest progress entries stay visible while the list is folded. */
+const EVENTS_SHOWN = 3;
+
+/**
+ * A task's progress, oldest first. A longer list starts folded to its latest entries, with one button above it that
+ * shows or hides the earlier ones; the choice survives the poll's redraws (`state.open`), like a fold.
+ */
+function eventList(events, key) {
   if (!events.length) return el("p", { className: "empty" }, L("noEvents"));
-  return el(
-    "ol",
-    { className: "events" },
-    events.map((e) => el("li", null, [timeOf(e.at), el("div", { className: "text" }, e.text)])),
+  const older = events.length - EVENTS_SHOWN;
+  const items = events.map((e, i) =>
+    el("li", { className: i < older ? "older" : "" }, [timeOf(e.at), el("div", { className: "text" }, e.text)]),
   );
+  if (older <= 0) return el("ol", { className: "events" }, items);
+  const foldKey = `events:${key}`;
+  const list = el("ol", { className: state.open.has(foldKey) ? "events" : "events folded", id: `events-${key}` }, items);
+  const label = () => (state.open.has(foldKey) ? L("eventsFold", { n: EVENTS_SHOWN }) : L("eventsUnfold", { n: older }));
+  const toggle = el(
+    "button",
+    {
+      type: "button",
+      className: "btn events-toggle",
+      "aria-controls": `events-${key}`,
+      "aria-expanded": String(state.open.has(foldKey)),
+      dataset: { key: `fold:${foldKey}` },
+      onClick: (e) => {
+        if (state.open.has(foldKey)) state.open.delete(foldKey);
+        else state.open.add(foldKey);
+        const open = state.open.has(foldKey);
+        list.classList.toggle("folded", !open);
+        e.currentTarget.setAttribute("aria-expanded", String(open));
+        e.currentTarget.textContent = label();
+      },
+    },
+    label(),
+  );
+  return el("div", { className: "events-wrap" }, [toggle, list]);
 }
 
 function diffList(diffs) {

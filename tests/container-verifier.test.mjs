@@ -207,6 +207,21 @@ test("failed, cancelled, unclean or invalid VM outputs cannot replace staging", 
   }
 });
 
+test("a runner stop's reason travels with its code to the role's observation and the planning result (M4)", async () => {
+  const { withStopDetail, plannerResult } = await import("../src/runners/container-verifier.ts");
+  const base = { exitCode: null, signal: null, timedOut: false, error: "CLAUDE_PLUGIN_UNEXPECTED", output: "" };
+  const stopped = { ...base, stdout: "", stderr: "", detail: "a@m: 허용 목록에 없음" };
+  const carried = withStopDetail(base, stopped);
+  assert.equal(carried.detail, "a@m: 허용 목록에 없음");
+  assert.deepEqual(plannerResult(carried, "out"), {
+    exitCode: null, signal: null, timedOut: false, error: "CLAUDE_PLUGIN_UNEXPECTED", stdout: "out", stderr: "", detail: "a@m: 허용 목록에 없음",
+  });
+  // A later failure replaced the stop: its reason no longer applies.
+  assert.equal("detail" in withStopDetail({ ...base, error: "CLEANUP_FAILED", detail: "stale" }, stopped), false);
+  assert.equal("detail" in withStopDetail(base, null), false);
+  assert.equal("detail" in plannerResult({ ...base, error: null }, ""), false);
+});
+
 test("remote workspace refuses an unverified runtime before contacting Docker", async (t) => {
   const f = fixture(t),
     binary = join(f.root, "wrong-runtime"),

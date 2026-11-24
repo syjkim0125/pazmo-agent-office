@@ -76,6 +76,12 @@ export function dataRoot(dataArgument?: string): string {
       ),
   );
 }
+/** A live Office's data root, and whether it is not the default one, so the commands the Office tells the person
+ * (`runner allow-plugin`) name it with `--data-dir`. Decided here, at startup: the service's own HOME is isolated. */
+export function liveDataRoot(dataArgument?: string): { dataRoot: string; dataRootNamed?: true } {
+  const root = dataRoot(dataArgument);
+  return root === dataRoot() ? { dataRoot: root } : { dataRoot: root, dataRootNamed: true };
+}
 export type Project = { project: string; directory: string; dataDir: string };
 export function locate(
   projectArgument: string,

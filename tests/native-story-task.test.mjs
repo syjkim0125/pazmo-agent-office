@@ -136,7 +136,7 @@ async function submit(f, attempt = 1, extra = {}) {
 }
 /** One Engineer run of the task: it writes src/a and exits with `exitCode` (or ends on the supervisor's `error`). */
 let runs = 0;
-function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "after", error = null } = {}) {
+function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "after", error = null, detail } = {}) {
   const { handoffs } = f.ledgers;
   // Short leases: three rounds stay inside the task's reserved-time budget.
   const attempt = handoffs.prepare(id, 60000);
@@ -145,7 +145,7 @@ function engineer(f, id, { output = "Engineer done", exitCode = 0, content = "af
   writeFileSync(join(attempt.workspace, "src/a"), content);
   return handoffs.finish(attempt.leaseId, handle, {
     closed: true,
-    observation: { exitCode, signal: null, timedOut: false, error, output },
+    observation: { exitCode, signal: null, timedOut: false, error, output, ...(detail ? { detail } : {}) },
   });
 }
 /** Every node of the round: the checks exit with `check`, the review reports `verdict` (or ends as `review`). */
@@ -382,6 +382,24 @@ test("a Story Task refused before its runner started names the runner not ready,
   const changed = await submit(f, 3);
   engineer(f, changed.id, { exitCode: null, error: "UNVERIFIED_CONTROLLER_BINARY", output: "" });
   assert.deepEqual(f.office.storyOutcome(changed.id), { kind: "stopped", reason: "구현이 멈췄습니다: ENGINEER_FAILED" });
+});
+
+test("a Story Task whose runner Office stopped with a reason names the code and the reason, from the Engineer's run or the review's (M4)", async (t) => {
+  const f = await fixture(t);
+  const detail = "허용 목록에 없음 → pazmo-office runner allow-plugin a@m";
+  const stoppedRun = { exitCode: null, error: "CLAUDE_PLUGIN_UNEXPECTED", detail, output: "" };
+  const built = await submit(f, 1);
+  engineer(f, built.id, stoppedRun);
+  assert.deepEqual(f.office.storyOutcome(built.id), {
+    kind: "stopped",
+    reason: `구현이 멈췄습니다: ENGINEER_FAILED — CLAUDE_PLUGIN_UNEXPECTED: ${detail}`,
+  });
+  const reviewed = await submit(f, 2);
+  judge(f, engineer(f, reviewed.id).round, { review: { ...stoppedRun, report: null } });
+  const review = f.office.storyOutcome(reviewed.id);
+  assert.equal(review.kind, "stopped");
+  assert.match(review.reason, /UNKNOWN_RESULT/);
+  assert.ok(review.reason.endsWith(`— CLAUDE_PLUGIN_UNEXPECTED: ${detail}`), review.reason);
 });
 
 test("a Story Task whose run failed or was cancelled is stopped, not running", async (t) => {

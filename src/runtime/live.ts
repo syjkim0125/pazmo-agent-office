@@ -42,6 +42,7 @@ import { pinnedCodexProblem, usable } from "./runner-settings.ts";
 import type { RunnerChoice, RunnerSettings } from "./runner-settings.ts";
 import type { RunnerEvidence } from "../core/runner-evidence.ts";
 import { runCommand } from "../runners/command.ts";
+import { readAllowedPlugins } from "../runners/claude-plugins.ts";
 import {
   ContainerPlanner,
   ContainerWorkspace,
@@ -63,7 +64,23 @@ export type LiveConfig = {
    * HOME is isolated. Used to find CLIs and their own logins. */
   userHome?: string;
   searchPath?: string;
+  /** The Office data root (`--data-dir`): the person's allowed claude plugins are read from there for every run. */
+  dataRoot?: string;
+  /** Whether `dataRoot` is not the default one (the startup saw it; the service's own HOME is isolated): then a
+   * plugin refusal's allow command names it with `--data-dir`. */
+  dataRootNamed?: boolean;
 };
+/** The allowed claude plugins of `config`'s data root, read now; none without a data root. An unreadable list
+ * allows nothing: such a plugin is refused with the command that allows it. */
+function allowedPlugins(config: LiveConfig): string[] {
+  if (!config.dataRoot) return [];
+  try {
+    return readAllowedPlugins(config.dataRoot);
+  } catch (error) {
+    console.error("Allowed claude plugins unreadable:", error instanceof Error ? error.message : String(error));
+    return [];
+  }
+}
 /** Per-role user CLI selection (native Claw mode). Absent: pinned codex only.
  * `choose` picks the runner by role and task instead of by role alone; when it
  * is given it replaces settings.choice for jobs, and per-role prequalification
@@ -508,6 +525,7 @@ function qualifier(
     if (!pending) {
       pending = (async () => {
         const { candidate, marker } = qualificationCandidate(dir);
+        const allowed = allowedPlugins(config);
         return qualify({
           install,
           model,
@@ -519,6 +537,8 @@ function qualifier(
             runInContainer: (job) =>
               new ContainerPlanner(client.run).run(candidate, job, () => {}, signal),
             candidateMarker: marker,
+            // The same list as a live run, read for this qualification.
+            ...(allowed.length ? { allowedPlugins: allowed } : {}),
           },
         });
       })().finally(() => running.delete(key));
@@ -537,8 +557,8 @@ export async function createLiveRuntime(
   operatorToken: string,
   runners?: LiveRunners,
 ) {
-  for (const key of ["controller", "binary", "authHome", "socket", "userHome"] as const) {
-    if (key === "userHome" && config.userHome === undefined) continue;
+  for (const key of ["controller", "binary", "authHome", "socket", "userHome", "dataRoot"] as const) {
+    if ((key === "userHome" || key === "dataRoot") && config[key] === undefined) continue;
     const path = config[key];
     if (typeof path !== "string" || !isAbsolute(path))
       fail("LIVE_CONFIG", "Runtime paths must be absolute.");
@@ -632,6 +652,8 @@ export async function createLiveRuntime(
           codexRuntime: config.codexRuntime,
           openExecutor: client.openExecutor,
           timeoutMs: 240000,
+          allowedPlugins: () => allowedPlugins(config),
+          ...(config.dataRoot && config.dataRootNamed ? { pluginDataDir: config.dataRoot } : {}),
         })
       : undefined;
     const planning = new PlanningCoordinator({

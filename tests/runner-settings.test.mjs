@@ -140,6 +140,24 @@ test("run evidence records the runner identity per task", () => {
   assert.equal(row.sha256, "b".repeat(64));
   assert.equal(typeof row.at, "number");
   assert.equal(evidence.list("t2").length, 1);
+  assert.equal("allowedPlugins" in row, false, "no list, no field");
+  evidence.record({ taskId: "t3", role: "pm", runner: "claude", version: "2.1.280", sha256: "b".repeat(64), model: "haiku", reasoning: null, allowedPlugins: ["a@m"] });
+  assert.deepEqual(evidence.list("t3")[0].allowedPlugins, ["a@m"]);
+  assert.deepEqual(evidence.forRequest("t3")[0].allowedPlugins, ["a@m"]);
+});
+
+test("run evidence of an older database gains the plugin column and keeps its rows", () => {
+  const db = new DatabaseSync(":memory:");
+  db.exec(`CREATE TABLE pazmo_runner_runs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, role TEXT NOT NULL,
+      runner TEXT NOT NULL, version TEXT NOT NULL, sha256 TEXT NOT NULL,
+      model TEXT NOT NULL, reasoning TEXT, at INTEGER NOT NULL)`);
+  db.prepare("INSERT INTO pazmo_runner_runs (task_id,role,runner,version,sha256,model,reasoning,at) VALUES ('t1','pm','claude','2','s','m',NULL,1)").run();
+  const evidence = new RunnerEvidence(db);
+  new RunnerEvidence(db);
+  assert.equal(evidence.list("t1").length, 1);
+  evidence.record({ taskId: "t1", role: "pm", runner: "claude", version: "2", sha256: "s", model: "m", reasoning: null, allowedPlugins: ["a@m"] });
+  assert.deepEqual(evidence.list("t1").map((r) => r.allowedPlugins ?? null), [null, ["a@m"]]);
 });
 
 test("a login made after startup is picked up when saving and on refresh", async () => {

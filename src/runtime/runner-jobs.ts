@@ -28,6 +28,11 @@ export type RoleJobDependencies = {
   codexRuntime?: "installed" | "pinned";
   openExecutor: (handle: string) => ChildProcessWithoutNullStreams;
   timeoutMs: number;
+  /** The non-builtin claude plugins the person allowed on this Mac, read again for every claude run so a running
+   * Office follows `runner allow-plugin` from its next run. Absent: none. */
+  allowedPlugins?: () => string[];
+  /** The Office's data root when it is not the default: a plugin refusal's allow command names it. */
+  pluginDataDir?: string;
   jobs?: { codex: typeof codexJob; claude: typeof claudeJob };
 };
 
@@ -95,6 +100,15 @@ export function roleJobFactory(d: RoleJobDependencies) {
             "RUNNER_QUALIFICATION_FAILED: " + q.checks.filter((c) => !c.passed).map((c) => c.name).join(","),
           );
         const selection = { binary: install.path!, sha256: install.sha256!, model: choice.model };
+        // An unreadable list allows nothing: such a plugin is refused with the command that allows it.
+        let allowedPlugins: string[] = [];
+        if (choice.runner === "claude")
+          try {
+            allowedPlugins = d.allowedPlugins?.() ?? [];
+          } catch (error) {
+            console.error("Allowed claude plugins unreadable:", error instanceof Error ? error.message : String(error));
+          }
+        const plugins = allowedPlugins.length ? { allowedPlugins } : {};
         const inner =
           choice.runner === "codex"
             ? jobs.codex(
@@ -114,6 +128,8 @@ export function roleJobFactory(d: RoleJobDependencies) {
                   ...base,
                   home: d.home,
                   selection: { ...selection, ...(choice.reasoning ? { effort: choice.reasoning } : {}) },
+                  ...plugins,
+                  ...(d.pluginDataDir ? { pluginDataDir: d.pluginDataDir } : {}),
                 },
                 prompt,
               );
@@ -125,6 +141,7 @@ export function roleJobFactory(d: RoleJobDependencies) {
           sha256: install.sha256!,
           model: choice.model,
           reasoning: choice.reasoning,
+          ...plugins,
         });
         return inner.supervise(handle, timeoutMs, signal);
       },

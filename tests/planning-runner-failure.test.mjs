@@ -62,6 +62,29 @@ test("a turn Office itself stopped names Office's stop code, so the person can s
   assert.equal(error.detail, "runner: turn failed before any plan output; exitCode=null; error=CLAUDE_TOOLS_UNEXPECTED");
 });
 
+test("a turn Office stopped with a reason names the reason, so the person can act on it (M4)", () => {
+  const detail = "a@m: 허용 목록에 없음 → pazmo-office runner allow-plugin a@m";
+  const stopped = { closed: true, result: { exitCode: null, signal: "SIGKILL", error: "CLAUDE_PLUGIN_UNEXPECTED", detail, timedOut: false, stderr: "", stdout: lines({ type: "turn.started" }, { type: "turn.failed" }) } };
+  const error = rejection(() => acceptPlanning(pm(), stopped));
+  assert.equal(error.origin, "runner");
+  assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
+  // One bounded line, whatever the reason holds.
+  const long = rejection(() => acceptPlanning(pm(), { ...stopped, result: { ...stopped.result, detail: "x\n".repeat(600) } }));
+  assert.ok(long.detail.length <= 600 && !long.detail.includes("\n"), long.detail);
+});
+
+test("a refusal naming two plugins, one with a 100-character name, keeps every allow command whole (M4)", async () => {
+  const { pluginVerdict } = await import("../src/runners/claude-plugins.ts");
+  const source = "p" + "x".repeat(60) + "@" + "m".repeat(39);
+  const init = { type: "system", subtype: "init", plugins: [{ source: "a@m" }, { source }] };
+  const { detail } = pluginVerdict(init, { allowed: [], home: "/nonexistent", dataDir: "/Users/someone/Library/pazmo-qa-data" });
+  const stopped = { closed: true, result: { exitCode: null, signal: "SIGKILL", error: "CLAUDE_PLUGIN_UNEXPECTED", detail, timedOut: false, stderr: "", stdout: lines({ type: "turn.started" }, { type: "turn.failed" }) } };
+  const error = rejection(() => acceptPlanning(pm(), stopped));
+  assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
+  assert.ok(error.detail.endsWith(`pazmo-office runner allow-plugin ${source} --data-dir /Users/someone/Library/pazmo-qa-data`), error.detail);
+  assert.ok(error.detail.includes("pazmo-office runner allow-plugin a@m --data-dir /Users/someone/Library/pazmo-qa-data;"), error.detail);
+});
+
 test("a known runner message is recognized only as a turn's sole output", () => {
   // A plan-shaped report means the model ran: keep the output classification.
   const p = pm(),

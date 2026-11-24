@@ -10,6 +10,7 @@ import { dirname, join } from "node:path";
 import { homedir } from "node:os";
 import {
   dataRoot,
+  liveDataRoot,
   fail,
   init,
   initTeam,
@@ -333,6 +334,7 @@ async function prepareMachine(
     socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
     userHome: homedir(),
     searchPath: process.env.PATH ?? "",
+    ...liveDataRoot(options.dataDir),
     ...(options.codexRuntime ? { codexRuntime: options.codexRuntime } : {}),
   };
 }
