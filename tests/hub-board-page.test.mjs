@@ -177,6 +177,32 @@ test("story card shows state, PL and who works now; planners get 새 Story", asy
   assert.ok(text.includes('href="/projects/new"'), "새 프로젝트");
 });
 
+// docs/stories/board-header-hierarchy.md: the page line over the filter line, primary buttons, a 프로젝트 label.
+test("the board's top has the tabs and 새 프로젝트 over the 프로젝트 chips and toggles; 새 Story and 새 프로젝트 are primary; a project's name is labelled", async (t) => {
+  const h = await team(t);
+  h.board.createProject(h.plBe, "회원 등급", [{ repoId: h.be, baseBranch: "main" }]);
+  h.open(h.publish("쿠폰 Story", ["a"]));
+  for (const [path, title] of [["/", "Story 보드"], ["/tasks", "모든 Task"]]) {
+    const text = (await h.get(path, h.pl)).text;
+    const top = /<section class="titlebar">([\s\S]*?)<\/section>/.exec(text)?.[1] ?? "";
+    assert.ok(top.startsWith(`<div class="viewbar"><h1>${title}</h1><nav class="tabs" aria-label="보드 보기">`), `${path}: the page line first`);
+    assert.ok(top.includes('</nav><a class="btn add" href="/projects/new">새 프로젝트</a></div><div class="toggles"><div class="chiprow"><span class="flabel" aria-hidden="true">프로젝트</span><nav class="chips" aria-label="프로젝트">'), `${path}: 새 프로젝트 ends the page line; the chips start the filter line`);
+    assert.match(top, /<\/nav><\/div><div class="fopts"><a class="filter" href="[^"]*">내 Story만<\/a><a class="filter" href="[^"]*">취소한 것도 보기<\/a><\/div><\/div>$/, `${path}: the toggles end the filter line`);
+    assert.ok(text.includes(`<section class="project"><div class="phead"><p class="kind">프로젝트</p><div class="row"><h2>쿠폰 개편</h2><a class="btn add" href="/projects/${h.projectId}/new-story">새 Story</a></div></div>`), `${path}: label, name, 새 Story`);
+    assert.ok(!text.includes("btn ghost"), `${path}: no secondary button on the board`);
+  }
+  const style = await styleOf(h);
+  assert.match(ruleOf(style, ".btn.add::before"), /^content:"\+";content:"\+"\/"";/, "the + is drawn and left out of the button's name");
+  assert.equal(px(ruleOf(style, ".tabs a"), "font-size"), 18, "the tabs read as the page's title");
+  assert.equal(px(ruleOf(style, ".chips a"), "font-size"), 14, "the chips are a level below");
+  assert.equal(px(ruleOf(style, ".filter"), "font-size"), 14, "and so are the toggles");
+  const chosen = ruleOf(style, ".chips a[aria-current=true]");
+  assert.match(chosen, /border:2px solid var\(--accent\);background:var\(--run-bg\)/, "the chosen chip is marked like a chosen toggle, with a thicker edge");
+  assert.doesNotMatch(chosen, /background:var\(--fg\)/, "the chosen chip is no longer filled darker than the chosen tab");
+  assert.match(ruleOf(style, ".viewbar"), /flex-wrap:wrap;/, "on a narrow screen 새 프로젝트 wraps under the tabs, in reading and focus order");
+  assert.equal(ruleOf(style, ".viewbar .tabs"), "flex:1 1 auto;border-bottom:1px solid var(--line)", "the rule runs under the tabs up to 새 프로젝트");
+});
+
 test("stopped card stays in its column with a plain reason", async (t) => {
   const h = await team(t);
   const s = h.open(h.publish("쿠폰 발급", ["a"]));
@@ -693,7 +719,9 @@ test("review fixes: tables keep their width, the count badge reads, focus keeps 
   assert.match(style, /body\{[^}]*overflow-wrap:break-word/, "a table cell is not squeezed letter by letter");
   assert.match(style, /\.needs \.count\{background:var\(--need-bg\);color:var\(--need\)\}/);
   assert.doesNotMatch(style, /:focus-visible\{[^}]*border-radius/);
-  for (const sel of ["nav a", "\\.filter", "button\\.switch", "\\.macchip"]) assert.match(style, new RegExp(`${sel}\\{[^}]*min-height:44px`), sel);
+  for (const sel of ["nav a", "button\\.switch", "\\.macchip"]) assert.match(style, new RegExp(`${sel}\\{[^}]*min-height:44px`), sel);
+  // The filter line (chips and toggles) is a level below the tabs: 36px with a mouse, 44px on touch.
+  assert.match(style, /\.filter\{[^}]*min-height:36px/, ".filter");
   assert.match(style, /\*,\*::before,\*::after\{transition:none!important\}/);
 });
 
@@ -932,7 +960,7 @@ test("on 전체, projects with no Story fold into one line that leads to each on
   assert.ok(all.includes("<h2>쿠폰 개편</h2>"));
   const one = (await h.get(`/?project=${e1.projectId}`, h.pl)).text;
   assert.ok(one.includes("<h2>빈 하나</h2>") && unline(one).includes('<p class="empty">아직 Story가 없습니다.'), "its chip view says what comes next");
-  assert.ok(one.includes(`<a class="btn ghost" href="/projects/${e1.projectId}/new-story">새 Story</a>`));
+  assert.ok(one.includes(`<a class="btn add" href="/projects/${e1.projectId}/new-story">새 Story</a>`));
   const tasks = (await h.get("/tasks?cancelled=1", h.pl)).text;
   assert.ok(tasks.includes(`<a href="/tasks?cancelled=1&project=${e2.projectId}">빈 둘</a>`), "on the Task board the line keeps its board and filters");
   assert.ok(!(await h.get("/?mine=1", h.c)).text.includes('class="quiet"'), "내 Story만 leaves out projects with nothing of mine, as before");
@@ -950,7 +978,9 @@ test("chips wrap on a phone and every new target is 44px (D44)", async (t) => {
   const h = await team(t);
   const style = /<style>([\s\S]*?)<\/style>/.exec((await h.get("/", h.c)).text)[1];
   assert.match(style, /\.chips\{[^}]*flex-wrap:wrap/, "chips wrap instead of sliding sideways");
-  for (const sel of ["\\.chips a", "\\.needs a", "\\.quiet a"]) assert.match(style, new RegExp(`${sel}\\{[^}]*min-height:44px`), sel);
+  for (const sel of ["\\.needs a", "\\.quiet a"]) assert.match(style, new RegExp(`${sel}\\{[^}]*min-height:44px`), sel);
+  assert.match(style, /\.chips a\{[^}]*min-height:36px/, "a chip is 36px with a mouse");
+  assert.equal(px(ruleOf(style, ".chips a,.filter,.flabel", "@media (any-pointer:coarse)"), "min-height"), 44, "chips and toggles are 44px wherever a finger may touch, a touch laptop too");
   assert.match(style, /\.chips a\[aria-current=true\]\{/, "the chosen chip is marked");
   for (const sel of ["\\.chips a", "\\.quiet a", "\\.gwhy"]) assert.match(style, new RegExp(`${sel}(,[^{}]*)?\\{overflow-wrap:anywhere\\}`), `a long word breaks inside ${sel}`);
   assert.match(style, /\.needs li\{[^}]*grid-template-columns:minmax\(0,1fr\)/, "a waiting row never grows past the box");

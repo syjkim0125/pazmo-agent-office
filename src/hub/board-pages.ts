@@ -263,20 +263,26 @@ function chips(me: Member, base: Base, v: BoardView, f: Filters): string {
     const flag = p.stories.some((s) => counts(s).stopped) ? STOP_FLAG : p.stories.some((s) => s.state === "awaiting_g4") ? NEED_FLAG : "";
     return chip(p.project.id, p.project.name, n, flag);
   });
-  return `<nav class="chips" aria-label="프로젝트">${chip(null, "전체", all, "")}${each.join("")}</nav>`;
+  // The visible 프로젝트 label repeats the nav's name, so screen readers hear it once (from aria-label).
+  return `<div class="chiprow"><span class="flabel" aria-hidden="true">프로젝트</span><nav class="chips" aria-label="프로젝트">${chip(null, "전체", all, "")}${each.join("")}</nav></div>`;
 }
 
-/** The top of both boards: the heading, the two filters, 새 프로젝트, the tabs between the boards and the project chips. */
+/**
+ * The top of both boards, in two levels: the page line (the hidden heading, the tabs between the boards, which name
+ * the page, and 새 프로젝트 as the primary action) over the filter line (the project chips and the two toggles).
+ */
 function titlebar(me: Member, base: Base, v: BoardView, f: Filters): string {
   const toggle = (on: boolean, label: string, to: string) =>
     `<a class="filter"${on ? ' aria-current="true"' : ""} href="${to}">${label}${on ? " · 켜짐" : ""}</a>`;
   const tab = (at: Base, label: string) => `<a href="${boardHref(at, f)}"${at === base ? ' aria-current="page"' : ""}>${label}</a>`;
   const filters = `${toggle(f.mine, "내 Story만", boardHref(base, { ...f, mine: !f.mine }))}${toggle(f.cancelled, "취소한 것도 보기", boardHref(base, { ...f, cancelled: !f.cancelled }))}`;
-  return `<section class="titlebar"><div class="toggles"><h1>${base === "/" ? "Story 보드" : "모든 Task"}</h1>${filters}${v.canCreateProject ? '<a class="btn ghost" href="/projects/new">새 프로젝트</a>' : ""}</div><nav class="tabs" aria-label="보드 보기">${tab("/", "Story 보드")}${tab("/tasks", "모든 Task")}</nav>${chips(me, base, v, f)}</section>`;
+  const create = v.canCreateProject ? '<a class="btn add" href="/projects/new">새 프로젝트</a>' : "";
+  const page = `<div class="viewbar"><h1>${base === "/" ? "Story 보드" : "모든 Task"}</h1><nav class="tabs" aria-label="보드 보기">${tab("/", "Story 보드")}${tab("/tasks", "모든 Task")}</nav>${create}</div>`;
+  return `<section class="titlebar">${page}<div class="toggles">${chips(me, base, v, f)}<div class="fopts">${filters}</div></div></section>`;
 }
 
 /**
- * Each shown project (the chosen chip's, or all) with its heading, 새 Story, repos and `body`. A project with nothing
+ * Each shown project (the chosen chip's, or all) with its 프로젝트 label, heading, 새 Story, repos and `body`. A project with nothing
  * under 내 Story만 is left out; on 전체 with chips, a project with no Story is only a name on one line that leads to its
  * chip view, where it says what comes next (D44).
  */
@@ -295,13 +301,13 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
         }
       }
       const canPlan = v.canPlan.has(p.project.id);
-      const start = canPlan ? `<a class="btn ghost" href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
+      const start = canPlan ? `<a class="btn add" href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
       const repos = p.project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
       const empty = canPlan ? "아직 Story가 없습니다. [새 Story]로 시작하세요." : "아직 Story가 없습니다.";
       // U53: who posts a Story, behind an i for a member who cannot.
       const who = canPlan ? "" : info(`info-empty-${p.project.id}`, "Story를 올리는 사람", "이 프로젝트의 레포를 모두 맡은 사람이 Story를 올립니다.");
       const inner = p.stories.length || plans.length ? body(p, plans) : `<p class="empty">${say(empty)}${who}</p>`;
-      return `<section class="project"><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div><p class="muted">레포: ${repos}</p>${inner}</section>`;
+      return `<section class="project"><div class="phead"><p class="kind">프로젝트</p><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div></div><p class="muted">레포: ${repos}</p>${inner}</section>`;
     })
     .filter(Boolean);
   const line = quiet.length
