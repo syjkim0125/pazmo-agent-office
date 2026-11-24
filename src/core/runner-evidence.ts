@@ -8,7 +8,21 @@ export type RunnerRun = {
   sha256: string;
   model: string;
   reasoning: string | null;
+  /** The non-builtin claude plugins the person allowed for this run (M3); absent when none were. */
+  allowedPlugins?: string[];
 };
+type Row = RunnerRun & { at: number };
+const COLUMNS = "task_id AS taskId, role, runner, version, sha256, model, reasoning, allowed_plugins AS allowedPlugins, at";
+function row(r: Omit<Row, "allowedPlugins"> & { allowedPlugins: string | null }): Row {
+  const { allowedPlugins, ...rest } = r;
+  if (allowedPlugins === null) return rest;
+  try {
+    const list = JSON.parse(allowedPlugins);
+    return Array.isArray(list) ? { ...rest, allowedPlugins: list } : rest;
+  } catch {
+    return rest;
+  }
+}
 
 /** Append-only identity of the CLI that served each role run. */
 export class RunnerEvidence {
@@ -19,13 +33,20 @@ export class RunnerEvidence {
       id INTEGER PRIMARY KEY AUTOINCREMENT, task_id TEXT NOT NULL, role TEXT NOT NULL,
       runner TEXT NOT NULL, version TEXT NOT NULL, sha256 TEXT NOT NULL,
       model TEXT NOT NULL, reasoning TEXT, at INTEGER NOT NULL)`);
+    // Older databases: the column the allowed plugins went into later; their rows have none.
+    const columns = db.prepare("PRAGMA table_info(pazmo_runner_runs)").all() as { name: string }[];
+    if (!columns.some((c) => c.name === "allowed_plugins"))
+      db.exec("ALTER TABLE pazmo_runner_runs ADD COLUMN allowed_plugins TEXT");
   }
   record(r: RunnerRun) {
     this.#db
       .prepare(
-        "INSERT INTO pazmo_runner_runs (task_id,role,runner,version,sha256,model,reasoning,at) VALUES (?,?,?,?,?,?,?,?)",
+        "INSERT INTO pazmo_runner_runs (task_id,role,runner,version,sha256,model,reasoning,allowed_plugins,at) VALUES (?,?,?,?,?,?,?,?,?)",
       )
-      .run(r.taskId, r.role, r.runner, r.version, r.sha256, r.model, r.reasoning, Date.now());
+      .run(
+        r.taskId, r.role, r.runner, r.version, r.sha256, r.model, r.reasoning,
+        r.allowedPlugins?.length ? JSON.stringify(r.allowedPlugins) : null, Date.now(),
+      );
   }
   /** Runs for a report: the request itself and the subtasks published from it. */
   forRequest(rootId: string) {
@@ -34,18 +55,20 @@ export class RunnerEvidence {
       (c) => c.name === "source_task_id",
     );
     if (!linked) return this.list(rootId);
-    return this.#db
-      .prepare(
-        `SELECT task_id AS taskId, role, runner, version, sha256, model, reasoning, at FROM pazmo_runner_runs
+    return (
+      this.#db
+        .prepare(
+          `SELECT ${COLUMNS} FROM pazmo_runner_runs
          WHERE task_id=? OR task_id IN (SELECT id FROM tasks WHERE source_task_id=?) ORDER BY id`,
-      )
-      .all(rootId, rootId) as (RunnerRun & { at: number })[];
+        )
+        .all(rootId, rootId) as Parameters<typeof row>[0][]
+    ).map(row);
   }
   list(taskId: string) {
-    return this.#db
-      .prepare(
-        "SELECT task_id AS taskId, role, runner, version, sha256, model, reasoning, at FROM pazmo_runner_runs WHERE task_id=? ORDER BY id",
-      )
-      .all(taskId) as (RunnerRun & { at: number })[];
+    return (
+      this.#db
+        .prepare(`SELECT ${COLUMNS} FROM pazmo_runner_runs WHERE task_id=? ORDER BY id`)
+        .all(taskId) as Parameters<typeof row>[0][]
+    ).map(row);
   }
 }

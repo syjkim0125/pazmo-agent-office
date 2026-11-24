@@ -32,6 +32,8 @@ export type FixtureInput = {
   /** Marker text present in the candidate's README.md. */
   candidateMarker: string;
   timeoutMs?: number;
+  /** The non-builtin claude plugins the person allowed, as the live run gets them: the same init check (D4). */
+  allowedPlugins?: string[];
 };
 
 const CANARY = "PAZMO_USER_CONFIG_CANARY_DO_NOT_INJECT";
@@ -327,6 +329,7 @@ export async function qualifyClaudeFixture(
         timeoutMs: i.timeoutMs ?? 180000,
         openExecutor: i.openExecutor,
         mode: "fixture",
+        ...(i.allowedPlugins?.length ? { allowedPlugins: i.allowedPlugins } : {}),
         env: {
           ANTHROPIC_BASE_URL: `http://127.0.0.1:${port}`,
           ANTHROPIC_API_KEY: "pazmo-local-fixture-not-a-key",

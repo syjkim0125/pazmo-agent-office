@@ -333,6 +333,7 @@ async function prepareMachine(
     socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
     userHome: homedir(),
     searchPath: process.env.PATH ?? "",
+    dataRoot: dataRoot(options.dataDir),
     ...(options.codexRuntime ? { codexRuntime: options.codexRuntime } : {}),
   };
 }

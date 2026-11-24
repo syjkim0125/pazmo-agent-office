@@ -92,6 +92,9 @@ function runnerFailure(stdout: unknown): string | null {
     "turn failed before any plan output"
   );
 }
+/** Office's own reason for a stop (CommandResult.detail) as one bounded line. */
+const stopReason = (value: unknown) =>
+  typeof value === "string" ? value.replace(/[\s\x00-\x1f\x7f]+/g, " ").trim().slice(0, 160) : "";
 const token = (value: unknown) =>
   typeof value === "string" && /^[A-Za-z0-9_.-]{1,40}$/.test(value)
     ? value
@@ -628,6 +631,10 @@ export function reportOf(
     const runner = runnerFailure(r.stdout);
     // A turn the controller stopped itself (a refused init, a hook) has an emptied output and its reason in `error`,
     // an Office-authored code: name it, or the person sees only "turn failed".
+    // With Office's own reason for the stop (a refused plugin: which, why, how to allow it), that reason is what
+    // the person needs, so it comes right after the code and the exit is left out to keep it within the limit.
+    if (runner && r.error && stopReason(r.detail))
+      throw new PlanningInvalid(`runner: error=${token(r.error)}; ${stopReason(r.detail)}`, "runner");
     if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}${r.error ? `; error=${token(r.error)}` : ""}`, "runner");
     if (r.exitCode !== 0 || r.signal) invalid(exit);
     if (r.error) invalid(`error=${token(r.error)}`);

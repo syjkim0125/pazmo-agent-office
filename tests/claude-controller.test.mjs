@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { claudeJob } from "../src/runners/claude-controller.ts";
@@ -101,6 +101,35 @@ for (const [mode, code] of [
     assert.equal(terminalReport(result.stdout, ["report"]), null);
   });
 }
+
+test("a plugin not on the person's list stops claude, and the result says which and how to allow it (M2)", async () => {
+  const fx = setup("plugin");
+  const { closed, result } = await run(claudeJob(fx.options, "Bounded task"));
+  assert.equal(result.error, "CLAUDE_PLUGIN_UNEXPECTED");
+  assert.match(result.detail, /a@m/);
+  assert.match(result.detail, /pazmo-office runner allow-plugin a@m/);
+  assert.equal(closed, true);
+  assert.equal(terminalReport(result.stdout, ["report"]), null);
+});
+
+test("an allowed skill-only plugin lets the run go on (M2)", async () => {
+  const fx = setup("plugin");
+  // The plugin registered in the run's home the way Claude Code registers it.
+  const dir = join(fx.root, ".claude/plugins/cache/m/a/1.0.0");
+  mkdirSync(join(dir, "skills/s"), { recursive: true });
+  writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\n---\n");
+  writeFileSync(join(fx.root, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "a@m": [{ installPath: dir }] } }));
+  const { result } = await run(claudeJob({ ...fx.options, allowedPlugins: ["a@m"] }, "Bounded task: summarise README"));
+  assert.equal(result.error, null);
+  assert.equal(result.detail, undefined);
+  assert.ok(terminalReport(result.stdout, ["report"]));
+  // The same plugin with a hook folder added later is refused again.
+  mkdirSync(join(dir, "hooks"));
+  writeFileSync(join(dir, "hooks/hooks.json"), "{}");
+  const again = await run(claudeJob({ ...fx.options, allowedPlugins: ["a@m"] }, "Bounded task"));
+  assert.equal(again.result.error, "CLAUDE_PLUGIN_UNEXPECTED");
+  assert.match(again.result.detail, /a@m.*hooks/);
+});
 
 test("multi-byte text split across output chunks stays intact", async () => {
   const fx = setup("split-utf8");

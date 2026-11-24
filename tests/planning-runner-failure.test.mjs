@@ -62,6 +62,17 @@ test("a turn Office itself stopped names Office's stop code, so the person can s
   assert.equal(error.detail, "runner: turn failed before any plan output; exitCode=null; error=CLAUDE_TOOLS_UNEXPECTED");
 });
 
+test("a turn Office stopped with a reason names the reason, so the person can act on it (M4)", () => {
+  const detail = "a@m: 허용 목록에 없음 → pazmo-office runner allow-plugin a@m";
+  const stopped = { closed: true, result: { exitCode: null, signal: "SIGKILL", error: "CLAUDE_PLUGIN_UNEXPECTED", detail, timedOut: false, stderr: "", stdout: lines({ type: "turn.started" }, { type: "turn.failed" }) } };
+  const error = rejection(() => acceptPlanning(pm(), stopped));
+  assert.equal(error.origin, "runner");
+  assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
+  // One bounded line, whatever the reason holds.
+  const long = rejection(() => acceptPlanning(pm(), { ...stopped, result: { ...stopped.result, detail: "x\n".repeat(300) } }));
+  assert.ok(long.detail.length <= 200 && !long.detail.includes("\n"), long.detail);
+});
+
 test("a known runner message is recognized only as a turn's sole output", () => {
   // A plan-shaped report means the model ran: keep the output classification.
   const p = pm(),

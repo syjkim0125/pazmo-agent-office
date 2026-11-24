@@ -39,7 +39,8 @@ emit({
   subtype: "init",
   tools: mode === "extra-tool" ? [...listed, "Bash"] : listed,
   mcp_servers: [{ name: "office", status: "connected" }],
-  plugins: [{ name: "telemetry", source: "telemetry@builtin" }],
+  // "plugin": a non-builtin plugin, as one an organization's managed settings turn on.
+  plugins: [{ name: "telemetry", source: "telemetry@builtin" }, ...(mode === "plugin" ? [{ name: "a", source: "a@m" }] : [])],
   skills: [],
   slash_commands: [],
   apiKeySource: mode === "api-key" ? "ANTHROPIC_API_KEY" : "none",

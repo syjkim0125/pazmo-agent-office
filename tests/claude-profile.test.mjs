@@ -90,6 +90,23 @@ test("init guard accepts only the Office bridge on a subscription login", () => 
   for (const [event, code] of cases) assert.equal(checkClaudeInit(event, "live"), code);
 });
 
+test("the plugin rule follows the person's list; every other check and its order is kept", async () => {
+  const { claudeInitProblem } = await import("../src/runners/claude-profile.ts");
+  const withPlugin = { ...goodInit, plugins: [...goodInit.plugins, { name: "a", source: "a@m" }] };
+  // Without a list, as before, now with the reason.
+  const refused = claudeInitProblem(withPlugin, "live");
+  assert.equal(refused.code, "CLAUDE_PLUGIN_UNEXPECTED");
+  assert.match(refused.detail, /a@m/);
+  assert.match(refused.detail, /pazmo-office runner allow-plugin a@m/);
+  assert.equal(checkClaudeInit(withPlugin, "live", { allowed: [], home: "/nonexistent" }), "CLAUDE_PLUGIN_UNEXPECTED");
+  // On the list but its install cannot be checked: still refused.
+  assert.equal(checkClaudeInit(withPlugin, "live", { allowed: ["a@m"], home: "/nonexistent" }), "CLAUDE_PLUGIN_UNEXPECTED");
+  // Earlier checks still come first, later ones still apply.
+  assert.equal(checkClaudeInit({ ...withPlugin, tools: ["Bash"] }, "live"), "CLAUDE_TOOLS_UNEXPECTED");
+  assert.equal(claudeInitProblem(goodInit, "live"), null);
+  assert.deepEqual(claudeInitProblem({ ...goodInit, skills: ["x"] }, "live"), { code: "CLAUDE_SKILL_UNEXPECTED" });
+});
+
 test("hook lifecycle events are recognised", () => {
   assert.equal(isHookEvent({ type: "system", subtype: "hook_started" }), true);
   assert.equal(isHookEvent({ type: "system", subtype: "hook_response" }), true);

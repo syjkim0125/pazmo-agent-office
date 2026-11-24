@@ -6,11 +6,12 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyControllerBinary } from "./codex-profile.ts";
 import {
-  checkClaudeInit,
+  claudeInitProblem,
   claudeProfile,
   isHookEvent,
   normalizeClaudeStream,
 } from "./claude-profile.ts";
+import type { ClaudePlugins } from "./claude-profile.ts";
 import { openExecRelay } from "./exec-relay.ts";
 import { signalGroup, type CommandResult } from "./command.ts";
 import type { RemoteJob } from "./remote-job.ts";
@@ -45,6 +46,7 @@ function runClaude(
     timeoutMs: number;
     signal: AbortSignal;
     mode: "live" | "fixture";
+    plugins: ClaudePlugins;
   },
 ): Promise<{ exited: boolean; result: CommandResult }> {
   return new Promise((resolve) => {
@@ -58,6 +60,7 @@ function runClaude(
       stderr = "",
       pending = "",
       error: string | null = null,
+      detail: string | undefined,
       sawInit = false,
       timedOut = false,
       stopping: NodeJS.Timeout | undefined;
@@ -121,8 +124,13 @@ function runClaude(
         if (error) continue;
         if (!sawInit && event?.type === "system" && event.subtype === "init") {
           sawInit = true;
-          const problem = checkClaudeInit(event, o.mode);
-          if (problem) return stop(problem);
+          const problem = claudeInitProblem(event, o.mode, o.plugins);
+          if (problem) {
+            // Office's own words (plugin names, items, the allow command): the person reads them (M2, M4).
+            detail = problem.detail;
+            if (detail) console.error(`claude stopped at init: ${problem.code}: ${detail}`);
+            return stop(problem.code);
+          }
         } else if (!sawInit && event?.type !== "system")
           return stop("CLAUDE_INIT_MISSING");
       }
@@ -141,7 +149,7 @@ function runClaude(
         error = "MISSING_TURN_COMPLETION";
       resolve({
         exited: true,
-        result: { exitCode, signal, stdout, stderr, timedOut, error },
+        result: { exitCode, signal, stdout, stderr, timedOut, error, ...(error && detail ? { detail } : {}) },
       });
     });
     child.stdin.end(o.prompt);
@@ -160,6 +168,8 @@ export function claudeJob(
     mode?: "live" | "fixture";
     /** Fixture-only additions (fake API endpoint); refused for live runs. */
     env?: NodeJS.ProcessEnv;
+    /** The non-builtin plugins the person allowed on this Mac, read for this run; checked in `home`'s claude. */
+    allowedPlugins?: string[];
   },
   prompt: string,
 ): RemoteJob {
@@ -169,7 +179,9 @@ export function claudeJob(
     Buffer.byteLength(prompt) > 128 * 1024 ||
     !Number.isSafeInteger(options.timeoutMs) ||
     options.timeoutMs < 1 ||
-    (mode === "live" && options.env)
+    (mode === "live" && options.env) ||
+    (options.allowedPlugins !== undefined &&
+      (!Array.isArray(options.allowedPlugins) || !options.allowedPlugins.every((p) => typeof p === "string")))
   )
     throw new Error("INVALID_CLAUDE_JOB");
   return {
@@ -210,6 +222,7 @@ export function claudeJob(
           timeoutMs,
           signal: AbortSignal.any([signal, failure.signal]),
           mode,
+          plugins: { allowed: options.allowedPlugins ?? [], home: options.home },
         });
       } finally {
         closed = (await relay?.close()) ?? true;
@@ -220,8 +233,11 @@ export function claudeJob(
       let result = run.result;
       // A transport failure is the cause of any abort it triggered.
       const transport = relay?.failure();
-      if (transport)
-        result = { ...result, error: transport, stdout: normalizeClaudeStream("") };
+      // An init refusal's reason explains that refusal only.
+      if (transport) {
+        const { detail: _refusal, ...rest } = result;
+        result = { ...rest, error: transport, stdout: normalizeClaudeStream("") };
+      }
       return { closed, result };
     },
   };
