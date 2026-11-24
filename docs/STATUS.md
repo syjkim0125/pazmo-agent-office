@@ -1,3 +1,15 @@
+# 2026-11-24 조직이 켠 claude 플러그인은 사람이 허용한 것만 통과합니다 ([Story](stories/office-org-managed-plugins.md))
+
+- 조직 관리 설정으로 켜진 claude 플러그인은 `--setting-sources ""`로 꺼지지 않습니다. 그래서 그런 Mac에서는 Office의 claude 실행이 모두 `CLAUDE_PLUGIN_UNEXPECTED`로 멈췄습니다.
+- 이제 `<데이터 폴더>/allowed-claude-plugins.json`에 사람이 넣은 플러그인만 init 검사를 통과합니다(`runner allow-plugin`, `disallow-plugin`, `plugins`).
+  - 실제로 실린 폴더나 마켓 항목에 hook·MCP 서버·agent·command가 있으면 허용해도 막힙니다.
+  - 막힌 이유와 허용 명령(다른 데이터 폴더면 `--data-dir` 포함)이 기획·작업 화면에 나옵니다.
+  - 실행 기록(`pazmo_runner_runs.allowed_plugins`)에 그때의 허용 목록이 남습니다.
+- 진행 기록은 최근 3줄만 보이고 "이전 기록 n개 보기"로 펼칩니다(작은 변경).
+- **확인:** QA 스크립트 `qa/office-org-managed-plugins.sh` 15/15, 전체 시험 016fbca에서 2106/2106(Node 24), 타입 검사 exit 0. 3단계 Q3·Q4의 live 실행이 허용한 플러그인으로 통과했습니다. 리뷰에서 나온 5건을 고쳤습니다.
+- **남은 것:** 기록에는 실제로 실린 플러그인이 아니라 허용 목록을 남깁니다(허용 밖은 막히므로 실린 것은 그 안에 있음). hook이 든 진짜 플러그인으로는 확인하지 않았고, 가짜 플러그인 폴더로만 봤습니다.
+- **승인:** 사용자가 2026-11-24 보고를 본 뒤 "승인 후 머지"를 골랐습니다.
+
 # 2026-11-24 Office가 kit 실행기 없이 자기 기록으로 일합니다 (3단계, [Story](stories/office-engine-without-kit.md))
 
 - Office의 기획(PM·Lead)과, 구현이 있는 모든 작업(팀 Task 포함)의 구현 → 검사 → 리뷰가 Office 기록만으로 돕니다.
