@@ -93,11 +93,12 @@ test("init guard accepts only the Office bridge on a subscription login", () => 
 test("the plugin rule follows the person's list; every other check and its order is kept", async () => {
   const { claudeInitProblem } = await import("../src/runners/claude-profile.ts");
   const withPlugin = { ...goodInit, plugins: [...goodInit.plugins, { name: "a", source: "a@m" }] };
-  // Without a list, as before, now with the reason.
+  // Without a list, as before, now with the reason: an install that cannot be found is refused as such, with no
+  // allow command that could not help (tests/claude-plugins.test.mjs has the command for an installed plugin).
   const refused = claudeInitProblem(withPlugin, "live");
   assert.equal(refused.code, "CLAUDE_PLUGIN_UNEXPECTED");
-  assert.match(refused.detail, /a@m/);
-  assert.match(refused.detail, /pazmo-office runner allow-plugin a@m/);
+  assert.match(refused.detail, /a@m: 설치 폴더를 찾지 못함/);
+  assert.doesNotMatch(refused.detail, /allow-plugin/);
   assert.equal(checkClaudeInit(withPlugin, "live", { allowed: [], home: "/nonexistent" }), "CLAUDE_PLUGIN_UNEXPECTED");
   // On the list but its install cannot be checked: still refused.
   assert.equal(checkClaudeInit(withPlugin, "live", { allowed: ["a@m"], home: "/nonexistent" }), "CLAUDE_PLUGIN_UNEXPECTED");

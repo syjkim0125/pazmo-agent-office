@@ -149,13 +149,22 @@ async function inspect(
   };
 }
 
-/** Trusted startup discovery. The first native match per runner wins. */
-export async function discoverRunners(o: {
+type DiscoveryOptions = {
   pathEnv: string;
   home: string;
   extraDirs?: string[];
   run?: typeof runCommand;
-}): Promise<Record<RunnerName, RunnerInstall>> {
+};
+
+/** Trusted startup discovery. The first native match per runner wins. */
+export async function discoverRunners(o: DiscoveryOptions): Promise<Record<RunnerName, RunnerInstall>> {
+  const result = {} as Record<RunnerName, RunnerInstall>;
+  for (const runner of ["codex", "claude"] as const) result[runner] = await discoverRunner(runner, o);
+  return result;
+}
+
+/** One runner's discovery, as `discoverRunners` does it for each. */
+export async function discoverRunner(runner: RunnerName, o: DiscoveryOptions): Promise<RunnerInstall> {
   const dirs = [
     ...o.pathEnv.split(":").filter(Boolean),
     ...(o.extraDirs ??
@@ -163,20 +172,16 @@ export async function discoverRunners(o: {
         .map((d) => join(o.home, d))
         .concat(["/opt/homebrew/bin", "/usr/local/bin"])),
   ];
-  const result = {} as Record<RunnerName, RunnerInstall>;
-  for (const runner of ["codex", "claude"] as const) {
-    const found = dirs.map((d) => join(d, runner)).filter((p) => existsSync(p));
-    const native = found.map(nativeBinary).find((p): p is string => !!p);
-    result[runner] = native
-      ? await inspect(runner, native, o.home, o.run ?? runCommand)
-      : {
-          runner,
-          status: found.length ? "unsupported" : "missing",
-          loggedIn: false,
-          hint: found.length
-            ? `${runner} 설치본을 실행 파일로 확인할 수 없습니다. 네이티브 설치본만 지원합니다.`
-            : hints[runner].missing,
-        };
-  }
-  return result;
+  const found = dirs.map((d) => join(d, runner)).filter((p) => existsSync(p));
+  const native = found.map(nativeBinary).find((p): p is string => !!p);
+  return native
+    ? await inspect(runner, native, o.home, o.run ?? runCommand)
+    : {
+        runner,
+        status: found.length ? "unsupported" : "missing",
+        loggedIn: false,
+        hint: found.length
+          ? `${runner} 설치본을 실행 파일로 확인할 수 없습니다. 네이티브 설치본만 지원합니다.`
+          : hints[runner].missing,
+      };
 }

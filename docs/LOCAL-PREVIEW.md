@@ -132,7 +132,12 @@ curl -fsSL https://<허브 주소>/install.sh | sh
 2. `node@24`, `git`, `gh`, `colima`, `docker` 중 없는 것을 `brew install`로 설치하고, `claude`가 없으면 Claude Code를 설치한다.
 3. Office를 `~/.pazmo/office`에 받고(이미 있으면 새 버전으로) 의존성을 설치한다.
 4. GitHub 로그인이 없으면 브라우저로 로그인하고, Claude 로그인이 없으면 로그인한다.
-5. `mac connect --hub <허브 주소>`를 실행한다.
+5. **회사 플러그인 확인**(`runner plugins --review`):
+   - 이 Mac의 claude를 Office와 같은 방식으로 init까지만 띄워(모델은 부르지 않는다), 조직 관리 설정 등으로 실리는 내장 밖 플러그인을 찾는다.
+   - skill만 있는 플러그인은 하나씩 "Office에서 이 플러그인을 허용할까요? [y/N]"로 묻고, `y`일 때만 허용 목록에 넣는다. 그냥 Enter는 허용하지 않는다.
+   - hook·MCP 서버·agent·command가 있는 플러그인은 묻지 않고 이유를 보인다. 그런 플러그인이 실리는 동안 그 Mac에서는 Office의 claude 역할이 멈춘다. 그래도 설치는 이어 간다.
+   - claude를 찾지 못하거나 init을 받지 못하면 그렇다고만 말하고 넘어간다. 같은 확인은 나중에 언제든 다시 돌릴 수 있다.
+6. `mac connect --hub <허브 주소>`를 실행한다.
 
 **허용 화면에서 확인할 것**
 

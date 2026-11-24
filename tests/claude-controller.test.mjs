@@ -102,12 +102,26 @@ for (const [mode, code] of [
   });
 }
 
+/** The fake's plugin a@m registered in the run's home the way Claude Code registers it; its install folder. */
+function registerPlugin(fx) {
+  const dir = join(fx.root, ".claude/plugins/cache/m/a/1.0.0");
+  mkdirSync(join(dir, "skills/s"), { recursive: true });
+  writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\n---\n");
+  writeFileSync(join(fx.root, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "a@m": [{ installPath: dir }] } }));
+  const market = join(fx.root, ".claude/plugins/marketplaces/m");
+  mkdirSync(join(market, ".claude-plugin"), { recursive: true });
+  writeFileSync(join(market, ".claude-plugin/marketplace.json"), JSON.stringify({ name: "m", plugins: [{ name: "a", source: "./a" }] }));
+  writeFileSync(join(fx.root, ".claude/plugins/known_marketplaces.json"), JSON.stringify({ m: { installLocation: market } }));
+  return dir;
+}
+
 test("a plugin not on the person's list stops claude, and the result says which and how to allow it (M2)", async () => {
   const fx = setup("plugin");
+  registerPlugin(fx);
   const { closed, result } = await run(claudeJob(fx.options, "Bounded task"));
   assert.equal(result.error, "CLAUDE_PLUGIN_UNEXPECTED");
   assert.match(result.detail, /a@m/);
-  assert.match(result.detail, /pazmo-office runner allow-plugin a@m/);
+  assert.match(result.detail, /pazmo-office\.mjs runner allow-plugin a@m/);
   assert.equal(closed, true);
   assert.equal(terminalReport(result.stdout, ["report"]), null);
   // An Office on another data folder names it, so the command allows it there.
@@ -117,15 +131,7 @@ test("a plugin not on the person's list stops claude, and the result says which 
 
 test("an allowed skill-only plugin lets the run go on (M2)", async () => {
   const fx = setup("plugin");
-  // The plugin registered in the run's home the way Claude Code registers it.
-  const dir = join(fx.root, ".claude/plugins/cache/m/a/1.0.0");
-  mkdirSync(join(dir, "skills/s"), { recursive: true });
-  writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\n---\n");
-  writeFileSync(join(fx.root, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "a@m": [{ installPath: dir }] } }));
-  const market = join(fx.root, ".claude/plugins/marketplaces/m");
-  mkdirSync(join(market, ".claude-plugin"), { recursive: true });
-  writeFileSync(join(market, ".claude-plugin/marketplace.json"), JSON.stringify({ name: "m", plugins: [{ name: "a", source: "./a" }] }));
-  writeFileSync(join(fx.root, ".claude/plugins/known_marketplaces.json"), JSON.stringify({ m: { installLocation: market } }));
+  const dir = registerPlugin(fx);
   const { result } = await run(claudeJob({ ...fx.options, allowedPlugins: ["a@m"] }, "Bounded task: summarise README"));
   assert.equal(result.error, null);
   assert.equal(result.detail, undefined);
