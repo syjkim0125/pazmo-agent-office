@@ -216,7 +216,7 @@ export function home(
 
 /** What a Story waiting for its result approval needs, said to its PL above the 결과 승인 card (D49). */
 export const AWAITING_G4 = "모든 Task가 끝났습니다. 아래 결과 승인 칸에서 확인하고 승인하세요.";
-/** The same, in the PL's 기다리는 일 box of the board (another page). */
+/** The same, in the PL's 확인할 것 box of the board (another page). */
 export const AWAITING_G4_BOARD = "모든 Task가 끝났습니다. Story 화면에서 결과를 확인하고 승인하세요.";
 /** The same, said to everyone else. */
 export const AWAITING_OTHERS = "모든 Task가 끝났습니다. PL이 결과를 승인하면 레포마다 기준 브랜치에 머지됩니다.";
