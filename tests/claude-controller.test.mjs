@@ -110,6 +110,9 @@ test("a plugin not on the person's list stops claude, and the result says which 
   assert.match(result.detail, /pazmo-office runner allow-plugin a@m/);
   assert.equal(closed, true);
   assert.equal(terminalReport(result.stdout, ["report"]), null);
+  // An Office on another data folder names it, so the command allows it there.
+  const named = await run(claudeJob({ ...fx.options, pluginDataDir: "/Users/u/qa-data" }, "Bounded task"));
+  assert.match(named.result.detail, /allow-plugin a@m --data-dir \/Users\/u\/qa-data$/);
 });
 
 test("an allowed skill-only plugin lets the run go on (M2)", async () => {
@@ -119,6 +122,10 @@ test("an allowed skill-only plugin lets the run go on (M2)", async () => {
   mkdirSync(join(dir, "skills/s"), { recursive: true });
   writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\n---\n");
   writeFileSync(join(fx.root, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "a@m": [{ installPath: dir }] } }));
+  const market = join(fx.root, ".claude/plugins/marketplaces/m");
+  mkdirSync(join(market, ".claude-plugin"), { recursive: true });
+  writeFileSync(join(market, ".claude-plugin/marketplace.json"), JSON.stringify({ name: "m", plugins: [{ name: "a", source: "./a" }] }));
+  writeFileSync(join(fx.root, ".claude/plugins/known_marketplaces.json"), JSON.stringify({ m: { installLocation: market } }));
   const { result } = await run(claudeJob({ ...fx.options, allowedPlugins: ["a@m"] }, "Bounded task: summarise README"));
   assert.equal(result.error, null);
   assert.equal(result.detail, undefined);

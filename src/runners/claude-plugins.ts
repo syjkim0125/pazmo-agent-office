@@ -84,6 +84,12 @@ export function disallowPlugin(root: string, source: string): string[] {
 
 /** plugin.json keys that only describe the plugin; any other key may add something that runs. */
 const DESCRIPTIVE = new Set(["name", "version", "description", "author", "keywords", "homepage", "repository", "license"]);
+/** A marketplace entry's keys that only say where the plugin comes from and describe it. Any other key (hooks,
+ * mcpServers, commands, agents, ...) is a component claude loads with the plugin; `strict: false` lets the entry
+ * alone define the plugin. */
+const ENTRY_KEYS = new Set([
+  "name", "source", "description", "version", "author", "homepage", "repository", "license", "keywords", "category", "tags",
+]);
 /** Entries a skill-only plugin may hold below its install folder. */
 const ENTRY_LIMIT = 10000;
 const itemName = (name: string) => (/^[A-Za-z0-9._-]{1,64}$/.test(name) ? name : "(이름 표시 불가)");
@@ -92,11 +98,12 @@ const within = (parent: string, child: string) => {
   const r = relative(parent, child);
   return r !== "" && !r.startsWith(`..${sep}`) && r !== ".." && !isAbsolute(r);
 };
+const readJson = (path: string): unknown => JSON.parse(readFileSync(path, "utf8"));
 
 /** The install folders `installed_plugins.json` under `home` registers for `source`, or null when none can be read. */
 function installPaths(source: string, home: string): string[] | null {
   try {
-    const registry = JSON.parse(readFileSync(join(home, ".claude/plugins/installed_plugins.json"), "utf8"));
+    const registry = readJson(join(home, ".claude/plugins/installed_plugins.json")) as { plugins?: Record<string, unknown> };
     const entries = registry?.plugins?.[source];
     if (!Array.isArray(entries) || !entries.length) return null;
     const paths = entries.map((e: { installPath?: unknown }) => e?.installPath);
@@ -106,7 +113,36 @@ function installPaths(source: string, home: string): string[] | null {
   }
 }
 
-/** What in one install folder could step into a run (D3): its names, or null when it holds only skills, descriptive
+/** The folder claude loaded the plugin from, checked: its init `path`, a real folder (not a symlink) inside
+ * `<home>/.claude/plugins/cache`, and one of the folders the registry has for the source. An init item without a
+ * `path` (older CLIs, the fixed QA script's fakes) falls back to the registry, only when it has exactly one folder. */
+function loadedFolder(path: unknown, source: string, home: string): string | { problem: string } {
+  const missing = { problem: "설치 폴더를 찾지 못함" };
+  const registered = installPaths(source, home);
+  if (!registered) return missing;
+  if (path === undefined && registered.length !== 1) return missing;
+  const folder = path === undefined ? registered[0] : path;
+  if (typeof folder !== "string" || !isAbsolute(folder)) return missing;
+  try {
+    const cache = join(realpathSync(home), ".claude/plugins/cache");
+    const info = lstatSync(folder);
+    if (info.isSymbolicLink() || !info.isDirectory()) return missing;
+    const real = realpathSync(folder);
+    if (!within(cache, real)) return { problem: "설치 폴더가 플러그인 캐시 밖에 있음" };
+    const known = registered.some((p) => {
+      try {
+        return realpathSync(p) === real;
+      } catch {
+        return false;
+      }
+    });
+    return known ? real : { problem: "불러온 폴더가 설치 기록과 다름" };
+  } catch {
+    return missing;
+  }
+}
+
+/** What in one install folder could step into a run (D3): its names, or none when it holds only skills, descriptive
  * files and the cache marker. Never reads more of a file than plugin.json's keys. */
 function intrusions(dir: string): string[] {
   const found: string[] = [];
@@ -134,7 +170,7 @@ function intrusions(dir: string): string[] {
         }
         let manifest: unknown;
         try {
-          manifest = JSON.parse(readFileSync(join(path, inner.name), "utf8"));
+          manifest = readJson(join(path, inner.name));
         } catch {
           manifest = null;
         }
@@ -146,54 +182,96 @@ function intrusions(dir: string): string[] {
   return found;
 }
 
-/** Why an allowed plugin's install cannot pass D3, or null when every registered install holds only what may pass. */
-function contentProblem(source: string, home: string): string | null {
-  const paths = installPaths(source, home);
-  if (!paths) return "설치 폴더를 찾지 못함";
-  let root: string;
+/** The plugin's entry in its marketplace's `marketplace.json` (`known_marketplaces.json` → `installLocation`, inside
+ * `<home>/.claude/plugins`): claude loads the components an entry declares with the plugin. Its items beyond the
+ * descriptive keys, a reason it cannot be read, or none. `required` is false only for an init item without a `path`
+ * (see loadedFolder): then a marketplace that is nowhere on disk can add nothing and is not required. */
+function marketplaceItems(source: string, home: string, required: boolean): string[] {
+  const at = source.lastIndexOf("@");
+  const name = source.slice(0, at),
+    market = source.slice(at + 1);
+  const plugins = join(home, ".claude/plugins");
+  let location: unknown;
   try {
-    root = realpathSync(home);
+    location = (readJson(join(plugins, "known_marketplaces.json")) as Record<string, { installLocation?: unknown }>)?.[market]
+      ?.installLocation;
   } catch {
-    return "설치 폴더를 찾지 못함";
+    location = undefined;
   }
-  const items = new Set<string>();
-  for (const path of paths) {
-    try {
-      if (lstatSync(path).isSymbolicLink() || !lstatSync(path).isDirectory()) return "설치 폴더를 찾지 못함";
-      if (!within(root, realpathSync(path))) return "설치 폴더가 홈 밖에 있음";
-      for (const item of intrusions(path)) items.add(item);
-    } catch {
-      return "설치 폴더를 읽지 못함";
-    }
+  const fallback = join(plugins, "marketplaces", market);
+  if (location === undefined && !required && !existsSync(fallback)) return [];
+  const folder = location ?? fallback;
+  let entry: unknown;
+  try {
+    if (typeof folder !== "string" || !isAbsolute(folder) || lstatSync(folder).isSymbolicLink())
+      return ["marketplace.json (찾지 못함)"];
+    const real = realpathSync(folder);
+    if (!within(realpathSync(plugins), real)) return ["marketplace.json (플러그인 폴더 밖에 있음)"];
+    const manifest = readJson(join(real, ".claude-plugin/marketplace.json")) as { plugins?: unknown };
+    entry = Array.isArray(manifest?.plugins)
+      ? manifest.plugins.find((p: { name?: unknown } | null) => p?.name === name)
+      : undefined;
+  } catch {
+    return ["marketplace.json (찾지 못함)"];
   }
-  return items.size ? `실행에 끼어들 수 있는 항목: ${[...items].join(", ")}` : null;
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) return ["marketplace.json (항목 없음)"];
+  const items: string[] = [];
+  for (const [key, value] of Object.entries(entry))
+    if (key === "strict" ? value !== true : !ENTRY_KEYS.has(key)) items.push(`marketplace.json ${itemName(key)}`);
+  return items;
+}
+
+/** Why an allowed plugin cannot pass D3, or null when the folder claude loaded and its marketplace entry hold only
+ * what may pass. */
+function contentProblem(plugin: { source: string; path?: unknown }, home: string): string | null {
+  const folder = loadedFolder(plugin.path, plugin.source, home);
+  if (typeof folder !== "string") return folder.problem;
+  let items: string[];
+  try {
+    items = intrusions(folder);
+  } catch {
+    return "설치 폴더를 읽지 못함";
+  }
+  items.push(...marketplaceItems(plugin.source, home, plugin.path !== undefined));
+  return items.length ? `실행에 끼어들 수 있는 항목: ${[...new Set(items)].join(", ")}` : null;
+}
+
+/** A path as one shell word. */
+const shellWord = (value: string) => (/^[A-Za-z0-9_./:@-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`);
+
+/** The command that allows `source` in the Office's data root; `dataDir` when that is not the default root. */
+export function allowCommand(source: string, dataDir?: string): string {
+  return `pazmo-office runner allow-plugin ${source}${dataDir ? ` --data-dir ${shellWord(dataDir)}` : ""}`;
 }
 
 /** Which non-builtin plugins a claude init event loaded may pass Office's boundary check: each one must be on the
  * person's list (`allowed`, exact) and hold nothing that could step into a run (D3). The refusal names every
- * offending plugin, why, and for one not on the list the exact command that allows it. */
+ * offending plugin and why, then, once each, the command that allows a plugin not on the list. */
 export function pluginVerdict(
   init: unknown,
-  o: { allowed: string[]; home: string },
+  o: { allowed: string[]; home: string; dataDir?: string },
 ): { ok: true; plugins: string[] } | { ok: false; detail: string } {
   const plugins = (init as { plugins?: unknown } | null)?.plugins;
   if (!Array.isArray(plugins)) return { ok: false, detail: "init에 플러그인 목록이 없음" };
   const passed: string[] = [],
-    problems: string[] = [];
+    problems: string[] = [],
+    unlisted: string[] = [];
+  let unnamed = false;
   for (const p of plugins) {
-    const source = (p as { source?: unknown } | null)?.source;
+    const { source, path } = (p ?? {}) as { source?: unknown; path?: unknown };
     if (typeof source === "string" && builtin(source)) continue;
-    if (!shown(source)) {
-      problems.push("이름을 표시할 수 없는 플러그인: 허용할 수 없음");
-      continue;
+    if (!shown(source)) unnamed = true;
+    else if (!o.allowed.includes(source)) {
+      if (!unlisted.includes(source)) unlisted.push(source);
+    } else {
+      const problem = contentProblem({ source, path }, o.home);
+      if (problem) problems.push(`${source}: ${problem}`);
+      else if (!passed.includes(source)) passed.push(source);
     }
-    if (!o.allowed.includes(source)) {
-      problems.push(`${source}: 허용 목록에 없음 → pazmo-office runner allow-plugin ${source}`);
-      continue;
-    }
-    const problem = contentProblem(source, o.home);
-    if (problem) problems.push(`${source}: ${problem}`);
-    else if (!passed.includes(source)) passed.push(source);
   }
+  if (unnamed) problems.push("이름을 표시할 수 없는 플러그인: 허용할 수 없음");
+  // Each source once, in its command.
+  if (unlisted.length)
+    problems.push(`허용 목록에 없음 → ${unlisted.map((s) => allowCommand(s, o.dataDir)).join("; ")}`);
   return problems.length ? { ok: false, detail: problems.join("; ") } : { ok: true, plugins: passed };
 }

@@ -180,3 +180,109 @@ test("runner plugins, allow-plugin and disallow-plugin through the CLI", (t) => 
   // Help names the commands.
   assert.match(spawnSync(process.execPath, [cli, "--help"], { encoding: "utf8" }).stdout, /runner allow-plugin/);
 });
+
+/** Registers marketplace `m` under `h` with these plugin entries, the way Claude Code keeps a marketplace. */
+function market(h, entries, m = "m") {
+  const dir = join(h, ".claude/plugins/marketplaces", m);
+  mkdirSync(join(dir, ".claude-plugin"), { recursive: true });
+  writeFileSync(join(dir, ".claude-plugin/marketplace.json"), JSON.stringify({ name: m, owner: { name: "o" }, plugins: entries }));
+  writeFileSync(join(h, ".claude/plugins/known_marketplaces.json"), JSON.stringify({ [m]: { source: { source: "git", url: "x" }, installLocation: dir } }));
+}
+const folder = (h, source) => {
+  const [name, m] = source.split("@");
+  return join(h, ".claude/plugins/cache", m, name, "1.0.0");
+};
+/** The init item as claude 2.1 prints it: with the folder it loaded. */
+const loaded = (h, ...sources) => ({
+  type: "system",
+  subtype: "init",
+  plugins: [...sources.map((source) => ({ name: source.split("@")[0], path: folder(h, source), source })), { name: "telemetry", source: "telemetry@builtin" }],
+});
+
+test("the folder claude loaded is the one checked: a registered real folder in the plugin cache", (t) => {
+  const h = home(t, { "a@m": {} });
+  market(h, [{ name: "a", source: "./a", description: "d" }]);
+  assert.deepEqual(pluginVerdict(loaded(h, "a@m"), { allowed: ["a@m"], home: h }), { ok: true, plugins: ["a@m"] });
+  const at = (path) => ({ type: "system", subtype: "init", plugins: [{ name: "a", source: "a@m", path }] });
+  // Not registered for the source, though clean and in the cache.
+  const other = join(h, ".claude/plugins/cache/m/a/2.0.0");
+  mkdirSync(join(other, "skills"), { recursive: true });
+  const r = pluginVerdict(at(other), { allowed: ["a@m"], home: h });
+  assert.equal(r.ok, false);
+  assert.match(r.detail, /a@m: 불러온 폴더가 설치 기록과 다름/);
+  // A symlink to the registered folder, a relative path, a folder outside the cache.
+  symlinkSync(folder(h, "a@m"), join(h, ".claude/plugins/cache/m/a/link"));
+  for (const path of [join(h, ".claude/plugins/cache/m/a/link"), "a/1.0.0", 3, join(h, "elsewhere")])
+    assert.equal(pluginVerdict(at(path), { allowed: ["a@m"], home: h }).ok, false, String(path));
+  const outside = join(h, "outside");
+  mkdirSync(join(outside, "skills"), { recursive: true });
+  writeFileSync(join(h, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "a@m": [{ installPath: outside }] } }));
+  assert.match(pluginVerdict(at(outside), { allowed: ["a@m"], home: h }).detail, /플러그인 캐시 밖/);
+});
+
+test("only the loaded folder's content counts; without a path the registry must name exactly one folder", (t) => {
+  const h = home(t, { "a@m": {}, "b@m": { "hooks/h.json": "{}" } });
+  market(h, [{ name: "a", source: "./a" }, { name: "b", source: "./b" }]);
+  const reg = JSON.parse(readFileSync(join(h, ".claude/plugins/installed_plugins.json"), "utf8"));
+  reg.plugins["a@m"].push(...reg.plugins["b@m"]);
+  writeFileSync(join(h, ".claude/plugins/installed_plugins.json"), JSON.stringify(reg));
+  // Loaded from the clean folder: the other registered one is not what runs.
+  assert.equal(pluginVerdict(loaded(h, "a@m"), { allowed: ["a@m"], home: h }).ok, true);
+  // No path and two folders: which one runs is unknown.
+  assert.match(pluginVerdict(init("a@m"), { allowed: ["a@m"], home: h }).detail, /a@m: 설치 폴더를 찾지 못함/);
+});
+
+test("an allowed plugin's marketplace entry may only describe it", (t) => {
+  for (const [entry, item] of [
+    [{ name: "a", source: "./a", hooks: { x: 1 } }, "marketplace.json hooks"],
+    [{ name: "a", source: "./a", mcpServers: {} }, "marketplace.json mcpServers"],
+    [{ name: "a", source: "./a", commands: ["./c"] }, "marketplace.json commands"],
+    [{ name: "a", source: "./a", strict: false }, "marketplace.json strict"],
+    [{ name: "other", source: "./o" }, "marketplace.json (항목 없음)"],
+  ]) {
+    const h = home(t, { "a@m": {} });
+    market(h, [entry]);
+    const r = pluginVerdict(loaded(h, "a@m"), { allowed: ["a@m"], home: h });
+    assert.equal(r.ok, false, item);
+    assert.ok(r.detail.includes(`a@m: 실행에 끼어들 수 있는 항목: ${item}`), r.detail);
+  }
+  const ok = home(t, { "a@m": {} });
+  market(ok, [{ name: "a", source: "./a", description: "d", version: "1", author: { name: "x" }, homepage: "h", repository: "r", license: "MIT", keywords: [], category: "c", tags: [], strict: true }]);
+  assert.equal(pluginVerdict(loaded(ok, "a@m"), { allowed: ["a@m"], home: ok }).ok, true);
+  // claude names the folder it loaded, so its marketplace must be found.
+  const none = home(t, { "a@m": {} });
+  assert.match(pluginVerdict(loaded(none, "a@m"), { allowed: ["a@m"], home: none }).detail, /marketplace\.json \(찾지 못함\)/);
+  // A marketplace kept outside the plugins folder.
+  const away = home(t, { "a@m": {} });
+  const elsewhere = join(away, "elsewhere");
+  mkdirSync(join(elsewhere, ".claude-plugin"), { recursive: true });
+  writeFileSync(join(elsewhere, ".claude-plugin/marketplace.json"), JSON.stringify({ plugins: [{ name: "a", source: "./a" }] }));
+  writeFileSync(join(away, ".claude/plugins/known_marketplaces.json"), JSON.stringify({ m: { installLocation: elsewhere } }));
+  assert.equal(pluginVerdict(loaded(away, "a@m"), { allowed: ["a@m"], home: away }).ok, false);
+  // An init item without a path (the fallback): a marketplace on disk is still checked.
+  const fallback = home(t, { "a@m": {} });
+  market(fallback, [{ name: "a", source: "./a", hooks: {} }]);
+  assert.match(pluginVerdict(init("a@m"), { allowed: ["a@m"], home: fallback }).detail, /marketplace\.json hooks/);
+});
+
+test("the refusal names each plugin once, in its full allow command, for the Office's own data folder", () => {
+  const long = "p" + "x".repeat(60) + "@" + "m".repeat(39);
+  assert.equal(long.length, 101);
+  const r = pluginVerdict(init("a@m", long, "a@m"), { allowed: [], home: "/nonexistent" });
+  assert.equal(
+    r.detail,
+    `허용 목록에 없음 → pazmo-office runner allow-plugin a@m; pazmo-office runner allow-plugin ${long}`,
+  );
+  const named = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent", dataDir: "/Users/u/QA data" });
+  assert.equal(named.detail, "허용 목록에 없음 → pazmo-office runner allow-plugin a@m --data-dir '/Users/u/QA data'");
+  const plain = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent", dataDir: "/tmp/qa-data" });
+  assert.match(plain.detail, /allow-plugin a@m --data-dir \/tmp\/qa-data$/);
+});
+
+test("a live Office started on another data root names it; the default root is not named", async (t) => {
+  const { dataRoot, liveDataRoot } = await import("../src/cli/project.ts");
+  assert.deepEqual(liveDataRoot(), { dataRoot: dataRoot() });
+  assert.deepEqual(liveDataRoot(dataRoot()), { dataRoot: dataRoot() });
+  const other = join(scratch(t), "qa-data");
+  assert.deepEqual(liveDataRoot(other), { dataRoot: other, dataRootNamed: true });
+});

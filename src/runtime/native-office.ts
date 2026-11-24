@@ -12,7 +12,7 @@ import type { ContractInput } from "../core/contracts.ts";
 import { freezeWorkspace } from "../core/workspace.ts";
 import { OfficeStore } from "../core/store.ts";
 import { IntakeLedger, planningRetryBudget } from "../core/intake.ts";
-import { VerificationLedger } from "../core/verification.ts";
+import { VerificationLedger, stopDetail } from "../core/verification.ts";
 import { ExecutionLedger } from "../core/budgets.ts";
 import { HandoffLedger } from "../core/handoffs.ts";
 import { CompletionLedger } from "../core/completion.ts";
@@ -1457,8 +1457,10 @@ export async function createNativeOffice(c: Config) {
         );
         // A review refused before its runner started is unknown, not failed: only its error says why.
         const review = round.nodes.find((n) => n.kind === "review")?.result;
+        // A review run Office stopped itself says why (M4).
+        const why = stopDetail(round.nodes.find((n) => n.result?.verdict === "unknown")?.result?.observation);
         return withAccount(
-          `검증이 멈췄습니다: ${reasonText(round.reason)}${failed.length ? ` (${failed.join(", ")})` : ""}`,
+          `검증이 멈췄습니다: ${reasonText(round.reason)}${failed.length ? ` (${failed.join(", ")})` : ""}${why}`,
           round.reason === "REVIEW_RUNNER_FAILED" ? review?.observation.output : undefined,
           review?.observation.error ?? null,
         );
@@ -1466,10 +1468,15 @@ export async function createNativeOffice(c: Config) {
       // Only a failed Engineer run's output or error can name a runner account problem.
       const handoff = db
         .prepare(
-          "SELECT reason, CASE WHEN reason='ENGINEER_FAILED' THEN json_extract(receipt_json,'$.observation.output') END AS output, CASE WHEN reason='ENGINEER_FAILED' THEN json_extract(receipt_json,'$.observation.error') END AS error FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1",
+          "SELECT reason, CASE WHEN reason='ENGINEER_FAILED' THEN json_extract(receipt_json,'$.observation.output') END AS output, CASE WHEN reason='ENGINEER_FAILED' THEN json_extract(receipt_json,'$.observation.error') END AS error, CASE WHEN reason='ENGINEER_FAILED' THEN json_extract(receipt_json,'$.observation.detail') END AS detail FROM pazmo_handoffs WHERE task_id=? AND state='human_required' ORDER BY rowid DESC LIMIT 1",
         )
-        .get(id) as { reason: string | null; output: string | null; error: string | null } | undefined;
-      return withAccount(`구현이 멈췄습니다: ${handoff?.reason ?? "HUMAN_REQUIRED"}`, handoff?.output ?? undefined, handoff?.error ?? null);
+        .get(id) as { reason: string | null; output: string | null; error: string | null; detail: string | null } | undefined;
+      // An Engineer run Office stopped itself says why (M4).
+      return withAccount(
+        `구현이 멈췄습니다: ${handoff?.reason ?? "HUMAN_REQUIRED"}${stopDetail(handoff)}`,
+        handoff?.output ?? undefined,
+        handoff?.error ?? null,
+      );
     }
     if (item.blocker) return { kind: "stopped", reason: `작업이 멈췄습니다: ${item.blocker}` };
     const last = db

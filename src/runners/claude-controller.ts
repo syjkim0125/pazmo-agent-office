@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import { mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { verifyControllerBinary } from "./codex-profile.ts";
 import {
@@ -170,6 +170,8 @@ export function claudeJob(
     env?: NodeJS.ProcessEnv;
     /** The non-builtin plugins the person allowed on this Mac, read for this run; checked in `home`'s claude. */
     allowedPlugins?: string[];
+    /** The Office's data root when it is not the default: the refusal's allow command names it. */
+    pluginDataDir?: string;
   },
   prompt: string,
 ): RemoteJob {
@@ -181,7 +183,9 @@ export function claudeJob(
     options.timeoutMs < 1 ||
     (mode === "live" && options.env) ||
     (options.allowedPlugins !== undefined &&
-      (!Array.isArray(options.allowedPlugins) || !options.allowedPlugins.every((p) => typeof p === "string")))
+      (!Array.isArray(options.allowedPlugins) || !options.allowedPlugins.every((p) => typeof p === "string"))) ||
+    (options.pluginDataDir !== undefined &&
+      (typeof options.pluginDataDir !== "string" || !isAbsolute(options.pluginDataDir) || /[\u0000-\u001f\u007f]/.test(options.pluginDataDir)))
   )
     throw new Error("INVALID_CLAUDE_JOB");
   return {
@@ -222,7 +226,11 @@ export function claudeJob(
           timeoutMs,
           signal: AbortSignal.any([signal, failure.signal]),
           mode,
-          plugins: { allowed: options.allowedPlugins ?? [], home: options.home },
+          plugins: {
+            allowed: options.allowedPlugins ?? [],
+            home: options.home,
+            ...(options.pluginDataDir ? { dataDir: options.pluginDataDir } : {}),
+          },
         });
       } finally {
         closed = (await relay?.close()) ?? true;

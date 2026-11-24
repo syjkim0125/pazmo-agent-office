@@ -184,24 +184,7 @@ export class ContainerPlanner {
       beforeStart,
       signal,
     );
-    const {
-      exitCode,
-      signal: terminalSignal,
-      timedOut,
-      error,
-      output,
-    } = report.observation;
-    return {
-      ...report,
-      result: {
-        exitCode,
-        signal: terminalSignal,
-        timedOut,
-        error,
-        stdout,
-        stderr: output,
-      },
-    };
+    return { ...report, result: plannerResult(report.observation, stdout) };
   }
 }
 /** Remote reviewer with an unconditionally readonly candidate mount. */
@@ -303,6 +286,7 @@ async function runContainer(
     handle: string | null = null,
     closed = true;
   let transferred: string | null = null;
+  let attachedResult: CommandResult | null = null;
   const observation: Omit<Observation, "kind" | "report"> = {
     exitCode: null,
     signal: null,
@@ -533,6 +517,7 @@ async function runContainer(
         signal,
       );
       attached = supervised.result;
+      attachedResult = attached;
       closed = supervised.closed === true;
     } else
       attached = await docker(
@@ -679,5 +664,23 @@ async function runContainer(
         error instanceof Error ? error.message : "WORKSPACE_RECEIVE_FAILED";
     }
   }
-  return { handle, closed, observation, cleanupErrors };
+  return { handle, closed, observation: withStopDetail(observation, attachedResult), cleanupErrors };
+}
+
+/** The observation with the runner supervisor's reason for its own stop (`CommandResult.detail`, e.g. which claude
+ * plugin was refused and how to allow it), only while the observation still names that stop's code. */
+export function withStopDetail<T extends { error: string | null; detail?: string }>(
+  observation: T,
+  attached: Pick<CommandResult, "error" | "detail"> | null,
+): T {
+  const { detail: _earlier, ...rest } = observation;
+  return attached?.error && attached.detail && observation.error === attached.error
+    ? ({ ...rest, detail: attached.detail.slice(0, 1000) } as T)
+    : (rest as T);
+}
+
+/** What a readonly role's run gives the planning reader: the process result, with that stop reason. */
+export function plannerResult(observation: Omit<Observation, "kind" | "report">, stdout: string): CommandResult {
+  const { exitCode, signal, timedOut, error, output, detail } = observation;
+  return { exitCode, signal, timedOut, error, stdout, stderr: output, ...(detail ? { detail } : {}) };
 }

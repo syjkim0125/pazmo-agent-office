@@ -7,7 +7,7 @@ import { runnerNotReady } from "../src/runners/runner-account.ts";
 import { digest } from "../src/core/candidates.ts";
 import { tempRoot } from "./runner-fixture.mjs";
 
-function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime, qualify, rediscover, allowedPlugins } = {}) {
+function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime, qualify, rediscover, allowedPlugins, pluginDataDir } = {}) {
   const root = tempRoot();
   const bins = {};
   for (const name of ["codex", "claude"]) {
@@ -39,6 +39,7 @@ function harness({ choice, choose, loggedIn = true, passed = true, codexRuntime,
     pinnedController: "/pinned/controller",
     codexRuntime,
     ...(allowedPlugins ? { allowedPlugins } : {}),
+    ...(pluginDataDir ? { pluginDataDir } : {}),
     openExecutor: () => { throw Error("unused"); },
     timeoutMs: 240000,
     jobs: { codex: inner("codex"), claude: inner("claude") },
@@ -99,6 +100,11 @@ test("a claude job gets the plugin list read for this run, and its record names 
   await supervise(h.factory("pm", "t1", "x"));
   assert.deepEqual(h.calls.claude[1].options.allowedPlugins, ["a@m", "b@m"]);
   assert.equal(reads, 2);
+  assert.equal("pluginDataDir" in h.calls.claude[0].options, false, "the default data root is not named");
+  // An Office on another data root names it in the refusal's command.
+  const named = harness({ allowedPlugins: () => [], pluginDataDir: "/Users/u/qa-data" });
+  await supervise(named.factory("pm", "t1", "x"));
+  assert.equal(named.calls.claude[0].options.pluginDataDir, "/Users/u/qa-data");
   // An empty list is as before: nothing passed, nothing recorded.
   list = [];
   await supervise(h.factory("pm", "t1", "x"));

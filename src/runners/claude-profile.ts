@@ -67,9 +67,10 @@ const same = (a: unknown, b: string[]) =>
   a.length === b.length &&
   [...a].sort().join("\n") === [...b].sort().join("\n");
 
-/** The non-builtin plugins the person allowed on this Mac (D1) and the home whose claude install they are checked in
- * (D3). None allowed: every non-builtin plugin is refused, as before the list existed. */
-export type ClaudePlugins = { allowed: string[]; home: string };
+/** The non-builtin plugins the person allowed on this Mac (D1), the home whose claude install they are checked in
+ * (D3), and the `--data-dir` the allow command names when the Office does not use the default data root. None
+ * allowed: every non-builtin plugin is refused, as before the list existed. */
+export type ClaudePlugins = { allowed: string[]; home: string; dataDir?: string };
 
 /** Per-run boundary check of what the CLI actually loaded, before any turn: the stop code, and for a refused plugin
  * the reason the person reads (which plugin, why, how to allow it; never file contents). */

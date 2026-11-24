@@ -31,6 +31,8 @@ export type RoleJobDependencies = {
   /** The non-builtin claude plugins the person allowed on this Mac, read again for every claude run so a running
    * Office follows `runner allow-plugin` from its next run. Absent: none. */
   allowedPlugins?: () => string[];
+  /** The Office's data root when it is not the default: a plugin refusal's allow command names it. */
+  pluginDataDir?: string;
   jobs?: { codex: typeof codexJob; claude: typeof claudeJob };
 };
 
@@ -127,6 +129,7 @@ export function roleJobFactory(d: RoleJobDependencies) {
                   home: d.home,
                   selection: { ...selection, ...(choice.reasoning ? { effort: choice.reasoning } : {}) },
                   ...plugins,
+                  ...(d.pluginDataDir ? { pluginDataDir: d.pluginDataDir } : {}),
                 },
                 prompt,
               );

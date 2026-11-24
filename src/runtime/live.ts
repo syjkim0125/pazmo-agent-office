@@ -66,6 +66,9 @@ export type LiveConfig = {
   searchPath?: string;
   /** The Office data root (`--data-dir`): the person's allowed claude plugins are read from there for every run. */
   dataRoot?: string;
+  /** Whether `dataRoot` is not the default one (the startup saw it; the service's own HOME is isolated): then a
+   * plugin refusal's allow command names it with `--data-dir`. */
+  dataRootNamed?: boolean;
 };
 /** The allowed claude plugins of `config`'s data root, read now; none without a data root. An unreadable list
  * allows nothing: such a plugin is refused with the command that allows it. */
@@ -650,6 +653,7 @@ export async function createLiveRuntime(
           openExecutor: client.openExecutor,
           timeoutMs: 240000,
           allowedPlugins: () => allowedPlugins(config),
+          ...(config.dataRoot && config.dataRootNamed ? { pluginDataDir: config.dataRoot } : {}),
         })
       : undefined;
     const planning = new PlanningCoordinator({

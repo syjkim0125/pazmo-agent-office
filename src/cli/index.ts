@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { homedir } from "node:os";
 import {
   dataRoot,
+  liveDataRoot,
   init,
   locate,
   remove,
@@ -389,7 +390,7 @@ export async function main(args: string[]): Promise<void> {
         socket: join(homedir(), ".colima/pazmo-office/docker.sock"),
         userHome: homedir(),
         searchPath: process.env.PATH ?? "",
-        dataRoot: dataRoot(options["--data-dir"] as string | undefined),
+        ...liveDataRoot(options["--data-dir"] as string | undefined),
         ...(codexRuntime ? { codexRuntime } : {}),
       };
     };
