@@ -1,3 +1,18 @@
+# 2026-11-24 설치 한 줄이 회사 플러그인을 찾아 허용할지 묻습니다 ([Story](stories/installer-org-plugins.md))
+
+- 조직이 켠 claude 플러그인이 있는 팀원 Mac에서는 설치 한 줄을 끝내도 Office의 claude 역할이 첫 실행에서 멈췄습니다. 그때 안내되는 `pazmo-office runner allow-plugin …`도 설치본에서는 돌지 않았습니다(`pazmo-office`가 PATH에 없음).
+- 설치기에 "Claude 로그인" 다음, "내 Mac 연결" 앞에 **회사 플러그인 확인**(`runner plugins --review`)을 더했습니다.
+  - claude를 Office와 같은 방식으로 init까지만 띄우고, SIGTERM으로 먼저 멈춥니다(로그인 잠금이 풀리게).
+  - skill만 있는 플러그인은 `[y/N]`으로 묻습니다. hook·MCP·agent·command가 있는 것은 이유만 보입니다.
+  - 확인할 수 없는 경우(claude 없음, init 없음, 깨진 목록, 닫힌 터미널)에는 설치를 멈추지 않습니다.
+- 허용 명령은 그 Office의 node와 `bin/pazmo-office.mjs`를 담아 그대로 실행됩니다. 홈은 `~`로 줄이고, 1200자를 넘으면 확인 명령으로 안내합니다. 멈춘 이유도 같은 판정을 씁니다(목록에 없는 hook 플러그인에는 명령 대신 이유만 보임).
+- **확인:**
+  - QA 스크립트 `qa/installer-org-plugins.sh` 14/14(이 Mac의 실제 회사 플러그인, `expect`로 터미널 답).
+  - 전체 시험 2115/2116(Node 24). 실패 1개는 다른 세션과 겹친 부하 때의 `tests/team-executor.test.mjs`이고, 그 파일만 다시 돌리니 41/41.
+  - 타입 검사 exit 0. 리뷰 6건을 고쳤습니다.
+- **남은 것:** 사내 OpenShift 허브와 실제 팀원 Mac에서 설치 한 줄 전체는 허브 재배포 뒤에 확인합니다. hook이 든 진짜 플러그인으로는 확인하지 않았습니다.
+- **승인:** 사용자가 2026-11-24 보고를 본 뒤 "승인 후 머지"를 골랐습니다.
+
 # 2026-11-24 조직이 켠 claude 플러그인은 사람이 허용한 것만 통과합니다 ([Story](stories/office-org-managed-plugins.md))
 
 - 조직 관리 설정으로 켜진 claude 플러그인은 `--setting-sources ""`로 꺼지지 않습니다. 그래서 그런 Mac에서는 Office의 claude 실행이 모두 `CLAUDE_PLUGIN_UNEXPECTED`로 멈췄습니다.
