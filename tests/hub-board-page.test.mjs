@@ -453,7 +453,7 @@ test("a card wears its state: tone, name tag, Mac dot, time and number", async (
   assert.ok(unline(colOf(lane, "doing")).includes('<p class="why">AI 사용 한도가 6시간 안에 풀리지 않았습니다. 맡은 사람이 다시 시도할 수 있습니다.</p>'), "read by the PL (U49)");
 });
 
-test("나를 기다리는 일 lists what waits on the viewer, and is gone when nothing does", async (t) => {
+test("확인할 것 lists what waits on the viewer, and is gone when nothing does", async (t) => {
   const h = await team(t);
   const g4 = h.open(h.publish("승인 Story", ["a"]));
   advance(h, g4, "awaiting_g4");
@@ -467,9 +467,11 @@ test("나를 기다리는 일 lists what waits on the viewer, and is gone when n
   const l = h.plans.next(h.plBe, HOLDER);
   h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "draft", text: "# Story: 초안 기획\n", story: { title: "초안 기획" } });
 
-  const pl = needsOf((await h.get("/", h.pl)).text);
+  const page = (await h.get("/", h.pl)).text;
+  const pl = needsOf(page);
   assert.ok(pl, "the PL has a box");
-  assert.match(pl, /^<h2 id="needs">나를 기다리는 일 <span class="count">3<\/span><\/h2>/);
+  assert.match(pl, /^<h2 id="needs">확인할 것 <span class="count">3<\/span><\/h2>/);
+  assert.ok(!page.includes("나를 기다리는 일"), "the old title is gone from the page");
   // D44: each kind is one row (word, count, shared reason) with its titles as links.
   assert.ok(unline(pl).includes(`<p class="ghead"><span class="pill need">승인 대기</span><span class="count">1</span><span class="gwhy">${AWAITING_G4_BOARD}</span></p><p class="glinks"><a href="/stories/${g4.storyId}"><b>승인 Story</b></a></p>`), "the Story waiting for its result approval");
   // C's Task, read by the PL: what stopped it and who can retry (U49).
@@ -667,7 +669,7 @@ test("the store's board for one Story has every card of it", async (t) => {
   assert.equal(h.board.storyBoard({ member: h.c.member }, "00000000-0000-0000-0000-000000000000"), null);
 });
 
-test("나를 기다리는 일 also lists a held Task, my stopped plan and which Story a Task is in", async (t) => {
+test("확인할 것 also lists a held Task, my stopped plan and which Story a Task is in", async (t) => {
   const h = await team(t);
   const s = h.open(h.publish("쿠폰 발급", ["a"]));
   const c = h.cBe();
@@ -813,7 +815,7 @@ test("a cancelled Story's page and Task-board lane say what it had, like its car
   assert.ok((await h.get("/", h.c)).text.includes(`<p class="sprog">${bar}</p>`));
 });
 
-// D44 (U43): many items and projects. 나를 기다리는 일 groups same-kind rows and hides none; both boards get a project
+// D44 (U43): many items and projects. 확인할 것 groups same-kind rows and hides none; both boards get a project
 // chip row (?project=<id>) that keeps the other filters and the tabs; empty projects fold into one line on 전체.
 /** Another project of the PL's (app-be, main), with one opened Story of `title` (one Task) when a title is given. */
 const another = (h, name, title) => {
@@ -831,7 +833,7 @@ const chipsOf = (text) => /<nav class="chips" aria-label="프로젝트">[\s\S]*?
 const groupsOf = (box) =>
   [...box.matchAll(/<li><p class="ghead">([\s\S]*?)<\/p><p class="glinks">([\s\S]*?)<\/p><\/li>/g)].map((m) => ({ head: m[1], links: m[2], word: /<span class="pill (\w+)">([^<]*)<\/span>/.exec(m[1]).slice(1).join(" ") }));
 
-test("나를 기다리는 일 groups rows of the same word into one row, hides none and puts stopped ones first (D44)", async (t) => {
+test("확인할 것 groups rows of the same word into one row, hides none and puts stopped ones first (D44)", async (t) => {
   const h = await team(t);
   const g4 = [];
   for (const title of ["승인 하나", "승인 둘"]) {
@@ -851,7 +853,7 @@ test("나를 기다리는 일 groups rows of the same word into one row, hides n
   h.plans.result(h.plBe, HOLDER, planId, l.leaseId, l.revision, { kind: "draft", text: "# Story: 초안 기획\n", story: { title: "초안 기획" } });
 
   const box = needsOf((await h.get("/", h.pl)).text);
-  assert.match(box, /^<h2 id="needs">나를 기다리는 일 <span class="count">5<\/span><\/h2><ul><li>/, "every item counts");
+  assert.match(box, /^<h2 id="needs">확인할 것 <span class="count">5<\/span><\/h2><ul><li>/, "every item counts");
   const groups = groupsOf(box);
   assert.deepEqual(groups.map((g) => g.word), ["stop 멈춤(실패)", "need 초안", "need 승인 대기"], "stopped, then plans waiting for an answer, then approvals");
   const nameOf = (taskId) => `${Object.entries(s.tasks).find(([, id]) => id === taskId)[0]} 작업`;
@@ -864,7 +866,7 @@ test("나를 기다리는 일 groups rows of the same word into one row, hides n
   assert.equal(unline(box).split(AWAITING_G4_BOARD).length, 2);
 });
 
-test("project chips show one project, keep the other filters and the tabs, and leave 나를 기다리는 일 whole (D44)", async (t) => {
+test("project chips show one project, keep the other filters and the tabs, and leave 확인할 것 whole (D44)", async (t) => {
   const h = await team(t);
   assert.equal(chipsOf((await h.get("/", h.pl)).text), null, "one project: no chip row");
   const g4 = h.open(h.publish("승인 Story", ["a"]));
@@ -890,7 +892,7 @@ test("project chips show one project, keep the other filters and the tabs, and l
   assert.ok(chipsOf(one).includes(`<a href="/?project=${other.projectId}" aria-current="true">`) && chipsOf(one).includes('<a href="/">전체'));
   const box = needsOf(one);
   assert.ok(box.includes(`/stories/${g4.storyId}`) && box.includes(`/tasks/${k.taskId}`), "the box keeps every project");
-  assert.match(box, /^<h2 id="needs">나를 기다리는 일 <span class="count">2<\/span><\/h2><p class="muted">모든 프로젝트의 일입니다.<\/p><ul>/, "and says so under a chosen chip");
+  assert.match(box, /^<h2 id="needs">확인할 것 <span class="count">2<\/span><\/h2><p class="muted">모든 프로젝트의 일입니다.<\/p><ul>/, "and says so under a chosen chip");
   assert.ok(one.includes(`<a href="/?project=${other.projectId}" aria-current="page">Story 보드</a><a href="/tasks?project=${other.projectId}">모든 Task</a>`), "the tabs keep the project");
   assert.ok(one.includes(`<a class="filter" href="/?mine=1&project=${other.projectId}">내 Story만</a>`), "a filter keeps the project");
 
@@ -1168,7 +1170,7 @@ test("U45: /repos is one row per repo; owner and link changes sit in a 관리 fo
 });
 
 // U46 (나 결정 카드, PR 2): both boards. Explainer: https://claude.ai/artifact/KXM76dpF5j3PCBwUdikMeS
-test("U46: 나를 기다리는 일 is one panel of rows split by lines, its titles plain links, two columns on a wide screen", async (t) => {
+test("U46: 확인할 것 is one panel of rows split by lines, its titles plain links, two columns on a wide screen", async (t) => {
   const style = await styleOf(await team(t));
   assert.match(ruleOf(style, ".needs li"), /background:transparent/, "no tray inside the panel");
   assert.match(ruleOf(style, ".needs li"), /border-top:1px solid var\(--line\)/);

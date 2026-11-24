@@ -3,7 +3,7 @@
  * Story stages (기획 중, 진행 중, Story 검증, 승인 대기, 완료), web plans and unopened Stories drawn as drafts in 기획 중.
  * `/tasks` is the Task board (D42's board): per Story a lane whose head names the Story over five columns of Task
  * cards (with "취소한 것도 보기" on, its cancelled cards in a muted 취소됨 strip under them). A Story page carries the
- * Task board of that Story alone (`storyTaskBoard`). Above the projects, 나를 기다리는 일 lists what waits on the viewer,
+ * Task board of that Story alone (`storyTaskBoard`). Above the projects, 확인할 것 lists what waits on the viewer,
  * one row per kind (D44). With two or more projects, both boards have a chip row that shows one project
  * (`?project=<id>`) and, on 전체, fold projects with no Story into one line. A card's color class follows its state word
  * (need, run, stop, done); the words are always written. No script of its own; every value goes through `esc`.
@@ -39,7 +39,7 @@ const pill = (label: string, t?: Tone) => (t ? tonePill(t, label) : `<span class
 /** A card whose Task is taken (or stopped) names who has it, how their Mac is and how long it has stood there. */
 const TAKEN = new Set(["claimed", "held", "failed"]);
 const STOPPED = new Set(["held", "failed"]);
-/** Under a chosen project chip, 나를 기다리는 일 says it still covers every project (it sits right under the chips). */
+/** Under a chosen project chip, 확인할 것 says it still covers every project (it sits right under the chips). */
 const ALL_PROJECTS = "모든 프로젝트의 일입니다.";
 /** A stopped plan of the viewer's, said with the next step (the plan page shows why and has 다시 시도). */
 const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 다시 시도하세요.";
@@ -194,7 +194,7 @@ const planCard = (me: Member) => (x: PlanCard) =>
 
 /** One thing that waits on the viewer: its kind (rank, tone, word), why it waits and the link to where they act. */
 type Wait = { rank: number; tone: Tone; word: string; why: string; link: string };
-/** A title in a row of 나를 기다리는 일, with its Story for a Task. */
+/** A title in a row of 확인할 것, with its Story for a Task. */
 const waitLink = (href: string, title: string, story?: number) =>
   `<a href="${esc(href)}"><b>${esc(title)}</b>${story === undefined ? "" : ` <span class="muted">Story #${story}</span>`}</a>`;
 
@@ -238,7 +238,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
     const why = k.every((w) => w.why === k[0].why) ? `<span class="gwhy">${say(k[0].why)}</span>` : "";
     return `<li><p class="ghead">${tonePill(k[0].tone, k[0].word)}<span class="count">${k.length}</span>${why}</p><p class="glinks">${k.map((w) => w.link).join("")}</p></li>`;
   });
-  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
+  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">확인할 것 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
 }
 
 /** The web plans a project shows: all of them, or under 내 Story만 the viewer's own. */
