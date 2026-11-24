@@ -558,6 +558,16 @@ a:hover {
   padding: 6px 0 10px 16px;
 }
 
+.events.folded li.older {
+  display: none;
+}
+
+.events-wrap {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+
 .events time {
   color: var(--muted);
   font-size: 0.75rem;
