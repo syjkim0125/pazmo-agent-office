@@ -4,42 +4,80 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { allowCommand, allowPlugin, pluginReview, readAllowedPlugins } from "./claude-plugins.ts";
 import { claudeProfile } from "./claude-profile.ts";
+import { signalGroup } from "./command.ts";
+import { CLAUDE_STOP_MS } from "./runner-models.ts";
 
 /** How long the review waits for claude's init event. */
 export const INIT_TIMEOUT_MS = 30000;
 
 /**
  * The init event of `binary` started the way Office starts claude (same arguments and environment, in an empty
- * folder, with an MCP server that does nothing), read up to that event and then stopped with its process group, so no
- * model turn runs. Null when there is none within `timeoutMs`.
+ * folder, with an MCP server that does nothing), read up to that event; then the claude is stopped with its process
+ * group before this returns. Null when there is none within `timeoutMs`.
+ *
+ * The stop is SIGTERM first: a login refresh the CLI started holds `~/.claude/.oauth_refresh.lock` until its exit
+ * handler runs, and SIGKILL skips that handler, so the next claude (the team Office the install line starts next)
+ * could not sign in for a minute (see `runner-models.ts`). SIGKILL is left for a CLI that ignores SIGTERM. A Ctrl-C,
+ * SIGTERM or SIGHUP to this process meanwhile stops the claude too (it is in its own process group, so the terminal's
+ * signal does not reach it) before this process ends.
  */
-export async function readClaudeInit(binary: string, home: string, timeoutMs = INIT_TIMEOUT_MS): Promise<unknown | null> {
+export async function readClaudeInit(
+  binary: string,
+  home: string,
+  timeoutMs = INIT_TIMEOUT_MS,
+  stopMs: { term: number; kill: number } = CLAUDE_STOP_MS,
+): Promise<unknown | null> {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-plugin-review-")));
+  const mcpConfig = join(dir, "mcp.json");
+  writeFileSync(mcpConfig, JSON.stringify({ mcpServers: { office: { command: process.execPath, args: ["-e", "0"] } } }), {
+    mode: 0o600,
+    flag: "wx",
+  });
+  const profile = claudeProfile({ home, mcpConfig, model: "default" });
+  const child = spawn(binary, profile.args, { cwd: dir, env: profile.env, detached: true, stdio: ["pipe", "pipe", "ignore"] });
+  const exited = new Promise<void>((resolve) => {
+    child.once("exit", () => resolve());
+    child.once("error", () => resolve());
+  });
+  const exitWithin = (ms: number) => {
+    let timer: NodeJS.Timeout | undefined;
+    return Promise.race([
+      exited.then(() => true),
+      new Promise<boolean>((resolve) => (timer = setTimeout(() => resolve(false), ms))),
+    ]).finally(() => clearTimeout(timer));
+  };
+  const signal = (name: NodeJS.Signals) => {
+    try {
+      if (child.pid) signalGroup(child.pid, name);
+    } catch {
+      // Already gone.
+    }
+  };
+  const running = () => !!child.pid && child.exitCode === null && child.signalCode === null;
+  const stop = async () => {
+    if (!running()) return;
+    signal("SIGTERM");
+    if (await exitWithin(stopMs.term)) return;
+    signal("SIGKILL");
+    await exitWithin(stopMs.kill);
+  };
+  // Interrupted: stop the claude, remove the folder, end like an interrupted command.
+  const interrupted = (name: NodeJS.Signals) => {
+    signal("SIGTERM");
+    rmSync(dir, { recursive: true, force: true });
+    process.exit(name === "SIGINT" ? 130 : name === "SIGHUP" ? 129 : 143);
+  };
+  const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+  for (const s of signals) process.once(s, interrupted);
   try {
-    const mcpConfig = join(dir, "mcp.json");
-    writeFileSync(mcpConfig, JSON.stringify({ mcpServers: { office: { command: process.execPath, args: ["-e", "0"] } } }), {
-      mode: 0o600,
-      flag: "wx",
-    });
-    const profile = claudeProfile({ home, mcpConfig, model: "default" });
-    return await new Promise((resolve) => {
-      let settled = false,
-        buffer = "";
-      const child = spawn(binary, profile.args, { cwd: dir, env: profile.env, detached: true, stdio: ["pipe", "pipe", "ignore"] });
-      const done = (value: unknown) => {
-        if (settled) return;
-        settled = true;
+    const event = await new Promise<unknown | null>((resolve) => {
+      let buffer = "";
+      const timer = setTimeout(() => resolve(null), timeoutMs);
+      const settle = (value: unknown | null) => {
         clearTimeout(timer);
-        try {
-          if (child.pid) process.kill(-child.pid, "SIGKILL");
-        } catch {
-          // Already gone.
-        }
         resolve(value);
       };
-      const timer = setTimeout(() => done(null), timeoutMs);
-      child.on("error", () => done(null));
-      child.on("close", () => done(null));
+      exited.then(() => settle(null));
       child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
         buffer += chunk;
         let i;
@@ -47,8 +85,8 @@ export async function readClaudeInit(binary: string, home: string, timeoutMs = I
           const line = buffer.slice(0, i);
           buffer = buffer.slice(i + 1);
           try {
-            const event = JSON.parse(line);
-            if (event?.type === "system" && event.subtype === "init") return done(event);
+            const parsed = JSON.parse(line);
+            if (parsed?.type === "system" && parsed.subtype === "init") return settle(parsed);
           } catch {
             // Not a JSON line.
           }
@@ -57,7 +95,11 @@ export async function readClaudeInit(binary: string, home: string, timeoutMs = I
       child.stdin.on("error", () => {});
       child.stdin.end("Reply with the single word ok.");
     });
+    await stop();
+    return event;
   } finally {
+    await stop();
+    for (const s of signals) process.off(s, interrupted);
     rmSync(dir, { recursive: true, force: true });
   }
 }
@@ -82,7 +124,15 @@ export type ReviewDeps = {
  * (no claude, no init) changes nothing. Returns the list afterwards.
  */
 export async function reviewClaudePlugins(d: ReviewDeps): Promise<string[]> {
-  const allowed = readAllowedPlugins(d.root);
+  // A list this Mac cannot read (edited by hand, a symlink) stops nothing here: the review only says so, the install
+  // goes on, and Office's runs refuse plugins the way they already do.
+  let allowed: string[];
+  try {
+    allowed = readAllowedPlugins(d.root);
+  } catch (error) {
+    d.out(`허용 목록을 읽지 못해 회사 플러그인을 확인하지 않았습니다: ${error instanceof Error ? error.message : String(error)}`);
+    return [];
+  }
   if ("missing" in d.claude) {
     d.out(`claude를 찾지 못해 회사 플러그인을 확인하지 않았습니다: ${d.claude.missing}`);
     return allowed;
@@ -113,8 +163,12 @@ export async function reviewClaudePlugins(d: ReviewDeps): Promise<string[]> {
       }
       const answer = (await d.ask(`    Office에서 이 플러그인을 허용할까요? [y/N] `)).trim().toLowerCase();
       if (answer === "y" || answer === "yes") {
-        list = allowPlugin(d.root, item.source);
-        d.out("    → 허용했습니다.");
+        try {
+          list = allowPlugin(d.root, item.source);
+          d.out("    → 허용했습니다.");
+        } catch (error) {
+          d.out(`    → 허용 목록에 쓰지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+        }
       } else d.out(`    → 허용하지 않았습니다. 나중에 허용하려면: ${allowCommand(item.source, d.dataDir)}`);
     }
   }

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import {
   ALLOWED_PLUGINS_FILE,
@@ -49,14 +49,20 @@ test("builtin plugins only pass with an empty list and touch no file", () => {
   assert.deepEqual(pluginVerdict(init(), { allowed: [], home: "/nonexistent" }), { ok: true, plugins: [] });
 });
 
-test("a plugin not on the list is refused with its name and the exact allow command", () => {
-  const r = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent" });
+test("a plugin not on the list is refused with its name and the exact allow command", (t) => {
+  const h = home(t, { "a@m": {}, "b@m": {}, "c@m": { "hooks/hooks.json": "{}" } });
+  const r = pluginVerdict(init("a@m"), { allowed: [], home: h });
   assert.equal(r.ok, false);
   assert.ok(r.detail.includes("a@m"), r.detail);
   assert.ok(r.detail.includes("bin/pazmo-office.mjs runner allow-plugin a@m"), r.detail);
   // Each offending plugin is named.
-  const two = pluginVerdict(init("a@m", "b@m"), { allowed: [], home: "/nonexistent" });
+  const two = pluginVerdict(init("a@m", "b@m"), { allowed: [], home: h });
   assert.ok(two.detail.includes("a@m") && two.detail.includes("b@m"), two.detail);
+  // The same judgement as `runner plugins --review`: one that could step into a run gets its reason, never an
+  // allow command that could not help; one Office cannot find gets that reason.
+  const hooked = pluginVerdict(init("c@m"), { allowed: [], home: h });
+  assert.match(hooked.detail, /^c@m: 실행에 끼어들 수 있는 항목: hooks$/);
+  assert.match(pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent" }).detail, /^a@m: 설치 폴더를 찾지 못함$/);
 });
 
 test("an allowed skill-only plugin passes and is reported", (t) => {
@@ -266,17 +272,34 @@ test("an allowed plugin's marketplace entry may only describe it", (t) => {
   assert.match(pluginVerdict(init("a@m"), { allowed: ["a@m"], home: fallback }).detail, /marketplace\.json hooks/);
 });
 
-test("the refusal names each plugin once, in its full allow command, for the Office's own data folder", () => {
+test("the refusal names each plugin once, in its full allow command, for the Office's own data folder", (t) => {
   const long = "p" + "x".repeat(60) + "@" + "m".repeat(39);
   assert.equal(long.length, 101);
-  const r = pluginVerdict(init("a@m", long, "a@m"), { allowed: [], home: "/nonexistent" });
-  // The command carries this Office's node and script, so it runs as printed where `pazmo-office` is not on PATH.
-  const cli = `${process.execPath} ${fileURLToPath(new URL("../bin/pazmo-office.mjs", import.meta.url))}`;
+  const h = home(t, { "a@m": {}, [long]: {} });
+  const r = pluginVerdict(init("a@m", long, "a@m"), { allowed: [], home: h });
+  // The command carries this Office's node and script, so it runs as printed where `pazmo-office` is not on PATH;
+  // the person's home is `~`, so a reason that reaches the Hub carries no account name.
+  const own = userInfo().homedir;
+  const tilde = (p) => (p.startsWith(`${own}/`) ? `~/${p.slice(own.length + 1)}` : p);
+  const cli = `${tilde(process.execPath)} ${tilde(fileURLToPath(new URL("../bin/pazmo-office.mjs", import.meta.url)))}`;
   assert.equal(r.detail, `허용 목록에 없음 → ${cli} runner allow-plugin a@m; ${cli} runner allow-plugin ${long}`);
-  const named = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent", dataDir: "/Users/u/QA data" });
+  assert.ok(!r.detail.includes(own), r.detail);
+  const named = pluginVerdict(init("a@m"), { allowed: [], home: h, dataDir: "/Users/u/QA data" });
   assert.equal(named.detail, `허용 목록에 없음 → ${cli} runner allow-plugin a@m --data-dir '/Users/u/QA data'`);
-  const plain = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent", dataDir: "/tmp/qa-data" });
+  const plain = pluginVerdict(init("a@m"), { allowed: [], home: h, dataDir: "/tmp/qa-data" });
   assert.match(plain.detail, /allow-plugin a@m --data-dir \/tmp\/qa-data$/);
+  const mine = pluginVerdict(init("a@m"), { allowed: [], home: h, dataDir: join(own, "QA data") });
+  assert.match(mine.detail, /allow-plugin a@m --data-dir ~\/'QA data'$/);
+});
+
+test("past what a screen keeps, the refusal ends with the review command instead of a command cut in half", (t) => {
+  const sources = Array.from({ length: 12 }, (_, i) => `p${i}${"x".repeat(60)}@${"m".repeat(39)}`);
+  const h = home(t, Object.fromEntries(sources.map((s) => [s, {}])));
+  const { detail } = pluginVerdict(init(...sources), { allowed: [], home: h, dataDir: "/tmp/qa-data" });
+  assert.ok(detail.length <= 1400, `${detail.length}`);
+  const shown = sources.filter((s) => detail.includes(`runner allow-plugin ${s} --data-dir /tmp/qa-data`));
+  assert.ok(shown.length >= 1 && shown.length < sources.length, `${shown.length}`);
+  assert.ok(detail.endsWith(`그 밖의 ${sources.length - shown.length}개는 ${detail.split("→ ")[1].split(" runner ")[0]} runner plugins --review --data-dir /tmp/qa-data`), detail);
 });
 
 test("a live Office started on another data root names it; the default root is not named", async (t) => {

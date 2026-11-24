@@ -20,7 +20,7 @@ import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hu
 import { parseListen, parsePublicUrl } from "../hub/run.ts";
 import { allowPlugin, disallowPlugin, readAllowedPlugins } from "../runners/claude-plugins.ts";
 import { reviewClaudePlugins } from "../runners/claude-plugin-review.ts";
-import { discoverRunners } from "../runners/runner-discovery.ts";
+import { discoverRunner } from "../runners/runner-discovery.ts";
 import { createInterface } from "node:readline/promises";
 import {
   dependenciesInstalled,
@@ -274,9 +274,10 @@ export async function main(args: string[]): Promise<void> {
         fail("ARGUMENT", "runner takes only --data-dir (and runner plugins also --review).");
       const root = dataRoot(options["--data-dir"] as string | undefined);
       if (options["--review"]) {
-        // The claude Office would run: the same discovery, logged in or not (its init still names the plugins).
-        const install = (await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() })).claude;
-        const claude = install.path ? { binary: install.path } : { missing: install.hint };
+        // The claude Office would run: the same discovery (claude only), logged in or not (its init still names the
+        // plugins); one Office would not run (missing, or no version) is not started.
+        const install = await discoverRunner("claude", { pathEnv: process.env.PATH ?? "", home: homedir() });
+        const claude = install.status === "ready" && install.path ? { binary: install.path } : { missing: install.hint };
         // Ask only a person at a terminal; under launchd or a pipe nothing is asked or changed. The terminal is read
         // from the first question on, so an answer typed while claude starts is not lost; a terminal closed meanwhile
         // (Ctrl-D) answers no.
@@ -294,6 +295,9 @@ export async function main(args: string[]): Promise<void> {
             ...(process.stdin.isTTY ? { ask } : {}),
             out: (line) => console.log(line),
           });
+        } catch (error) {
+          // Nothing this check cannot do stops the install line that runs it.
+          console.log(`회사 플러그인을 확인하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
         } finally {
           (terminal as ReturnType<typeof createInterface> | null)?.close();
         }

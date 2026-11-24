@@ -110,6 +110,38 @@ test("Q7 a claude with builtin plugins only: one line, nothing asked, no list fi
   assert.equal(existsSync(join(data, "allowed-claude-plugins.json")), false);
 });
 
+test("Q3 a list this Mac cannot read stops nothing: the review says so and changes nothing", async (t) => {
+  const root = scratch(t);
+  const h = home(root, { "skills-only": {} });
+  const data = join(root, "data");
+  mkdirSync(data, { recursive: true });
+  writeFileSync(join(data, "allowed-claude-plugins.json"), "{ edited by hand");
+  const r = await run({ root: data, home: h, init: init("skills-only@m"), answers: ["y"] });
+  assert.deepEqual(r.list, []);
+  assert.equal(r.asked.length, 0);
+  assert.match(r.text, /허용 목록을 읽지 못해 회사 플러그인을 확인하지 않았습니다/);
+});
+
+test("readClaudeInit stops the claude with SIGTERM first, so its exit handler runs (a login lock is released)", async (t) => {
+  const root = scratch(t);
+  const fake = join(root, "claude");
+  writeFileSync(
+    fake,
+    `#!/bin/sh\ntrap 'echo term > "${root}/term"; exit 0' TERM\necho '{"type":"system","subtype":"init","plugins":[]}'\nwhile :; do sleep 1; done\n`,
+  );
+  chmodSync(fake, 0o755);
+  const event = await readClaudeInit(fake, root, 10000);
+  assert.deepEqual(event.plugins, []);
+  assert.equal(existsSync(join(root, "term")), true, "the TERM handler ran before readClaudeInit returned");
+  // One that ignores SIGTERM is killed after the wait.
+  const stubborn = join(root, "stubborn");
+  writeFileSync(stubborn, `#!/bin/sh\ntrap '' TERM\necho '{"type":"system","subtype":"init","plugins":[]}'\nwhile :; do sleep 1; done\n`);
+  chmodSync(stubborn, 0o755);
+  const started = Date.now();
+  assert.deepEqual((await readClaudeInit(stubborn, root, 10000, { term: 300, kill: 2000 })).plugins, []);
+  assert.ok(Date.now() - started < 5000);
+});
+
 test("readClaudeInit reads up to the init event and stops the process; a binary with no init gives null", async (t) => {
   const root = scratch(t);
   // A claude that prints its init, then would run forever.

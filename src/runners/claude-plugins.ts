@@ -10,6 +10,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { isAbsolute, join, relative, sep } from "node:path";
+import { userInfo } from "node:os";
 import { fileURLToPath } from "node:url";
 import { fail, noSymlinks } from "../cli/project.ts";
 import { stableNodePath } from "../team/launch-agent.ts";
@@ -244,13 +245,37 @@ const shellWord = (value: string) => (/^[A-Za-z0-9_./:@-]+$/.test(value) ? value
 /** This Office's own CLI script: an install from the Hub's one line has no `pazmo-office` on PATH. */
 const OFFICE_CLI = fileURLToPath(new URL("../../bin/pazmo-office.mjs", import.meta.url));
 
-/** The command that allows `source` in the Office's data root (`dataDir` when that is not the default root), with the
- * node and the script of the Office that prints it, so it runs as printed: Homebrew's version-independent node when
- * that is the running one, so a `brew upgrade` does not break it. */
-export function allowCommand(source: string, dataDir?: string): string {
-  const node = stableNodePath(process.execPath);
-  return `${shellWord(node)} ${shellWord(OFFICE_CLI)} runner allow-plugin ${source}${dataDir ? ` --data-dir ${shellWord(dataDir)}` : ""}`;
+/** A path as one shell word, with the person's home as `~`: the command still runs in their shell, and a stop reason
+ * that reaches the shared Hub (a team plan's failure) does not carry their account name. The home is the account's
+ * own (passwd), not `HOME`, which a team Office's service may point elsewhere. */
+function pathWord(path: string): string {
+  let home: string;
+  try {
+    home = userInfo().homedir;
+  } catch {
+    return shellWord(path);
+  }
+  if (home && home !== "/" && path.startsWith(`${home}/`)) return `~/${shellWord(path.slice(home.length + 1))}`;
+  return shellWord(path);
 }
+
+/** The Office's own CLI as the person runs it: the node and the script of the Office that prints it, so it runs as
+ * printed. Homebrew's version-independent node when that is the running one, so a `brew upgrade` does not break it. */
+const officeCommand = () => `${pathWord(stableNodePath(process.execPath))} ${pathWord(OFFICE_CLI)}`;
+const dataDirWord = (dataDir?: string) => (dataDir ? ` --data-dir ${pathWord(dataDir)}` : "");
+
+/** The command that allows `source` in the Office's data root (`dataDir` when that is not the default root). */
+export function allowCommand(source: string, dataDir?: string): string {
+  return `${officeCommand()} runner allow-plugin ${source}${dataDirWord(dataDir)}`;
+}
+
+/** The command that reviews this Mac's claude plugins and asks which to allow. */
+export function reviewCommand(dataDir?: string): string {
+  return `${officeCommand()} runner plugins --review${dataDirWord(dataDir)}`;
+}
+
+/** How many characters of allow commands a refusal carries: every command whole, within what a screen keeps. */
+const ALLOW_COMMANDS_MAX = 1200;
 
 /** One non-builtin plugin of an init event, as the review shows it: on the list and passing, on the list or not but
  * holding something that could step into a run (never offered), or not on the list. */
@@ -288,27 +313,26 @@ export function pluginVerdict(
   init: unknown,
   o: { allowed: string[]; home: string; dataDir?: string },
 ): { ok: true; plugins: string[] } | { ok: false; detail: string } {
-  const plugins = (init as { plugins?: unknown } | null)?.plugins;
-  if (!Array.isArray(plugins)) return { ok: false, detail: "init에 플러그인 목록이 없음" };
-  const passed: string[] = [],
-    problems: string[] = [],
-    unlisted: string[] = [];
-  let unnamed = false;
-  for (const p of plugins) {
-    const { source, path } = (p ?? {}) as { source?: unknown; path?: unknown };
-    if (typeof source === "string" && builtin(source)) continue;
-    if (!shown(source)) unnamed = true;
-    else if (!o.allowed.includes(source)) {
-      if (!unlisted.includes(source)) unlisted.push(source);
-    } else {
-      const problem = contentProblem({ source, path }, o.home);
-      if (problem) problems.push(`${source}: ${problem}`);
-      else if (!passed.includes(source)) passed.push(source);
+  // The same judgement as `runner plugins --review`: a plugin that could step into a run is refused with its reason
+  // whether it is on the list or not, so no stop reason offers a command that cannot help.
+  const items = pluginReview(init, { allowed: o.allowed, home: o.home });
+  if (!items) return { ok: false, detail: "init에 플러그인 목록이 없음" };
+  const passed = items.filter((i) => i.state === "allowed").map((i) => i.source);
+  const problems = items.flatMap((i) => (i.state === "refused" ? [`${i.source}: ${i.reason}`] : []));
+  const unlisted = items.filter((i) => i.state === "unlisted").map((i) => i.source);
+  if (unlisted.length) {
+    // Each source once, in its whole command; the rest, past what a screen keeps, through the review command.
+    const commands: string[] = [];
+    let length = 0;
+    for (const s of unlisted) {
+      const command = allowCommand(s, o.dataDir);
+      if (length + command.length > ALLOW_COMMANDS_MAX) break;
+      commands.push(command);
+      length += command.length + 2;
     }
+    const rest = unlisted.length - commands.length;
+    const more = rest ? `${commands.length ? "; " : ""}그 밖의 ${rest}개는 ${reviewCommand(o.dataDir)}` : "";
+    problems.push(`허용 목록에 없음 → ${commands.join("; ")}${more}`);
   }
-  if (unnamed) problems.push("이름을 표시할 수 없는 플러그인: 허용할 수 없음");
-  // Each source once, in its command.
-  if (unlisted.length)
-    problems.push(`허용 목록에 없음 → ${unlisted.map((s) => allowCommand(s, o.dataDir)).join("; ")}`);
   return problems.length ? { ok: false, detail: problems.join("; ") } : { ok: true, plugins: passed };
 }

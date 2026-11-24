@@ -79,10 +79,17 @@ grep -q ORDER_OK "$T/q4.txt" && pass Q4 "the step sits between Claude 로그인 
 
 # Q5: the allow command a stop reason carries (another data folder) runs as shown.
 node --input-type=module -e '
+const { mkdirSync, writeFileSync } = await import("node:fs");
+const { join } = await import("node:path");
 const { pluginVerdict } = await import(`${process.cwd()}/src/runners/claude-plugins.ts`);
-const v = pluginVerdict({ plugins: [{ name: "a", source: "a@m" }] }, { allowed: [], home: "/nonexistent", dataDir: process.argv[1] });
+// A skill-only plugin a@m installed the way Claude Code registers it.
+const home = process.argv[2], dir = join(home, ".claude/plugins/cache/m/a/1.0.0");
+mkdirSync(join(dir, "skills/s"), { recursive: true });
+writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\n---\n");
+writeFileSync(join(home, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { "a@m": [{ installPath: dir }] } }));
+const v = pluginVerdict({ plugins: [{ name: "a", source: "a@m" }] }, { allowed: [], home, dataDir: process.argv[1] });
 console.log(v.ok ? "" : v.detail.split("→ ")[1]);
-' "$T/q5 data" >"$T/q5.cmd" 2>&1
+' "$T/q5 data" "$T/q5home" >"$T/q5.cmd" 2>&1
 if sh -c "$(cat "$T/q5.cmd")" >/dev/null 2>&1 && [ "$(listed "$T/q5 data")" = "a@m" ]; then pass Q5 "the stop reason's command runs as shown: $(cat "$T/q5.cmd")"
 else fail Q5 "did not run: $(cat "$T/q5.cmd")"; fi
 
