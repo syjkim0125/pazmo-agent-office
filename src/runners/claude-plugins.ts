@@ -10,7 +10,9 @@ import {
   writeFileSync,
 } from "node:fs";
 import { isAbsolute, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { fail, noSymlinks } from "../cli/project.ts";
+import { stableNodePath } from "../team/launch-agent.ts";
 
 /** The person's per-Mac list of non-builtin claude plugins Office's claude runner may load, at the top of the Office
  * data root (`--data-dir`), so the Mac's own Office and its team Office read the same list. Never in the repository:
@@ -239,9 +241,44 @@ function contentProblem(plugin: { source: string; path?: unknown }, home: string
 /** A path as one shell word. */
 const shellWord = (value: string) => (/^[A-Za-z0-9_./:@-]+$/.test(value) ? value : `'${value.replace(/'/g, `'\\''`)}'`);
 
-/** The command that allows `source` in the Office's data root; `dataDir` when that is not the default root. */
+/** This Office's own CLI script: an install from the Hub's one line has no `pazmo-office` on PATH. */
+const OFFICE_CLI = fileURLToPath(new URL("../../bin/pazmo-office.mjs", import.meta.url));
+
+/** The command that allows `source` in the Office's data root (`dataDir` when that is not the default root), with the
+ * node and the script of the Office that prints it, so it runs as printed: Homebrew's version-independent node when
+ * that is the running one, so a `brew upgrade` does not break it. */
 export function allowCommand(source: string, dataDir?: string): string {
-  return `pazmo-office runner allow-plugin ${source}${dataDir ? ` --data-dir ${shellWord(dataDir)}` : ""}`;
+  const node = stableNodePath(process.execPath);
+  return `${shellWord(node)} ${shellWord(OFFICE_CLI)} runner allow-plugin ${source}${dataDir ? ` --data-dir ${shellWord(dataDir)}` : ""}`;
+}
+
+/** One non-builtin plugin of an init event, as the review shows it: on the list and passing, on the list or not but
+ * holding something that could step into a run (never offered), or not on the list. */
+export type PluginReviewItem =
+  | { source: string; state: "allowed" }
+  | { source: string; state: "refused"; reason: string }
+  | { source: string; state: "unlisted" };
+
+/** The non-builtin plugins an init event loaded, each once, with what the review may do about it; null when the init
+ * names no plugin list. A plugin claude cannot name is refused. */
+export function pluginReview(init: unknown, o: { allowed: string[]; home: string }): PluginReviewItem[] | null {
+  const plugins = (init as { plugins?: unknown } | null)?.plugins;
+  if (!Array.isArray(plugins)) return null;
+  const items: PluginReviewItem[] = [];
+  for (const p of plugins) {
+    const { source, path } = (p ?? {}) as { source?: unknown; path?: unknown };
+    if (typeof source === "string" && builtin(source)) continue;
+    if (!shown(source)) {
+      if (!items.some((i) => i.source === "(이름 표시 불가)"))
+        items.push({ source: "(이름 표시 불가)", state: "refused", reason: "이름을 표시할 수 없는 플러그인이라 허용할 수 없음" });
+      continue;
+    }
+    if (items.some((i) => i.source === source)) continue;
+    const problem = contentProblem({ source, path }, o.home);
+    if (problem) items.push({ source, state: "refused", reason: problem });
+    else items.push(o.allowed.includes(source) ? { source, state: "allowed" } : { source, state: "unlisted" });
+  }
+  return items;
 }
 
 /** Which non-builtin plugins a claude init event loaded may pass Office's boundary check: each one must be on the

@@ -19,6 +19,9 @@ import { setupRuntime, installedRuntime } from "./runtime-setup.ts";
 import { runHub, linkOffice, linkOfficeWithConnection, unlinkOffice } from "./hub.ts";
 import { parseListen, parsePublicUrl } from "../hub/run.ts";
 import { allowPlugin, disallowPlugin, readAllowedPlugins } from "../runners/claude-plugins.ts";
+import { reviewClaudePlugins } from "../runners/claude-plugin-review.ts";
+import { discoverRunners } from "../runners/runner-discovery.ts";
+import { createInterface } from "node:readline/promises";
 import {
   dependenciesInstalled,
   start,
@@ -55,7 +58,7 @@ export async function main(args: string[]): Promise<void> {
     const command = args.shift();
     if (command === "--help" || command === "help" || !command) {
       console.log(
-        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|mac|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nClaude plugins this Mac allows Office's claude runner to load (beside builtin ones; skills and descriptions only): runner plugins [--data-dir PATH]; runner allow-plugin <name@marketplace> [--data-dir PATH]; runner disallow-plugin <name@marketplace> [--data-dir PATH] (a running Office uses the list from its next run)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)\nTeam Hub upload: team upload --story <Story.md> --tasks <tasks.json> [--project <Hub project name or id>] [--data-dir PATH] (on the PL's connected Mac: checks the kit G1 (G3 for high risk) and the Task file, uploads the Story, makes feature/story-<N>/base in each repo and opens it; run again to resume); team upload --guide (prints the Task file format and the error codes)\nTeam result sign-off: team finish --story <N> [--data-dir PATH] (on the PL's connected Mac: shows the Story check result and the record template, then with the PL's record posts the sign-off; the team Office merges each repo); team finish --guide\nThis Mac and the team Hub: mac connect --hub <https hub> [--name <Mac name>] [--data-dir PATH] (what the Hub's install line runs: pairs this Mac through the browser, clones, registers and links the repos you own, and starts the team Office at login); mac status|disconnect|restart [--data-dir PATH] (disconnect keeps the clones and the registry)",
+        "pazmo-office <up|setup-runtime|monitor|hub|hub-link|hub-unlink|team|mac|init|doctor|start|status|stop|remove> --project PATH [--data-dir PATH] [--apply|--dry-run] [--port N]\nOffice: up [--project PATH] [--no-open] (what ./office runs: checks the dependencies, VM and runner login, then opens the Office) or start --project PATH [--live] [--port N]; the Office has Tasks, task detail, Decisions and Agents on 127.0.0.1 (--lean is accepted and means the same)\nSetup: setup-runtime [--data-dir PATH] [--apply]\nLive startup: start --live --project PATH [--data-dir PATH] (optional paired --controller/--executor overrides)\nClaude plugins this Mac allows Office's claude runner to load (beside builtin ones; skills and descriptions only): runner plugins [--review] [--data-dir PATH] (--review starts this Mac's claude up to its init, lists its non-builtin plugins and, on a terminal, asks which to allow); runner allow-plugin <name@marketplace> [--data-dir PATH]; runner disallow-plugin <name@marketplace> [--data-dir PATH] (a running Office uses the list from its next run)\nTeam Office repos: team add --project PATH [--data-dir PATH]; team remove --project PATH [--data-dir PATH]; team list [--data-dir PATH] (a registered repo cannot be started as a single Office)\nTeam Office settings: team pause|resume|status [--data-dir PATH]; team cap <1-100|off> [--data-dir PATH] (daily cap on new Story Tasks, default 5; works while the Office is stopped)\nTeam Office: start --team [--live] [--port N] [--data-dir PATH] or up --team [--data-dir PATH] (one Office for every registered repo; no --project, not combinable with --lean; Story Tasks are claimed and run only with --live or up --team); status --team; stop --team (no screen yet: monitor --team is unsupported)\nTeam Office failed Task: team rerun --memo \"<text>\" [--data-dir PATH] (writes the request with the memo, also while the Office is stopped; a live team Office, started with --live or up --team, runs the Task again)\nTeam Hub upload: team upload --story <Story.md> --tasks <tasks.json> [--project <Hub project name or id>] [--data-dir PATH] (on the PL's connected Mac: checks the kit G1 (G3 for high risk) and the Task file, uploads the Story, makes feature/story-<N>/base in each repo and opens it; run again to resume); team upload --guide (prints the Task file format and the error codes)\nTeam result sign-off: team finish --story <N> [--data-dir PATH] (on the PL's connected Mac: shows the Story check result and the record template, then with the PL's record posts the sign-off; the team Office merges each repo); team finish --guide\nThis Mac and the team Hub: mac connect --hub <https hub> [--name <Mac name>] [--data-dir PATH] (what the Hub's install line runs: pairs this Mac through the browser, clones, registers and links the repos you own, and starts the team Office at login); mac status|disconnect|restart [--data-dir PATH] (disconnect keeps the clones and the registry)",
       );
       return;
     }
@@ -142,6 +145,7 @@ export async function main(args: string[]): Promise<void> {
           "--story",
           "--tasks",
           "--guide",
+          "--review",
         ].includes(flag) ||
         flag in options
       )
@@ -154,7 +158,8 @@ export async function main(args: string[]): Promise<void> {
         flag === "--claw" ||
         flag === "--lean" ||
         flag === "--team" ||
-        flag === "--guide"
+        flag === "--guide" ||
+        flag === "--review"
       )
         options[flag] = true;
       else {
@@ -265,9 +270,35 @@ export async function main(args: string[]): Promise<void> {
       return;
     }
     if (command === "runner") {
-      if (Object.keys(options).some((flag) => flag !== "--data-dir"))
-        fail("ARGUMENT", "runner takes only --data-dir.");
+      if (Object.keys(options).some((flag) => flag !== "--data-dir" && !(flag === "--review" && runnerAction === "plugins")))
+        fail("ARGUMENT", "runner takes only --data-dir (and runner plugins also --review).");
       const root = dataRoot(options["--data-dir"] as string | undefined);
+      if (options["--review"]) {
+        // The claude Office would run: the same discovery, logged in or not (its init still names the plugins).
+        const install = (await discoverRunners({ pathEnv: process.env.PATH ?? "", home: homedir() })).claude;
+        const claude = install.path ? { binary: install.path } : { missing: install.hint };
+        // Ask only a person at a terminal; under launchd or a pipe nothing is asked or changed. The terminal is read
+        // from the first question on, so an answer typed while claude starts is not lost; a terminal closed meanwhile
+        // (Ctrl-D) answers no.
+        let terminal: ReturnType<typeof createInterface> | null = null;
+        const ask = async (q: string) => {
+          terminal ??= createInterface({ input: process.stdin, output: process.stdout });
+          return terminal.question(q).catch(() => "");
+        };
+        try {
+          await reviewClaudePlugins({
+            root,
+            ...(options["--data-dir"] !== undefined ? { dataDir: root } : {}),
+            home: homedir(),
+            claude,
+            ...(process.stdin.isTTY ? { ask } : {}),
+            out: (line) => console.log(line),
+          });
+        } finally {
+          (terminal as ReturnType<typeof createInterface> | null)?.close();
+        }
+        return;
+      }
       const plugins =
         runnerAction === "allow-plugin"
           ? allowPlugin(root, pluginSource!)

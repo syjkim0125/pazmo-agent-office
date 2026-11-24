@@ -127,6 +127,10 @@ main() {
     run_step "Claude 로그인" claude auth login <"$TTY"
   fi
 
+  # An organization's managed settings may turn on a claude plugin that Office's runs refuse until the person allows
+  # it: asked here, on the terminal. Nothing that cannot be checked stops the install.
+  run_step "회사 플러그인 확인" "$BREW/opt/node@24/bin/node" "$OFFICE/bin/pazmo-office.mjs" runner plugins --review <"$TTY"
+
   run_step "내 Mac 연결" "$BREW/opt/node@24/bin/node" "$OFFICE/bin/pazmo-office.mjs" mac connect --hub "$HUB" <"$TTY"
 }
 

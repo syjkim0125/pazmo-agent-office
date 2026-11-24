@@ -69,8 +69,8 @@ test("a turn Office stopped with a reason names the reason, so the person can ac
   assert.equal(error.origin, "runner");
   assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
   // One bounded line, whatever the reason holds.
-  const long = rejection(() => acceptPlanning(pm(), { ...stopped, result: { ...stopped.result, detail: "x\n".repeat(600) } }));
-  assert.ok(long.detail.length <= 600 && !long.detail.includes("\n"), long.detail);
+  const long = rejection(() => acceptPlanning(pm(), { ...stopped, result: { ...stopped.result, detail: "x\n".repeat(1600) } }));
+  assert.ok(long.detail.length <= 1600 && !long.detail.includes("\n"), long.detail);
 });
 
 test("a refusal naming two plugins, one with a 100-character name, keeps every allow command whole (M4)", async () => {
@@ -81,8 +81,8 @@ test("a refusal naming two plugins, one with a 100-character name, keeps every a
   const stopped = { closed: true, result: { exitCode: null, signal: "SIGKILL", error: "CLAUDE_PLUGIN_UNEXPECTED", detail, timedOut: false, stderr: "", stdout: lines({ type: "turn.started" }, { type: "turn.failed" }) } };
   const error = rejection(() => acceptPlanning(pm(), stopped));
   assert.equal(error.detail, `runner: error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`);
-  assert.ok(error.detail.endsWith(`pazmo-office runner allow-plugin ${source} --data-dir /Users/someone/Library/pazmo-qa-data`), error.detail);
-  assert.ok(error.detail.includes("pazmo-office runner allow-plugin a@m --data-dir /Users/someone/Library/pazmo-qa-data;"), error.detail);
+  assert.ok(error.detail.endsWith(`pazmo-office.mjs runner allow-plugin ${source} --data-dir /Users/someone/Library/pazmo-qa-data`), error.detail);
+  assert.ok(error.detail.includes("pazmo-office.mjs runner allow-plugin a@m --data-dir /Users/someone/Library/pazmo-qa-data;"), error.detail);
 });
 
 test("a known runner message is recognized only as a turn's sole output", () => {

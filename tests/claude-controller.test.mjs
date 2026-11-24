@@ -107,7 +107,7 @@ test("a plugin not on the person's list stops claude, and the result says which 
   const { closed, result } = await run(claudeJob(fx.options, "Bounded task"));
   assert.equal(result.error, "CLAUDE_PLUGIN_UNEXPECTED");
   assert.match(result.detail, /a@m/);
-  assert.match(result.detail, /pazmo-office runner allow-plugin a@m/);
+  assert.match(result.detail, /pazmo-office\.mjs runner allow-plugin a@m/);
   assert.equal(closed, true);
   assert.equal(terminalReport(result.stdout, ["report"]), null);
   // An Office on another data folder names it, so the command allows it there.

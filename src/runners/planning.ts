@@ -2,6 +2,7 @@ import { OfficeError, fail } from "../cli/project.ts";
 import { digest, verifyCandidate } from "../core/candidates.ts";
 import type { Candidate } from "../core/candidates.ts";
 import { workspaceScope } from "../core/workspace.ts";
+import { STOP_DETAIL_MAX } from "../core/verification.ts";
 import type { ContractInput } from "../core/contracts.ts";
 import { PLAN_LIMITS } from "../hub/plan-protocol.ts";
 import { LIMITS as STORY_LIMITS, isBaseBranchName } from "../hub/story-protocol.ts";
@@ -11,7 +12,7 @@ import { terminalReport } from "./terminal-report.ts";
 
 /** A rejection names the failing field path and rule only. Model-authored
  * text never enters `detail`; the controller may show it and store it. */
-const RUNNER_DETAIL_MAX = 600;
+const RUNNER_DETAIL_MAX = STOP_DETAIL_MAX;
 export class PlanningInvalid extends OfficeError {
   detail: string;
   /** "runner": the role's runner failed before any plan output (auth,

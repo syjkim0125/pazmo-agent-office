@@ -1,3 +1,4 @@
+import { fileURLToPath } from "node:url";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { spawnSync } from "node:child_process";
@@ -52,7 +53,7 @@ test("a plugin not on the list is refused with its name and the exact allow comm
   const r = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent" });
   assert.equal(r.ok, false);
   assert.ok(r.detail.includes("a@m"), r.detail);
-  assert.ok(r.detail.includes("pazmo-office runner allow-plugin a@m"), r.detail);
+  assert.ok(r.detail.includes("bin/pazmo-office.mjs runner allow-plugin a@m"), r.detail);
   // Each offending plugin is named.
   const two = pluginVerdict(init("a@m", "b@m"), { allowed: [], home: "/nonexistent" });
   assert.ok(two.detail.includes("a@m") && two.detail.includes("b@m"), two.detail);
@@ -269,12 +270,11 @@ test("the refusal names each plugin once, in its full allow command, for the Off
   const long = "p" + "x".repeat(60) + "@" + "m".repeat(39);
   assert.equal(long.length, 101);
   const r = pluginVerdict(init("a@m", long, "a@m"), { allowed: [], home: "/nonexistent" });
-  assert.equal(
-    r.detail,
-    `허용 목록에 없음 → pazmo-office runner allow-plugin a@m; pazmo-office runner allow-plugin ${long}`,
-  );
+  // The command carries this Office's node and script, so it runs as printed where `pazmo-office` is not on PATH.
+  const cli = `${process.execPath} ${fileURLToPath(new URL("../bin/pazmo-office.mjs", import.meta.url))}`;
+  assert.equal(r.detail, `허용 목록에 없음 → ${cli} runner allow-plugin a@m; ${cli} runner allow-plugin ${long}`);
   const named = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent", dataDir: "/Users/u/QA data" });
-  assert.equal(named.detail, "허용 목록에 없음 → pazmo-office runner allow-plugin a@m --data-dir '/Users/u/QA data'");
+  assert.equal(named.detail, `허용 목록에 없음 → ${cli} runner allow-plugin a@m --data-dir '/Users/u/QA data'`);
   const plain = pluginVerdict(init("a@m"), { allowed: [], home: "/nonexistent", dataDir: "/tmp/qa-data" });
   assert.match(plain.detail, /allow-plugin a@m --data-dir \/tmp\/qa-data$/);
 });

@@ -97,7 +97,7 @@ test("the plugin rule follows the person's list; every other check and its order
   const refused = claudeInitProblem(withPlugin, "live");
   assert.equal(refused.code, "CLAUDE_PLUGIN_UNEXPECTED");
   assert.match(refused.detail, /a@m/);
-  assert.match(refused.detail, /pazmo-office runner allow-plugin a@m/);
+  assert.match(refused.detail, /pazmo-office\.mjs runner allow-plugin a@m/);
   assert.equal(checkClaudeInit(withPlugin, "live", { allowed: [], home: "/nonexistent" }), "CLAUDE_PLUGIN_UNEXPECTED");
   // On the list but its install cannot be checked: still refused.
   assert.equal(checkClaudeInit(withPlugin, "live", { allowed: ["a@m"], home: "/nonexistent" }), "CLAUDE_PLUGIN_UNEXPECTED");
