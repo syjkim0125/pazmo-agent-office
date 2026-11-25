@@ -494,10 +494,10 @@ test("a base that moved is re-verified; a failing re-verify counts an attempt an
   await w.ex.drive();
   const open = w.open();
   assert.deepEqual([open.phase, open.attempts], ["claimed", 1]);
-  assert.match(open.lastFailure.reason, /Re-verification after merging .* failed: V1 fail/);
+  assert.match(open.lastFailure.reason, /Re-verification after merging .* failed: Q1 fail/);
   assert.match(open.lastFailure.reason, /1 failing: coupon total/);
   assert.equal(w.engine.freezes, 1);
-  assert.deepEqual(w.engine.verifies[0], { candidate: { digest: "frozen-1", directory: "/frozen/project" }, checks: [CHECK] });
+  assert.deepEqual(w.engine.verifies[0], { candidate: { digest: "frozen-1", directory: "/frozen/project" }, checks: [{ ...CHECK, id: "Q1" }] });
   assert.equal(w.pr.merges, 0, "an unverified merge is never merged into the Story base");
   assert.deepEqual(w.git.pushes(), [COMMIT, merged], "the next attempt starts on the Task branch with the base merged");
   assert.equal(w.view(task.taskId).mergeLock, false, "the lock went back to the Hub");
@@ -507,7 +507,7 @@ test("a base that moved is re-verified; a failing re-verify counts an attempt an
   assert.equal(w.open().phase, "building");
   const plan = planOf(w, task, 2);
   assert.match(plan, /## Last failure/);
-  assert.match(plan, /Reason: Re-verification after merging .* failed: V1 fail/);
+  assert.match(plan, /Reason: Re-verification after merging .* failed: Q1 fail/);
 
   // The second attempt is verified, the base moved again, and this time its checks pass.
   w.engine.verify();

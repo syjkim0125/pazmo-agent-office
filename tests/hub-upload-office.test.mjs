@@ -29,33 +29,31 @@ const cli = new URL("../bin/pazmo-office.mjs", import.meta.url).pathname;
 const guide = new URL("../skills/pazmo-hub-upload/SKILL.md", import.meta.url);
 
 const STORY = `# Story: 결제 버튼
-Status: Approved
-Owner: 지수
-Understanding gate (G1): .ai-workflow/approvals/pay-g1.json · 2026-11-11 · Check-in: accepted
-Understanding gate (G4): pending
 
 ## Goal
-고객이 주문을 결제한다.
+1. As-is: 결제할 수 없다.
+2. To-be: 고객이 주문을 결제한다.
+3. Unchanged: 결제는 두 번 되지 않는다.
 
-## Domain
-- Invariant: 결제는 두 번 되지 않는다.
+## Decisions
+- D1. 결제 수단
+  - Options: 카드 / 계좌
+  - Pick: 카드, because src/pay.ts:1
 
 ## MUST
 - M1. 결제 API가 주문을 받는다.
 - M2. 결제 화면에 버튼이 있다.
 
-## SHOULD
-- S1. 영수증을 보낸다.
-
 ## OUT
-- O1. 환불.
+- O1. 환불: 요청 밖
 
-## Decisions
-- D1. 카드만.
+## QA
+- Q1 [M1] (script). API 시험 → 통과한다.
+- Q2 [M2] (script). 화면 시험 → 통과한다.
 
-## Verify
-- V1 [M1]. API 시험이 통과한다.
-- V2 [M2]. 화면 시험이 통과한다.
+---
+Status: Approved (2026-11-24, 지수)
+Owner: 지수
 `;
 const check = (id, file) => ({ id, argv: ["node", "--test", file], timeoutMs: 30000 });
 const TASKS = {
@@ -66,12 +64,12 @@ const TASKS = {
     { name: "app-fe", baseBranch: "develop" },
   ],
   tasks: [
-    { id: "be-pay", repo: "app-be", title: "결제 API", spec: "결제 API를 만든다.", files: ["src/pay.ts"], covers: ["M1", "V1"], after: [], checks: [check("V1", "tests/pay.test.mjs")] },
-    { id: "fe-pay", repo: "app-fe", title: "결제 화면", spec: "결제 버튼을 붙인다.", files: ["src/pay.tsx"], covers: ["M2", "V2"], after: ["be-pay"], checks: [check("V2", "tests/pay-page.test.mjs")] },
+    { id: "be-pay", repo: "app-be", title: "결제 API", spec: "결제 API를 만든다.", files: ["src/pay.ts"], covers: ["M1", "Q1"], after: [], checks: [check("Q1", "tests/pay.test.mjs")] },
+    { id: "fe-pay", repo: "app-fe", title: "결제 화면", spec: "결제 버튼을 붙인다.", files: ["src/pay.tsx"], covers: ["M2", "Q2"], after: ["be-pay"], checks: [check("Q2", "tests/pay-page.test.mjs")] },
   ],
   storyChecks: [
-    { repo: "app-be", checks: [check("V1", "tests/pay.test.mjs")] },
-    { repo: "app-fe", checks: [check("V2", "tests/pay-page.test.mjs")] },
+    { repo: "app-be", checks: [check("Q1", "tests/pay.test.mjs")] },
+    { repo: "app-fe", checks: [check("Q2", "tests/pay-page.test.mjs")] },
   ],
 };
 
@@ -108,7 +106,7 @@ function pairMac(store, member, name) {
  *   PL's project 결제 over app-be (main) and app-fe (develop);
  * - the PL's Mac: a connected Mac (mac-link.json), a clone of each origin registered in the team registry, and in each
  *   repo's data folder the link that Mac minted for it (macId);
- * - the approved Story (its G1 bound to the kit hash) and the Task file under a folder holding `.ai-workflow/`;
+ * - the story-qa Story the PL approved (its Status line reads Approved) and the Task file beside it;
  * - teammate A's claim scheduler on A's Story links of both repos, ticked by the test.
  */
 async function world(t) {
@@ -173,15 +171,10 @@ async function world(t) {
   }
   writeMacLink(data, { version: 1, hub: h.hub.url, macId: mac.id, macToken: mac.token, memberId: pl.id, memberName: pl.name, name: MAC_NAME });
 
-  // The Story the PL approved with the kit in a conversation, and the Task file beside it.
+  // The Story the PL approved with /story-qa in a conversation, and the Task file beside it.
   const plan = join(root, "plan");
-  mkdirSync(join(plan, ".ai-workflow", "approvals"), { recursive: true });
-  mkdirSync(join(plan, "docs"));
+  mkdirSync(join(plan, "docs"), { recursive: true });
   writeFileSync(join(plan, "docs", "pay-story.md"), STORY);
-  writeFileSync(
-    join(plan, ".ai-workflow", "approvals", "pay-g1.json"),
-    JSON.stringify({ gate: "G1", storyHash: hashStory(STORY), responseRef: "Claude Code conversation: 승인", date: "2026-11-11" }),
-  );
   writeFileSync(join(plan, "tasks.json"), JSON.stringify(TASKS, null, 2));
 
   // Teammate A: a claim scheduler over A's own Story links, as A's Office builds it (the test is its timer).
@@ -276,7 +269,7 @@ test("upload publishes, makes bases and opens", async (t) => {
   assert.equal(w.remote("app-be", base), w.tips["app-be"], "app-be's base at main's commit");
   assert.equal(w.remote("app-fe", base), w.tips["app-fe"], "app-fe's base at develop's commit");
   assert.deepEqual(w.heads("app-be").split("\n").map((line) => line.split("\t")[1]), ["refs/heads/feature/story-" + story.number + "/base", "refs/heads/main"]);
-  // The Hub recorded the local approval: this Mac and the kit hash.
+  // The Hub recorded the local approval: this Mac and the Story hash.
   const approval = w.h.board.storyUpload(result.storyId);
   assert.deepEqual([approval.macName, approval.storyHash], [MAC_NAME, hashStory(STORY)]);
 
@@ -284,7 +277,7 @@ test("upload publishes, makes bases and opens", async (t) => {
   const { claimed } = await w.aScheduler.tick();
   assert.ok(claimed, `A claimed a Task: ${w.aLogs.join("\n")}`);
   assert.deepEqual([claimed.project, claimed.task.title, claimed.task.story.number], ["app-be", "결제 API", story.number]);
-  assert.equal(claimed.task.spec, "결제 API를 만든다.\nCovers: M1, V1");
+  assert.equal(claimed.task.spec, "결제 API를 만든다.\nCovers: M1, Q1");
 
   // The board shows the Story's cards.
   // D43: Task cards are on the all-Tasks board.
@@ -378,8 +371,10 @@ test("guide prints the file format", () => {
   const text = readFileSync(guide, "utf8");
   assert.equal(r.stdout, text);
   assert.match(text, /^---\nname: pazmo-hub-upload\ndescription: \S/);
-  for (const part of ['"storyChecks"', '"covers"', '"after"', "pazmo-office team upload --story", "UPLOAD_G1", "UPLOAD_G3", "UPLOAD_STORY", "UPLOAD_TASKS", "UPLOAD_COVERAGE", "UPLOAD_REPO", "UPLOAD_LINK", "NOT_YOUR_MAC", "NOT_OWNER", "UPLOAD_CANCELLED"])
+  for (const part of ['"storyChecks"', '"covers"', '"after"', "pazmo-office team upload --story", "/story-qa", "Status: Approved", "UPLOAD_G1", "UPLOAD_STORY", "UPLOAD_TASKS", "UPLOAD_COVERAGE", "UPLOAD_REPO", "UPLOAD_LINK", "NOT_YOUR_MAC", "NOT_OWNER", "UPLOAD_CANCELLED"])
     assert.ok(text.includes(part), `the guide names ${part}`);
+  // story-format-story-qa M4.4: the guide points to /story-qa and names nothing of the earlier workflow.
+  assert.doesNotMatch(text, /\/workflow|\bkit\b|\.ai-workflow|UPLOAD_G3/i);
   // Without --guide the command needs both files.
   const bare = spawnSync(process.execPath, [cli, "team", "upload", "--story", "story.md"], { encoding: "utf8" });
   assert.equal(bare.status, 1);

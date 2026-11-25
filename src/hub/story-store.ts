@@ -963,8 +963,8 @@ export class StoryBoard {
   }
 
   /**
-   * A Story the PL approved locally (kit G1), uploaded by the command on the PL's Mac. Refused unless the link was
-   * minted by the member's current Mac (`mac`, from HubStore.currentMac), `storyHash` is `hashStory(body)` (400
+   * A Story the PL approved locally (its Status line reads Approved), uploaded by the command on the PL's Mac.
+   * Refused unless the link was minted by the member's current Mac (`mac`, from HubStore.currentMac), `storyHash` is `hashStory(body)` (400
    * INVALID otherwise) and the member owns every repo of the project; a Story under the same key that some other way
    * made (the plain publish route) is STATE, so the record only ever describes what the Mac sent, and a Story under
    * the same text that was cancelled is not made again. Then
@@ -979,10 +979,10 @@ export class StoryBoard {
   ): UploadResult {
     return transaction(this.#db, () => {
       if (typeof input.storyHash !== "string" || !STORY_HASH.test(input.storyHash))
-        fail("INVALID", 400, "Story 해시는 64자리 소문자 16진수여야 합니다. kit이 계산한 해시를 그대로 보내세요.");
+        fail("INVALID", 400, "Story 해시는 64자리 소문자 16진수여야 합니다. 올리기 명령이 계산한 해시를 그대로 보내세요.");
       // The approval record and the one-Story-per-text key describe the body itself, never a hash the client only claims.
       if (typeof input.body === "string" && hashStory(input.body) !== input.storyHash)
-        fail("INVALID", 400, "Story 글과 해시가 맞지 않습니다. 올리는 Story 파일에서 kit이 계산한 해시를 그대로 보내세요.");
+        fail("INVALID", 400, "Story 글과 해시가 맞지 않습니다. 올리는 Story 파일에서 올리기 명령이 계산한 해시를 그대로 보내세요.");
       const current = this.#currentMac(l, mac);
       const project = this.#project(input.projectId);
       if (!this.ownsProject(l.member.id, project.id))

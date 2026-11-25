@@ -27,7 +27,8 @@ export const LIMITS = {
   memoMax: 2000,
   prUrlMax: 500,
   nodeId: /^[a-z0-9][a-z0-9-]{0,39}$/,
-  verifyId: /^V\d{1,3}$/,
+  /** Q is a story-qa QA scenario; V stays for Stories stored before the story-qa format. */
+  verifyId: /^[QV]\d{1,3}$/,
   mergeCommit: /^[0-9a-f]{40}([0-9a-f]{24})?$/,
   baseBranch: /^[A-Za-z0-9][A-Za-z0-9._/-]{0,99}$/,
 } as const;
@@ -146,7 +147,7 @@ function checkOf(value: unknown, where: string): VerifyCheck {
   )
     return fail(
       "GRAPH_INVALID",
-      `${where}: 검사는 V 번호, ${LIMITS.argvMax}개 이하의 argv, 1–${LIMITS.timeoutMsMax} ms 제한 시간이 필요합니다.`,
+      `${where}: 검사는 Q 번호(옛 Story는 V 번호), ${LIMITS.argvMax}개 이하의 argv, 1–${LIMITS.timeoutMsMax} ms 제한 시간이 필요합니다.`,
     );
   return { id, argv: [...(argv as string[])], timeoutMs };
 }

@@ -37,7 +37,7 @@ const claimed = (extra = {}) => ({
   title: "Input validation",
   spec: "Reject invalid input in src/a.",
   files: ["src/a"],
-  verify: [{ id: "V9", argv: ["node", "--test"], timeoutMs: 30000 }],
+  verify: [{ id: "Q9", argv: ["node", "--test"], timeoutMs: 30000 }],
   storyVerify: [],
   repoId: "r1",
   branch: "feature/story-3/task-7",
@@ -310,7 +310,7 @@ test("a stopped Story Task reports stopped with its reason", async (t) => {
   const budget = f.office.storyOutcome(exhausted.id);
   assert.equal(budget.kind, "stopped");
   assert.match(budget.reason, /FIX_BUDGET_EXHAUSTED/);
-  assert.match(budget.reason, /V1/, "names the check that failed");
+  assert.match(budget.reason, /Q1/, "names the check that failed");
   // The Engineer's own run failed.
   const failed = await submit(f, 3);
   engineer(f, failed.id, { exitCode: 1 });
@@ -604,15 +604,15 @@ test("verify runs each check and classifies pass, fail and unknown; it refuses B
     settled++;
   };
   const checks = [
-    { id: "V1", argv: ["pass"], timeoutMs: 1000 },
-    { id: "V2", argv: ["fail"], timeoutMs: 2000 },
-    { id: "V3", argv: ["slow"], timeoutMs: 3000 },
+    { id: "Q1", argv: ["pass"], timeoutMs: 1000 },
+    { id: "Q2", argv: ["fail"], timeoutMs: 2000 },
+    { id: "Q3", argv: ["slow"], timeoutMs: 3000 },
   ];
   const results = await runtime.verify(candidate, checks);
   assert.deepEqual(results, [
-    { id: "V1", verdict: "pass", output: "all good" },
-    { id: "V2", verdict: "fail", output: "1 failing" },
-    { id: "V3", verdict: "unknown", output: "still running" },
+    { id: "Q1", verdict: "pass", output: "all good" },
+    { id: "Q2", verdict: "fail", output: "1 failing" },
+    { id: "Q3", verdict: "unknown", output: "still running" },
   ]);
   assert.deepEqual(
     ran.map(([digest, check, signal]) => [digest, check, signal]),
@@ -663,24 +663,24 @@ test("a verify never waits for a pump, stops at once when cancelled and refuses 
     return new Promise(() => {});
   };
   const check = (id, argv = ["pass"]) => ({ id, argv, timeoutMs: 1000 });
-  assert.deepEqual(await settles(runtime.verify(candidate, [check("V1")]), "a verify"), [
-    { id: "V1", verdict: "pass", output: "done" },
+  assert.deepEqual(await settles(runtime.verify(candidate, [check("Q1")]), "a verify"), [
+    { id: "Q1", verdict: "pass", output: "done" },
   ]);
   assert.equal(settled, 1, "the engine is still told the verify settled");
   // Unusable ids are refused before anything runs.
-  for (const checks of [[check("")], [check(" ")], [check("V1"), check("V1")], [{ argv: ["pass"], timeoutMs: 1000 }]])
+  for (const checks of [[check("")], [check(" ")], [check("Q1"), check("Q1")], [{ argv: ["pass"], timeoutMs: 1000 }]])
     await assert.rejects(runtime.verify(candidate, checks), { code: "INVALID_REQUEST" });
   // Cancelled before it starts, or while a check runs: it rejects at once and starts no other check.
-  await assert.rejects(runtime.verify(candidate, [check("V1")], AbortSignal.abort()), { code: "CANCELLED" });
+  await assert.rejects(runtime.verify(candidate, [check("Q1")], AbortSignal.abort()), { code: "CANCELLED" });
   assert.deepEqual(ran, ["pass"]);
   await assert.rejects(
-    settles(runtime.verify(candidate, [check("V1", ["abort"]), check("V2"), check("V3")], controller.signal), "a cancelled verify"),
+    settles(runtime.verify(candidate, [check("Q1", ["abort"]), check("Q2"), check("Q3")], controller.signal), "a cancelled verify"),
     { code: "CANCELLED" },
   );
   assert.deepEqual(ran, ["pass", "abort"]);
   // Cancelled during its last check: rejected, never reported as a result.
   controller = new AbortController();
-  await assert.rejects(runtime.verify(candidate, [check("V1", ["abort"])], controller.signal), { code: "CANCELLED" });
+  await assert.rejects(runtime.verify(candidate, [check("Q1", ["abort"])], controller.signal), { code: "CANCELLED" });
   assert.deepEqual(ran, ["pass", "abort", "abort"]);
   assert.equal(runtime.status().verifying, false);
   await runtime.close();
@@ -689,8 +689,8 @@ test("a verify never waits for a pump, stops at once when cancelled and refuses 
 test("verifyCandidate reaches the live verify, and another engine's run or a verify in flight makes it busy", async (t) => {
   const f = await fixture(t);
   const candidate = await f.office.freezeProject();
-  const checks = [{ id: "V1", argv: ["node", "--test"], timeoutMs: 30000 }];
-  assert.deepEqual(await f.office.verifyCandidate(candidate, checks), [{ id: "V1", verdict: "pass", output: "fake" }]);
+  const checks = [{ id: "Q1", argv: ["node", "--test"], timeoutMs: 30000 }];
+  assert.deepEqual(await f.office.verifyCandidate(candidate, checks), [{ id: "Q1", verdict: "pass", output: "fake" }]);
   assert.deepEqual(f.calls.verify, [[candidate, checks, undefined]]);
   f.state.othersActive = true;
   await assert.rejects(f.office.verifyCandidate(candidate, checks), { code: "BUSY" });
@@ -776,7 +776,7 @@ test("LiveRuntime.planTurn is a run of its own: BUSY while a run or verify is ac
           return error.code;
         }
       })();
-      during.verify ??= await runtime.verify(candidate, [{ id: "V1", argv: ["x"], timeoutMs: 1000 }]).then(
+      during.verify ??= await runtime.verify(candidate, [{ id: "Q1", argv: ["x"], timeoutMs: 1000 }]).then(
         () => "ran",
         (error) => error.code,
       );
@@ -818,7 +818,7 @@ test("LiveRuntime.planTurn is a run of its own: BUSY while a run or verify is ac
   await assert.rejects(runtime.planTurn(packet, candidate), { code: "BUSY" });
   releaseRun();
   await tick();
-  const verifying = runtime.verify(candidate, [{ id: "V1", argv: ["x"], timeoutMs: 1000 }]);
+  const verifying = runtime.verify(candidate, [{ id: "Q1", argv: ["x"], timeoutMs: 1000 }]);
   await assert.rejects(runtime.planTurn(packet, candidate), { code: "BUSY" });
   releaseVerify();
   await verifying;
@@ -840,13 +840,18 @@ test("LiveRuntime.planTurn is a run of its own: BUSY while a run or verify is ac
 
 const STORY = {
   title: "README",
-  goal: "Clarify execution",
-  domain: "Documentation",
+  asIs: "README shows an old command",
+  toBe: "README shows the actual command",
+  unchanged: "Runtime behavior",
+  decisions: [],
+  copies: "",
   must: ["Show actual command"],
-  should: [],
   out: ["Runtime changes"],
-  assumptions: [],
-  verify: [{ must: [1], scenario: "Command matches CLI" }],
+  qa: [
+    { refs: ["M1"], how: "script", scenario: "Command matches CLI" },
+    { refs: ["Unchanged"], how: "script", scenario: "CLI output is the same" },
+    { refs: ["not shown"], how: "agent", scenario: "No other README section changes" },
+  ],
 };
 async function answer(f, kind, note) {
   const decision = (await f.office.decisions()).find((d) => d.decision_kind === kind);
@@ -867,7 +872,7 @@ test("a normal lean task still goes to G4 (unchanged)", async (t) => {
     JSON.stringify({
       version: 1,
       workspace: { include: ["src"], exclude: [] },
-      checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 15000 }],
+      checks: [{ id: "Q1", argv: ["node", "--test"], timeoutMs: 15000 }],
     }),
   );
   const child = (await store.register(TOKEN, { ...f.input, risk: "normal", decision: null })).id;

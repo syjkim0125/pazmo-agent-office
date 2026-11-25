@@ -22,13 +22,20 @@ const question = {
 };
 const story = {
   title: "Validate input",
-  goal: "Reject invalid input.",
-  domain: "Preserve records.",
+  asIs: "Invalid input is accepted.",
+  toBe: "Invalid input is rejected.",
+  unchanged: "Existing records are preserved.",
+  decisions: [
+    { fork: "Where validation runs", options: ["Local only", "Local and remote"], pick: "Local only", because: "Local use only." },
+  ],
+  copies: "",
   must: ["Reject invalid input."],
-  should: [],
   out: ["Deployment."],
-  assumptions: ["Local use only."],
-  verify: [{ must: [1], scenario: "Invalid input returns an error." }],
+  qa: [
+    { refs: ["M1"], how: "script", scenario: "Invalid input returns an error." },
+    { refs: ["Unchanged"], how: "script", scenario: "Valid input is stored." },
+    { refs: ["not shown"], how: "agent", scenario: "No new screen appears." },
+  ],
 };
 function response(packet, value) {
   const report = { version: 1, inputDigest: packet.inputDigest, ...value };
@@ -66,8 +73,8 @@ function leadResponse(packet) {
         scope: "Parser implementation and tests.",
         constraints: "Preserve existing records.",
         must: [1],
-        verify: [1],
-        checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 30000 }],
+        verify: [1, 2, 3],
+        checks: [1, 2, 3].map((n) => ({ id: `Q${n}`, argv: ["node", "--test"], timeoutMs: 30000 })),
         workspace: { include: ["src"], exclude: [] },
       },
     ],
@@ -93,8 +100,10 @@ test("PM question, addressed human answer, Lead proposal produces contracts that
   assert.match(planningPrompt(pm.packet), /Pazmo Lead/);
   const draft = acceptPlanning(pm.packet, leadResponse(pm.packet));
   assert.equal(draft.kind, "proposal");
-  assert.match(draft.files["story.md"], /Status: Draft/);
-  assert.match(draft.files["story.md"], /Understanding gate \(G1\): pending/);
+  assert.match(draft.files["story.md"], /\n---\nStatus: Draft\nOwner: Human\n$/);
+  assert.match(draft.files["story.md"], /^- Q1 \[M1\] \(script\)\. Invalid input returns an error\.$/m);
+  assert.doesNotMatch(draft.files["story.md"], /Understanding gate|## Verify|## Domain/);
+  assert.match(draft.files["task-1.md"], /## Covers — Story M\/Q IDs\n- M1 \/ Q1, Q2, Q3/);
   assert.ok(
     draft.files["task-1.md"].split("\n").filter((s) => s.trim()).length <= 30,
   );
@@ -205,13 +214,19 @@ test("approval injection, unmapped requirements, invalid checks and incomplete p
   const p = start();
   for (const change of [
     (s) => {
-      s.goal += "\nStatus: Approved";
+      s.asIs += "\nStatus: Approved";
     },
     (s) => {
       s.approved = true;
     },
     (s) => {
-      s.verify[0].must = [2];
+      s.qa[0].refs = ["M2"];
+    },
+    (s) => {
+      s.qa = s.qa.filter((q) => q.refs[0] !== "Unchanged");
+    },
+    (s) => {
+      s.qa[2].how = "manual";
     },
     (s) => {
       s.must.push("Another required behavior.");
@@ -233,7 +248,7 @@ test("approval injection, unmapped requirements, invalid checks and incomplete p
       v.tasks[0].must = [2];
     },
     (v) => {
-      v.tasks[0].checks[0].id = "V2";
+      v.tasks[0].checks[0].id = "V1";
     },
     (v) => {
       v.tasks[0].workspace.include = ["../outside"];
@@ -271,8 +286,9 @@ test("a normal-risk multi-task proposal preserves mappings without manufacturing
   );
   const s = structuredClone(story);
   s.must.push("Reject invalid secondary input.");
-  s.verify.push({
-    must: [2],
+  s.qa.push({
+    refs: ["M2"],
+    how: "script",
     scenario: "Invalid secondary input returns an error.",
   });
   const lead = acceptPlanning(
@@ -284,8 +300,8 @@ test("a normal-risk multi-task proposal preserves mappings without manufacturing
   );
   const second = structuredClone(base.tasks[0]);
   second.must = [2];
-  second.verify = [2];
-  second.checks[0].id = "V2";
+  second.verify = [4];
+  second.checks = [{ ...second.checks[0], id: "Q4" }];
   base.tasks.push(second);
   const result = acceptPlanning(
     lead,
@@ -295,17 +311,21 @@ test("a normal-risk multi-task proposal preserves mappings without manufacturing
   assert.equal(result.files["decision.md"], undefined);
   assert.equal(result.contracts[1].decision, null);
   assert.equal(result.contracts[1].plan, "plan.md");
-  assert.match(result.files["task-2.md"], /M2 \/ V2/);
+  assert.match(result.files["task-2.md"], /M2 \/ Q4/);
 });
 
 test("identical check commands for different MUST sets are published as a Decisions warning, not rejected", () => {
   const p = beginPlanning(randomUUID(), "Validate three inputs.", "normal");
   const s = structuredClone(story);
   s.must.push("Reject invalid secondary input.", "Keep existing records.");
-  s.verify.push(
-    { must: [2], scenario: "Invalid secondary input returns an error." },
-    { must: [3], scenario: "Existing records are unchanged." },
-  );
+  // Q1-Q3 check M1-M3 (task 1-3); Q4 and Q5 are the Unchanged and not-shown scenarios task 3 also covers.
+  s.qa = [
+    { refs: ["M1"], how: "script", scenario: "Invalid input returns an error." },
+    { refs: ["M2"], how: "script", scenario: "Invalid secondary input returns an error." },
+    { refs: ["M3"], how: "script", scenario: "Existing records are unchanged." },
+    { refs: ["Unchanged"], how: "script", scenario: "Valid input is stored." },
+    { refs: ["not shown"], how: "agent", scenario: "No new screen appears." },
+  ];
   const lead = acceptPlanning(
     p,
     response(p, { status: "ready", story: s }),
@@ -317,29 +337,32 @@ test("identical check commands for different MUST sets are published as a Decisi
     scope: "Parser and tests.",
     constraints: "Keep records.",
     must: [must],
-    verify: [must],
-    checks,
+    verify: must === 3 ? [3, 4, 5] : [must],
+    checks:
+      must === 3
+        ? [3, 4, 5].map((n) => ({ ...checks[0], id: `Q${n}`, argv: [...checks[0].argv, `--test-name-pattern=Q${n}`] }))
+        : checks,
     workspace: { include: ["src"], exclude: [] },
   });
-  // Observed 2026-10-02: V1-V8 all ran one already-passing test file.
+  // Observed 2026-10-02: V1-V8 (now Q ids) all ran one already-passing test file.
   const weak = acceptPlanning(
     lead,
     response(lead, {
       plan: "Inspected the parser.",
       tasks: [
-        task(1, [{ id: "V1", argv: same, timeoutMs: 1000 }]),
-        task(2, [{ id: "V2", argv: same, timeoutMs: 1000 }]),
-        task(3, [{ id: "V3", argv: ["node", "--test", "test/records.test.mjs"], timeoutMs: 1000 }]),
+        task(1, [{ id: "Q1", argv: same, timeoutMs: 1000 }]),
+        task(2, [{ id: "Q2", argv: same, timeoutMs: 1000 }]),
+        task(3, [{ id: "Q3", argv: ["node", "--test", "test/records.test.mjs"], timeoutMs: 1000 }]),
       ],
     }),
   );
   assert.equal(weak.kind, "proposal");
   const decisions = weak.files["plan.md"].split("## Decisions\n")[1];
-  assert.match(decisions, /WARNING: V1, V2 run the same command/);
+  assert.match(decisions, /WARNING: Q1, Q2 run the same command/);
   assert.match(decisions, /M1; M2/);
-  assert.doesNotMatch(decisions, /V3/);
-  assert.match(weak.files["task-1.md"], /WARNING: V1 shares its command with V2/);
-  assert.match(weak.files["task-2.md"], /WARNING: V2 shares its command with V1/);
+  assert.doesNotMatch(decisions, /Q3/);
+  assert.match(weak.files["task-1.md"], /WARNING: Q1 shares its command with Q2/);
+  assert.match(weak.files["task-2.md"], /WARNING: Q2 shares its command with Q1/);
   assert.doesNotMatch(weak.files["task-3.md"], /WARNING/);
   assert.equal(weak.files["story.md"].includes("WARNING"), false);
 
@@ -348,9 +371,9 @@ test("identical check commands for different MUST sets are published as a Decisi
     response(lead, {
       plan: "Inspected the parser.",
       tasks: [
-        task(1, [{ id: "V1", argv: [...same, "--test-name-pattern=primary"], timeoutMs: 1000 }]),
-        task(2, [{ id: "V2", argv: [...same, "--test-name-pattern=secondary"], timeoutMs: 1000 }]),
-        task(3, [{ id: "V3", argv: ["node", "--test", "test/records.test.mjs"], timeoutMs: 1000 }]),
+        task(1, [{ id: "Q1", argv: [...same, "--test-name-pattern=primary"], timeoutMs: 1000 }]),
+        task(2, [{ id: "Q2", argv: [...same, "--test-name-pattern=secondary"], timeoutMs: 1000 }]),
+        task(3, [{ id: "Q3", argv: ["node", "--test", "test/records.test.mjs"], timeoutMs: 1000 }]),
       ],
     }),
   );

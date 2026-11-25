@@ -9,13 +9,18 @@ import {
 
 const story = {
   title: "Validate input",
-  goal: "Reject invalid input.",
-  domain: "Preserve records.",
+  asIs: "Invalid input is accepted.",
+  toBe: "Invalid input is rejected.",
+  unchanged: "Valid records are kept.",
+  decisions: [{ fork: "Where to validate", options: ["Parser", "Caller"], pick: "Parser", because: "One place." }],
+  copies: "",
   must: ["Reject invalid input."],
-  should: [],
   out: ["Deployment."],
-  assumptions: [],
-  verify: [{ must: [1], scenario: "Invalid input returns an error." }],
+  qa: [
+    { refs: ["M1"], how: "script", scenario: "Invalid input returns an error." },
+    { refs: ["Unchanged"], how: "script", scenario: "Valid input is stored." },
+    { refs: ["not shown"], how: "agent", scenario: "No new screen appears." },
+  ],
 };
 const task = {
   title: "Input validation",
@@ -23,8 +28,8 @@ const task = {
   scope: "Parser and tests.",
   constraints: "Keep records.",
   must: [1],
-  verify: [1],
-  checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 1000 }],
+  verify: [1, 2, 3],
+  checks: [1, 2, 3].map((n) => ({ id: `Q${n}`, argv: ["node", "--test"], timeoutMs: 1000 })),
   workspace: { include: ["src"], exclude: [] },
 };
 function observe(stdout, result = {}) {
@@ -110,28 +115,35 @@ test("process and transport failures name the observed condition", () => {
 
 test("each Story rule reports its field path and rule", () => {
   for (const [change, expected] of [
-    [(s) => (s.goal = "First paragraph.\n\nSecond paragraph."), "story.goal: line break"],
-    [(s) => (s.goal = "Tab\there"), "story.goal: control character"],
-    [(s) => (s.goal = "   "), "story.goal: empty"],
-    [(s) => (s.goal = 3), "story.goal: not a string"],
+    [(s) => (s.asIs = "First paragraph.\n\nSecond paragraph."), "story.asIs: line break"],
+    [(s) => (s.toBe = "Tab\there"), "story.toBe: control character"],
+    [(s) => (s.unchanged = "   "), "story.unchanged: empty"],
+    [(s) => (s.asIs = 3), "story.asIs: not a string"],
     [(s) => (s.title = "t".repeat(121)), "story.title: too long (121>120)"],
     [(s) => (s.must = []), "story.must: 0 items (allowed 1-16)"],
-    [(s) => (s.should = "none"), "story.should: not a list"],
+    [(s) => (s.decisions = "none"), "story.decisions: not a list"],
+    [(s) => (s.decisions[0].options = ["Parser"]), "story.decisions[0].options: 1 items (allowed 2-4)"],
+    [(s) => (s.copies = 3), "story.copies: not a string"],
     [(s) => (s.out[0] = "Deploy now"), "story.out[0]: line break"],
-    [(s) => (s.verify[0].must = [2]), "story.verify[0].must[0]: out of range 1-1"],
-    [(s) => (s.verify[0].must = [1.5]), "story.verify[0].must[0]: not an integer"],
-    [(s) => (s.verify[0].must = [1, 1]), "story.verify[0].must: duplicate reference"],
-    [(s) => s.must.push("Second behavior."), "story.must[1]: not covered by verify (M2)"],
+    [(s) => (s.qa[0].refs = ["M2"]), "story.qa[0].refs[0]: out of range M1-M1"],
+    [(s) => (s.qa[0].refs = ["V1"]), "story.qa[0].refs[0]: expected M<n>, Unchanged or not shown"],
+    [(s) => (s.qa[0].refs = ["M1", "M1"]), "story.qa[0].refs: duplicate reference"],
+    [(s) => (s.qa[1].refs = ["Unchanged", "M1"]), "story.qa[1].refs: Unchanged stands alone"],
+    [(s) => (s.qa[0].how = "manual"), "story.qa[0].how: expected script, agent or person"],
+    [(s) => s.must.push("Second behavior."), "story.must[1]: not covered by qa (M2)"],
+    [(s) => s.qa.splice(1, 1, { ...s.qa[0] }), "story.qa: no Unchanged scenario"],
+    [(s) => s.qa.splice(2, 1, { ...s.qa[0] }), "story.qa: no not shown scenario"],
+    [(s) => s.qa.push(...Array(18).fill(s.qa[0])), "story.qa: 21 items (allowed 1-20)"],
     [(s) => (s.approved = true), "story: unexpected approved"],
-    [(s) => delete s.goal, "story: missing goal"],
+    [(s) => delete s.asIs, "story: missing asIs"],
     [
       (s) => {
-        s["목표 설명"] = s.goal;
-        delete s.goal;
+        s["목표 설명"] = s.asIs;
+        delete s.asIs;
       },
-      "story: missing goal; unexpected 1 other",
+      "story: missing asIs; unexpected 1 other",
     ],
-    [(s) => (s.verify[0] = ["x"]), "story.verify[0]: not an object"],
+    [(s) => (s.qa[0] = ["x"]), "story.qa[0]: not an object"],
   ])
     assert.equal(detail(withStory(change)), expected);
 });
@@ -148,7 +160,7 @@ test("Lead task and check rules report their path", () => {
     [(v) => (v.risk = "normal"), "report: unexpected risk"],
     [(v) => (v.plan = "Line\nbreak"), "report.plan: line break"],
     [(v) => (v.tasks[0].must = [2]), "report.tasks[0].must[0]: out of range 1-1"],
-    [(v) => (v.tasks[0].checks[0].id = "V2"), "report.tasks[0].checks[0].id: not a task verify id"],
+    [(v) => (v.tasks[0].checks[0].id = "V2"), "report.tasks[0].checks[0].id: not a task QA id"],
     [(v) => (v.tasks[0].checks[0].argv = [""]), "report.tasks[0].checks[0].argv: empty command"],
     [(v) => (v.tasks[0].checks[0].argv = ["node", 3]), "report.tasks[0].checks[0].argv[1]: invalid argument"],
     [(v) => (v.tasks[0].checks[0].timeoutMs = 0), "report.tasks[0].checks[0].timeoutMs: expected integer 1-600000"],
@@ -191,7 +203,7 @@ test("question rules report their path and round limit", () => {
 test("detail never carries model-authored text and stays short", () => {
   const secret = "PROJECT-SECRET-VALUE";
   const cases = [
-    withStory((s) => (s.goal = `${secret}\n${secret}`)),
+    withStory((s) => (s.asIs = `${secret}\n${secret}`)),
     withStory((s) => (s[secret] = secret)),
     withStory((s) => (s.title = secret.repeat(20))),
     () => acceptPlanning(pm(), observe(secret.repeat(100))),
@@ -215,7 +227,10 @@ test("the prompt states the same limits the validator enforces", async () => {
   const sized = (n) => ({
     ...story,
     must: Array.from({ length: n }, (_, i) => `Requirement ${i + 1}.`),
-    verify: [{ must: Array.from({ length: n }, (_, i) => i + 1), scenario: "All." }],
+    qa: [
+      { refs: Array.from({ length: n }, (_, i) => `M${i + 1}`), how: "script", scenario: "All." },
+      ...story.qa.slice(1),
+    ],
   });
   assert.equal(acceptPlanning(p, ready(p, sized(stated))).kind, "lead");
   assert.equal(

@@ -66,3 +66,12 @@ test("story verify checks are per project repo", () => {
   assert.equal(code(() => validateStoryVerify([], repos)), "GRAPH_INVALID");
   assert.equal(code(() => validateStoryVerify([{ repoId: "be", checks: [check] }, { repoId: "be", checks: [check] }], repos)), "GRAPH_INVALID");
 });
+test("check ids are Q (story-qa) or V (Stories stored before it); other letters are refused", () => {
+  const take = (id) => code(() => validateStoryVerify([{ repoId: "be", checks: [{ ...check, id }] }], repos));
+  for (const ok of ["Q1", "Q999", "V1", "V999"]) assert.equal(take(ok), "OK", ok);
+  for (const bad of ["X1", "M1", "q1", "Q", "Q1000", "Q1a", "S1"]) assert.equal(take(bad), "GRAPH_INVALID", bad);
+  const graph = (id) => code(() => validateGraph({ nodes: [node("a", "be", ["x"], { verify: [{ ...check, id }] })], edges: [] }, { projectRepoIds: repos }));
+  assert.equal(graph("Q1"), "OK");
+  assert.equal(graph("V1"), "OK");
+  assert.equal(graph("X1"), "GRAPH_INVALID");
+});

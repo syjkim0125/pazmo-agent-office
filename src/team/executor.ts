@@ -519,7 +519,7 @@ export function createExecutor(d: {
   async function reverify(open: OpenClaim, f: Facts): Promise<string | null> {
     const candidate = await f.engine.freezeProject();
     // Numbered as the contract numbers them: the Hub's own ids are not trusted to be unique.
-    const checks = open.task.verify.map((check, i) => ({ id: `V${i + 1}`, argv: check.argv, timeoutMs: check.timeoutMs }));
+    const checks = open.task.verify.map((check, i) => ({ id: `Q${i + 1}`, argv: check.argv, timeoutMs: check.timeoutMs }));
     const abort = new AbortController();
     verifying = { claimId: open.claimId, abort };
     let results: Awaited<ReturnType<StoryEngine["verifyCandidate"]>>;

@@ -23,7 +23,7 @@ async function setup(t, count = 5, timeoutMs = 30000) {
     JSON.stringify({
       version: 1,
       checks: Array.from({ length: count }, (_, i) => ({
-        id: "V1",
+        id: "Q1",
         argv: ["node", "--eval", String(i)],
         timeoutMs,
       })),

@@ -343,7 +343,7 @@ test("time budgets survive release and node reservation cannot erase candidate i
     JSON.stringify({
       version: 1,
       checks: Array.from({ length: 7 }, () => ({
-        id: "V1",
+        id: "Q1",
         argv: ["node", "--test"],
         timeoutMs: 600000,
       })),

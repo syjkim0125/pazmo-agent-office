@@ -5,14 +5,14 @@
 ## Gates and decisions
 
 ### Story
-The canonical contract for one request: its goal, domain, required behaviors (MUST), optional behaviors (SHOULD), exclusions (OUT), assumed decisions and the verification scenarios that cover every MUST.
+The canonical contract for one request, in the Story shape of the `story-qa` skill of pazmo-story-to-dev (see that skill for the shape): what happens today, after the change and what stays unchanged, the forks the AI decided with its picks, what a human decided, required behaviors (MUST), exclusions (OUT) and the QA scenarios that prove every MUST. Its `Status:` line at the bottom says Draft or Approved.
 
 A Story is proposed by the PM role and means nothing until a human passes its Gate. Later planning and implementation are bound to the exact approved text, so changing a Story after approval invalidates the approvals that depend on it.
 
 ### Blocking decision
 An open choice in a Story that changes behavior, who may do what, what happens on failure, or compatibility with other systems, and that has no conventional safe default.
 
-A human must settle it, or the Story keeps it visible as open blocking; it is never filled in with an assumed default, and a Story that still lists one cannot be approved. A choice that has a safe, easily reversed default is an assumed decision instead and stays listed in the Story. In payment and system-migration work, how long old and new paths coexist, when to roll back, whether a failure keeps the old behavior or removes the feature, and which source wins when two disagree are blocking unless the requirement or a human already settled them. A blocking decision is part of the Story's content; it is not a Decision waiting in the inbox, although answering one usually happens through a Gate.
+A human must settle it, through a planning question whose answer the Story keeps under Human decides; it is never filled in with an AI pick. A choice that has a safe, easily reversed default is decided by the AI instead and stays listed under the Story's Decisions with its options and the reason for the pick. In payment and system-migration work, how long old and new paths coexist, when to roll back, whether a failure keeps the old behavior or removes the feature, and which source wins when two disagree are blocking unless the requirement or a human already settled them. A blocking decision is part of the Story's content; it is not a Decision waiting in the inbox, although answering one usually happens through a Gate.
 
 ### Candidate
 A frozen snapshot of proposed project changes that checks, review and a human Gate all judge as one exact subject.

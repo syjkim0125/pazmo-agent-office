@@ -28,15 +28,18 @@ const ANSWER = "주문 목록부터.\n상세는 다음에.";
 
 const STORY = {
   title: TITLE,
-  goal: "고객이 지난 주문을 본다.",
-  domain: "주문은 바뀌지 않는다.",
+  asIs: "고객이 지난 주문을 볼 수 없다.",
+  toBe: "고객이 지난 주문을 본다.",
+  unchanged: "주문은 바뀌지 않는다.",
+  decisions: [{ fork: "보여 줄 기간", options: ["최근 30일", "전체"], pick: "최근 30일", because: "주문이 많다" }],
+  copies: "",
   must: ["주문 목록을 보여 준다.", "API가 주문을 돌려준다."],
-  should: [],
   out: ["결제."],
-  assumptions: ["최근 30일만."],
-  verify: [
-    { must: [1], scenario: "화면에 주문이 보인다." },
-    { must: [2], scenario: "API가 200을 돌려준다." },
+  qa: [
+    { refs: ["M1"], how: "agent", scenario: "화면에 주문이 보인다." },
+    { refs: ["M2"], how: "script", scenario: "API가 200을 돌려준다." },
+    { refs: ["Unchanged"], how: "script", scenario: "주문 데이터가 그대로다." },
+    { refs: ["not shown"], how: "agent", scenario: "결제 화면에 새 버튼이 없다." },
   ],
 };
 const QUESTIONS = { status: "questions", questions: [{ id: "Q1", text: "어느 화면부터 만들까요?", reason: "범위가 바뀝니다." }] };
@@ -52,8 +55,8 @@ const LEAD = {
       scope: "주문 라우트.",
       constraints: "응답 모양을 지킨다.",
       must: [2],
-      verify: [2],
-      checks: [check("V2", "tests/orders.test.mjs")],
+      verify: [2, 3],
+      checks: [check("Q2", "tests/orders.test.mjs"), check("Q3", "tests/orders.test.mjs")],
       repo: "app-be",
       files: ["src/orders.ts"],
       after: [],
@@ -64,16 +67,16 @@ const LEAD = {
       scope: "주문 화면.",
       constraints: "디자인 체계를 따른다.",
       must: [1],
-      verify: [1],
-      checks: [check("V1", "tests/orders-page.test.mjs")],
+      verify: [1, 4],
+      checks: [check("Q1", "tests/orders-page.test.mjs"), check("Q4", "tests/orders-page.test.mjs")],
       repo: "app-fe",
       files: ["src/orders-page.tsx"],
       after: [1],
     },
   ],
   storyVerify: [
-    { repo: "app-be", checks: [check("V2", "tests/orders.test.mjs")] },
-    { repo: "app-fe", checks: [check("V1", "tests/orders-page.test.mjs")] },
+    { repo: "app-be", checks: [check("Q2", "tests/orders.test.mjs")] },
+    { repo: "app-fe", checks: [check("Q1", "tests/orders-page.test.mjs")] },
   ],
 };
 
@@ -399,7 +402,7 @@ test("from 새 Story to a claimable Task: the web makes the project and the plan
   assert.equal(w.remote("app-be", base), w.tips["app-be"], "app-be's base at main's commit");
   assert.equal(w.remote("app-fe", base), w.tips["app-fe"], "app-fe's base at develop's commit");
   assert.equal(count(w.logs, `published as story-${story.number}`), 1);
-  assert.match(story.body, new RegExp(`^Understanding gate \\(G1\\): hub-approval:${v.g1.approvalId} · `, "m"));
+  assert.match(story.body, new RegExp(`^Status: Approved \\(G1 hub-approval:${v.g1.approvalId} · `, "m"));
   // The plan folder keeps only what the Office reads back (no unread gate record copies).
   assert.deepEqual(readdirSync(w.planDir(planId)).filter((n) => /^(g1|g3)\.json$|^(story|design)\.md$/.test(n)), []);
   assert.match((await w.get(`/plans/${planId}`)).text, new RegExp(`href="/stories/${story.id}"`));
@@ -448,7 +451,7 @@ test("a high-risk plan stops at 설계 승인, opens only after G3, keeps risk h
   assert.deepEqual(story.tasks.filter((x) => x.kind === "work").map((x) => x.title), ["주문 API", "주문 화면"]);
   assert.equal(w.remote("app-be", base), w.tips["app-be"]);
   assert.equal(w.remote("app-fe", base), w.tips["app-fe"]);
-  assert.match(story.body, new RegExp(`^Understanding gate \\(G1\\): hub-approval:${v.g1.approvalId} · `, "m"));
+  assert.match(story.body, new RegExp(`^Status: Approved \\(G1 hub-approval:${v.g1.approvalId} · `, "m"));
   assert.deepEqual(readdirSync(w.planDir(planId)).filter((n) => /^(g1|g3)\.json$|^(story|design)\.md$/.test(n)), []);
 
   const { claimed } = await w.aScheduler.tick();

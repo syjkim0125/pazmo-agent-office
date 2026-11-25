@@ -33,7 +33,7 @@ or merged into the base branch: that stays the checked commits.
 2. Show the PL, in plain words: the Story title, the check `summary` and, for each repo, the base branch and the
    checked `commit`. Say what approving does: each repo's Story base is merged into its base branch with the PL's
    git and gh, through a PR per repo; a conflict or a protection rule leaves that PR to a person.
-3. Ask the PL whether to approve, like a kit G4: what the change does, one thing that must stay true, and what was
+3. Ask the PL whether to approve, with what the change does, one thing that must stay true, and what was
    not checked. Do not answer for the PL and do not approve on your own.
 4. Only after the PL says yes: copy `record.template` into the file at `record.path`, and put the PL's own words in
    `responseRef` (what you showed, your question and the PL's answer, quoted). Change nothing else in the template:

@@ -8,12 +8,14 @@
 const ITEMS_MAX = 30;
 
 /**
- * The MUST and Verify lines of a kit Story (`- M1. …` under `## MUST`, `- V1 …` under `## Verify`), with the same
- * bullets (`-`, `*`) and ids (any case) the upload check reads (`kitStoryRefs`); none for free text.
+ * The MUST and QA lines of a story-qa Story (`- M1. …` under `## MUST`, `- Q1 [M1] (script). …` under `## QA`), and the
+ * Verify lines of a Story written before that format (`- V1 …` under `## Verify`), with the same bullets (`-`, `*`) and
+ * ids (any case) the upload check reads (`storyRefs`); none for free text.
  */
-export function storyItems(body: string): { must: string[]; verify: string[] } {
+export function storyItems(body: string): { must: string[]; verify: string[]; qa: string[] } {
   const must: string[] = [],
-    verify: string[] = [];
+    verify: string[] = [],
+    qa: string[] = [];
   let section = "";
   for (const raw of body.split(/\r?\n/)) {
     const heading = /^##\s+(.+?)\s*$/.exec(raw);
@@ -21,13 +23,14 @@ export function storyItems(body: string): { must: string[]; verify: string[] } {
       section = heading[1].toLowerCase();
       continue;
     }
-    const item = /^\s*[-*]\s+([MV]\d+\b.*?)\s*$/i.exec(raw);
+    const item = /^\s*[-*]\s+([MVQ]\d+\b.*?)\s*$/i.exec(raw);
     if (!item) continue;
     const kind = item[1][0].toUpperCase();
     if (section === "must" && kind === "M") must.push(item[1]);
     else if (section === "verify" && kind === "V") verify.push(item[1]);
+    else if (section === "qa" && kind === "Q") qa.push(item[1]);
   }
-  return { must, verify };
+  return { must, verify, qa };
 }
 
 /**
@@ -89,7 +92,7 @@ export function mergeTarget(repos: { name: string; baseBranch: string }[]): { bu
 const oneLine = (text: string) => text.replace(/\s+/g, " ").trim();
 
 export function approvalPlan(o: ApprovalInput): ApprovalPlan {
-  const { must, verify } = storyItems(o.body);
+  const { must, verify, qa: scenes } = storyItems(o.body);
   const assumed = o.tasks.flatMap((t) =>
     t.assumptions
       .filter((line) => ASSUMED.test(line))
@@ -98,7 +101,8 @@ export function approvalPlan(o: ApprovalInput): ApprovalPlan {
   const qa = [
     ...cut(must.map((m) => `${m} — 동작하는지`), "MUST"),
     ...cut(verify.map((v) => `${v} — 이 장면 그대로인지`), "Verify"),
-    ...(must.length || verify.length ? [] : ["Story 글의 목표대로 동작하는지(Story 글 참고)"]),
+    ...cut(scenes.map((q) => `${q} — 이 장면 그대로인지`), "QA"),
+    ...(must.length || verify.length || scenes.length ? [] : ["Story 글의 목표대로 동작하는지(Story 글 참고)"]),
     ...cut(assumed, "AI가 정한 것", "Task 화면"),
   ];
   const files: ApprovalPlan["files"] = [];

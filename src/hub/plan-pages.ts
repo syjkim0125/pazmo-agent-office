@@ -195,26 +195,50 @@ function splitRows(split: Split, repos: PlanRepo[]): string {
 }
 const when = (at: number) => `${teamTime(at)} (${ago(at)})`;
 
-/** A Story draft's kit heads, in the words the board uses (U50); a head with no entry is shown as written. */
+/**
+ * A Story draft's heads, in the words the board uses (U50): the story-qa Story's (Goal, Decisions, Human decides, MUST,
+ * OUT, QA) and, for a draft written before that format, Domain, SHOULD and Verify. A head with no entry is shown as
+ * written.
+ */
 const HEADS: Record<string, string> = {
   Goal: "목표",
-  Domain: "영역",
-  MUST: "꼭 할 것",
-  SHOULD: "하면 좋은 것",
-  OUT: "이번에 하지 않을 것",
   Decisions: "정한 것",
+  "Human decides": "사람이 정한 것",
+  MUST: "꼭 할 것",
+  OUT: "이번에 하지 않을 것",
+  QA: "확인할 것(QA)",
+  Domain: "영역",
+  SHOULD: "하면 좋은 것",
   Verify: "확인 방법",
 };
+/** The story-qa Story's English item markers (Goal's As-is, To-be and Unchanged; a decision's Options, Pick and
+ * Copies), in words; the rest of the line is kept as written. */
+const MARKERS: [RegExp, string][] = [
+  [/^As-is:\s*/, "지금: "],
+  [/^To-be:\s*/, "바뀐 뒤: "],
+  [/^Unchanged:\s*/, "그대로: "],
+  [/^Options:\s*/, "선택지: "],
+  [/^Copies:\s*/, "사본: "],
+];
+const markers = (words: string) => {
+  const pick = /^Pick:\s*(.*)$/.exec(words);
+  if (pick) {
+    const at = pick[1].lastIndexOf(", because ");
+    return at < 0 ? `고른 것: ${pick[1]}` : `고른 것: ${pick[1].slice(0, at)} — 이유: ${pick[1].slice(at + ", because ".length)}`;
+  }
+  const m = MARKERS.find(([re]) => re.test(words));
+  return m ? words.replace(m[0], m[1]) : words;
+};
 /**
- * One line of a draft or design split into its id (M1, V1, D2), the ids it covers ([M1, M2]) and its words, with the
- * kit's English markers in words. OPEN BLOCKING is put in words only where the store counts it (`hasOpenBlocking`): a
- * list line that starts with it.
+ * One line of a draft or design split into its id (M1, Q1, D2; V1 in an older draft), the targets it covers ([M1, M2],
+ * with a QA scenario's method: `[M1] (script)`) and its words, with the English markers in words. OPEN BLOCKING (an
+ * older draft's) is put in words only where the store counts it (`hasOpenBlocking`): a list line that starts with it.
  */
 function docParts(text: string, bullet = false): { label: string; refs: string; words: string } {
-  const id = /^([A-Z]{1,3}\d+)(?:\s*(\[[^\]]*\]))?\.\s+(.*)$/.exec(text);
+  const id = /^([A-Z]{1,3}\d+)(?:\s*(\[[^\]]*\](?:\s*\([^)]*\))?))?\.\s+(.*)$/.exec(text);
   const [label, refs, body] = id ? [id[1], id[2] ?? "", id[3]] : ["", "", text];
   const blocking = bullet && !label ? body.replace(/^OPEN\s+BLOCKING\b:?\s*/i, "필수: ") : body;
-  return { label, refs, words: blocking.replace(/^ASSUMED:\s*/, "AI가 정한 것: ").replace(/^None\.$/, "없음") };
+  return { label, refs, words: markers(blocking.replace(/^ASSUMED:\s*/, "AI가 정한 것: ").replace(/^None\.$/, "없음")) };
 }
 /**
  * An item's words one sentence per line (U51). Office's `PL 답: <question> → <answer>` decision shows the answer first
@@ -230,7 +254,7 @@ function docWords(refs: string, words: string, asked: readonly string[] = []): s
       : `PL 답 <b>${esc(words.slice(`PL 답: ${q} → `.length))}</b><details class="pq"><summary>질문 보기</summary>${say(q)}</details>`;
   return `${refs ? `<span class="refs">${esc(refs)}</span> ` : ""}${text}`;
 }
-/** How many top-level items each `##` section of a draft has ("None." counts none), by its kit head. */
+/** How many top-level items each `##` section of a draft has ("None." counts none), by its head as written. */
 function sectionCounts(text: string): Map<string, number> {
   const counts = new Map<string, number>();
   let head = "";
@@ -246,9 +270,11 @@ function sectionCounts(text: string): Map<string, number> {
 /**
  * A draft or design read as sections (U50, U51): the draft's Story title, `##` heads in Korean with how many items they
  * hold, items with their id in a left column, every item and paragraph one sentence per line, every word kept as
- * written. Only the kit's header at the top (the `# ` title, Status, Owner and gate lines before anything else) and the
- * Office's gate line (`Understanding gate (G3): pending`, which a design carries after its Task list) are left out; a
- * `# Story:` title is shown as the Story's title. The raw text, which the approval is bound to, stays one click away.
+ * written but the English markers. Left out: the header at the top (the `# ` title, and the Status, Owner and gate lines
+ * an older draft has before anything else), the story-qa Story's progress lines at the bottom (a `---` rule followed
+ * only by `Status:` and `Owner:` lines), and an older design's gate line (`Understanding gate (G3): pending`, after its
+ * Task list); a `# Story:` title is shown as the Story's title. The raw text, which the approval is bound to, stays one
+ * click away.
  */
 function docBody(text: string, questions: readonly string[] = []): string {
   const counts = sectionCounts(text);
@@ -262,7 +288,7 @@ function docBody(text: string, questions: readonly string[] = []): string {
     list = null;
   };
   let header = true;
-  for (const src of text.split("\n")) {
+  for (const src of bodyLines(text)) {
     const line = src.trim();
     if (!line) {
       flush();
@@ -290,7 +316,7 @@ function docBody(text: string, questions: readonly string[] = []): string {
       if (list && list.tag !== tag) flush();
       list ??= { tag, items: [] };
       const attrs = `${/^\s{2,}/.test(src) ? ' class="sub"' : ""}${item[2] ? ` value="${item[2]}"` : ""}`;
-      const p = tag === "ul" ? docParts(item[3], true) : { label: "", refs: "", words: item[3] };
+      const p = tag === "ul" ? docParts(item[3], true) : { label: "", refs: "", words: markers(item[3]) };
       const id = item[2] ? `<span class="id">${item[2]}.</span>` : p.label ? `<span class="id">${esc(p.label)}</span>` : '<span class="id" aria-hidden="true">•</span>';
       list.items.push({ html: `<li${attrs}>${id}<span class="tx">${docWords(p.refs, p.words, asked)}</span></li>`, line });
       continue;
@@ -302,11 +328,28 @@ function docBody(text: string, questions: readonly string[] = []): string {
   flush();
   return `<div class="doc">${out.join("")}</div>`;
 }
-/** How many items the draft's MUST, SHOULD, OUT and Verify hold, in one line for the draft card (U51). */
+/** A draft's lines without the story-qa Story's progress lines at the bottom: a `---` rule followed only by `Status:`,
+ * `Owner:` and blank lines. A rule anywhere else stays. */
+function bodyLines(text: string): string[] {
+  const lines = text.split("\n");
+  let end = lines.length;
+  while (end > 0 && /^\s*$|^(Status|Owner):/.test(lines[end - 1].trim())) end--;
+  return end > 0 && end < lines.length && /^-{3,}$/.test(lines[end - 1].trim()) && lines.slice(end).some((l) => l.trim())
+    ? lines.slice(0, end - 1)
+    : lines;
+}
+/** A story-qa Story draft: it has a `## QA` section and no `## Verify` of the older format. */
+const isStoryQa = (text: string) => /^##\s+QA\s*$/m.test(text) && !/^##\s+Verify\s*$/m.test(text);
+/**
+ * How many items the draft holds, in one line for the draft card (U51): MUST, OUT and QA for a story-qa Story; MUST,
+ * SHOULD, OUT and Verify for an older draft.
+ */
 function draftCounts(text: string): string {
   const c = sectionCounts(text);
-  const short = { MUST: "꼭 할 것", SHOULD: "하면 좋은 것", OUT: "하지 않을 것", Verify: "확인 방법" } as const;
-  return `<p class="counts">${(Object.keys(short) as (keyof typeof short)[]).map((k) => `${short[k]} ${c.get(k) ?? 0}`).join(" · ")}</p>`;
+  const short: Record<string, string> = isStoryQa(text)
+    ? { MUST: "꼭 할 것", OUT: "하지 않을 것", QA: "QA" }
+    : { MUST: "꼭 할 것", SHOULD: "하면 좋은 것", OUT: "하지 않을 것", Verify: "확인 방법" };
+  return `<p class="counts">${Object.keys(short).map((k) => `${short[k]} ${c.get(k) ?? 0}`).join(" · ")}</p>`;
 }
 /** The sentences of a passage as `say` splits them (U49). */
 const sentencesOf = (text: string) =>
@@ -335,9 +378,39 @@ function questionText(text: string, plain: boolean): string {
   return `<p class="qt">${ss.map(line).join(" ")}</p>`;
 }
 const raw = (text: string) => `<details><summary>원문 그대로 보기</summary><pre>${esc(text)}</pre></details>`;
-/** What the AI assumed in a draft: its `ASSUMED:` lines, shown in the draft card for the PL to check (U50). */
-const assumedOf = (text: string) =>
-  text.split("\n").map((l) => /^\s*[-*]\s+(?:[A-Z]{1,3}\d+\.\s+)?ASSUMED:\s*(.*)$/.exec(l)?.[1]?.trim() ?? "").filter(Boolean);
+/**
+ * What the AI decided in a draft, shown in the draft card for the PL to check (U50): for a story-qa Story each decision's
+ * fork and pick under `## Decisions` (`<fork> → <pick>`, the reason left in the draft), for an older draft its
+ * `ASSUMED:` lines.
+ */
+function assumedOf(text: string): string[] {
+  if (!isStoryQa(text))
+    return text.split("\n").map((l) => /^\s*[-*]\s+(?:[A-Z]{1,3}\d+\.\s+)?ASSUMED:\s*(.*)$/.exec(l)?.[1]?.trim() ?? "").filter(Boolean);
+  const out: string[] = [];
+  let section = "",
+    fork: string | null = null;
+  for (const line of text.split("\n")) {
+    const head = /^##\s+(.+?)\s*$/.exec(line);
+    if (head) {
+      section = head[1];
+      fork = null;
+      continue;
+    }
+    if (section !== "Decisions") continue;
+    const top = /^[-*]\s+(.*)$/.exec(line);
+    if (top) {
+      fork = /^[A-Z]{1,3}\d+\.\s+(.*)$/.exec(top[1].trim())?.[1]?.trim() ?? null;
+      continue;
+    }
+    const pick = /^\s+[-*]\s+Pick:\s*(.*)$/.exec(line);
+    if (fork !== null && pick) {
+      const at = pick[1].lastIndexOf(", because ");
+      out.push(`${fork} → ${(at < 0 ? pick[1] : pick[1].slice(0, at)).trim()}`);
+      fork = null;
+    }
+  }
+  return out;
+}
 
 /**
  * `plMac` and `plOpenTask` are the PL's, read by the caller, and `unlinked` the names of the plan's repos the PL's Office

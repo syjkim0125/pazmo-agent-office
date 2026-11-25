@@ -174,13 +174,20 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
   await f.office.assign(taskId);
   const story = {
     title: "README",
-    goal: "Clarify execution",
-    domain: "Documentation",
+    asIs: "README shows an old command",
+    toBe: "README shows the actual command",
+    unchanged: "Runtime behavior",
+    decisions: [
+      { fork: "Where the command comes from", options: ["CLI help", "Old notes"], pick: "CLI help", because: "it is the source of truth" },
+    ],
+    copies: "",
     must: ["Show actual command"],
-    should: [],
     out: ["Runtime changes"],
-    assumptions: [],
-    verify: [{ must: [1], scenario: "Command matches CLI" }],
+    qa: [
+      { refs: ["M1"], how: "script", scenario: "Command matches CLI" },
+      { refs: ["Unchanged"], how: "script", scenario: "CLI output is the same" },
+      { refs: ["not shown"], how: "agent", scenario: "No other README section changes" },
+    ],
   };
   pmReady(f.office.ledgers.intake, taskId, story);
   await f.office.refresh();
@@ -195,9 +202,11 @@ test("ordinary chat cannot approve a pending Story; explicit Decision saves the 
   const [readable, original] = decision.summary.split("\n상세 원문:\n");
   assert.equal(
     readable,
-    "요구사항 범위 승인\n\n**README**\n\n목표: Clarify execution\n\n영역: Documentation\n\n꼭 할 일 (MUST)\n- M1. Show actual command\n\n범위 밖 (OUT)\n- Runtime changes\n\n가정 (ASSUMED)\n- 없음\n\n확인 방법 (Verify)\n- V1 [M1]. Command matches CLI\n\n승인은 아래 원문 Story를 기준으로 합니다.",
+    "요구사항 범위 승인\n\n**README**\n\nGoal\n- 지금: README shows an old command\n- 바뀐 뒤: README shows the actual command\n- 그대로: Runtime behavior\n\nMUST\n- M1. Show actual command\n\nOUT\n- O1. Runtime changes\n\nQA\n- Q1 [M1] (script). Command matches CLI\n- Q2 [Unchanged] (script). CLI output is the same\n- Q3 [not shown] (agent). No other README section changes\n\n승인은 아래 원문 Story를 기준으로 합니다.",
     "people read the Story, not its JSON",
   );
+  // Q12 (not shown): the G1 card carries none of the old Story format's words.
+  assert.doesNotMatch(decision.summary, /Understanding gate|G4: PASS|ASSUMED|OPEN BLOCKING|Domain|SHOULD|Verify/);
   assert.doesNotMatch(decision.summary, /[{}"]/);
   const { renderPlanningStory } = await import("../src/runners/planning.ts");
   assert.equal(original, renderPlanningStory(story), "the bound Story stays complete");
@@ -528,7 +537,7 @@ test("native recovery Decision survives restart and consumes exactly one human r
   );
   execution.startPlanning(lease.id, "closed-planner");
   intake.interrupt(taskId, i.revision, i.inputDigest, "PLANNING_INVALID", {
-    detail: "story.goal: line break",
+    detail: "story.asIs: line break",
   });
   execution.finishPlanning(lease.id, "closed-planner", {
     closed: true,
@@ -544,7 +553,7 @@ test("native recovery Decision survives restart and consumes exactly one human r
   await f.office.refresh();
   const before = f.office.decisions()[0];
   assert.equal(before.options[0].label, "계획 재개");
-  assert.match(before.summary, /\n원인: story\.goal: line break$/);
+  assert.match(before.summary, /\n원인: story\.asIs: line break$/);
   const restarted = await f.restart();
   await restarted.refresh();
   assert.equal(restarted.decisions()[0].id, before.id);
@@ -597,10 +606,10 @@ test("plan gates show a readable contract summary and keep every document verbat
   const [readable, original] = decision.summary.split("\n상세 원문:\n");
   assert.match(readable, /^G1: 실행 계획과 범위를 확인해주세요\.\n\n\*\*작업: Input validation\*\*/);
   assert.match(readable, /Story: Validate input \(MUST 1개 · OUT 1개\)/);
-  assert.match(readable, /담당 범위: M1, V1/);
+  assert.match(readable, /담당 범위: M1, Q1/);
   assert.match(readable, /결과: Reject invalid input\./);
   assert.match(readable, /수정 허용 경로 \(1\)\n- src/);
-  assert.match(readable, /등록 검사 1개 \(서로 다른 명령 1개\)\n- V1: `node -e /);
+  assert.match(readable, /등록 검사 1개 \(서로 다른 명령 1개\)\n- Q1: `node -e /);
   assert.match(readable, /팀장 계획\n> Worker could not access the snapshot; no commands ran\./);
   assert.match(readable, /고위험 결정 문서\(G3\)/);
   assert.doesNotMatch(readable, /This is a model proposal/);

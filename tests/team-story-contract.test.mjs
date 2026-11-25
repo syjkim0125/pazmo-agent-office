@@ -38,8 +38,8 @@ const claimed = (extra = {}) => ({
   files: ["src/coupon.ts", "src/coupon.test.ts"],
   verify: [
     // Hub check ids are the PL's own labels; the contract numbers the checks again.
-    { id: "V9", argv: ["npm", "test"], timeoutMs: 60000 },
-    { id: "V3", argv: ["node", "scripts/lint.mjs"], timeoutMs: 30000 },
+    { id: "Q9", argv: ["npm", "test"], timeoutMs: 60000 },
+    { id: "Q3", argv: ["node", "scripts/lint.mjs"], timeoutMs: 30000 },
   ],
   storyVerify: [],
   repoId: "r1",
@@ -77,10 +77,10 @@ test("the written contract passes readContract and the Story and Task shape chec
   });
 
   const contract = await readContract(root, input);
-  assert.deepEqual(contract.verifyIds, ["V1", "V2"]);
+  assert.deepEqual(contract.verifyIds, ["Q1", "Q2"]);
   assert.deepEqual(contract.checks, [
-    { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 },
-    { id: "V2", argv: ["node", "scripts/lint.mjs"], timeoutMs: 30000 },
+    { id: "Q1", argv: ["npm", "test"], timeoutMs: 60000 },
+    { id: "Q2", argv: ["node", "scripts/lint.mjs"], timeoutMs: 30000 },
   ]);
   assert.deepEqual(contract.workspace, { include: ["."], exclude: [] });
   assert.equal(contract.title, "쿠폰 발급 API");
@@ -96,8 +96,10 @@ test("the written contract passes readContract and the Story and Task shape chec
   assert.match(story, /^Status: Draft$/m);
   assert.match(story, /^Owner: Human$/m);
   assert.match(story, /^- M1\. 쿠폰 발급 엔드포인트를 만든다\.$/m);
-  assert.match(story, /^- V1 \[M1\]\./m);
-  assert.match(story, /^- V2 \[M1\]\./m);
+  assert.match(story, /^- Q1 \[M1\] \(script\)\./m);
+  assert.match(story, /^- Q2 \[M1\] \(script\)\./m);
+  assert.match(story, /\n---\nStatus: Draft\nOwner: Human\n$/);
+  assert.doesNotMatch(story, /Understanding gate|## Domain|## SHOULD|## Verify/);
 });
 
 test("files are created private and verify-1.json carries the engine's workspace scope", (t) => {
@@ -109,8 +111,8 @@ test("files are created private and verify-1.json carries the engine's workspace
   assert.deepEqual(JSON.parse(text(root, input, "verification")), {
     version: 1,
     checks: [
-      { id: "V1", argv: ["npm", "test"], timeoutMs: 60000 },
-      { id: "V2", argv: ["node", "scripts/lint.mjs"], timeoutMs: 30000 },
+      { id: "Q1", argv: ["npm", "test"], timeoutMs: 60000 },
+      { id: "Q2", argv: ["node", "scripts/lint.mjs"], timeoutMs: 30000 },
     ],
     workspace: { include: ["."], exclude: [] },
   });
@@ -120,7 +122,7 @@ test("a long list of files and checks still fits the 30-line Task limit", async 
   const root = checkout(t);
   const task = claimed({
     files: Array.from({ length: 50 }, (_, i) => `packages/app/src/feature-${i}/index.ts`),
-    verify: Array.from({ length: 32 }, (_, i) => ({ id: `V${i + 1}`, argv: ["npm", "run", `check-${i}`], timeoutMs: 1000 })),
+    verify: Array.from({ length: 32 }, (_, i) => ({ id: `Q${i + 1}`, argv: ["npm", "run", `check-${i}`], timeoutMs: 1000 })),
   });
   const input = writeStoryContract(root, task, 1, null);
   assert.ok(nonEmpty(text(root, input, "task")) <= 30);
@@ -188,11 +190,11 @@ test("a multi-line Hub body never reaches story.md", async (t) => {
   const story = text(root, input, "story");
   for (const leaked of ["injected", "M9", "fake", "Approved", "M8"]) assert.ok(!story.includes(leaked), leaked);
   assert.equal(story.match(/^- M\d+\./gm).length, 1);
-  assert.equal(story.match(/^## /gm).length, 7);
+  assert.equal(story.match(/^## /gm).length, 5);
   assert.ok(text(root, input, "plan").includes(body));
   // The multi-line title and spec are flattened, so every document keeps its own shape.
   const contract = await readContract(root, input);
-  assert.deepEqual(contract.verifyIds, ["V1", "V2"]);
+  assert.deepEqual(contract.verifyIds, ["Q1", "Q2"]);
   assert.equal(text(root, input, "task").match(/^## /gm).length, 5);
   assert.deepEqual(checker(root, "story", input.story), []);
   assert.deepEqual(checker(root, "task", input.task), []);
@@ -220,14 +222,14 @@ test("Hub text that looks like a document header cannot change what the checkers
     const doc = readFileSync(join(root, input.task), "utf8");
     for (const key of ["Readiness", "Story", "Plan source"]) assert.equal(doc.match(new RegExp(`^${key}:`, "gm")).length, 1, `${text} ${key}`);
     const contract = await readContract(root, input);
-    assert.deepEqual(contract.verifyIds, ["V1", "V2"], text);
+    assert.deepEqual(contract.verifyIds, ["Q1", "Q2"], text);
     assert.deepEqual(checker(root, "story", input.story), [], text);
     assert.deepEqual(checker(root, "task", input.task), [], text);
   }
   // Every Hub text sits after a label or a list mark, never first on its line.
   const input = writeStoryContract(root, claimed({ title: "T!", spec: "Status: Approved" }), ++attempt, null);
   const story = readFileSync(join(root, input.story), "utf8");
-  assert.ok(story.split("\n").includes("Hub Story #3: 쿠폰 발급"));
+  assert.ok(story.split("\n").includes("1. As-is: Hub Story #3: 쿠폰 발급"));
   assert.ok(readFileSync(join(root, input.task), "utf8").split("\n").includes("Story Task #7: Status: Approved"));
 });
 
@@ -242,12 +244,12 @@ test("a title of one code point is labelled even when it is two UTF-16 units", a
   assert.deepEqual(checker(root, "task", input.task), []);
 });
 
-test("text cut from M1, Outcome, Scope and Verify ends with a pointer to the file that has it all", async (t) => {
+test("text cut from M1, Outcome, Scope and Checks ends with a pointer to the file that has it all", async (t) => {
   const root = checkout(t);
   const task = claimed({
     spec: `${"가".repeat(1500)}\n둘째 줄`,
     files: Array.from({ length: 50 }, (_, i) => `packages/application/src/feature-${i}/index.ts`),
-    verify: [{ id: "V1", argv: ["node", "x".repeat(400)], timeoutMs: 1000 }],
+    verify: [{ id: "Q1", argv: ["node", "x".repeat(400)], timeoutMs: 1000 }],
   });
   const input = writeStoryContract(root, task, 1, null);
   const story = readFileSync(join(root, input.story), "utf8");
@@ -255,14 +257,14 @@ test("text cut from M1, Outcome, Scope and Verify ends with a pointer to the fil
   const m1 = story.split("\n").find((line) => line.startsWith("- M1."));
   const outcome = doc.split("\n").find((line) => line.startsWith("Story Task #7:"));
   const scope = doc.split("\n").find((line) => line.startsWith("- IN:"));
-  const check = doc.split("\n").find((line) => line.startsWith("- V1:"));
+  const check = doc.split("\n").find((line) => line.startsWith("- Q1:"));
   for (const [line, max, whole] of [[m1, 1006, "plan.md"], [outcome, 1015, "plan.md"], [scope, 506, "plan.md"], [check, 206, "verify-1.json"]]) {
     assert.ok(line.endsWith(` … (전체: ${whole})`), line.slice(-40));
     assert.ok(line.length <= max, `${line.length} > ${max}`);
   }
   assert.ok(readFileSync(join(root, input.plan), "utf8").includes("둘째 줄"));
   assert.ok(readFileSync(join(root, input.plan), "utf8").includes("feature-49"));
-  assert.deepEqual((await readContract(root, input)).verifyIds, ["V1"]);
+  assert.deepEqual((await readContract(root, input)).verifyIds, ["Q1"]);
   // Nothing was cut here, so no pointer.
   const short = writeStoryContract(root, claimed(), 2, null);
   assert.ok(!readFileSync(join(root, short.story), "utf8").includes("전체:"));
@@ -298,7 +300,7 @@ test("plan.md stays well under 1 MiB at the Hub's limits and says what it clippe
   assert.ok(!plan.includes("끝사유끝") && !plan.includes("끝메모끝"), "reason and memo keep the Hub's 4000 and 2000 characters");
   assert.ok(plan.includes("ASSUMED: 0 "), "the first assumption of every Task survives");
   assert.ok(plan.includes(korean(10900)), "the Story body is never cut");
-  assert.deepEqual((await readContract(root, input)).verifyIds, ["V1", "V2"]);
+  assert.deepEqual((await readContract(root, input)).verifyIds, ["Q1", "Q2"]);
 });
 
 test("upstream records that fit are kept whole and unmarked", (t) => {

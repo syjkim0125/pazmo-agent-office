@@ -23,15 +23,18 @@ import {
 
 const STORY = {
   title: "주문 내역 화면",
-  goal: "고객이 지난 주문을 본다.",
-  domain: "주문은 바뀌지 않는다.",
+  asIs: "고객이 지난 주문을 볼 수 없다.",
+  toBe: "고객이 지난 주문을 본다.",
+  unchanged: "주문은 바뀌지 않는다.",
+  decisions: [{ fork: "보여 줄 기간", options: ["최근 30일", "전체"], pick: "최근 30일", because: "주문이 많다" }],
+  copies: "",
   must: ["주문 목록을 보여 준다.", "API가 주문을 돌려준다."],
-  should: [],
   out: ["결제."],
-  assumptions: ["최근 30일만."],
-  verify: [
-    { must: [1], scenario: "화면에 주문이 보인다." },
-    { must: [2], scenario: "API가 200을 돌려준다." },
+  qa: [
+    { refs: ["M1"], how: "agent", scenario: "화면에 주문이 보인다." },
+    { refs: ["M2"], how: "script", scenario: "API가 200을 돌려준다." },
+    { refs: ["Unchanged"], how: "script", scenario: "주문 데이터가 그대로다." },
+    { refs: ["not shown"], how: "agent", scenario: "결제 화면에 새 버튼이 없다." },
   ],
 };
 const QUESTIONS = { status: "questions", questions: [{ id: "Q1", text: "어느 화면부터 만들까요?", reason: "범위가 바뀝니다." }] };
@@ -213,8 +216,9 @@ test("a story with openBlocking posts Q1..Qn questions marked blocking; a clean 
   const draft = w.lastResult();
   assert.equal(draft.kind, "draft");
   assert.equal(draft.text, renderTeamStory(STORY, decidedOf(answered)));
-  assert.match(draft.text, /^- D2\. PL 답: 어느 화면부터 만들까요\? → 주문 목록부터\. 그다음 상세\. 끝\.$/m);
-  assert.match(draft.text, /^- D3\. PL 답: 결제 내역도 보여 줄까요\? → 아니요, 빼 주세요\.$/m);
+  assert.match(draft.text, /^- PL 답: 어느 화면부터 만들까요\? → 주문 목록부터\. 그다음 상세\. 끝\.$/m);
+  assert.match(draft.text, /^- PL 답: 결제 내역도 보여 줄까요\? → 아니요, 빼 주세요\.$/m);
+  assert.match(draft.text, /\n## Human decides\n- PL 답: 어느 화면부터/, "the PL's answers are Human decides lines");
   assert.deepEqual(draft.story, STORY, "the story the draft renders, without openBlocking");
   assert.deepEqual(w.calls.at(-1).slice(0, 5), ["app-be", "result", PLAN_ID, "L2", 7]);
   assert.deepEqual(w.seen[1].packet.team.rewrite, { previous: "# Story: 이전 초안\n", note: "제목을 바꿔 주세요." });
@@ -236,7 +240,7 @@ test("a project repo with no ready lane posts failed naming that repo and runs n
 });
 
 test("a sixth question round, a draft over 32256 bytes, a runner refusal (RUNNER_NOT_READY claude) and an unreadable answer each post failed with its plain first line", async (t) => {
-  const huge = { ...STORY, must: Array.from({ length: 6 }, () => "가".repeat(2000)), verify: [{ must: [1, 2, 3, 4, 5, 6], scenario: "다 된다." }] };
+  const huge = { ...STORY, must: Array.from({ length: 6 }, () => "가".repeat(2000)), qa: [{ refs: ["M1", "M2", "M3", "M4", "M5", "M6"], how: "script", scenario: "다 된다." }, ...STORY.qa.slice(2)] };
   const refused = { closed: true, result: { exitCode: null, signal: null, stdout: "", stderr: "", timedOut: false, error: "RUNNER_NOT_READY claude: claude에 로그인하세요." } };
   const limited = {
     closed: true,
@@ -526,8 +530,8 @@ const beTask = (over = {}) => ({
   scope: "주문 라우트.",
   constraints: "응답 모양을 지킨다.",
   must: [2],
-  verify: [2],
-  checks: [check("V2")],
+  verify: [2, 3],
+  checks: [check("Q2"), check("Q3")],
   repo: "app-be",
   files: ["src/orders.ts"],
   after: [],
@@ -539,8 +543,8 @@ const feTask = (over = {}) => ({
   scope: "주문 화면.",
   constraints: "디자인 체계를 따른다.",
   must: [1],
-  verify: [1],
-  checks: [check("V1", "tests/orders-page.test.mjs")],
+  verify: [1, 4],
+  checks: [check("Q1", "tests/orders-page.test.mjs"), check("Q4", "tests/orders-page.test.mjs")],
   repo: "app-fe",
   files: ["src/orders-page.tsx"],
   after: [1],
@@ -551,12 +555,12 @@ const LEAD = {
   plan: "API를 먼저 만들고 화면은 그 뒤에 붙인다.",
   tasks: [beTask(), feTask()],
   storyVerify: [
-    { repo: "app-be", checks: [check("V2")] },
-    { repo: "app-fe", checks: [check("V1", "tests/orders-page.test.mjs")] },
+    { repo: "app-be", checks: [check("Q2")] },
+    { repo: "app-fe", checks: [check("Q1", "tests/orders-page.test.mjs")] },
   ],
 };
-/** P5: no task covers Story MUST 1 and Verify 1. */
-const UNCOVERED = { ...LEAD, tasks: [beTask()], storyVerify: [{ repo: "app-be", checks: [check("V2")] }] };
+/** P5: no task covers Story MUST 1 and QA scenarios 1 and 4. */
+const UNCOVERED = { ...LEAD, tasks: [beTask()], storyVerify: [{ repo: "app-be", checks: [check("Q2")] }] };
 /** The Hub's own graph check refuses it: two app-be tasks change src/orders.ts with no order between them. */
 const OVERLAP = { ...LEAD, tasks: [beTask(), feTask({ repo: "app-be", files: ["src/orders.ts"], after: [] })] };
 const TWICE = "AI가 Task를 두 번 나눴지만 검사를 통과하지 못했습니다.";
@@ -583,7 +587,7 @@ test("a splitting lease checks the gates, runs one Lead turn, publishes with key
   const dir = planDir(w);
   // No unread gate record copies: the approval lives on the Hub and in the published Story text.
   for (const name of ["story.md", "g1.json"]) assert.equal(existsSync(join(dir, name)), false, name);
-  assert.match(VIEW, new RegExp(`^Understanding gate \\(G1\\): hub-approval:${G1.approvalId} · `, "m"));
+  assert.match(VIEW, new RegExp(`^Status: Approved \\(G1 hub-approval:${G1.approvalId} · `, "m"));
   assert.equal(w.seen.length, 1, "one Lead turn");
   const { packet } = w.seen[0];
   assert.equal(packet.role, "lead");
@@ -1077,7 +1081,7 @@ const designing = (over = {}) => splitting({ state: "design", risk: "high", ...o
 /** The design LEAD renders to: the Lead's plan, then one line per Task with its folder and the Tasks it waits for, then
  * the digest line of the split it posts with it. */
 const DESIGN_TEXT = (split) =>
-  "# Decision requiring human G3\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n\nUnderstanding gate (G3): pending\n\n" +
+  "# 설계\n\nAPI를 먼저 만들고 화면은 그 뒤에 붙인다.\n\n## Task 목록\n- t1 · app-be · 주문 API\n- t2 · app-fe · 주문 화면(앞: t1)\n\n" +
   `나누기 지문: ${splitDigest(split)}\n`;
 const g3Of = (text, over = {}) => ({
   approvalId: "7c1d2e3f-4a5b-4c6d-8e7f-9a0b1c2d3e4f",

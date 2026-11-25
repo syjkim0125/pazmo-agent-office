@@ -11,7 +11,7 @@ test("validates canonical artifacts and binds every input byte to one digest", a
   const f = fixture(t),
     contract = await readContract(f.project, f.input);
   assert.equal(contractMatches(f.project, contract), true);
-  assert.deepEqual(contract.verifyIds, ["V1"]);
+  assert.deepEqual(contract.verifyIds, ["Q1"]);
   assert.match(contract.digest, /^[a-f0-9]{64}$/);
   for (const path of ["story.md", "task.md", "decision.md", "verify.json"]) {
     const original = (await import("node:fs")).readFileSync(
@@ -29,7 +29,7 @@ test("rejects absent high-risk decision, unknown task IDs and unbounded verifica
     readContract(f.project, { ...f.input, decision: null }),
     { code: "INVALID_CONTRACT" },
   );
-  f.put("task.md", f.task.replace("M1, V1", "M1, V99"));
+  f.put("task.md", f.task.replace("M1, Q1", "M1, Q99"));
   await assert.rejects(readContract(f.project, f.input), {
     code: "INVALID_CONTRACT",
   });
@@ -60,22 +60,11 @@ test("rejects traversal, symlinks, wrong Story reference and malformed workflow 
   });
 });
 
-test("draft blockers and unrelated verification IDs cannot become execution contracts", async (t) => {
+test("a draft Task and unrelated QA IDs cannot become execution contracts", async (t) => {
   const f = fixture(t);
   f.put(
     "task.md",
     f.task.replace("Readiness: Implementation-ready", "Readiness: Draft"),
-  );
-  await assert.rejects(readContract(f.project, f.input), {
-    code: "INVALID_CONTRACT",
-  });
-  f.put("task.md", f.task);
-  f.put(
-    "story.md",
-    f.story.replace(
-      "- D1. Local only.",
-      "- OPEN BLOCKING: Decide the required behavior.",
-    ),
   );
   await assert.rejects(readContract(f.project, f.input), {
     code: "INVALID_CONTRACT",
@@ -86,16 +75,16 @@ test("draft blockers and unrelated verification IDs cannot become execution cont
       "- M1. Reject invalid input.\n- M2. Unrelated output.",
     )
     .replace(
-      "- V1 [M1]. Check invalid input.",
-      "- V1 [M1]. Check invalid input.\n- V2 [M2]. Check unrelated output.",
+      "- Q1 [M1] (script). Check invalid input.",
+      "- Q1 [M1] (script). Check invalid input.\n- Q3 [M2] (script). Check unrelated output.",
     );
   f.put("story.md", expanded);
-  f.put("task.md", f.task.replace("M1, V1", "M1, V2"));
+  f.put("task.md", f.task.replace("M1, Q1", "M1, Q3"));
   f.put(
     "verify.json",
     JSON.stringify({
       version: 1,
-      checks: [{ id: "V2", argv: ["node", "--test"], timeoutMs: 1000 }],
+      checks: [{ id: "Q3", argv: ["node", "--test"], timeoutMs: 1000 }],
     }),
   );
   await assert.rejects(readContract(f.project, f.input), {

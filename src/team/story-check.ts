@@ -185,7 +185,7 @@ export function createStoryChecker(d: {
     const candidate = await lane.engine.freezeProject();
     // The VM needs ids it can tell apart; the Hub's are kept unless two are the same.
     const unique = new Set(entry.checks.map((c) => c.id)).size === entry.checks.length;
-    const checks = entry.checks.map((c, i) => ({ id: unique ? c.id : `V${i + 1}`, argv: c.argv, timeoutMs: c.timeoutMs }));
+    const checks = entry.checks.map((c, i) => ({ id: unique ? c.id : `Q${i + 1}`, argv: c.argv, timeoutMs: c.timeoutMs }));
     return { repo: lane.repoName, repoId: lane.repoId, head, checks: await lane.engine.verifyCandidate(candidate, checks, signal) };
   }
 

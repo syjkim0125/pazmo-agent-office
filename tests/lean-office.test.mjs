@@ -16,13 +16,18 @@ import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
 const TOKEN = "a".repeat(64);
 const STORY = {
   title: "README",
-  goal: "Clarify execution",
-  domain: "Documentation",
+  asIs: "README shows an old command",
+  toBe: "README shows the actual command",
+  unchanged: "Runtime behavior",
+  decisions: [],
+  copies: "",
   must: ["Show actual command"],
-  should: [],
   out: ["Runtime changes"],
-  assumptions: [],
-  verify: [{ must: [1], scenario: "Command matches CLI" }],
+  qa: [
+    { refs: ["M1"], how: "script", scenario: "Command matches CLI" },
+    { refs: ["Unchanged"], how: "script", scenario: "CLI output is the same" },
+    { refs: ["not shown"], how: "agent", scenario: "No other README section changes" },
+  ],
 };
 const readyCatalog = () => ({
   installs: {
@@ -175,7 +180,7 @@ async function publishChild(f, rootId) {
       workspace: { include: ["src"], exclude: [] },
       checks: [
         {
-          id: "V1",
+          id: "Q1",
           argv: ["node", "-e", "require('assert/strict').equal(require('fs').readFileSync('src/a','utf8'),'after')"],
           timeoutMs: 15000,
         },

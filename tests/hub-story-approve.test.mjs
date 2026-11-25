@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { LOCAL_RUN_NOTE, approvalPlan, compareUrl, mergeTarget, shellLine, storyItems } from "../src/hub/story-approve.ts";
 
-const KIT_BODY = [
+const OLD_BODY = [
   "# Story: 모의 결제",
   "Status: Approved",
   "",
@@ -24,15 +24,79 @@ const KIT_BODY = [
   "- V2 [M2]. 1,000,000원은 승인된다.",
 ].join("\n");
 
-test("storyItems reads a kit Story's MUST and Verify lines and nothing else (D49)", () => {
-  assert.deepEqual(storyItems(KIT_BODY), {
+test("storyItems reads an old-format Story's MUST and Verify lines and nothing else (D49)", () => {
+  assert.deepEqual(storyItems(OLD_BODY), {
     must: ["M1. 결제 함수를 export한다.", "M2. 1,000,000원 이하는 APPROVED."],
     verify: ["V1 [M1]. `node --test`가 통과한다.", "V2 [M2]. 1,000,000원은 승인된다."],
+    qa: [],
   });
-  assert.deepEqual(storyItems("# 인사말 도구\n\n자유 글 Story다."), { must: [], verify: [] }, "a free-text Story has none");
-  assert.deepEqual(storyItems("## MUST\r\n- M1. 윈도 줄바꿈\r\n## Verify\r\n- V1. 확인\r\n"), { must: ["M1. 윈도 줄바꿈"], verify: ["V1. 확인"] });
-  // The same bullets and ids the upload check takes (kitStoryRefs): `*` bullets and lower-case ids (review 1).
-  assert.deepEqual(storyItems("## MUST\n* M1. 별표\n- m2. 소문자\n## verify\n* v1 [M1]. 확인"), { must: ["M1. 별표", "m2. 소문자"], verify: ["v1 [M1]. 확인"] });
+  assert.deepEqual(storyItems("# 인사말 도구\n\n자유 글 Story다."), { must: [], verify: [], qa: [] }, "a free-text Story has none");
+  assert.deepEqual(storyItems("## MUST\r\n- M1. 윈도 줄바꿈\r\n## Verify\r\n- V1. 확인\r\n"), { must: ["M1. 윈도 줄바꿈"], verify: ["V1. 확인"], qa: [] });
+  // The same bullets and ids the upload check takes (storyRefs): `*` bullets and lower-case ids (review 1).
+  assert.deepEqual(storyItems("## MUST\n* M1. 별표\n- m2. 소문자\n## verify\n* v1 [M1]. 확인"), { must: ["M1. 별표", "m2. 소문자"], verify: ["v1 [M1]. 확인"], qa: [] });
+});
+
+const NEW_BODY = [
+  "# Story: 인사말 도구",
+  "",
+  "## Goal",
+  "1. As-is: 인사말 함수가 없다.",
+  "2. To-be: greet(name)이 인사말을 돌려준다.",
+  "3. Unchanged: 다른 공개 함수는 그대로다.",
+  "",
+  "## Decisions",
+  "- D1. 빈 이름",
+  "  - Options: 오류 / 안녕만",
+  "  - Pick: 오류, because src/a.ts:3",
+  "",
+  "## MUST",
+  "- M1. 인사말을 돌려준다.",
+  "- M2. 빈 이름은 오류다.",
+  "",
+  "## OUT",
+  "- O1. 다국어: 요청 밖",
+  "",
+  "## QA",
+  "- Q1 [M1] (script). greet 호출 → 안녕, 지수",
+  "- Q2 [M2] (script). greet(\"\") → 오류",
+  "- Q3 [Unchanged] (script). npm test → 통과",
+  "- Q4 [not shown] (agent). README → 설명 없음",
+  "",
+  "---",
+  "Status: Approved (G1 hub-approval:11111111-1111-1111-1111-111111111111 · 2026-11-24)",
+  "Owner: Human",
+].join("\n");
+
+test("storyItems reads a story-qa Story's MUST and QA lines with their method; Decisions and OUT are not items (M3)", () => {
+  assert.deepEqual(storyItems(NEW_BODY), {
+    must: ["M1. 인사말을 돌려준다.", "M2. 빈 이름은 오류다."],
+    verify: [],
+    qa: [
+      "Q1 [M1] (script). greet 호출 → 안녕, 지수",
+      "Q2 [M2] (script). greet(\"\") → 오류",
+      "Q3 [Unchanged] (script). npm test → 통과",
+      "Q4 [not shown] (agent). README → 설명 없음",
+    ],
+  });
+});
+
+test("approvalPlan lists a story-qa Story's MUST and each QA scenario with its method (M3)", () => {
+  const p = approvalPlan({
+    number: 9,
+    title: "인사말 도구",
+    body: NEW_BODY,
+    repos: [],
+    tasks: [{ number: 1, repo: "app-be", files: [], assumptions: ["ASSUMED: 공백도 빈 이름"] }],
+  });
+  assert.deepEqual(p.qa, [
+    "M1. 인사말을 돌려준다. — 동작하는지",
+    "M2. 빈 이름은 오류다. — 동작하는지",
+    "Q1 [M1] (script). greet 호출 → 안녕, 지수 — 이 장면 그대로인지",
+    "Q2 [M2] (script). greet(\"\") → 오류 — 이 장면 그대로인지",
+    "Q3 [Unchanged] (script). npm test → 통과 — 이 장면 그대로인지",
+    "Q4 [not shown] (agent). README → 설명 없음 — 이 장면 그대로인지",
+    "Task #1 AI가 정한 것: 공백도 빈 이름 — 이대로 괜찮은지",
+  ]);
 });
 
 test("compareUrl opens base…commit for a GitHub host/owner/repo remote only", () => {
@@ -55,7 +119,7 @@ test("approvalPlan lists what to check, how to run it and a prompt that asks for
   const p = approvalPlan({
     number: 7,
     title: "모의 결제",
-    body: KIT_BODY,
+    body: OLD_BODY,
     repos: [
       { name: "app-be", baseBranch: "main", commit: sha, checks: [["node", "--test"]] },
       { name: "app-fe", baseBranch: "develop", commit: "b".repeat(40), checks: [] },

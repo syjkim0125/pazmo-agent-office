@@ -14,7 +14,7 @@ async function setup(t, approved = true) {
   const f = fixture(t);
   // Two commands covering the same requirement must remain two required nodes.
   f.verification.checks.push({
-    id: "V1",
+    id: "Q1",
     argv: ["node", "--check", "input.js"],
     timeoutMs: 1000,
   });

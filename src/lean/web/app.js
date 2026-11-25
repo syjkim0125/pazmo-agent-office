@@ -308,8 +308,13 @@ function navigate() {
 /** What a redraw would lose: scroll offsets, the focused control, typed notes. */
 function capture(root) {
   const scroll = new Map();
+  // A box that follows its end (the progress log) also records whether it was there.
   for (const node of root.querySelectorAll("[data-scroll-key]"))
-    scroll.set(node.dataset.scrollKey, [node.scrollLeft, node.scrollTop]);
+    scroll.set(node.dataset.scrollKey, [
+      node.scrollLeft,
+      node.scrollTop,
+      node.scrollTop + node.clientHeight >= node.scrollHeight - 4,
+    ]);
   const active = document.activeElement;
   const hadFocus = !!active && root.contains(active);
   const focusKey = hadFocus && active !== root ? (active.dataset?.key ?? null) : null;
@@ -326,7 +331,8 @@ function capture(root) {
 function restore(root, saved) {
   for (const node of root.querySelectorAll("[data-scroll-key]")) {
     const at = saved.scroll.get(node.dataset.scrollKey);
-    if (at) [node.scrollLeft, node.scrollTop] = at;
+    if ("followEnd" in node.dataset && (!at || at[2])) node.scrollTop = node.scrollHeight;
+    else if (at) [node.scrollLeft, node.scrollTop] = at;
   }
   // A renewed decision has a new id but the same task and kind.
   for (const field of root.querySelectorAll("textarea[data-note]")) {
@@ -706,43 +712,23 @@ function rerunControl(task) {
 const timeOf = (at) =>
   el("time", { datetime: Number.isFinite(at) ? new Date(at).toISOString() : undefined }, formatTime(at, lang));
 
-/** How many of a task's latest progress entries stay visible while the list is folded. */
-const EVENTS_SHOWN = 3;
-
 /**
- * A task's progress, oldest first. A longer list starts folded to its latest entries, with one button above it that
- * shows or hides the earlier ones; the choice survives the poll's redraws (`state.open`), like a fold.
+ * A task's progress, oldest first, in a box that scrolls inside itself (2026-11-24, small change: no fold button). It
+ * opens at its end, the latest entry; a redraw keeps where the person scrolled, and follows new entries while the box
+ * was at its end (`data-follow-end`, `restore`). Its `data-key` returns focus to it after a redraw.
  */
 function eventList(events, key) {
   if (!events.length) return el("p", { className: "empty" }, L("noEvents"));
-  const older = events.length - EVENTS_SHOWN;
-  const items = events.map((e, i) =>
-    el("li", { className: i < older ? "older" : "" }, [timeOf(e.at), el("div", { className: "text" }, e.text)]),
-  );
-  if (older <= 0) return el("ol", { className: "events" }, items);
-  const foldKey = `events:${key}`;
-  const list = el("ol", { className: state.open.has(foldKey) ? "events" : "events folded", id: `events-${key}` }, items);
-  const label = () => (state.open.has(foldKey) ? L("eventsFold", { n: EVENTS_SHOWN }) : L("eventsUnfold", { n: older }));
-  const toggle = el(
-    "button",
+  return el(
+    "ol",
     {
-      type: "button",
-      className: "btn events-toggle",
-      "aria-controls": `events-${key}`,
-      "aria-expanded": String(state.open.has(foldKey)),
-      dataset: { key: `fold:${foldKey}` },
-      onClick: (e) => {
-        if (state.open.has(foldKey)) state.open.delete(foldKey);
-        else state.open.add(foldKey);
-        const open = state.open.has(foldKey);
-        list.classList.toggle("folded", !open);
-        e.currentTarget.setAttribute("aria-expanded", String(open));
-        e.currentTarget.textContent = label();
-      },
+      className: "events",
+      tabindex: "0",
+      "aria-label": L("sectionEvents"),
+      dataset: { scrollKey: `events:${key}`, followEnd: "", key: `events:${key}` },
     },
-    label(),
+    events.map((e) => el("li", null, [timeOf(e.at), el("div", { className: "text" }, e.text)])),
   );
-  return el("div", { className: "events-wrap" }, [toggle, list]);
 }
 
 function diffList(diffs) {

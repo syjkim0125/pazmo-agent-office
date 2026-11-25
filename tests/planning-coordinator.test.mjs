@@ -13,6 +13,7 @@ import { VerificationLedger } from "../src/core/verification.ts";
 import { ExecutionLedger } from "../src/core/budgets.ts";
 import { freezeCandidate } from "../src/core/candidates.ts";
 import { PlanningCoordinator } from "../src/runners/planning-coordinator.ts";
+import { STORY } from "./planning-fixture.mjs";
 const token = "a".repeat(64);
 function setup(t, mode = "ready") {
   const f = fixture(t),
@@ -63,18 +64,7 @@ function setup(t, mode = "ready") {
               }
             : {
                 status: "ready",
-                story: {
-                  title: "Validate input",
-                  goal: "Reject invalid input.",
-                  domain: "Preserve records.",
-                  must: ["Reject invalid input."],
-                  should: [],
-                  out: ["Deployment."],
-                  assumptions: [],
-                  verify: [
-                    { must: [1], scenario: "Invalid input returns error." },
-                  ],
-                },
+                story: STORY,
               };
       else
         body = {
@@ -86,8 +76,8 @@ function setup(t, mode = "ready") {
               scope: "Parser and tests.",
               constraints: "Keep records.",
               must: [1],
-              verify: [1],
-              checks: [{ id: "V1", argv: ["node", "--test"], timeoutMs: 1000 }],
+              verify: [1, 2, 3],
+              checks: [1, 2, 3].map((n) => ({ id: `Q${n}`, argv: ["node", "--test"], timeoutMs: 1000 })),
               workspace: { include: ["src"], exclude: [] },
             },
           ],
