@@ -1,7 +1,7 @@
 ---
 title: Hub design checklist
 date: "2026-11-12"
-last_updated: "2026-11-18"
+last_updated: "2026-11-24"
 category: conventions
 module: team Hub web
 problem_type: convention
@@ -11,7 +11,7 @@ applies_when:
   - "Changing a Hub web page (src/hub/*-pages.ts) or the stylesheet STYLE in src/hub/pages.ts"
   - "Adding a control, a list, a board column or an empty state to the Hub web"
   - "Reviewing a Hub PR"
-tags: [hub, design, checklist, css, tokens, touch-targets, accent, overflow, spacing, relative-time, wording, review]
+tags: [hub, design, checklist, css, tokens, touch-targets, accent, overflow, spacing, relative-time, wording, hierarchy, labels, review]
 ---
 
 # Hub design checklist
@@ -83,6 +83,21 @@ and 7 also need a browser measurement in the change record (see "How to measure"
    data shows: U47's reviews kept finding wrong-reader sentences that no demo page showed. Helpers in
    `story-pages.ts`: `heldText`, `failureForOthers`, `stoppedForLead`. The boards' `boardFailure` (U46) does not
    follow this yet.
+
+11. **Page level over filter level, and a name says what it names.** On a board the tabs between the boards are the
+   page's title (the hidden `h1` repeats the chosen tab), so they sit on the top line with the page's primary action
+   (새 프로젝트, a filled `.btn add` whose `+` is drawn by `::before` with empty alt text) and a full-width rule under
+   them (the tabs grow to the button, the rule is theirs); the tabs are 18px text on 52px links. The filter line comes under it: the project chips behind a visible
+   프로젝트 label (aria-hidden, the nav's `aria-label` already says it), then 내 Story만 and 취소한 것도 보기. Chips and
+   toggles are 14px text, 36px tall with a mouse and 44px under `@media (any-pointer:coarse)` (a touch laptop's
+   primary pointer is fine, and these were 44px before), 8px apart inside a group and 24px between the chips
+   and the toggles; the page line sits 16px above the filter line. A chosen chip looks like a chosen toggle (`--run-bg`
+   with a 2px `--accent` edge, the toggle has its ✓), never filled darker than the chosen tab. On a narrow screen
+   새 프로젝트 wraps under the tabs, so what is drawn first is also read and focused first (no `wrap-reverse` or
+   `order` that splits the two). A heading whose kind is
+   not obvious gets a small `.kind` label above it (프로젝트 over a project's name, like Story #N on a card); the heading
+   keeps only the name, and the section's own primary action (새 Story) is a filled `.btn add` beside it. Story:
+   [board-header-hierarchy](../../stories/board-header-hierarchy.md).
 
 ## Review step
 
