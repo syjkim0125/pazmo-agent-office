@@ -6,7 +6,7 @@ import { HubStore } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
-import { startTestHub } from "./hub-fixture.mjs";
+import { linkForm, startTestHub } from "./hub-fixture.mjs";
 
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 const FORM = { "content-type": "application/x-www-form-urlencoded" };
@@ -51,9 +51,9 @@ for (const [mode, make] of [["LAN (self CA)", lan], ["OpenShift (proxy)", opensh
   test(`${mode}: joining by invite or device invite lands on the board (/start on a hub without one)`, async (t) => {
     const h = await make(t);
     const admin = h.store.acceptInvite(h.store.bootstrapAdmin(), "mac").member;
-    const join = await h.call("POST", `/invite/${h.store.createInvite(admin, "B")}`, { body: "label=x" });
+    const join = await h.call("POST", `/invite/${h.store.createInvite(admin, "B")}`, { body: linkForm("x") });
     assert.deepEqual([join.status, join.headers.location], [303, mode.startsWith("LAN") ? "/" : "/start"]);
-    const dev = await h.call("POST", `/invite/${h.store.createDeviceInvite(admin, admin.id)}`, { body: "label=y" });
+    const dev = await h.call("POST", `/invite/${h.store.createPasswordReset(admin, admin.id)}`, { body: linkForm("y") });
     assert.deepEqual([dev.status, dev.headers.location], [303, mode.startsWith("LAN") ? "/" : "/start"]);
   });
 

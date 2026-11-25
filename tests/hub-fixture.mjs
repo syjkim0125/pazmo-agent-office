@@ -1,6 +1,7 @@
 import { request } from "node:https";
 import { checkServerIdentity } from "node:tls";
 import { DatabaseSync } from "node:sqlite";
+import { randomUUID } from "node:crypto";
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -15,6 +16,11 @@ import { linkApi } from "../src/hub/link-api.ts";
  * `now` is the Story and plan boards' clock and `storeNow` the member store's (both default Date.now), for tests that age a
  * claim, a lease or a code without waiting. `plans: false` starts a Hub like one from before the plan routes: no `PlanBoard`.
  */
+/** The password every fixture member sets on a link (10 characters or more, H4). */
+export const FIXTURE_PASSWORD = "fixture-pass-1";
+/** The form body a link page takes: a fresh mail (used only where the link names none) and FIXTURE_PASSWORD. */
+export const linkForm = (label = "test") =>
+  new URLSearchParams({ label, email: `${randomUUID()}@example.com`, password: FIXTURE_PASSWORD, password2: FIXTURE_PASSWORD }).toString();
 export async function startTestHub(t, { now, storeNow, plans: withPlans = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), "hub-server-"));
   const tls = ensureHubTls(join(dir, "tls"), { ip: "127.0.0.1" });
@@ -54,7 +60,8 @@ export async function startTestHub(t, { now, storeNow, plans: withPlans = true }
     });
   /** Joins through a real invite and returns the cookie and the page's CSRF token. */
   async function enter(raw) {
-    const res = await call("POST", `/invite/${raw}`, { body: "label=test", headers: { origin: hub.url } });
+    // A link that names no mail (the first admin's) takes a fresh one; the password is FIXTURE_PASSWORD.
+    const res = await call("POST", `/invite/${raw}`, { body: linkForm(), headers: { origin: hub.url } });
     const cookie = res.headers["set-cookie"][0].split(";")[0];
     const page = await call("GET", "/repos", { cookie }); // always has a CSRF form
     const csrf = /name="csrf" value="([^"]+)"/.exec(page.text)[1];

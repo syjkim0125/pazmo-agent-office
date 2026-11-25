@@ -4,6 +4,7 @@ import { transaction } from "../core/approvals.ts";
 import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot, type IncomingView, type OutgoingView } from "./protocol.ts";
 import { normalizeRemote } from "./remote.ts";
 import { isBaseBranchName } from "./story-protocol.ts";
+import { hashPassword, normalizeEmail, passwordProblem, verifyPassword } from "./account.ts";
 
 export class HubError extends Error {
   code: string;
@@ -83,6 +84,7 @@ export type MacPoll =
   | { state: "denied" }
   | { state: "expired" };
 export type MemberView = Member & {
+  email: string | null;
   revoked: boolean;
   devices: { id: string; label: string; expiresAt: number; revoked: boolean }[];
   macs: MacView[];
@@ -242,6 +244,21 @@ export class HubStore {
     this.#db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS hub_request_once ON hub_requests(requester_id,create_key) WHERE create_key IS NOT NULL",
     );
+    // Sign-in by mail and password. Members from before have neither: they are marked once, when the columns arrive, and
+    // must set both before anything else (M6). A member who joins later always sets a password on the link.
+    const memberColumns = columns("hub_members");
+    if (!memberColumns.has("password_hash"))
+      transaction(this.#db, () => {
+        this.#db.exec("ALTER TABLE hub_members ADD COLUMN email TEXT");
+        this.#db.exec("ALTER TABLE hub_members ADD COLUMN password_hash TEXT");
+        this.#db.exec("ALTER TABLE hub_members ADD COLUMN needs_setup INTEGER NOT NULL DEFAULT 0");
+        this.#db.exec("UPDATE hub_members SET needs_setup=1");
+      });
+    // The mail an admin wrote on an invite; null for the first admin's link and for a reset link.
+    if (!columns("hub_invites").has("email")) this.#db.exec("ALTER TABLE hub_invites ADD COLUMN email TEXT");
+    this.#db.exec(
+      "CREATE UNIQUE INDEX IF NOT EXISTS hub_member_email ON hub_members(email) WHERE email IS NOT NULL AND revoked_at IS NULL",
+    );
   }
   #get<T>(sql: string, ...args: Arg[]) {
     const row = this.#db.prepare(sql).get(...args);
@@ -267,90 +284,197 @@ export class HubStore {
     });
     return raw;
   }
-  createInvite(by: Member, name: string): string {
+  /** `email` is the new member's mail as the admin wrote it; only fixtures leave it out. */
+  createInvite(by: Member, name: string, email?: string): string {
     if (!by.admin) fail("FORBIDDEN", 403, "관리자만 초대할 수 있습니다.");
     const clean = name.trim();
     if (!clean || clean.length > 40) fail("INVALID", 400, "이름은 1~40자로 적어주세요.");
-    return this.#invite(clean, null);
+    if (email === undefined) return this.#invite(clean, null, null);
+    const mail = this.#email(email);
+    return transaction(this.#db, () => {
+      this.#emailFree(mail, null);
+      if (this.#get("SELECT 1 FROM hub_invites WHERE email=? AND used_at IS NULL AND expires_at>?", mail, this.#now()))
+        fail("CONFLICT", 409, "이 메일로 보낸 초대 링크가 아직 쓰이지 않았습니다. 그 링크를 쓰거나 72시간 뒤에 다시 초대해주세요.");
+      return this.#invite(clean, null, mail);
+    });
   }
-  /** A new browser for an existing member keeps the same identity. */
-  createDeviceInvite(by: Member, memberId: string): string {
-    if (!by.admin) fail("FORBIDDEN", 403, "관리자만 초대할 수 있습니다.");
+  /** M4: a one-time link where the member sets a new password (and a mail when they have none). */
+  createPasswordReset(by: Member, memberId: string): string {
+    if (!by.admin) fail("FORBIDDEN", 403, "관리자만 재설정 링크를 만들 수 있습니다.");
     const m =
       this.#get<{ name: string }>("SELECT name FROM hub_members WHERE id=? AND revoked_at IS NULL", memberId) ??
       fail("NOT_FOUND", 404, "팀원을 찾을 수 없습니다.");
-    return this.#invite(m.name, memberId);
+    return this.#invite(m.name, memberId, null);
   }
-  #invite(name: string, memberId: string | null) {
+  /** M5: a reset link for the hub's admin, from the machine the hub runs on; null when nobody has joined yet. */
+  recoverAdmin(): string | null {
+    const admin = this.#get<{ id: string; name: string }>(
+      "SELECT id,name FROM hub_members WHERE admin=1 AND revoked_at IS NULL ORDER BY created_at LIMIT 1",
+    );
+    return admin ? this.#invite(admin.name, admin.id, null) : null;
+  }
+  #invite(name: string, memberId: string | null, email: string | null) {
     const raw = secret();
     this.#run(
-      "INSERT INTO hub_invites(id,token_hash,name,admin,member_id,expires_at) VALUES (?,?,?,0,?,?)",
-      randomUUID(), hash(raw), name, memberId, this.#now() + INVITE_TTL,
+      "INSERT INTO hub_invites(id,token_hash,name,admin,member_id,expires_at,email) VALUES (?,?,?,0,?,?,?)",
+      randomUUID(), hash(raw), name, memberId, this.#now() + INVITE_TTL, email,
     );
     return raw;
   }
-  invite(raw: string): { name: string } | null {
-    const row = this.#get<{ name: string }>(
-      "SELECT name FROM hub_invites WHERE token_hash=? AND used_at IS NULL AND expires_at>?",
+  #email(raw: string): string {
+    return normalizeEmail(raw) ?? fail("INVALID", 400, "메일 주소를 확인해주세요. 예: name@example.com");
+  }
+  /** Refuses a mail another active member already signs in with. */
+  #emailFree(email: string, memberId: string | null) {
+    if (this.#get("SELECT 1 FROM hub_members WHERE email=? AND revoked_at IS NULL AND id IS NOT ?", email, memberId))
+      fail("CONFLICT", 409, "이미 다른 팀원이 쓰는 메일입니다.");
+  }
+  /**
+   * What a link page shows: whose it is, the mail it signs in with (null when the person writes it there) and whether it
+   * resets an existing member's password.
+   */
+  invite(raw: string): { name: string; email: string | null; reset: boolean } | null {
+    const row = this.#get<{ name: string; email: string | null; member_id: string | null; member_email: string | null }>(
+      `SELECT i.name,i.email,i.member_id,m.email member_email FROM hub_invites i LEFT JOIN hub_members m ON m.id=i.member_id
+       WHERE i.token_hash=? AND i.used_at IS NULL AND i.expires_at>?`,
       hash(raw), this.#now(),
     );
-    return row ? { name: row.name } : null;
+    return row ? { name: row.name, email: row.email ?? row.member_email, reset: row.member_id !== null } : null;
   }
-  acceptInvite(raw: string, label: string): { session: string; member: Member } {
+  /**
+   * Uses a link: joins a new member or resets an existing one's password, and signs this browser in. With `account`
+   * (every browser form) it sets the password, and the mail when the link and member have none; a password reset also
+   * ends the member's other browsers (H3). Only fixtures leave `account` out.
+   */
+  acceptInvite(
+    raw: string,
+    label: string,
+    account?: { email?: string; password: string; again: string },
+  ): { session: string; member: Member } {
     return transaction(this.#db, () => {
       const gone = () =>
         fail("INVITE_INVALID", 410, "초대 링크가 만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.");
       const row =
-        this.#get<{ id: string; name: string; admin: number; member_id: string | null }>(
-          "SELECT id,name,admin,member_id FROM hub_invites WHERE token_hash=? AND used_at IS NULL AND expires_at>?",
+        this.#get<{ id: string; name: string; admin: number; member_id: string | null; email: string | null }>(
+          "SELECT id,name,admin,member_id,email FROM hub_invites WHERE token_hash=? AND used_at IS NULL AND expires_at>?",
           hash(raw), this.#now(),
         ) ?? gone();
+      const existing = row.member_id
+        ? (this.#get<{ id: string; name: string; admin: number; email: string | null }>(
+            "SELECT id,name,admin,email FROM hub_members WHERE id=? AND revoked_at IS NULL", row.member_id,
+          ) ?? gone())
+        : null;
+      let email: string | null = null;
+      let passwordHash: string | null = null;
+      if (account) {
+        email = row.email ?? existing?.email ?? this.#email(account.email ?? "");
+        this.#emailFree(email, existing?.id ?? null);
+        const problem = passwordProblem(account.password, account.again);
+        if (problem) fail("INVALID", 400, problem);
+        passwordHash = hashPassword(account.password);
+      }
       let member: Member;
-      if (row.member_id) {
-        const m =
-          this.#get<{ id: string; name: string; admin: number }>(
-            "SELECT id,name,admin FROM hub_members WHERE id=? AND revoked_at IS NULL", row.member_id,
-          ) ?? gone();
-        member = { id: m.id, name: m.name, admin: m.admin === 1 };
+      if (existing) {
+        member = { id: existing.id, name: existing.name, admin: existing.admin === 1 };
+        if (passwordHash) {
+          this.#run("UPDATE hub_members SET email=?,password_hash=?,needs_setup=0 WHERE id=?", email, passwordHash, member.id);
+          this.#run("UPDATE hub_devices SET revoked_at=? WHERE member_id=? AND revoked_at IS NULL", this.#now(), member.id);
+        }
       } else {
         member = { id: randomUUID(), name: row.name, admin: row.admin === 1 };
         this.#run(
-          "INSERT INTO hub_members(id,name,admin,created_at) VALUES (?,?,?,?)",
-          member.id, member.name, row.admin, this.#now(),
+          "INSERT INTO hub_members(id,name,admin,created_at,email,password_hash) VALUES (?,?,?,?,?,?)",
+          member.id, member.name, row.admin, this.#now(), email, passwordHash,
         );
       }
       this.#run("UPDATE hub_invites SET used_at=?,member_id=? WHERE id=?", this.#now(), member.id, row.id);
-      const session = secret();
-      this.#run(
-        "INSERT INTO hub_devices(id,member_id,token_hash,csrf,label,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
-        randomUUID(), member.id, hash(session), secret(), label.trim().slice(0, 60) || "브라우저",
-        this.#now(), this.#now() + SESSION_TTL,
-      );
-      return { session, member };
+      return { session: this.#newDevice(member.id, label), member };
     });
   }
-  session(raw: string | undefined): { member: Member; deviceId: string; csrf: string } | null {
+  #newDevice(memberId: string, label: string): string {
+    const session = secret();
+    this.#run(
+      "INSERT INTO hub_devices(id,member_id,token_hash,csrf,label,created_at,expires_at) VALUES (?,?,?,?,?,?,?)",
+      randomUUID(), memberId, hash(session), secret(), label.trim().slice(0, 60) || "브라우저",
+      this.#now(), this.#now() + SESSION_TTL,
+    );
+    return session;
+  }
+  /** M3: a new browser session for the active member with this mail and password; null for any mismatch. */
+  login(email: string, password: string, label: string): { session: string; member: Member } | null {
+    const mail = normalizeEmail(email);
+    const row = mail
+      ? this.#get<{ id: string; name: string; admin: number; password_hash: string | null }>(
+          "SELECT id,name,admin,password_hash FROM hub_members WHERE email=? AND revoked_at IS NULL", mail,
+        )
+      : undefined;
+    // Always one scrypt, so an unknown mail answers as slowly as a wrong password.
+    if (!verifyPassword(password, row?.password_hash ?? null) || !row) return null;
+    return { session: this.#newDevice(row.id, label), member: { id: row.id, name: row.name, admin: row.admin === 1 } };
+  }
+  /** M6: a member from before mail sign-in sets their mail and password once. */
+  setupAccount(by: Member, email: string, password: string, again: string) {
+    const mail = this.#email(email);
+    const problem = passwordProblem(password, again);
+    if (problem) fail("INVALID", 400, problem);
+    transaction(this.#db, () => {
+      if (!this.#get("SELECT 1 FROM hub_members WHERE id=? AND password_hash IS NULL", by.id))
+        fail("CONFLICT", 409, "이미 메일과 비밀번호를 정했습니다.");
+      this.#emailFree(mail, by.id);
+      this.#run("UPDATE hub_members SET email=?,password_hash=?,needs_setup=0 WHERE id=?", mail, hashPassword(password), by.id);
+    });
+  }
+  /** `setup`: a member from before mail sign-in who has no password yet; they set one before anything else (M6). */
+  session(raw: string | undefined): { member: Member; deviceId: string; csrf: string; setup: boolean } | null {
     if (!raw) return null;
-    const row = this.#get<{ device: string; csrf: string; id: string; name: string; admin: number }>(
-      `SELECT d.id device,d.csrf,m.id,m.name,m.admin FROM hub_devices d JOIN hub_members m ON m.id=d.member_id
+    const row = this.#get<{ device: string; csrf: string; id: string; name: string; admin: number; setup: number }>(
+      `SELECT d.id device,d.csrf,m.id,m.name,m.admin,(m.needs_setup=1 AND m.password_hash IS NULL) setup FROM hub_devices d JOIN hub_members m ON m.id=d.member_id
        WHERE d.token_hash=? AND d.revoked_at IS NULL AND d.expires_at>? AND m.revoked_at IS NULL`,
       hash(raw), this.#now(),
     );
     if (!row) return null;
     this.#run("UPDATE hub_devices SET expires_at=? WHERE id=?", this.#now() + SESSION_TTL, row.device);
-    return { member: { id: row.id, name: row.name, admin: row.admin === 1 }, deviceId: row.device, csrf: row.csrf };
+    return {
+      member: { id: row.id, name: row.name, admin: row.admin === 1 },
+      deviceId: row.device,
+      csrf: row.csrf,
+      setup: row.setup === 1,
+    };
+  }
+  /** M9: the member's mail and live browsers, oldest first; `lastUsedAt` comes from the sliding expiry. */
+  account(memberId: string): { email: string | null; devices: { id: string; label: string; createdAt: number; lastUsedAt: number }[] } {
+    const m = this.#get<{ email: string | null }>("SELECT email FROM hub_members WHERE id=?", memberId);
+    const devices = this.#all<{ id: string; label: string; created_at: number; expires_at: number }>(
+      "SELECT id,label,created_at,expires_at FROM hub_devices WHERE member_id=? AND revoked_at IS NULL AND expires_at>? ORDER BY created_at",
+      memberId, this.#now(),
+    ).map((d) => ({ id: d.id, label: d.label, createdAt: d.created_at, lastUsedAt: d.expires_at - SESSION_TTL }));
+    return { email: m?.email ?? null, devices };
+  }
+  /** M8/M9: signs one of the member's own browsers out; another member's browser is not found. */
+  logoutDevice(by: Member, deviceId: string) {
+    if (!this.#get("SELECT 1 FROM hub_devices WHERE id=? AND member_id=? AND revoked_at IS NULL", deviceId, by.id))
+      fail("NOT_FOUND", 404, "로그인된 내 브라우저를 찾을 수 없습니다.");
+    this.#run("UPDATE hub_devices SET revoked_at=? WHERE id=?", this.#now(), deviceId);
+  }
+  /** M9: signs out every browser of the member but this one. */
+  logoutOthers(by: Member, keepDeviceId: string) {
+    this.#run(
+      "UPDATE hub_devices SET revoked_at=? WHERE member_id=? AND id<>? AND revoked_at IS NULL",
+      this.#now(), by.id, keepDeviceId,
+    );
   }
   members(): MemberView[] {
     const devices = this.#all<{ id: string; member_id: string; label: string; expires_at: number; revoked_at: number | null }>(
       "SELECT id,member_id,label,expires_at,revoked_at FROM hub_devices ORDER BY created_at",
     );
     const macs = this.#macRows(null);
-    return this.#all<{ id: string; name: string; admin: number; revoked_at: number | null }>(
-      "SELECT id,name,admin,revoked_at FROM hub_members ORDER BY created_at",
+    return this.#all<{ id: string; name: string; admin: number; email: string | null; revoked_at: number | null }>(
+      "SELECT id,name,admin,email,revoked_at FROM hub_members ORDER BY created_at",
     ).map((m) => ({
       id: m.id,
       name: m.name,
       admin: m.admin === 1,
+      email: m.email,
       revoked: m.revoked_at !== null,
       devices: devices
         .filter((d) => d.member_id === m.id)

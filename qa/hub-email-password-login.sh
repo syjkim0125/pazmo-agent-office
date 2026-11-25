@@ -5,7 +5,7 @@
 #   COPY_URL=https://127.0.0.1:<port2> LEGACY_COOKIE=<session> bash qa/hub-email-password-login.sh
 # BASE_URL is a Hub started on an EMPTY data folder (DATA_DIR) and not used yet. COPY_URL serves a VACUUM INTO copy of
 # the check Hub; LEGACY_COOKIE is a `pazmo_hub` session made on the copy for its admin (who owns repos and has no
-# password yet) with HubStore.createDeviceInvite + acceptInvite. The script changes both Hubs, so each run needs fresh ones.
+# password yet) with HubStore.createPasswordReset (createDeviceInvite before this change) + acceptInvite. The script changes both Hubs, so each run needs fresh ones.
 # Prints PASS/FAIL per scenario id; exits 1 when any check fails.
 set -u
 BASE_URL="${BASE_URL:?set BASE_URL, e.g. BASE_URL=https://127.0.0.1:18621}"
@@ -180,7 +180,8 @@ check Q12 "account page" 200 "qa.second@example.com"
 check Q12 "account page" 200 "이 브라우저"
 check Q12 "account page" 200 "다른 브라우저 모두 로그아웃"
 C=$(csrf)
-BID=$(id_near "" "/account/devices/$ID/logout")
+# Rows are oldest first, so B (the newest sign-in) is the last logout button.
+BID=$(grep -o "/account/devices/[0-9a-f-]\{36\}/logout" "$T/body" | tail -1 | cut -d/ -f4)
 req "$BASE_URL" s2 POST "/account/devices/$BID/logout" --data-urlencode "csrf=$C"
 check Q12 "log out the other browser" 303
 req "$BASE_URL" sb GET /
