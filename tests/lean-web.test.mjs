@@ -781,3 +781,29 @@ test("the task detail shows the result summary as plain text that wraps between 
   assert.equal(view.t("ko", "sectionSummary"), "결과 요약");
   assert.equal(view.t("en", "sectionSummary"), "Result summary");
 });
+
+// 2026-11-24 small change: the progress log scrolls inside its own box, without fold buttons.
+test("the progress log is one keyboard-reachable box that opens at its end and keeps focus and position on a redraw", () => {
+  const app = read("app.js");
+  const list = app.slice(app.indexOf("function eventList("), app.indexOf("function diffList("));
+  // A box the person can focus and scroll with the keyboard, named for screen readers.
+  assert.match(list, /className: "events"/);
+  assert.match(list, /tabindex: "0"/);
+  assert.match(list, /"aria-label": L\("sectionEvents"\)/);
+  // Its position is captured per task, it follows the end, and its data-key brings focus back after a redraw.
+  assert.match(list, /scrollKey: `events:\$\{key\}`/);
+  assert.match(list, /followEnd: ""/);
+  assert.match(list, /key: `events:\$\{key\}`/);
+  // restore: a follow-end box with no saved position, or one that was at its end, goes to the end; else it keeps its place.
+  assert.match(app, /"followEnd" in node\.dataset && \(!at \|\| at\[2\]\)\) node\.scrollTop = node\.scrollHeight/);
+  assert.match(app, /node\.scrollTop \+ node\.clientHeight >= node\.scrollHeight - 4/);
+  // No fold buttons are left.
+  for (const word of ["eventsUnfold", "eventsFold", "events-wrap"]) assert.ok(!app.includes(word), word);
+  const css = read("style.css").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rule = css.slice(css.indexOf(".events {"), css.indexOf("}", css.indexOf(".events {")));
+  assert.match(rule, /max-height:\s*320px/);
+  assert.match(rule, /overflow-y:\s*auto/);
+  // Wheel and touch scrolling over the box carry on to the page at its ends.
+  assert.doesNotMatch(rule, /overscroll-behavior/);
+  assert.match(css, /\.events:focus-visible\s*\{[^}]*outline/);
+});

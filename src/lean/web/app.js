@@ -715,7 +715,7 @@ const timeOf = (at) =>
 /**
  * A task's progress, oldest first, in a box that scrolls inside itself (2026-11-24, small change: no fold button). It
  * opens at its end, the latest entry; a redraw keeps where the person scrolled, and follows new entries while the box
- * was at its end (`data-follow-end`, `restore`).
+ * was at its end (`data-follow-end`, `restore`). Its `data-key` returns focus to it after a redraw.
  */
 function eventList(events, key) {
   if (!events.length) return el("p", { className: "empty" }, L("noEvents"));
@@ -725,7 +725,7 @@ function eventList(events, key) {
       className: "events",
       tabindex: "0",
       "aria-label": L("sectionEvents"),
-      dataset: { scrollKey: `events:${key}`, followEnd: "" },
+      dataset: { scrollKey: `events:${key}`, followEnd: "", key: `events:${key}` },
     },
     events.map((e) => el("li", null, [timeOf(e.at), el("div", { className: "text" }, e.text)])),
   );

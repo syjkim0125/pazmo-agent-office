@@ -552,7 +552,6 @@ a:hover {
   gap: 0;
   max-height: 320px;
   overflow-y: auto;
-  overscroll-behavior: contain;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);

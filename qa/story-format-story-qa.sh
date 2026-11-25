@@ -111,11 +111,12 @@ console.log(hashStory(old) + ' / same=' + (hashStory(draft) === hashStory(approv
 want="5858498905450b3a6c51a6591a5b09d298e876c8a152d10106e671b88bba5158 / same=true / changed=true"
 [ "$out" = "$want" ] && pass Q9 "$out" || fail Q9 "got: $out; want: $want"
 
-# Q13 (added after approval, M9): the planning profile PM and Lead read asks for the request's language, headings in English.
+# Q13 (added after approval, M9): the planning profile PM and Lead read asks for the request's language, headings in English,
+# and keeps "not shown", commands, paths, names and IDs as they are (review of 6511b69).
 out=$(run "
 const { loadRoleProfile } = await import('$ROOT/src/runners/role-profiles.ts');
 const text = (role) => loadRoleProfile(role).files.map((f) => f.content).join('\\n');
-const ok = (role) => text(role).includes(\"Write every text value in the language of the person's request\") && text(role).includes('Keep headings and markers in English');
+const ok = (role) => text(role).includes(\"Write every text value in the language of the person's request\") && text(role).includes('Keep headings and markers in English') && text(role).includes('the QA target \"not shown\"') && text(role).includes('Copy commands, file paths, folder and repository names, and IDs exactly');
 console.log('pm=' + ok('pm') + ' / lead=' + ok('lead'));")
 [ "$out" = "pm=true / lead=true" ] && pass Q13 "$out" || fail Q13 "got: $out; want: pm=true / lead=true"
 

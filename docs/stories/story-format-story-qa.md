@@ -156,6 +156,7 @@ Script: qa/story-format-story-qa.sh
   - 초안 화면에 "지금·바뀐 뒤·그대로 / 정한 것 / 꼭 할 것 / 하지 않을 것 / QA" 제목과 개수 줄이 보인다.
   - G1 뒤 Story 글의 `Status:` 줄에 웹 승인이 있다.
   - Task 화면의 검사 id가 Q다.
+  - 승인 뒤 고침(2026-11-25): 사본 확인 환경이 다른 세션의 정리로 멈춘 뒤, 사용자가 "사내 fusion에 올려서 실제로 동작하는지" 보자고 했다. 그래서 머지하고 회사 허브를 다시 배포한 뒤(H3) 회사 허브와 이 Mac의 PL Office로 확인한다("그 순서로 진행").
 - Q5 [M3] (script). 이 저장소 · 새 형식 본문과 옛 kit 형식 본문 · `approvalPlan` → 새 형식은 `Q1 [M1] (script) …` 줄이 QA 목록에 있다. 옛 형식은 지금과 같은 `V1 … — 이 장면 그대로인지` 줄이 나온다.
 - Q6 [M4] (script). 이 저장소 · 고정 프로젝트 · `checkUpload`와 `team upload --guide` → 결과는 다음과 같다.
   - 새 형식 + `Status: Approved`는 통과한다(H2 (가)일 때).
