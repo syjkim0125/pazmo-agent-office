@@ -3,7 +3,7 @@
  * Story stages (기획 중, 진행 중, Story 검증, 승인 대기, 완료), web plans and unopened Stories drawn as drafts in 기획 중.
  * `/tasks` is the Task board (D42's board): per Story a lane whose head names the Story over five columns of Task
  * cards (with "취소한 것도 보기" on, its cancelled cards in a muted 취소됨 strip under them). A Story page carries the
- * Task board of that Story alone (`storyTaskBoard`). Above the projects, 나를 기다리는 일 lists what waits on the viewer,
+ * Task board of that Story alone (`storyTaskBoard`). Above the projects, 확인할 것 lists what waits on the viewer,
  * one row per kind (D44). With two or more projects, both boards have a chip row that shows one project
  * (`?project=<id>`) and, on 전체, fold projects with no Story into one line. A card's color class follows its state word
  * (need, run, stop, done); the words are always written. No script of its own; every value goes through `esc`.
@@ -39,7 +39,7 @@ const pill = (label: string, t?: Tone) => (t ? tonePill(t, label) : `<span class
 /** A card whose Task is taken (or stopped) names who has it, how their Mac is and how long it has stood there. */
 const TAKEN = new Set(["claimed", "held", "failed"]);
 const STOPPED = new Set(["held", "failed"]);
-/** Under a chosen project chip, 나를 기다리는 일 says it still covers every project (it sits right under the chips). */
+/** Under a chosen project chip, 확인할 것 says it still covers every project (it sits right under the chips). */
 const ALL_PROJECTS = "모든 프로젝트의 일입니다.";
 /** A stopped plan of the viewer's, said with the next step (the plan page shows why and has 다시 시도). */
 const STOPPED_PLAN = "기획이 멈췄습니다. 기획 화면에서 다시 시도하세요.";
@@ -194,7 +194,7 @@ const planCard = (me: Member) => (x: PlanCard) =>
 
 /** One thing that waits on the viewer: its kind (rank, tone, word), why it waits and the link to where they act. */
 type Wait = { rank: number; tone: Tone; word: string; why: string; link: string };
-/** A title in a row of 나를 기다리는 일, with its Story for a Task. */
+/** A title in a row of 확인할 것, with its Story for a Task. */
 const waitLink = (href: string, title: string, story?: number) =>
   `<a href="${esc(href)}"><b>${esc(title)}</b>${story === undefined ? "" : ` <span class="muted">Story #${story}</span>`}</a>`;
 
@@ -238,7 +238,7 @@ function waitingOnMe(me: Member, v: BoardView, f: Filters): string {
     const why = k.every((w) => w.why === k[0].why) ? `<span class="gwhy">${say(k[0].why)}</span>` : "";
     return `<li><p class="ghead">${tonePill(k[0].tone, k[0].word)}<span class="count">${k.length}</span>${why}</p><p class="glinks">${k.map((w) => w.link).join("")}</p></li>`;
   });
-  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">나를 기다리는 일 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
+  return `<section class="needs" aria-labelledby="needs"><h2 id="needs">확인할 것 <span class="count">${items.length}</span></h2>${f.project ? `<p class="muted">${ALL_PROJECTS}</p>` : ""}<ul>${rows.join("")}</ul></section>`;
 }
 
 /** The web plans a project shows: all of them, or under 내 Story만 the viewer's own. */
@@ -263,20 +263,26 @@ function chips(me: Member, base: Base, v: BoardView, f: Filters): string {
     const flag = p.stories.some((s) => counts(s).stopped) ? STOP_FLAG : p.stories.some((s) => s.state === "awaiting_g4") ? NEED_FLAG : "";
     return chip(p.project.id, p.project.name, n, flag);
   });
-  return `<nav class="chips" aria-label="프로젝트">${chip(null, "전체", all, "")}${each.join("")}</nav>`;
+  // The visible 프로젝트 label repeats the nav's name, so screen readers hear it once (from aria-label).
+  return `<div class="chiprow"><span class="flabel" aria-hidden="true">프로젝트</span><nav class="chips" aria-label="프로젝트">${chip(null, "전체", all, "")}${each.join("")}</nav></div>`;
 }
 
-/** The top of both boards: the heading, the two filters, 새 프로젝트, the tabs between the boards and the project chips. */
+/**
+ * The top of both boards, in two levels: the page line (the hidden heading, the tabs between the boards, which name
+ * the page, and 새 프로젝트 as the primary action) over the filter line (the project chips and the two toggles).
+ */
 function titlebar(me: Member, base: Base, v: BoardView, f: Filters): string {
   const toggle = (on: boolean, label: string, to: string) =>
     `<a class="filter"${on ? ' aria-current="true"' : ""} href="${to}">${label}${on ? " · 켜짐" : ""}</a>`;
   const tab = (at: Base, label: string) => `<a href="${boardHref(at, f)}"${at === base ? ' aria-current="page"' : ""}>${label}</a>`;
   const filters = `${toggle(f.mine, "내 Story만", boardHref(base, { ...f, mine: !f.mine }))}${toggle(f.cancelled, "취소한 것도 보기", boardHref(base, { ...f, cancelled: !f.cancelled }))}`;
-  return `<section class="titlebar"><div class="toggles"><h1>${base === "/" ? "Story 보드" : "모든 Task"}</h1>${filters}${v.canCreateProject ? '<a class="btn ghost" href="/projects/new">새 프로젝트</a>' : ""}</div><nav class="tabs" aria-label="보드 보기">${tab("/", "Story 보드")}${tab("/tasks", "모든 Task")}</nav>${chips(me, base, v, f)}</section>`;
+  const create = v.canCreateProject ? '<a class="btn add" href="/projects/new">새 프로젝트</a>' : "";
+  const page = `<div class="viewbar"><h1>${base === "/" ? "Story 보드" : "모든 Task"}</h1><nav class="tabs" aria-label="보드 보기">${tab("/", "Story 보드")}${tab("/tasks", "모든 Task")}</nav>${create}</div>`;
+  return `<section class="titlebar">${page}<div class="toggles">${chips(me, base, v, f)}<div class="fopts">${filters}</div></div></section>`;
 }
 
 /**
- * Each shown project (the chosen chip's, or all) with its heading, 새 Story, repos and `body`. A project with nothing
+ * Each shown project (the chosen chip's, or all) with its 프로젝트 label, heading, 새 Story, repos and `body`. A project with nothing
  * under 내 Story만 is left out; on 전체 with chips, a project with no Story is only a name on one line that leads to its
  * chip view, where it says what comes next (D44).
  */
@@ -295,13 +301,13 @@ function projectsOf(me: Member, base: Base, v: BoardView, f: Filters, body: (p: 
         }
       }
       const canPlan = v.canPlan.has(p.project.id);
-      const start = canPlan ? `<a class="btn ghost" href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
+      const start = canPlan ? `<a class="btn add" href="/projects/${esc(p.project.id)}/new-story">새 Story</a>` : "";
       const repos = p.project.repos.map((r) => `${esc(r.name)} (${esc(r.baseBranch)})`).join(", ");
       const empty = canPlan ? "아직 Story가 없습니다. [새 Story]로 시작하세요." : "아직 Story가 없습니다.";
       // U53: who posts a Story, behind an i for a member who cannot.
       const who = canPlan ? "" : info(`info-empty-${p.project.id}`, "Story를 올리는 사람", "이 프로젝트의 레포를 모두 맡은 사람이 Story를 올립니다.");
       const inner = p.stories.length || plans.length ? body(p, plans) : `<p class="empty">${say(empty)}${who}</p>`;
-      return `<section class="project"><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div><p class="muted">레포: ${repos}</p>${inner}</section>`;
+      return `<section class="project"><div class="phead"><p class="kind">프로젝트</p><div class="row"><h2>${esc(p.project.name)}</h2>${start}</div></div><p class="muted">레포: ${repos}</p>${inner}</section>`;
     })
     .filter(Boolean);
   const line = quiet.length
