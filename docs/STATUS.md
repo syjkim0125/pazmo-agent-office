@@ -1,3 +1,17 @@
+# 2026-11-25 Office와 허브가 story-qa 형식 Story를 쓰고 읽습니다 ([Story](stories/story-format-story-qa.md))
+
+- 혼자 쓰는 Office의 PM·Lead와 G1 카드, 허브 웹 기획(초안·PL 답·G1·Task 나누기), 결과 승인 QA 목록, 팀 Task 계약, 계약 형식 검사, `team upload`가 story-qa 형식(Goal·Decisions·Human decides·MUST·OUT·QA, `- Q1 [M1] (script).`)을 씁니다. 승인은 `Status: Approved (…)` 줄에 적어 Story 해시 값이 그대로입니다.
+- 허브가 검사 id로 Q도 받습니다. V로 만든 옛 Story·Task는 그대로 돕니다.
+- 사용자가 고른 것:
+  - H1: 진행 중인 옛 형식 기획은 "옛 Story 형식으로 만든 기획입니다. 취소하고 다시 만드세요"로 멈춥니다. 데이터는 지우지 않습니다.
+  - H2: `team upload`는 `Status: Approved`를 승인으로 봅니다. kit 형식은 "story-qa로 다시 쓰세요"로 거절하고, `.ai-workflow/`를 읽지 않습니다.
+  - H3: 머지한 뒤 회사 허브를 먼저 다시 배포하고, PL Mac의 Office를 그다음에 올립니다.
+- `templates/ai-workflow`와 kit 잠금·고지 파일을 지웠습니다. `init`은 템플릿을 깔지 않습니다.
+- 승인 뒤 더한 것(Q3 중 사용자 요청): G1 카드 제목은 Goal·MUST·OUT·QA입니다. PM·Lead는 요청한 사람의 말로 쓰고, 제목·표식·명령·경로·ID는 그대로 둡니다. 진행 기록은 단추 없이 칸 안에서 스크롤합니다(작은 변경).
+- **확인:** QA 스크립트 `qa/story-format-story-qa.sh` 13/13입니다(구현 전 변경 시나리오 실패). 혼자 쓰는 live Office에서 한국어 작업 하나가 질문 → Story 승인 → 계획 승인 → 구현 → 검사 5개 → 리뷰 → G4 → 인도까지 갔고, G1·G4 화면에 kit 말이 0건이었습니다(Q3·Q12·Q14). 전체 시험 2131/2131(Node 24), 타입 검사 exit 0입니다. 리뷰 2회에서 나온 9건 중 7건을 고쳤습니다.
+- **남은 것:** 허브 웹 기획(Q4)과 허브 화면의 kit 말 확인은 회사 허브를 다시 배포한 뒤 합니다. `team upload` 승인은 Story 본문에 묶이지 않습니다(H2의 대가). Office 코드가 직접 쓰는 영어 문장 몇 개와, G4를 다시 물을 때 이유가 없는 카드는 그대로입니다.
+- **승인:** 사용자가 2026-11-25 보고를 본 뒤 "승인 후 머지"를 골랐습니다.
+
 # 2026-11-25 보드 맨 위에서 보기 전환, 프로젝트 필터, 주요 버튼이 구분됩니다 ([Story](stories/board-header-hierarchy.md))
 
 - [새 프로젝트]와 [새 Story]는 필터 토글과 같은 흰 보조 버튼이어서 주요 동작으로 보이지 않았습니다. 이제 파랗게 채운 주요 버튼이고, 글자 앞에 “+”가 있습니다.
