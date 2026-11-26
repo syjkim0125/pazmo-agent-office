@@ -2,6 +2,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
+import { createHash } from "node:crypto";
 import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -112,6 +113,16 @@ test("store: a reset link sets a new password, keeps the mail, ends the member's
   assert.ok(store.link(link), "the Office link lives on");
   assert.match(code(() => store.acceptInvite(reset, "x", account()))[1], /이미 사용됐습니다/, "a link works once");
 
+  // Review 1: a member has one open link; a newer one, or setting a password, retires the rest.
+  const older = store.createPasswordReset(admin, b.id);
+  const newer = store.createPasswordReset(admin, b.id);
+  assert.equal(store.invite(older), null, "a new reset link retires the earlier one");
+  store.acceptInvite(newer, "x", account("another-pass-1"));
+  const firstAdminLink = store.recoverAdmin();
+  const secondAdminLink = store.recoverAdmin();
+  assert.equal(store.invite(firstAdminLink), null, "recover-admin twice leaves one live link");
+  assert.ok(store.invite(secondAdminLink));
+
   const late = store.createPasswordReset(admin, b.id);
   now += 72 * 3600_000 + 1;
   assert.equal(store.invite(late), null, "a reset link runs out after 72 hours");
@@ -122,9 +133,18 @@ test("store: members from before mail sign-in are marked once and set a mail and
   // The hub_members table as it was before this change, with one member and a live browser.
   db.exec(`CREATE TABLE hub_members(id TEXT PRIMARY KEY,name TEXT NOT NULL,admin INTEGER NOT NULL DEFAULT 0,revoked_at INTEGER,created_at INTEGER NOT NULL);
     CREATE TABLE hub_devices(id TEXT PRIMARY KEY,member_id TEXT NOT NULL REFERENCES hub_members(id),token_hash TEXT NOT NULL UNIQUE,csrf TEXT NOT NULL,label TEXT NOT NULL,created_at INTEGER NOT NULL,expires_at INTEGER NOT NULL,revoked_at INTEGER);
+    CREATE TABLE hub_invites(id TEXT PRIMARY KEY,token_hash TEXT NOT NULL UNIQUE,name TEXT NOT NULL,admin INTEGER NOT NULL DEFAULT 0,member_id TEXT REFERENCES hub_members(id),expires_at INTEGER NOT NULL,used_at INTEGER);
     INSERT INTO hub_members VALUES ('00000000-0000-4000-8000-000000000001','관리자',1,NULL,1);
     INSERT INTO hub_members VALUES ('00000000-0000-4000-8000-000000000002','A',0,NULL,2);`);
+  // Review 3: a "새 기기 링크" made before the change and a plain invite, both still open.
+  const oldDevice = "old-device-link-token-0000000000000000000000";
+  const oldInvite = "old-invite-link-token-0000000000000000000000";
+  const sha = (v) => createHash("sha256").update(v).digest("hex");
+  db.prepare("INSERT INTO hub_invites VALUES ('i1',?,'A',0,'00000000-0000-4000-8000-000000000002',?,NULL)").run(sha(oldDevice), Date.now() + 3600_000);
+  db.prepare("INSERT INTO hub_invites VALUES ('i2',?,'C',0,NULL,?,NULL)").run(sha(oldInvite), Date.now() + 3600_000);
   const store = new HubStore(db);
+  assert.equal(store.invite(oldDevice), null, "an old device link would reset a password now, so it is retired");
+  assert.deepEqual(store.invite(oldInvite), { name: "C", email: null, reset: false }, "an old invite for a new member stays");
   const [admin, a] = store.members();
   const session = store.acceptInvite(store.createPasswordReset(admin, a.id), "old browser").session;
   assert.equal(store.session(session).setup, true);
@@ -133,6 +153,9 @@ test("store: members from before mail sign-in are marked once and set a mail and
   assert.equal(store.session(joined.session).setup, false, "a member who joins later is never marked");
 
   assert.deepEqual(code(() => store.setupAccount(a, "a@example.com", "short", "short")), [400, "비밀번호는 10자 이상으로 정해주세요."]);
+  // Review 6: an open invite's mail is not free for someone else.
+  store.createInvite(admin, "Bob", "bob@example.com");
+  assert.match(code(() => store.setupAccount(a, "bob@example.com", PW, PW))[1], /초대 링크가 아직 쓰이지 않았습니다/);
   store.setupAccount(a, " A@Example.com", PW, PW);
   assert.equal(store.session(session).setup, false);
   assert.equal(store.login("a@example.com", PW, "x").member.id, a.id);
@@ -283,9 +306,24 @@ test("server: a member from before sees only the setup page until they set a mai
   assert.match(bad.text, /서로 다릅니다/);
   assert.match(bad.text, /value="a@example.com"/);
   const set = await call("POST", "/account/setup", { cookie: `${cookie}; ${next.split(";")[0]}`, body: form({ csrf, email: "a@example.com", password: PW, password2: PW }) });
-  assert.deepEqual([set.status, set.headers.location], [303, "/mac"]);
+  // Like an invite (signedIn): a hub without the Story board lands on /start; with one, on the remembered page.
+  assert.deepEqual([set.status, set.headers.location], [303, "/start"]);
   assert.ok(set.headers["set-cookie"].some((c) => c.startsWith("pazmo_hub=") && !c.includes("Max-Age=0")), "the session stays");
   const after = await call("GET", "/repos", { cookie });
+  // Review 4: on the Mac approve address the setup form posts to that address and comes back to it.
+  const other = store.acceptInvite(store.createInvite(admin, "B"), "x").member;
+  db.prepare("UPDATE hub_members SET needs_setup=1 WHERE id=?").run(other.id);
+  const bCookie = `pazmo_hub=${store.acceptInvite(store.createPasswordReset(admin, other.id), "old").session}`;
+  const started = store.startMac("B Mac");
+  const approve = `/mac/approve?code=${encodeURIComponent(started.userCode)}`;
+  const shown = await call("GET", approve, { cookie: bCookie });
+  assert.match(shown.text, /<h1>메일과 비밀번호를 정해주세요<\/h1>/);
+  assert.match(shown.text, /<form method="post"><input type="hidden" name="csrf"/, "posts to its own address");
+  assert.ok(!shown.text.includes(started.userCode), "the code is not written on the page");
+  const bCsrf = /name="csrf" value="([^"]+)"/.exec(shown.text)[1];
+  const done = await call("POST", approve, { cookie: bCookie, body: form({ csrf: bCsrf, email: "b@example.com", password: PW, password2: PW }) });
+  assert.deepEqual([done.status, done.headers.location], [303, approve]);
+  assert.equal(store.macCode(started.userCode).state, "pending", "setting up decided nothing");
   assert.equal(after.status, 200);
   assert.doesNotMatch(after.text, /메일과 비밀번호를 정해주세요/);
 });

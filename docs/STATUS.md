@@ -1,3 +1,14 @@
+# 2026-11-26 허브에 메일과 비밀번호로 들어옵니다 ([Story](stories/hub-email-password-login.md))
+
+- 관리자가 이름과 메일로 초대하고, 팀원은 링크에서 비밀번호(10자 이상, scrypt 해시)를 정합니다. 그 뒤로는 어느 브라우저에서든 메일과 비밀번호로 로그인합니다. 같은 메일로 15분에 5번 틀리거나 한 주소에서 15분에 30번 시도하면 15분 동안 막습니다.
+- "새 기기 링크"는 "비밀번호 재설정 링크"가 됐습니다. 새 비밀번호를 정하면 그 팀원의 다른 브라우저가 끊기고, 그 팀원의 이전 링크도 무효가 됩니다. Mac과 Office 연결 토큰은 그대로입니다.
+- 관리자가 들어올 수 없으면 허브가 도는 곳에서 `recover-admin`(컨테이너 `node bin/pazmo-hub.mjs recover-admin`, 이 Mac `node bin/pazmo-office.mjs hub recover-admin --data-dir … --url …`)으로 재설정 링크를 받습니다.
+- 이전부터 있던 팀원은 다음에 열 때 메일과 비밀번호를 먼저 정합니다. 이전에 만든 새 기기 링크는 무효가 됩니다.
+- 위쪽 메뉴의 **내 로그인**에서 내 메일과 로그인된 브라우저를 보고, 하나씩·나머지 모두·이 브라우저를 로그아웃합니다(승인 때 더한 요청 M9).
+- 사용자가 고른 것: H1–H6을 제안대로(2026-11-25).
+- **확인:** QA 스크립트 `qa/hub-email-password-login.sh` RED 23/66 → GREEN 66/66(리뷰 고침 뒤 다시 66/66). 화면 4종 × 375·1280px × 두 테마 24장에서 가로 넘침 0. 리뷰 6건 중 5건 고침.
+- **남은 것:** 회사 허브 배포와 관리자 복구(H2)는 머지 뒤에 합니다.
+
 # 2026-11-25 Office와 허브가 story-qa 형식 Story를 쓰고 읽습니다 ([Story](stories/story-format-story-qa.md))
 
 - 혼자 쓰는 Office의 PM·Lead와 G1 카드, 허브 웹 기획(초안·PL 답·G1·Task 나누기), 결과 승인 QA 목록, 팀 Task 계약, 계약 형식 검사, `team upload`가 story-qa 형식(Goal·Decisions·Human decides·MUST·OUT·QA, `- Q1 [M1] (script).`)을 씁니다. 승인은 `Status: Approved (…)` 줄에 적어 Story 해시 값이 그대로입니다.

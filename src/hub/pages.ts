@@ -73,6 +73,7 @@ button.theme{display:inline-grid;place-items:center;width:44px;height:44px;min-h
 .switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}
 .macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}
 .macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}
+a.acct{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}a.acct:hover{border-color:var(--accent)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}
 .on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar);border-radius:2px}.off .dot{background:transparent;border:2px solid var(--idle)}
 .av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}
@@ -332,7 +333,7 @@ function boardHeader(me: Member, chrome: Chrome): string {
   const mac = chrome.mac ? macChip(chrome.mac) : "";
   const here = menuOf(chrome.path);
   const item = (href: string, label: string) => `<a href="${href}"${here === href ? ' aria-current="page"' : ""}>${label}</a>`;
-  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}<span class="name">${esc(me.name)}</span></a>${item("/account", "내 로그인")}${sw}${theme}${mac}</div>`;
+  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}<span class="name">${esc(me.name)}</span></a><a class="acct" href="/account">내 로그인</a>${sw}${theme}${mac}</div>`;
 }
 
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
@@ -369,12 +370,12 @@ export function invite(link: { name: string; email: string | null; reset: boolea
     return layout("초대 링크", null, `<section><h1>쓸 수 없는 링크입니다</h1><p>${say("만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.")}</p></section>`);
   const head = link.reset
     ? `<h1>${esc(link.name)}님, 새 비밀번호를 정해주세요</h1><p>${say("정하면 이 브라우저로 로그인되고, 다른 브라우저의 로그인은 끝납니다. Mac과 Office 연결은 그대로입니다.")}</p>`
-    : `<h1>${esc(link.name)}님, Pazmo 팀 허브에 초대됐습니다</h1><p>${say("비밀번호를 정하면 들어갑니다. 다음부터는 어느 브라우저에서든 메일과 비밀번호로 로그인합니다.")}${info("info-invite", "초대 링크 설명", "쓰는 동안 30일씩 로그인이 유지됩니다. 링크는 한 번만 쓸 수 있습니다.")}</p>`;
+    : `<h1>${esc(link.name)}님, Pazmo 팀 허브에 초대됐습니다</h1><p>${say("비밀번호를 정하면 들어갑니다. 다음부터는 어느 브라우저에서든 메일과 비밀번호로 로그인합니다.", false, info("info-invite", "초대 링크 설명", "쓰는 동안 30일씩 로그인이 유지됩니다. 링크는 한 번만 쓸 수 있습니다."))}</p>`;
   return layout(link.reset ? "비밀번호 재설정" : "초대", null, `<section class="signin">${head}${alertLine(o.error)}<form method="post">${newPasswordFields({ email: link.email, typed: o.email })}<label>이 기기 이름 (선택)<input name="label" maxlength="60" placeholder="예: 회사 맥북"></label><div class="row"><button>${link.reset ? "비밀번호 정하고 로그인" : "입장하기"}</button></div></form></section>`);
 }
 /** M6: a member from before mail sign-in, on any page, until they set a mail and a password. */
-export function setupAccount(me: Member, csrf: string, o: FormNote = {}) {
-  return layout("메일과 비밀번호 정하기", null, `<section class="signin"><h1>메일과 비밀번호를 정해주세요</h1><p>${say(`${me.name}님, 허브가 이제 메일과 비밀번호로 로그인합니다. 정하면 이 화면이 다시 나오지 않고, 다음부터 어느 브라우저에서든 로그인할 수 있습니다.`)}</p>${alertLine(o.error)}<form method="post" action="/account/setup">${csrfField(csrf)}${newPasswordFields({ email: null, typed: o.email })}<div class="row"><button>정하기</button></div></form></section>`);
+export function setupAccount(me: Member, csrf: string, o: FormNote = {}, here = false) {
+  return layout("메일과 비밀번호 정하기", null, `<section class="signin"><h1>메일과 비밀번호를 정해주세요</h1><p>${say(`${me.name}님, 허브가 이제 메일과 비밀번호로 로그인합니다. 정하면 이 화면이 다시 나오지 않고, 다음부터 어느 브라우저에서든 로그인할 수 있습니다.`)}</p>${alertLine(o.error)}<form method="post"${here ? "" : ' action="/account/setup"'}>${csrfField(csrf)}${newPasswordFields({ email: null, typed: o.email })}<div class="row"><button>정하기</button></div></form></section>`);
 }
 /** M9: my mail and the browsers signed in as me; each other browser can be signed out, and so can this one. */
 export function account(me: Member, csrf: string, deviceId: string, a: { email: string | null; devices: { id: string; label: string; createdAt: number; lastUsedAt: number }[] }, chrome: Chrome = {}) {

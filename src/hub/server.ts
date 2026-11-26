@@ -259,24 +259,21 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     }
     // M6: a member from before mail sign-in sets a mail and a password before anything else.
     if (s.setup) {
-      if (post && path === "/account/setup") {
+      // On the Mac approve address the form posts to that address, so the member comes back to the same code.
+      const code = url.searchParams.get("code") ?? "";
+      const macHere = path === "/mac/approve" && /^[A-Za-z0-9 -]{1,16}$/.test(code);
+      if (post && (path === "/account/setup" || macHere)) {
         try {
           c.store.setupAccount(me, f("email"), f("password"), f("password2"));
         } catch (error) {
           if (!(error instanceof HubError) || (error.status !== 400 && error.status !== 409)) throw error;
-          return html(res, error.status, page.setupAccount(me, s.csrf, { error: error.message, email: f("email") }));
+          return html(res, error.status, page.setupAccount(me, s.csrf, { error: error.message, email: f("email") }, macHere));
         }
-        let next: string | null = null;
-        try {
-          next = safePath(decodeURIComponent(cookieOf(req, NEXT_COOKIE) ?? ""));
-        } catch {
-          // A value that does not decode is ignored like any other odd one.
-        }
-        return redirect(res, next ?? "/", cookieOf(req, NEXT_COOKIE) !== undefined ? { "set-cookie": [`${COOKIE}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`, `${NEXT_COOKIE}=; Max-Age=0; ${NEXT_ATTRS}`] } : {});
+        return signedIn(token, macHere ? `/mac/approve?code=${encodeURIComponent(code)}` : undefined);
       }
       if (post) throw new HubError("SETUP", 403, "먼저 메일과 비밀번호를 정해주세요.");
       const remember = safePath(path) ? { "set-cookie": `${NEXT_COOKIE}=${encodeURIComponent(path)}; Max-Age=${NEXT_AGE}; ${NEXT_ATTRS}` } : undefined;
-      return html(res, 200, page.setupAccount(me, s.csrf), remember);
+      return html(res, 200, page.setupAccount(me, s.csrf, {}, macHere), remember);
     }
     const trust = !!tls;
     // The repos a member may put in a project from the web: their own, or every repo for a hub admin.

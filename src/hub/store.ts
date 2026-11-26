@@ -253,6 +253,8 @@ export class HubStore {
         this.#db.exec("ALTER TABLE hub_members ADD COLUMN password_hash TEXT");
         this.#db.exec("ALTER TABLE hub_members ADD COLUMN needs_setup INTEGER NOT NULL DEFAULT 0");
         this.#db.exec("UPDATE hub_members SET needs_setup=1");
+        // A "새 기기 링크" made before would now open as a password reset; it is retired instead.
+        this.#run("UPDATE hub_invites SET used_at=? WHERE member_id IS NOT NULL AND used_at IS NULL", this.#now());
       });
     // The mail an admin wrote on an invite; null for the first admin's link and for a reset link.
     if (!columns("hub_invites").has("email")) this.#db.exec("ALTER TABLE hub_invites ADD COLUMN email TEXT");
@@ -292,9 +294,9 @@ export class HubStore {
     if (email === undefined) return this.#invite(clean, null, null);
     const mail = this.#email(email);
     return transaction(this.#db, () => {
-      this.#emailFree(mail, null);
       if (this.#get("SELECT 1 FROM hub_invites WHERE email=? AND used_at IS NULL AND expires_at>?", mail, this.#now()))
         fail("CONFLICT", 409, "이 메일로 보낸 초대 링크가 아직 쓰이지 않았습니다. 그 링크를 쓰거나 72시간 뒤에 다시 초대해주세요.");
+      this.#emailFree(mail, null);
       return this.#invite(clean, null, mail);
     });
   }
@@ -315,19 +317,27 @@ export class HubStore {
   }
   #invite(name: string, memberId: string | null, email: string | null) {
     const raw = secret();
+    // A member has at most one open link: a new reset link retires any earlier one (it may have leaked).
+    if (memberId) this.#retireLinks(memberId, null);
     this.#run(
       "INSERT INTO hub_invites(id,token_hash,name,admin,member_id,expires_at,email) VALUES (?,?,?,0,?,?,?)",
       randomUUID(), hash(raw), name, memberId, this.#now() + INVITE_TTL, email,
     );
     return raw;
   }
+  /** Marks the member's open links used, except `keep` (the link being used now). */
+  #retireLinks(memberId: string, keep: string | null) {
+    this.#run("UPDATE hub_invites SET used_at=? WHERE member_id=? AND used_at IS NULL AND id IS NOT ?", this.#now(), memberId, keep);
+  }
   #email(raw: string): string {
     return normalizeEmail(raw) ?? fail("INVALID", 400, "메일 주소를 확인해주세요. 예: name@example.com");
   }
-  /** Refuses a mail another active member already signs in with. */
-  #emailFree(email: string, memberId: string | null) {
+  /** Refuses a mail another active member signs in with, or an open invite (other than `inviteId`) was made for. */
+  #emailFree(email: string, memberId: string | null, inviteId: string | null = null) {
     if (this.#get("SELECT 1 FROM hub_members WHERE email=? AND revoked_at IS NULL AND id IS NOT ?", email, memberId))
       fail("CONFLICT", 409, "이미 다른 팀원이 쓰는 메일입니다.");
+    if (this.#get("SELECT 1 FROM hub_invites WHERE email=? AND used_at IS NULL AND expires_at>? AND id IS NOT ?", email, this.#now(), inviteId))
+      fail("CONFLICT", 409, "이 메일로 만든 초대 링크가 아직 쓰이지 않았습니다. 다른 메일을 적거나 관리자에게 물어보세요.");
   }
   /**
    * What a link page shows: whose it is, the mail it signs in with (null when the person writes it there) and whether it
@@ -368,7 +378,7 @@ export class HubStore {
       let passwordHash: string | null = null;
       if (account) {
         email = row.email ?? existing?.email ?? this.#email(account.email ?? "");
-        this.#emailFree(email, existing?.id ?? null);
+        this.#emailFree(email, existing?.id ?? null, row.id);
         const problem = passwordProblem(account.password, account.again);
         if (problem) fail("INVALID", 400, problem);
         passwordHash = hashPassword(account.password);
@@ -378,6 +388,7 @@ export class HubStore {
         member = { id: existing.id, name: existing.name, admin: existing.admin === 1 };
         if (passwordHash) {
           this.#run("UPDATE hub_members SET email=?,password_hash=?,needs_setup=0 WHERE id=?", email, passwordHash, member.id);
+          this.#retireLinks(member.id, row.id);
           this.#run("UPDATE hub_devices SET revoked_at=? WHERE member_id=? AND revoked_at IS NULL", this.#now(), member.id);
         }
       } else {
@@ -422,6 +433,7 @@ export class HubStore {
         fail("CONFLICT", 409, "이미 메일과 비밀번호를 정했습니다.");
       this.#emailFree(mail, by.id);
       this.#run("UPDATE hub_members SET email=?,password_hash=?,needs_setup=0 WHERE id=?", mail, hashPassword(password), by.id);
+      this.#retireLinks(by.id, null);
     });
   }
   /** `setup`: a member from before mail sign-in who has no password yet; they set one before anything else (M6). */
