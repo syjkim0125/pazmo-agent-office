@@ -1,13 +1,15 @@
 import {
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   renameSync,
+  rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
-import { homedir } from "node:os";
+import { homedir, tmpdir } from "node:os";
 import {
   dataRoot,
   liveDataRoot,
@@ -177,30 +179,40 @@ export async function prepareVm(
       "VM_CONFIG",
       "전용 VM에서 호스트 파일 공유가 발견되었거나 확인에 실패했습니다.",
     );
+  // An empty Docker config of our own, as the container verifier uses: the person's ~/.docker (or DOCKER_CONFIG) may
+  // name a credential helper that is not installed, such as Docker Desktop's osxkeychain left behind, and the pinned
+  // image is public. `--config` wins over DOCKER_CONFIG.
+  const config = mkdtempSync(join(tmpdir(), "pazmo-docker-config-"));
   const docker = [
+    "--config",
+    config,
     "--host",
     `unix://${join(homedir(), ".colima/pazmo-office/docker.sock")}`,
   ];
-  if (
-    (
+  try {
+    if (
+      (
+        await exec("/opt/homebrew/bin/docker", [
+          ...docker,
+          "info",
+          "--format",
+          "{{.Name}}",
+        ])
+      ).trim() !== "colima-pazmo-office"
+    )
+      fail("VM_CONFIG", "전용 VM Docker daemon이 아닙니다.");
+    try {
       await exec("/opt/homebrew/bin/docker", [
         ...docker,
-        "info",
-        "--format",
-        "{{.Name}}",
-      ])
-    ).trim() !== "colima-pazmo-office"
-  )
-    fail("VM_CONFIG", "전용 VM Docker daemon이 아닙니다.");
-  try {
-    await exec("/opt/homebrew/bin/docker", [
-      ...docker,
-      "image",
-      "inspect",
-      IMAGE,
-    ]);
-  } catch {
-    await exec("/opt/homebrew/bin/docker", [...docker, "pull", IMAGE]);
+        "image",
+        "inspect",
+        IMAGE,
+      ]);
+    } catch {
+      await exec("/opt/homebrew/bin/docker", [...docker, "pull", IMAGE]);
+    }
+  } finally {
+    rmSync(config, { recursive: true, force: true });
   }
 }
 

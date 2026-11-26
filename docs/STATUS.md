@@ -1,3 +1,11 @@
+# 2026-11-26 Office의 VM 준비가 사람의 Docker 설정에 영향받지 않습니다 (작은 변경)
+
+- Docker Desktop을 쓰던 Mac에는 `~/.docker/config.json`에 `"credsStore": "osxkeychain"`이 남습니다. 그런데 그 도우미 프로그램이 없으면, 설치 한 줄의 VM 준비 단계에서 `docker pull`이 `SETUP_FAILED`(`docker-credential-osxkeychain` 없음)로 멈췄습니다(팀원 Mac에서 실제로 일어남).
+- 준비 단계의 docker 명령(`info`·`image inspect`·`pull`)이 이제 Office 전용 빈 설정 폴더(`--config`)를 쓰고, 끝나면 그 폴더를 지웁니다. 작업 실행 쪽(container verifier)은 원래 그렇게 했습니다. 받는 이미지는 공개 이미지라 로그인이 필요 없습니다. Docker Desktop은 필요 없습니다.
+- **확인:** QA 스크립트 `qa/docker-own-config.sh` 3/3입니다(고치기 전 S1 실패). S2는 이 Mac의 VM에서, 없는 도우미를 적은 설정으로 같은 오류를 재현하고 `--config`로 피해지는 것을 봤습니다. 전체 시험 2143/2143(Node 24), 타입 검사 exit 0입니다. 작은 변경이라 리뷰는 하지 않았습니다.
+- **남은 것:** 도우미가 없는 팀원 Mac에서 설치 한 줄이 통과하는지는 팀원이 다시 돌릴 때 봅니다. 허브 재배포는 필요 없습니다(설치 한 줄은 main을 받습니다).
+- **승인:** 사용자가 2026-11-26 "승인 후 머지"를 골랐습니다.
+
 # 2026-11-26 설치 한 줄이 개인 GitHub 로그인을 묻지 않습니다 (작은 변경)
 
 - 설치 한 줄이 `gh auth login --hostname github.com`을 무조건 물어서, 레포가 회사 GitHub Enterprise에만 있는 팀원도 개인 GitHub로 로그인하게 됐습니다. 그 단계를 뺐습니다. GitHub 로그인은 `mac connect`가 담당 레포가 있는 Git 호스트마다 확인하고, 없으면 그 호스트로 띄웁니다(원래 있던 동작).

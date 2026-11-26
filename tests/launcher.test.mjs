@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { assertRunnerLogin, assertVmConfig, canReuse, prepareDependencies, prepareVm, runnerLoginOptions, startupRunners } from "../src/cli/launcher.ts";
@@ -42,6 +42,11 @@ test("launcher starts only the dedicated mount-free VM and pulls only the pinned
       .filter(([exe]) => exe.endsWith("/docker"))
       .every(([, args]) => args.includes("--host")),
   );
+  // Never the person's Docker settings: each docker call names one empty config folder of Office's, removed afterwards.
+  const configs = calls.filter(([exe]) => exe.endsWith("/docker")).map(([, args]) => args[args.indexOf("--config") + 1]);
+  assert.equal(configs.length, 3);
+  assert.ok(configs.every((c) => c && c === configs[0] && !c.includes("/.docker")), configs.join(" "));
+  assert.equal(existsSync(configs[0]), false, "the config folder is removed after setup");
 });
 test("launcher stops before image/model preparation when actual VM mounts expose the host", async () => {
   const calls = [];
