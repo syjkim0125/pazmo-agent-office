@@ -126,12 +126,12 @@ security add-trusted-cert -r trustRoot -p ssl -k ~/Library/Keychains/login.keych
 curl -fsSL https://<허브 주소>/install.sh | sh
 ```
 
-설치기는 단계마다 이름을 보이고, 이미 된 것은 건너뛴다. 멈출 때 나오는 말은 이렇다. Apple Silicon Mac이 아니면 그 사실만 말하고 멈춘다(단계 이름도 다시 실행할 명령도 없다). Homebrew가 없으면 Homebrew 설치 명령과 다시 실행할 명령을 보이고 멈춘다(단계 이름은 없다). 그 밖의 단계(프로그램 설치, Claude Code 설치, Office 받기와 준비, GitHub 로그인, Claude 로그인, 내 Mac 연결)에서 멈추면 그 단계 이름과 다시 실행할 같은 명령이 나온다. 하는 일은 이 순서다.
+설치기는 단계마다 이름을 보이고, 이미 된 것은 건너뛴다. 멈출 때 나오는 말은 이렇다. Apple Silicon Mac이 아니면 그 사실만 말하고 멈춘다(단계 이름도 다시 실행할 명령도 없다). Homebrew가 없으면 Homebrew 설치 명령과 다시 실행할 명령을 보이고 멈춘다(단계 이름은 없다). 그 밖의 단계(프로그램 설치, Claude Code 설치, Office 받기와 준비, Claude 로그인, 내 Mac 연결)에서 멈추면 그 단계 이름과 다시 실행할 같은 명령이 나온다. 하는 일은 이 순서다.
 
 1. Apple Silicon Mac인지, Homebrew가 있는지 본다. Rosetta로 연 터미널도 Apple Silicon Mac이면 받는다(Homebrew는 `arch -arm64`로 부른다). Intel Mac은 거절한다.
 2. `node@24`, `git`, `gh`, `colima`, `docker` 중 없는 것을 `brew install`로 설치하고, `claude`가 없으면 Claude Code를 설치한다.
 3. Office를 `~/.pazmo/office`에 받고(이미 있으면 새 버전으로) 의존성을 설치한다.
-4. GitHub 로그인이 없으면 브라우저로 로그인하고, Claude 로그인이 없으면 로그인한다.
+4. Claude 로그인이 없으면 로그인한다. GitHub에는 여기서 로그인하지 않는다. 6번의 `mac connect`가 담당 레포가 있는 Git 호스트마다(회사 GitHub Enterprise 포함) gh 로그인을 확인하고, 없으면 그 호스트로 로그인을 띄운다. 그래서 레포가 회사 GitHub에만 있는 사람은 github.com 로그인을 보지 않는다.
 5. **회사 플러그인 확인**(`runner plugins --review`):
    - 이 Mac의 claude를 Office와 같은 방식으로 init까지만 띄워(모델은 부르지 않는다), 조직 관리 설정 등으로 실리는 내장 밖 플러그인을 찾는다.
    - skill만 있는 플러그인은 하나씩 "Office에서 이 플러그인을 허용할까요? [y/N]"로 묻고, `y`일 때만 허용 목록에 넣는다. 그냥 Enter는 허용하지 않는다.
