@@ -17,6 +17,7 @@ import { installScript, type InstallerConfig } from "./installer.ts";
 import type { StoryBoard } from "./story-store.ts";
 import type { PlanBoard } from "./plan-store.ts";
 import { PLAN_LIMITS } from "./plan-protocol.ts";
+import { deviceLabel, normalizeEmail } from "./account.ts";
 
 export type HubListen =
   | { kind: "tls"; tls: HubTls; host: string; port: number; names: string[] }
@@ -36,6 +37,12 @@ const START_WINDOW_MS = 600_000;
  * each spend one, and so does a GET /mac/approve that names no live code; opening a live or decided code is free. */
 const DECIDE_LIMIT = 10;
 const DECIDE_WINDOW_MS = 600_000;
+/** H5: wrong passwords for one mail, and sign-in tries from one client, per window; a window ends the hold. */
+const LOGIN_MAIL_LIMIT = 5;
+const LOGIN_CLIENT_LIMIT = 30;
+const LOGIN_WINDOW_MS = 15 * 60_000;
+const LOGIN_WRONG = "메일 또는 비밀번호가 맞지 않습니다.";
+const LOGIN_HELD = "로그인 시도가 너무 많습니다. 잠시 뒤에 다시 시도해주세요.";
 const COOKIE = "pazmo_hub";
 const COOKIE_AGE = 30 * 86400;
 const ID = "([0-9a-f-]{36})";
@@ -146,6 +153,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
   // One limiter per hub: two hubs in a process never share a client's count.
   const mac = macApi(c.store, { base: () => base, clientKey, startLimit: createRateLimit(START_LIMIT, START_WINDOW_MS) });
   const decideLimit = createRateLimit(DECIDE_LIMIT, DECIDE_WINDOW_MS);
+  const loginMailLimit = createRateLimit(LOGIN_MAIL_LIMIT, LOGIN_WINDOW_MS);
+  const loginClientLimit = createRateLimit(LOGIN_CLIENT_LIMIT, LOGIN_WINDOW_MS);
   // Only the self-CA mode has a certificate to show; behind the router the router's certificate is the public one.
   const tls = c.listen.kind === "tls" ? c.listen.tls : null;
   // Built once the public origin is known (it carries the port in self-CA mode); null serves a 404.
@@ -169,11 +178,8 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if (!post && path === "/trust" && tls) return html(res, 200, page.trust(tls.fingerprint));
     if (post && !origins.has(String(req.headers.origin ?? "")))
       throw new HubError("ORIGIN", 403, "다른 사이트에서 보낸 요청은 받지 않습니다.");
-    let m = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(path);
-    if (m) {
-      if (!post) return html(res, 200, page.invite(c.store.invite(m[1])?.name ?? null));
-      const label = new URLSearchParams(await readBody(req, FORM_LIMIT)).get("label") ?? "";
-      const { session } = c.store.acceptInvite(m[1], label);
+    // Where a browser goes once it has a session: the page it asked for before, or the first page.
+    const signedIn = (session: string, back?: string) => {
       let next: string | null = null;
       try {
         next = safePath(decodeURIComponent(cookieOf(req, NEXT_COOKIE) ?? ""));
@@ -181,17 +187,59 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         // A value that does not decode is ignored like any other odd one.
       }
       // A hub without the Story board has no board to land on.
-      return redirect(res, c.board ? (next ?? "/") : "/start", {
+      return redirect(res, back ?? (c.board ? (next ?? "/") : "/start"), {
         "set-cookie": [
           `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
           ...(cookieOf(req, NEXT_COOKIE) !== undefined ? [`${NEXT_COOKIE}=; Max-Age=0; ${NEXT_ATTRS}`] : []),
         ],
       });
+    };
+    let m = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(path);
+    if (m) {
+      const link = c.store.invite(m[1]);
+      if (!post) return html(res, 200, page.invite(link));
+      const form = new URLSearchParams(await readBody(req, FORM_LIMIT));
+      const label = form.get("label")?.trim() || deviceLabel(req.headers["user-agent"]);
+      try {
+        const { session } = c.store.acceptInvite(m[1], label, {
+          email: form.get("email") ?? "",
+          password: form.get("password") ?? "",
+          again: form.get("password2") ?? "",
+        });
+        return signedIn(session);
+      } catch (error) {
+        // A mail or password the form can fix is said on the same form; a dead link stays the error page.
+        if (!(error instanceof HubError) || !link || (error.status !== 400 && error.status !== 409)) throw error;
+        return html(res, error.status, page.invite(link, { error: error.message, email: form.get("email") ?? "" }));
+      }
     }
+    /** M3: signs in from the form; `macBack` is the Mac approve address whose own form posted it, to return to. */
+    const login = async (macBack?: string) => {
+      const form = new URLSearchParams(await readBody(req, FORM_LIMIT));
+      const email = form.get("email") ?? "";
+      const mailKey = normalizeEmail(email) ?? email.trim().toLowerCase();
+      const note = (error: string) => ({ error, email: email.trim() });
+      const again = (status: number, error: string) =>
+        html(res, status, macBack ? page.macSignedOut(note(error)) : page.signedOut(note(error)));
+      // Every try spends the client's allowance; only a wrong one spends the mail's, so a member who signs in often is not held.
+      if (!loginClientLimit.take(clientKey(req)) || loginMailLimit.full(mailKey)) return again(429, LOGIN_HELD);
+      const done = c.store.login(email, form.get("password") ?? "", deviceLabel(req.headers["user-agent"]));
+      if (!done) {
+        loginMailLimit.take(mailKey);
+        return again(401, LOGIN_WRONG);
+      }
+      return signedIn(done.session, macBack);
+    };
+    if (post && path === "/login") return login();
     const s = c.store.session(cookie(req));
-    // The one page a person reaches from a terminal before they have a session: it says how to get one, and decides nothing.
+    // A signed-out browser gets the sign-in form wherever it went, and comes back there when the page is one it may return to.
     if (!s) {
-      if (!post && path === "/mac/approve") return html(res, 401, page.macSignedOut());
+      // The approve page's sign-in form posts to its own address, so the page never writes the code and comes back to it.
+      if (path === "/mac/approve") {
+        const code = url.searchParams.get("code") ?? "";
+        if (post) return login(/^[A-Za-z0-9 -]{1,16}$/.test(code) ? `/mac/approve?code=${encodeURIComponent(code)}` : "/mac");
+        return html(res, 401, page.macSignedOut());
+      }
       const remember = !post && safePath(path) ? { "set-cookie": `${NEXT_COOKIE}=${encodeURIComponent(path)}; Max-Age=${NEXT_AGE}; ${NEXT_ATTRS}` } : undefined;
       return html(res, 401, page.signedOut(), remember);
     }
@@ -204,6 +252,29 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     const f = (key: string) => form.get(key) ?? "";
     if (post && !same(f("csrf"), s.csrf)) throw new HubError("CSRF", 403, "화면을 새로 고친 뒤 다시 시도해주세요.");
     const me = s.member;
+    const signedOutCookie = `${COOKIE}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+    if (post && path === "/logout") {
+      c.store.logoutDevice(me, s.deviceId);
+      return redirect(res, "/", { "set-cookie": signedOutCookie });
+    }
+    // M6: a member from before mail sign-in sets a mail and a password before anything else.
+    if (s.setup) {
+      // On the Mac approve address the form posts to that address, so the member comes back to the same code.
+      const code = url.searchParams.get("code") ?? "";
+      const macHere = path === "/mac/approve" && /^[A-Za-z0-9 -]{1,16}$/.test(code);
+      if (post && (path === "/account/setup" || macHere)) {
+        try {
+          c.store.setupAccount(me, f("email"), f("password"), f("password2"));
+        } catch (error) {
+          if (!(error instanceof HubError) || (error.status !== 400 && error.status !== 409)) throw error;
+          return html(res, error.status, page.setupAccount(me, s.csrf, { error: error.message, email: f("email") }, macHere));
+        }
+        return signedIn(token, macHere ? `/mac/approve?code=${encodeURIComponent(code)}` : undefined);
+      }
+      if (post) throw new HubError("SETUP", 403, "먼저 메일과 비밀번호를 정해주세요.");
+      const remember = safePath(path) ? { "set-cookie": `${NEXT_COOKIE}=${encodeURIComponent(path)}; Max-Age=${NEXT_AGE}; ${NEXT_ATTRS}` } : undefined;
+      return html(res, 200, page.setupAccount(me, s.csrf, {}, macHere), remember);
+    }
     const trust = !!tls;
     // The repos a member may put in a project from the web: their own, or every repo for a hub admin.
     const projectRepos = () => c.store.repos(me.id).filter((r) => r.isOwner || me.admin).map((r) => ({ id: r.id, name: r.name }));
@@ -219,6 +290,16 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       ...(safePath(path) ? { path } : {}),
     });
     const live = (): page.Chrome => ({ ...chrome(), live: true });
+    // M9: the member's own sign-ins.
+    if (!post && path === "/account") return html(res, 200, page.account(me, s.csrf, s.deviceId, c.store.account(me.id), chrome()));
+    if (post && path === "/account/logout-others") {
+      c.store.logoutOthers(me, s.deviceId);
+      return redirect(res, "/account");
+    }
+    if (post && (m = new RegExp(`^/account/devices/${ID}/logout$`).exec(path))) {
+      c.store.logoutDevice(me, m[1]);
+      return m[1] === s.deviceId ? redirect(res, "/", { "set-cookie": signedOutCookie }) : redirect(res, "/account");
+    }
     // Only a hub that serves the installer can give a Mac the one-line command.
     const install = installer === null ? null : `curl -fsSL ${base}/install.sh | sh`;
     const pin = tls ? ` --fingerprint ${tls.fingerprint}` : "";
@@ -391,12 +472,12 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         "Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 pazmo-office hub-link --project <레포 폴더> --connect '이 문자열' 을 실행하세요.", value, chrome(), "10분 안에 한 번만 쓸 수 있습니다."));
     }
     if (path === "/invites") {
-      const raw = c.store.createInvite(me, f("name"));
+      const raw = c.store.createInvite(me, f("name"), f("email"));
       return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요.${fingerprintNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다."));
     }
-    if ((m = new RegExp(`^/members/${ID}/device-invite$`).exec(path))) {
-      const raw = c.store.createDeviceInvite(me, m[1]);
-      return html(res, 200, page.created(me, "새 기기 링크", `그 팀원의 새 브라우저에서 열게 하세요.${deviceNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다."));
+    if ((m = new RegExp(`^/members/${ID}/password-reset$`).exec(path))) {
+      const raw = c.store.createPasswordReset(me, m[1]);
+      return html(res, 200, page.created(me, "비밀번호 재설정 링크", `그 팀원에게만 전달하세요. 링크에서 새 비밀번호를 정하면 그 팀원의 다른 브라우저 로그인은 끝납니다.${deviceNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다. Mac과 Office 연결은 그대로입니다."));
     }
     if ((m = new RegExp(`^/members/${ID}/revoke$`).exec(path))) {
       c.store.revokeMember(me, m[1]);

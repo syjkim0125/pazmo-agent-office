@@ -8,7 +8,7 @@ import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
 import { DEFAULT_OFFICE_REF, DEFAULT_OFFICE_REPO } from "../src/hub/installer.ts";
 import { createRateLimit } from "../src/hub/rate-limit.ts";
-import { startTestHub } from "./hub-fixture.mjs";
+import { FIXTURE_PASSWORD, linkForm, startTestHub } from "./hub-fixture.mjs";
 
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 const HOST = "pazmo-hub.apps.example.com";
@@ -21,7 +21,7 @@ const PILL = (label) => `href="/mac"><span class="dot" aria-hidden="true"></span
 /** Browser-side helpers over one hub: `enter` joins through a real invite, `get`/`post` act as that browser. */
 function harness({ store, board, origin, call, api }) {
   async function enter(raw) {
-    const res = await call("POST", `/invite/${raw}`, { body: "label=t", headers: { origin } });
+    const res = await call("POST", `/invite/${raw}`, { body: linkForm("t"), headers: { origin } });
     assert.equal(res.status, 303);
     const cookie = res.headers["set-cookie"][0].split(";")[0];
     const csrf = /name="csrf" value="([^"]+)"/.exec((await call("GET", "/repos", { cookie })).text)[1];
@@ -93,16 +93,27 @@ test("an approve link opened without signing in is 401, says to open the invite 
   const signedOut = await h.get(path);
   assert.equal(signedOut.status, 401);
   assert.match(signedOut.text, /초대 링크/);
-  assert.match(signedOut.text, /새 기기 링크/);
+  assert.match(signedOut.text, /name="email"/);
+  assert.match(signedOut.text, /name="password"/);
+  assert.match(signedOut.text, /<form method="post"><label>/, "the sign-in form posts to the page's own address");
   assert.match(signedOut.text, /이 주소를 다시/);
   assert.match(signedOut.text, /새로 고/);
   assert.ok(!signedOut.text.includes(started.userCode), "the page does not echo the code to a stranger");
   assert.doesNotMatch(signedOut.text, /<script/i);
   assert.equal(h.store.macCode(started.userCode).state, "pending", "looking at the link decided nothing");
-  assert.match((await h.get("/mac")).text, /초대받은 사람만/, "every other page keeps the general signed-out page");
+  assert.match((await h.get("/mac")).text, /허브에 로그인/, "every other page keeps the general signed-out page");
   assert.equal((await h.get("/mac", { cookie: "pazmo_hub=forged" })).status, 401);
 
   const admin = await h.enter(h.store.bootstrapAdmin());
+  // A second browser signs in on the approve page's own form and lands back on the same address (M3, D3).
+  const email = h.store.account(admin.member.id).email;
+  const wrong = await h.call("POST", path, { body: new URLSearchParams({ email, password: "not-the-password" }).toString(), headers: { origin: h.origin } });
+  assert.equal(wrong.status, 401);
+  assert.match(wrong.text, /메일 또는 비밀번호가 맞지 않습니다/);
+  assert.ok(!wrong.text.includes(started.userCode), "the refused form does not echo the code either");
+  const back = await h.call("POST", path, { body: new URLSearchParams({ email, password: FIXTURE_PASSWORD }).toString(), headers: { origin: h.origin } });
+  assert.deepEqual([back.status, back.headers.location], [303, path]);
+  assert.equal(h.store.macCode(started.userCode).state, "pending", "signing in decided nothing");
   const page = await h.get(path, admin);
   assert.equal(page.status, 200);
   assert.ok(page.text.includes(started.userCode));

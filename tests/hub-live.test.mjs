@@ -72,7 +72,7 @@ test("script only on live GET pages", async (t) => {
     assert.equal((res.text.match(/<script/g) ?? []).length, 1 + copy, path);
   }
   for (const path of ["/nope", "/mac/approve?code=ZZZZ0000"]) assert.ok(!(await h.get(path)).text.includes("/live.js"), path);
-  const made = await h.call("POST", "/invites", { cookie: h.admin.cookie, body: `csrf=${h.admin.csrf}&name=X`, headers: { origin: h.hub.url } });
+  const made = await h.call("POST", "/invites", { cookie: h.admin.cookie, body: `csrf=${h.admin.csrf}&name=X&email=x%40example.com`, headers: { origin: h.hub.url } });
   assert.equal(made.status, 200);
   assert.ok(!made.text.includes("/live.js") && made.text.includes("/copy.js"));
   const bad = await h.call("POST", "/projects", { cookie: h.admin.cookie, body: `csrf=${h.admin.csrf}&name=`, headers: { origin: h.hub.url } });

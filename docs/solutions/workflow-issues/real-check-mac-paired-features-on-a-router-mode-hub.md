@@ -31,7 +31,7 @@ U39 (D42, PR #81) added `POST /api/link/story/upload` and the `pazmo-office team
   1. Copy the data folder's tls folder as it is.
   2. Copy the database with `VACUUM INTO` from a read-only connection, which is safe while the Hub runs.
   3. Run `node <new checkout>/bin/pazmo-office.mjs hub --host 127.0.0.1 --port <other port> --data-dir <copy>`. The new code migrates only the copy.
-  4. Mint sign-ins in the copy with `HubStore.createDeviceInvite`, sign in with `curl` (send an `Origin` header, or the POST is refused), and save the pages.
+  4. Mint sign-ins in the copy with `HubStore.createPasswordReset` (`createDeviceInvite` before mail sign-in; members from before then set a mail and password on the copy first), sign in with `curl` (send an `Origin` header, or the POST is refused), and save the pages.
   5. Open the saved HTML through a local static server to take screenshots.
 
 ## Why This Matters

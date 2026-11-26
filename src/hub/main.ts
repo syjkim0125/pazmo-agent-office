@@ -1,4 +1,4 @@
-import { startHub, parseListen, parsePublicUrl } from "./run.ts";
+import { startHub, parseListen, parsePublicUrl, recoverAdmin } from "./run.ts";
 
 function fail(error: unknown): never {
   const code = (error as { code?: unknown } | null)?.code;
@@ -15,8 +15,16 @@ function fail(error: unknown): never {
  * Container entrypoint: configuration comes only from the environment. Importing this module
  * starts nothing; bin/pazmo-hub.mjs calls main(). Any startup error is reported as JSON and exits 1.
  */
-export async function main(env: NodeJS.ProcessEnv = process.env): Promise<void> {
+export async function main(env: NodeJS.ProcessEnv = process.env, argv: string[] = process.argv.slice(2)): Promise<void> {
   try {
+    // M5: `node bin/pazmo-hub.mjs recover-admin` beside the running hub (for example through `oc exec`) prints a reset link.
+    if (argv[0] === "recover-admin") {
+      if (argv.length > 1) throw Object.assign(new Error("recover-admin takes no arguments; it reads PAZMO_HUB_DATA_DIR and PAZMO_HUB_PUBLIC_URL."), { code: "ARGUMENT" });
+      const url = env.PAZMO_HUB_PUBLIC_URL ? parsePublicUrl(env.PAZMO_HUB_PUBLIC_URL).origin : undefined;
+      console.log(JSON.stringify(recoverAdmin({ dataDir: env.PAZMO_HUB_DATA_DIR || "/data", url })));
+      return;
+    }
+    if (argv.length) throw Object.assign(new Error(`Unknown argument: ${argv[0]}. The hub takes its settings from the environment; the only command is recover-admin.`), { code: "ARGUMENT" });
     const publicUrl = parsePublicUrl(env.PAZMO_HUB_PUBLIC_URL ?? "");
     const listen = parseListen(env.PAZMO_HUB_LISTEN || "0.0.0.0:8080");
     const hub = await startHub({

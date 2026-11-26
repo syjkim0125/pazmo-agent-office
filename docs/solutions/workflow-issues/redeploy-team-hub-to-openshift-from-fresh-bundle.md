@@ -81,6 +81,19 @@ Division of labor: the person logs in (`oc login --web`, in the browser, so no t
 5. **Right after rollout the route answers 503 "Application is not available".** The Deployment strategy is `Recreate` (`deploy/openshift/pazmo-hub.json:120`), so the old pod stops before the new one is Ready. The readiness probe is `/healthz`. Wait for `READY 1/1` and endpoints, then test.
 6. **The database is one directory deeper than the data dir.** `PAZMO_HUB_DATA_DIR` defaults to `/data` in the container (`src/hub/main.ts:27`). The hub adds a `team-hub` subdirectory (`src/hub/run.ts:57`) and opens `hub.sqlite` there (`src/hub/run.ts:68`). So the file is `/data/team-hub/hub.sqlite`, not `/data/hub.sqlite`.
 
+### When the admin cannot sign in after the deploy
+
+Since mail and password sign-in ([Story](../../stories/hub-email-password-login.md)) the admin signs in with a mail and a
+password. A hub made before it marks its existing members once; each sets a mail and password at their next visit. If
+the admin's browsers have all run out (or the password is forgotten), get a one-time reset link from the running pod:
+
+```sh
+oc exec deploy/pazmo-hub -- node bin/pazmo-hub.mjs recover-admin   # {"adminReset":"https://<hub route host>/invite/…"}
+```
+
+This writes one link row into `/data/team-hub/hub.sqlite` (it is not a read-only check) and needs no restart. Give the
+link only to the admin; it works once within 72 hours and ends the admin's other browsers when used.
+
 ## Why This Matters
 The redeploy keeps the PVC. Members, repos, requests and connected Offices are the team's real data, and a wrong step is hard to see:
 
