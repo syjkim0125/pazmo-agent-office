@@ -95,6 +95,10 @@ const ENTRY_KEYS = new Set([
 ]);
 /** Entries a skill-only plugin may hold below its install folder. */
 const ENTRY_LIMIT = 10000;
+/** Files Claude Code writes into a plugin's cache folder for its own bookkeeping, beside the `.in_use` folder:
+ * `.links_materialized` (its links were replaced by copies), `.gcs-sha` (the downloaded bundle's hash) and
+ * `.orphaned_at` (a version left for cleanup). Claude loads none of them; only plain files of these names pass. */
+const CACHE_MARKERS = new Set([".links_materialized", ".gcs-sha", ".orphaned_at"]);
 const itemName = (name: string) => (/^[A-Za-z0-9._-]{1,64}$/.test(name) ? name : "(이름 표시 불가)");
 
 const within = (parent: string, child: string) => {
@@ -146,7 +150,7 @@ function loadedFolder(path: unknown, source: string, home: string): string | { p
 }
 
 /** What in one install folder could step into a run (D3): its names, or none when it holds only skills, descriptive
- * files and the cache marker. Never reads more of a file than plugin.json's keys. */
+ * files and Claude Code's cache markers. Never reads more of a file than plugin.json's keys. */
 function intrusions(dir: string): string[] {
   const found: string[] = [];
   let seen = 0;
@@ -165,6 +169,7 @@ function intrusions(dir: string): string[] {
     else if ((name === "skills" || name === ".in_use") && entry.isDirectory()) {
       if (!walk(path)) found.push(`${name} (파일이 너무 많음)`);
     } else if (/^(README|LICENSE)/.test(name) && entry.isFile()) continue;
+    else if (CACHE_MARKERS.has(name) && entry.isFile()) continue;
     else if (name === ".claude-plugin" && entry.isDirectory()) {
       for (const inner of readdirSync(path, { withFileTypes: true })) {
         if (inner.name !== "plugin.json" || !inner.isFile()) {

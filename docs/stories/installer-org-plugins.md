@@ -24,6 +24,7 @@
   - Pick: 이어 간다. Mac 연결과 codex 역할은 그대로 쓸 수 있고, 그 플러그인은 조직 관리자가 정할 일이다. 대신 "이 Mac에서는 Office의 claude 역할이 멈춥니다"를 분명히 보인다.
 - D4. 그냥 Enter를 누르면
   - Pick: 허용하지 않는다(`[y/N]`). 허용은 사람이 고른 것만이라는 앞 Story(`docs/stories/office-org-managed-plugins.md`)의 원칙을 따른다.
+  - 머지 뒤 바꿈(2026-11-26, 사용자 요청 "엔터쳐도 허용되게 할 순 없어?"): `[Y/n]`, Enter도 허용한다. 묻는 것은 조직이 켠 skill만 든 플러그인뿐이고, Enter를 누른 팀원의 Office가 이유도 없이 멈췄다. 닫힌 터미널(Ctrl-D)은 여전히 허용하지 않는다.
 - Copies: 설치기는 `src/hub/installer.ts` 하나다. 허용 명령 문구는 `allowCommand` 한 곳에서 나와 기획·작업 화면의 멈춘 이유와 `--review`가 함께 쓴다. 문서는 `docs/LOCAL-PREVIEW.md`(설치기 단계 목록)와 `docs/qa.md`(플러그인 줄)를 고친다.
 
 ## MUST

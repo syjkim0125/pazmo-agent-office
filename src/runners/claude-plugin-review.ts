@@ -113,14 +113,14 @@ export type ReviewDeps = {
   /** The claude Office would run, or why there is none. */
   claude: { binary: string } | { missing: string };
   /** Asks the person on a terminal; absent when there is no terminal (then nothing is asked or changed). */
-  ask?: (question: string) => Promise<string>;
+  ask?: (question: string) => Promise<string | null>;
   out: (line: string) => void;
   readInit?: (binary: string, home: string) => Promise<unknown | null>;
 };
 
 /**
  * `runner plugins --review`: finds the non-builtin plugins this Mac's claude loads, shows each one's state and, on a
- * terminal, asks about each one not on the list that may pass; only `y` allows it. Anything that cannot be checked
+ * terminal, asks about each one not on the list that may pass; Enter or `y` allows it. Anything that cannot be checked
  * (no claude, no init) changes nothing. Returns the list afterwards.
  */
 export async function reviewClaudePlugins(d: ReviewDeps): Promise<string[]> {
@@ -161,8 +161,11 @@ export async function reviewClaudePlugins(d: ReviewDeps): Promise<string[]> {
         d.out(`    → ${allowCommand(item.source, d.dataDir)}`);
         continue;
       }
-      const answer = (await d.ask(`    Office에서 이 플러그인을 허용할까요? [y/N] `)).trim().toLowerCase();
-      if (answer === "y" || answer === "yes") {
+      // Enter allows (2026-11-26): only a skill-only plugin the organization turned on is asked about. A terminal
+      // closed at the question (null) is no answer and allows nothing.
+      const reply = await d.ask(`    Office에서 이 플러그인을 허용할까요? [Y/n] `);
+      const answer = reply === null ? null : reply.trim().toLowerCase();
+      if (answer === "" || answer === "y" || answer === "yes") {
         try {
           list = allowPlugin(d.root, item.source);
           d.out("    → 허용했습니다.");

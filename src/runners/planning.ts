@@ -685,8 +685,12 @@ export function reportOf(
     if (runner && r.error && stopReason(r.detail))
       throw new PlanningInvalid(`runner: error=${token(r.error)}; ${stopReason(r.detail)}`, "runner");
     if (runner) throw new PlanningInvalid(`runner: ${runner}; ${exit}${r.error ? `; error=${token(r.error)}` : ""}`, "runner");
-    if (r.exitCode !== 0 || r.signal) invalid(exit);
-    if (r.error) invalid(`error=${token(r.error)}`);
+    // A run refused before any turn output (a spawn failure, a pinned binary, codex personal instructions) has no
+    // runner events: keep its code (the words after it may hold the person's paths) and Office's reason, if any.
+    const code = r.error ? `; error=${token(r.error.split(":")[0])}` : "";
+    const why = r.error && stopReason(r.detail) ? `; ${stopReason(r.detail)}` : "";
+    if (r.exitCode !== 0 || r.signal) invalid(`${exit}${code}${why}`);
+    if (r.error) invalid(`error=${token(r.error.split(":")[0])}${why}`);
     const raw = terminalReport(r.stdout, markers);
     if (!raw)
       invalid(

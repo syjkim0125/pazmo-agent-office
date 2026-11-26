@@ -21,7 +21,7 @@ elif grep -q "확인할 플러그인이 없습니다\|claude를 찾지 못\|init
 else
   cmd=$(grep -o "allow-plugin [^ ]*" <<<"$out" | head -1)
   line=$(grep "runner allow-plugin" <<<"$out" | head -1 | sed 's/^[[:space:]]*//; s/^→ //')
-  [ -z "$(listed "$T/q1")" ] && grep -q "허용 목록에 없음" <<<"$out" && ! grep -q "\[y/N\]" <<<"$out" \
+  [ -z "$(listed "$T/q1")" ] && grep -q "허용 목록에 없음" <<<"$out" && ! grep -q "\[Y/n\]" <<<"$out" \
     && pass Q1 "no terminal: listed ${cmd#allow-plugin }, asked nothing, list unchanged" || fail Q1 "no terminal: $out"
   plugin=${cmd#allow-plugin }
   if [ -n "$line" ] && sh -c "$line" >/dev/null 2>&1 && [ "$(listed "$T/q1")" = "$plugin" ]; then pass Q1 "the shown command runs as shown"
@@ -29,13 +29,13 @@ else
 fi
 
 # Q2: on a terminal (expect(1) runs the command on a pseudo-terminal and answers once the question shows, as a person
-# would): y allows, a second run does not ask, n or Enter allows nothing, a terminal closed at the question (Ctrl-D)
-# allows nothing and still exits 0.
+# would): y allows, a second run does not ask, n allows nothing, Enter allows (since 2026-11-26), a terminal closed at the
+# question (Ctrl-D) allows nothing and still exits 0.
 answer() { # <data dir> <keys to send at the question, or "eof">
   expect -c "set timeout 60; log_user 1
     spawn node bin/pazmo-office.mjs runner plugins --review --data-dir {$1}
     expect {
-      {\[y/N\]} { if {\"$2\" eq \"eof\"} { send \004 } else { send \"$2\r\" }; exp_continue }
+      {\[Y/n\]} { if {\"$2\" eq \"eof\"} { send \004 } else { send \"$2\r\" }; exp_continue }
       eof
     }
     catch wait result; exit [lindex \$result 3]"
@@ -46,12 +46,12 @@ else
   answer "$T/q2" y >"$T/q2.out" 2>&1
   [ "$(listed "$T/q2")" = "$plugin" ] && grep -q "허용했습니다" "$T/q2.out" && pass Q2 "y → allowed" || fail Q2 "y: $(tr -d '\r' <"$T/q2.out")"
   answer "$T/q2" y >"$T/q2b.out" 2>&1
-  grep -q "이미 허용됨" "$T/q2b.out" && ! grep -q "\[y/N\]" "$T/q2b.out" && pass Q2 "second run: already allowed, not asked" \
+  grep -q "이미 허용됨" "$T/q2b.out" && ! grep -q "\[Y/n\]" "$T/q2b.out" && pass Q2 "second run: already allowed, not asked" \
     || fail Q2 "second run: $(tr -d '\r' <"$T/q2b.out")"
   answer "$T/q2n" n >"$T/q2n.out" 2>&1
   [ -z "$(listed "$T/q2n")" ] && grep -q "허용하지 않았습니다" "$T/q2n.out" && pass Q2 "n → nothing allowed" || fail Q2 "n: $(tr -d '\r' <"$T/q2n.out")"
   answer "$T/q2e" "" >"$T/q2e.out" 2>&1
-  [ -z "$(listed "$T/q2e")" ] && grep -q "허용하지 않았습니다" "$T/q2e.out" && pass Q2 "Enter → nothing allowed" || fail Q2 "Enter: $(tr -d '\r' <"$T/q2e.out")"
+  [ "$(listed "$T/q2e")" = "$plugin" ] && grep -q "허용했습니다" "$T/q2e.out" && pass Q2 "Enter → allowed" || fail Q2 "Enter: $(tr -d '\r' <"$T/q2e.out")"
   answer "$T/q2d" eof >"$T/q2d.out" 2>&1; code=$?
   [ $code -eq 0 ] && [ -z "$(listed "$T/q2d")" ] && pass Q2 "Ctrl-D at the question → nothing allowed, exit 0" || fail Q2 "Ctrl-D: exit $code $(tr -d '\r' <"$T/q2d.out")"
 fi
