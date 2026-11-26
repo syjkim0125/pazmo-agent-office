@@ -1126,7 +1126,7 @@ test("U45: /members is one row per member; what changes a member sits in a 관�
     const fold = /<details class="manage"><summary>관리<\/summary>([\s\S]*)<\/details>/.exec(row);
     assert.ok(fold, "every member has a 관리 fold");
     assert.equal(row.replace(fold[0], "").includes("<form"), false, "no button outside the fold");
-    assert.match(fold[1], /action="\/members\/[^"]+\/device-invite"/);
+    assert.match(fold[1], /action="\/members\/[^"]+\/password-reset"/);
     assert.match(fold[1], /action="\/devices\/[^"]+\/revoke"><input type="hidden" name="csrf" value="[^"]+"><button class="secondary">기기 회수: test \(\d{4}\. \d{1,2}\. \d{1,2}\.까지\)<\/button>/, "the button names the browser and its day, so two browsers of one name differ");
     assert.match(row, /브라우저: test · \d{4}\. \d{1,2}\. \d{1,2}\.까지/, "the expiry is a day in the team's zone (teamDay)");
   }
@@ -1709,9 +1709,9 @@ const shown = (html) => unline(html.replace(/<span id="[^"]+" popover class="inf
 
 test("U49: what cannot be undone and the security checks stay in view, never behind an ⓘ", async (t) => {
   const h = await team(t);
-  const invite = shown((await h.post("/invites", h.admin, "name=새 사람")).text);
-  const device = shown((await h.post(`/members/${h.c.member.id}/device-invite`, h.admin)).text);
-  for (const [name, text, first] of [["invite", invite, "받는 사람에게만 전달하세요."], ["device", device, "그 팀원의 새 브라우저에서 열게 하세요."]]) {
+  const invite = shown((await h.post("/invites", h.admin, "name=새 사람&email=new%40example.com")).text);
+  const device = shown((await h.post(`/members/${h.c.member.id}/password-reset`, h.admin)).text);
+  for (const [name, text, first] of [["invite", invite, "받는 사람에게만 전달하세요."], ["reset", device, "그 팀원에게만 전달하세요."]]) {
     assert.ok(text.includes(first), name);
     assert.match(text, /링크와 별도로 허브 인증서 지문\([^)]+\)도 함께 전달해/, `${name}: send the fingerprint too`);
   }
@@ -1763,7 +1763,7 @@ test("U49: the Story page's own board tells a failed check's lead to add Tasks f
 
 test("U49: a created link's ⓘ sits beside its first line", async (t) => {
   const h = await team(t);
-  const text = (await h.post("/invites", h.admin, "name=새 사람")).text;
+  const text = (await h.post("/invites", h.admin, "name=새 사람&email=new%40example.com")).text;
   assert.ok(text.includes('<p><span class="ln">받는 사람에게만 전달하세요.<button type="button" class="info" popovertarget="info-created" aria-label="초대 링크 설명">i</button><span id="info-created" popover class="infobox">72시간 동안 한 번만 쓸 수 있습니다.</span></span> <span class="ln">링크와 별도로'));
 });
 

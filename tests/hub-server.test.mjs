@@ -75,7 +75,7 @@ test("the one-time value page has a real copy button; other pages load no script
   const admin = await enter(store.bootstrapAdmin());
   const made = await call("POST", "/invites", {
     cookie: admin.cookie,
-    body: `csrf=${admin.csrf}&name=Copy`,
+    body: `csrf=${admin.csrf}&name=Copy&email=copy%40example.com`,
     headers: { origin: hub.url },
   });
   assert.equal(made.status, 200);

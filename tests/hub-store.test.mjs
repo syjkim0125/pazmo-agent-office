@@ -41,7 +41,7 @@ test("remotes normalize across scheme, credentials, case and .git", () => {
 test("an invite works once and expires after 72 hours; the admin link is only for an empty hub", () => {
   const { store, admin, tick } = setup();
   const raw = store.createInvite(admin, "B");
-  assert.deepEqual(store.invite(raw), { name: "B" });
+  assert.deepEqual(store.invite(raw), { name: "B", email: null, reset: false });
   store.acceptInvite(raw, "x");
   assert.equal(store.invite(raw), null);
   assert.throws(() => store.acceptInvite(raw, "x"), { code: "INVITE_INVALID" });
@@ -61,7 +61,7 @@ test("only an admin invites, and revoking a member or a device ends the session 
   const c = store.acceptInvite(store.createInvite(admin, "C"), "c");
   store.revokeDevice(admin, store.session(c.session).deviceId);
   assert.equal(store.session(c.session), null);
-  const again = store.acceptInvite(store.createDeviceInvite(admin, c.member.id), "c2");
+  const again = store.acceptInvite(store.createPasswordReset(admin, c.member.id), "c2");
   assert.equal(again.member.id, c.member.id, "a device invite adds a browser to the same member");
 });
 

@@ -73,6 +73,7 @@ button.theme{display:inline-grid;place-items:center;width:44px;height:44px;min-h
 .switch[aria-pressed=true] .track{background:var(--done-bar)}.switch[aria-pressed=true] .track::after{left:16px}
 .macchip,.mac{display:inline-flex;align-items:center;gap:6px}.mac{font-size:14px;color:var(--muted)}
 .macchip{min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}
+a.acct{display:inline-flex;align-items:center;min-height:44px;padding:0 12px;border-radius:999px;border:1px solid var(--line);color:var(--fg);font-size:14px;font-weight:600;text-decoration:none}a.acct:hover{border-color:var(--accent)}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--idle);flex:none}
 .on .dot{background:var(--done-bar);box-shadow:0 0 0 3px var(--done-bg)}.rest .dot{background:var(--need-bar);border-radius:2px}.off .dot{background:transparent;border:2px solid var(--idle)}
 .av{display:inline-grid;place-items:center;width:24px;height:24px;border-radius:50%;font-size:11px;font-weight:700;letter-spacing:-.02em;color:var(--av-fg);flex:none;overflow:hidden;white-space:nowrap}
@@ -213,6 +214,8 @@ main{padding:16px 14px 48px}section{padding:18px}
 table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block}table.stack tr{padding:10px 0;border-bottom:1px solid var(--line)}table.stack td{border:0;padding:3px 0}table.stack td[data-label]::before{content:attr(data-label) " ";color:var(--muted);font-size:13px}}
 @media (pointer:coarse){button.info{width:44px;height:44px;min-height:44px}.brand,summary,label:has(>input[type=checkbox]),.refresh,.cards>li:not(.card)>a{min-height:44px}nav a,.tabs a,a.person{min-width:44px;justify-content:center}.story-title{padding-block:8px}summary{padding-block:10px}}
 @media (any-pointer:coarse){.chips a,.filter,.flabel{min-height:44px}}
+p.alert{padding:10px 12px;border-radius:8px;background:var(--stop-bg);color:var(--stop);font-weight:600}
+.signin{max-width:420px}.signin form{display:grid;gap:12px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important}}
 /* U49: on a wide screen an ⓘ note opens beside its button where the browser can anchor it, centred otherwise. */
 @supports (position-area:bottom){@media (width > 860px){[popover].infobox{inset:auto;margin:0;margin-top:6px;position-area:bottom span-right;position-try-fallbacks:flip-inline,flip-block}}}`;
@@ -330,27 +333,62 @@ function boardHeader(me: Member, chrome: Chrome): string {
   const mac = chrome.mac ? macChip(chrome.mac) : "";
   const here = menuOf(chrome.path);
   const item = (href: string, label: string) => `<a href="${href}"${here === href ? ' aria-current="page"' : ""}>${label}</a>`;
-  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}<span class="name">${esc(me.name)}</span></a>${sw}${theme}${mac}</div>`;
+  return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}<span class="name">${esc(me.name)}</span></a><a class="acct" href="/account">내 로그인</a>${sw}${theme}${mac}</div>`;
 }
 
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
   const nav = me && chrome.autoWork !== undefined
     ? boardHeader(me, chrome)
     : me
-    ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<span>${esc(me.name)}</span>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
+    ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<a href="/account" title="내 로그인">${esc(me.name)}</a>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : "";
   return `<!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(title)} · Pazmo 팀 허브</title><style>${STYLE}</style></head><body><header><a class="brand" href="/"><span class="logo" aria-hidden="true"></span><span class="word">Pazmo 팀 허브</span></a>${nav}</header><main>${body}</main>${chrome.live ? '<script src="/live.js" defer></script>' : ""}${chrome.copy ? '<script src="/copy.js" defer></script>' : ""}</body></html>`;
 }
 export function error(message: string) {
   return layout("오류", null, `<section><h1>요청을 처리하지 못했습니다</h1><p>${say(message)}</p><p><a href="/">처음으로</a></p></section>`);
 }
-export function signedOut() {
-  return layout("초대 필요", null, `<section><h1>초대받은 사람만 들어올 수 있습니다</h1><p>${say("관리자에게 초대 링크를 받아 열어주세요. 이미 등록한 브라우저라면 회수됐거나 30일 동안 쓰지 않아 만료된 것입니다.")}</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+type FormNote = { error?: string; email?: string };
+const alertLine = (error?: string) => (error ? `<p class="alert" role="alert">${say(error)}</p>` : "");
+/** M3: the sign-in form every signed-out page carries; `here` posts it to the page's own address (the Mac approve page). */
+function signInForm(o: FormNote & { here?: boolean } = {}) {
+  return `${alertLine(o.error)}<form method="post"${o.here ? "" : ' action="/login"'}><label>메일<input name="email" type="email" required maxlength="254" autocomplete="username" value="${esc(o.email ?? "")}"></label><label>비밀번호<input name="password" type="password" required maxlength="200" autocomplete="current-password"></label><div class="row"><button>로그인</button></div></form>`;
 }
-export function invite(name: string | null) {
-  if (!name)
-    return layout("초대 링크", null, `<section><h1>쓸 수 없는 초대 링크입니다</h1><p>${say("만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.")}</p></section>`);
-  return layout("초대", null, `<section><h1>${esc(name)}님, Pazmo 팀 허브에 초대됐습니다</h1><p>입장하면 이 브라우저가 등록됩니다.${info("info-invite", "초대 링크 설명", "쓰는 동안 30일씩 로그인이 유지됩니다. 링크는 한 번만 쓸 수 있습니다.")}</p><form method="post"><label>이 기기 이름 (선택)<input name="label" maxlength="60" placeholder="예: 회사 맥북"></label><button>입장하기</button></form></section>`);
+const PASSWORD_HINT = "10자 이상으로 정해주세요. 문자 종류 조건은 없습니다.";
+/** The mail (when asked) and a new password typed twice; for links and for members from before mail sign-in. */
+function newPasswordFields(o: { email: string | null; typed?: string }) {
+  const mail = o.email === null
+    ? `<label>메일<input name="email" type="email" required maxlength="254" autocomplete="username" value="${esc(o.typed ?? "")}"></label>`
+    : `<p>메일: <b>${esc(o.email)}</b></p>`;
+  return `${mail}<label>비밀번호<input name="password" type="password" required minlength="10" maxlength="200" autocomplete="new-password" aria-describedby="pw-hint"></label><p class="muted" id="pw-hint">${esc(PASSWORD_HINT)}</p><label>비밀번호 확인<input name="password2" type="password" required minlength="10" maxlength="200" autocomplete="new-password"></label>`;
+}
+export function signedOut(o: FormNote = {}) {
+  return layout("로그인", null, `<section class="signin"><h1>허브에 로그인</h1>${signInForm(o)}<p class="muted">${lns("처음이면 관리자에게 받은 초대 링크를 여세요.", "비밀번호를 잊었으면 관리자에게 비밀번호 재설정 링크를 받으세요.")}</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+}
+/** A link page: a new member's invite (with the admin's mail, or the first admin writing theirs) or a password reset. */
+export function invite(link: { name: string; email: string | null; reset: boolean } | null, o: FormNote = {}) {
+  if (!link)
+    return layout("초대 링크", null, `<section><h1>쓸 수 없는 링크입니다</h1><p>${say("만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.")}</p></section>`);
+  const head = link.reset
+    ? `<h1>${esc(link.name)}님, 새 비밀번호를 정해주세요</h1><p>${say("정하면 이 브라우저로 로그인되고, 다른 브라우저의 로그인은 끝납니다. Mac과 Office 연결은 그대로입니다.")}</p>`
+    : `<h1>${esc(link.name)}님, Pazmo 팀 허브에 초대됐습니다</h1><p>${say("비밀번호를 정하면 들어갑니다. 다음부터는 어느 브라우저에서든 메일과 비밀번호로 로그인합니다.", false, info("info-invite", "초대 링크 설명", "쓰는 동안 30일씩 로그인이 유지됩니다. 링크는 한 번만 쓸 수 있습니다."))}</p>`;
+  return layout(link.reset ? "비밀번호 재설정" : "초대", null, `<section class="signin">${head}${alertLine(o.error)}<form method="post">${newPasswordFields({ email: link.email, typed: o.email })}<label>이 기기 이름 (선택)<input name="label" maxlength="60" placeholder="예: 회사 맥북"></label><div class="row"><button>${link.reset ? "비밀번호 정하고 로그인" : "입장하기"}</button></div></form></section>`);
+}
+/** M6: a member from before mail sign-in, on any page, until they set a mail and a password. */
+export function setupAccount(me: Member, csrf: string, o: FormNote = {}, here = false) {
+  return layout("메일과 비밀번호 정하기", null, `<section class="signin"><h1>메일과 비밀번호를 정해주세요</h1><p>${say(`${me.name}님, 허브가 이제 메일과 비밀번호로 로그인합니다. 정하면 이 화면이 다시 나오지 않고, 다음부터 어느 브라우저에서든 로그인할 수 있습니다.`)}</p>${alertLine(o.error)}<form method="post"${here ? "" : ' action="/account/setup"'}>${csrfField(csrf)}${newPasswordFields({ email: null, typed: o.email })}<div class="row"><button>정하기</button></div></form></section>`);
+}
+/** M9: my mail and the browsers signed in as me; each other browser can be signed out, and so can this one. */
+export function account(me: Member, csrf: string, deviceId: string, a: { email: string | null; devices: { id: string; label: string; createdAt: number; lastUsedAt: number }[] }, chrome: Chrome = {}) {
+  const others = a.devices.filter((d) => d.id !== deviceId);
+  const rows = a.devices
+    .map((d) => {
+      const mine = d.id === deviceId;
+      const action = mine ? '<span class="pill">이 브라우저</span>' : button(`/account/devices/${d.id}/logout`, csrf, "로그아웃", "secondary");
+      return `<tr><td data-label="기기">${esc(d.label)}</td><td data-label="처음 로그인">${esc(teamTime(d.createdAt))}</td><td data-label="마지막 사용">${mine ? "지금" : ago(d.lastUsedAt)}</td><td>${action}</td></tr>`;
+    })
+    .join("");
+  const all = others.length ? `<div class="row">${button("/account/logout-others", csrf, "다른 브라우저 모두 로그아웃", "danger")}</div>` : "";
+  return layout("내 로그인", me, `<section><h1>내 로그인</h1><p>메일: <b>${esc(a.email ?? "없음")}</b></p><div class="row">${button("/logout", csrf, "이 브라우저 로그아웃", "secondary")}</div></section><section><h2>로그인된 브라우저 ${a.devices.length}개</h2><p class="muted">${say("모르는 브라우저가 있으면 로그아웃하고 관리자에게 비밀번호 재설정 링크를 받으세요. Mac은 내 Mac 화면에서 따로 관리합니다.")}</p><div class="scroll"><table class="stack"><thead><tr><th>기기</th><th>처음 로그인</th><th>마지막 사용</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>${all}</section>`, chrome);
 }
 export function trust(fingerprint: string) {
   return layout("인증서 신뢰", null, `<section><h1>허브 인증서를 한 번 신뢰해주세요</h1><ol><li><a href="/ca.pem">허브 인증 기관 파일</a>을 받습니다.</li><li>파일을 열어 키체인 접근에 추가하고, 항목을 두 번 눌러 <b>신뢰 → 이 인증서 사용 시: 항상 신뢰</b>로 바꿉니다.</li><li>${say("키체인에 보이는 SHA-256 지문이 아래와 같은지 확인합니다. 다르면 신뢰하지 말고 관리자에게 알려주세요.")}</li></ol><pre class="mono">${esc(fingerprint)}</pre></section>`);
@@ -486,19 +524,19 @@ export function members(me: Member, csrf: string, list: MemberView[], chrome: Ch
         : "없음";
       const macs = m.macs.length ? m.macs.map((k) => `${esc(k.name)} (${esc(macState(k))})`).join(", ") : "없음";
       const actions =
-        button(`/members/${m.id}/device-invite`, csrf, "새 기기 링크", "secondary") +
+        button(`/members/${m.id}/password-reset`, csrf, "비밀번호 재설정 링크", "secondary") +
         m.devices.filter((d) => !d.revoked).map((d) => button(`/devices/${d.id}/revoke`, csrf, `기기 회수: ${d.label} (${teamDay(d.expiresAt)}까지)`, "secondary")).join("") +
         m.macs.map((k) => button(`/macs/${k.id}/revoke`, csrf, `Mac 해제: ${k.name}`, "secondary")).join("") +
         (m.id === me.id ? "" : button(`/members/${m.id}/revoke`, csrf, "팀원 회수", "danger"));
       const fold = m.revoked
         ? ""
-        : `<details class="manage"><summary>관리</summary><p class="note">기기를 회수하면 그 브라우저는 새 기기 링크로 다시 들어와야 합니다.${m.id === me.id ? "" : " 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다."}</p><div class="row">${actions}</div></details>`;
-      return `<li class="member"><p class="row"><span class="person">${avatar(m)}${esc(m.name)}</span>${m.admin ? '<span class="pill">관리자</span>' : ""}${m.revoked ? '<span class="pill">회수됨</span>' : ""}</p><p class="muted">브라우저: ${browsers}</p><p class="muted">Mac: ${macs}</p>${fold}</li>`;
+        : `<details class="manage"><summary>관리</summary><p class="note">기기를 회수하면 그 브라우저는 다시 로그인해야 합니다.${m.id === me.id ? "" : " 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다."}</p><div class="row">${actions}</div></details>`;
+      return `<li class="member"><p class="row"><span class="person">${avatar(m)}${esc(m.name)}</span>${m.admin ? '<span class="pill">관리자</span>' : ""}${m.revoked ? '<span class="pill">회수됨</span>' : ""}</p><p class="muted">메일: ${m.email ? esc(m.email) : "아직 없음"}</p><p class="muted">브라우저: ${browsers}</p><p class="muted">Mac: ${macs}</p>${fold}</li>`;
     })
     .join("");
   const live = list.filter((m) => !m.revoked).length,
     gone = list.length - live;
-  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명${gone ? ` · 회수됨 ${gone}명` : ""}</h2><ul class="roster">${rows}</ul></section>`, chrome);
+  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><label>받는 사람 메일<input name="email" type="email" required maxlength="254" placeholder="name@example.com"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명${gone ? ` · 회수됨 ${gone}명` : ""}</h2><ul class="roster">${rows}</ul></section>`, chrome);
 }
 export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: string | null; approved: boolean }, chrome: Chrome = {}) {
   const done = o.approved ? `<section role="status"><h2>허용했습니다. 터미널로 돌아가세요</h2><p>설치가 끝나고 Office가 켜지면 아래 표에서 내 Mac의 상태를 볼 수 있습니다.</p></section>` : "";
@@ -525,8 +563,9 @@ export function macApprove(me: Member, csrf: string, code: string, pending: { na
 export function macCodeGone(me: Member, chrome: Chrome = {}) {
   return layout("코드 만료", me, `<section><h1>이 코드는 쓸 수 없습니다</h1><p>${say("코드가 만료됐거나 이미 쓰였거나 잘못된 코드입니다. Mac 터미널에서 설치 명령을 다시 실행하면 새 코드가 나옵니다.")}</p><p><a href="/mac">내 Mac</a></p></section>`, chrome);
 }
-export function macSignedOut() {
-  return layout("로그인 필요", null, `<section><h1>먼저 이 브라우저로 허브에 들어와야 합니다</h1><p>${lns("이 브라우저에서 관리자에게 받은 <b>초대 링크</b>를 먼저 열어주세요.", "이미 등록한 팀원이라면 <b>새 기기 링크</b>를 받아 열면 됩니다.", "입장한 뒤 이 주소를 다시 열어주세요.", "터미널에 나온 허용 주소입니다.")}</p><p>Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
+/** The Mac approve address for a signed-out browser: sign in here and come back to the same code. */
+export function macSignedOut(o: FormNote = {}) {
+  return layout("로그인 필요", null, `<section class="signin"><h1>로그인하면 이 Mac을 허용할 수 있습니다</h1><p>${lns("터미널에 나온 허용 주소입니다.", "허브의 메일과 비밀번호로 로그인하면 이 화면으로 돌아옵니다.", "Mac 터미널의 코드는 10분 동안 그대로 유지됩니다.")}</p>${signInForm({ ...o, here: true })}<p class="muted">${lns("처음이면 관리자에게 받은 초대 링크를 먼저 여세요.", "입장한 뒤 이 주소를 다시 열면 됩니다.")}</p><p class="muted">메신저나 메일 같은 다른 앱에서 링크를 열었다면 이 페이지를 한 번 새로 고쳐주세요.</p></section>`);
 }
 
 /**

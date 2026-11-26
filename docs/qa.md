@@ -21,9 +21,10 @@ running ones.
   its process (`pkill -f "pazmo-office.mjs hub --host 127.0.0.1 --port <port>"`).
 - Base URL: `https://127.0.0.1:<port>` (the Hub's own CA: `<data-dir>/team-hub/tls/ca.pem`; browsers and curl need
   `-k`/ignore-HTTPS-errors for a copy).
-- Login: the first admin and invites as `docs/LOCAL-PREVIEW.md` describes; for a scripted check on a copy, a device invite
-  made with `HubStore.createDeviceInvite` and accepted (`acceptInvite`, or a POST to `/invite/<token>` with the Hub's own
-  Origin) gives the session for the `pazmo_hub` cookie. Never a real person's account on
+- Login: the first admin and invites as `docs/LOCAL-PREVIEW.md` describes (mail and password); for a scripted check on a
+  copy, a reset link made with `HubStore.createPasswordReset` and accepted (`acceptInvite`, or a POST to `/invite/<token>`
+  with the Hub's own Origin, `password` and `password2`) gives the session for the `pazmo_hub` cookie. A member of a copy
+  made before mail sign-in sees "메일과 비밀번호를 정해주세요" first; set them on the copy, or POST `/account/setup`. Never a real person's account on
   the company Hub.
 - Test data: a copy of the check Hub's data made with `VACUUM INTO` into a scratch folder, served on another port; the
   copy may pair a Mac and link repos. Stories #1 (be + fe) and #7 (be) are there.

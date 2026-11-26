@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { startTestHub } from "./hub-fixture.mjs";
+import { FIXTURE_PASSWORD, linkForm, startTestHub } from "./hub-fixture.mjs";
 
 const NEXT = /^pazmo_next=([^;]*); Max-Age=259200; HttpOnly; Secure; SameSite=Lax; Path=\/$/;
 const ID = "0f0f0f0f-1111-4222-8333-444444444444";
@@ -8,7 +8,7 @@ const ID = "0f0f0f0f-1111-4222-8333-444444444444";
 async function hub(t, opts) {
   const h = await startTestHub(t, opts);
   const admin = h.store.acceptInvite(h.store.bootstrapAdmin(), "mac").member;
-  const join = (raw, headers = {}, body = "label=x") =>
+  const join = (raw, headers = {}, body = linkForm("x")) =>
     h.call("POST", `/invite/${raw}`, { body, headers: { origin: h.hub.url, ...headers } });
   return { ...h, admin, join };
 }
@@ -18,7 +18,7 @@ test("invite lands on the board", async (t) => {
   const h = await hub(t);
   const res = await h.join(h.store.createInvite(h.admin, "B"));
   assert.deepEqual([res.status, res.headers.location], [303, "/"]);
-  const dev = await h.join(h.store.createDeviceInvite(h.admin, h.admin.id));
+  const dev = await h.join(h.store.createPasswordReset(h.admin, h.admin.id));
   assert.deepEqual([dev.status, dev.headers.location], [303, "/"]);
 });
 
@@ -36,7 +36,7 @@ test("a hub without the Story board keeps landing on /start", async (t) => {
   const res = await new Promise((resolve, reject) => {
     const req = request({ host: "127.0.0.1", port: hubx.port, method: "POST", path: `/invite/${raw}`, headers: { host: "pazmo-hub.apps.example.com", origin: PUBLIC, "content-type": "application/x-www-form-urlencoded" } }, (r) => { r.resume(); r.on("end", () => resolve(r)); });
     req.on("error", reject);
-    req.end("label=x");
+    req.end(linkForm("x"));
   });
   assert.deepEqual([res.statusCode, res.headers.location], [303, "/start"]);
 });
@@ -53,8 +53,24 @@ test("invite returns to the page opened before sign-in", async (t) => {
   assert.deepEqual([res.status, res.headers.location], [303, `/stories/${ID}`]);
   assert.match(nextCookie(res) ?? "", /^pazmo_next=; Max-Age=0; HttpOnly; Secure; SameSite=Lax; Path=\/$/);
   assert.ok(res.headers["set-cookie"].some((c) => /^pazmo_hub=.*SameSite=Strict/.test(c)), "session cookie unchanged");
-  const dev = await h.join(h.store.createDeviceInvite(h.admin, h.admin.id), { cookie: "pazmo_hub=x; pazmo_next=/me" });
+  const dev = await h.join(h.store.createPasswordReset(h.admin, h.admin.id), { cookie: "pazmo_hub=x; pazmo_next=/me" });
   assert.equal(dev.headers.location, "/me");
+});
+
+test("signing in with mail and password returns to the page opened before, like an invite (M3)", async (t) => {
+  const h = await hub(t);
+  const joined = await h.join(h.store.createInvite(h.admin, "B", "b@example.com"), {}, linkForm("x"));
+  assert.equal(joined.status, 303);
+  const first = await h.call("GET", `/stories/${ID}`);
+  const m = NEXT.exec(nextCookie(first));
+  const login = (password, cookie) =>
+    h.call("POST", "/login", { body: new URLSearchParams({ email: " B@Example.com ", password }).toString(), headers: { origin: h.hub.url, ...(cookie ? { cookie } : {}) } });
+  const res = await login(FIXTURE_PASSWORD, `pazmo_next=${m[1]}`);
+  assert.deepEqual([res.status, res.headers.location], [303, `/stories/${ID}`]);
+  assert.ok(res.headers["set-cookie"].some((c) => /^pazmo_hub=[A-Za-z0-9_-]{43}; HttpOnly; Secure; SameSite=Strict; Path=\/; Max-Age=2592000$/.test(c)));
+  const wrong = await login("wrong-password-1");
+  assert.equal(wrong.status, 401);
+  assert.ok(!(wrong.headers["set-cookie"] ?? []).some((c) => c.startsWith("pazmo_hub=")));
 });
 
 test("outside or odd paths are not remembered", async (t) => {

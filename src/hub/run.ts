@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { isIP } from "node:net";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -48,6 +48,24 @@ export function parseListen(raw: string): { host: string; port: number } {
   if (!isIP(host.replace(/^\[(.*)\]$/, "$1")) || !/^\d+$/.test(port) || Number(port) > 65535)
     fail("ARGUMENT", "--listen은 <IP>:<포트> 형식이어야 합니다(포트 0–65535).");
   return { host: host.replace(/^\[(.*)\]$/, "$1"), port: Number(port) };
+}
+
+const NO_ADMIN = "이 허브에는 아직 팀원이 없습니다. 첫 관리자 링크는 허브 시작 출력(adminInvite)에 있습니다.";
+/**
+ * M5: a one-time password reset link for the hub's admin, written into the hub's own database (a running hub sees it at
+ * once). `url` is the hub's address for a full link; without it the link is the path only.
+ */
+export function recoverAdmin(o: { dataDir?: string; url?: string }): { adminReset: string } {
+  const file = join(dataRoot(o.dataDir), "team-hub", "hub.sqlite");
+  if (!existsSync(file)) return fail("NO_ADMIN", NO_ADMIN);
+  const db = new DatabaseSync(file);
+  try {
+    db.exec(`PRAGMA busy_timeout = ${BUSY_TIMEOUT_MS}`);
+    const raw = new HubStore(db).recoverAdmin() ?? fail("NO_ADMIN", NO_ADMIN);
+    return { adminReset: `${(o.url ?? "").replace(/\/+$/, "")}/invite/${raw}` };
+  } finally {
+    db.close();
+  }
 }
 
 /** Opens the store and starts listening; the caller decides when to stop. */

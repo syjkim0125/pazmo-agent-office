@@ -6,6 +6,7 @@ import { HubStore } from "../src/hub/store.ts";
 import { StoryBoard } from "../src/hub/story-store.ts";
 import { startHubServer } from "../src/hub/server.ts";
 import { linkApi } from "../src/hub/link-api.ts";
+import { linkForm } from "./hub-fixture.mjs";
 
 const PUBLIC = "https://pazmo-hub.apps.example.com";
 async function proxyHub(t) {
@@ -48,8 +49,8 @@ test("writes need the public origin; invites set a Secure cookie; there is no ce
   const { store, call } = await proxyHub(t);
   const raw = store.bootstrapAdmin();
   const form = { "content-type": "application/x-www-form-urlencoded" };
-  assert.equal((await call("POST", `/invite/${raw}`, { headers: { ...form, origin: "https://evil.example.com" }, body: "label=x" })).status, 403);
-  const ok = await call("POST", `/invite/${raw}`, { headers: { ...form, origin: PUBLIC }, body: "label=x" });
+  assert.equal((await call("POST", `/invite/${raw}`, { headers: { ...form, origin: "https://evil.example.com" }, body: linkForm("x") })).status, 403);
+  const ok = await call("POST", `/invite/${raw}`, { headers: { ...form, origin: PUBLIC }, body: linkForm("x") });
   assert.equal(ok.status, 303);
   assert.match(ok.headers["set-cookie"][0], /HttpOnly; Secure; SameSite=Strict; Path=\//);
   assert.equal((await call("GET", "/trust")).status, 404);
@@ -70,7 +71,7 @@ test("the link command and invite text carry no fingerprint behind the router", 
   const link = await call("POST", `/repos/${repo}/link-code`, { headers: form, body: `csrf=${csrf}` });
   assert.match(link.text, /pazmo-office hub-link --project &#60;이 레포의 로컬 경로&#62; --hub https:\/\/pazmo-hub\.apps\.example\.com --code [A-Za-z0-9_-]{43}</);
   assert.doesNotMatch(link.text, /--fingerprint/);
-  const invite = await call("POST", "/invites", { headers: form, body: `csrf=${csrf}&name=B` });
+  const invite = await call("POST", "/invites", { headers: form, body: `csrf=${csrf}&name=B&email=b%40example.com` });
   assert.doesNotMatch(invite.text, /지문|\/trust/);
 });
 
