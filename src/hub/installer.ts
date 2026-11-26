@@ -119,10 +119,8 @@ main() {
   fi
   run_step "Office 준비" install_office </dev/null
 
-  if ! gh auth status --hostname github.com >/dev/null 2>&1 </dev/null; then
-    run_step "GitHub 로그인" gh auth login --hostname github.com --web --git-protocol https <"$TTY"
-  fi
-
+  # No GitHub login here: mac connect asks gh for the host of each repo the person owns (a company GitHub Enterprise
+  # included) and logs in there, so a person whose repos live on a company host is never sent to github.com.
   if ! claude auth status 2>/dev/null </dev/null | grep -Eq '"loggedIn"[[:space:]]*:[[:space:]]*true'; then
     run_step "Claude 로그인" claude auth login <"$TTY"
   fi

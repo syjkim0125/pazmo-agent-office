@@ -318,19 +318,19 @@ test("a fresh Mac clones the Office at the served ref; an existing one fetches t
   assert.ok(moved.calls().includes(`git -C ${moved.office} fetch --depth 1 https://github.example.com/team/office.git release/1.2`), moved.calls().join("\n"));
 });
 
-test("gh auth login and claude auth login run only when logged out", async (t) => {
+test("claude auth login runs only when logged out, and the installer never asks gh about github.com", async (t) => {
+  // GitHub is logged in by mac connect, for the host of each repo the person owns (a company GitHub Enterprise too).
   const out = world(t);
   const first = await out.run(script(), { env: { FAKE_HAVE: READY.FAKE_HAVE } });
   assert.equal(first.code, 0, first.text);
-  assert.ok(out.calls().includes("gh auth status --hostname github.com"));
-  assert.ok(out.calls().includes("gh auth login --hostname github.com --web --git-protocol https"));
+  assert.equal(out.calls().some((c) => c.startsWith("gh auth")), false, out.calls().join("\n"));
   assert.ok(out.calls().includes("claude auth status"));
   assert.ok(out.calls().includes("claude auth login"));
 
   const inn = world(t);
   const second = await inn.run(script(), { env: READY });
   assert.equal(second.code, 0, second.text);
-  assert.ok(inn.calls().includes("gh auth status --hostname github.com"));
+  assert.equal(inn.calls().some((c) => c.startsWith("gh auth")), false, inn.calls().join("\n"));
   assert.ok(inn.calls().includes("claude auth status"));
   assert.equal(inn.calls().some((c) => / auth login/.test(c)), false, "logged in: no login dialog");
 });
