@@ -75,6 +75,23 @@ test("a turn Office stopped with a reason names the reason, so the person can ac
   assert.ok(long.detail.length <= 1600 && !long.detail.includes("\n"), long.detail);
 });
 
+test("a run refused before any turn output (no runner events) says why: its code, and Office's reason (2026-11-26)", () => {
+  // A runner Office refused before it started (a pinned binary, codex personal instructions, a spawn failure) has no
+  // turn events and exitCode null; the detail used to say only "exitCode=null" and drop the code.
+  const refused = (error, extra = {}) => ({ closed: true, result: { exitCode: null, signal: null, error, timedOut: false, stderr: "", stdout: "", ...extra } });
+  assert.equal(rejection(() => acceptPlanning(pm(), refused("CLAUDE_SPAWN_FAILED"))).detail, "exitCode=null; error=CLAUDE_SPAWN_FAILED");
+  // A code with words after it keeps the code only: the words may hold paths of the person's Mac.
+  assert.equal(
+    rejection(() => acceptPlanning(pm(), refused("CODEX_PERSONAL_INSTRUCTIONS: /Users/someone/.codex/AGENTS.md"))).detail,
+    "exitCode=null; error=CODEX_PERSONAL_INSTRUCTIONS",
+  );
+  const detail = "p@m: 실행에 끼어들 수 있는 항목: hooks";
+  assert.equal(
+    rejection(() => acceptPlanning(pm(), refused("CLAUDE_PLUGIN_UNEXPECTED", { detail, signal: "SIGKILL" }))).detail,
+    `exitCode=null; signal=SIGKILL; error=CLAUDE_PLUGIN_UNEXPECTED; ${detail}`,
+  );
+});
+
 test("a refusal naming two plugins, one with a 100-character name, keeps every allow command whole (M4)", async (t) => {
   const { pluginVerdict } = await import("../src/runners/claude-plugins.ts");
   const source = "p" + "x".repeat(60) + "@" + "m".repeat(39);

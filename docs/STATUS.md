@@ -1,3 +1,12 @@
+# 2026-11-26 Claude Code의 캐시 표식은 통과하고, Enter는 허용이며, 막힌 기획은 이유를 말합니다 (작은 변경)
+
+- 팀원 Mac의 claude(2.1.332)가 회사 플러그인 폴더에 `.links_materialized`를 두자, Office가 이 파일을 "실행에 끼어들 수 있는 항목"으로 보고 그 Mac의 claude 역할을 모두 막았습니다. 이제 Claude Code가 캐시 관리용으로 두는 `.links_materialized`·`.gcs-sha`·`.orphaned_at`는 보통 파일이면 통과합니다(`.in_use` 폴더는 원래 통과). 같은 이름의 폴더나 hooks·MCP·agents·commands는 그대로 막습니다.
+- 설치 한 줄의 회사 플러그인 질문이 `[Y/n]`입니다. Enter나 `y`면 허용하고, `n`·다른 말·닫힌 터미널(Ctrl-D)이면 허용하지 않습니다(`installer-org-plugins` Story D4를 사용자 요청으로 바꿈).
+- 실행기가 시작 전에 거절된 기획은 실패 이유에 거절 코드와 Office의 이유를 남깁니다(예: `exitCode=null; error=CLAUDE_SPAWN_FAILED`). 전에는 `exitCode=null`만 남았습니다. 코드 뒤의 말은 그 Mac의 경로를 담을 수 있어 남기지 않습니다.
+- **확인:** QA 스크립트 `qa/plugin-markers-enter-reason.sh` 4/4입니다(고치기 전 4개 모두 실패). `qa/installer-org-plugins.sh`를 이 Mac의 실제 claude와 회사 플러그인, 진짜 터미널로 돌려 y·Enter 허용, n·Ctrl-D 불허를 봤습니다. 전체 시험 2144/2144(Node 24), 타입 검사 exit 0입니다. 작은 변경이라 리뷰는 하지 않았습니다.
+- **남은 것:** 팀원 Mac에서 설치 한 줄을 다시 돌린 뒤 기획이 넘어가는지는 아직 보지 않았습니다. `.gcs-sha`와 `.orphaned_at`의 쓰임새는 Claude Code 안의 같은 표식 목록과 이름으로 판단했습니다.
+- **승인:** 사용자가 2026-11-26 "승인 후 머지"를 골랐습니다.
+
 # 2026-11-26 Office의 VM 준비가 사람의 Docker 설정에 영향받지 않습니다 (작은 변경)
 
 - Docker Desktop을 쓰던 Mac에는 `~/.docker/config.json`에 `"credsStore": "osxkeychain"`이 남습니다. 그런데 그 도우미 프로그램이 없으면, 설치 한 줄의 VM 준비 단계에서 `docker pull`이 `SETUP_FAILED`(`docker-credential-osxkeychain` 없음)로 멈췄습니다(팀원 Mac에서 실제로 일어남).

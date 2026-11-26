@@ -283,11 +283,11 @@ export async function main(args: string[]): Promise<void> {
         const claude = install.status === "ready" && install.path ? { binary: install.path } : { missing: install.hint };
         // Ask only a person at a terminal; under launchd or a pipe nothing is asked or changed. The terminal is read
         // from the first question on, so an answer typed while claude starts is not lost; a terminal closed meanwhile
-        // (Ctrl-D) answers no.
+        // (Ctrl-D) is no answer (null), which allows nothing; Enter allows.
         let terminal: ReturnType<typeof createInterface> | null = null;
-        const ask = async (q: string) => {
+        const ask = async (q: string): Promise<string | null> => {
           terminal ??= createInterface({ input: process.stdin, output: process.stdout });
-          return terminal.question(q).catch(() => "");
+          return terminal.question(q).catch(() => null);
         };
         try {
           await reviewClaudePlugins({

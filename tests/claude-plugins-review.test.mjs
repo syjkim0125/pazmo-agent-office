@@ -44,7 +44,7 @@ function run(d) {
     root: d.root,
     home: d.home,
     claude: d.claude ?? { binary: "/fake/claude" },
-    ...(d.answers ? { ask: async (q) => (asked.push(q), answers.shift() ?? "") } : {}),
+    ...(d.answers ? { ask: async (q) => (asked.push(q), answers.length ? answers.shift() : "") } : {}),
     out: (l) => lines.push(l),
     readInit: async () => d.init,
     ...(d.dataDir ? { dataDir: d.dataDir } : {}),
@@ -64,11 +64,15 @@ test("Q3 a plugin with hooks is never asked about and shows why; a skill-only on
   assert.match(r.text, /허용했습니다/);
 });
 
-test("Q3 already allowed is not asked again; n, Enter or anything but y allows nothing and shows the command that would", async (t) => {
+test("Q3 already allowed is not asked again; Enter or y allows; n, other words or a closed terminal allow nothing and show the command that would", async (t) => {
+  // Enter allows since 2026-11-26 (the question became [Y/n]); a terminal closed at the question (null) is no answer.
   const root = scratch(t);
   const h = home(root, { "skills-only": {} });
+  const enter = await run({ root: join(root, "enter"), home: h, init: init("skills-only@m"), answers: [""] });
+  assert.deepEqual(enter.list, ["skills-only@m"]);
+  assert.match(enter.asked[0], /\[Y\/n\] $/);
   const data = join(root, "data");
-  for (const answer of ["n", "", "yes please", "N"]) {
+  for (const answer of ["n", "yes please", "N", null]) {
     const r = await run({ root: data, home: h, init: init("skills-only@m"), answers: [answer] });
     assert.deepEqual(r.list, [], JSON.stringify(answer));
     assert.match(r.text, /허용하지 않았습니다\. 나중에 허용하려면: .*bin\/pazmo-office\.mjs runner allow-plugin skills-only@m/);
