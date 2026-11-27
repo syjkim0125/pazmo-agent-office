@@ -154,6 +154,8 @@ test("a hub without a board keeps the request board at / and answers 404 for /bo
 
 test("home shows the Mac nudge only when the hub installs Macs and the member has none", async (t) => {
   const os = await proxied(t, { installer: true });
+  // The setup check would hold a member without a Mac at /mac; an exempt one sees home (hub-setup-first S2).
+  os.store.setSetupExempt(os.admin, os.admin.id, true);
   const first = (await os.get("/me")).text;
   assert.ok(first.includes(NUDGE), "OpenShift with the installer and no Mac");
   assert.ok(first.indexOf(NUDGE) < first.indexOf("<h1>내 할 일</h1>"), "at the top");

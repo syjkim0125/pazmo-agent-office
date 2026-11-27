@@ -159,6 +159,18 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
   const tls = c.listen.kind === "tls" ? c.listen.tls : null;
   // Built once the public origin is known (it carries the port in self-CA mode); null serves a 404.
   let installer: string | null = null;
+  /** hub-setup-first: a hub that installs a Mac in one line holds a member at /mac until they pass the setup check. A hub
+   * on its own certificate cannot pair a Mac, so it gates nobody. */
+  const setupGated = (memberId: string) => installer !== null && !c.store.setupPassed(memberId);
+  /** What a member who has not passed the setup check may still open (H3): /mac and the Mac allow pages, their own
+   * sign-ins, the theme switch, revoking their own Mac, and (an admin) exempting themself. */
+  function openWhileGated(path: string, post: boolean, memberId: string): boolean {
+    if (!post) return path === "/mac" || path === "/mac/approve" || path === "/account";
+    if (["/account/logout-others", "/mac/approve", "/mac/deny", "/me/theme", "/mac/exempt"].includes(path)) return true;
+    if (new RegExp(`^/account/devices/${ID}/logout$`).test(path)) return true;
+    const mac = new RegExp(`^/macs/${ID}/revoke$`).exec(path);
+    return !!mac && c.store.macs(memberId).some((k) => k.id === mac[1]);
+  }
   async function browser(req: IncomingMessage, res: ServerResponse, url: URL) {
     const path = url.pathname,
       post = req.method === "POST";
@@ -178,16 +190,18 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
     if (!post && path === "/trust" && tls) return html(res, 200, page.trust(tls.fingerprint));
     if (post && !origins.has(String(req.headers.origin ?? "")))
       throw new HubError("ORIGIN", 403, "다른 사이트에서 보낸 요청은 받지 않습니다.");
-    // Where a browser goes once it has a session: the page it asked for before, or the first page.
-    const signedIn = (session: string, back?: string) => {
+    // Where a browser goes once it has a session: the page it asked for before, or the first page. A member who has not
+    // passed the setup check lands on /mac, where they can do nothing else (hub-setup-first).
+    const signedIn = (session: string, memberId: string, back?: string) => {
       let next: string | null = null;
       try {
         next = safePath(decodeURIComponent(cookieOf(req, NEXT_COOKIE) ?? ""));
       } catch {
         // A value that does not decode is ignored like any other odd one.
       }
+      const land = setupGated(memberId) ? "/mac" : c.board ? (next ?? "/") : "/start";
       // A hub without the Story board has no board to land on.
-      return redirect(res, back ?? (c.board ? (next ?? "/") : "/start"), {
+      return redirect(res, back ?? land, {
         "set-cookie": [
           `${COOKIE}=${session}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${COOKIE_AGE}`,
           ...(cookieOf(req, NEXT_COOKIE) !== undefined ? [`${NEXT_COOKIE}=; Max-Age=0; ${NEXT_ATTRS}`] : []),
@@ -201,12 +215,12 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       const form = new URLSearchParams(await readBody(req, FORM_LIMIT));
       const label = form.get("label")?.trim() || deviceLabel(req.headers["user-agent"]);
       try {
-        const { session } = c.store.acceptInvite(m[1], label, {
+        const { session, member } = c.store.acceptInvite(m[1], label, {
           email: form.get("email") ?? "",
           password: form.get("password") ?? "",
           again: form.get("password2") ?? "",
         });
-        return signedIn(session);
+        return signedIn(session, member.id);
       } catch (error) {
         // A mail or password the form can fix is said on the same form; a dead link stays the error page.
         if (!(error instanceof HubError) || !link || (error.status !== 400 && error.status !== 409)) throw error;
@@ -228,7 +242,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         loginMailLimit.take(mailKey);
         return again(401, LOGIN_WRONG);
       }
-      return signedIn(done.session, macBack);
+      return signedIn(done.session, done.member.id, macBack);
     };
     if (post && path === "/login") return login();
     const s = c.store.session(cookie(req));
@@ -269,12 +283,16 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
           if (!(error instanceof HubError) || (error.status !== 400 && error.status !== 409)) throw error;
           return html(res, error.status, page.setupAccount(me, s.csrf, { error: error.message, email: f("email") }, macHere));
         }
-        return signedIn(token, macHere ? `/mac/approve?code=${encodeURIComponent(code)}` : undefined);
+        return signedIn(token, me.id, macHere ? `/mac/approve?code=${encodeURIComponent(code)}` : undefined);
       }
       if (post) throw new HubError("SETUP", 403, "먼저 메일과 비밀번호를 정해주세요.");
       const remember = safePath(path) ? { "set-cookie": `${NEXT_COOKIE}=${encodeURIComponent(path)}; Max-Age=${NEXT_AGE}; ${NEXT_ATTRS}` } : undefined;
       return html(res, 200, page.setupAccount(me, s.csrf, {}, macHere), remember);
     }
+    // hub-setup-first: until the member passes the setup check, only /mac, the Mac allow pages and their own sign-ins
+    // answer (H3). Any other page sends them to /mac, and any other form is refused there without doing anything (E6).
+    const gated = setupGated(me.id);
+    if (gated && !openWhileGated(path, post, me.id)) return redirect(res, "/mac");
     const trust = !!tls;
     // The repos a member may put in a project from the web: their own, or every repo for a hub admin.
     const projectRepos = () => c.store.repos(me.id).filter((r) => r.isOwner || me.admin).map((r) => ({ id: r.id, name: r.name }));
@@ -288,6 +306,7 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
       autoWork: c.board?.autoWork(me.id),
       csrf: s.csrf,
       ...(safePath(path) ? { path } : {}),
+      ...(gated ? { gated: true } : {}),
     });
     const live = (): page.Chrome => ({ ...chrome(), live: true });
     // M9: the member's own sign-ins.
@@ -410,9 +429,13 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         return html(res, 200, page.start(me, s.csrf, { macNudge: install !== null && ch.mac?.state === "none" }, ch));
       }
       if (path === "/repos") return html(res, 200, page.repos(me, s.csrf, c.store.repos(me.id), c.store.members(), chrome()));
-      if (path === "/members" && me.admin) return html(res, 200, page.members(me, s.csrf, c.store.members(), chrome()));
-      if (path === "/mac")
-        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1" }, live()));
+      if (path === "/members" && me.admin)
+        return html(res, 200, page.members(me, s.csrf, c.store.members(), chrome(), c.store.repos(me.id).map((r) => ({ id: r.id, name: r.name }))));
+      if (path === "/mac") {
+        // The setup check is shown only where it gates: a hub that can install a Mac in one line.
+        const setup = install === null ? null : c.store.setupCheck(me.id);
+        return html(res, 200, page.mac(me, s.csrf, { macs: c.store.macs(me.id), install, approved: url.searchParams.get("approved") === "1", setup }, live()));
+      }
       if (path === "/mac/approve") {
         // Checked before the lookup, so a member who is over the limit cannot tell a live code from a dead one.
         if (decideLimit.full(me.id)) throw tooMany();
@@ -472,12 +495,23 @@ export function startHubServer(c: HubServerConfig, linkApi?: (base: () => string
         "Mac 한 줄 설치를 쓸 수 없는 허브에서는 레포 폴더마다 pazmo-office hub-link --project <레포 폴더> --connect '이 문자열' 을 실행하세요.", value, chrome(), "10분 안에 한 번만 쓸 수 있습니다."));
     }
     if (path === "/invites") {
-      const raw = c.store.createInvite(me, f("name"), f("email"));
+      const raw = c.store.createInvite(me, f("name"), f("email"), form.getAll("repo"));
       return html(res, 200, page.created(me, "초대 링크", `받는 사람에게만 전달하세요.${fingerprintNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다."));
     }
     if ((m = new RegExp(`^/members/${ID}/password-reset$`).exec(path))) {
       const raw = c.store.createPasswordReset(me, m[1]);
       return html(res, 200, page.created(me, "비밀번호 재설정 링크", `그 팀원에게만 전달하세요. 링크에서 새 비밀번호를 정하면 그 팀원의 다른 브라우저 로그인은 끝납니다.${deviceNote}`, `${base}/invite/${raw}`, chrome(), "72시간 동안 한 번만 쓸 수 있습니다. Mac과 Office 연결은 그대로입니다."));
+    }
+    // S2: an admin lets a member use the hub without the setup check, or ends that; on /mac an admin may do it for themself (E9).
+    if ((m = new RegExp(`^/members/${ID}/setup-exempt$`).exec(path))) {
+      const on = f("on");
+      if (on !== "1" && on !== "0") throw new HubError("INVALID", 400, "허용 또는 해제를 골라주세요.");
+      c.store.setSetupExempt(me, m[1], on === "1");
+      return redirect(res, "/members");
+    }
+    if (path === "/mac/exempt") {
+      c.store.setSetupExempt(me, me.id, true);
+      return redirect(res, c.board ? "/" : "/start");
     }
     if ((m = new RegExp(`^/members/${ID}/revoke$`).exec(path))) {
       c.store.revokeMember(me, m[1]);

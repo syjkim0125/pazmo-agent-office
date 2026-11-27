@@ -19,13 +19,15 @@ export const INIT_TIMEOUT_MS = 30000;
  * handler runs, and SIGKILL skips that handler, so the next claude (the team Office the install line starts next)
  * could not sign in for a minute (see `runner-models.ts`). SIGKILL is left for a CLI that ignores SIGTERM. A Ctrl-C,
  * SIGTERM or SIGHUP to this process meanwhile stops the claude too (it is in its own process group, so the terminal's
- * signal does not reach it) before this process ends.
+ * signal does not reach it) before this process ends. `trapSignals: false` leaves the process's signals alone: a team
+ * Office reads the init in a running service whose SIGTERM is its own graceful stop.
  */
 export async function readClaudeInit(
   binary: string,
   home: string,
   timeoutMs = INIT_TIMEOUT_MS,
   stopMs: { term: number; kill: number } = CLAUDE_STOP_MS,
+  trapSignals = true,
 ): Promise<unknown | null> {
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-plugin-review-")));
   const mcpConfig = join(dir, "mcp.json");
@@ -67,7 +69,7 @@ export async function readClaudeInit(
     rmSync(dir, { recursive: true, force: true });
     process.exit(name === "SIGINT" ? 130 : name === "SIGHUP" ? 129 : 143);
   };
-  const signals = ["SIGINT", "SIGTERM", "SIGHUP"] as const;
+  const signals = trapSignals ? (["SIGINT", "SIGTERM", "SIGHUP"] as const) : [];
   for (const s of signals) process.once(s, interrupted);
   try {
     const event = await new Promise<unknown | null>((resolve) => {

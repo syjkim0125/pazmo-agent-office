@@ -5,6 +5,7 @@ import { HUB_ANSWERABLE, OUTGOING_SUMMARY_LIMIT, parseSnapshot, type HubSnapshot
 import { normalizeRemote } from "./remote.ts";
 import { isBaseBranchName } from "./story-protocol.ts";
 import { hashPassword, normalizeEmail, passwordProblem, verifyPassword } from "./account.ts";
+import { setupRows, type SetupView } from "./setup.ts";
 
 export class HubError extends Error {
   code: string;
@@ -86,6 +87,8 @@ export type MacPoll =
 export type MemberView = Member & {
   email: string | null;
   revoked: boolean;
+  /** An admin let this member use the hub without the setup check. */
+  setupExempt: boolean;
   devices: { id: string; label: string; expiresAt: number; revoked: boolean }[];
   macs: MacView[];
 };
@@ -258,6 +261,13 @@ export class HubStore {
       });
     // The mail an admin wrote on an invite; null for the first admin's link and for a reset link.
     if (!columns("hub_invites").has("email")) this.#db.exec("ALTER TABLE hub_invites ADD COLUMN email TEXT");
+    // The repos an admin chose on an invite (a JSON array of repo ids); the new member owns them on joining. Null for none.
+    if (!columns("hub_invites").has("repo_ids")) this.#db.exec("ALTER TABLE hub_invites ADD COLUMN repo_ids TEXT");
+    // The setup check (hub-setup-first): an admin's exemption, and the Mac the member passed the check with (null: not yet).
+    const setupColumns = columns("hub_members");
+    if (!setupColumns.has("setup_exempt")) this.#db.exec("ALTER TABLE hub_members ADD COLUMN setup_exempt INTEGER NOT NULL DEFAULT 0");
+    if (!setupColumns.has("setup_mac_id")) this.#db.exec("ALTER TABLE hub_members ADD COLUMN setup_mac_id TEXT");
+    if (!setupColumns.has("setup_at")) this.#db.exec("ALTER TABLE hub_members ADD COLUMN setup_at INTEGER");
     this.#db.exec(
       "CREATE UNIQUE INDEX IF NOT EXISTS hub_member_email ON hub_members(email) WHERE email IS NOT NULL AND revoked_at IS NULL",
     );
@@ -286,18 +296,26 @@ export class HubStore {
     });
     return raw;
   }
-  /** `email` is the new member's mail as the admin wrote it; only fixtures leave it out. */
-  createInvite(by: Member, name: string, email?: string): string {
+  /**
+   * `email` is the new member's mail as the admin wrote it; only fixtures leave it out. `repoIds` are registered repos the
+   * new member will own once they join (S4a); an id that is not a registered repo is refused.
+   */
+  createInvite(by: Member, name: string, email?: string, repoIds: string[] = []): string {
     if (!by.admin) fail("FORBIDDEN", 403, "관리자만 초대할 수 있습니다.");
     const clean = name.trim();
     if (!clean || clean.length > 40) fail("INVALID", 400, "이름은 1~40자로 적어주세요.");
-    if (email === undefined) return this.#invite(clean, null, null);
+    const repos = [...new Set(repoIds)];
+    for (const id of repos)
+      if (typeof id !== "string" || !UUID.test(id) || !this.#get("SELECT 1 FROM hub_repos WHERE id=?", id))
+        fail("INVALID", 400, "담당 레포를 다시 골라주세요. 고른 레포를 찾을 수 없습니다.");
+    const chosen = repos.length ? JSON.stringify(repos) : null;
+    if (email === undefined) return this.#invite(clean, null, null, chosen);
     const mail = this.#email(email);
     return transaction(this.#db, () => {
       if (this.#get("SELECT 1 FROM hub_invites WHERE email=? AND used_at IS NULL AND expires_at>?", mail, this.#now()))
         fail("CONFLICT", 409, "이 메일로 보낸 초대 링크가 아직 쓰이지 않았습니다. 그 링크를 쓰거나 72시간 뒤에 다시 초대해주세요.");
       this.#emailFree(mail, null);
-      return this.#invite(clean, null, mail);
+      return this.#invite(clean, null, mail, chosen);
     });
   }
   /** M4: a one-time link where the member sets a new password (and a mail when they have none). */
@@ -315,13 +333,13 @@ export class HubStore {
     );
     return admin ? this.#invite(admin.name, admin.id, null) : null;
   }
-  #invite(name: string, memberId: string | null, email: string | null) {
+  #invite(name: string, memberId: string | null, email: string | null, repoIds: string | null = null) {
     const raw = secret();
     // A member has at most one open link: a new reset link retires any earlier one (it may have leaked).
     if (memberId) this.#retireLinks(memberId, null);
     this.#run(
-      "INSERT INTO hub_invites(id,token_hash,name,admin,member_id,expires_at,email) VALUES (?,?,?,0,?,?,?)",
-      randomUUID(), hash(raw), name, memberId, this.#now() + INVITE_TTL, email,
+      "INSERT INTO hub_invites(id,token_hash,name,admin,member_id,expires_at,email,repo_ids) VALUES (?,?,?,0,?,?,?,?)",
+      randomUUID(), hash(raw), name, memberId, this.#now() + INVITE_TTL, email, repoIds,
     );
     return raw;
   }
@@ -365,8 +383,8 @@ export class HubStore {
       const gone = () =>
         fail("INVITE_INVALID", 410, "초대 링크가 만료됐거나 이미 사용됐습니다. 관리자에게 새 링크를 받아주세요.");
       const row =
-        this.#get<{ id: string; name: string; admin: number; member_id: string | null; email: string | null }>(
-          "SELECT id,name,admin,member_id,email FROM hub_invites WHERE token_hash=? AND used_at IS NULL AND expires_at>?",
+        this.#get<{ id: string; name: string; admin: number; member_id: string | null; email: string | null; repo_ids: string | null }>(
+          "SELECT id,name,admin,member_id,email,repo_ids FROM hub_invites WHERE token_hash=? AND used_at IS NULL AND expires_at>?",
           hash(raw), this.#now(),
         ) ?? gone();
       const existing = row.member_id
@@ -397,10 +415,23 @@ export class HubStore {
           "INSERT INTO hub_members(id,name,admin,created_at,email,password_hash) VALUES (?,?,?,?,?,?)",
           member.id, member.name, row.admin, this.#now(), email, passwordHash,
         );
+        // S4a: the repos the admin chose on the invite; one deleted since is skipped.
+        for (const repoId of this.#inviteRepos(row.repo_ids))
+          if (this.#get("SELECT 1 FROM hub_repos WHERE id=?", repoId))
+            this.#run("INSERT OR IGNORE INTO hub_repo_owners VALUES (?,?)", repoId, member.id);
       }
       this.#run("UPDATE hub_invites SET used_at=?,member_id=? WHERE id=?", this.#now(), member.id, row.id);
       return { session: this.#newDevice(member.id, label), member };
     });
+  }
+  #inviteRepos(raw: string | null): string[] {
+    if (!raw) return [];
+    try {
+      const ids: unknown = JSON.parse(raw);
+      return Array.isArray(ids) ? ids.filter((id): id is string => typeof id === "string" && UUID.test(id)) : [];
+    } catch {
+      return [];
+    }
   }
   #newDevice(memberId: string, label: string): string {
     const session = secret();
@@ -480,14 +511,15 @@ export class HubStore {
       "SELECT id,member_id,label,expires_at,revoked_at FROM hub_devices ORDER BY created_at",
     );
     const macs = this.#macRows(null);
-    return this.#all<{ id: string; name: string; admin: number; email: string | null; revoked_at: number | null }>(
-      "SELECT id,name,admin,email,revoked_at FROM hub_members ORDER BY created_at",
+    return this.#all<{ id: string; name: string; admin: number; email: string | null; revoked_at: number | null; setup_exempt: number }>(
+      "SELECT id,name,admin,email,revoked_at,setup_exempt FROM hub_members ORDER BY created_at",
     ).map((m) => ({
       id: m.id,
       name: m.name,
       admin: m.admin === 1,
       email: m.email,
       revoked: m.revoked_at !== null,
+      setupExempt: m.setup_exempt === 1,
       devices: devices
         .filter((d) => d.member_id === m.id)
         .map((d) => ({
@@ -1265,6 +1297,53 @@ export class HubStore {
       badges.set(row.member_id, { state: v.state, lastSeen: v.lastSeen });
     }
     return badges;
+  }
+
+  /**
+   * The member's setup check (hub-setup-first): the four rows as they stand now, and whether the member may use the hub.
+   * A member passes when an admin exempted them, when they passed with the Mac they have now (H2: that Mac going off
+   * keeps it; revoking it or pairing a new one does not), or when the rows pass now, which records that Mac (S3a).
+   */
+  setupCheck(memberId: string): SetupView {
+    const m = this.#get<{ setup_exempt: number; setup_mac_id: string | null }>(
+      "SELECT setup_exempt,setup_mac_id FROM hub_members WHERE id=? AND revoked_at IS NULL", memberId,
+    );
+    const [mac] = this.macs(memberId);
+    const repos = this.#all<{ name: string; linked: number }>(
+      `SELECT r.name,
+         EXISTS(SELECT 1 FROM hub_links l JOIN hub_macs k ON k.id=l.mac_id
+                WHERE l.repo_id=r.id AND l.member_id=o.member_id AND l.mac_id=? AND l.revoked_at IS NULL AND k.revoked_at IS NULL) linked
+       FROM hub_repo_owners o JOIN hub_repos r ON r.id=o.repo_id WHERE o.member_id=? ORDER BY r.name, r.id`,
+      mac?.id ?? null, memberId,
+    ).map((r) => ({ name: r.name, linked: r.linked === 1 }));
+    const starting = !!mac && mac.lastSeen === null && this.#now() - mac.createdAt <= MAC_OFFLINE_MS;
+    const rows = setupRows({ mac: mac ?? null, repos, starting });
+    const ready = rows.every((r) => r.state === "pass");
+    const exempt = m?.setup_exempt === 1;
+    let verified = !!m && !!mac && m.setup_mac_id === mac.id;
+    if (m && mac && ready && !verified) {
+      this.#run("UPDATE hub_members SET setup_mac_id=?,setup_at=? WHERE id=?", mac.id, this.#now(), memberId);
+      verified = true;
+    }
+    return { rows, ready, exempt, verified, passed: !!m && (exempt || verified) };
+  }
+  /** Whether the member may use the hub's pages beyond /mac and their sign-ins; see setupCheck. */
+  setupPassed(memberId: string): boolean {
+    const m = this.#get<{ setup_exempt: number; setup_mac_id: string | null }>(
+      "SELECT setup_exempt,setup_mac_id FROM hub_members WHERE id=? AND revoked_at IS NULL", memberId,
+    );
+    if (!m) return false;
+    if (m.setup_exempt === 1) return true;
+    // The record holds while its Mac is the member's newest live one; otherwise the rows decide (and record) now.
+    if (m.setup_mac_id !== null && this.currentMac(memberId)?.id === m.setup_mac_id) return true;
+    return this.setupCheck(memberId).passed;
+  }
+  /** S2: an admin lets a member (themself included, E9) use the hub without the setup check, or ends that. */
+  setSetupExempt(by: Member, memberId: string, on: boolean) {
+    if (!by.admin) fail("FORBIDDEN", 403, "관리자만 설치 확인을 면제할 수 있습니다.");
+    if (!this.#get("SELECT 1 FROM hub_members WHERE id=? AND revoked_at IS NULL", memberId))
+      fail("NOT_FOUND", 404, "팀원을 찾을 수 없습니다.");
+    this.#run("UPDATE hub_members SET setup_exempt=? WHERE id=?", on ? 1 : 0, memberId);
   }
 
   linkRepos(l: Link): { id: string; name: string; owners: string[] }[] {

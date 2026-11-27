@@ -24,7 +24,8 @@ function harness({ store, board, origin, call, api }) {
     const res = await call("POST", `/invite/${raw}`, { body: linkForm("t"), headers: { origin } });
     assert.equal(res.status, 303);
     const cookie = res.headers["set-cookie"][0].split(";")[0];
-    const csrf = /name="csrf" value="([^"]+)"/.exec((await call("GET", "/repos", { cookie })).text)[1];
+    // /account answers every signed-in member, one the setup check holds at /mac included (hub-setup-first).
+    const csrf = /name="csrf" value="([^"]+)"/.exec((await call("GET", "/account", { cookie })).text)[1];
     return { cookie, csrf, member: store.session(cookie.split("=")[1]).member };
   }
   const get = (path, who) => call("GET", path, { cookie: who?.cookie });
@@ -424,6 +425,8 @@ test("/start nudges a member without a Mac to /mac in OpenShift mode only", asyn
   const NUDGE = /이 Mac 연결 — 처음 한 번, 명령 한 줄/;
   const os = await openshift(t, INSTALLER);
   const admin = await os.enter(os.store.bootstrapAdmin());
+  // The setup check would hold a member without a Mac at /mac; an exempt one still opens /start (hub-setup-first S2).
+  os.store.setSetupExempt(admin.member, admin.member.id, true);
   const nudged = (await os.get("/start", admin)).text;
   assert.match(nudged, NUDGE);
   assert.match(nudged, /<a href="\/mac">/);
@@ -532,6 +535,8 @@ test("a Mac name with <script> is escaped on the approve page, /mac and /members
 test("pages other than /mac still load no script, with or without a Mac", async (t) => {
   const os = await openshift(t, INSTALLER);
   const admin = await os.enter(os.store.bootstrapAdmin());
+  // Exempt from the setup check, so each page is drawn rather than sent to /mac (hub-setup-first S2).
+  os.store.setSetupExempt(admin.member, admin.member.id, true);
   const check = async () => {
     for (const path of ["/", "/repos", "/start", "/members", "/mac/approve?code=BCDF-0000", `/mac/approve?code=${os.store.startMac("x").userCode}`])
       assert.doesNotMatch((await os.get(path, admin)).text, /<script/i, path);

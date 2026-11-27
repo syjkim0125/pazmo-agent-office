@@ -1340,6 +1340,62 @@ test("while a restart is held the Office claims nothing", async (t) => {
   assert.equal(mac.restarts, 1);
 });
 
+test("S1 (hub-setup-first): a live Office whose claude roles load a company plugin that is not allowed is limited with the plugin's detail, claims nothing and says so once; allowed, it claims again", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  // Only claude is ready, so the engine's default agent runs claude for work and review.
+  const claudeOnly = () => {
+    const catalog = readyCatalog();
+    Object.assign(catalog.installs.codex, { status: "missing", loggedIn: false, hint: "없음" });
+    delete catalog.models.codex;
+    return catalog;
+  };
+  const f = fixture(t);
+  f.link(await f.repo("alpha"), "a").claimReply = claimed("t1");
+  const mac = fakeMac();
+  let block = "claude: plugin-unlisted example-plugin@example-market";
+  let checks = 0;
+  await f.open(f.live({ ...mac.config, runnerCatalog: async () => claudeOnly(), pluginCheck: async () => (checks++, block), driveMs: 1e9 }));
+  await flush();
+  assert.equal(checks, 1, "the start's runner check asks about the plugins");
+  assert.deepEqual(mac.beats, [["limited", "claude: plugin-unlisted example-plugin@example-market"]]);
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.equal(claims(f), 0, "nothing is claimed while a plugin keeps the claude roles from running");
+  assert.equal(checks, 2, "while not ready, each claim tick asks again (the default check answers from its cache)");
+  const said = f.logs.filter((line) => line.includes("plugin-unlisted"));
+  assert.deepEqual(said, ["team: not claiming: claude: plugin-unlisted example-plugin@example-market; allow it on this Mac with pazmo-office runner plugins --review"]);
+
+  // A refused plugin is said as such, once.
+  block = "claude: plugin-refused example-plugin@example-market";
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.equal(f.logs.filter((line) => line.includes("plugin-refused")).length, 1);
+  // The heartbeat goes out every 60000 ms: the next one carries it.
+  t.mock.timers.tick(30000);
+  await flush();
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.deepEqual(mac.beats.at(-1), ["limited", "claude: plugin-refused example-plugin@example-market"]);
+  assert.equal(f.logs.filter((line) => line.includes("plugin-refused")).length, 1, "said once while it repeats");
+
+  // The person allows it: the next tick finds it passing and claims.
+  block = null;
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.ok(f.logs.includes("team: every repo's runners are ready; claiming again"), f.logs.join("\n"));
+  assert.equal(claims(f), 1);
+
+  // An Office whose agents run no claude never asks.
+  const codexOnly = fixture(t);
+  codexOnly.link(await codexOnly.repo("beta"), "b");
+  const codexMac = fakeMac();
+  let asked = 0;
+  await codexOnly.open(codexOnly.live({ ...codexMac.config, pluginCheck: async () => (asked++, "claude: plugin-unlisted x@m"), driveMs: 1e9 }));
+  await flush();
+  assert.equal(asked, 0);
+  assert.deepEqual(codexMac.beats, [["idle", null]]);
+});
+
 test("a live Office whose runners are not ready is not restarted for a changed repo set, until they are; a locked one is", async (t) => {
   t.mock.timers.enable({ apis: ["setInterval"] });
   const f = fixture(t);

@@ -8,6 +8,9 @@ import { openLeanDb } from "../lean/schema.ts";
 import { printable, readLinkConfig } from "../runtime/hub-link.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
+import { readClaudeInit } from "../runners/claude-plugin-review.ts";
+import { readAllowedPlugins } from "../runners/claude-plugins.ts";
+import { createPluginCheck } from "./plugin-check.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
 import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge, pushDevBranch, revertDevMerge, storyBaseTip } from "./branch.ts";
 import { branchOps, createExecutor, prOps } from "./executor.ts";
@@ -146,6 +149,11 @@ export type TeamConfig = {
   driveMs?: number;
   /** Where the Office's lines go; default: stderr (the Office log). */
   log?: (line: string) => void;
+  /** The claude plugin check of a live Office whose runners are otherwise ready (hub-setup-first S1): the heartbeat
+   * detail of a plugin that keeps the claude roles from running (`claude: plugin-unlisted <source>` or
+   * `claude: plugin-refused <source>`), or null. Default: claude's init judged against the allowed list, at most once
+   * per `recheckMs` for the same claude and list. */
+  pluginCheck?: () => Promise<string | null>;
 };
 
 /** Code and message of a failure, for one log line. Hub failures never get
@@ -518,6 +526,22 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let runnersNote: string | null = null;
   /** The runners of the engines that were not ready at the last check, each once: what `limited` names. */
   let runnersWaiting: string[] = [];
+  /** The plugin that kept the claude roles from running at the last check, as the heartbeat says it; null when none. */
+  let pluginBlock: string | null = null;
+  const pluginCheck =
+    c.pluginCheck ??
+    createPluginCheck({
+      claude: async () => {
+        const install = (await discovery.load(c.live?.userHome, c.live?.searchPath)).installs.claude;
+        return install.status === "ready" && install.path && install.sha256 ? { path: install.path, sha256: install.sha256 } : null;
+      },
+      allowed: () => readAllowedPlugins(c.live?.dataRoot ?? c.root),
+      // The Office's own SIGTERM is its graceful stop: the check leaves the process's signals alone.
+      readInit: (binary, home) => readClaudeInit(binary, home, undefined, undefined, false),
+      home: c.live?.userHome ?? hostEnv.home,
+      now: clock,
+      everyMs: recheckMs,
+    });
   /** Asks every engine whether its agent's runners pass today's discovery (one discovery serves them all). One
    * line each time the answer changes, naming the runners that are not ready. */
   async function checkRunners(): Promise<void> {
@@ -538,10 +562,26 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     }
     runnersReady = waiting.length === 0;
     runnersWaiting = names;
+    // S1: with the runners ready, a claude role also needs its plugins to pass Office's check, or its runs refuse.
+    pluginBlock = null;
+    const claudeRoles = engines.some((engine) => {
+      const agent = engine.office!.agents.list().find((a) => a.id === engine.agentId);
+      return !!agent && (agent.work.runner === "claude" || agent.review.runner === "claude");
+    });
+    if (runnersReady && claudeRoles) {
+      try {
+        pluginBlock = await pluginCheck();
+      } catch (error) {
+        log(`team: the claude plugins could not be checked (${describe(error)})`);
+      }
+      if (pluginBlock) runnersReady = false;
+    }
     runnersCheckedAt = clock();
-    const note = runnersReady
-      ? "team: every repo's runners are ready; claiming again"
-      : `team: not claiming: the runners of ${waiting.join(", ")} are not ready; log in to those CLIs on this Mac`;
+    const note = pluginBlock
+      ? `team: not claiming: ${pluginBlock}; allow it on this Mac with pazmo-office runner plugins --review`
+      : runnersReady
+        ? "team: every repo's runners are ready; claiming again"
+        : `team: not claiming: the runners of ${waiting.join(", ")} are not ready; log in to those CLIs on this Mac`;
     // The first ready answer says nothing: claiming is what a live Office does.
     if (note !== runnersNote && !(runnersNote === null && runnersReady)) log(note);
     runnersNote = note;
@@ -555,7 +595,11 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
     const waiting = open ? waitingOf(open) : null;
     if (waiting) return { state: "limited", detail: `${waiting.runner}: ${waiting.kind}`, until: open?.runnerWait?.retryAt ?? null };
     if (!runnersReady)
-      return { state: "limited", detail: runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready", until: null };
+      return {
+        state: "limited",
+        detail: pluginBlock ?? (runnersWaiting.length ? `${runnersWaiting.join(", ")}: not_ready` : "not_ready"),
+        until: null,
+      };
     if (gate.busy() || planner?.active() || checker?.active() || finisher?.active() || devWork?.active() || (open !== null && open.phase !== "failed"))
       return { state: "working", detail: null, until: null };
     return { state: "idle", detail: null, until: null };

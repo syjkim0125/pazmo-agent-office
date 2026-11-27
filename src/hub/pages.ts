@@ -1,5 +1,6 @@
 import { HUB_ANSWERABLE } from "./protocol.ts";
 import type { MacBadge, MacView, Member, MemberView, RepoView, RequestRow, RequestView } from "./store.ts";
+import type { SetupRow, SetupView } from "./setup.ts";
 import type { OpenTaskRef } from "./story-store.ts";
 import type { StoryState, TaskViewState } from "./story-protocol.ts";
 import type { PlanState } from "./plan-protocol.ts";
@@ -274,6 +275,9 @@ export type Chrome = {
   live?: boolean;
   /** Whether the page loads the copy script (outside <main>, so a part swapped in by the live script still gets it). */
   copy?: boolean;
+  /** The member has not passed the setup check (hub-setup-first): the header has no menu, no switch and no link to
+   * pages the member cannot open yet, only their sign-ins, the theme and the Mac. */
+  gated?: boolean;
 };
 /** The newest Mac's state in the header (and on a plan page, the PL's); a Mac whose last beat is older than the store's limit arrives as "off". */
 export const macBadgeLabel = (b: MacBadge) =>
@@ -331,6 +335,8 @@ function boardHeader(me: Member, chrome: Chrome): string {
         .join("")
     : "";
   const mac = chrome.mac ? macChip(chrome.mac) : "";
+  if (chrome.gated)
+    return `<div class="me"><span class="person">${avatar(me)}<span class="name">${esc(me.name)}</span></span><a class="acct" href="/account">내 로그인</a>${theme}${mac}</div>`;
   const here = menuOf(chrome.path);
   const item = (href: string, label: string) => `<a href="${href}"${here === href ? ' aria-current="page"' : ""}>${label}</a>`;
   return `<nav>${item("/", "보드")}${item("/team", "팀")}</nav><div class="me"><a class="person" href="/me">${avatar(me)}<span class="name">${esc(me.name)}</span></a><a class="acct" href="/account">내 로그인</a>${sw}${theme}${mac}</div>`;
@@ -339,6 +345,8 @@ function boardHeader(me: Member, chrome: Chrome): string {
 export function layout(title: string, me: Member | null, body: string, chrome: Chrome = {}) {
   const nav = me && chrome.autoWork !== undefined
     ? boardHeader(me, chrome)
+    : me && chrome.gated
+    ? `<nav><a href="/account" title="내 로그인">${esc(me.name)}</a>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : me
     ? `<nav><a href="/repos">레포</a>${me.admin ? '<a href="/members">팀원·초대</a>' : ""}<a href="/requests">요청 게시판</a><a href="/start">내 Office 연결</a>${chrome.trust === false ? "" : '<a href="/trust">인증서</a>'}<a href="/account" title="내 로그인">${esc(me.name)}</a>${chrome.mac ? macChip(chrome.mac) : ""}</nav>`
     : "";
@@ -516,14 +524,16 @@ export function repos(me: Member, csrf: string, list: RepoView[], members: Membe
   return layout("레포", me, `<section><h1>레포 등록</h1><form method="post" action="/repos">${csrfField(csrf)}<label>이름<input name="name" required maxlength="80" placeholder="app-be"></label><label>git 원격 주소 (origin)<input name="remote" required placeholder="https://github.example.com/team/app-be.git"></label><button>등록 (내가 첫 담당자)</button></form></section><section><h2>팀 레포</h2>${list.length ? `<ul class="roster">${rows}</ul>` : '<p class="muted">아직 등록된 레포가 없습니다.</p>'}</section>`, chrome);
 }
 /** One row per member; what changes a member (new browser link, revoking a browser, a Mac or the member) sits in a 관리 fold. */
-export function members(me: Member, csrf: string, list: MemberView[], chrome: Chrome = {}) {
+export function members(me: Member, csrf: string, list: MemberView[], chrome: Chrome = {}, repos: { id: string; name: string }[] = []) {
   const rows = list
     .map((m) => {
       const browsers = m.devices.length
         ? m.devices.map((d) => (d.revoked || m.revoked ? `${esc(d.label)}(끊김)` : `${esc(d.label)} · ${esc(teamDay(d.expiresAt))}까지`)).join(", ")
         : "없음";
       const macs = m.macs.length ? m.macs.map((k) => `${esc(k.name)} (${esc(macState(k))})`).join(", ") : "없음";
+      // S2: let the member use the hub without the setup check (someone who only reads, answers and approves), or end that.
       const actions =
+        exemptForm(`/members/${m.id}/setup-exempt`, csrf, !m.setupExempt) +
         button(`/members/${m.id}/password-reset`, csrf, "비밀번호 재설정 링크", "secondary") +
         m.devices.filter((d) => !d.revoked).map((d) => button(`/devices/${d.id}/revoke`, csrf, `기기 회수: ${d.label} (${teamDay(d.expiresAt)}까지)`, "secondary")).join("") +
         m.macs.map((k) => button(`/macs/${k.id}/revoke`, csrf, `Mac 해제: ${k.name}`, "secondary")).join("") +
@@ -531,17 +541,44 @@ export function members(me: Member, csrf: string, list: MemberView[], chrome: Ch
       const fold = m.revoked
         ? ""
         : `<details class="manage"><summary>관리</summary><p class="note">기기를 회수하면 그 브라우저는 다시 로그인해야 합니다.${m.id === me.id ? "" : " 팀원을 회수하면 그 사람의 Office 연결과 Mac도 끊기고, 되돌릴 수 없습니다."}</p><div class="row">${actions}</div></details>`;
-      return `<li class="member"><p class="row"><span class="person">${avatar(m)}${esc(m.name)}</span>${m.admin ? '<span class="pill">관리자</span>' : ""}${m.revoked ? '<span class="pill">회수됨</span>' : ""}</p><p class="muted">메일: ${m.email ? esc(m.email) : "아직 없음"}</p><p class="muted">브라우저: ${browsers}</p><p class="muted">Mac: ${macs}</p>${fold}</li>`;
+      return `<li class="member"><p class="row"><span class="person">${avatar(m)}${esc(m.name)}</span>${m.admin ? '<span class="pill">관리자</span>' : ""}${m.revoked ? '<span class="pill">회수됨</span>' : ""}${m.setupExempt && !m.revoked ? '<span class="pill">설치 확인 면제</span>' : ""}</p><p class="muted">메일: ${m.email ? esc(m.email) : "아직 없음"}</p><p class="muted">브라우저: ${browsers}</p><p class="muted">Mac: ${macs}</p>${fold}</li>`;
     })
     .join("");
   const live = list.filter((m) => !m.revoked).length,
     gone = list.length - live;
-  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><label>받는 사람 메일<input name="email" type="email" required maxlength="254" placeholder="name@example.com"></label><button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명${gone ? ` · 회수됨 ${gone}명` : ""}</h2><ul class="roster">${rows}</ul></section>`, chrome);
+  // S4a: the repos the new member will own; their Mac clones and links them during the install line.
+  const repoChoice = repos.length
+    ? `<fieldset><legend>담당 레포 <span class="muted">(선택)</span></legend>${repos.map((r) => `<label><input type="checkbox" name="repo" value="${esc(r.id)}">${esc(r.name)}</label>`).join("")}<p class="muted">초대받은 사람이 들어오면 고른 레포의 담당자가 되고, Mac 설치 때 그 레포를 내려받아 연결합니다.</p></fieldset>`
+    : "";
+  return layout("팀원·초대", me, `<section><h1>팀원 초대</h1><form method="post" action="/invites">${csrfField(csrf)}<label>받는 사람 이름<input name="name" required maxlength="40"></label><label>받는 사람 메일<input name="email" type="email" required maxlength="254" placeholder="name@example.com"></label>${repoChoice}<button>초대 링크 만들기</button></form></section><section><h2>팀원 ${live}명${gone ? ` · 회수됨 ${gone}명` : ""}</h2><ul class="roster">${rows}</ul></section>`, chrome);
 }
-export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: string | null; approved: boolean }, chrome: Chrome = {}) {
+/** The setup button: [설치 확인 없이 허용] when `on`, [면제 해제] otherwise. */
+const exemptForm = (action: string, csrf: string, on: boolean) =>
+  `<form class="inline" method="post" action="${esc(action)}">${csrfField(csrf)}<input type="hidden" name="on" value="${on ? "1" : "0"}"><button class="secondary">${on ? "설치 확인 없이 허용" : "면제 해제"}</button></form>`;
+const SETUP_STATE: Record<SetupRow["state"], string> = { pass: "통과", wait: "아직", checking: "확인 중" };
+const SETUP_TONE: Record<SetupRow["state"], Tone> = { pass: "done", wait: "need", checking: "run" };
+/** hub-setup-first: the four rows of the setup check, what each waits for, and the way into the hub once they pass. */
+function setupPanel(me: Member, csrf: string, v: SetupView): string {
+  const rows = v.rows
+    .map((r) => {
+      const text = r.state === "pass" ? r.text : `${SETUP_STATE[r.state]}: ${r.text}`;
+      const command = r.command ? `<pre class="mono">${esc(r.command)}</pre>` : "";
+      return `<li><p class="row"><b>${esc(r.label)}</b>${tonePill(SETUP_TONE[r.state], SETUP_STATE[r.state])}</p><p>${esc(text)}</p>${command}</li>`;
+    })
+    .join("");
+  const head = v.passed
+    ? `<p role="status"><b>${v.exempt && !v.verified ? "설치 확인 면제" : "설치 확인 완료"}</b></p><p><a class="btn" href="/">허브로 가기</a></p>`
+    : `<p class="muted">아래 네 칸이 모두 통과하면 허브로 들어갑니다. 이 화면은 저절로 바뀝니다.</p>`;
+  const self = !v.passed && me.admin
+    ? `<p class="muted">${say("관리자는 Mac 없이 허브를 쓰도록 자신을 면제할 수 있습니다.")}</p><div class="row">${exemptForm("/mac/exempt", csrf, true)}</div>`
+    : "";
+  return `<section aria-labelledby="setup-title"><h2 id="setup-title">설치 확인</h2>${head}<ul class="work">${rows}</ul>${self}</section>`;
+}
+/** `setup`: the member's setup check, on a hub that installs a Mac in one line; null elsewhere (nothing is gated there). */
+export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: string | null; approved: boolean; setup?: SetupView | null }, chrome: Chrome = {}) {
   const done = o.approved ? `<section role="status"><h2>허용했습니다. 터미널로 돌아가세요</h2><p>설치가 끝나고 Office가 켜지면 아래 표에서 내 Mac의 상태를 볼 수 있습니다.</p></section>` : "";
   const connect = o.install
-    ? `<section><h1>이 Mac 연결</h1><p>Apple Silicon Mac의 터미널에서 아래 한 줄을 실행하세요.${info("info-install", "설치 명령 설명", "처음 한 번이면 되고, 관리자 암호는 필요 없습니다.")}</p><pre id="copy-value">${esc(o.install)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><h3>이 명령이 하는 일</h3><ol><li>${say("필요한 프로그램(Node, git, GitHub CLI, Colima, Docker, Claude Code)을 설치합니다. 이미 있으면 건너뛰고, Homebrew가 먼저 있어야 합니다.")}</li><li>${say("브라우저가 열리면 Claude에 로그인합니다. 담당 레포가 있는 GitHub(회사 GitHub 포함)에는 Mac 연결 단계에서 로그인합니다.")}</li><li>${say("터미널에 코드가 나오고 이 허브의 허용 화면이 열립니다. 터미널의 코드와 같은지 확인하고 허용하세요.")}</li><li>내가 담당하는 레포를 이 Mac에 clone합니다.</li><li>이 Mac에 로그인할 때마다 Office가 자동으로 켜집니다.</li></ol><p class="muted">${say("연결된 Mac은 한 사람에 하나입니다. 새 Mac을 연결하면 이전 Mac 연결은 해제됩니다.")}</p></section><script src="/copy.js" defer></script>`
+    ? `<section><h1>이 Mac 연결</h1>${o.setup && !o.setup.passed ? "<p><b>설치가 확인되면 허브를 쓸 수 있습니다.</b></p>" : ""}<p>Apple Silicon Mac의 터미널에서 아래 한 줄을 실행하세요.${info("info-install", "설치 명령 설명", "처음 한 번이면 되고, 관리자 암호는 필요 없습니다.")}</p><pre id="copy-value">${esc(o.install)}</pre><p><span aria-live="polite"><button type="button" data-copy-target="copy-value">복사</button></span></p><h3>이 명령이 하는 일</h3><ol><li>${say("필요한 프로그램(Node, git, GitHub CLI, Colima, Docker, Claude Code)을 설치합니다. 이미 있으면 건너뛰고, Homebrew가 먼저 있어야 합니다.")}</li><li>${say("브라우저가 열리면 Claude에 로그인합니다. 담당 레포가 있는 GitHub(회사 GitHub 포함)에는 Mac 연결 단계에서 로그인합니다.")}</li><li>${say("터미널에 코드가 나오고 이 허브의 허용 화면이 열립니다. 터미널의 코드와 같은지 확인하고 허용하세요.")}</li><li>내가 담당하는 레포를 이 Mac에 clone합니다.</li><li>이 Mac에 로그인할 때마다 Office가 자동으로 켜집니다.</li></ol><p class="muted">${say("연결된 Mac은 한 사람에 하나입니다. 새 Mac을 연결하면 이전 Mac 연결은 해제됩니다.")}</p></section><script src="/copy.js" defer></script>`
     : `<section><h1>이 Mac 연결</h1><p>${lns("이 허브는 사내 인증서를 써서 설치 한 줄을 쓸 수 없습니다.", '지금처럼 <a href="/start">내 Office 연결</a>(/start)로 레포마다 연결하세요.')}</p></section>`;
   const off = o.macs.some((k) => k.state === "off");
   const table = o.macs.length
@@ -549,7 +586,8 @@ export function mac(me: Member, csrf: string, o: { macs: MacView[]; install: str
         .map((k) => `<tr><td>${esc(k.name)}</td><td><span class="pill">${esc(macState(k))}</span></td><td>${ago(k.lastSeen)}</td><td>${button(`/macs/${k.id}/revoke`, csrf, "해제", "secondary")}</td></tr>`)
         .join("")}</tbody></table></div>${off ? '<p class="muted">Mac에서 설치 명령을 다시 실행하면 켜집니다.</p>' : ""}`
     : '<p class="muted">연결된 Mac이 없습니다.</p>';
-  return layout("내 Mac", me, `${done}${connect}<section><h2>내 Mac</h2>${table}</section>`, chrome);
+  const setup = o.setup ? setupPanel(me, csrf, o.setup) : "";
+  return layout("내 Mac", me, `${done}${connect}${setup}<section><h2>내 Mac</h2>${table}</section>`, chrome);
 }
 const macForm = (action: string, csrf: string, code: string, label: string, cls = "") =>
   `<form class="inline" method="post" action="${action}">${csrfField(csrf)}<input type="hidden" name="code" value="${esc(code)}"><button${cls ? ` class="${cls}"` : ""}>${label}</button></form>`;
