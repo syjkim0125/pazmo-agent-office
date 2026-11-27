@@ -6,10 +6,10 @@ import { createLeanOffice } from "../lean/office.ts";
 import type { LeanConfig, LeanOffice } from "../lean/office.ts";
 import { openLeanDb } from "../lean/schema.ts";
 import { printable, readLinkConfig } from "../runtime/hub-link.ts";
+import { allowedPlugins } from "../runtime/live.ts";
 import type { LiveConfig } from "../runtime/live.ts";
 import { keptClaudeBlock, loadRunnerCatalog } from "../runtime/runner-settings.ts";
 import { readClaudeInit } from "../runners/claude-plugin-review.ts";
-import { readAllowedPlugins } from "../runners/claude-plugins.ts";
 import { createPluginCheck } from "./plugin-check.ts";
 import type { RunnerCatalog } from "../runtime/runner-settings.ts";
 import { STORY_CHECKOUT, checkoutStoryBase, prepareStoryMerge, pushDevBranch, revertDevMerge, storyBaseTip } from "./branch.ts";
@@ -151,9 +151,13 @@ export type TeamConfig = {
   log?: (line: string) => void;
   /** The claude plugin check of a live Office whose runners are otherwise ready (hub-setup-first S1): the heartbeat
    * detail of a plugin that keeps the claude roles from running (`claude: plugin-unlisted <source>` or
-   * `claude: plugin-refused <source>`), or null. Default: claude's init judged against the allowed list, at most once
-   * per `recheckMs` for the same claude and list. */
-  pluginCheck?: () => Promise<string | null>;
+   * `claude: plugin-refused <source>`), or null. Default: claude's init judged against the allowed list the runs use,
+   * once for the same claude and list (an undecided check again after `recheckMs`). `signal` aborts when the Office
+   * closes; the close waits for the check to end. */
+  pluginCheck?: (signal: AbortSignal) => Promise<string | null>;
+  /** Tests only: claude's init for the default plugin check; default `readClaudeInit` (signals left alone, `signal`
+   * stops it). */
+  readClaudeInit?: (binary: string, home: string, signal: AbortSignal) => Promise<unknown | null>;
 };
 
 /** Code and message of a failure, for one log line. Hub failures never get
@@ -348,6 +352,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
   let devWork: StoryDev | undefined;
   const timers: ReturnType<typeof setInterval>[] = [];
   let stopped = false;
+  /** Ends a claude plugin check under way when the Office closes; the check the close waits for. */
+  const pluginAbort = new AbortController();
+  let pluginFlight: Promise<string | null> | null = null;
   let store: TeamStore | undefined;
   let closing: Promise<void> | undefined;
   /** Made once the engines are open: their settle drives it. */
@@ -364,6 +371,9 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
    * its close begins), then the databases, then the store. */
   function closeAll(): Promise<void> {
     closing ??= (async () => {
+      // A plugin check under way stops its claude first, and the close waits for it, so no claude or folder is left.
+      pluginAbort.abort();
+      await pluginFlight?.catch(() => {});
       stopTimers();
       planner?.stop();
       gate.stop();
@@ -535,9 +545,12 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
         const install = (await discovery.load(c.live?.userHome, c.live?.searchPath)).installs.claude;
         return install.status === "ready" && install.path && install.sha256 ? { path: install.path, sha256: install.sha256 } : null;
       },
-      allowed: () => readAllowedPlugins(c.live?.dataRoot ?? c.root),
-      // The Office's own SIGTERM is its graceful stop: the check leaves the process's signals alone.
-      readInit: (binary, home) => readClaudeInit(binary, home, undefined, undefined, false),
+      // The list Office's runs judge plugins by: the live data root's, none without one.
+      allowed: () => (c.live ? allowedPlugins(c.live) : []),
+      // The Office's own SIGTERM is its graceful stop: the check leaves the process's signals alone, and the close
+      // aborts it through `signal` instead.
+      readInit: (binary, home, signal) =>
+        c.readClaudeInit ? c.readClaudeInit(binary, home, signal!) : readClaudeInit(binary, home, undefined, undefined, false, signal),
       home: c.live?.userHome ?? hostEnv.home,
       now: clock,
       everyMs: recheckMs,
@@ -568,9 +581,15 @@ export async function createTeamOffice(c: TeamConfig): Promise<TeamOffice> {
       const agent = engine.office!.agents.list().find((a) => a.id === engine.agentId);
       return !!agent && (agent.work.runner === "claude" || agent.review.runner === "claude");
     });
-    if (runnersReady && claudeRoles) {
+    if (runnersReady && claudeRoles && !pluginAbort.signal.aborted) {
       try {
-        pluginBlock = await pluginCheck();
+        const check = pluginCheck(pluginAbort.signal);
+        pluginFlight = check;
+        try {
+          pluginBlock = await check;
+        } finally {
+          if (pluginFlight === check) pluginFlight = null;
+        }
       } catch (error) {
         log(`team: the claude plugins could not be checked (${describe(error)})`);
       }

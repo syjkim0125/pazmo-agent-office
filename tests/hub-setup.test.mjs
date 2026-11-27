@@ -280,6 +280,29 @@ test("E4/E7: a Mac whose runners or company plugins are not ready shows why on �
   assert.equal((await h.get("/", b)).status, 200);
 });
 
+test("a repo linked with a connection string (which the Mac cannot replace) passes 담당 레포 연결됨; a revoked one does not", async (t) => {
+  const h = await hubWithInstaller(t);
+  h.store.setSetupExempt(h.admin.member, h.admin.member.id, true);
+  const remote = "https://github.example.com/team/app-be.git";
+  const repo = h.store.addRepo(h.admin.member, "app-be", remote);
+  const b = await h.enter(h.store.createInvite(h.admin.member, "B", "b@example.com"));
+  h.store.addOwner(h.admin.member, repo, b.member.id);
+  h.store.connect(h.store.createConnectCode(b.member), remote);
+  const mac = h.pair(b.member);
+  assert.throws(() => h.store.macLink(mac.auth, repo), { code: "LINKED_ELSEWHERE" });
+  h.store.macHeartbeat(mac.auth, "idle", null);
+  const page = (await h.get("/mac", b)).text;
+  assert.deepEqual(row(page, "담당 레포 연결됨"), { tone: "done", state: "통과", text: "담당 레포 연결됨(app-be)" });
+  assert.equal((await h.get("/", b)).status, 200);
+  // Revoked, the connection-string link no longer counts (a fresh check, on a newly paired Mac).
+  const link = h.store.repos(b.member.id)[0].links.find((l) => l.mac === null);
+  h.store.revokeLink(b.member, link.id);
+  const again = h.pair(b.member);
+  h.store.macHeartbeat(again.auth, "idle", null);
+  assert.equal(h.store.setupCheck(b.member.id).rows[3].state, "wait");
+  assert.equal((await h.get("/", b)).headers.location, "/mac");
+});
+
 test("E5: a member with no repo passes with 담당 레포 없음 once the other three rows pass; a working Mac passes as well", async (t) => {
   const h = await hubWithInstaller(t);
   const b = await h.enter(h.store.createInvite(h.admin.member, "B", "b@example.com"));

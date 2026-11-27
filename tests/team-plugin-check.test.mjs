@@ -78,34 +78,67 @@ test("S1: an unlisted company plugin is claude: plugin-unlisted <source>; a refu
   );
 });
 
-test("S1: one answer serves the same claude and list for recheckMs; a new list (the allow command) or a new claude is checked at once; a failed check waits too", async (t) => {
+test("S1: a decided answer serves while the claude and the list stay the same, however long; a new list (the allow command) or claude is checked at once; one that could not decide is tried again after recheckMs", async (t) => {
   const root = scratch(t);
   const h = home(root, { "skills-only": {} });
   const state = { allowed: [], init: init("skills-only@m"), now: 0 };
   const { check, reads } = checker(h, state);
   assert.equal(await check(), "claude: plugin-unlisted skills-only@m");
-  state.now = 299999;
+  state.now = 10 * 300000;
   assert.equal(await check(), "claude: plugin-unlisted skills-only@m");
-  assert.equal(reads.length, 1, "not run again within recheckMs");
+  assert.equal(reads.length, 1, "the same sha256 and list: claude is not started again");
   state.allowed = ["skills-only@m"];
   assert.equal(await check(), null, "the allow command changed the list: checked at once");
   assert.equal(reads.length, 2);
+  state.now += 10 * 300000;
+  assert.equal(await check(), null);
+  assert.equal(reads.length, 2, "a passing answer is kept too");
   state.sha = "b".repeat(64);
   await check();
   assert.equal(reads.length, 3, "a new claude binary is checked at once");
-  state.now += 300000;
+  // No init (claude did not start, or the check was stopped): undecided, tried again only after recheckMs.
+  state.sha = "c".repeat(64);
+  state.init = null;
+  assert.equal(await check(), null);
+  assert.equal(reads.length, 4);
+  state.now += 299999;
   await check();
-  assert.equal(reads.length, 4, "after recheckMs it runs again");
+  assert.equal(reads.length, 4, "not before recheckMs");
+  state.now += 1;
+  state.init = init("skills-only@m");
+  await check();
+  assert.equal(reads.length, 5, "after recheckMs it runs again");
   // Two calls at once share one check.
-  state.now += 300000;
+  state.sha = "d".repeat(64);
   await Promise.all([check(), check()]);
-  assert.equal(reads.length, 5);
-  // A failed check is thrown once and not retried on every call.
+  assert.equal(reads.length, 6);
+  // A failed check is thrown once, not retried on every call, and retried after recheckMs.
+  state.sha = "e".repeat(64);
   state.fail = true;
-  state.now += 300000;
   await assert.rejects(check(), /spawn failed/);
   assert.equal(await check(), null);
-  assert.equal(reads.length, 6);
+  assert.equal(reads.length, 7);
+  state.fail = false;
+  state.now += 300000;
+  assert.equal(await check(), null);
+  assert.equal(reads.length, 8, "the failed check is retried after recheckMs");
+});
+
+test("S1: the check hands its signal to the init reader", async (t) => {
+  const root = scratch(t);
+  const h = home(root, { "skills-only": {} });
+  let seen;
+  const check = createPluginCheck({
+    claude: async () => ({ path: "/fake/claude", sha256: "a".repeat(64) }),
+    allowed: () => [],
+    readInit: async (_binary, _home, signal) => ((seen = signal), null),
+    home: h,
+    now: () => 0,
+    everyMs: 300000,
+  });
+  const stop = new AbortController();
+  await check(stop.signal);
+  assert.equal(seen, stop.signal);
 });
 
 test("pluginDetail keeps the heartbeat detail within the Hub's 200 characters", () => {

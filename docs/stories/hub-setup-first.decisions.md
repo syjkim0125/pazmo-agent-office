@@ -59,12 +59,12 @@ D7. The exemption button sits in the member's 관리 fold.  Status: proposed
 - Kept true by: `tests/hub-setup.test.mjs` E8; `tests/hub-board-page.test.mjs` U45.
 
 D8. The Office's plugin check.  Status: proposed
-- Chosen: when every engine's runners pass and an engine's agent runs claude (work or review), the team Office starts claude up to its init (no model call) and judges its plugins against the allowed list. The first unlisted plugin wins over a refused one in the heartbeat (`claude: plugin-unlisted <source>`, else `claude: plugin-refused <source>`, cut at 200 characters). One answer serves the same claude binary (sha256) and allowed list for the recheck interval (5 minutes); a changed list is checked on the next claim tick. A failed check judges nothing (the runs still refuse a bad plugin as before). The check does not trap the process's signals, so the Office's SIGTERM stays its graceful stop.
-- Instead of: refused first, or checking on every tick.
+- Chosen: when every engine's runners pass and an engine's agent runs claude (work or review), the team Office starts claude up to its init (no model call) and judges its plugins against the allowed list. The first unlisted plugin wins over a refused one in the heartbeat (`claude: plugin-unlisted <source>`, else `claude: plugin-refused <source>`, cut at 200 characters). A decided answer serves as long as the claude binary (sha256) and the allowed list stay the same; a changed list or claude is checked on the next claim tick, and a check that could not decide (no init, or it failed) is tried again after the recheck interval (5 minutes). The list is the one Office's runs read (`allowedPlugins` in `src/runtime/live.ts`: the live data root's, none without one), so the row never passes a plugin the runs refuse. The check does not trap the process's signals, so the Office's SIGTERM stays its graceful stop; closing the Office aborts a check under way (its claude is stopped and its folder removed) and waits for it.
+- Instead of: refused first, checking on every tick, or starting claude again every 5 minutes with nothing changed.
 - Because: the allow command fixes an unlisted plugin, so it is the next useful step; starting claude every 30 s would be heavy.
 - You would notice it is wrong if: a Mac with only a refused plugin shows the unlisted one's command after the person allowed it (it then moves to the refused one on the next tick).
 - To reverse: `pluginDetail` and `createPluginCheck` in `src/team/plugin-check.ts`.
-- Kept true by: `tests/team-plugin-check.test.mjs`; `tests/team-office.test.mjs` "S1 (hub-setup-first)".
+- Kept true by: `tests/team-plugin-check.test.mjs`; `tests/team-office.test.mjs` "S1 (hub-setup-first)", "S1: the default plugin check reads the allowed list the runs read…", "S1: closing the Office during a plugin check aborts it…"; `tests/claude-plugins-review.test.mjs` "readClaudeInit with an abort signal…".
 
 D9. An invite's repos are checked when made and skipped when gone.  Status: proposed
 - Chosen: a repo id that is not registered refuses the invite (400); a chosen repo deleted before the link is used is skipped; a password reset link carries no repos.
@@ -73,6 +73,14 @@ D9. An invite's repos are checked when made and skipped when gone.  Status: prop
 - You would notice it is wrong if: a joined member is missing a repo the admin chose.
 - To reverse: `createInvite` and `acceptInvite` in `src/hub/store.ts`.
 - Kept true by: `tests/hub-setup.test.mjs` E11.
+
+D10. A repo linked with a connection string counts as linked.  Status: proposed
+- Chosen: "담당 레포 연결됨" passes a repo the member reaches through a live link of the member's current Mac or a live link made with a connection string (no Mac), the same rule as the hub's live links.
+- Instead of: counting only the Mac's own links.
+- Because: the Mac cannot link a repo another Office holds by a connection string (LINKED_ELSEWHERE), so such a member would stay at /mac although their Office works.
+- You would notice it is wrong if: a member passes while the repo is reached only by an Office on another machine.
+- To reverse: the `linked` subquery of `setupCheck` in `src/hub/store.ts`.
+- Kept true by: `tests/hub-setup.test.mjs` "a repo linked with a connection string…".
 
 ## Example check
 

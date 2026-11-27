@@ -15,6 +15,7 @@ import { writeMacLink } from "../src/team/mac.ts";
 import { addTeamRepo, readTeam, teamDir } from "../src/team/registry.ts";
 import { openTeamStore } from "../src/team/store.ts";
 import { blockHookedClaude } from "../src/runtime/runner-settings.ts";
+import { allowPlugin } from "../src/runners/claude-plugins.ts";
 import { PLAN_ID, fakePlanGit, fakePlanLink, leaseOf, planRecord, scriptedTurns } from "./plan-fixture.mjs";
 
 const TOKEN = "a".repeat(64);
@@ -1394,6 +1395,69 @@ test("S1 (hub-setup-first): a live Office whose claude roles load a company plug
   await flush();
   assert.equal(asked, 0);
   assert.deepEqual(codexMac.beats, [["idle", null]]);
+});
+
+/** Only claude is ready, so an engine's default agent runs claude for work and review. */
+const claudeOnlyCatalog = () => {
+  const catalog = readyCatalog();
+  Object.assign(catalog.installs.codex, { status: "missing", loggedIn: false, hint: "없음" });
+  delete catalog.models.codex;
+  return catalog;
+};
+/** A HOME where Claude Code registered one skill-only plugin `name@m`. */
+function pluginHome(root, name) {
+  const h = join(root, "plugin-home");
+  const dir = join(h, ".claude/plugins/cache/m", name, "1.0.0");
+  mkdirSync(join(dir, ".claude-plugin"), { recursive: true });
+  mkdirSync(join(dir, "skills/s"), { recursive: true });
+  writeFileSync(join(dir, "skills/s/SKILL.md"), "---\nname: s\ndescription: d\n---\n");
+  writeFileSync(join(dir, ".claude-plugin/plugin.json"), JSON.stringify({ name, version: "1.0.0", description: "d" }));
+  writeFileSync(join(h, ".claude/plugins/installed_plugins.json"), JSON.stringify({ version: 2, plugins: { [`${name}@m`]: [{ scope: "managed", installPath: dir, version: "1.0.0" }] } }));
+  return h;
+}
+const pluginInit = (source) => ({ type: "system", subtype: "init", plugins: [{ name: source, source }] });
+
+test("S1: the default plugin check reads the allowed list the runs read: without live.dataRoot a list under the Office's root allows nothing; with it, the plugin passes", async (t) => {
+  for (const named of [false, true]) {
+    const f = fixture(t);
+    f.link(await f.repo("alpha"), "a");
+    const home = pluginHome(f.root, "skills-only");
+    allowPlugin(f.data, "skills-only@m");
+    const mac = fakeMac();
+    const config = f.live({ ...mac.config, runnerCatalog: async () => claudeOnlyCatalog(), readClaudeInit: async () => pluginInit("skills-only@m"), driveMs: 1e9 });
+    config.live = { ...config.live, userHome: home, ...(named ? { dataRoot: f.data } : {}) };
+    await f.open(config);
+    await flush();
+    assert.deepEqual(mac.beats, [named ? ["idle", null] : ["limited", "claude: plugin-unlisted skills-only@m"]], `dataRoot ${named}`);
+  }
+});
+
+test("S1: closing the Office during a plugin check aborts it (its claude is stopped) and the close resolves", async (t) => {
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const f = fixture(t);
+  f.link(await f.repo("alpha"), "a").claimReply = claimed("t1");
+  const home = pluginHome(f.root, "skills-only");
+  const signals = [];
+  let reads = 0;
+  // The first init names a plugin not on the list; once the list changes, the next check never reaches its init.
+  const readClaudeInit = (_binary, _home, signal) => {
+    signals.push(signal);
+    if (++reads === 1) return Promise.resolve(pluginInit("skills-only@m"));
+    return new Promise((resolve) => signal.addEventListener("abort", () => resolve(null), { once: true }));
+  };
+  const config = f.live({ runnerCatalog: async () => claudeOnlyCatalog(), readClaudeInit, driveMs: 1e9 });
+  config.live = { ...config.live, userHome: home, dataRoot: f.data };
+  const office = await f.open(config);
+  await flush();
+  assert.equal(reads, 1);
+  allowPlugin(f.data, "skills-only@m");
+  t.mock.timers.tick(30000);
+  await flush();
+  assert.equal(reads, 2, "the changed list is checked on the next claim tick");
+  assert.equal(signals[1].aborted, false);
+  await office.close();
+  assert.equal(signals[1].aborted, true, "the close aborted the check under way");
+  assert.equal(claims(f), 0);
 });
 
 test("a live Office whose runners are not ready is not restarted for a changed repo set, until they are; a locked one is", async (t) => {

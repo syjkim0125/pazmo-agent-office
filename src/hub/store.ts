@@ -1309,10 +1309,13 @@ export class HubStore {
       "SELECT setup_exempt,setup_mac_id FROM hub_members WHERE id=? AND revoked_at IS NULL", memberId,
     );
     const [mac] = this.macs(memberId);
+    // A repo counts as linked by this Mac's live link, or by a live link made with a connection string (which the Mac
+    // cannot replace: macLink refuses it as LINKED_ELSEWHERE), the same rule as #liveLinks.
     const repos = this.#all<{ name: string; linked: number }>(
       `SELECT r.name,
-         EXISTS(SELECT 1 FROM hub_links l JOIN hub_macs k ON k.id=l.mac_id
-                WHERE l.repo_id=r.id AND l.member_id=o.member_id AND l.mac_id=? AND l.revoked_at IS NULL AND k.revoked_at IS NULL) linked
+         EXISTS(SELECT 1 FROM hub_links l LEFT JOIN hub_macs k ON k.id=l.mac_id
+                WHERE l.repo_id=r.id AND l.member_id=o.member_id AND l.revoked_at IS NULL
+                  AND (l.mac_id=? OR l.mac_id IS NULL) AND (l.mac_id IS NULL OR k.revoked_at IS NULL)) linked
        FROM hub_repo_owners o JOIN hub_repos r ON r.id=o.repo_id WHERE o.member_id=? ORDER BY r.name, r.id`,
       mac?.id ?? null, memberId,
     ).map((r) => ({ name: r.name, linked: r.linked === 1 }));

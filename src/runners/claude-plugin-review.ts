@@ -20,7 +20,8 @@ export const INIT_TIMEOUT_MS = 30000;
  * could not sign in for a minute (see `runner-models.ts`). SIGKILL is left for a CLI that ignores SIGTERM. A Ctrl-C,
  * SIGTERM or SIGHUP to this process meanwhile stops the claude too (it is in its own process group, so the terminal's
  * signal does not reach it) before this process ends. `trapSignals: false` leaves the process's signals alone: a team
- * Office reads the init in a running service whose SIGTERM is its own graceful stop.
+ * Office reads the init in a running service whose SIGTERM is its own graceful stop. `abort` ends the read early the
+ * way the timeout does: the claude's process group is stopped and the folder removed before this returns null.
  */
 export async function readClaudeInit(
   binary: string,
@@ -28,7 +29,9 @@ export async function readClaudeInit(
   timeoutMs = INIT_TIMEOUT_MS,
   stopMs: { term: number; kill: number } = CLAUDE_STOP_MS,
   trapSignals = true,
+  abort?: AbortSignal,
 ): Promise<unknown | null> {
+  if (abort?.aborted) return null;
   const dir = realpathSync(mkdtempSync(join(tmpdir(), "pazmo-plugin-review-")));
   const mcpConfig = join(dir, "mcp.json");
   writeFileSync(mcpConfig, JSON.stringify({ mcpServers: { office: { command: process.execPath, args: ["-e", "0"] } } }), {
@@ -75,10 +78,13 @@ export async function readClaudeInit(
     const event = await new Promise<unknown | null>((resolve) => {
       let buffer = "";
       const timer = setTimeout(() => resolve(null), timeoutMs);
+      const aborted = () => settle(null);
       const settle = (value: unknown | null) => {
         clearTimeout(timer);
+        abort?.removeEventListener("abort", aborted);
         resolve(value);
       };
+      abort?.addEventListener("abort", aborted, { once: true });
       exited.then(() => settle(null));
       child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
         buffer += chunk;

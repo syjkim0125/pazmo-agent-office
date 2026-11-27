@@ -72,7 +72,7 @@ export type LiveConfig = {
 };
 /** The allowed claude plugins of `config`'s data root, read now; none without a data root. An unreadable list
  * allows nothing: such a plugin is refused with the command that allows it. */
-function allowedPlugins(config: LiveConfig): string[] {
+export function allowedPlugins(config: Pick<LiveConfig, "dataRoot">): string[] {
   if (!config.dataRoot) return [];
   try {
     return readAllowedPlugins(config.dataRoot);

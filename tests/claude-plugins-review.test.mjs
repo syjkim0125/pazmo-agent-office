@@ -1,7 +1,7 @@
 // `runner plugins --review` (docs/stories/installer-org-plugins.md): Q3 and Q7 of its QA list run these by name.
 import test from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { readClaudeInit, reviewClaudePlugins } from "../src/runners/claude-plugin-review.ts";
@@ -144,6 +144,27 @@ test("readClaudeInit stops the claude with SIGTERM first, so its exit handler ru
   const started = Date.now();
   assert.deepEqual((await readClaudeInit(stubborn, root, 10000, { term: 300, kill: 2000 })).plugins, []);
   assert.ok(Date.now() - started < 5000);
+});
+
+test("readClaudeInit with an abort signal stops a claude that has not reached its init, removes its folder and gives null; an aborted signal starts nothing", async (t) => {
+  const root = scratch(t);
+  const fake = join(root, "claude");
+  writeFileSync(fake, `#!/bin/sh\ntrap 'echo term > "${root}/term"; exit 0' TERM\necho "$PWD" > "${root}/cwd"\nwhile :; do sleep 1; done\n`);
+  chmodSync(fake, 0o755);
+  const stop = new AbortController();
+  const started = Date.now();
+  const reading = readClaudeInit(fake, root, 30000, undefined, false, stop.signal);
+  for (let i = 0; i < 400 && !existsSync(join(root, "cwd")); i++) await new Promise((resolve) => setTimeout(resolve, 10));
+  stop.abort();
+  assert.equal(await reading, null);
+  assert.ok(Date.now() - started < 10000, "it did not wait for the timeout");
+  assert.equal(existsSync(join(root, "term")), true, "the claude was stopped with SIGTERM");
+  const cwd = readFileSync(join(root, "cwd"), "utf8").trim();
+  assert.match(cwd, /pazmo-plugin-review-/);
+  assert.equal(existsSync(cwd), false, "its folder is removed");
+  rmSync(join(root, "cwd"));
+  assert.equal(await readClaudeInit(fake, root, 30000, undefined, false, stop.signal), null);
+  assert.equal(existsSync(join(root, "cwd")), false, "an aborted signal starts no claude");
 });
 
 test("readClaudeInit reads up to the init event and stops the process; a binary with no init gives null", async (t) => {
